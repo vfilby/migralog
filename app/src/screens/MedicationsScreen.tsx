@@ -1,13 +1,22 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useMedicationStore } from '../store/medicationStore';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/types';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function MedicationsScreen() {
+  const navigation = useNavigation<NavigationProp>();
   const { preventativeMedications, rescueMedications, loadMedications, loading } = useMedicationStore();
 
   useEffect(() => {
-    loadMedications();
-  }, []);
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadMedications();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   return (
     <View style={styles.container}>
@@ -71,7 +80,10 @@ export default function MedicationsScreen() {
           )}
         </View>
 
-        <TouchableOpacity style={styles.addButton}>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => navigation.navigate('AddMedication')}
+        >
           <Text style={styles.addButtonText}>+ Add Medication</Text>
         </TouchableOpacity>
       </ScrollView>

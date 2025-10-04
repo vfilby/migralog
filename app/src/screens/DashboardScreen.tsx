@@ -3,26 +3,26 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-nati
 import { useEpisodeStore } from '../store/episodeStore';
 import { useMedicationStore } from '../store/medicationStore';
 import { format, differenceInDays } from 'date-fns';
+import { MainTabsScreenProps } from '../navigation/types';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/types';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function DashboardScreen() {
-  const { currentEpisode, episodes, loadCurrentEpisode, loadEpisodes, startEpisode } = useEpisodeStore();
-  const { preventativeMedications, loadMedications } = useMedicationStore();
+  const navigation = useNavigation<NavigationProp>();
+  const { currentEpisode, episodes, loadCurrentEpisode, loadEpisodes } = useEpisodeStore();
+  const { preventativeMedications, rescueMedications, loadMedications } = useMedicationStore();
 
   useEffect(() => {
-    loadCurrentEpisode();
-    loadEpisodes();
-    loadMedications();
-  }, []);
-
-  const handleStartEpisode = async () => {
-    await startEpisode({
-      startTime: Date.now(),
-      locations: [],
-      qualities: [],
-      symptoms: [],
-      triggers: [],
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadCurrentEpisode();
+      loadEpisodes();
+      loadMedications();
     });
-  };
+    return unsubscribe;
+  }, [navigation]);
 
   const lastEpisode = episodes.find(ep => ep.endTime);
   const daysSinceLastEpisode = lastEpisode
@@ -69,7 +69,7 @@ export default function DashboardScreen() {
         {!currentEpisode && (
           <TouchableOpacity
             style={[styles.actionButton, styles.primaryButton]}
-            onPress={handleStartEpisode}
+            onPress={() => navigation.navigate('NewEpisode')}
           >
             <Text style={styles.primaryButtonText}>Start Episode</Text>
           </TouchableOpacity>
@@ -78,16 +78,26 @@ export default function DashboardScreen() {
         {currentEpisode && (
           <TouchableOpacity
             style={[styles.actionButton, styles.secondaryButton]}
+            onPress={() => navigation.navigate('EpisodeDetail', { episodeId: currentEpisode.id })}
           >
             <Text style={styles.secondaryButtonText}>Update Episode</Text>
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity
-          style={[styles.actionButton, styles.secondaryButton]}
-        >
-          <Text style={styles.secondaryButtonText}>Log Medication</Text>
-        </TouchableOpacity>
+        {rescueMedications.length > 0 && (
+          <TouchableOpacity
+            style={[styles.actionButton, styles.secondaryButton]}
+            onPress={() => {
+              const firstMed = rescueMedications[0];
+              navigation.navigate('LogMedication', {
+                medicationId: firstMed.id,
+                episodeId: currentEpisode?.id
+              });
+            }}
+          >
+            <Text style={styles.secondaryButtonText}>Log Medication</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Recent Episodes Summary */}

@@ -3,13 +3,22 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native
 import { useEpisodeStore } from '../store/episodeStore';
 import { format } from 'date-fns';
 import { Episode } from '../models/types';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/types';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function EpisodesScreen() {
+  const navigation = useNavigation<NavigationProp>();
   const { episodes, loadEpisodes, loading } = useEpisodeStore();
 
   useEffect(() => {
-    loadEpisodes();
-  }, []);
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadEpisodes();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const renderEpisode = ({ item }: { item: Episode }) => {
     const duration = item.endTime
@@ -17,7 +26,10 @@ export default function EpisodesScreen() {
       : null;
 
     return (
-      <TouchableOpacity style={styles.episodeCard}>
+      <TouchableOpacity
+        style={styles.episodeCard}
+        onPress={() => navigation.navigate('EpisodeDetail', { episodeId: item.id })}
+      >
         <View style={styles.episodeHeader}>
           <Text style={styles.episodeDate}>
             {format(item.startTime, 'EEEE, MMM d, yyyy')}

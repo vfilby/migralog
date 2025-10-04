@@ -4,11 +4,15 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { RootStackParamList, MainTabsParamList } from './types';
 
-// Screens (to be created)
+// Screens
 import DashboardScreen from '../screens/DashboardScreen';
 import EpisodesScreen from '../screens/EpisodesScreen';
 import MedicationsScreen from '../screens/MedicationsScreen';
 import AnalyticsScreen from '../screens/AnalyticsScreen';
+import NewEpisodeScreen from '../screens/NewEpisodeScreen';
+import EpisodeDetailScreen from '../screens/EpisodeDetailScreen';
+import AddMedicationScreen from '../screens/AddMedicationScreen';
+import LogMedicationScreen from '../screens/LogMedicationScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabsParamList>();
@@ -20,6 +24,20 @@ function MainTabs() {
         headerShown: false,
         tabBarActiveTintColor: '#007AFF',
         tabBarInactiveTintColor: '#8E8E93',
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+        },
+        tabBarStyle: {
+          height: 88,
+          paddingBottom: 34,
+          paddingTop: 8,
+          borderTopWidth: 1,
+          borderTopColor: '#E5E5EA',
+        },
+        tabBarItemStyle: {
+          padding: 4,
+        },
       }}
     >
       <Tab.Screen
@@ -66,6 +84,26 @@ export default function AppNavigator() {
           name="MainTabs"
           component={MainTabs}
           options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="NewEpisode"
+          component={NewEpisodeScreen}
+          options={{ headerShown: false, presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="EpisodeDetail"
+          component={EpisodeDetailScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="AddMedication"
+          component={AddMedicationScreen}
+          options={{ headerShown: false, presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="LogMedication"
+          component={LogMedicationScreen}
+          options={{ headerShown: false, presentation: 'modal' }}
         />
       </Stack.Navigator>
     </NavigationContainer>
