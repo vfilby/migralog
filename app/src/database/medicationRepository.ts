@@ -16,7 +16,7 @@ export const medicationRepository = {
 
     await db.runAsync(
       `INSERT INTO medications (
-        id, name, type, dosage_amount, dosage_unit, default_dosage, frequency,
+        id, name, type, dosage_amount, dosage_unit, default_dosage, schedule_frequency,
         photo_uri, start_date, end_date, active, notes, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
@@ -26,7 +26,7 @@ export const medicationRepository = {
         newMedication.dosageAmount,
         newMedication.dosageUnit,
         newMedication.defaultDosage || null,
-        newMedication.frequency || null,
+        newMedication.scheduleFrequency || null,
         newMedication.photoUri || null,
         newMedication.startDate || null,
         newMedication.endDate || null,
@@ -51,6 +51,10 @@ export const medicationRepository = {
       fields.push('name = ?');
       values.push(updates.name);
     }
+    if (updates.type) {
+      fields.push('type = ?');
+      values.push(updates.type);
+    }
     if (updates.dosageAmount !== undefined) {
       fields.push('dosage_amount = ?');
       values.push(updates.dosageAmount);
@@ -63,9 +67,9 @@ export const medicationRepository = {
       fields.push('default_dosage = ?');
       values.push(updates.defaultDosage);
     }
-    if (updates.frequency !== undefined) {
-      fields.push('frequency = ?');
-      values.push(updates.frequency);
+    if (updates.scheduleFrequency !== undefined) {
+      fields.push('schedule_frequency = ?');
+      values.push(updates.scheduleFrequency);
     }
     if (updates.photoUri !== undefined) {
       fields.push('photo_uri = ?');
@@ -134,6 +138,15 @@ export const medicationRepository = {
     return results.map(this.mapRowToMedication);
   },
 
+  async getArchived(): Promise<Medication[]> {
+    const db = await getDatabase();
+    const results = await db.getAllAsync<any>(
+      'SELECT * FROM medications WHERE active = 0 ORDER BY name ASC'
+    );
+
+    return results.map(this.mapRowToMedication);
+  },
+
   async delete(id: string): Promise<void> {
     const db = await getDatabase();
     await db.runAsync('DELETE FROM medications WHERE id = ?', [id]);
@@ -147,7 +160,7 @@ export const medicationRepository = {
       dosageAmount: row.dosage_amount,
       dosageUnit: row.dosage_unit,
       defaultDosage: row.default_dosage,
-      frequency: row.frequency,
+      scheduleFrequency: row.schedule_frequency,
       photoUri: row.photo_uri,
       schedule: [], // Will be loaded separately
       startDate: row.start_date,
@@ -227,6 +240,16 @@ export const medicationDoseRepository = {
     );
   },
 
+  async getAll(limit = 100): Promise<MedicationDose[]> {
+    const db = await getDatabase();
+    const results = await db.getAllAsync<any>(
+      'SELECT * FROM medication_doses ORDER BY timestamp DESC LIMIT ?',
+      [limit]
+    );
+
+    return results.map(this.mapRowToDose);
+  },
+
   async getByMedicationId(medicationId: string, limit = 50): Promise<MedicationDose[]> {
     const db = await getDatabase();
     const results = await db.getAllAsync<any>(
@@ -284,18 +307,37 @@ export const medicationScheduleRepository = {
     };
 
     await db.runAsync(
-      'INSERT INTO medication_schedules (id, medication_id, time, enabled) VALUES (?, ?, ?, ?)',
-      [newSchedule.id, newSchedule.medicationId, newSchedule.time, newSchedule.enabled ? 1 : 0]
+      'INSERT INTO medication_schedules (id, medication_id, time, dosage, enabled) VALUES (?, ?, ?, ?, ?)',
+      [newSchedule.id, newSchedule.medicationId, newSchedule.time, newSchedule.dosage, newSchedule.enabled ? 1 : 0]
     );
 
     return newSchedule;
   },
 
-  async update(id: string, enabled: boolean): Promise<void> {
+  async update(id: string, updates: Partial<MedicationSchedule>): Promise<void> {
     const db = await getDatabase();
+    const fields: string[] = [];
+    const values: any[] = [];
+
+    if (updates.time !== undefined) {
+      fields.push('time = ?');
+      values.push(updates.time);
+    }
+    if (updates.dosage !== undefined) {
+      fields.push('dosage = ?');
+      values.push(updates.dosage);
+    }
+    if (updates.enabled !== undefined) {
+      fields.push('enabled = ?');
+      values.push(updates.enabled ? 1 : 0);
+    }
+
+    if (fields.length === 0) return;
+
+    values.push(id);
     await db.runAsync(
-      'UPDATE medication_schedules SET enabled = ? WHERE id = ?',
-      [enabled ? 1 : 0, id]
+      `UPDATE medication_schedules SET ${fields.join(', ')} WHERE id = ?`,
+      values
     );
   },
 
@@ -315,6 +357,7 @@ export const medicationScheduleRepository = {
       id: row.id,
       medicationId: row.medication_id,
       time: row.time,
+      dosage: row.dosage,
       enabled: row.enabled === 1,
     }));
   },

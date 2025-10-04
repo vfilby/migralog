@@ -19,14 +19,15 @@ import { getPainLevel } from '../utils/painScale';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'NewEpisode'>;
 
-const PAIN_LOCATIONS: { value: PainLocation; label: string }[] = [
-  { value: 'left_temple', label: 'Left Temple' },
-  { value: 'right_temple', label: 'Right Temple' },
-  { value: 'forehead', label: 'Forehead' },
-  { value: 'back_of_head', label: 'Back of Head' },
-  { value: 'top_of_head', label: 'Top of Head' },
-  { value: 'neck', label: 'Neck' },
-  { value: 'whole_head', label: 'Whole Head' },
+const PAIN_LOCATIONS: { value: PainLocation; label: string; side: 'left' | 'right' }[] = [
+  { value: 'left_eye', label: 'Eye', side: 'left' },
+  { value: 'left_temple', label: 'Temple', side: 'left' },
+  { value: 'left_neck', label: 'Neck', side: 'left' },
+  { value: 'left_head', label: 'Head', side: 'left' },
+  { value: 'right_eye', label: 'Eye', side: 'right' },
+  { value: 'right_temple', label: 'Temple', side: 'right' },
+  { value: 'right_neck', label: 'Neck', side: 'right' },
+  { value: 'right_head', label: 'Head', side: 'right' },
 ];
 
 const PAIN_QUALITIES: { value: PainQuality; label: string }[] = [
@@ -178,26 +179,54 @@ export default function NewEpisodeScreen({ navigation }: Props) {
         {/* Pain Locations */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Pain Location (Optional)</Text>
-          <View style={styles.chipContainer}>
-            {PAIN_LOCATIONS.map(item => (
-              <TouchableOpacity
-                key={item.value}
-                style={[
-                  styles.chip,
-                  locations.includes(item.value) && styles.chipActive,
-                ]}
-                onPress={() => toggleSelection(item.value, locations, setLocations)}
-              >
-                <Text
+          <View style={styles.locationContainer}>
+            {/* Left Side Column */}
+            <View style={styles.locationColumn}>
+              <Text style={styles.columnHeader}>Left Side</Text>
+              {PAIN_LOCATIONS.filter(item => item.side === 'left').map(item => (
+                <TouchableOpacity
+                  key={item.value}
                   style={[
-                    styles.chipText,
-                    locations.includes(item.value) && styles.chipTextActive,
+                    styles.locationButton,
+                    locations.includes(item.value) && styles.locationButtonActive,
                   ]}
+                  onPress={() => toggleSelection(item.value, locations, setLocations)}
                 >
-                  {item.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={[
+                      styles.locationText,
+                      locations.includes(item.value) && styles.locationTextActive,
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Right Side Column */}
+            <View style={styles.locationColumn}>
+              <Text style={styles.columnHeader}>Right Side</Text>
+              {PAIN_LOCATIONS.filter(item => item.side === 'right').map(item => (
+                <TouchableOpacity
+                  key={item.value}
+                  style={[
+                    styles.locationButton,
+                    locations.includes(item.value) && styles.locationButtonActive,
+                  ]}
+                  onPress={() => toggleSelection(item.value, locations, setLocations)}
+                >
+                  <Text
+                    style={[
+                      styles.locationText,
+                      locations.includes(item.value) && styles.locationTextActive,
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         </View>
 
@@ -380,6 +409,45 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#8E8E93',
     textAlign: 'center',
+  },
+  locationContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  locationColumn: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 12,
+  },
+  columnHeader: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  locationButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#F2F2F7',
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  locationButtonActive: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  locationText: {
+    fontSize: 15,
+    color: '#000',
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  locationTextActive: {
+    color: '#fff',
   },
   chipContainer: {
     flexDirection: 'row',

@@ -1,13 +1,14 @@
 // Core data types for the Pain Tracking app
 
 export type PainLocation =
+  | 'left_eye'
+  | 'right_eye'
   | 'left_temple'
   | 'right_temple'
-  | 'forehead'
-  | 'back_of_head'
-  | 'top_of_head'
-  | 'neck'
-  | 'whole_head';
+  | 'left_neck'
+  | 'right_neck'
+  | 'left_head'
+  | 'right_head';
 
 export type PainQuality =
   | 'throbbing'
@@ -41,6 +42,7 @@ export type Trigger =
   | 'exercise';
 
 export type MedicationType = 'preventative' | 'rescue';
+export type ScheduleFrequency = 'daily' | 'monthly' | 'quarterly';
 
 export interface Episode {
   id: string;
@@ -82,7 +84,7 @@ export interface Medication {
   dosageAmount: number;
   dosageUnit: string; // 'mg', 'ml', 'tablets', etc.
   defaultDosage?: number; // Number of units (e.g., 3 tablets)
-  frequency?: string; // For preventative: 'daily', 'twice daily', etc.
+  scheduleFrequency?: ScheduleFrequency; // For preventative: 'daily', 'monthly', 'quarterly'
   photoUri?: string;
   schedule?: MedicationSchedule[];
   startDate?: number;
@@ -96,7 +98,8 @@ export interface Medication {
 export interface MedicationSchedule {
   id: string;
   medicationId: string;
-  time: string; // HH:mm format
+  time: string; // HH:mm format for daily, date for monthly/quarterly
+  dosage: number; // Number of doses for this schedule
   enabled: boolean;
 }
 

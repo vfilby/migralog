@@ -1,0 +1,103 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Gradient background -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667EEA;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764BA2;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="brainGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#E0E7FF;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="226" fill="url(#bgGradient)"/>
+  
+  <!-- Brain outline - stylized side view -->
+  <g transform="translate(200, 150)">
+    <!-- Main brain shape -->
+    <path d="M 400 350 
+             C 420 340, 440 320, 450 290
+             C 460 260, 460 220, 450 180
+             C 440 140, 420 110, 390 90
+             C 360 70, 320 60, 280 65
+             C 240 70, 210 85, 190 110
+             C 170 135, 160 170, 160 210
+             
+             C 160 210, 140 230, 125 255
+             C 110 280, 100 310, 100 340
+             C 100 370, 110 400, 130 425
+             C 150 450, 180 470, 215 480
+             
+             C 220 500, 235 515, 255 525
+             C 275 535, 300 540, 325 535
+             C 350 530, 370 520, 385 500
+             C 395 485, 400 465, 400 440
+             
+             C 420 435, 435 420, 445 400
+             C 455 380, 460 355, 455 330
+             C 450 305, 435 285, 415 275
+             L 400 350
+             
+             M 280 150
+             C 260 155, 245 170, 240 190
+             C 235 210, 245 230, 265 240
+             
+             M 180 240
+             C 165 255, 160 275, 165 295
+             C 170 315, 185 330, 205 330
+             
+             M 250 380
+             C 240 395, 245 415, 260 425
+             C 275 435, 295 430, 305 415"
+          fill="url(#brainGradient)" 
+          stroke="#FFF" 
+          stroke-width="8"
+          stroke-linecap="round"
+          stroke-linejoin="round"/>
+    
+    <!-- Brain details/folds -->
+    <path d="M 280 120 C 290 130, 300 135, 310 140" 
+          fill="none" 
+          stroke="#C7D2FE" 
+          stroke-width="6" 
+          stroke-linecap="round"/>
+    
+    <path d="M 210 180 C 220 190, 235 195, 250 195" 
+          fill="none" 
+          stroke="#C7D2FE" 
+          stroke-width="6" 
+          stroke-linecap="round"/>
+    
+    <path d="M 170 270 C 185 275, 200 275, 215 270" 
+          fill="none" 
+          stroke="#C7D2FE" 
+          stroke-width="6" 
+          stroke-linecap="round"/>
+    
+    <path d="M 200 350 C 215 360, 235 365, 255 360" 
+          fill="none" 
+          stroke="#C7D2FE" 
+          stroke-width="6" 
+          stroke-linecap="round"/>
+    
+    <path d="M 280 420 C 295 425, 310 423, 325 418" 
+          fill="none" 
+          stroke="#C7D2FE" 
+          stroke-width="6" 
+          stroke-linecap="round"/>
+    
+    <path d="M 350 280 C 365 285, 380 285, 395 280" 
+          fill="none" 
+          stroke="#C7D2FE" 
+          stroke-width="6" 
+          stroke-linecap="round"/>
+    
+    <path d="M 380 200 C 390 210, 400 215, 410 215" 
+          fill="none" 
+          stroke="#C7D2FE" 
+          stroke-width="6" 
+          stroke-linecap="round"/>
+  </g>
+</svg>

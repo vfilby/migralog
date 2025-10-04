@@ -37,7 +37,12 @@ export default function DashboardScreen() {
       </View>
 
       {/* Current Status Card */}
-      <View style={styles.card}>
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => currentEpisode && navigation.navigate('EpisodeDetail', { episodeId: currentEpisode.id })}
+        activeOpacity={currentEpisode ? 0.7 : 1}
+        disabled={!currentEpisode}
+      >
         <Text style={styles.cardTitle}>Current Status</Text>
         {currentEpisode ? (
           <View>
@@ -50,6 +55,7 @@ export default function DashboardScreen() {
                 Peak Intensity: {currentEpisode.peakIntensity}/10 - {getPainLevel(currentEpisode.peakIntensity).label}
               </Text>
             )}
+            <Text style={styles.tapHint}>Tap to update</Text>
           </View>
         ) : (
           <View>
@@ -63,7 +69,7 @@ export default function DashboardScreen() {
             )}
           </View>
         )}
-      </View>
+      </TouchableOpacity>
 
       {/* Quick Actions */}
       <View style={styles.actionsContainer}>
@@ -76,22 +82,11 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         )}
 
-        {currentEpisode && (
-          <TouchableOpacity
-            style={[styles.actionButton, styles.secondaryButton]}
-            onPress={() => navigation.navigate('EpisodeDetail', { episodeId: currentEpisode.id })}
-          >
-            <Text style={styles.secondaryButtonText}>Update Episode</Text>
-          </TouchableOpacity>
-        )}
-
         {rescueMedications.length > 0 && (
           <TouchableOpacity
             style={[styles.actionButton, styles.secondaryButton]}
             onPress={() => {
-              const firstMed = rescueMedications[0];
               navigation.navigate('LogMedication', {
-                medicationId: firstMed.id,
                 episodeId: currentEpisode?.id
               });
             }}
@@ -190,6 +185,12 @@ const styles = StyleSheet.create({
   statusSubtext: {
     fontSize: 14,
     color: '#8E8E93',
+  },
+  tapHint: {
+    fontSize: 13,
+    color: '#007AFF',
+    marginTop: 8,
+    fontStyle: 'italic',
   },
   intensityText: {
     fontSize: 16,

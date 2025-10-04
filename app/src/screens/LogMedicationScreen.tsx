@@ -22,7 +22,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'LogMedication'>;
 
 export default function LogMedicationScreen({ route, navigation }: Props) {
   const { medicationId, episodeId } = route.params;
-  const { logDose } = useMedicationStore();
+  const { rescueMedications, loadMedications, logDose } = useMedicationStore();
+  const [selectedMedId, setSelectedMedId] = useState<string | null>(medicationId || null);
   const [medication, setMedication] = useState<Medication | null>(null);
   const [timestamp, setTimestamp] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -31,11 +32,17 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    loadMedication();
-  }, [medicationId]);
+    loadMedications();
+  }, []);
 
-  const loadMedication = async () => {
-    const med = await medicationRepository.getById(medicationId);
+  useEffect(() => {
+    if (selectedMedId) {
+      loadMedication(selectedMedId);
+    }
+  }, [selectedMedId]);
+
+  const loadMedication = async (medId: string) => {
+    const med = await medicationRepository.getById(medId);
     if (med) {
       setMedication(med);
       setAmount(med.defaultDosage?.toString() || '1');
@@ -78,7 +85,33 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
           <Text style={styles.title}>Log Medication</Text>
           <View style={{ width: 60 }} />
         </View>
-        <Text style={styles.loadingText}>Loading...</Text>
+        <ScrollView style={styles.content}>
+          {rescueMedications.length > 0 ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Select Medication</Text>
+              {rescueMedications.map(med => (
+                <TouchableOpacity
+                  key={med.id}
+                  style={styles.medicationCard}
+                  onPress={() => setSelectedMedId(med.id)}
+                >
+                  <View style={styles.medicationInfo}>
+                    <Text style={styles.medicationCardName}>{med.name}</Text>
+                    <Text style={styles.medicationCardDosage}>
+                      {med.dosageAmount}{med.dosageUnit}
+                    </Text>
+                  </View>
+                  <Text style={styles.selectArrow}>›</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No rescue medications added yet</Text>
+              <Text style={styles.emptySubtext}>Add medications from the Medications tab</Text>
+            </View>
+          )}
+        </ScrollView>
       </View>
     );
   }
@@ -390,5 +423,56 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 17,
     fontWeight: '600',
+  },
+  medicationCard: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  medicationInfo: {
+    flex: 1,
+  },
+  medicationCardName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 4,
+  },
+  medicationCardDosage: {
+    fontSize: 14,
+    color: '#8E8E93',
+  },
+  selectArrow: {
+    fontSize: 24,
+    color: '#C7C7CC',
+    marginLeft: 8,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    paddingTop: 60,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#8E8E93',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 15,
+    color: '#C7C7CC',
+    textAlign: 'center',
   },
 });

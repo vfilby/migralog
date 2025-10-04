@@ -6,8 +6,11 @@ export type RootStackParamList = {
   EpisodeDetail: { episodeId: string };
   NewEpisode: undefined;
   AddMedication: undefined;
-  MedicationDetail: { medicationId: string };
-  LogMedication: { medicationId: string; episodeId?: string };
+  EditMedication: { medicationId: string };
+  LogMedication: { medicationId?: string; episodeId?: string };
+  MedicationLog: undefined;
+  EditMedicationDose: { doseId: string };
+  ArchivedMedications: undefined;
 };
 
 export type MainTabsParamList = {

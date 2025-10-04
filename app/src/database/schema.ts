@@ -49,7 +49,7 @@ export const createTables = `
     dosage_amount REAL NOT NULL,
     dosage_unit TEXT NOT NULL,
     default_dosage REAL,
-    frequency TEXT,
+    schedule_frequency TEXT,
     photo_uri TEXT,
     start_date INTEGER,
     end_date INTEGER,
@@ -64,6 +64,7 @@ export const createTables = `
     id TEXT PRIMARY KEY,
     medication_id TEXT NOT NULL,
     time TEXT NOT NULL,
+    dosage REAL NOT NULL DEFAULT 1,
     enabled INTEGER NOT NULL DEFAULT 1,
     FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE
   );

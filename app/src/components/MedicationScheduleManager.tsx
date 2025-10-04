@@ -1,0 +1,259 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  Platform,
+} from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { ScheduleFrequency, MedicationSchedule } from '../models/types';
+
+interface MedicationScheduleManagerProps {
+  scheduleFrequency: ScheduleFrequency;
+  schedules: Omit<MedicationSchedule, 'id' | 'medicationId'>[];
+  onSchedulesChange: (schedules: Omit<MedicationSchedule, 'id' | 'medicationId'>[]) => void;
+}
+
+export default function MedicationScheduleManager({
+  scheduleFrequency,
+  schedules,
+  onSchedulesChange,
+}: MedicationScheduleManagerProps) {
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [selectedScheduleIndex, setSelectedScheduleIndex] = useState<number | null>(null);
+
+  const handleAddSchedule = () => {
+    const newSchedule = {
+      time: '09:00',
+      dosage: 1,
+      enabled: true,
+    };
+    onSchedulesChange([...schedules, newSchedule]);
+  };
+
+  const handleRemoveSchedule = (index: number) => {
+    const updated = schedules.filter((_, i) => i !== index);
+    onSchedulesChange(updated);
+  };
+
+  const handleTimeChange = (index: number, time: string) => {
+    const updated = [...schedules];
+    updated[index] = { ...updated[index], time };
+    onSchedulesChange(updated);
+  };
+
+  const handleDosageChange = (index: number, dosage: string) => {
+    const dosageNum = parseFloat(dosage) || 0;
+    if (dosageNum <= 0) return;
+
+    const updated = [...schedules];
+    updated[index] = { ...updated[index], dosage: dosageNum };
+    onSchedulesChange(updated);
+  };
+
+  const handleTimePickerChange = (event: any, selectedDate?: Date) => {
+    setShowTimePicker(Platform.OS === 'ios');
+
+    if (selectedDate && selectedScheduleIndex !== null) {
+      const hours = selectedDate.getHours().toString().padStart(2, '0');
+      const minutes = selectedDate.getMinutes().toString().padStart(2, '0');
+      handleTimeChange(selectedScheduleIndex, `${hours}:${minutes}`);
+    }
+  };
+
+  const openTimePicker = (index: number) => {
+    setSelectedScheduleIndex(index);
+    setShowTimePicker(true);
+  };
+
+  const getFrequencyLabel = () => {
+    switch (scheduleFrequency) {
+      case 'daily':
+        return 'Daily Schedules';
+      case 'monthly':
+        return 'Monthly Schedules';
+      case 'quarterly':
+        return 'Quarterly Schedules';
+    }
+  };
+
+  const getTimeLabel = () => {
+    switch (scheduleFrequency) {
+      case 'daily':
+        return 'Time';
+      case 'monthly':
+        return 'Day of Month';
+      case 'quarterly':
+        return 'Date';
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>{getFrequencyLabel()}</Text>
+      <Text style={styles.subtitle}>
+        {scheduleFrequency === 'daily' && 'Add times when you take this medication each day'}
+        {scheduleFrequency === 'monthly' && 'Add the day(s) of each month when you take this medication'}
+        {scheduleFrequency === 'quarterly' && 'Add dates for your quarterly doses'}
+      </Text>
+
+      {schedules.map((schedule, index) => (
+        <View key={index} style={styles.scheduleItem}>
+          <View style={styles.scheduleFields}>
+            <View style={styles.timeField}>
+              <Text style={styles.fieldLabel}>{getTimeLabel()}</Text>
+              {scheduleFrequency === 'daily' ? (
+                <TouchableOpacity
+                  style={styles.timeButton}
+                  onPress={() => openTimePicker(index)}
+                >
+                  <Text style={styles.timeButtonText}>{schedule.time}</Text>
+                </TouchableOpacity>
+              ) : (
+                <TextInput
+                  style={styles.timeInput}
+                  placeholder={scheduleFrequency === 'monthly' ? '1-31' : 'YYYY-MM-DD'}
+                  placeholderTextColor="#C7C7CC"
+                  value={schedule.time}
+                  onChangeText={(value) => handleTimeChange(index, value)}
+                />
+              )}
+            </View>
+
+            <View style={styles.dosageField}>
+              <Text style={styles.fieldLabel}>Doses</Text>
+              <TextInput
+                style={styles.dosageInput}
+                placeholder="1"
+                placeholderTextColor="#C7C7CC"
+                value={schedule.dosage.toString()}
+                onChangeText={(value) => handleDosageChange(index, value)}
+                keyboardType="decimal-pad"
+              />
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={styles.removeButton}
+            onPress={() => handleRemoveSchedule(index)}
+          >
+            <Text style={styles.removeButtonText}>Remove</Text>
+          </TouchableOpacity>
+        </View>
+      ))}
+
+      <TouchableOpacity style={styles.addButton} onPress={handleAddSchedule}>
+        <Text style={styles.addButtonText}>+ Add Schedule</Text>
+      </TouchableOpacity>
+
+      {showTimePicker && selectedScheduleIndex !== null && (
+        <DateTimePicker
+          value={(() => {
+            const [hours, minutes] = schedules[selectedScheduleIndex].time.split(':');
+            const date = new Date();
+            date.setHours(parseInt(hours, 10));
+            date.setMinutes(parseInt(minutes, 10));
+            return date;
+          })()}
+          mode="time"
+          is24Hour={false}
+          display="default"
+          onChange={handleTimePickerChange}
+        />
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    marginTop: 24,
+  },
+  title: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#8E8E93',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  subtitle: {
+    fontSize: 13,
+    color: '#8E8E93',
+    marginBottom: 12,
+  },
+  scheduleItem: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  scheduleFields: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  timeField: {
+    flex: 2,
+  },
+  dosageField: {
+    flex: 1,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#8E8E93',
+    marginBottom: 6,
+  },
+  timeButton: {
+    backgroundColor: '#F2F2F7',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+  },
+  timeButtonText: {
+    fontSize: 16,
+    color: '#000',
+    fontWeight: '500',
+  },
+  timeInput: {
+    backgroundColor: '#F2F2F7',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: '#000',
+  },
+  dosageInput: {
+    backgroundColor: '#F2F2F7',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: '#000',
+    textAlign: 'center',
+  },
+  removeButton: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  removeButtonText: {
+    fontSize: 14,
+    color: '#FF3B30',
+    fontWeight: '500',
+  },
+  addButton: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#E5E5EA',
+    borderStyle: 'dashed',
+  },
+  addButtonText: {
+    fontSize: 15,
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+});

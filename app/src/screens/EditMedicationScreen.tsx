@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,16 +13,18 @@ import * as ImagePicker from 'expo-image-picker';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { useMedicationStore } from '../store/medicationStore';
-import { MedicationType, ScheduleFrequency, MedicationSchedule } from '../models/types';
+import { medicationRepository, medicationScheduleRepository } from '../database/medicationRepository';
+import { MedicationType, Medication, ScheduleFrequency, MedicationSchedule } from '../models/types';
 import MedicationScheduleManager from '../components/MedicationScheduleManager';
-import { medicationScheduleRepository } from '../database/medicationRepository';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'AddMedication'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'EditMedication'>;
 
 const DOSAGE_UNITS = ['mg', 'ml', 'tablets', 'capsules', 'drops', 'puffs'];
 
-export default function AddMedicationScreen({ navigation }: Props) {
-  const { addMedication } = useMedicationStore();
+export default function EditMedicationScreen({ route, navigation }: Props) {
+  const { medicationId } = route.params;
+  const { updateMedication } = useMedicationStore();
+  const [medication, setMedication] = useState<Medication | null>(null);
   const [name, setName] = useState('');
   const [type, setType] = useState<MedicationType>('rescue');
   const [dosageAmount, setDosageAmount] = useState('');
@@ -30,9 +32,47 @@ export default function AddMedicationScreen({ navigation }: Props) {
   const [defaultDosage, setDefaultDosage] = useState('1');
   const [scheduleFrequency, setScheduleFrequency] = useState<ScheduleFrequency>('daily');
   const [schedules, setSchedules] = useState<Omit<MedicationSchedule, 'id' | 'medicationId'>[]>([]);
+  const [existingScheduleIds, setExistingScheduleIds] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
   const [photoUri, setPhotoUri] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadMedication();
+  }, [medicationId]);
+
+  const loadMedication = async () => {
+    try {
+      const med = await medicationRepository.getById(medicationId);
+      if (med) {
+        setMedication(med);
+        setName(med.name);
+        setType(med.type);
+        setDosageAmount(med.dosageAmount.toString());
+        setDosageUnit(med.dosageUnit);
+        setDefaultDosage(med.defaultDosage?.toString() || '1');
+        setScheduleFrequency(med.scheduleFrequency || 'daily');
+        setNotes(med.notes || '');
+        setPhotoUri(med.photoUri);
+
+        // Load existing schedules
+        const existingSchedules = await medicationScheduleRepository.getByMedicationId(medicationId);
+        setExistingScheduleIds(existingSchedules.map(s => s.id));
+        setSchedules(existingSchedules.map(s => ({
+          time: s.time,
+          dosage: s.dosage,
+          enabled: s.enabled,
+        })));
+      }
+    } catch (error) {
+      console.error('Failed to load medication:', error);
+      Alert.alert('Error', 'Failed to load medication');
+      navigation.goBack();
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const pickImage = async (useCamera: boolean) => {
     const permissionResult = useCamera
@@ -63,7 +103,7 @@ export default function AddMedicationScreen({ navigation }: Props) {
 
   const showImageOptions = () => {
     Alert.alert(
-      'Add Photo',
+      'Update Photo',
       'Choose a photo of your medication',
       [
         { text: 'Take Photo', onPress: () => pickImage(true) },
@@ -86,7 +126,7 @@ export default function AddMedicationScreen({ navigation }: Props) {
 
     setSaving(true);
     try {
-      const newMedication = await addMedication({
+      await updateMedication(medicationId, {
         name: name.trim(),
         type,
         dosageAmount: parseFloat(dosageAmount),
@@ -94,31 +134,53 @@ export default function AddMedicationScreen({ navigation }: Props) {
         defaultDosage: defaultDosage ? parseFloat(defaultDosage) : undefined,
         scheduleFrequency: type === 'preventative' ? scheduleFrequency : undefined,
         photoUri,
-        active: true,
         notes: notes.trim() || undefined,
       });
 
-      // Save schedules if preventative medication
-      if (type === 'preventative' && schedules.length > 0) {
+      // Update schedules if preventative medication
+      if (type === 'preventative') {
+        // Delete all existing schedules
         await Promise.all(
-          schedules.map(schedule =>
-            medicationScheduleRepository.create({
-              medicationId: newMedication.id,
-              time: schedule.time,
-              dosage: schedule.dosage,
-              enabled: schedule.enabled,
-            })
-          )
+          existingScheduleIds.map(id => medicationScheduleRepository.delete(id))
         );
+
+        // Create new schedules
+        if (schedules.length > 0) {
+          await Promise.all(
+            schedules.map(schedule =>
+              medicationScheduleRepository.create({
+                medicationId,
+                time: schedule.time,
+                dosage: schedule.dosage,
+                enabled: schedule.enabled,
+              })
+            )
+          );
+        }
       }
 
       navigation.goBack();
     } catch (error) {
-      console.error('Failed to add medication:', error);
-      Alert.alert('Error', 'Failed to save medication');
+      console.error('Failed to update medication:', error);
+      Alert.alert('Error', 'Failed to update medication');
       setSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Text style={styles.cancelButton}>Cancel</Text>
+          </TouchableOpacity>
+          <Text style={styles.title}>Edit Medication</Text>
+          <View style={{ width: 60 }} />
+        </View>
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -126,7 +188,7 @@ export default function AddMedicationScreen({ navigation }: Props) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.cancelButton}>Cancel</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Add Medication</Text>
+        <Text style={styles.title}>Edit Medication</Text>
         <View style={{ width: 60 }} />
       </View>
 
@@ -354,7 +416,7 @@ export default function AddMedicationScreen({ navigation }: Props) {
           disabled={saving}
         >
           <Text style={styles.saveButtonText}>
-            {saving ? 'Saving...' : 'Save Medication'}
+            {saving ? 'Saving...' : 'Save Changes'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -387,6 +449,12 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: '#007AFF',
     width: 60,
+  },
+  loadingText: {
+    textAlign: 'center',
+    marginTop: 40,
+    fontSize: 16,
+    color: '#8E8E93',
   },
   content: {
     flex: 1,

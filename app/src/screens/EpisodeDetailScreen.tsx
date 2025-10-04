@@ -1,24 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import Slider from '@react-native-community/slider';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { useEpisodeStore } from '../store/episodeStore';
 import { episodeRepository, intensityRepository, symptomLogRepository } from '../database/episodeRepository';
-import { medicationDoseRepository } from '../database/medicationRepository';
-import { Episode, IntensityReading, SymptomLog, MedicationDose } from '../models/types';
+import { medicationDoseRepository, medicationRepository } from '../database/medicationRepository';
+import { Episode, IntensityReading, SymptomLog, MedicationDose, Medication } from '../models/types';
 import { format, differenceInMinutes } from 'date-fns';
 import { getPainColor, getPainLevel } from '../utils/painScale';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EpisodeDetail'>;
 
+type MedicationDoseWithDetails = MedicationDose & {
+  medication?: Medication;
+};
+
 export default function EpisodeDetailScreen({ route, navigation }: Props) {
   const { episodeId } = route.params;
-  const { endEpisode } = useEpisodeStore();
+  const { endEpisode, addIntensityReading } = useEpisodeStore();
   const [episode, setEpisode] = useState<Episode | null>(null);
   const [intensityReadings, setIntensityReadings] = useState<IntensityReading[]>([]);
   const [symptomLogs, setSymptomLogs] = useState<SymptomLog[]>([]);
-  const [medications, setMedications] = useState<MedicationDose[]>([]);
+  const [medications, setMedications] = useState<MedicationDoseWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentIntensity, setCurrentIntensity] = useState(3);
+  const [showIntensityUpdate, setShowIntensityUpdate] = useState(false);
 
   useEffect(() => {
     loadEpisodeData();
@@ -32,10 +39,19 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
         symptomLogRepository.getByEpisodeId(episodeId),
         medicationDoseRepository.getByEpisodeId(episodeId),
       ]);
+
+      // Load medication details for each dose
+      const medsWithDetails = await Promise.all(
+        meds.map(async (dose) => {
+          const medication = await medicationRepository.getById(dose.medicationId);
+          return { ...dose, medication };
+        })
+      );
+
       setEpisode(ep);
       setIntensityReadings(readings);
       setSymptomLogs(symptoms);
-      setMedications(meds);
+      setMedications(medsWithDetails);
     } catch (error) {
       console.error('Failed to load episode:', error);
     } finally {
@@ -47,6 +63,14 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     if (episode && !episode.endTime) {
       await endEpisode(episode.id, Date.now());
       navigation.goBack();
+    }
+  };
+
+  const handleLogIntensity = async () => {
+    if (episode && !episode.endTime) {
+      await addIntensityReading(episode.id, currentIntensity);
+      await loadEpisodeData();
+      setShowIntensityUpdate(false);
     }
   };
 
@@ -76,7 +100,9 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
           <Text style={styles.backButton}>Back</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Episode Details</Text>
-        <View style={{ width: 60 }} />
+        <TouchableOpacity onPress={() => {/* TODO: Navigate to edit screen */}}>
+          <Text style={styles.editButton}>Edit</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content}>
@@ -160,6 +186,63 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
                 </Text>
               </View>
             ))}
+
+            {/* Log Current Intensity - Only for ongoing episodes */}
+            {!episode.endTime && (
+              <View style={styles.intensityUpdateSection}>
+                {!showIntensityUpdate ? (
+                  <TouchableOpacity
+                    style={styles.updateButton}
+                    onPress={() => setShowIntensityUpdate(true)}
+                  >
+                    <Text style={styles.updateButtonText}>Log Current Intensity</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View>
+                    <View style={styles.sliderHeader}>
+                      <Text style={[styles.intensityValue, { color: getPainLevel(currentIntensity).color }]}>
+                        {currentIntensity}/10
+                      </Text>
+                      <Text style={styles.intensityLabel}>
+                        {getPainLevel(currentIntensity).label}
+                      </Text>
+                    </View>
+                    <Slider
+                      style={styles.slider}
+                      minimumValue={0}
+                      maximumValue={10}
+                      step={1}
+                      value={currentIntensity}
+                      onValueChange={setCurrentIntensity}
+                      minimumTrackTintColor={getPainLevel(currentIntensity).color}
+                      maximumTrackTintColor="#E5E5EA"
+                      thumbTintColor={getPainLevel(currentIntensity).color}
+                    />
+                    <View style={styles.sliderLabels}>
+                      <Text style={styles.sliderLabelText}>0 - No Pain</Text>
+                      <Text style={styles.sliderLabelText}>10 - Debilitating</Text>
+                    </View>
+                    <Text style={styles.painDescription}>
+                      {getPainLevel(currentIntensity).description}
+                    </Text>
+                    <View style={styles.updateActions}>
+                      <TouchableOpacity
+                        style={styles.cancelButton}
+                        onPress={() => setShowIntensityUpdate(false)}
+                      >
+                        <Text style={styles.cancelButtonText}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.saveIntensityButton}
+                        onPress={handleLogIntensity}
+                      >
+                        <Text style={styles.saveIntensityButtonText}>Save</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+              </View>
+            )}
           </View>
         )}
 
@@ -167,14 +250,27 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
         {episode.locations.length > 0 && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Pain Locations</Text>
-            <View style={styles.chipContainer}>
-              {episode.locations.map(location => (
-                <View key={location} style={styles.chip}>
-                  <Text style={styles.chipText}>
-                    {location.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                  </Text>
-                </View>
-              ))}
+            <View style={styles.locationGrid}>
+              <View style={styles.locationSide}>
+                <Text style={styles.locationSideLabel}>Left Side</Text>
+                {episode.locations
+                  .filter(loc => loc.startsWith('left_'))
+                  .map(location => (
+                    <Text key={location} style={styles.locationItem}>
+                      • {location.replace('left_', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </Text>
+                  ))}
+              </View>
+              <View style={styles.locationSide}>
+                <Text style={styles.locationSideLabel}>Right Side</Text>
+                {episode.locations
+                  .filter(loc => loc.startsWith('right_'))
+                  .map(location => (
+                    <Text key={location} style={styles.locationItem}>
+                      • {location.replace('right_', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </Text>
+                  ))}
+              </View>
             </View>
           </View>
         )}
@@ -233,11 +329,16 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
             <Text style={styles.cardTitle}>Medications Taken</Text>
             {medications.map(dose => (
               <View key={dose.id} style={styles.medicationItem}>
-                <Text style={styles.medicationTime}>
-                  {format(dose.timestamp, 'h:mm a')}
-                </Text>
+                <View style={styles.medicationInfo}>
+                  <Text style={styles.medicationName}>
+                    {dose.medication?.name || 'Unknown Medication'}
+                  </Text>
+                  <Text style={styles.medicationTime}>
+                    {format(dose.timestamp, 'h:mm a')}
+                  </Text>
+                </View>
                 <Text style={styles.medicationAmount}>
-                  {dose.amount} dose{dose.amount > 1 ? 's' : ''}
+                  {dose.amount} × {dose.medication?.dosageAmount}{dose.medication?.dosageUnit}
                 </Text>
               </View>
             ))}
@@ -292,6 +393,11 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: '#007AFF',
     width: 60,
+  },
+  editButton: {
+    fontSize: 17,
+    color: '#007AFF',
+    fontWeight: '600',
   },
   loadingText: {
     textAlign: 'center',
@@ -386,6 +492,12 @@ const styles = StyleSheet.create({
     width: 30,
     textAlign: 'right',
   },
+  intensityUpdateSection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5EA',
+  },
   chipContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -401,26 +513,128 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#000',
   },
+  locationGrid: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  locationSide: {
+    flex: 1,
+  },
+  locationSideLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#8E8E93',
+    marginBottom: 8,
+  },
+  locationItem: {
+    fontSize: 15,
+    color: '#000',
+    marginBottom: 4,
+  },
   medicationItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    alignItems: 'center',
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F2F2F7',
   },
+  medicationInfo: {
+    flex: 1,
+  },
+  medicationName: {
+    fontSize: 16,
+    color: '#000',
+    fontWeight: '500',
+    marginBottom: 2,
+  },
   medicationTime: {
-    fontSize: 15,
+    fontSize: 14,
     color: '#8E8E93',
   },
   medicationAmount: {
     fontSize: 15,
-    color: '#000',
+    color: '#007AFF',
     fontWeight: '500',
   },
   notesText: {
     fontSize: 15,
     color: '#000',
     lineHeight: 22,
+  },
+  updateButton: {
+    backgroundColor: '#007AFF',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  updateButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  sliderHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  intensityValue: {
+    fontSize: 34,
+    fontWeight: 'bold',
+  },
+  intensityLabel: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#000',
+  },
+  slider: {
+    width: '100%',
+    height: 40,
+  },
+  sliderLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  sliderLabelText: {
+    fontSize: 13,
+    color: '#8E8E93',
+  },
+  painDescription: {
+    marginTop: 12,
+    fontSize: 15,
+    color: '#8E8E93',
+    textAlign: 'center',
+  },
+  updateActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  cancelButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: '#007AFF',
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  saveIntensityButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#007AFF',
+    alignItems: 'center',
+  },
+  saveIntensityButtonText: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '600',
   },
   footer: {
     backgroundColor: '#fff',

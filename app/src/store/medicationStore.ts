@@ -14,6 +14,8 @@ interface MedicationState {
   addMedication: (medication: Omit<Medication, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Medication>;
   updateMedication: (id: string, updates: Partial<Medication>) => Promise<void>;
   deleteMedication: (id: string) => Promise<void>;
+  archiveMedication: (id: string) => Promise<void>;
+  unarchiveMedication: (id: string) => Promise<void>;
   logDose: (dose: Omit<MedicationDose, 'id' | 'createdAt'>) => Promise<MedicationDose>;
   updateDose: (id: string, updates: Partial<MedicationDose>) => Promise<void>;
 }
@@ -74,21 +76,8 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
     try {
       await medicationRepository.update(id, updates);
 
-      const medications = get().medications.map(m =>
-        m.id === id ? { ...m, ...updates } : m
-      );
-      const preventativeMedications = get().preventativeMedications.map(m =>
-        m.id === id ? { ...m, ...updates } : m
-      );
-      const rescueMedications = get().rescueMedications.map(m =>
-        m.id === id ? { ...m, ...updates } : m
-      );
-
-      set({
-        medications,
-        preventativeMedications,
-        rescueMedications
-      });
+      // Reload medications to ensure proper categorization, especially if type changed
+      await get().loadMedications();
     } catch (error) {
       set({ error: (error as Error).message });
       throw error;
@@ -131,6 +120,43 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
   updateDose: async (id, updates) => {
     try {
       await medicationDoseRepository.update(id, updates);
+    } catch (error) {
+      set({ error: (error as Error).message });
+      throw error;
+    }
+  },
+
+  archiveMedication: async (id) => {
+    try {
+      await medicationRepository.update(id, { active: false });
+
+      const medications = get().medications.map(m =>
+        m.id === id ? { ...m, active: false } : m
+      );
+      const preventativeMedications = get().preventativeMedications.filter(m => m.id !== id);
+      const rescueMedications = get().rescueMedications.filter(m => m.id !== id);
+
+      set({
+        medications,
+        preventativeMedications,
+        rescueMedications
+      });
+    } catch (error) {
+      set({ error: (error as Error).message });
+      throw error;
+    }
+  },
+
+  unarchiveMedication: async (id) => {
+    try {
+      await medicationRepository.update(id, { active: true });
+
+      const medications = get().medications.map(m =>
+        m.id === id ? { ...m, active: true } : m
+      );
+
+      // Reload to get the medication back in the active lists
+      await get().loadMedications();
     } catch (error) {
       set({ error: (error as Error).message });
       throw error;

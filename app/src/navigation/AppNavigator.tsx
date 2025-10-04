@@ -2,6 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList, MainTabsParamList } from './types';
 
 // Screens
@@ -12,7 +13,10 @@ import AnalyticsScreen from '../screens/AnalyticsScreen';
 import NewEpisodeScreen from '../screens/NewEpisodeScreen';
 import EpisodeDetailScreen from '../screens/EpisodeDetailScreen';
 import AddMedicationScreen from '../screens/AddMedicationScreen';
+import EditMedicationScreen from '../screens/EditMedicationScreen';
 import LogMedicationScreen from '../screens/LogMedicationScreen';
+import MedicationLogScreen from '../screens/MedicationLogScreen';
+import ArchivedMedicationsScreen from '../screens/ArchivedMedicationsScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabsParamList>();
@@ -25,18 +29,21 @@ function MainTabs() {
         tabBarActiveTintColor: '#007AFF',
         tabBarInactiveTintColor: '#8E8E93',
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
+          fontSize: 11,
+          fontWeight: '500',
+          marginTop: 4,
+          marginBottom: 2,
+        },
+        tabBarIconStyle: {
+          marginTop: 4,
         },
         tabBarStyle: {
-          height: 88,
-          paddingBottom: 34,
+          height: 84,
           paddingTop: 8,
-          borderTopWidth: 1,
+          paddingBottom: 8,
+          borderTopWidth: 0.5,
           borderTopColor: '#E5E5EA',
-        },
-        tabBarItemStyle: {
-          padding: 4,
+          backgroundColor: '#FAFAFA',
         },
       }}
     >
@@ -45,7 +52,13 @@ function MainTabs() {
         component={DashboardScreen}
         options={{
           tabBarLabel: 'Home',
-          tabBarIcon: ({ color, size }) => null, // Will add icons later
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'home' : 'home-outline'}
+              size={24}
+              color={color}
+            />
+          ),
         }}
       />
       <Tab.Screen
@@ -53,7 +66,13 @@ function MainTabs() {
         component={EpisodesScreen}
         options={{
           tabBarLabel: 'Episodes',
-          tabBarIcon: ({ color, size }) => null,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'list' : 'list-outline'}
+              size={24}
+              color={color}
+            />
+          ),
         }}
       />
       <Tab.Screen
@@ -61,7 +80,13 @@ function MainTabs() {
         component={MedicationsScreen}
         options={{
           tabBarLabel: 'Meds',
-          tabBarIcon: ({ color, size }) => null,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'medical' : 'medical-outline'}
+              size={24}
+              color={color}
+            />
+          ),
         }}
       />
       <Tab.Screen
@@ -69,7 +94,13 @@ function MainTabs() {
         component={AnalyticsScreen}
         options={{
           tabBarLabel: 'Trends',
-          tabBarIcon: ({ color, size }) => null,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'stats-chart' : 'stats-chart-outline'}
+              size={24}
+              color={color}
+            />
+          ),
         }}
       />
     </Tab.Navigator>
@@ -101,9 +132,24 @@ export default function AppNavigator() {
           options={{ headerShown: false, presentation: 'modal' }}
         />
         <Stack.Screen
+          name="EditMedication"
+          component={EditMedicationScreen}
+          options={{ headerShown: false, presentation: 'modal' }}
+        />
+        <Stack.Screen
           name="LogMedication"
           component={LogMedicationScreen}
           options={{ headerShown: false, presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="MedicationLog"
+          component={MedicationLogScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ArchivedMedications"
+          component={ArchivedMedicationsScreen}
+          options={{ headerShown: false }}
         />
       </Stack.Navigator>
     </NavigationContainer>
