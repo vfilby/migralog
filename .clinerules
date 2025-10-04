@@ -1,0 +1,70 @@
+# AI Coding Guidelines for MigraineTracker
+
+## Development Workflow
+
+### Branch Strategy
+- Create feature branches for all new development: `feature/description`
+- Create bugfix branches for fixes: `bugfix/description`
+- Never commit directly to `main` or `master`
+- Branch naming should be descriptive and kebab-case
+
+### Testing Requirements
+- Write automated tests for all new features
+- Ensure existing tests pass before committing
+- Run regression tests after any code changes
+- Aim for meaningful test coverage, not just high percentages
+- Include unit tests, integration tests where appropriate
+
+### Code Quality
+- Follow existing code style and conventions in the project
+- Write self-documenting code with clear variable/function names
+- Add comments only when the "why" isn't obvious from the code
+- Keep functions small and focused on single responsibilities
+- Avoid duplication - extract common logic
+
+### Git Practices
+- Write clear, descriptive commit messages
+- Commits should be atomic and focused on one change
+- Always review changes before committing
+- Don't commit secrets, API keys, or sensitive data
+- Keep .gitignore up to date
+
+### Code Review
+- Test changes locally before requesting review
+- Provide context in pull request descriptions
+- Include screenshots/recordings for UI changes
+- Link to related issues or tickets
+
+## Project-Specific Guidelines
+
+### Data Privacy
+- All health data must be handled securely
+- Consider HIPAA compliance requirements
+- Implement proper data encryption
+- No logging of sensitive user information
+
+### Mobile Development
+- Test on multiple device sizes
+- Handle offline scenarios gracefully
+- Optimize for battery and performance
+- Follow platform-specific UI guidelines
+
+### API Design
+- Use RESTful conventions
+- Version APIs appropriately
+- Provide clear error messages
+- Document endpoints
+
+### Database
+- Always use migrations for schema changes
+- Include rollback migrations
+- Index frequently queried fields
+- Never expose raw database errors to users
+
+## Pre-Commit Checklist
+- [ ] Tests pass
+- [ ] Code follows project conventions
+- [ ] No console.log or debug statements
+- [ ] No commented-out code
+- [ ] Documentation updated if needed
+- [ ] No sensitive data in code
