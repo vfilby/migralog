@@ -8,12 +8,14 @@ import {
   TextInput,
   Platform,
 } from 'react-native';
+import Slider from '@react-native-community/slider';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { useEpisodeStore } from '../store/episodeStore';
 import { PainLocation, PainQuality, Symptom, Trigger } from '../models/types';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
+import { getPainLevel } from '../utils/painScale';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'NewEpisode'>;
 
@@ -65,7 +67,7 @@ export default function NewEpisodeScreen({ navigation }: Props) {
   const { startEpisode, addIntensityReading } = useEpisodeStore();
   const [startTime, setStartTime] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [intensity, setIntensity] = useState(5);
+  const [intensity, setIntensity] = useState(3);
   const [locations, setLocations] = useState<PainLocation[]>([]);
   const [qualities, setQualities] = useState<PainQuality[]>([]);
   const [symptoms, setSymptoms] = useState<Symptom[]>([]);
@@ -141,26 +143,35 @@ export default function NewEpisodeScreen({ navigation }: Props) {
         {/* Initial Intensity */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Initial Pain Intensity</Text>
-          <View style={styles.intensityContainer}>
-            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(value => (
-              <TouchableOpacity
-                key={value}
-                style={[
-                  styles.intensityButton,
-                  intensity === value && styles.intensityButtonActive,
-                ]}
-                onPress={() => setIntensity(value)}
-              >
-                <Text
-                  style={[
-                    styles.intensityText,
-                    intensity === value && styles.intensityTextActive,
-                  ]}
-                >
-                  {value}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <View style={styles.sliderContainer}>
+            <View style={styles.sliderHeader}>
+              <Text style={[styles.intensityValue, { color: getPainLevel(intensity).color }]}>
+                {intensity}/10
+              </Text>
+              <Text style={styles.intensityLabel}>
+                {getPainLevel(intensity).label}
+              </Text>
+            </View>
+            <Slider
+              style={styles.slider}
+              minimumValue={0}
+              maximumValue={10}
+              step={1}
+              value={intensity}
+              onValueChange={setIntensity}
+              minimumTrackTintColor={getPainLevel(intensity).color}
+              maximumTrackTintColor="#E5E5EA"
+              thumbTintColor={getPainLevel(intensity).color}
+            />
+            <View style={styles.sliderLabels}>
+              <Text style={styles.sliderLabelText}>0 - No Pain</Text>
+              <Text style={styles.sliderLabelText}>10 - Debilitating</Text>
+            </View>
+            <View style={styles.painDescription}>
+              <Text style={styles.painDescriptionText}>
+                {getPainLevel(intensity).description}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -181,32 +192,6 @@ export default function NewEpisodeScreen({ navigation }: Props) {
                   style={[
                     styles.chipText,
                     locations.includes(item.value) && styles.chipTextActive,
-                  ]}
-                >
-                  {item.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Pain Quality */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pain Quality (Optional)</Text>
-          <View style={styles.chipContainer}>
-            {PAIN_QUALITIES.map(item => (
-              <TouchableOpacity
-                key={item.value}
-                style={[
-                  styles.chip,
-                  qualities.includes(item.value) && styles.chipActive,
-                ]}
-                onPress={() => toggleSelection(item.value, qualities, setQualities)}
-              >
-                <Text
-                  style={[
-                    styles.chipText,
-                    qualities.includes(item.value) && styles.chipTextActive,
                   ]}
                 >
                   {item.label}
@@ -352,32 +337,49 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     fontWeight: '500',
   },
-  intensityContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  intensityButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+  sliderContainer: {
     backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+  },
+  sliderHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#E5E5EA',
+    marginBottom: 16,
   },
-  intensityButtonActive: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+  intensityValue: {
+    fontSize: 34,
+    fontWeight: 'bold',
   },
-  intensityText: {
-    fontSize: 18,
+  intensityLabel: {
+    fontSize: 17,
     fontWeight: '600',
     color: '#000',
   },
-  intensityTextActive: {
-    color: '#fff',
+  slider: {
+    width: '100%',
+    height: 40,
+  },
+  sliderLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  sliderLabelText: {
+    fontSize: 13,
+    color: '#8E8E93',
+  },
+  painDescription: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F2F2F7',
+  },
+  painDescriptionText: {
+    fontSize: 15,
+    color: '#8E8E93',
+    textAlign: 'center',
   },
   chipContainer: {
     flexDirection: 'row',

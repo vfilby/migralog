@@ -6,6 +6,7 @@ import { Episode } from '../models/types';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
+import { getPainColor, getPainLevel } from '../utils/painScale';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -64,9 +65,9 @@ export default function EpisodesScreen() {
               <Text style={[
                 styles.detailValue,
                 styles.intensityValue,
-                { color: getIntensityColor(item.peakIntensity) }
+                { color: getPainColor(item.peakIntensity) }
               ]}>
-                {item.peakIntensity}/10
+                {item.peakIntensity}/10 - {getPainLevel(item.peakIntensity).label}
               </Text>
             </View>
           )}
@@ -124,12 +125,6 @@ export default function EpisodesScreen() {
       )}
     </View>
   );
-}
-
-function getIntensityColor(intensity: number): string {
-  if (intensity <= 3) return '#34C759'; // Green
-  if (intensity <= 6) return '#FF9500'; // Orange
-  return '#FF3B30'; // Red
 }
 
 const styles = StyleSheet.create({

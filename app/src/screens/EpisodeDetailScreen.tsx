@@ -7,6 +7,7 @@ import { episodeRepository, intensityRepository, symptomLogRepository } from '..
 import { medicationDoseRepository } from '../database/medicationRepository';
 import { Episode, IntensityReading, SymptomLog, MedicationDose } from '../models/types';
 import { format, differenceInMinutes } from 'date-fns';
+import { getPainColor, getPainLevel } from '../utils/painScale';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EpisodeDetail'>;
 
@@ -118,17 +119,17 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
           {episode.peakIntensity !== undefined && (
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Peak Intensity:</Text>
-              <Text style={[styles.detailValue, styles.intensityValue]}>
-                {episode.peakIntensity}/10
+              <Text style={[styles.detailValue, { color: getPainColor(episode.peakIntensity), fontWeight: '600' }]}>
+                {episode.peakIntensity}/10 - {getPainLevel(episode.peakIntensity).label}
               </Text>
             </View>
           )}
 
-          {episode.averageIntensity !== undefined && (
+          {episode.averageIntensity !== undefined && episode.averageIntensity !== null && (
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Average Intensity:</Text>
-              <Text style={styles.detailValue}>
-                {episode.averageIntensity.toFixed(1)}/10
+              <Text style={[styles.detailValue, { color: getPainColor(episode.averageIntensity), fontWeight: '600' }]}>
+                {episode.averageIntensity.toFixed(1)}/10 - {getPainLevel(episode.averageIntensity).label}
               </Text>
             </View>
           )}
@@ -147,11 +148,16 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
                   <View
                     style={[
                       styles.timelineBarFill,
-                      { width: `${(reading.intensity / 10) * 100}%` },
+                      {
+                        width: `${(reading.intensity / 10) * 100}%`,
+                        backgroundColor: getPainColor(reading.intensity),
+                      },
                     ]}
                   />
                 </View>
-                <Text style={styles.timelineIntensity}>{reading.intensity}</Text>
+                <Text style={[styles.timelineIntensity, { color: getPainColor(reading.intensity) }]}>
+                  {reading.intensity}
+                </Text>
               </View>
             ))}
           </View>

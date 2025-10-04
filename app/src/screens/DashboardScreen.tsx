@@ -7,6 +7,7 @@ import { MainTabsScreenProps } from '../navigation/types';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
+import { getPainColor, getPainLevel } from '../utils/painScale';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -45,8 +46,8 @@ export default function DashboardScreen() {
               Started {format(currentEpisode.startTime, 'MMM d, h:mm a')}
             </Text>
             {currentEpisode.peakIntensity && (
-              <Text style={styles.intensityText}>
-                Peak Intensity: {currentEpisode.peakIntensity}/10
+              <Text style={[styles.intensityText, { color: getPainColor(currentEpisode.peakIntensity) }]}>
+                Peak Intensity: {currentEpisode.peakIntensity}/10 - {getPainLevel(currentEpisode.peakIntensity).label}
               </Text>
             )}
           </View>
