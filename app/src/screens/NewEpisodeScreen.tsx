@@ -27,10 +27,12 @@ const PAIN_LOCATIONS: { value: PainLocation; label: string; side: 'left' | 'righ
   { value: 'left_temple', label: 'Temple', side: 'left' },
   { value: 'left_neck', label: 'Neck', side: 'left' },
   { value: 'left_head', label: 'Head', side: 'left' },
+  { value: 'left_teeth', label: 'Teeth', side: 'left' },
   { value: 'right_eye', label: 'Eye', side: 'right' },
   { value: 'right_temple', label: 'Temple', side: 'right' },
   { value: 'right_neck', label: 'Neck', side: 'right' },
   { value: 'right_head', label: 'Head', side: 'right' },
+  { value: 'right_teeth', label: 'Teeth', side: 'right' },
 ];
 
 const PAIN_QUALITIES: { value: PainQuality; label: string }[] = [

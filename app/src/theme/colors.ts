@@ -23,6 +23,7 @@ export interface ThemeColors {
   primaryText: string;
   danger: string;
   dangerText: string;
+  success: string;
 
   // Status
   ongoing: string;
@@ -58,6 +59,7 @@ export const lightColors: ThemeColors = {
   primaryText: '#FFFFFF',
   danger: '#FF3B30',
   dangerText: '#FFFFFF',
+  success: '#34C759',
 
   // Status
   ongoing: '#FF3B30',
@@ -93,6 +95,7 @@ export const darkColors: ThemeColors = {
   primaryText: '#FFFFFF',
   danger: '#FF453A',
   dangerText: '#FFFFFF',
+  success: '#30D158',
 
   // Status
   ongoing: '#FF453A',

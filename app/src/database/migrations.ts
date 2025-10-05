@@ -48,6 +48,36 @@ const migrations: Migration[] = [
       console.warn('Rollback for migration 2 not implemented (SQLite limitation)');
     },
   },
+  {
+    version: 3,
+    name: 'add_episode_notes_table',
+    up: async (db: SQLite.SQLiteDatabase) => {
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS episode_notes (
+          id TEXT PRIMARY KEY,
+          episode_id TEXT NOT NULL,
+          timestamp INTEGER NOT NULL,
+          note TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE CASCADE
+        );
+      `);
+
+      // Create index for efficient queries
+      await db.execAsync(`
+        CREATE INDEX IF NOT EXISTS idx_episode_notes_episode ON episode_notes(episode_id);
+      `);
+
+      await db.execAsync(`
+        CREATE INDEX IF NOT EXISTS idx_episode_notes_timestamp ON episode_notes(timestamp);
+      `);
+    },
+    down: async (db: SQLite.SQLiteDatabase) => {
+      await db.execAsync('DROP TABLE IF EXISTS episode_notes;');
+      await db.execAsync('DROP INDEX IF EXISTS idx_episode_notes_episode;');
+      await db.execAsync('DROP INDEX IF EXISTS idx_episode_notes_timestamp;');
+    },
+  },
 ];
 
 class MigrationRunner {

@@ -1,5 +1,5 @@
 import { getDatabase, generateId } from './db';
-import { Episode, IntensityReading, SymptomLog } from '../models/types';
+import { Episode, IntensityReading, SymptomLog, EpisodeNote } from '../models/types';
 
 export const episodeRepository = {
   async create(episode: Omit<Episode, 'id' | 'createdAt' | 'updatedAt'>): Promise<Episode> {
@@ -275,6 +275,53 @@ export const symptomLogRepository = {
       onsetTime: row.onset_time,
       resolutionTime: row.resolution_time,
       severity: row.severity,
+      createdAt: row.created_at,
+    }));
+  },
+};
+
+export const episodeNoteRepository = {
+  async create(note: Omit<EpisodeNote, 'id' | 'createdAt'>): Promise<EpisodeNote> {
+    const db = await getDatabase();
+    const now = Date.now();
+    const id = generateId();
+
+    const newNote: EpisodeNote = {
+      ...note,
+      id,
+      createdAt: now,
+    };
+
+    await db.runAsync(
+      'INSERT INTO episode_notes (id, episode_id, timestamp, note, created_at) VALUES (?, ?, ?, ?, ?)',
+      [newNote.id, newNote.episodeId, newNote.timestamp, newNote.note, newNote.createdAt]
+    );
+
+    return newNote;
+  },
+
+  async delete(id: string): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync('DELETE FROM episode_notes WHERE id = ?', [id]);
+  },
+
+  async deleteAll(): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync('DELETE FROM episode_notes');
+  },
+
+  async getByEpisodeId(episodeId: string): Promise<EpisodeNote[]> {
+    const db = await getDatabase();
+    const results = await db.getAllAsync<any>(
+      'SELECT * FROM episode_notes WHERE episode_id = ? ORDER BY timestamp ASC',
+      [episodeId]
+    );
+
+    return results.map(row => ({
+      id: row.id,
+      episodeId: row.episode_id,
+      timestamp: row.timestamp,
+      note: row.note,
       createdAt: row.created_at,
     }));
   },

@@ -2,9 +2,9 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { Platform } from 'react-native';
-import { episodeRepository } from '../database/episodeRepository';
+import { episodeRepository, episodeNoteRepository } from '../database/episodeRepository';
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../database/medicationRepository';
-import { Episode, Medication, MedicationDose, MedicationSchedule } from '../models/types';
+import { Episode, Medication, MedicationDose, MedicationSchedule, EpisodeNote } from '../models/types';
 
 export interface BackupMetadata {
   id: string;
@@ -20,6 +20,7 @@ export interface BackupMetadata {
 export interface BackupData {
   metadata: Omit<BackupMetadata, 'fileSize' | 'fileName'>;
   episodes: Episode[];
+  episodeNotes: EpisodeNote[];
   medications: Medication[];
   medicationDoses: MedicationDose[];
   medicationSchedules: MedicationSchedule[];
@@ -55,6 +56,13 @@ class BackupService {
       const medications = await medicationRepository.getAll();
       const medicationDoses = await medicationDoseRepository.getAll();
 
+      // Gather all episode notes
+      const episodeNotes: EpisodeNote[] = [];
+      for (const ep of episodes) {
+        const notes = await episodeNoteRepository.getByEpisodeId(ep.id);
+        episodeNotes.push(...notes);
+      }
+
       // Gather all medication schedules
       const medicationSchedules: MedicationSchedule[] = [];
       for (const med of medications) {
@@ -73,6 +81,7 @@ class BackupService {
           medicationCount: medications.length,
         },
         episodes,
+        episodeNotes,
         medications,
         medicationDoses,
         medicationSchedules,
@@ -177,6 +186,7 @@ class BackupService {
 
       // Clear existing data first
       await episodeRepository.deleteAll();
+      await episodeNoteRepository.deleteAll();
       await medicationRepository.deleteAll();
       await medicationDoseRepository.deleteAll();
       await medicationScheduleRepository.deleteAll();
@@ -184,6 +194,13 @@ class BackupService {
       // Restore episodes
       for (const episode of backupData.episodes) {
         await episodeRepository.create(episode);
+      }
+
+      // Restore episode notes (if present in backup)
+      if (backupData.episodeNotes) {
+        for (const note of backupData.episodeNotes) {
+          await episodeNoteRepository.create(note);
+        }
       }
 
       // Restore medications

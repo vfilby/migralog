@@ -2,12 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useMedicationStore } from '../store/medicationStore';
 import { useEpisodeStore } from '../store/episodeStore';
-import { medicationRepository } from '../database/medicationRepository';
+import { medicationRepository, medicationScheduleRepository } from '../database/medicationRepository';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { Medication } from '../models/types';
+import { Medication, MedicationSchedule } from '../models/types';
 import { useTheme, ThemeColors } from '../theme';
+import { format } from 'date-fns';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -200,17 +201,70 @@ export default function MedicationsScreen() {
   const { currentEpisode, loadCurrentEpisode } = useEpisodeStore();
   const [isEditMode, setIsEditMode] = useState(false);
   const [archivedMedications, setArchivedMedications] = useState<Medication[]>([]);
+  const [medicationSchedules, setMedicationSchedules] = useState<Record<string, MedicationSchedule[]>>({});
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       loadMedications();
       loadCurrentEpisode();
+      loadSchedules();
       if (isEditMode) {
         loadArchivedMedications();
       }
     });
     return unsubscribe;
   }, [navigation, isEditMode]);
+
+  useEffect(() => {
+    loadSchedules();
+  }, [preventativeMedications]);
+
+  const loadSchedules = async () => {
+    try {
+      const schedules: Record<string, MedicationSchedule[]> = {};
+      for (const med of preventativeMedications) {
+        const medSchedules = await medicationScheduleRepository.getByMedicationId(med.id);
+        schedules[med.id] = medSchedules;
+      }
+      setMedicationSchedules(schedules);
+    } catch (error) {
+      console.error('Failed to load schedules:', error);
+    }
+  };
+
+  const formatScheduleDetails = (medication: Medication): string | null => {
+    const schedules = medicationSchedules[medication.id];
+    if (!schedules || schedules.length === 0) return null;
+
+    if (medication.scheduleFrequency === 'daily') {
+      // Format times: "at 9:00 AM, 6:00 PM"
+      const times = schedules
+        .map(s => {
+          try {
+            const [hours, minutes] = s.time.split(':');
+            const date = new Date();
+            date.setHours(parseInt(hours, 10), parseInt(minutes, 10));
+            return format(date, 'h:mm a');
+          } catch {
+            return s.time;
+          }
+        })
+        .join(', ');
+      return `at ${times}`;
+    } else if (medication.scheduleFrequency === 'monthly' || medication.scheduleFrequency === 'quarterly') {
+      // Format date: "— Last taken: Jan 15, 2025"
+      const lastSchedule = schedules[0];
+      if (lastSchedule && lastSchedule.time) {
+        try {
+          const date = new Date(lastSchedule.time);
+          return `— Last taken: ${format(date, 'MMM d, yyyy')}`;
+        } catch {
+          return `— Last taken: ${lastSchedule.time}`;
+        }
+      }
+    }
+    return null;
+  };
 
   useEffect(() => {
     if (isEditMode) {
@@ -327,6 +381,7 @@ export default function MedicationsScreen() {
                   {med.scheduleFrequency && (
                     <Text style={styles.frequencyText}>
                       {med.scheduleFrequency.charAt(0).toUpperCase() + med.scheduleFrequency.slice(1)}
+                      {formatScheduleDetails(med) && ` ${formatScheduleDetails(med)}`}
                     </Text>
                   )}
                 </View>

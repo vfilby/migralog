@@ -120,10 +120,15 @@ export default function MedicationScheduleManager({
   const { theme, isDark } = useTheme();
   const styles = createStyles(theme);
   const [editingScheduleIndex, setEditingScheduleIndex] = useState<number | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedDateScheduleIndex, setSelectedDateScheduleIndex] = useState<number | null>(null);
 
   const handleAddSchedule = () => {
+    const today = new Date();
+    const dateString = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+
     const newSchedule = {
-      time: '09:00',
+      time: scheduleFrequency === 'daily' ? '09:00' : dateString,
       dosage: 1,
       enabled: true,
     };
@@ -166,6 +171,23 @@ export default function MedicationScheduleManager({
     setEditingScheduleIndex(editingScheduleIndex === index ? null : index);
   };
 
+  const handleDatePickerChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+      setSelectedDateScheduleIndex(null);
+    }
+
+    if (selectedDate && selectedDateScheduleIndex !== null) {
+      const dateString = selectedDate.toISOString().split('T')[0]; // YYYY-MM-DD
+      handleTimeChange(selectedDateScheduleIndex, dateString);
+    }
+  };
+
+  const toggleDatePicker = (index: number) => {
+    setSelectedDateScheduleIndex(selectedDateScheduleIndex === index ? null : index);
+    setShowDatePicker(selectedDateScheduleIndex !== index);
+  };
+
   const getFrequencyLabel = () => {
     switch (scheduleFrequency) {
       case 'daily':
@@ -182,9 +204,9 @@ export default function MedicationScheduleManager({
       case 'daily':
         return 'Time';
       case 'monthly':
-        return 'Day of Month';
+        return 'Last Date Taken';
       case 'quarterly':
-        return 'Date';
+        return 'Last Date Taken';
     }
   };
 
@@ -193,8 +215,8 @@ export default function MedicationScheduleManager({
       <Text style={styles.title}>{getFrequencyLabel()}</Text>
       <Text style={styles.subtitle}>
         {scheduleFrequency === 'daily' && 'Add times when you take this medication each day'}
-        {scheduleFrequency === 'monthly' && 'Add the day(s) of each month when you take this medication'}
-        {scheduleFrequency === 'quarterly' && 'Add dates for your quarterly doses'}
+        {scheduleFrequency === 'monthly' && 'Select the date you last took this medication'}
+        {scheduleFrequency === 'quarterly' && 'Select the date you last took this medication'}
       </Text>
 
       {schedules.map((schedule, index) => (
@@ -230,13 +252,31 @@ export default function MedicationScheduleManager({
                   )}
                 </>
               ) : (
-                <TextInput
-                  style={styles.timeInput}
-                  placeholder={scheduleFrequency === 'monthly' ? '1-31' : 'YYYY-MM-DD'}
-                  placeholderTextColor={theme.textTertiary}
-                  value={schedule.time}
-                  onChangeText={(value) => handleTimeChange(index, value)}
-                />
+                <>
+                  <TouchableOpacity
+                    style={styles.timeButton}
+                    onPress={() => toggleDatePicker(index)}
+                  >
+                    <Text style={styles.timeButtonText}>{schedule.time}</Text>
+                  </TouchableOpacity>
+                  {selectedDateScheduleIndex === index && (
+                    <View style={styles.timePickerContainer}>
+                      <DateTimePicker
+                        value={(() => {
+                          try {
+                            return new Date(schedule.time);
+                          } catch {
+                            return new Date();
+                          }
+                        })()}
+                        mode="date"
+                        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                        onChange={handleDatePickerChange}
+                        themeVariant={isDark ? 'dark' : 'light'}
+                      />
+                    </View>
+                  )}
+                </>
               )}
             </View>
 

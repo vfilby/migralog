@@ -8,7 +8,9 @@ export type PainLocation =
   | 'left_neck'
   | 'right_neck'
   | 'left_head'
-  | 'right_head';
+  | 'right_head'
+  | 'left_teeth'
+  | 'right_teeth';
 
 export type PainQuality =
   | 'throbbing'
@@ -72,6 +74,14 @@ export interface IntensityReading {
   episodeId: string;
   timestamp: number;
   intensity: number; // 0-10 scale
+  createdAt: number;
+}
+
+export interface EpisodeNote {
+  id: string;
+  episodeId: string;
+  timestamp: number;
+  note: string;
   createdAt: number;
 }
 

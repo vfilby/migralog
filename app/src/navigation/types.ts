@@ -12,6 +12,7 @@ export type RootStackParamList = {
   EditMedicationDose: { doseId: string };
   ArchivedMedications: undefined;
   Settings: undefined;
+  BackupRecovery: undefined;
 };
 
 export type MainTabsParamList = {

@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import Slider from '@react-native-community/slider';
 import MapView, { Marker } from 'react-native-maps';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { useEpisodeStore } from '../store/episodeStore';
-import { episodeRepository, intensityRepository, symptomLogRepository } from '../database/episodeRepository';
+import { episodeRepository, intensityRepository, symptomLogRepository, episodeNoteRepository } from '../database/episodeRepository';
 import { medicationDoseRepository, medicationRepository } from '../database/medicationRepository';
-import { Episode, IntensityReading, SymptomLog, MedicationDose, Medication } from '../models/types';
+import { Episode, IntensityReading, SymptomLog, MedicationDose, Medication, EpisodeNote } from '../models/types';
 import { format, differenceInMinutes } from 'date-fns';
 import { getPainColor, getPainLevel } from '../utils/painScale';
 import { locationService } from '../services/locationService';
@@ -17,6 +17,13 @@ type Props = NativeStackScreenProps<RootStackParamList, 'EpisodeDetail'>;
 
 type MedicationDoseWithDetails = MedicationDose & {
   medication?: Medication;
+};
+
+type TimelineEvent = {
+  id: string;
+  timestamp: number;
+  type: 'intensity' | 'note' | 'medication';
+  data: IntensityReading | EpisodeNote | MedicationDoseWithDetails;
 };
 
 const createStyles = (theme: ThemeColors) => StyleSheet.create({
@@ -118,35 +125,6 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     color: theme.danger,
     fontWeight: '600',
   },
-  timelineItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    gap: 12,
-  },
-  timelineTime: {
-    fontSize: 13,
-    color: theme.textSecondary,
-    width: 70,
-  },
-  timelineBar: {
-    flex: 1,
-    height: 24,
-    backgroundColor: theme.borderLight,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  timelineBarFill: {
-    height: '100%',
-    backgroundColor: theme.primary,
-  },
-  timelineIntensity: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: theme.text,
-    width: 30,
-    textAlign: 'right',
-  },
   intensityUpdateSection: {
     marginTop: 16,
     paddingTop: 16,
@@ -186,47 +164,10 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     color: theme.text,
     marginBottom: 4,
   },
-  medicationItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.borderLight,
-  },
-  medicationInfo: {
-    flex: 1,
-  },
-  medicationName: {
-    fontSize: 16,
-    color: theme.text,
-    fontWeight: '500',
-    marginBottom: 2,
-  },
-  medicationTime: {
-    fontSize: 14,
-    color: theme.textSecondary,
-  },
-  medicationAmount: {
-    fontSize: 15,
-    color: theme.primary,
-    fontWeight: '500',
-  },
   notesText: {
     fontSize: 15,
     color: theme.text,
     lineHeight: 22,
-  },
-  updateButton: {
-    backgroundColor: theme.primary,
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  updateButtonText: {
-    color: theme.primaryText,
-    fontSize: 15,
-    fontWeight: '600',
   },
   sliderHeader: {
     flexDirection: 'row',
@@ -351,6 +292,120 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     color: theme.textSecondary,
     textAlign: 'center',
   },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  actionButton: {
+    flex: 1,
+    backgroundColor: theme.card,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: theme.primary,
+  },
+  actionButtonText: {
+    color: theme.primary,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  timelineContainer: {
+    paddingLeft: 16,
+  },
+  timelineItem: {
+    flexDirection: 'row',
+    paddingBottom: 24,
+  },
+  timelineLeft: {
+    width: 80,
+    paddingRight: 16,
+    alignItems: 'flex-end',
+  },
+  timelineTime: {
+    fontSize: 13,
+    color: theme.textSecondary,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  timelineCenter: {
+    width: 32,
+    alignItems: 'center',
+  },
+  timelineDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: theme.primary,
+    marginTop: 4,
+  },
+  timelineLine: {
+    width: 2,
+    flex: 1,
+    backgroundColor: theme.borderLight,
+    marginTop: 4,
+  },
+  timelineRight: {
+    flex: 1,
+    paddingLeft: 16,
+  },
+  timelineEventTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.text,
+    marginBottom: 4,
+  },
+  timelineEventContent: {
+    fontSize: 15,
+    color: theme.textSecondary,
+    lineHeight: 20,
+  },
+  timelineNoteText: {
+    fontSize: 15,
+    color: theme.text,
+    lineHeight: 20,
+    marginTop: 4,
+  },
+  timelineIntensityBar: {
+    height: 24,
+    backgroundColor: theme.borderLight,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  timelineIntensityBarFill: {
+    height: '100%',
+  },
+  timelineIntensityValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  deleteEventButton: {
+    marginTop: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: 'transparent',
+    alignSelf: 'flex-start',
+  },
+  deleteEventButtonText: {
+    fontSize: 14,
+    color: theme.danger,
+    fontWeight: '500',
+  },
+  noteInput: {
+    backgroundColor: theme.borderLight,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 15,
+    color: theme.text,
+    minHeight: 80,
+    textAlignVertical: 'top',
+    marginBottom: 12,
+  },
 });
 
 export default function EpisodeDetailScreen({ route, navigation }: Props) {
@@ -362,9 +417,12 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   const [intensityReadings, setIntensityReadings] = useState<IntensityReading[]>([]);
   const [symptomLogs, setSymptomLogs] = useState<SymptomLog[]>([]);
   const [medications, setMedications] = useState<MedicationDoseWithDetails[]>([]);
+  const [episodeNotes, setEpisodeNotes] = useState<EpisodeNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIntensity, setCurrentIntensity] = useState(3);
   const [showIntensityUpdate, setShowIntensityUpdate] = useState(false);
+  const [showNoteInput, setShowNoteInput] = useState(false);
+  const [noteText, setNoteText] = useState('');
   const [locationAddress, setLocationAddress] = useState<string | null>(null);
   const [showMapModal, setShowMapModal] = useState(false);
 
@@ -374,11 +432,12 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
 
   const loadEpisodeData = async () => {
     try {
-      const [ep, readings, symptoms, meds] = await Promise.all([
+      const [ep, readings, symptoms, meds, notes] = await Promise.all([
         episodeRepository.getById(episodeId),
         intensityRepository.getByEpisodeId(episodeId),
         symptomLogRepository.getByEpisodeId(episodeId),
         medicationDoseRepository.getByEpisodeId(episodeId),
+        episodeNoteRepository.getByEpisodeId(episodeId),
       ]);
 
       // Load medication details for each dose
@@ -393,6 +452,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
       setIntensityReadings(readings);
       setSymptomLogs(symptoms);
       setMedications(medsWithDetails);
+      setEpisodeNotes(notes);
 
       // Reverse geocode location if available
       if (ep?.location) {
@@ -424,8 +484,176 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     }
   };
 
+  const handleAddNote = async () => {
+    if (!noteText.trim() || !episode) {
+      return;
+    }
+
+    try {
+      await episodeNoteRepository.create({
+        episodeId: episode.id,
+        timestamp: Date.now(),
+        note: noteText.trim(),
+      });
+      await loadEpisodeData();
+      setNoteText('');
+      setShowNoteInput(false);
+    } catch (error) {
+      console.error('Failed to add note:', error);
+      Alert.alert('Error', 'Failed to add note');
+    }
+  };
+
+  const handleDeleteNote = (noteId: string) => {
+    Alert.alert(
+      'Delete Note',
+      'Are you sure you want to delete this note?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await episodeNoteRepository.delete(noteId);
+              await loadEpisodeData();
+            } catch (error) {
+              console.error('Failed to delete note:', error);
+              Alert.alert('Error', 'Failed to delete note');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleOpenMap = () => {
     setShowMapModal(true);
+  };
+
+  // Build unified timeline
+  const buildTimeline = (): TimelineEvent[] => {
+    const events: TimelineEvent[] = [];
+
+    // Add intensity readings
+    intensityReadings.forEach(reading => {
+      events.push({
+        id: `intensity-${reading.id}`,
+        timestamp: reading.timestamp,
+        type: 'intensity',
+        data: reading,
+      });
+    });
+
+    // Add notes
+    episodeNotes.forEach(note => {
+      events.push({
+        id: `note-${note.id}`,
+        timestamp: note.timestamp,
+        type: 'note',
+        data: note,
+      });
+    });
+
+    // Add medications
+    medications.forEach(med => {
+      events.push({
+        id: `medication-${med.id}`,
+        timestamp: med.timestamp,
+        type: 'medication',
+        data: med,
+      });
+    });
+
+    // Sort by timestamp (most recent first)
+    return events.sort((a, b) => a.timestamp - b.timestamp);
+  };
+
+  const renderTimelineEvent = (event: TimelineEvent, index: number, isLast: boolean) => {
+    const time = format(event.timestamp, 'h:mm a');
+
+    switch (event.type) {
+      case 'intensity':
+        const reading = event.data as IntensityReading;
+        return (
+          <View key={event.id} style={styles.timelineItem}>
+            <View style={styles.timelineLeft}>
+              <Text style={styles.timelineTime}>{time}</Text>
+            </View>
+            <View style={styles.timelineCenter}>
+              <View style={[styles.timelineDot, { backgroundColor: getPainColor(reading.intensity) }]} />
+              {!isLast && <View style={styles.timelineLine} />}
+            </View>
+            <View style={styles.timelineRight}>
+              <Text style={styles.timelineEventTitle}>Intensity Update</Text>
+              <View style={styles.timelineIntensityBar}>
+                <View
+                  style={[
+                    styles.timelineIntensityBarFill,
+                    {
+                      width: `${(reading.intensity / 10) * 100}%`,
+                      backgroundColor: getPainColor(reading.intensity),
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={[styles.timelineIntensityValue, { color: getPainColor(reading.intensity) }]}>
+                {reading.intensity}/10 - {getPainLevel(reading.intensity).label}
+              </Text>
+            </View>
+          </View>
+        );
+
+      case 'note':
+        const note = event.data as EpisodeNote;
+        return (
+          <View key={event.id} style={styles.timelineItem}>
+            <View style={styles.timelineLeft}>
+              <Text style={styles.timelineTime}>{time}</Text>
+            </View>
+            <View style={styles.timelineCenter}>
+              <View style={styles.timelineDot} />
+              {!isLast && <View style={styles.timelineLine} />}
+            </View>
+            <View style={styles.timelineRight}>
+              <Text style={styles.timelineEventTitle}>Note</Text>
+              <Text style={styles.timelineNoteText}>{note.note}</Text>
+              <TouchableOpacity
+                style={styles.deleteEventButton}
+                onPress={() => handleDeleteNote(note.id)}
+              >
+                <Text style={styles.deleteEventButtonText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        );
+
+      case 'medication':
+        const dose = event.data as MedicationDoseWithDetails;
+        return (
+          <View key={event.id} style={styles.timelineItem}>
+            <View style={styles.timelineLeft}>
+              <Text style={styles.timelineTime}>{time}</Text>
+            </View>
+            <View style={styles.timelineCenter}>
+              <View style={[styles.timelineDot, { backgroundColor: theme.success }]} />
+              {!isLast && <View style={styles.timelineLine} />}
+            </View>
+            <View style={styles.timelineRight}>
+              <Text style={styles.timelineEventTitle}>Medication Taken</Text>
+              <Text style={styles.timelineEventContent}>
+                {dose.medication?.name || 'Unknown Medication'}
+              </Text>
+              <Text style={[styles.timelineEventContent, { marginTop: 4 }]}>
+                {dose.amount} × {dose.medication?.dosageAmount}{dose.medication?.dosageUnit}
+              </Text>
+            </View>
+          </View>
+        );
+
+      default:
+        return null;
+    }
   };
 
   if (loading || !episode) {
@@ -446,6 +674,8 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   const duration = episode.endTime
     ? differenceInMinutes(episode.endTime, episode.startTime)
     : differenceInMinutes(Date.now(), episode.startTime);
+
+  const timeline = buildTimeline();
 
   return (
     <View style={styles.container}>
@@ -523,90 +753,115 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
               </Text>
             </TouchableOpacity>
           )}
+
+          {/* Action Buttons - Only for ongoing episodes */}
+          {!episode.endTime && (
+            <View style={styles.actionButtons}>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => setShowIntensityUpdate(true)}
+              >
+                <Text style={styles.actionButtonText}>Log Intensity</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => setShowNoteInput(true)}
+              >
+                <Text style={styles.actionButtonText}>Add Note</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
-        {/* Intensity Timeline */}
-        {intensityReadings.length > 0 && (
+        {/* Intensity Input - When logging */}
+        {showIntensityUpdate && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Intensity Timeline</Text>
-            {intensityReadings.map((reading, index) => (
-              <View key={reading.id} style={styles.timelineItem}>
-                <Text style={styles.timelineTime}>
-                  {format(reading.timestamp, 'h:mm a')}
-                </Text>
-                <View style={styles.timelineBar}>
-                  <View
-                    style={[
-                      styles.timelineBarFill,
-                      {
-                        width: `${(reading.intensity / 10) * 100}%`,
-                        backgroundColor: getPainColor(reading.intensity),
-                      },
-                    ]}
-                  />
-                </View>
-                <Text style={[styles.timelineIntensity, { color: getPainColor(reading.intensity) }]}>
-                  {reading.intensity}
-                </Text>
-              </View>
-            ))}
+            <Text style={styles.cardTitle}>Log Intensity</Text>
+            <View style={styles.sliderHeader}>
+              <Text style={[styles.intensityValue, { color: getPainLevel(currentIntensity).color }]}>
+                {currentIntensity}/10
+              </Text>
+              <Text style={styles.intensityLabel}>
+                {getPainLevel(currentIntensity).label}
+              </Text>
+            </View>
+            <Slider
+              style={styles.slider}
+              minimumValue={0}
+              maximumValue={10}
+              step={1}
+              value={currentIntensity}
+              onValueChange={setCurrentIntensity}
+              minimumTrackTintColor={getPainLevel(currentIntensity).color}
+              maximumTrackTintColor="#E5E5EA"
+              thumbTintColor={getPainLevel(currentIntensity).color}
+            />
+            <View style={styles.sliderLabels}>
+              <Text style={styles.sliderLabelText}>0 - No Pain</Text>
+              <Text style={styles.sliderLabelText}>10 - Debilitating</Text>
+            </View>
+            <Text style={styles.painDescription}>
+              {getPainLevel(currentIntensity).description}
+            </Text>
+            <View style={styles.updateActions}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setShowIntensityUpdate(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.saveIntensityButton}
+                onPress={handleLogIntensity}
+              >
+                <Text style={styles.saveIntensityButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
-            {/* Log Current Intensity - Only for ongoing episodes */}
-            {!episode.endTime && (
-              <View style={styles.intensityUpdateSection}>
-                {!showIntensityUpdate ? (
-                  <TouchableOpacity
-                    style={styles.updateButton}
-                    onPress={() => setShowIntensityUpdate(true)}
-                  >
-                    <Text style={styles.updateButtonText}>Log Current Intensity</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <View>
-                    <View style={styles.sliderHeader}>
-                      <Text style={[styles.intensityValue, { color: getPainLevel(currentIntensity).color }]}>
-                        {currentIntensity}/10
-                      </Text>
-                      <Text style={styles.intensityLabel}>
-                        {getPainLevel(currentIntensity).label}
-                      </Text>
-                    </View>
-                    <Slider
-                      style={styles.slider}
-                      minimumValue={0}
-                      maximumValue={10}
-                      step={1}
-                      value={currentIntensity}
-                      onValueChange={setCurrentIntensity}
-                      minimumTrackTintColor={getPainLevel(currentIntensity).color}
-                      maximumTrackTintColor="#E5E5EA"
-                      thumbTintColor={getPainLevel(currentIntensity).color}
-                    />
-                    <View style={styles.sliderLabels}>
-                      <Text style={styles.sliderLabelText}>0 - No Pain</Text>
-                      <Text style={styles.sliderLabelText}>10 - Debilitating</Text>
-                    </View>
-                    <Text style={styles.painDescription}>
-                      {getPainLevel(currentIntensity).description}
-                    </Text>
-                    <View style={styles.updateActions}>
-                      <TouchableOpacity
-                        style={styles.cancelButton}
-                        onPress={() => setShowIntensityUpdate(false)}
-                      >
-                        <Text style={styles.cancelButtonText}>Cancel</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.saveIntensityButton}
-                        onPress={handleLogIntensity}
-                      >
-                        <Text style={styles.saveIntensityButtonText}>Save</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                )}
-              </View>
-            )}
+        {/* Note Input - When adding note */}
+        {showNoteInput && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Add Note</Text>
+            <TextInput
+              style={styles.noteInput}
+              placeholder="Type your note here..."
+              placeholderTextColor={theme.textTertiary}
+              value={noteText}
+              onChangeText={setNoteText}
+              multiline
+              autoFocus
+            />
+            <View style={styles.updateActions}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => {
+                  setShowNoteInput(false);
+                  setNoteText('');
+                }}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.saveIntensityButton}
+                onPress={handleAddNote}
+              >
+                <Text style={styles.saveIntensityButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Timeline */}
+        {timeline.length > 0 && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Timeline</Text>
+            <View style={styles.timelineContainer}>
+              {timeline.map((event, index) =>
+                renderTimelineEvent(event, index, index === timeline.length - 1)
+              )}
+            </View>
           </View>
         )}
 
@@ -687,32 +942,10 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
           </View>
         )}
 
-        {/* Medications Taken */}
-        {medications.length > 0 && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Medications Taken</Text>
-            {medications.map(dose => (
-              <View key={dose.id} style={styles.medicationItem}>
-                <View style={styles.medicationInfo}>
-                  <Text style={styles.medicationName}>
-                    {dose.medication?.name || 'Unknown Medication'}
-                  </Text>
-                  <Text style={styles.medicationTime}>
-                    {format(dose.timestamp, 'h:mm a')}
-                  </Text>
-                </View>
-                <Text style={styles.medicationAmount}>
-                  {dose.amount} × {dose.medication?.dosageAmount}{dose.medication?.dosageUnit}
-                </Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* Notes */}
+        {/* Old Episode Notes (from episode creation) */}
         {episode.notes && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Notes</Text>
+            <Text style={styles.cardTitle}>Episode Summary</Text>
             <Text style={styles.notesText}>{episode.notes}</Text>
           </View>
         )}

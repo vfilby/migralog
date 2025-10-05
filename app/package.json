@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "start": "npm run generate-build-info && expo start",
+    "android": "npm run generate-build-info && expo start --android",
+    "ios": "npm run generate-build-info && expo start --ios",
+    "web": "npm run generate-build-info && expo start --web",
+    "generate-build-info": "node scripts/generate-build-info.js"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
