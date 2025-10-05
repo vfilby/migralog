@@ -1,5 +1,4 @@
 import * as SQLite from 'expo-sqlite';
-// import { backupService } from '../services/backupService'; // Temporarily disabled to fix circular dependency
 
 const SCHEMA_VERSION_TABLE = `
   CREATE TABLE IF NOT EXISTS schema_version (
@@ -130,7 +129,7 @@ class MigrationRunner {
     return currentVersion < targetVersion;
   }
 
-  async runMigrations(): Promise<void> {
+  async runMigrations(createBackup?: () => Promise<void>): Promise<void> {
     if (!this.db) {
       throw new Error('MigrationRunner not initialized');
     }
@@ -145,18 +144,19 @@ class MigrationRunner {
 
     console.log(`Migrating database from version ${currentVersion} to ${targetVersion}`);
 
-    // TODO: Create backup before migration (currently disabled due to circular dependency)
-    // Will be re-enabled after refactoring backup service to avoid require cycles
-    console.warn('Automatic backup before migration is temporarily disabled');
-
-    // try {
-    //   console.log('Creating automatic backup before migration...');
-    //   await backupService.createBackup(true);
-    //   console.log('Backup created successfully');
-    // } catch (error) {
-    //   console.error('Failed to create backup before migration:', error);
-    //   throw new Error('Migration aborted: Failed to create backup');
-    // }
+    // Create backup before migration if backup function provided
+    if (createBackup) {
+      try {
+        console.log('Creating automatic backup before migration...');
+        await createBackup();
+        console.log('Backup created successfully');
+      } catch (error) {
+        console.error('Failed to create backup before migration:', error);
+        throw new Error('Migration aborted: Failed to create backup');
+      }
+    } else {
+      console.warn('No backup function provided, skipping automatic backup');
+    }
 
     // Run pending migrations in order
     const pendingMigrations = migrations.filter(m => m.version > currentVersion);
@@ -183,7 +183,7 @@ class MigrationRunner {
     console.log('All migrations completed successfully');
   }
 
-  async rollback(toVersion: number): Promise<void> {
+  async rollback(toVersion: number, createBackup?: () => Promise<void>): Promise<void> {
     if (!this.db) {
       throw new Error('MigrationRunner not initialized');
     }
@@ -197,17 +197,19 @@ class MigrationRunner {
 
     console.log(`Rolling back database from version ${currentVersion} to ${toVersion}`);
 
-    // TODO: Create backup before rollback (currently disabled due to circular dependency)
-    console.warn('Automatic backup before rollback is temporarily disabled');
-
-    // try {
-    //   console.log('Creating automatic backup before rollback...');
-    //   await backupService.createBackup(true);
-    //   console.log('Backup created successfully');
-    // } catch (error) {
-    //   console.error('Failed to create backup before rollback:', error);
-    //   throw new Error('Rollback aborted: Failed to create backup');
-    // }
+    // Create backup before rollback if backup function provided
+    if (createBackup) {
+      try {
+        console.log('Creating automatic backup before rollback...');
+        await createBackup();
+        console.log('Backup created successfully');
+      } catch (error) {
+        console.error('Failed to create backup before rollback:', error);
+        throw new Error('Rollback aborted: Failed to create backup');
+      }
+    } else {
+      console.warn('No backup function provided, skipping automatic backup');
+    }
 
     // Get migrations to rollback in reverse order
     const migrationsToRollback = migrations
