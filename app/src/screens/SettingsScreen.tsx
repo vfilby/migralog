@@ -13,10 +13,12 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { backupService, BackupMetadata } from '../services/backupService';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme, ThemeMode, ThemeColors } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
 export default function SettingsScreen({ navigation }: Props) {
+  const { theme, themeMode, setThemeMode } = useTheme();
   const [backups, setBackups] = useState<BackupMetadata[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -126,6 +128,8 @@ export default function SettingsScreen({ navigation }: Props) {
     );
   };
 
+  const styles = createStyles(theme);
+
   const renderBackupItem = (backup: BackupMetadata) => {
     const date = backupService.formatDate(backup.timestamp);
     const size = backupService.formatFileSize(backup.fileSize);
@@ -145,22 +149,22 @@ export default function SettingsScreen({ navigation }: Props) {
             style={styles.actionButton}
             onPress={() => handleRestoreBackup(backup.id, date)}
           >
-            <Ionicons name="refresh" size={20} color="#007AFF" />
+            <Ionicons name="refresh" size={20} color={theme.primary} />
             <Text style={styles.actionButtonText}>Restore</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionButton}
             onPress={() => handleExportBackup(backup.id)}
           >
-            <Ionicons name="share-outline" size={20} color="#007AFF" />
+            <Ionicons name="share-outline" size={20} color={theme.primary} />
             <Text style={styles.actionButtonText}>Export</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionButton}
             onPress={() => handleDeleteBackup(backup.id, date)}
           >
-            <Ionicons name="trash-outline" size={20} color="#FF3B30" />
-            <Text style={[styles.actionButtonText, { color: '#FF3B30' }]}>Delete</Text>
+            <Ionicons name="trash-outline" size={20} color={theme.danger} />
+            <Text style={[styles.actionButtonText, { color: theme.danger }]}>Delete</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -186,6 +190,85 @@ export default function SettingsScreen({ navigation }: Props) {
           }} />
         }
       >
+        {/* Appearance Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Appearance</Text>
+          <Text style={styles.sectionDescription}>
+            Choose how the app looks, or let it follow your device settings.
+          </Text>
+
+          <View style={styles.themeOptions}>
+            <TouchableOpacity
+              style={[
+                styles.themeOption,
+                themeMode === 'light' && styles.themeOptionActive
+              ]}
+              onPress={() => setThemeMode('light')}
+            >
+              <Ionicons
+                name="sunny"
+                size={24}
+                color={themeMode === 'light' ? theme.primary : theme.textSecondary}
+              />
+              <Text style={[
+                styles.themeOptionText,
+                themeMode === 'light' && styles.themeOptionTextActive
+              ]}>
+                Light
+              </Text>
+              {themeMode === 'light' && (
+                <Ionicons name="checkmark-circle" size={20} color={theme.primary} />
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.themeOption,
+                themeMode === 'dark' && styles.themeOptionActive
+              ]}
+              onPress={() => setThemeMode('dark')}
+            >
+              <Ionicons
+                name="moon"
+                size={24}
+                color={themeMode === 'dark' ? theme.primary : theme.textSecondary}
+              />
+              <Text style={[
+                styles.themeOptionText,
+                themeMode === 'dark' && styles.themeOptionTextActive
+              ]}>
+                Dark
+              </Text>
+              {themeMode === 'dark' && (
+                <Ionicons name="checkmark-circle" size={20} color={theme.primary} />
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.themeOption,
+                themeMode === 'system' && styles.themeOptionActive
+              ]}
+              onPress={() => setThemeMode('system')}
+            >
+              <Ionicons
+                name="phone-portrait"
+                size={24}
+                color={themeMode === 'system' ? theme.primary : theme.textSecondary}
+              />
+              <Text style={[
+                styles.themeOptionText,
+                themeMode === 'system' && styles.themeOptionTextActive
+              ]}>
+                System
+              </Text>
+              {themeMode === 'system' && (
+                <Ionicons name="checkmark-circle" size={20} color={theme.primary} />
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Backup & Recovery Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Backup & Recovery</Text>
@@ -199,17 +282,17 @@ export default function SettingsScreen({ navigation }: Props) {
             disabled={creatingBackup}
           >
             {creatingBackup ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={theme.primaryText} />
             ) : (
               <>
-                <Ionicons name="add-circle-outline" size={24} color="#fff" />
+                <Ionicons name="add-circle-outline" size={24} color={theme.primaryText} />
                 <Text style={styles.primaryButtonText}>Create Backup</Text>
               </>
             )}
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.secondaryButton} onPress={handleImportBackup}>
-            <Ionicons name="cloud-download-outline" size={24} color="#007AFF" />
+            <Ionicons name="cloud-download-outline" size={24} color={theme.primary} />
             <Text style={styles.secondaryButtonText}>Import Backup</Text>
           </TouchableOpacity>
         </View>
@@ -219,11 +302,11 @@ export default function SettingsScreen({ navigation }: Props) {
           <Text style={styles.sectionTitle}>Available Backups</Text>
           {loading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#007AFF" />
+              <ActivityIndicator size="large" color={theme.primary} />
             </View>
           ) : backups.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Ionicons name="folder-open-outline" size={48} color="#C7C7CC" />
+              <Ionicons name="folder-open-outline" size={48} color={theme.textTertiary} />
               <Text style={styles.emptyText}>No backups yet</Text>
               <Text style={styles.emptySubtext}>
                 Create your first backup to protect your data
@@ -240,13 +323,13 @@ export default function SettingsScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: theme.background,
   },
   header: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.backgroundSecondary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -254,16 +337,16 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: theme.border,
   },
   title: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#000',
+    color: theme.text,
   },
   backButton: {
     fontSize: 17,
-    color: '#007AFF',
+    color: theme.primary,
     width: 60,
   },
   content: {
@@ -276,17 +359,17 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 22,
     fontWeight: '600',
-    color: '#000',
+    color: theme.text,
     marginBottom: 8,
   },
   sectionDescription: {
     fontSize: 15,
-    color: '#8E8E93',
+    color: theme.textSecondary,
     marginBottom: 16,
     lineHeight: 20,
   },
   primaryButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: theme.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -296,35 +379,35 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   primaryButtonDisabled: {
-    backgroundColor: '#C7C7CC',
+    backgroundColor: theme.textTertiary,
   },
   primaryButtonText: {
-    color: '#fff',
+    color: theme.primaryText,
     fontSize: 17,
     fontWeight: '600',
   },
   secondaryButton: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.card,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#007AFF',
+    borderColor: theme.primary,
     gap: 8,
   },
   secondaryButtonText: {
-    color: '#007AFF',
+    color: theme.primary,
     fontSize: 17,
     fontWeight: '600',
   },
   backupCard: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.card,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -339,18 +422,18 @@ const styles = StyleSheet.create({
   backupDate: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000',
+    color: theme.text,
     marginBottom: 4,
   },
   backupStats: {
     fontSize: 13,
-    color: '#8E8E93',
+    color: theme.textSecondary,
   },
   backupActions: {
     flexDirection: 'row',
     gap: 8,
     borderTopWidth: 1,
-    borderTopColor: '#F2F2F7',
+    borderTopColor: theme.borderLight,
     paddingTop: 12,
   },
   actionButton: {
@@ -360,20 +443,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 10,
     borderRadius: 8,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: theme.borderLight,
     gap: 4,
   },
   actionButtonText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#007AFF',
+    color: theme.primary,
   },
   loadingContainer: {
     padding: 40,
     alignItems: 'center',
   },
   emptyContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.card,
     borderRadius: 12,
     padding: 40,
     alignItems: 'center',
@@ -381,13 +464,40 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#8E8E93',
+    color: theme.textSecondary,
     marginTop: 16,
   },
   emptySubtext: {
     fontSize: 15,
-    color: '#C7C7CC',
+    color: theme.textTertiary,
     marginTop: 4,
     textAlign: 'center',
+  },
+  themeOptions: {
+    gap: 12,
+  },
+  themeOption: {
+    backgroundColor: theme.card,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: theme.border,
+    gap: 12,
+  },
+  themeOptionActive: {
+    borderColor: theme.primary,
+    backgroundColor: theme.primary + '15', // 15% opacity
+  },
+  themeOptionText: {
+    flex: 1,
+    fontSize: 17,
+    fontWeight: '500',
+    color: theme.text,
+  },
+  themeOptionTextActive: {
+    color: theme.primary,
+    fontWeight: '600',
   },
 });

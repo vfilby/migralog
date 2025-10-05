@@ -11,6 +11,7 @@ import { Episode, IntensityReading, SymptomLog, MedicationDose, Medication } fro
 import { format, differenceInMinutes } from 'date-fns';
 import { getPainColor, getPainLevel } from '../utils/painScale';
 import { locationService } from '../services/locationService';
+import { useTheme, ThemeColors } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EpisodeDetail'>;
 
@@ -18,8 +19,344 @@ type MedicationDoseWithDetails = MedicationDose & {
   medication?: Medication;
 };
 
+const createStyles = (theme: ThemeColors) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.background,
+  },
+  header: {
+    backgroundColor: theme.card,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 60,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border,
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: theme.text,
+  },
+  backButton: {
+    fontSize: 17,
+    color: theme.primary,
+    width: 60,
+  },
+  editButton: {
+    fontSize: 17,
+    color: theme.primary,
+    fontWeight: '600',
+  },
+  loadingText: {
+    textAlign: 'center',
+    marginTop: 40,
+    fontSize: 16,
+    color: theme.textSecondary,
+  },
+  content: {
+    flex: 1,
+  },
+  card: {
+    backgroundColor: theme.card,
+    marginHorizontal: 16,
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  statusHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.text,
+    marginBottom: 12,
+  },
+  ongoingBadge: {
+    backgroundColor: theme.ongoing,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  ongoingText: {
+    color: theme.ongoingText,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.borderLight,
+  },
+  detailLabel: {
+    fontSize: 15,
+    color: theme.textSecondary,
+  },
+  detailValue: {
+    fontSize: 15,
+    color: theme.text,
+    fontWeight: '500',
+  },
+  locationLink: {
+    color: theme.primary,
+    fontWeight: '600',
+  },
+  intensityValue: {
+    color: theme.danger,
+    fontWeight: '600',
+  },
+  timelineItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 12,
+  },
+  timelineTime: {
+    fontSize: 13,
+    color: theme.textSecondary,
+    width: 70,
+  },
+  timelineBar: {
+    flex: 1,
+    height: 24,
+    backgroundColor: theme.borderLight,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  timelineBarFill: {
+    height: '100%',
+    backgroundColor: theme.primary,
+  },
+  timelineIntensity: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.text,
+    width: 30,
+    textAlign: 'right',
+  },
+  intensityUpdateSection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: theme.border,
+  },
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: theme.borderLight,
+  },
+  chipText: {
+    fontSize: 14,
+    color: theme.text,
+  },
+  locationGrid: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  locationSide: {
+    flex: 1,
+  },
+  locationSideLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.textSecondary,
+    marginBottom: 8,
+  },
+  locationItem: {
+    fontSize: 15,
+    color: theme.text,
+    marginBottom: 4,
+  },
+  medicationItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.borderLight,
+  },
+  medicationInfo: {
+    flex: 1,
+  },
+  medicationName: {
+    fontSize: 16,
+    color: theme.text,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  medicationTime: {
+    fontSize: 14,
+    color: theme.textSecondary,
+  },
+  medicationAmount: {
+    fontSize: 15,
+    color: theme.primary,
+    fontWeight: '500',
+  },
+  notesText: {
+    fontSize: 15,
+    color: theme.text,
+    lineHeight: 22,
+  },
+  updateButton: {
+    backgroundColor: theme.primary,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  updateButtonText: {
+    color: theme.primaryText,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  sliderHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  intensityLabel: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: theme.text,
+  },
+  slider: {
+    width: '100%',
+    height: 40,
+  },
+  sliderLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  sliderLabelText: {
+    fontSize: 13,
+    color: theme.textSecondary,
+  },
+  painDescription: {
+    marginTop: 12,
+    fontSize: 15,
+    color: theme.textSecondary,
+    textAlign: 'center',
+  },
+  updateActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  cancelButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: theme.primary,
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  saveIntensityButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: theme.primary,
+    alignItems: 'center',
+  },
+  saveIntensityButtonText: {
+    color: theme.primaryText,
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  footer: {
+    backgroundColor: theme.card,
+    padding: 16,
+    paddingBottom: 34,
+    borderTopWidth: 1,
+    borderTopColor: theme.border,
+  },
+  endButton: {
+    backgroundColor: theme.danger,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  endButtonText: {
+    color: theme.dangerText,
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: theme.background,
+  },
+  modalHeader: {
+    backgroundColor: theme.card,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 60,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: theme.text,
+  },
+  modalCloseButton: {
+    fontSize: 17,
+    color: theme.primary,
+    fontWeight: '600',
+  },
+  modalMap: {
+    flex: 1,
+  },
+  modalInfo: {
+    backgroundColor: theme.card,
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: theme.border,
+  },
+  modalLocationText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: theme.text,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  modalAccuracyText: {
+    fontSize: 14,
+    color: theme.textSecondary,
+    textAlign: 'center',
+  },
+});
+
 export default function EpisodeDetailScreen({ route, navigation }: Props) {
   const { episodeId } = route.params;
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   const { endEpisode, addIntensityReading } = useEpisodeStore();
   const [episode, setEpisode] = useState<Episode | null>(null);
   const [intensityReadings, setIntensityReadings] = useState<IntensityReading[]>([]);
@@ -445,340 +782,3 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F2F2F7',
-  },
-  header: {
-    backgroundColor: '#fff',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 60,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#000',
-  },
-  backButton: {
-    fontSize: 17,
-    color: '#007AFF',
-    width: 60,
-  },
-  editButton: {
-    fontSize: 17,
-    color: '#007AFF',
-    fontWeight: '600',
-  },
-  loadingText: {
-    textAlign: 'center',
-    marginTop: 40,
-    fontSize: 16,
-    color: '#8E8E93',
-  },
-  content: {
-    flex: 1,
-  },
-  card: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginTop: 16,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  statusHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 12,
-  },
-  ongoingBadge: {
-    backgroundColor: '#FF3B30',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  ongoingText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F2F2F7',
-  },
-  detailLabel: {
-    fontSize: 15,
-    color: '#8E8E93',
-  },
-  detailValue: {
-    fontSize: 15,
-    color: '#000',
-    fontWeight: '500',
-  },
-  locationLink: {
-    color: '#007AFF',
-    fontWeight: '600',
-  },
-  intensityValue: {
-    color: '#FF3B30',
-    fontWeight: '600',
-  },
-  timelineItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    gap: 12,
-  },
-  timelineTime: {
-    fontSize: 13,
-    color: '#8E8E93',
-    width: 70,
-  },
-  timelineBar: {
-    flex: 1,
-    height: 24,
-    backgroundColor: '#F2F2F7',
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  timelineBarFill: {
-    height: '100%',
-    backgroundColor: '#007AFF',
-  },
-  timelineIntensity: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#000',
-    width: 30,
-    textAlign: 'right',
-  },
-  intensityUpdateSection: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5EA',
-  },
-  chipContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#F2F2F7',
-  },
-  chipText: {
-    fontSize: 14,
-    color: '#000',
-  },
-  locationGrid: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  locationSide: {
-    flex: 1,
-  },
-  locationSideLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#8E8E93',
-    marginBottom: 8,
-  },
-  locationItem: {
-    fontSize: 15,
-    color: '#000',
-    marginBottom: 4,
-  },
-  medicationItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F2F2F7',
-  },
-  medicationInfo: {
-    flex: 1,
-  },
-  medicationName: {
-    fontSize: 16,
-    color: '#000',
-    fontWeight: '500',
-    marginBottom: 2,
-  },
-  medicationTime: {
-    fontSize: 14,
-    color: '#8E8E93',
-  },
-  medicationAmount: {
-    fontSize: 15,
-    color: '#007AFF',
-    fontWeight: '500',
-  },
-  notesText: {
-    fontSize: 15,
-    color: '#000',
-    lineHeight: 22,
-  },
-  updateButton: {
-    backgroundColor: '#007AFF',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  updateButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  sliderHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  intensityValue: {
-    fontSize: 34,
-    fontWeight: 'bold',
-  },
-  intensityLabel: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#000',
-  },
-  slider: {
-    width: '100%',
-    height: 40,
-  },
-  sliderLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  sliderLabelText: {
-    fontSize: 13,
-    color: '#8E8E93',
-  },
-  painDescription: {
-    marginTop: 12,
-    fontSize: 15,
-    color: '#8E8E93',
-    textAlign: 'center',
-  },
-  updateActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 16,
-  },
-  cancelButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    backgroundColor: 'transparent',
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    color: '#007AFF',
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  saveIntensityButton: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 12,
-    backgroundColor: '#007AFF',
-    alignItems: 'center',
-  },
-  saveIntensityButtonText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  footer: {
-    backgroundColor: '#fff',
-    padding: 16,
-    paddingBottom: 34,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5EA',
-  },
-  endButton: {
-    backgroundColor: '#FF3B30',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  endButtonText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#F2F2F7',
-  },
-  modalHeader: {
-    backgroundColor: '#fff',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 60,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
-  },
-  modalTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#000',
-  },
-  modalCloseButton: {
-    fontSize: 17,
-    color: '#007AFF',
-    fontWeight: '600',
-  },
-  modalMap: {
-    flex: 1,
-  },
-  modalInfo: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5EA',
-  },
-  modalLocationText: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#000',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  modalAccuracyText: {
-    fontSize: 14,
-    color: '#8E8E93',
-    textAlign: 'center',
-  },
-});

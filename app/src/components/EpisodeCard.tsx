@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { Episode } from '../models/types';
 import { getPainColor, getPainLevel } from '../utils/painScale';
 import { locationService } from '../services/locationService';
+import { useTheme, ThemeColors } from '../theme';
 
 interface EpisodeCardProps {
   episode: Episode;
@@ -11,7 +12,123 @@ interface EpisodeCardProps {
   compact?: boolean;
 }
 
+const createStyles = (theme: ThemeColors) => StyleSheet.create({
+  // Compact styles (for Dashboard)
+  episodeItemCompact: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border,
+  },
+  compactHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  episodeDateCompact: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.text,
+    flex: 1,
+  },
+  ongoingBadgeCompact: {
+    backgroundColor: theme.ongoing,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  ongoingTextCompact: {
+    color: theme.ongoingText,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  compactDetails: {
+    gap: 6,
+  },
+  compactRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  compactLabel: {
+    fontSize: 14,
+    color: theme.textSecondary,
+  },
+  compactValue: {
+    fontSize: 14,
+    color: theme.text,
+    fontWeight: '500',
+    flex: 1,
+    textAlign: 'right',
+  },
+  peakIntensity: {
+    fontWeight: '600',
+  },
+
+  // Full card styles (for Episodes list)
+  episodeCard: {
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  episodeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  episodeDate: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.text,
+    flex: 1,
+  },
+  ongoingBadge: {
+    backgroundColor: theme.ongoing,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  ongoingText: {
+    color: theme.ongoingText,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  episodeDetails: {
+    gap: 8,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  detailLabel: {
+    fontSize: 15,
+    color: theme.textSecondary,
+  },
+  detailValue: {
+    fontSize: 15,
+    color: theme.text,
+    fontWeight: '500',
+  },
+  intensityValue: {
+    fontWeight: '600',
+  },
+  notes: {
+    marginTop: 12,
+    fontSize: 14,
+    color: theme.textSecondary,
+    fontStyle: 'italic',
+  },
+});
+
 const EpisodeCard = React.memo(({ episode, onPress, compact = false }: EpisodeCardProps) => {
+  const { theme } = useTheme();
   const [locationAddress, setLocationAddress] = useState<string | null>(null);
 
   const duration = episode.endTime
@@ -27,6 +144,8 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false }: EpisodeCa
         .catch(() => setLocationAddress(null));
     }
   }, [episode.location]);
+
+  const styles = createStyles(theme);
 
   if (compact) {
     return (
@@ -159,120 +278,5 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false }: EpisodeCa
 });
 
 EpisodeCard.displayName = 'EpisodeCard';
-
-const styles = StyleSheet.create({
-  // Compact styles (for Dashboard)
-  episodeItemCompact: {
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
-  },
-  compactHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  episodeDateCompact: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-    flex: 1,
-  },
-  ongoingBadgeCompact: {
-    backgroundColor: '#FF3B30',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  ongoingTextCompact: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  compactDetails: {
-    gap: 6,
-  },
-  compactRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  compactLabel: {
-    fontSize: 14,
-    color: '#8E8E93',
-  },
-  compactValue: {
-    fontSize: 14,
-    color: '#000',
-    fontWeight: '500',
-    flex: 1,
-    textAlign: 'right',
-  },
-  peakIntensity: {
-    fontWeight: '600',
-  },
-
-  // Full card styles (for Episodes list)
-  episodeCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  episodeHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  episodeDate: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000',
-    flex: 1,
-  },
-  ongoingBadge: {
-    backgroundColor: '#FF3B30',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  ongoingText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  episodeDetails: {
-    gap: 8,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  detailLabel: {
-    fontSize: 15,
-    color: '#8E8E93',
-  },
-  detailValue: {
-    fontSize: 15,
-    color: '#000',
-    fontWeight: '500',
-  },
-  intensityValue: {
-    fontWeight: '600',
-  },
-  notes: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#8E8E93',
-    fontStyle: 'italic',
-  },
-});
 
 export default EpisodeCard;

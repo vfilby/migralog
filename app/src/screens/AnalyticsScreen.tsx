@@ -2,8 +2,102 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useEpisodeStore } from '../store/episodeStore';
 import { format, startOfMonth, endOfMonth, differenceInDays } from 'date-fns';
+import { useTheme, ThemeColors } from '../theme';
+
+const createStyles = (theme: ThemeColors) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.background,
+  },
+  header: {
+    backgroundColor: theme.card,
+    padding: 20,
+    paddingTop: 60,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border,
+  },
+  title: {
+    fontSize: 34,
+    fontWeight: 'bold',
+    color: theme.text,
+  },
+  content: {
+    flex: 1,
+  },
+  section: {
+    marginTop: 24,
+    paddingHorizontal: 16,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: theme.text,
+    marginBottom: 12,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  statCard: {
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    padding: 20,
+    flex: 1,
+    minWidth: '45%',
+    alignItems: 'center',
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  statValue: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: theme.primary,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: theme.textSecondary,
+    textAlign: 'center',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: theme.textSecondary,
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 15,
+    color: theme.textTertiary,
+    textAlign: 'center',
+  },
+  card: {
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  featureText: {
+    fontSize: 16,
+    color: theme.textSecondary,
+    marginBottom: 8,
+  },
+});
 
 export default function AnalyticsScreen() {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   const { episodes, loadEpisodes } = useEpisodeStore();
   const [stats, setStats] = useState({
     totalEpisodes: 0,
@@ -114,93 +208,3 @@ export default function AnalyticsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F2F2F7',
-  },
-  header: {
-    backgroundColor: '#fff',
-    padding: 20,
-    paddingTop: 60,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
-  },
-  title: {
-    fontSize: 34,
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  content: {
-    flex: 1,
-  },
-  section: {
-    marginTop: 24,
-    paddingHorizontal: 16,
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 12,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  statCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    flex: 1,
-    minWidth: '45%',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  statValue: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#007AFF',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 14,
-    color: '#8E8E93',
-    textAlign: 'center',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    padding: 40,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '500',
-    color: '#8E8E93',
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 15,
-    color: '#C7C7CC',
-    textAlign: 'center',
-  },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  featureText: {
-    fontSize: 16,
-    color: '#8E8E93',
-    marginBottom: 8,
-  },
-});

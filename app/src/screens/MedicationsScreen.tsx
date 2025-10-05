@@ -7,11 +7,195 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { Medication } from '../models/types';
+import { useTheme, ThemeColors } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
+const createStyles = (theme: ThemeColors) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.background,
+  },
+  header: {
+    backgroundColor: theme.card,
+    padding: 20,
+    paddingTop: 60,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 34,
+    fontWeight: 'bold',
+    color: theme.text,
+  },
+  editButton: {
+    fontSize: 17,
+    color: theme.primary,
+    fontWeight: '600',
+  },
+  content: {
+    flex: 1,
+  },
+  section: {
+    marginTop: 24,
+    paddingHorizontal: 16,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: theme.text,
+    marginBottom: 12,
+  },
+  medicationCard: {
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  medicationHeader: {
+    marginBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  medicationName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.text,
+    flex: 1,
+  },
+  editModeButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  editText: {
+    fontSize: 14,
+    color: theme.primary,
+    fontWeight: '500',
+  },
+  archiveText: {
+    fontSize: 14,
+    color: theme.danger,
+    fontWeight: '500',
+  },
+  medicationDetails: {
+    gap: 4,
+  },
+  dosageText: {
+    fontSize: 16,
+    color: theme.primary,
+    fontWeight: '500',
+  },
+  frequencyText: {
+    fontSize: 14,
+    color: theme.textSecondary,
+  },
+  notes: {
+    marginTop: 8,
+    fontSize: 14,
+    color: theme.textSecondary,
+    fontStyle: 'italic',
+  },
+  medicationActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  quickLogButton: {
+    flex: 1,
+    backgroundColor: theme.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  quickLogButtonText: {
+    color: theme.primaryText,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  detailedLogButton: {
+    flex: 1,
+    backgroundColor: theme.background,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  detailedLogButtonText: {
+    color: theme.primary,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  emptyCard: {
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 15,
+    color: theme.textSecondary,
+  },
+  addButton: {
+    backgroundColor: theme.primary,
+    margin: 16,
+    marginTop: 24,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  addButtonText: {
+    color: theme.primaryText,
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  archivedCard: {
+    backgroundColor: theme.background,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  archivedMedicationInfo: {
+    flex: 1,
+  },
+  archivedMedicationName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.textSecondary,
+    marginBottom: 2,
+  },
+  medicationType: {
+    fontSize: 13,
+    color: theme.textSecondary,
+  },
+  restoreButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: theme.primary,
+    borderRadius: 6,
+  },
+  restoreButtonText: {
+    fontSize: 14,
+    color: theme.primaryText,
+    fontWeight: '600',
+  },
+});
+
 export default function MedicationsScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   const { preventativeMedications, rescueMedications, loadMedications, logDose, archiveMedication, unarchiveMedication, loading } = useMedicationStore();
   const { currentEpisode, loadCurrentEpisode } = useEpisodeStore();
   const [isEditMode, setIsEditMode] = useState(false);
@@ -247,183 +431,3 @@ export default function MedicationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F2F2F7',
-  },
-  header: {
-    backgroundColor: '#fff',
-    padding: 20,
-    paddingTop: 60,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 34,
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  editButton: {
-    fontSize: 17,
-    color: '#007AFF',
-    fontWeight: '600',
-  },
-  content: {
-    flex: 1,
-  },
-  section: {
-    marginTop: 24,
-    paddingHorizontal: 16,
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 12,
-  },
-  medicationCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  medicationHeader: {
-    marginBottom: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  medicationName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000',
-    flex: 1,
-  },
-  editModeButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  editText: {
-    fontSize: 14,
-    color: '#007AFF',
-    fontWeight: '500',
-  },
-  archiveText: {
-    fontSize: 14,
-    color: '#FF3B30',
-    fontWeight: '500',
-  },
-  medicationDetails: {
-    gap: 4,
-  },
-  dosageText: {
-    fontSize: 16,
-    color: '#007AFF',
-    fontWeight: '500',
-  },
-  frequencyText: {
-    fontSize: 14,
-    color: '#8E8E93',
-  },
-  notes: {
-    marginTop: 8,
-    fontSize: 14,
-    color: '#8E8E93',
-    fontStyle: 'italic',
-  },
-  medicationActions: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
-  },
-  quickLogButton: {
-    flex: 1,
-    backgroundColor: '#007AFF',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  quickLogButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  detailedLogButton: {
-    flex: 1,
-    backgroundColor: '#F2F2F7',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  detailedLogButtonText: {
-    color: '#007AFF',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  emptyCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 24,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 15,
-    color: '#8E8E93',
-  },
-  addButton: {
-    backgroundColor: '#007AFF',
-    margin: 16,
-    marginTop: 24,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  archivedCard: {
-    backgroundColor: '#F2F2F7',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E5E5EA',
-  },
-  archivedMedicationInfo: {
-    flex: 1,
-  },
-  archivedMedicationName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#8E8E93',
-    marginBottom: 2,
-  },
-  medicationType: {
-    fontSize: 13,
-    color: '#8E8E93',
-  },
-  restoreButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#007AFF',
-    borderRadius: 6,
-  },
-  restoreButtonText: {
-    fontSize: 14,
-    color: '#fff',
-    fontWeight: '600',
-  },
-});

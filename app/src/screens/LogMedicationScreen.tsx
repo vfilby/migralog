@@ -17,10 +17,235 @@ import { medicationRepository } from '../database/medicationRepository';
 import { Medication } from '../models/types';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
+import { useTheme, ThemeColors } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LogMedication'>;
 
+const createStyles = (theme: ThemeColors) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.background,
+  },
+  header: {
+    backgroundColor: theme.card,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 60,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border,
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: theme.text,
+  },
+  cancelButton: {
+    fontSize: 17,
+    color: theme.primary,
+    width: 60,
+  },
+  loadingText: {
+    textAlign: 'center',
+    marginTop: 40,
+    fontSize: 16,
+    color: theme.textSecondary,
+  },
+  content: {
+    flex: 1,
+  },
+  card: {
+    backgroundColor: theme.card,
+    marginHorizontal: 16,
+    marginTop: 16,
+    padding: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  medicationName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: theme.text,
+    marginBottom: 4,
+  },
+  medicationDosage: {
+    fontSize: 16,
+    color: theme.textSecondary,
+  },
+  section: {
+    marginTop: 24,
+    paddingHorizontal: 16,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.textSecondary,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  timeButton: {
+    backgroundColor: theme.card,
+    padding: 16,
+    borderRadius: 12,
+  },
+  timeText: {
+    fontSize: 17,
+    color: theme.primary,
+    fontWeight: '500',
+  },
+  amountContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  amountButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: theme.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  amountButtonText: {
+    fontSize: 24,
+    color: theme.primaryText,
+    fontWeight: '600',
+  },
+  amountInput: {
+    flex: 1,
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: theme.text,
+    textAlign: 'center',
+  },
+  totalDosage: {
+    fontSize: 15,
+    color: theme.textSecondary,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  quickButtonsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  quickButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 20,
+    backgroundColor: theme.card,
+    borderWidth: 2,
+    borderColor: theme.border,
+  },
+  quickButtonActive: {
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
+  },
+  quickButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.text,
+  },
+  quickButtonTextActive: {
+    color: theme.primaryText,
+  },
+  notesInput: {
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    color: theme.text,
+    textAlignVertical: 'top',
+    minHeight: 100,
+  },
+  footer: {
+    backgroundColor: theme.card,
+    padding: 16,
+    paddingBottom: 34,
+    borderTopWidth: 1,
+    borderTopColor: theme.border,
+  },
+  saveButton: {
+    backgroundColor: theme.primary,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  saveButtonDisabled: {
+    backgroundColor: theme.textTertiary,
+  },
+  saveButtonText: {
+    color: theme.primaryText,
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  medicationCard: {
+    backgroundColor: theme.card,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  medicationInfo: {
+    flex: 1,
+  },
+  medicationCardName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.text,
+    marginBottom: 4,
+  },
+  medicationCardDosage: {
+    fontSize: 14,
+    color: theme.textSecondary,
+  },
+  selectArrow: {
+    fontSize: 24,
+    color: theme.textTertiary,
+    marginLeft: 8,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    paddingTop: 60,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.textSecondary,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 15,
+    color: theme.textTertiary,
+    textAlign: 'center',
+  },
+});
+
 export default function LogMedicationScreen({ route, navigation }: Props) {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   const { medicationId, episodeId } = route.params;
   const { rescueMedications, loadMedications, logDose } = useMedicationStore();
   const [selectedMedId, setSelectedMedId] = useState<string | null>(medicationId || null);
@@ -230,7 +455,7 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
             multiline
             numberOfLines={4}
             placeholder="Any details about effectiveness, side effects, etc..."
-            placeholderTextColor="#C7C7CC"
+            placeholderTextColor={theme.textTertiary}
             value={notes}
             onChangeText={setNotes}
           />
@@ -254,225 +479,3 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F2F2F7',
-  },
-  header: {
-    backgroundColor: '#fff',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 60,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#000',
-  },
-  cancelButton: {
-    fontSize: 17,
-    color: '#007AFF',
-    width: 60,
-  },
-  loadingText: {
-    textAlign: 'center',
-    marginTop: 40,
-    fontSize: 16,
-    color: '#8E8E93',
-  },
-  content: {
-    flex: 1,
-  },
-  card: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginTop: 16,
-    padding: 20,
-    borderRadius: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  medicationName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#000',
-    marginBottom: 4,
-  },
-  medicationDosage: {
-    fontSize: 16,
-    color: '#8E8E93',
-  },
-  section: {
-    marginTop: 24,
-    paddingHorizontal: 16,
-  },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#8E8E93',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  timeButton: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-  },
-  timeText: {
-    fontSize: 17,
-    color: '#007AFF',
-    fontWeight: '500',
-  },
-  amountContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  amountButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#007AFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  amountButtonText: {
-    fontSize: 24,
-    color: '#fff',
-    fontWeight: '600',
-  },
-  amountInput: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#000',
-    textAlign: 'center',
-  },
-  totalDosage: {
-    fontSize: 15,
-    color: '#8E8E93',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  quickButtonsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  quickButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-    borderWidth: 2,
-    borderColor: '#E5E5EA',
-  },
-  quickButtonActive: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  quickButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-  },
-  quickButtonTextActive: {
-    color: '#fff',
-  },
-  notesInput: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    color: '#000',
-    textAlignVertical: 'top',
-    minHeight: 100,
-  },
-  footer: {
-    backgroundColor: '#fff',
-    padding: 16,
-    paddingBottom: 34,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5EA',
-  },
-  saveButton: {
-    backgroundColor: '#007AFF',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  saveButtonDisabled: {
-    backgroundColor: '#C7C7CC',
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  medicationCard: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  medicationInfo: {
-    flex: 1,
-  },
-  medicationCardName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 4,
-  },
-  medicationCardDosage: {
-    fontSize: 14,
-    color: '#8E8E93',
-  },
-  selectArrow: {
-    fontSize: 24,
-    color: '#C7C7CC',
-    marginLeft: 8,
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-    paddingTop: 60,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#8E8E93',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 15,
-    color: '#C7C7CC',
-    textAlign: 'center',
-  },
-});

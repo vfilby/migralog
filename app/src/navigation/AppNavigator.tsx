@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList, MainTabsParamList } from './types';
+import { useTheme } from '../theme';
 
 // Screens
 import DashboardScreen from '../screens/DashboardScreen';
@@ -23,12 +24,14 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabsParamList>();
 
 function MainTabs() {
+  const { theme } = useTheme();
+
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#007AFF',
-        tabBarInactiveTintColor: '#8E8E93',
+        tabBarActiveTintColor: theme.tabBarActive,
+        tabBarInactiveTintColor: theme.tabBarInactive,
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '500',
@@ -43,8 +46,8 @@ function MainTabs() {
           paddingTop: 8,
           paddingBottom: 8,
           borderTopWidth: 0.5,
-          borderTopColor: '#E5E5EA',
-          backgroundColor: '#FAFAFA',
+          borderTopColor: theme.tabBarBorder,
+          backgroundColor: theme.tabBarBackground,
         },
       }}
     >

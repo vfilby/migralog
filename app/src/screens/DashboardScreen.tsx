@@ -10,11 +10,125 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { getPainColor, getPainLevel } from '../utils/painScale';
 import EpisodeCard from '../components/EpisodeCard';
+import { useTheme, ThemeColors } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
+const createStyles = (theme: ThemeColors) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.background,
+  },
+  header: {
+    backgroundColor: theme.backgroundSecondary,
+    padding: 20,
+    paddingTop: 60,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 34,
+    fontWeight: 'bold',
+    color: theme.text,
+    flex: 1,
+  },
+  settingsButton: {
+    padding: 8,
+  },
+  card: {
+    backgroundColor: theme.card,
+    margin: 16,
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 12,
+    color: theme.text,
+  },
+  statusText: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: theme.primary,
+    marginBottom: 4,
+  },
+  statusSubtext: {
+    fontSize: 14,
+    color: theme.textSecondary,
+  },
+  tapHint: {
+    fontSize: 13,
+    color: theme.primary,
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+  intensityText: {
+    fontSize: 16,
+    color: theme.danger,
+    marginTop: 8,
+    fontWeight: '500',
+  },
+  actionsContainer: {
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  actionButton: {
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  primaryButton: {
+    backgroundColor: theme.primary,
+  },
+  secondaryButton: {
+    backgroundColor: theme.card,
+    borderWidth: 1,
+    borderColor: theme.primary,
+  },
+  primaryButtonText: {
+    color: theme.primaryText,
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  secondaryButtonText: {
+    color: theme.primary,
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  emptyText: {
+    fontSize: 15,
+    color: theme.textSecondary,
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
+  medicationItem: {
+    paddingVertical: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  medicationName: {
+    fontSize: 16,
+    color: theme.text,
+  },
+  medicationDosage: {
+    fontSize: 14,
+    color: theme.textSecondary,
+  },
+});
+
 export default function DashboardScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { theme } = useTheme();
   const { currentEpisode, episodes, loadCurrentEpisode, loadEpisodes } = useEpisodeStore();
   const { preventativeMedications, rescueMedications, loadMedications } = useMedicationStore();
 
@@ -32,6 +146,8 @@ export default function DashboardScreen() {
     ? differenceInDays(Date.now(), lastEpisode.endTime!)
     : null;
 
+  const styles = createStyles(theme);
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
@@ -40,7 +156,7 @@ export default function DashboardScreen() {
           style={styles.settingsButton}
           onPress={() => navigation.navigate('Settings')}
         >
-          <Ionicons name="settings-outline" size={24} color="#007AFF" />
+          <Ionicons name="settings-outline" size={24} color={theme.primary} />
         </TouchableOpacity>
       </View>
 
@@ -140,115 +256,3 @@ export default function DashboardScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F2F2F7',
-  },
-  header: {
-    backgroundColor: '#fff',
-    padding: 20,
-    paddingTop: 60,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 34,
-    fontWeight: 'bold',
-    color: '#000',
-    flex: 1,
-  },
-  settingsButton: {
-    padding: 8,
-  },
-  card: {
-    backgroundColor: '#fff',
-    margin: 16,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: 12,
-    color: '#000',
-  },
-  statusText: {
-    fontSize: 18,
-    fontWeight: '500',
-    color: '#007AFF',
-    marginBottom: 4,
-  },
-  statusSubtext: {
-    fontSize: 14,
-    color: '#8E8E93',
-  },
-  tapHint: {
-    fontSize: 13,
-    color: '#007AFF',
-    marginTop: 8,
-    fontStyle: 'italic',
-  },
-  intensityText: {
-    fontSize: 16,
-    color: '#FF3B30',
-    marginTop: 8,
-    fontWeight: '500',
-  },
-  actionsContainer: {
-    paddingHorizontal: 16,
-    gap: 12,
-  },
-  actionButton: {
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  primaryButton: {
-    backgroundColor: '#007AFF',
-  },
-  secondaryButton: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#007AFF',
-  },
-  primaryButtonText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  secondaryButtonText: {
-    color: '#007AFF',
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  emptyText: {
-    fontSize: 15,
-    color: '#8E8E93',
-    textAlign: 'center',
-    paddingVertical: 20,
-  },
-  medicationItem: {
-    paddingVertical: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  medicationName: {
-    fontSize: 16,
-    color: '#000',
-  },
-  medicationDosage: {
-    fontSize: 14,
-    color: '#8E8E93',
-  },
-});
