@@ -22,8 +22,8 @@ type MedicationDoseWithDetails = MedicationDose & {
 type TimelineEvent = {
   id: string;
   timestamp: number;
-  type: 'intensity' | 'note' | 'medication';
-  data: IntensityReading | EpisodeNote | MedicationDoseWithDetails;
+  type: 'intensity' | 'note' | 'medication' | 'end';
+  data: IntensityReading | EpisodeNote | MedicationDoseWithDetails | null;
 };
 
 const createStyles = (theme: ThemeColors) => StyleSheet.create({
@@ -565,7 +565,17 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
       });
     });
 
-    // Sort by timestamp (most recent first)
+    // Add end event if episode has ended
+    if (episode?.endTime) {
+      events.push({
+        id: 'end',
+        timestamp: episode.endTime,
+        type: 'end',
+        data: null,
+      });
+    }
+
+    // Sort by timestamp (oldest first)
     return events.sort((a, b) => a.timestamp - b.timestamp);
   };
 
@@ -646,6 +656,24 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
               </Text>
               <Text style={[styles.timelineEventContent, { marginTop: 4 }]}>
                 {dose.amount} × {dose.medication?.dosageAmount}{dose.medication?.dosageUnit}
+              </Text>
+            </View>
+          </View>
+        );
+
+      case 'end':
+        return (
+          <View key={event.id} style={styles.timelineItem}>
+            <View style={styles.timelineLeft}>
+              <Text style={styles.timelineTime}>{time}</Text>
+            </View>
+            <View style={styles.timelineCenter}>
+              <View style={[styles.timelineDot, { backgroundColor: theme.textSecondary }]} />
+            </View>
+            <View style={styles.timelineRight}>
+              <Text style={styles.timelineEventTitle}>Episode Ended</Text>
+              <Text style={styles.timelineEventContent}>
+                Episode completed
               </Text>
             </View>
           </View>
