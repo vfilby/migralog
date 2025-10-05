@@ -23,7 +23,14 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
   if (needsMigration) {
     console.log('Database migrations needed, running migrations...');
     try {
-      await migrationRunner.runMigrations();
+      // Create backup function that will be called before migrations
+      const createBackup = async () => {
+        // Dynamic import to avoid circular dependency
+        const { backupService } = await import('../services/backupService');
+        await backupService.createBackup(true);
+      };
+
+      await migrationRunner.runMigrations(createBackup);
       console.log('Database migrations completed successfully');
     } catch (error) {
       console.error('Database migration failed:', error);
