@@ -5,6 +5,7 @@ import { Platform } from 'react-native';
 import * as SQLite from 'expo-sqlite';
 import { episodeRepository, episodeNoteRepository } from '../database/episodeRepository';
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../database/medicationRepository';
+import { migrationRunner } from '../database/migrations';
 import { Episode, Medication, MedicationDose, MedicationSchedule, EpisodeNote } from '../models/types';
 
 export interface BackupMetadata {
@@ -30,7 +31,6 @@ export interface BackupData {
 const BACKUP_DIR = `${FileSystem.documentDirectory}backups/`;
 const MAX_AUTO_BACKUPS = 5;
 const APP_VERSION = '1.0.0'; // TODO: Get from app.json
-const SCHEMA_VERSION = 1;
 
 class BackupService {
   async initialize(): Promise<void> {
@@ -89,12 +89,18 @@ class BackupService {
       console.log('[Backup] Generating backup ID...');
       const backupId = this.generateBackupId();
       console.log('[Backup] Backup ID:', backupId);
+
+      // Get actual database schema version
+      console.log('[Backup] Getting current schema version...');
+      const schemaVersion = await migrationRunner.getCurrentVersion();
+      console.log('[Backup] Current schema version:', schemaVersion);
+
       const backupData: BackupData = {
         metadata: {
           id: backupId,
           timestamp: Date.now(),
           version: APP_VERSION,
-          schemaVersion: SCHEMA_VERSION,
+          schemaVersion,
           episodeCount: episodes.length,
           medicationCount: medications.length,
         },
@@ -213,6 +219,27 @@ class BackupService {
       const backupPath = this.getBackupPath(backupId);
       const content = await FileSystem.readAsStringAsync(backupPath);
       const backupData: BackupData = JSON.parse(content);
+
+      // Check schema version compatibility
+      const currentSchemaVersion = await migrationRunner.getCurrentVersion();
+      const backupSchemaVersion = backupData.metadata.schemaVersion;
+
+      console.log('[Restore] Current schema version:', currentSchemaVersion);
+      console.log('[Restore] Backup schema version:', backupSchemaVersion);
+
+      if (backupSchemaVersion > currentSchemaVersion) {
+        throw new Error(
+          `Cannot restore backup from newer schema version ${backupSchemaVersion} to older version ${currentSchemaVersion}. ` +
+          `Please update the app to the latest version before restoring this backup.`
+        );
+      }
+
+      if (backupSchemaVersion < currentSchemaVersion) {
+        console.warn(
+          `[Restore] Warning: Restoring backup from older schema version ${backupSchemaVersion} to newer version ${currentSchemaVersion}. ` +
+          `New fields will be set to null. This should work but verify your data after restore.`
+        );
+      }
 
       // Clear existing data first
       await episodeRepository.deleteAll();
