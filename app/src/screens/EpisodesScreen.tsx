@@ -1,12 +1,11 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList } from 'react-native';
 import { useEpisodeStore } from '../store/episodeStore';
-import { format } from 'date-fns';
 import { Episode } from '../models/types';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { getPainColor, getPainLevel } from '../utils/painScale';
+import EpisodeCard from '../components/EpisodeCard';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -21,84 +20,12 @@ export default function EpisodesScreen() {
     return unsubscribe;
   }, [navigation]);
 
-  const renderEpisode = ({ item }: { item: Episode }) => {
-    const duration = item.endTime
-      ? Math.round((item.endTime - item.startTime) / 3600000)
-      : null;
-
-    return (
-      <TouchableOpacity
-        style={styles.episodeCard}
-        onPress={() => navigation.navigate('EpisodeDetail', { episodeId: item.id })}
-      >
-        <View style={styles.episodeHeader}>
-          <Text style={styles.episodeDate}>
-            {format(item.startTime, 'EEEE, MMM d, yyyy')}
-          </Text>
-          {!item.endTime && (
-            <View style={styles.ongoingBadge}>
-              <Text style={styles.ongoingText}>Ongoing</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.episodeDetails}>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Started:</Text>
-            <Text style={styles.detailValue}>
-              {format(item.startTime, 'h:mm a')}
-            </Text>
-          </View>
-
-          {item.endTime && (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Duration:</Text>
-              <Text style={styles.detailValue}>
-                {duration} hour{duration === 1 ? '' : 's'}
-              </Text>
-            </View>
-          )}
-
-          {item.peakIntensity && (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Peak Intensity:</Text>
-              <Text style={[
-                styles.detailValue,
-                styles.intensityValue,
-                { color: getPainColor(item.peakIntensity) }
-              ]}>
-                {item.peakIntensity}/10 - {getPainLevel(item.peakIntensity).label}
-              </Text>
-            </View>
-          )}
-
-          {item.locations.length > 0 && (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Locations:</Text>
-              <Text style={styles.detailValue}>
-                {item.locations.length} area{item.locations.length === 1 ? '' : 's'}
-              </Text>
-            </View>
-          )}
-
-          {item.symptoms.length > 0 && (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Symptoms:</Text>
-              <Text style={styles.detailValue}>
-                {item.symptoms.length}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {item.notes && (
-          <Text style={styles.notes} numberOfLines={2}>
-            {item.notes}
-          </Text>
-        )}
-      </TouchableOpacity>
-    );
-  };
+  const renderEpisode = ({ item }: { item: Episode }) => (
+    <EpisodeCard
+      episode={item}
+      onPress={() => navigation.navigate('EpisodeDetail', { episodeId: item.id })}
+    />
+  );
 
   return (
     <View style={styles.container}>
@@ -146,64 +73,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
-  },
-  episodeCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  episodeHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  episodeDate: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000',
-  },
-  ongoingBadge: {
-    backgroundColor: '#FF3B30',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  ongoingText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  episodeDetails: {
-    gap: 8,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  detailLabel: {
-    fontSize: 15,
-    color: '#8E8E93',
-  },
-  detailValue: {
-    fontSize: 15,
-    color: '#000',
-    fontWeight: '500',
-  },
-  intensityValue: {
-    fontWeight: '600',
-  },
-  notes: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#8E8E93',
-    fontStyle: 'italic',
   },
   loadingText: {
     textAlign: 'center',

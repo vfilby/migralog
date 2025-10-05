@@ -17,8 +17,10 @@ export const episodeRepository = {
     await db.runAsync(
       `INSERT INTO episodes (
         id, start_time, end_time, locations, qualities, symptoms, triggers,
-        notes, peak_intensity, average_intensity, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        notes, peak_intensity, average_intensity,
+        latitude, longitude, location_accuracy, location_timestamp,
+        created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         newEpisode.id,
         newEpisode.startTime,
@@ -30,6 +32,10 @@ export const episodeRepository = {
         newEpisode.notes || null,
         newEpisode.peakIntensity || null,
         newEpisode.averageIntensity || null,
+        newEpisode.location?.latitude || null,
+        newEpisode.location?.longitude || null,
+        newEpisode.location?.accuracy || null,
+        newEpisode.location?.timestamp || null,
         newEpisode.createdAt,
         newEpisode.updatedAt,
       ]
@@ -136,7 +142,25 @@ export const episodeRepository = {
     await db.runAsync('DELETE FROM episodes WHERE id = ?', [id]);
   },
 
+  async deleteAll(): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync('DELETE FROM episodes');
+    await db.runAsync('DELETE FROM intensity_readings');
+    await db.runAsync('DELETE FROM symptom_logs');
+  },
+
   mapRowToEpisode(row: any): Episode {
+    // Build location object if GPS data exists
+    let location = undefined;
+    if (row.latitude !== null && row.longitude !== null) {
+      location = {
+        latitude: row.latitude,
+        longitude: row.longitude,
+        accuracy: row.location_accuracy || undefined,
+        timestamp: row.location_timestamp,
+      };
+    }
+
     return {
       id: row.id,
       startTime: row.start_time,
@@ -148,6 +172,7 @@ export const episodeRepository = {
       notes: row.notes,
       peakIntensity: row.peak_intensity,
       averageIntensity: row.average_intensity,
+      location,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

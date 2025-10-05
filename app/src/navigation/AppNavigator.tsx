@@ -17,6 +17,7 @@ import EditMedicationScreen from '../screens/EditMedicationScreen';
 import LogMedicationScreen from '../screens/LogMedicationScreen';
 import MedicationLogScreen from '../screens/MedicationLogScreen';
 import ArchivedMedicationsScreen from '../screens/ArchivedMedicationsScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabsParamList>();
@@ -150,6 +151,11 @@ export default function AppNavigator() {
           name="ArchivedMedications"
           component={ArchivedMedicationsScreen}
           options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Settings"
+          component={SettingsScreen}
+          options={{ headerShown: false, presentation: 'modal' }}
         />
       </Stack.Navigator>
     </NavigationContainer>

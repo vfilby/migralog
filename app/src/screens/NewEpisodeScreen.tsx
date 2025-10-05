@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,10 +13,11 @@ import Slider from '@react-native-community/slider';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { useEpisodeStore } from '../store/episodeStore';
-import { PainLocation, PainQuality, Symptom, Trigger } from '../models/types';
+import { PainLocation, PainQuality, Symptom, Trigger, EpisodeLocation } from '../models/types';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
 import { getPainLevel } from '../utils/painScale';
+import { locationService } from '../services/locationService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'NewEpisode'>;
 
@@ -77,6 +78,24 @@ export default function NewEpisodeScreen({ navigation }: Props) {
   const [triggers, setTriggers] = useState<Trigger[]>([]);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [gpsLocation, setGpsLocation] = useState<EpisodeLocation | null>(null);
+
+  // Request location permission and capture location when screen loads
+  useEffect(() => {
+    const captureLocation = async () => {
+      try {
+        const location = await locationService.getLocationWithPermissionRequest();
+        if (location) {
+          setGpsLocation(location);
+          console.log('Location captured:', location);
+        }
+      } catch (error) {
+        console.error('Failed to capture location:', error);
+      }
+    };
+
+    captureLocation();
+  }, []);
 
   const toggleSelection = <T,>(item: T, list: T[], setList: (list: T[]) => void) => {
     if (list.includes(item)) {
@@ -96,6 +115,7 @@ export default function NewEpisodeScreen({ navigation }: Props) {
         symptoms,
         triggers,
         notes: notes.trim() || undefined,
+        location: gpsLocation || undefined,
       });
 
       // Add initial intensity reading

@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useEpisodeStore } from '../store/episodeStore';
 import { useMedicationStore } from '../store/medicationStore';
 import { format, differenceInDays } from 'date-fns';
@@ -8,6 +9,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { getPainColor, getPainLevel } from '../utils/painScale';
+import EpisodeCard from '../components/EpisodeCard';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -34,6 +36,12 @@ export default function DashboardScreen() {
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Pain Tracker</Text>
+        <TouchableOpacity
+          style={styles.settingsButton}
+          onPress={() => navigation.navigate('Settings')}
+        >
+          <Ionicons name="settings-outline" size={24} color="#007AFF" />
+        </TouchableOpacity>
       </View>
 
       {/* Current Status Card */}
@@ -104,21 +112,12 @@ export default function DashboardScreen() {
         ) : (
           <View>
             {episodes.slice(0, 3).map(episode => (
-              <View key={episode.id} style={styles.episodeItem}>
-                <Text style={styles.episodeDate}>
-                  {format(episode.startTime, 'MMM d, yyyy')}
-                </Text>
-                <Text style={styles.episodeDetails}>
-                  Duration: {episode.endTime
-                    ? `${Math.round((episode.endTime - episode.startTime) / 3600000)}h`
-                    : 'Ongoing'}
-                </Text>
-                {episode.peakIntensity && (
-                  <Text style={styles.episodeDetails}>
-                    Peak: {episode.peakIntensity}/10
-                  </Text>
-                )}
-              </View>
+              <EpisodeCard
+                key={episode.id}
+                episode={episode}
+                compact
+                onPress={() => navigation.navigate('EpisodeDetail', { episodeId: episode.id })}
+              />
             ))}
           </View>
         )}
@@ -153,11 +152,18 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5EA',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   title: {
     fontSize: 34,
     fontWeight: 'bold',
     color: '#000',
+    flex: 1,
+  },
+  settingsButton: {
+    padding: 8,
   },
   card: {
     backgroundColor: '#fff',
@@ -230,21 +236,6 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
     textAlign: 'center',
     paddingVertical: 20,
-  },
-  episodeItem: {
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
-  },
-  episodeDate: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#000',
-  },
-  episodeDetails: {
-    fontSize: 14,
-    color: '#8E8E93',
-    marginTop: 4,
   },
   medicationItem: {
     paddingVertical: 8,

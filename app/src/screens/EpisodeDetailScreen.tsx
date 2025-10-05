@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import Slider from '@react-native-community/slider';
+import MapView, { Marker } from 'react-native-maps';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { useEpisodeStore } from '../store/episodeStore';
@@ -9,6 +10,7 @@ import { medicationDoseRepository, medicationRepository } from '../database/medi
 import { Episode, IntensityReading, SymptomLog, MedicationDose, Medication } from '../models/types';
 import { format, differenceInMinutes } from 'date-fns';
 import { getPainColor, getPainLevel } from '../utils/painScale';
+import { locationService } from '../services/locationService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EpisodeDetail'>;
 
@@ -26,6 +28,8 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   const [loading, setLoading] = useState(true);
   const [currentIntensity, setCurrentIntensity] = useState(3);
   const [showIntensityUpdate, setShowIntensityUpdate] = useState(false);
+  const [locationAddress, setLocationAddress] = useState<string | null>(null);
+  const [showMapModal, setShowMapModal] = useState(false);
 
   useEffect(() => {
     loadEpisodeData();
@@ -52,6 +56,15 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
       setIntensityReadings(readings);
       setSymptomLogs(symptoms);
       setMedications(medsWithDetails);
+
+      // Reverse geocode location if available
+      if (ep?.location) {
+        const address = await locationService.reverseGeocode(
+          ep.location.latitude,
+          ep.location.longitude
+        );
+        setLocationAddress(address);
+      }
     } catch (error) {
       console.error('Failed to load episode:', error);
     } finally {
@@ -72,6 +85,10 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
       await loadEpisodeData();
       setShowIntensityUpdate(false);
     }
+  };
+
+  const handleOpenMap = () => {
+    setShowMapModal(true);
   };
 
   if (loading || !episode) {
@@ -158,6 +175,16 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
                 {episode.averageIntensity.toFixed(1)}/10 - {getPainLevel(episode.averageIntensity).label}
               </Text>
             </View>
+          )}
+
+          {/* Location Link */}
+          {episode.location && (
+            <TouchableOpacity style={styles.detailRow} onPress={handleOpenMap}>
+              <Text style={styles.detailLabel}>Location:</Text>
+              <Text style={[styles.detailValue, styles.locationLink]}>
+                {locationAddress || 'View on Map'} →
+              </Text>
+            </TouchableOpacity>
           )}
         </View>
 
@@ -364,6 +391,56 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Map Modal */}
+      <Modal
+        visible={showMapModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowMapModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <View style={{ width: 60 }} />
+            <Text style={styles.modalTitle}>Episode Location</Text>
+            <TouchableOpacity onPress={() => setShowMapModal(false)}>
+              <Text style={styles.modalCloseButton}>Done</Text>
+            </TouchableOpacity>
+          </View>
+
+          {episode.location && (
+            <MapView
+              style={styles.modalMap}
+              initialRegion={{
+                latitude: episode.location.latitude,
+                longitude: episode.location.longitude,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              }}
+            >
+              <Marker
+                coordinate={{
+                  latitude: episode.location.latitude,
+                  longitude: episode.location.longitude,
+                }}
+                title="Episode Started Here"
+                description={locationAddress || format(episode.startTime, 'MMM d, yyyy h:mm a')}
+              />
+            </MapView>
+          )}
+
+          <View style={styles.modalInfo}>
+            {locationAddress && (
+              <Text style={styles.modalLocationText}>{locationAddress}</Text>
+            )}
+            {episode.location?.accuracy && (
+              <Text style={styles.modalAccuracyText}>
+                Accuracy: ±{Math.round(episode.location.accuracy)}m
+              </Text>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -458,6 +535,10 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#000',
     fontWeight: '500',
+  },
+  locationLink: {
+    color: '#007AFF',
+    fontWeight: '600',
   },
   intensityValue: {
     color: '#FF3B30',
@@ -653,5 +734,51 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 17,
     fontWeight: '600',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#F2F2F7',
+  },
+  modalHeader: {
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 60,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#000',
+  },
+  modalCloseButton: {
+    fontSize: 17,
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  modalMap: {
+    flex: 1,
+  },
+  modalInfo: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5EA',
+  },
+  modalLocationText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#000',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  modalAccuracyText: {
+    fontSize: 14,
+    color: '#8E8E93',
+    textAlign: 'center',
   },
 });

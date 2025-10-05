@@ -44,6 +44,13 @@ export type Trigger =
 export type MedicationType = 'preventative' | 'rescue';
 export type ScheduleFrequency = 'daily' | 'monthly' | 'quarterly';
 
+export interface EpisodeLocation {
+  latitude: number;
+  longitude: number;
+  accuracy?: number; // meters
+  timestamp: number; // when location was captured
+}
+
 export interface Episode {
   id: string;
   startTime: number; // Unix timestamp
@@ -55,6 +62,7 @@ export interface Episode {
   notes?: string;
   peakIntensity?: number; // 0-10
   averageIntensity?: number; // 0-10
+  location?: EpisodeLocation; // GPS location when episode started
   createdAt: number;
   updatedAt: number;
 }

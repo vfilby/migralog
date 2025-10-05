@@ -152,6 +152,11 @@ export const medicationRepository = {
     await db.runAsync('DELETE FROM medications WHERE id = ?', [id]);
   },
 
+  async deleteAll(): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync('DELETE FROM medications');
+  },
+
   mapRowToMedication(row: any): Medication {
     return {
       id: row.id,
@@ -294,6 +299,11 @@ export const medicationDoseRepository = {
       createdAt: row.created_at,
     };
   },
+
+  async deleteAll(): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync('DELETE FROM medication_doses');
+  },
 };
 
 export const medicationScheduleRepository = {
@@ -344,6 +354,11 @@ export const medicationScheduleRepository = {
   async delete(id: string): Promise<void> {
     const db = await getDatabase();
     await db.runAsync('DELETE FROM medication_schedules WHERE id = ?', [id]);
+  },
+
+  async deleteAll(): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync('DELETE FROM medication_schedules');
   },
 
   async getByMedicationId(medicationId: string): Promise<MedicationSchedule[]> {

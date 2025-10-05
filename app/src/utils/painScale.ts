@@ -13,67 +13,67 @@ export const PAIN_SCALE: PainLevel[] = [
     value: 0,
     label: 'No Pain',
     description: 'Pain-free',
-    color: '#4CAF50', // Green
+    color: '#2E7D32', // Dark Green - better contrast
   },
   {
     value: 1,
     label: 'Minimal',
     description: 'Very mild, barely noticeable',
-    color: '#8BC34A', // Light Green
+    color: '#558B2F', // Darker Green
   },
   {
     value: 2,
     label: 'Mild',
     description: 'Minor annoyance, can be ignored',
-    color: '#CDDC39', // Lime
+    color: '#689F38', // Olive Green
   },
   {
     value: 3,
     label: 'Mild',
     description: 'Noticeable but can function normally',
-    color: '#FFEB3B', // Yellow
+    color: '#F9A825', // Darker Yellow - better contrast
   },
   {
     value: 4,
     label: 'Uncomfortable',
     description: 'Distracting but manageable',
-    color: '#FFC107', // Amber
+    color: '#FF8F00', // Darker Amber
   },
   {
     value: 5,
     label: 'Moderate',
     description: 'Interferes with concentration',
-    color: '#FF9800', // Orange
+    color: '#EF6C00', // Darker Orange
   },
   {
     value: 6,
     label: 'Distressing',
     description: 'Difficult to ignore, limits activities',
-    color: '#FF9800', // Orange
+    color: '#E65100', // Deep Orange
   },
   {
     value: 7,
     label: 'Severe',
     description: 'Dominant focus, impedes daily function',
-    color: '#FF5722', // Deep Orange
+    color: '#D84315', // Dark Deep Orange
   },
   {
     value: 8,
     label: 'Intense',
     description: 'Overwhelming, unable to function',
-    color: '#F44336', // Red
+    color: '#C62828', // Dark Red
   },
   {
     value: 9,
     label: 'Excruciating',
     description: 'Unbearable, incapacitating',
-    color: '#E91E63', // Pink
+    color: '#AD1457', // Dark Pink
   },
   {
     value: 10,
     label: 'Debilitating',
     description: 'Worst imaginable, requires emergency care',
-    color: '#9C27B0', // Purple
+    color: '#6A1B9A', // Dark Purple
   },
 ];
 
