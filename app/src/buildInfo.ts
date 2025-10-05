@@ -1,9 +1,8 @@
-// Auto-generated build info
-// This file is generated during the build process
-// Default values used when build info cannot be determined
+// Auto-generated file - do not edit manually
+// Generated at: 2025-10-05T21:48:01.613Z
 
 export const buildInfo = {
-  commitHash: 'unknown',
-  branch: 'unknown',
-  buildTime: 'unknown',
+  "commitHash": "d5baa30",
+  "branch": "main",
+  "buildTime": "2025-10-05T21:48:01.613Z"
 };

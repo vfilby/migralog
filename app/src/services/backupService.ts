@@ -21,8 +21,9 @@ export interface BackupMetadata {
 
 export interface BackupData {
   metadata: Omit<BackupMetadata, 'fileSize' | 'fileName'>;
+  schemaSQL?: string; // Complete CREATE TABLE statements for the schema at backup time (optional for backward compatibility)
   episodes: Episode[];
-  episodeNotes: EpisodeNote[];
+  episodeNotes?: EpisodeNote[]; // Optional for backward compatibility
   medications: Medication[];
   medicationDoses: MedicationDose[];
   medicationSchedules: MedicationSchedule[];
@@ -95,6 +96,11 @@ class BackupService {
       const schemaVersion = await migrationRunner.getCurrentVersion();
       console.log('[Backup] Current schema version:', schemaVersion);
 
+      // Export complete schema SQL from database
+      console.log('[Backup] Exporting schema SQL...');
+      const schemaSQL = await this.exportSchemaSQL(db);
+      console.log('[Backup] Schema SQL exported, length:', schemaSQL.length);
+
       const backupData: BackupData = {
         metadata: {
           id: backupId,
@@ -104,6 +110,7 @@ class BackupService {
           episodeCount: episodes.length,
           medicationCount: medications.length,
         },
+        schemaSQL,
         episodes,
         episodeNotes,
         medications,
@@ -216,9 +223,21 @@ class BackupService {
 
   async restoreBackup(backupId: string): Promise<void> {
     try {
+      console.log('[Restore] Starting backup restore:', backupId);
       const backupPath = this.getBackupPath(backupId);
       const content = await FileSystem.readAsStringAsync(backupPath);
       const backupData: BackupData = JSON.parse(content);
+
+      // Validate backup structure
+      if (!backupData.metadata || !backupData.episodes || !backupData.medications) {
+        throw new Error('Invalid backup file format - missing required fields');
+      }
+
+      // Handle old backups without schemaSQL (backward compatibility)
+      const isOldBackup = !backupData.schemaSQL;
+      if (isOldBackup) {
+        console.warn('[Restore] Old backup format detected (no schemaSQL) - using legacy restore method');
+      }
 
       // Check schema version compatibility
       const currentSchemaVersion = await migrationRunner.getCurrentVersion();
@@ -234,50 +253,136 @@ class BackupService {
         );
       }
 
-      if (backupSchemaVersion < currentSchemaVersion) {
-        console.warn(
-          `[Restore] Warning: Restoring backup from older schema version ${backupSchemaVersion} to newer version ${currentSchemaVersion}. ` +
-          `New fields will be set to null. This should work but verify your data after restore.`
+      if (isOldBackup) {
+        // Legacy restore method for old backups without schemaSQL
+        // Clear existing data and insert into current schema
+        console.log('[Restore] Using legacy restore (delete data, insert into current schema)');
+        await episodeRepository.deleteAll();
+        await episodeNoteRepository.deleteAll();
+        await medicationRepository.deleteAll();
+        await medicationDoseRepository.deleteAll();
+        await medicationScheduleRepository.deleteAll();
+
+        console.log('[Restore] Inserting episodes...');
+        for (const episode of backupData.episodes) {
+          await episodeRepository.create(episode);
+        }
+
+        if (backupData.episodeNotes) {
+          console.log('[Restore] Inserting episode notes...');
+          for (const note of backupData.episodeNotes) {
+            await episodeNoteRepository.create(note);
+          }
+        }
+
+        console.log('[Restore] Inserting medications...');
+        for (const medication of backupData.medications) {
+          await medicationRepository.create(medication);
+        }
+
+        console.log('[Restore] Inserting medication doses...');
+        for (const dose of backupData.medicationDoses) {
+          await medicationDoseRepository.create(dose);
+        }
+
+        console.log('[Restore] Inserting medication schedules...');
+        for (const schedule of backupData.medicationSchedules) {
+          await medicationScheduleRepository.create(schedule);
+        }
+
+        console.log('[Restore] Legacy restore complete');
+      } else {
+        // New restore method: restore to backup's schema version, then run migrations
+        console.log('[Restore] Using new restore (recreate schema from backup, then migrate)');
+
+        // Get database instance
+        const db = await import('../database/db').then(m => m.getDatabase());
+
+        // Drop all tables except schema_version (which is managed by migration runner)
+        console.log('[Restore] Dropping existing tables...');
+        const tables = await db.getAllAsync<{ name: string }>(
+          `SELECT name FROM sqlite_master
+           WHERE type = 'table'
+           AND name NOT LIKE 'sqlite_%'
+           AND name != 'schema_version'`
         );
-      }
 
-      // Clear existing data first
-      await episodeRepository.deleteAll();
-      await episodeNoteRepository.deleteAll();
-      await medicationRepository.deleteAll();
-      await medicationDoseRepository.deleteAll();
-      await medicationScheduleRepository.deleteAll();
+        for (const { name } of tables) {
+          console.log('[Restore] Dropping table:', name);
+          await db.execAsync(`DROP TABLE IF EXISTS ${name}`);
+        }
 
-      // Restore episodes
-      for (const episode of backupData.episodes) {
-        await episodeRepository.create(episode);
-      }
+        // Drop all indexes
+        console.log('[Restore] Dropping existing indexes...');
+        const indexes = await db.getAllAsync<{ name: string }>(
+          `SELECT name FROM sqlite_master
+           WHERE type = 'index'
+           AND name NOT LIKE 'sqlite_%'`
+        );
 
-      // Restore episode notes (if present in backup)
-      if (backupData.episodeNotes) {
-        for (const note of backupData.episodeNotes) {
-          await episodeNoteRepository.create(note);
+        for (const { name } of indexes) {
+          console.log('[Restore] Dropping index:', name);
+          await db.execAsync(`DROP INDEX IF EXISTS ${name}`);
+        }
+
+        // Execute schema SQL from backup to recreate tables at backup's schema version
+        console.log('[Restore] Recreating tables from backup schema...');
+        if (!backupData.schemaSQL) {
+          throw new Error('Backup schema SQL is missing - cannot restore');
+        }
+        await db.execAsync(backupData.schemaSQL);
+        console.log('[Restore] Tables recreated successfully');
+
+        // Set schema_version to backup's version
+        console.log('[Restore] Setting schema version to:', backupSchemaVersion);
+        await db.runAsync(
+          'UPDATE schema_version SET version = ?, updated_at = ? WHERE id = 1',
+          [backupSchemaVersion, Date.now()]
+        );
+
+        // Insert backup data
+        console.log('[Restore] Inserting episodes...');
+        for (const episode of backupData.episodes) {
+          await episodeRepository.create(episode);
+        }
+
+        if (backupData.episodeNotes) {
+          console.log('[Restore] Inserting episode notes...');
+          for (const note of backupData.episodeNotes) {
+            await episodeNoteRepository.create(note);
+          }
+        }
+
+        console.log('[Restore] Inserting medications...');
+        for (const medication of backupData.medications) {
+          await medicationRepository.create(medication);
+        }
+
+        console.log('[Restore] Inserting medication doses...');
+        for (const dose of backupData.medicationDoses) {
+          await medicationDoseRepository.create(dose);
+        }
+
+        console.log('[Restore] Inserting medication schedules...');
+        for (const schedule of backupData.medicationSchedules) {
+          await medicationScheduleRepository.create(schedule);
+        }
+
+        console.log('[Restore] Data insertion complete');
+
+        // Run migrations from backup version to current version
+        if (backupSchemaVersion < currentSchemaVersion) {
+          console.log('[Restore] Running migrations from version', backupSchemaVersion, 'to', currentSchemaVersion);
+          await migrationRunner.runMigrations();
+          console.log('[Restore] Migrations completed successfully');
+        } else {
+          console.log('[Restore] No migrations needed - backup is at current version');
         }
       }
 
-      // Restore medications
-      for (const medication of backupData.medications) {
-        await medicationRepository.create(medication);
-      }
-
-      // Restore medication doses
-      for (const dose of backupData.medicationDoses) {
-        await medicationDoseRepository.create(dose);
-      }
-
-      // Restore medication schedules
-      for (const schedule of backupData.medicationSchedules) {
-        await medicationScheduleRepository.create(schedule);
-      }
-
-      console.log('Backup restored successfully');
+      console.log('[Restore] Backup restored successfully');
     } catch (error) {
-      console.error('Failed to restore backup:', error);
+      console.error('[Restore] FAILED to restore backup:', error);
       throw new Error('Failed to restore backup: ' + (error as Error).message);
     }
   }
@@ -327,6 +432,13 @@ class BackupService {
         throw new Error('Invalid backup file format');
       }
 
+      // If imported backup doesn't have schemaSQL (old format), add current schema
+      if (!backupData.schemaSQL) {
+        console.log('[Import] Old backup format detected, adding current schema SQL');
+        backupData.schemaSQL = await this.exportSchemaSQL();
+        backupData.metadata.schemaVersion = await migrationRunner.getCurrentVersion();
+      }
+
       // Create a new backup with imported data
       const backupId = this.generateBackupId();
       const backupPath = this.getBackupPath(backupId);
@@ -362,6 +474,40 @@ class BackupService {
     } catch (error) {
       console.error('Failed to delete backup:', error);
       throw new Error('Failed to delete backup: ' + (error as Error).message);
+    }
+  }
+
+  private async exportSchemaSQL(db?: SQLite.SQLiteDatabase): Promise<string> {
+    try {
+      // Get database instance
+      let database: SQLite.SQLiteDatabase;
+      if (db) {
+        database = db;
+      } else {
+        database = await import('../database/db').then(m => m.getDatabase());
+      }
+
+      // Query sqlite_master to get all CREATE statements for tables and indexes
+      // Exclude system tables and schema_version (managed by migration runner)
+      const schemaDefs = await database.getAllAsync<{ sql: string }>(
+        `SELECT sql FROM sqlite_master
+         WHERE type IN ('table', 'index')
+         AND name NOT LIKE 'sqlite_%'
+         AND name != 'schema_version'
+         AND sql IS NOT NULL
+         ORDER BY type DESC, name`
+      );
+
+      // Combine all SQL statements with semicolons
+      const schemaSQL = schemaDefs
+        .map(row => row.sql)
+        .filter(sql => sql) // Filter out any null/undefined
+        .join(';\n\n') + ';';
+
+      return schemaSQL;
+    } catch (error) {
+      console.error('[Backup] Failed to export schema SQL:', error);
+      throw new Error('Failed to export schema SQL: ' + (error as Error).message);
     }
   }
 
