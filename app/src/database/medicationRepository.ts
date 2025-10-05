@@ -1,9 +1,10 @@
 import { getDatabase, generateId } from './db';
 import { Medication, MedicationDose, MedicationSchedule } from '../models/types';
+import * as SQLite from 'expo-sqlite';
 
 export const medicationRepository = {
-  async create(medication: Omit<Medication, 'id' | 'createdAt' | 'updatedAt'>): Promise<Medication> {
-    const db = await getDatabase();
+  async create(medication: Omit<Medication, 'id' | 'createdAt' | 'updatedAt'>, db?: SQLite.SQLiteDatabase): Promise<Medication> {
+    const database = db || await getDatabase();
     const now = Date.now();
     const id = generateId();
 
@@ -14,7 +15,7 @@ export const medicationRepository = {
       updatedAt: now,
     };
 
-    await db.runAsync(
+    await database.runAsync(
       `INSERT INTO medications (
         id, name, type, dosage_amount, dosage_unit, default_dosage, schedule_frequency,
         photo_uri, start_date, end_date, active, notes, created_at, updated_at
@@ -40,8 +41,8 @@ export const medicationRepository = {
     return newMedication;
   },
 
-  async update(id: string, updates: Partial<Medication>): Promise<void> {
-    const db = await getDatabase();
+  async update(id: string, updates: Partial<Medication>, db?: SQLite.SQLiteDatabase): Promise<void> {
+    const database = db || await getDatabase();
     const now = Date.now();
 
     const fields: string[] = [];
@@ -92,15 +93,15 @@ export const medicationRepository = {
     values.push(now);
     values.push(id);
 
-    await db.runAsync(
+    await database.runAsync(
       `UPDATE medications SET ${fields.join(', ')} WHERE id = ?`,
       values
     );
   },
 
-  async getById(id: string): Promise<Medication | null> {
-    const db = await getDatabase();
-    const result = await db.getFirstAsync<any>(
+  async getById(id: string, db?: SQLite.SQLiteDatabase): Promise<Medication | null> {
+    const database = db || await getDatabase();
+    const result = await database.getFirstAsync<any>(
       'SELECT * FROM medications WHERE id = ?',
       [id]
     );
@@ -110,27 +111,27 @@ export const medicationRepository = {
     return this.mapRowToMedication(result);
   },
 
-  async getAll(): Promise<Medication[]> {
-    const db = await getDatabase();
-    const results = await db.getAllAsync<any>(
+  async getAll(db?: SQLite.SQLiteDatabase): Promise<Medication[]> {
+    const database = db || await getDatabase();
+    const results = await database.getAllAsync<any>(
       'SELECT * FROM medications ORDER BY name ASC'
     );
 
     return results.map(this.mapRowToMedication);
   },
 
-  async getActive(): Promise<Medication[]> {
-    const db = await getDatabase();
-    const results = await db.getAllAsync<any>(
+  async getActive(db?: SQLite.SQLiteDatabase): Promise<Medication[]> {
+    const database = db || await getDatabase();
+    const results = await database.getAllAsync<any>(
       'SELECT * FROM medications WHERE active = 1 ORDER BY name ASC'
     );
 
     return results.map(this.mapRowToMedication);
   },
 
-  async getByType(type: 'preventative' | 'rescue'): Promise<Medication[]> {
-    const db = await getDatabase();
-    const results = await db.getAllAsync<any>(
+  async getByType(type: 'preventative' | 'rescue', db?: SQLite.SQLiteDatabase): Promise<Medication[]> {
+    const database = db || await getDatabase();
+    const results = await database.getAllAsync<any>(
       'SELECT * FROM medications WHERE type = ? AND active = 1 ORDER BY name ASC',
       [type]
     );
@@ -138,23 +139,23 @@ export const medicationRepository = {
     return results.map(this.mapRowToMedication);
   },
 
-  async getArchived(): Promise<Medication[]> {
-    const db = await getDatabase();
-    const results = await db.getAllAsync<any>(
+  async getArchived(db?: SQLite.SQLiteDatabase): Promise<Medication[]> {
+    const database = db || await getDatabase();
+    const results = await database.getAllAsync<any>(
       'SELECT * FROM medications WHERE active = 0 ORDER BY name ASC'
     );
 
     return results.map(this.mapRowToMedication);
   },
 
-  async delete(id: string): Promise<void> {
-    const db = await getDatabase();
-    await db.runAsync('DELETE FROM medications WHERE id = ?', [id]);
+  async delete(id: string, db?: SQLite.SQLiteDatabase): Promise<void> {
+    const database = db || await getDatabase();
+    await database.runAsync('DELETE FROM medications WHERE id = ?', [id]);
   },
 
-  async deleteAll(): Promise<void> {
-    const db = await getDatabase();
-    await db.runAsync('DELETE FROM medications');
+  async deleteAll(db?: SQLite.SQLiteDatabase): Promise<void> {
+    const database = db || await getDatabase();
+    await database.runAsync('DELETE FROM medications');
   },
 
   mapRowToMedication(row: any): Medication {
@@ -179,8 +180,8 @@ export const medicationRepository = {
 };
 
 export const medicationDoseRepository = {
-  async create(dose: Omit<MedicationDose, 'id' | 'createdAt'>): Promise<MedicationDose> {
-    const db = await getDatabase();
+  async create(dose: Omit<MedicationDose, 'id' | 'createdAt'>, db?: SQLite.SQLiteDatabase): Promise<MedicationDose> {
+    const database = db || await getDatabase();
     const now = Date.now();
     const id = generateId();
 
@@ -190,7 +191,7 @@ export const medicationDoseRepository = {
       createdAt: now,
     };
 
-    await db.runAsync(
+    await database.runAsync(
       `INSERT INTO medication_doses (
         id, medication_id, timestamp, amount, episode_id, effectiveness_rating,
         time_to_relief, side_effects, notes, created_at
@@ -212,8 +213,8 @@ export const medicationDoseRepository = {
     return newDose;
   },
 
-  async update(id: string, updates: Partial<MedicationDose>): Promise<void> {
-    const db = await getDatabase();
+  async update(id: string, updates: Partial<MedicationDose>, db?: SQLite.SQLiteDatabase): Promise<void> {
+    const database = db || await getDatabase();
 
     const fields: string[] = [];
     const values: any[] = [];
@@ -239,15 +240,15 @@ export const medicationDoseRepository = {
 
     values.push(id);
 
-    await db.runAsync(
+    await database.runAsync(
       `UPDATE medication_doses SET ${fields.join(', ')} WHERE id = ?`,
       values
     );
   },
 
-  async getAll(limit = 100): Promise<MedicationDose[]> {
-    const db = await getDatabase();
-    const results = await db.getAllAsync<any>(
+  async getAll(limit = 100, db?: SQLite.SQLiteDatabase): Promise<MedicationDose[]> {
+    const database = db || await getDatabase();
+    const results = await database.getAllAsync<any>(
       'SELECT * FROM medication_doses ORDER BY timestamp DESC LIMIT ?',
       [limit]
     );
@@ -255,9 +256,9 @@ export const medicationDoseRepository = {
     return results.map(this.mapRowToDose);
   },
 
-  async getByMedicationId(medicationId: string, limit = 50): Promise<MedicationDose[]> {
-    const db = await getDatabase();
-    const results = await db.getAllAsync<any>(
+  async getByMedicationId(medicationId: string, limit = 50, db?: SQLite.SQLiteDatabase): Promise<MedicationDose[]> {
+    const database = db || await getDatabase();
+    const results = await database.getAllAsync<any>(
       'SELECT * FROM medication_doses WHERE medication_id = ? ORDER BY timestamp DESC LIMIT ?',
       [medicationId, limit]
     );
@@ -265,9 +266,9 @@ export const medicationDoseRepository = {
     return results.map(this.mapRowToDose);
   },
 
-  async getByEpisodeId(episodeId: string): Promise<MedicationDose[]> {
-    const db = await getDatabase();
-    const results = await db.getAllAsync<any>(
+  async getByEpisodeId(episodeId: string, db?: SQLite.SQLiteDatabase): Promise<MedicationDose[]> {
+    const database = db || await getDatabase();
+    const results = await database.getAllAsync<any>(
       'SELECT * FROM medication_doses WHERE episode_id = ? ORDER BY timestamp ASC',
       [episodeId]
     );
@@ -275,9 +276,9 @@ export const medicationDoseRepository = {
     return results.map(this.mapRowToDose);
   },
 
-  async getByDateRange(startDate: number, endDate: number): Promise<MedicationDose[]> {
-    const db = await getDatabase();
-    const results = await db.getAllAsync<any>(
+  async getByDateRange(startDate: number, endDate: number, db?: SQLite.SQLiteDatabase): Promise<MedicationDose[]> {
+    const database = db || await getDatabase();
+    const results = await database.getAllAsync<any>(
       'SELECT * FROM medication_doses WHERE timestamp >= ? AND timestamp <= ? ORDER BY timestamp DESC',
       [startDate, endDate]
     );
@@ -300,15 +301,15 @@ export const medicationDoseRepository = {
     };
   },
 
-  async deleteAll(): Promise<void> {
-    const db = await getDatabase();
-    await db.runAsync('DELETE FROM medication_doses');
+  async deleteAll(db?: SQLite.SQLiteDatabase): Promise<void> {
+    const database = db || await getDatabase();
+    await database.runAsync('DELETE FROM medication_doses');
   },
 };
 
 export const medicationScheduleRepository = {
-  async create(schedule: Omit<MedicationSchedule, 'id'>): Promise<MedicationSchedule> {
-    const db = await getDatabase();
+  async create(schedule: Omit<MedicationSchedule, 'id'>, db?: SQLite.SQLiteDatabase): Promise<MedicationSchedule> {
+    const database = db || await getDatabase();
     const id = generateId();
 
     const newSchedule: MedicationSchedule = {
@@ -316,7 +317,7 @@ export const medicationScheduleRepository = {
       id,
     };
 
-    await db.runAsync(
+    await database.runAsync(
       'INSERT INTO medication_schedules (id, medication_id, time, dosage, enabled) VALUES (?, ?, ?, ?, ?)',
       [newSchedule.id, newSchedule.medicationId, newSchedule.time, newSchedule.dosage, newSchedule.enabled ? 1 : 0]
     );
@@ -324,8 +325,8 @@ export const medicationScheduleRepository = {
     return newSchedule;
   },
 
-  async update(id: string, updates: Partial<MedicationSchedule>): Promise<void> {
-    const db = await getDatabase();
+  async update(id: string, updates: Partial<MedicationSchedule>, db?: SQLite.SQLiteDatabase): Promise<void> {
+    const database = db || await getDatabase();
     const fields: string[] = [];
     const values: any[] = [];
 
@@ -345,25 +346,25 @@ export const medicationScheduleRepository = {
     if (fields.length === 0) return;
 
     values.push(id);
-    await db.runAsync(
+    await database.runAsync(
       `UPDATE medication_schedules SET ${fields.join(', ')} WHERE id = ?`,
       values
     );
   },
 
-  async delete(id: string): Promise<void> {
-    const db = await getDatabase();
-    await db.runAsync('DELETE FROM medication_schedules WHERE id = ?', [id]);
+  async delete(id: string, db?: SQLite.SQLiteDatabase): Promise<void> {
+    const database = db || await getDatabase();
+    await database.runAsync('DELETE FROM medication_schedules WHERE id = ?', [id]);
   },
 
-  async deleteAll(): Promise<void> {
-    const db = await getDatabase();
-    await db.runAsync('DELETE FROM medication_schedules');
+  async deleteAll(db?: SQLite.SQLiteDatabase): Promise<void> {
+    const database = db || await getDatabase();
+    await database.runAsync('DELETE FROM medication_schedules');
   },
 
-  async getByMedicationId(medicationId: string): Promise<MedicationSchedule[]> {
-    const db = await getDatabase();
-    const results = await db.getAllAsync<any>(
+  async getByMedicationId(medicationId: string, db?: SQLite.SQLiteDatabase): Promise<MedicationSchedule[]> {
+    const database = db || await getDatabase();
+    const results = await database.getAllAsync<any>(
       'SELECT * FROM medication_schedules WHERE medication_id = ? ORDER BY time ASC',
       [medicationId]
     );

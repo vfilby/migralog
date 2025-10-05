@@ -17,6 +17,7 @@ import { MedicationType, ScheduleFrequency, MedicationSchedule } from '../models
 import MedicationScheduleManager from '../components/MedicationScheduleManager';
 import { medicationScheduleRepository } from '../database/medicationRepository';
 import { useTheme, ThemeColors } from '../theme';
+import { errorLogger } from '../services/errorLogger';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AddMedication'>;
 
@@ -284,6 +285,8 @@ export default function AddMedicationScreen({ navigation }: Props) {
   };
 
   const handleSave = async () => {
+    console.log('[AddMedication] handleSave called');
+
     if (!name.trim()) {
       Alert.alert('Error', 'Please enter a medication name');
       return;
@@ -294,8 +297,18 @@ export default function AddMedicationScreen({ navigation }: Props) {
       return;
     }
 
+    console.log('[AddMedication] Validation passed');
+    console.log('[AddMedication] Starting save process...');
+
+    // Log start (non-blocking)
+    errorLogger.log('general', 'AddMedication: Starting save', undefined, {
+      medicationName: name.trim(),
+      type
+    }).catch(e => console.error('[AddMedication] Failed to log start:', e));
+
     setSaving(true);
     try {
+      console.log('[AddMedication] Creating medication...');
       const newMedication = await addMedication({
         name: name.trim(),
         type,
@@ -307,9 +320,11 @@ export default function AddMedicationScreen({ navigation }: Props) {
         active: true,
         notes: notes.trim() || undefined,
       });
+      console.log('[AddMedication] Medication created:', newMedication.id);
 
       // Save schedules if preventative medication
       if (type === 'preventative' && schedules.length > 0) {
+        console.log('[AddMedication] Saving schedules...');
         await Promise.all(
           schedules.map(schedule =>
             medicationScheduleRepository.create({
@@ -320,14 +335,33 @@ export default function AddMedicationScreen({ navigation }: Props) {
             })
           )
         );
+        console.log('[AddMedication] Schedules saved');
       }
 
-      navigation.goBack();
-    } catch (error) {
-      console.error('Failed to add medication:', error);
-      Alert.alert('Error', 'Failed to save medication');
-    } finally {
+      // Log success (non-blocking)
+      errorLogger.log('general', 'AddMedication: Save successful', undefined, {
+        medicationId: newMedication.id
+      }).catch(e => console.error('[AddMedication] Failed to log success:', e));
+
+      console.log('[AddMedication] Setting saving to false...');
       setSaving(false);
+
+      console.log('[AddMedication] Navigating back...');
+      navigation.goBack();
+      console.log('[AddMedication] Navigation complete');
+    } catch (error) {
+      console.error('[AddMedication] CATCH BLOCK - Failed to add medication:', error);
+      console.error('[AddMedication] Error type:', typeof error);
+      console.error('[AddMedication] Error message:', (error as Error).message);
+      console.error('[AddMedication] Error stack:', (error as Error).stack);
+
+      // Log error (non-blocking)
+      errorLogger.log('general', 'AddMedication: Save failed', error as Error, {
+        medicationName: name.trim()
+      }).catch(e => console.error('[AddMedication] Failed to log error:', e));
+
+      setSaving(false);
+      Alert.alert('Error', `Failed to save medication: ${(error as Error).message || 'Unknown error'}`);
     }
   };
 

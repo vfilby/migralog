@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Episode, IntensityReading, SymptomLog } from '../models/types';
 import { episodeRepository, intensityRepository, symptomLogRepository } from '../database/episodeRepository';
+import { errorLogger } from '../services/errorLogger';
 
 interface EpisodeState {
   currentEpisode: Episode | null;
@@ -55,6 +56,10 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       });
       return newEpisode;
     } catch (error) {
+      await errorLogger.log('database', 'Failed to start episode', error as Error, {
+        operation: 'startEpisode',
+        startTime: episode.startTime
+      });
       set({ error: (error as Error).message, loading: false });
       throw error;
     }

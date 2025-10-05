@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Medication, MedicationDose } from '../models/types';
 import { medicationRepository, medicationDoseRepository } from '../database/medicationRepository';
+import { errorLogger } from '../services/errorLogger';
 
 interface MedicationState {
   medications: Medication[];
@@ -41,6 +42,9 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
         loading: false
       });
     } catch (error) {
+      await errorLogger.log('database', 'Failed to load medications', error as Error, {
+        operation: 'loadMedications'
+      });
       set({ error: (error as Error).message, loading: false });
     }
   },
@@ -67,6 +71,11 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
 
       return newMedication;
     } catch (error) {
+      await errorLogger.log('database', 'Failed to add medication', error as Error, {
+        operation: 'addMedication',
+        medicationName: medication.name,
+        medicationType: medication.type
+      });
       set({ error: (error as Error).message, loading: false });
       throw error;
     }
@@ -112,6 +121,11 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       set({ loading: false });
       return newDose;
     } catch (error) {
+      await errorLogger.log('database', 'Failed to log medication dose', error as Error, {
+        operation: 'logDose',
+        medicationId: dose.medicationId,
+        episodeId: dose.episodeId
+      });
       set({ error: (error as Error).message, loading: false });
       throw error;
     }

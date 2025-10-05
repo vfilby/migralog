@@ -13,6 +13,7 @@ export type RootStackParamList = {
   ArchivedMedications: undefined;
   Settings: undefined;
   BackupRecovery: undefined;
+  ErrorLogs: undefined;
 };
 
 export type MainTabsParamList = {

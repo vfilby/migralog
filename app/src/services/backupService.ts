@@ -2,6 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { Platform } from 'react-native';
+import * as SQLite from 'expo-sqlite';
 import { episodeRepository, episodeNoteRepository } from '../database/episodeRepository';
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../database/medicationRepository';
 import { Episode, Medication, MedicationDose, MedicationSchedule, EpisodeNote } from '../models/types';
@@ -47,26 +48,26 @@ class BackupService {
     return `${BACKUP_DIR}${backupId}.json`;
   }
 
-  async createBackup(isAutomatic: boolean = false): Promise<BackupMetadata> {
+  async createBackup(isAutomatic: boolean = false, db?: SQLite.SQLiteDatabase): Promise<BackupMetadata> {
     try {
       await this.initialize();
 
-      // Gather all data
-      const episodes = await episodeRepository.getAll();
-      const medications = await medicationRepository.getAll();
-      const medicationDoses = await medicationDoseRepository.getAll();
+      // Gather all data - pass db to avoid circular dependency during migrations
+      const episodes = await episodeRepository.getAll(50, 0, db);
+      const medications = await medicationRepository.getAll(db);
+      const medicationDoses = await medicationDoseRepository.getAll(100, db);
 
       // Gather all episode notes
       const episodeNotes: EpisodeNote[] = [];
       for (const ep of episodes) {
-        const notes = await episodeNoteRepository.getByEpisodeId(ep.id);
+        const notes = await episodeNoteRepository.getByEpisodeId(ep.id, db);
         episodeNotes.push(...notes);
       }
 
       // Gather all medication schedules
       const medicationSchedules: MedicationSchedule[] = [];
       for (const med of medications) {
-        const schedules = await medicationScheduleRepository.getByMedicationId(med.id);
+        const schedules = await medicationScheduleRepository.getByMedicationId(med.id, db);
         medicationSchedules.push(...schedules);
       }
 

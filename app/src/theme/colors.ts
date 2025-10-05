@@ -24,6 +24,7 @@ export interface ThemeColors {
   danger: string;
   dangerText: string;
   success: string;
+  error: string;
 
   // Status
   ongoing: string;
@@ -60,6 +61,7 @@ export const lightColors: ThemeColors = {
   danger: '#FF3B30',
   dangerText: '#FFFFFF',
   success: '#34C759',
+  error: '#FF3B30',
 
   // Status
   ongoing: '#FF3B30',
@@ -96,6 +98,7 @@ export const darkColors: ThemeColors = {
   danger: '#FF453A',
   dangerText: '#FFFFFF',
   success: '#30D158',
+  error: '#FF453A',
 
   // Status
   ongoing: '#FF453A',

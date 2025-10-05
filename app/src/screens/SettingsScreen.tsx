@@ -1,22 +1,90 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, ThemeMode, ThemeColors } from '../theme';
 import { buildInfo } from '../buildInfo';
+import { errorLogger, ErrorLog } from '../services/errorLogger';
+import * as SQLite from 'expo-sqlite';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
 export default function SettingsScreen({ navigation }: Props) {
   const { theme, themeMode, setThemeMode } = useTheme();
   const styles = createStyles(theme);
+  const [errorLogs, setErrorLogs] = useState<ErrorLog[]>([]);
+  const [dbStatus, setDbStatus] = useState<'checking' | 'healthy' | 'error'>('checking');
+
+  useEffect(() => {
+    loadDiagnostics();
+  }, []);
+
+  const loadDiagnostics = async () => {
+    try {
+      // Load recent error logs
+      const logs = await errorLogger.getRecentLogs(5);
+      setErrorLogs(logs);
+
+      // Check database health
+      await checkDatabaseHealth();
+    } catch (error) {
+      console.error('Failed to load diagnostics:', error);
+    }
+  };
+
+  const checkDatabaseHealth = async () => {
+    try {
+      const db = await SQLite.openDatabaseAsync('migrainetracker.db');
+      await db.execAsync('SELECT 1'); // Simple query to test connection
+      setDbStatus('healthy');
+    } catch (error) {
+      console.error('Database health check failed:', error);
+      setDbStatus('error');
+      await errorLogger.log('database', 'Database health check failed', error as Error);
+    }
+  };
+
+  const viewErrorLogs = () => {
+    navigation.navigate('ErrorLogs');
+  };
+
+  const clearAllLogs = async () => {
+    Alert.alert(
+      'Clear Error Logs',
+      'Are you sure you want to clear all error logs?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: async () => {
+            await errorLogger.clearLogs();
+            setErrorLogs([]);
+            Alert.alert('Success', 'Error logs cleared');
+          },
+        },
+      ]
+    );
+  };
+
+  const testErrorLogging = async () => {
+    await errorLogger.log(
+      'general',
+      'Test error log',
+      new Error('This is a test error'),
+      { timestamp: new Date().toISOString() }
+    );
+    await loadDiagnostics();
+    Alert.alert('Success', 'Test error logged');
+  };
 
   return (
     <View style={styles.container}>
@@ -149,6 +217,92 @@ export default function SettingsScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
+        {/* Developer Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Developer</Text>
+          <Text style={styles.sectionDescription}>
+            Diagnostic tools for troubleshooting issues
+          </Text>
+
+          {/* Database Status */}
+          <View style={styles.diagnosticCard}>
+            <View style={styles.diagnosticRow}>
+              <View style={styles.diagnosticLeft}>
+                <Ionicons
+                  name="server-outline"
+                  size={20}
+                  color={theme.textSecondary}
+                />
+                <Text style={styles.diagnosticLabel}>Database</Text>
+              </View>
+              <View style={styles.diagnosticRight}>
+                {dbStatus === 'checking' && (
+                  <Text style={styles.diagnosticValueSecondary}>Checking...</Text>
+                )}
+                {dbStatus === 'healthy' && (
+                  <>
+                    <Ionicons name="checkmark-circle" size={18} color={theme.success} />
+                    <Text style={styles.diagnosticValueSuccess}>Healthy</Text>
+                  </>
+                )}
+                {dbStatus === 'error' && (
+                  <>
+                    <Ionicons name="close-circle" size={18} color={theme.error} />
+                    <Text style={styles.diagnosticValueError}>Error</Text>
+                  </>
+                )}
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.diagnosticRow}>
+              <View style={styles.diagnosticLeft}>
+                <Ionicons
+                  name="bug-outline"
+                  size={20}
+                  color={theme.textSecondary}
+                />
+                <Text style={styles.diagnosticLabel}>Error Logs</Text>
+              </View>
+              <View style={styles.diagnosticRight}>
+                <Text style={styles.diagnosticValueSecondary}>
+                  {errorLogs.length} recent
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Action Buttons */}
+          <View style={styles.developerActions}>
+            <TouchableOpacity
+              style={styles.developerButton}
+              onPress={viewErrorLogs}
+            >
+              <Ionicons name="list-outline" size={20} color={theme.primary} />
+              <Text style={styles.developerButtonText}>View Error Logs</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.developerButton}
+              onPress={testErrorLogging}
+            >
+              <Ionicons name="flask-outline" size={20} color={theme.primary} />
+              <Text style={styles.developerButtonText}>Test Error Logging</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.developerButton, styles.developerButtonDanger]}
+              onPress={clearAllLogs}
+            >
+              <Ionicons name="trash-outline" size={20} color={theme.error} />
+              <Text style={[styles.developerButtonText, styles.developerButtonTextDanger]}>
+                Clear Logs
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>
@@ -279,5 +433,72 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   themeOptionTextActive: {
     color: theme.primary,
     fontWeight: '600',
+  },
+  diagnosticCard: {
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  diagnosticRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  diagnosticLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  diagnosticRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  diagnosticLabel: {
+    fontSize: 16,
+    color: theme.text,
+  },
+  diagnosticValueSecondary: {
+    fontSize: 15,
+    color: theme.textSecondary,
+    fontWeight: '500',
+  },
+  diagnosticValueSuccess: {
+    fontSize: 15,
+    color: theme.success,
+    fontWeight: '600',
+  },
+  diagnosticValueError: {
+    fontSize: 15,
+    color: theme.error,
+    fontWeight: '600',
+  },
+  developerActions: {
+    gap: 12,
+  },
+  developerButton: {
+    backgroundColor: theme.card,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.border,
+    gap: 8,
+  },
+  developerButtonDanger: {
+    borderColor: theme.error + '40', // 40% opacity
+  },
+  developerButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.primary,
+  },
+  developerButtonTextDanger: {
+    color: theme.error,
   },
 });

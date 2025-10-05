@@ -345,9 +345,13 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
   };
 
   const handleSave = async () => {
+    console.log('[NewEpisode] handleSave called');
+    console.log('[NewEpisode] isEditing:', isEditing, 'episodeId:', episodeId);
+
     setSaving(true);
     try {
       if (isEditing && episodeId) {
+        console.log('[NewEpisode] Updating existing episode...');
         // Update existing episode
         await updateEpisode(episodeId, {
           startTime: startTime.getTime(),
@@ -357,9 +361,11 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
           triggers,
           notes: notes.trim() || undefined,
         });
+        console.log('[NewEpisode] Episode updated');
 
         // Update initial intensity reading if it changed
         if (initialReadingId && intensity !== initialIntensity) {
+          console.log('[NewEpisode] Updating intensity reading...');
           const { intensityRepository } = await import('../database/episodeRepository');
           await intensityRepository.update(initialReadingId, intensity);
 
@@ -370,11 +376,14 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
           const averageIntensity = intensities.reduce((a, b) => a + b, 0) / intensities.length;
 
           await updateEpisode(episodeId, { peakIntensity, averageIntensity });
+          console.log('[NewEpisode] Intensity updated');
         }
 
-        // Navigate back to episode detail
+        console.log('[NewEpisode] Navigating to episode detail...');
+        setSaving(false);
         navigation.navigate('EpisodeDetail', { episodeId });
       } else {
+        console.log('[NewEpisode] Creating new episode...');
         // Create new episode
         const episode = await startEpisode({
           startTime: startTime.getTime(),
@@ -385,18 +394,26 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
           notes: notes.trim() || undefined,
           location: gpsLocation || undefined,
         });
+        console.log('[NewEpisode] Episode created:', episode.id);
 
         // Add initial intensity reading
         if (intensity > 0) {
+          console.log('[NewEpisode] Adding intensity reading...');
           await addIntensityReading(episode.id, intensity);
+          console.log('[NewEpisode] Intensity reading added');
         }
 
+        console.log('[NewEpisode] Navigating to main tabs...');
+        setSaving(false);
         navigation.navigate('MainTabs');
       }
     } catch (error) {
-      console.error('Failed to save episode:', error);
-    } finally {
+      console.error('[NewEpisode] CATCH BLOCK - Failed to save episode:', error);
+      console.error('[NewEpisode] Error type:', typeof error);
+      console.error('[NewEpisode] Error message:', (error as Error).message);
+      console.error('[NewEpisode] Error stack:', (error as Error).stack);
       setSaving(false);
+      Alert.alert('Error', `Failed to save episode: ${(error as Error).message || 'Unknown error'}`);
     }
   };
 

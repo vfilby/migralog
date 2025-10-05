@@ -1,9 +1,10 @@
 import { getDatabase, generateId } from './db';
 import { Episode, IntensityReading, SymptomLog, EpisodeNote } from '../models/types';
+import * as SQLite from 'expo-sqlite';
 
 export const episodeRepository = {
-  async create(episode: Omit<Episode, 'id' | 'createdAt' | 'updatedAt'>): Promise<Episode> {
-    const db = await getDatabase();
+  async create(episode: Omit<Episode, 'id' | 'createdAt' | 'updatedAt'>, db?: SQLite.SQLiteDatabase): Promise<Episode> {
+    const database = db || await getDatabase();
     const now = Date.now();
     const id = generateId();
 
@@ -14,7 +15,7 @@ export const episodeRepository = {
       updatedAt: now,
     };
 
-    await db.runAsync(
+    await database.runAsync(
       `INSERT INTO episodes (
         id, start_time, end_time, locations, qualities, symptoms, triggers,
         notes, peak_intensity, average_intensity,
@@ -44,8 +45,8 @@ export const episodeRepository = {
     return newEpisode;
   },
 
-  async update(id: string, updates: Partial<Episode>): Promise<void> {
-    const db = await getDatabase();
+  async update(id: string, updates: Partial<Episode>, db?: SQLite.SQLiteDatabase): Promise<void> {
+    const database = db || await getDatabase();
     const now = Date.now();
 
     const fields: string[] = [];
@@ -88,15 +89,15 @@ export const episodeRepository = {
     values.push(now);
     values.push(id);
 
-    await db.runAsync(
+    await database.runAsync(
       `UPDATE episodes SET ${fields.join(', ')} WHERE id = ?`,
       values
     );
   },
 
-  async getById(id: string): Promise<Episode | null> {
-    const db = await getDatabase();
-    const result = await db.getFirstAsync<any>(
+  async getById(id: string, db?: SQLite.SQLiteDatabase): Promise<Episode | null> {
+    const database = db || await getDatabase();
+    const result = await database.getFirstAsync<any>(
       'SELECT * FROM episodes WHERE id = ?',
       [id]
     );
@@ -106,9 +107,9 @@ export const episodeRepository = {
     return this.mapRowToEpisode(result);
   },
 
-  async getAll(limit = 50, offset = 0): Promise<Episode[]> {
-    const db = await getDatabase();
-    const results = await db.getAllAsync<any>(
+  async getAll(limit = 50, offset = 0, db?: SQLite.SQLiteDatabase): Promise<Episode[]> {
+    const database = db || await getDatabase();
+    const results = await database.getAllAsync<any>(
       'SELECT * FROM episodes ORDER BY start_time DESC LIMIT ? OFFSET ?',
       [limit, offset]
     );
@@ -116,9 +117,9 @@ export const episodeRepository = {
     return results.map(this.mapRowToEpisode);
   },
 
-  async getByDateRange(startDate: number, endDate: number): Promise<Episode[]> {
-    const db = await getDatabase();
-    const results = await db.getAllAsync<any>(
+  async getByDateRange(startDate: number, endDate: number, db?: SQLite.SQLiteDatabase): Promise<Episode[]> {
+    const database = db || await getDatabase();
+    const results = await database.getAllAsync<any>(
       'SELECT * FROM episodes WHERE start_time >= ? AND start_time <= ? ORDER BY start_time DESC',
       [startDate, endDate]
     );
@@ -126,9 +127,9 @@ export const episodeRepository = {
     return results.map(this.mapRowToEpisode);
   },
 
-  async getCurrentEpisode(): Promise<Episode | null> {
-    const db = await getDatabase();
-    const result = await db.getFirstAsync<any>(
+  async getCurrentEpisode(db?: SQLite.SQLiteDatabase): Promise<Episode | null> {
+    const database = db || await getDatabase();
+    const result = await database.getFirstAsync<any>(
       'SELECT * FROM episodes WHERE end_time IS NULL ORDER BY start_time DESC LIMIT 1'
     );
 
@@ -137,16 +138,16 @@ export const episodeRepository = {
     return this.mapRowToEpisode(result);
   },
 
-  async delete(id: string): Promise<void> {
-    const db = await getDatabase();
-    await db.runAsync('DELETE FROM episodes WHERE id = ?', [id]);
+  async delete(id: string, db?: SQLite.SQLiteDatabase): Promise<void> {
+    const database = db || await getDatabase();
+    await database.runAsync('DELETE FROM episodes WHERE id = ?', [id]);
   },
 
-  async deleteAll(): Promise<void> {
-    const db = await getDatabase();
-    await db.runAsync('DELETE FROM episodes');
-    await db.runAsync('DELETE FROM intensity_readings');
-    await db.runAsync('DELETE FROM symptom_logs');
+  async deleteAll(db?: SQLite.SQLiteDatabase): Promise<void> {
+    const database = db || await getDatabase();
+    await database.runAsync('DELETE FROM episodes');
+    await database.runAsync('DELETE FROM intensity_readings');
+    await database.runAsync('DELETE FROM symptom_logs');
   },
 
   mapRowToEpisode(row: any): Episode {
@@ -180,8 +181,8 @@ export const episodeRepository = {
 };
 
 export const intensityRepository = {
-  async create(reading: Omit<IntensityReading, 'id' | 'createdAt'>): Promise<IntensityReading> {
-    const db = await getDatabase();
+  async create(reading: Omit<IntensityReading, 'id' | 'createdAt'>, db?: SQLite.SQLiteDatabase): Promise<IntensityReading> {
+    const database = db || await getDatabase();
     const now = Date.now();
     const id = generateId();
 
@@ -191,7 +192,7 @@ export const intensityRepository = {
       createdAt: now,
     };
 
-    await db.runAsync(
+    await database.runAsync(
       'INSERT INTO intensity_readings (id, episode_id, timestamp, intensity, created_at) VALUES (?, ?, ?, ?, ?)',
       [newReading.id, newReading.episodeId, newReading.timestamp, newReading.intensity, newReading.createdAt]
     );
@@ -199,17 +200,17 @@ export const intensityRepository = {
     return newReading;
   },
 
-  async update(id: string, intensity: number): Promise<void> {
-    const db = await getDatabase();
-    await db.runAsync(
+  async update(id: string, intensity: number, db?: SQLite.SQLiteDatabase): Promise<void> {
+    const database = db || await getDatabase();
+    await database.runAsync(
       'UPDATE intensity_readings SET intensity = ? WHERE id = ?',
       [intensity, id]
     );
   },
 
-  async getByEpisodeId(episodeId: string): Promise<IntensityReading[]> {
-    const db = await getDatabase();
-    const results = await db.getAllAsync<any>(
+  async getByEpisodeId(episodeId: string, db?: SQLite.SQLiteDatabase): Promise<IntensityReading[]> {
+    const database = db || await getDatabase();
+    const results = await database.getAllAsync<any>(
       'SELECT * FROM intensity_readings WHERE episode_id = ? ORDER BY timestamp ASC',
       [episodeId]
     );
@@ -225,8 +226,8 @@ export const intensityRepository = {
 };
 
 export const symptomLogRepository = {
-  async create(log: Omit<SymptomLog, 'id' | 'createdAt'>): Promise<SymptomLog> {
-    const db = await getDatabase();
+  async create(log: Omit<SymptomLog, 'id' | 'createdAt'>, db?: SQLite.SQLiteDatabase): Promise<SymptomLog> {
+    const database = db || await getDatabase();
     const now = Date.now();
     const id = generateId();
 
@@ -236,7 +237,7 @@ export const symptomLogRepository = {
       createdAt: now,
     };
 
-    await db.runAsync(
+    await database.runAsync(
       'INSERT INTO symptom_logs (id, episode_id, symptom, onset_time, resolution_time, severity, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [newLog.id, newLog.episodeId, newLog.symptom, newLog.onsetTime, newLog.resolutionTime || null, newLog.severity || null, newLog.createdAt]
     );
@@ -244,26 +245,26 @@ export const symptomLogRepository = {
     return newLog;
   },
 
-  async update(id: string, updates: Partial<SymptomLog>): Promise<void> {
-    const db = await getDatabase();
+  async update(id: string, updates: Partial<SymptomLog>, db?: SQLite.SQLiteDatabase): Promise<void> {
+    const database = db || await getDatabase();
 
     if (updates.resolutionTime !== undefined) {
-      await db.runAsync(
+      await database.runAsync(
         'UPDATE symptom_logs SET resolution_time = ? WHERE id = ?',
         [updates.resolutionTime, id]
       );
     }
     if (updates.severity !== undefined) {
-      await db.runAsync(
+      await database.runAsync(
         'UPDATE symptom_logs SET severity = ? WHERE id = ?',
         [updates.severity, id]
       );
     }
   },
 
-  async getByEpisodeId(episodeId: string): Promise<SymptomLog[]> {
-    const db = await getDatabase();
-    const results = await db.getAllAsync<any>(
+  async getByEpisodeId(episodeId: string, db?: SQLite.SQLiteDatabase): Promise<SymptomLog[]> {
+    const database = db || await getDatabase();
+    const results = await database.getAllAsync<any>(
       'SELECT * FROM symptom_logs WHERE episode_id = ? ORDER BY onset_time ASC',
       [episodeId]
     );
@@ -281,8 +282,8 @@ export const symptomLogRepository = {
 };
 
 export const episodeNoteRepository = {
-  async create(note: Omit<EpisodeNote, 'id' | 'createdAt'>): Promise<EpisodeNote> {
-    const db = await getDatabase();
+  async create(note: Omit<EpisodeNote, 'id' | 'createdAt'>, db?: SQLite.SQLiteDatabase): Promise<EpisodeNote> {
+    const database = db || await getDatabase();
     const now = Date.now();
     const id = generateId();
 
@@ -292,7 +293,7 @@ export const episodeNoteRepository = {
       createdAt: now,
     };
 
-    await db.runAsync(
+    await database.runAsync(
       'INSERT INTO episode_notes (id, episode_id, timestamp, note, created_at) VALUES (?, ?, ?, ?, ?)',
       [newNote.id, newNote.episodeId, newNote.timestamp, newNote.note, newNote.createdAt]
     );
@@ -300,19 +301,19 @@ export const episodeNoteRepository = {
     return newNote;
   },
 
-  async delete(id: string): Promise<void> {
-    const db = await getDatabase();
-    await db.runAsync('DELETE FROM episode_notes WHERE id = ?', [id]);
+  async delete(id: string, db?: SQLite.SQLiteDatabase): Promise<void> {
+    const database = db || await getDatabase();
+    await database.runAsync('DELETE FROM episode_notes WHERE id = ?', [id]);
   },
 
-  async deleteAll(): Promise<void> {
-    const db = await getDatabase();
-    await db.runAsync('DELETE FROM episode_notes');
+  async deleteAll(db?: SQLite.SQLiteDatabase): Promise<void> {
+    const database = db || await getDatabase();
+    await database.runAsync('DELETE FROM episode_notes');
   },
 
-  async getByEpisodeId(episodeId: string): Promise<EpisodeNote[]> {
-    const db = await getDatabase();
-    const results = await db.getAllAsync<any>(
+  async getByEpisodeId(episodeId: string, db?: SQLite.SQLiteDatabase): Promise<EpisodeNote[]> {
+    const database = db || await getDatabase();
+    const results = await database.getAllAsync<any>(
       'SELECT * FROM episode_notes WHERE episode_id = ? ORDER BY timestamp ASC',
       [episodeId]
     );

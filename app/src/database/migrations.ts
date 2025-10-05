@@ -96,8 +96,9 @@ class MigrationRunner {
     if (result.length === 0) {
       // This is a fresh database or pre-migration database
       // Insert initial version (assuming current schema is version 1)
+      // Use INSERT OR IGNORE to handle case where row already exists
       await this.db.runAsync(
-        'INSERT INTO schema_version (id, version, updated_at) VALUES (1, 1, ?)',
+        'INSERT OR IGNORE INTO schema_version (id, version, updated_at) VALUES (1, 1, ?)',
         [Date.now()]
       );
     }
@@ -129,7 +130,7 @@ class MigrationRunner {
     return currentVersion < targetVersion;
   }
 
-  async runMigrations(createBackup?: () => Promise<void>): Promise<void> {
+  async runMigrations(createBackup?: (db: SQLite.SQLiteDatabase) => Promise<void>): Promise<void> {
     if (!this.db) {
       throw new Error('MigrationRunner not initialized');
     }
@@ -148,7 +149,7 @@ class MigrationRunner {
     if (createBackup) {
       try {
         console.log('Creating automatic backup before migration...');
-        await createBackup();
+        await createBackup(this.db);
         console.log('Backup created successfully');
       } catch (error) {
         console.error('Failed to create backup before migration:', error);
@@ -183,7 +184,7 @@ class MigrationRunner {
     console.log('All migrations completed successfully');
   }
 
-  async rollback(toVersion: number, createBackup?: () => Promise<void>): Promise<void> {
+  async rollback(toVersion: number, createBackup?: (db: SQLite.SQLiteDatabase) => Promise<void>): Promise<void> {
     if (!this.db) {
       throw new Error('MigrationRunner not initialized');
     }
@@ -201,7 +202,7 @@ class MigrationRunner {
     if (createBackup) {
       try {
         console.log('Creating automatic backup before rollback...');
-        await createBackup();
+        await createBackup(this.db);
         console.log('Backup created successfully');
       } catch (error) {
         console.error('Failed to create backup before rollback:', error);
