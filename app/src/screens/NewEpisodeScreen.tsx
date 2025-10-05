@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -66,6 +67,7 @@ const TRIGGERS: { value: Trigger; label: string }[] = [
 
 export default function NewEpisodeScreen({ navigation }: Props) {
   const { startEpisode, addIntensityReading } = useEpisodeStore();
+  const scrollViewRef = useRef<ScrollView>(null);
   const [startTime, setStartTime] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [intensity, setIntensity] = useState(3);
@@ -109,7 +111,11 @@ export default function NewEpisodeScreen({ navigation }: Props) {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={0}
+    >
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.cancelButton}>Cancel</Text>
@@ -118,7 +124,12 @@ export default function NewEpisodeScreen({ navigation }: Props) {
         <View style={{ width: 60 }} />
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.content}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: 20 }}
+      >
         {/* Start Time */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Start Time</Text>
@@ -293,25 +304,30 @@ export default function NewEpisodeScreen({ navigation }: Props) {
             placeholderTextColor="#C7C7CC"
             value={notes}
             onChangeText={setNotes}
+            onFocus={() => {
+              setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+              }, 100);
+            }}
           />
+        </View>
+
+        {/* Save Button */}
+        <View style={styles.saveButtonContainer}>
+          <TouchableOpacity
+            style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+            onPress={handleSave}
+            disabled={saving}
+          >
+            <Text style={styles.saveButtonText}>
+              {saving ? 'Starting Episode...' : 'Start Episode'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <View style={{ height: 100 }} />
       </ScrollView>
-
-      {/* Save Button */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-          onPress={handleSave}
-          disabled={saving}
-        >
-          <Text style={styles.saveButtonText}>
-            {saving ? 'Starting Episode...' : 'Start Episode'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -483,12 +499,9 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     minHeight: 100,
   },
-  footer: {
-    backgroundColor: '#fff',
-    padding: 16,
-    paddingBottom: 34,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5EA',
+  saveButtonContainer: {
+    marginTop: 24,
+    paddingHorizontal: 16,
   },
   saveButton: {
     backgroundColor: '#007AFF',
