@@ -672,9 +672,6 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
             </View>
             <View style={styles.timelineRight}>
               <Text style={styles.timelineEventTitle}>Episode Ended</Text>
-              <Text style={styles.timelineEventContent}>
-                Episode completed
-              </Text>
             </View>
           </View>
         );
