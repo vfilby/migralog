@@ -7,7 +7,9 @@
     "android": "npm run generate-build-info && expo start --android",
     "ios": "npm run generate-build-info && expo start --ios",
     "web": "npm run generate-build-info && expo start --web",
-    "generate-build-info": "node scripts/generate-build-info.js"
+    "generate-build-info": "node scripts/generate-build-info.js",
+    "build:ios": "eas build --platform ios",
+    "submit:ios": "eas submit -p ios"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
