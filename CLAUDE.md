@@ -71,6 +71,14 @@ UI components for each route. iOS-style design with:
 - iOS color palette (#007AFF, #8E8E93, #E5E5EA)
 - Tab bar height: 88px with 34px bottom padding for home indicator
 
+### Theme System (src/theme/)
+- **All UI must support light and dark mode** via user-selectable theme in Settings
+- Three theme modes: `light`, `dark`, `system` (follows device setting)
+- Theme preference persists to AsyncStorage
+- Use `useTheme()` hook to access current theme colors
+- Pattern: Define `createStyles(theme: ThemeColors)` function before component, call with theme inside component
+- Available theme colors: `background`, `backgroundSecondary`, `card`, `text`, `textSecondary`, `textTertiary`, `border`, `borderLight`, `primary`, `primaryText`, `danger`, `dangerText`, `ongoing`, `ongoingText`, `shadow`, `tabBarBackground`, `tabBarBorder`, `tabBarInactive`, `tabBarActive`
+
 ## Key Patterns
 
 ### Platform-Specific Files

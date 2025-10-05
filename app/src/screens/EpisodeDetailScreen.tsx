@@ -454,7 +454,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
           <Text style={styles.backButton}>Back</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Episode Details</Text>
-        <TouchableOpacity onPress={() => {/* TODO: Navigate to edit screen */}}>
+        <TouchableOpacity onPress={() => navigation.navigate('NewEpisode', { episodeId })}>
           <Text style={styles.editButton}>Edit</Text>
         </TouchableOpacity>
       </View>

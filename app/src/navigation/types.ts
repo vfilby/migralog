@@ -4,7 +4,7 @@ import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 export type RootStackParamList = {
   MainTabs: undefined;
   EpisodeDetail: { episodeId: string };
-  NewEpisode: undefined;
+  NewEpisode: { episodeId?: string };
   AddMedication: undefined;
   EditMedication: { medicationId: string };
   LogMedication: { medicationId?: string; episodeId?: string };

@@ -199,6 +199,14 @@ export const intensityRepository = {
     return newReading;
   },
 
+  async update(id: string, intensity: number): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync(
+      'UPDATE intensity_readings SET intensity = ? WHERE id = ?',
+      [intensity, id]
+    );
+  },
+
   async getByEpisodeId(episodeId: string): Promise<IntensityReading[]> {
     const db = await getDatabase();
     const results = await db.getAllAsync<any>(

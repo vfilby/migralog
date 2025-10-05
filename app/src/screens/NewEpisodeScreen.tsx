@@ -18,6 +18,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
 import { getPainLevel } from '../utils/painScale';
 import { locationService } from '../services/locationService';
+import { useTheme, ThemeColors } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'NewEpisode'>;
 
@@ -66,8 +67,201 @@ const TRIGGERS: { value: Trigger; label: string }[] = [
   { value: 'exercise', label: 'Exercise' },
 ];
 
-export default function NewEpisodeScreen({ navigation }: Props) {
-  const { startEpisode, addIntensityReading } = useEpisodeStore();
+const createStyles = (theme: ThemeColors) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.background,
+  },
+  header: {
+    backgroundColor: theme.card,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 60,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border,
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: theme.text,
+  },
+  cancelButton: {
+    fontSize: 17,
+    color: theme.primary,
+    width: 60,
+  },
+  content: {
+    flex: 1,
+  },
+  section: {
+    marginTop: 24,
+    paddingHorizontal: 16,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.textSecondary,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  timeButton: {
+    backgroundColor: theme.card,
+    padding: 16,
+    borderRadius: 12,
+  },
+  timeText: {
+    fontSize: 17,
+    color: theme.primary,
+    fontWeight: '500',
+  },
+  sliderContainer: {
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    padding: 16,
+  },
+  sliderHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  intensityValue: {
+    fontSize: 34,
+    fontWeight: 'bold',
+  },
+  intensityLabel: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: theme.text,
+  },
+  slider: {
+    width: '100%',
+    height: 40,
+  },
+  sliderLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  sliderLabelText: {
+    fontSize: 13,
+    color: theme.textSecondary,
+  },
+  painDescription: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: theme.borderLight,
+  },
+  painDescriptionText: {
+    fontSize: 15,
+    color: theme.textSecondary,
+    textAlign: 'center',
+  },
+  locationContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  locationColumn: {
+    flex: 1,
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    padding: 12,
+  },
+  columnHeader: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.text,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  locationButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: theme.borderLight,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  locationButtonActive: {
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
+  },
+  locationText: {
+    fontSize: 15,
+    color: theme.text,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  locationTextActive: {
+    color: theme.primaryText,
+  },
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: theme.card,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  chipActive: {
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
+  },
+  chipText: {
+    fontSize: 15,
+    color: theme.text,
+    fontWeight: '500',
+  },
+  chipTextActive: {
+    color: theme.primaryText,
+  },
+  notesInput: {
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    color: theme.text,
+    textAlignVertical: 'top',
+    minHeight: 100,
+  },
+  saveButtonContainer: {
+    marginTop: 24,
+    paddingHorizontal: 16,
+  },
+  saveButton: {
+    backgroundColor: theme.primary,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  saveButtonDisabled: {
+    backgroundColor: theme.textTertiary,
+  },
+  saveButtonText: {
+    color: theme.primaryText,
+    fontSize: 17,
+    fontWeight: '600',
+  },
+});
+
+export default function NewEpisodeScreen({ navigation, route }: Props) {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
+  const { startEpisode, addIntensityReading, updateEpisode } = useEpisodeStore();
+  const episodeId = route.params?.episodeId;
+  const isEditing = !!episodeId;
+
   const scrollViewRef = useRef<ScrollView>(null);
   const [startTime, setStartTime] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -78,10 +272,53 @@ export default function NewEpisodeScreen({ navigation }: Props) {
   const [triggers, setTriggers] = useState<Trigger[]>([]);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [gpsLocation, setGpsLocation] = useState<EpisodeLocation | null>(null);
+  const [initialReadingId, setInitialReadingId] = useState<string | null>(null);
+  const [initialIntensity, setInitialIntensity] = useState<number>(3);
 
-  // Request location permission and capture location when screen loads
+  // Load episode data if editing
   useEffect(() => {
+    const loadEpisode = async () => {
+      if (!episodeId) return;
+
+      setLoading(true);
+      try {
+        const { episodeRepository, intensityRepository } = await import('../database/episodeRepository');
+        const episode = await episodeRepository.getById(episodeId);
+
+        if (episode) {
+          setStartTime(new Date(episode.startTime));
+          setLocations(episode.locations);
+          setQualities(episode.qualities);
+          setSymptoms(episode.symptoms);
+          setTriggers(episode.triggers);
+          setNotes(episode.notes || '');
+          setGpsLocation(episode.location || null);
+
+          // Load initial intensity reading (first one chronologically)
+          const readings = await intensityRepository.getByEpisodeId(episodeId);
+          if (readings.length > 0) {
+            const firstReading = readings[0]; // readings are sorted by timestamp ASC
+            setInitialReadingId(firstReading.id);
+            setIntensity(firstReading.intensity);
+            setInitialIntensity(firstReading.intensity);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load episode:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadEpisode();
+  }, [episodeId]);
+
+  // Request location permission and capture location when screen loads (only for new episodes)
+  useEffect(() => {
+    if (isEditing) return; // Don't override location when editing
+
     const captureLocation = async () => {
       try {
         const location = await locationService.getLocationWithPermissionRequest();
@@ -95,7 +332,7 @@ export default function NewEpisodeScreen({ navigation }: Props) {
     };
 
     captureLocation();
-  }, []);
+  }, [isEditing]);
 
   const toggleSelection = <T,>(item: T, list: T[], setList: (list: T[]) => void) => {
     if (list.includes(item)) {
@@ -108,24 +345,54 @@ export default function NewEpisodeScreen({ navigation }: Props) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const episode = await startEpisode({
-        startTime: startTime.getTime(),
-        locations,
-        qualities,
-        symptoms,
-        triggers,
-        notes: notes.trim() || undefined,
-        location: gpsLocation || undefined,
-      });
+      if (isEditing && episodeId) {
+        // Update existing episode
+        await updateEpisode(episodeId, {
+          startTime: startTime.getTime(),
+          locations,
+          qualities,
+          symptoms,
+          triggers,
+          notes: notes.trim() || undefined,
+        });
 
-      // Add initial intensity reading
-      if (intensity > 0) {
-        await addIntensityReading(episode.id, intensity);
+        // Update initial intensity reading if it changed
+        if (initialReadingId && intensity !== initialIntensity) {
+          const { intensityRepository } = await import('../database/episodeRepository');
+          await intensityRepository.update(initialReadingId, intensity);
+
+          // Recalculate peak and average intensity
+          const readings = await intensityRepository.getByEpisodeId(episodeId);
+          const intensities = readings.map(r => r.intensity);
+          const peakIntensity = Math.max(...intensities);
+          const averageIntensity = intensities.reduce((a, b) => a + b, 0) / intensities.length;
+
+          await updateEpisode(episodeId, { peakIntensity, averageIntensity });
+        }
+
+        // Navigate back to episode detail
+        navigation.navigate('EpisodeDetail', { episodeId });
+      } else {
+        // Create new episode
+        const episode = await startEpisode({
+          startTime: startTime.getTime(),
+          locations,
+          qualities,
+          symptoms,
+          triggers,
+          notes: notes.trim() || undefined,
+          location: gpsLocation || undefined,
+        });
+
+        // Add initial intensity reading
+        if (intensity > 0) {
+          await addIntensityReading(episode.id, intensity);
+        }
+
+        navigation.navigate('MainTabs');
       }
-
-      navigation.navigate('MainTabs');
     } catch (error) {
-      console.error('Failed to create episode:', error);
+      console.error('Failed to save episode:', error);
       setSaving(false);
     }
   };
@@ -140,7 +407,7 @@ export default function NewEpisodeScreen({ navigation }: Props) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.cancelButton}>Cancel</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Start Episode</Text>
+        <Text style={styles.title}>{isEditing ? 'Edit Episode' : 'Start Episode'}</Text>
         <View style={{ width: 60 }} />
       </View>
 
@@ -192,7 +459,7 @@ export default function NewEpisodeScreen({ navigation }: Props) {
               value={intensity}
               onValueChange={setIntensity}
               minimumTrackTintColor={getPainLevel(intensity).color}
-              maximumTrackTintColor="#E5E5EA"
+              maximumTrackTintColor={theme.border}
               thumbTintColor={getPainLevel(intensity).color}
             />
             <View style={styles.sliderLabels}>
@@ -321,7 +588,7 @@ export default function NewEpisodeScreen({ navigation }: Props) {
             multiline
             numberOfLines={4}
             placeholder="Any additional details..."
-            placeholderTextColor="#C7C7CC"
+            placeholderTextColor={theme.textTertiary}
             value={notes}
             onChangeText={setNotes}
             onFocus={() => {
@@ -340,7 +607,10 @@ export default function NewEpisodeScreen({ navigation }: Props) {
             disabled={saving}
           >
             <Text style={styles.saveButtonText}>
-              {saving ? 'Starting Episode...' : 'Start Episode'}
+              {saving
+                ? (isEditing ? 'Saving Changes...' : 'Starting Episode...')
+                : (isEditing ? 'Save Changes' : 'Start Episode')
+              }
             </Text>
           </TouchableOpacity>
         </View>
@@ -350,191 +620,3 @@ export default function NewEpisodeScreen({ navigation }: Props) {
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F2F2F7',
-  },
-  header: {
-    backgroundColor: '#fff',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 60,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#000',
-  },
-  cancelButton: {
-    fontSize: 17,
-    color: '#007AFF',
-    width: 60,
-  },
-  content: {
-    flex: 1,
-  },
-  section: {
-    marginTop: 24,
-    paddingHorizontal: 16,
-  },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#8E8E93',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  timeButton: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-  },
-  timeText: {
-    fontSize: 17,
-    color: '#007AFF',
-    fontWeight: '500',
-  },
-  sliderContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-  },
-  sliderHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  intensityValue: {
-    fontSize: 34,
-    fontWeight: 'bold',
-  },
-  intensityLabel: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#000',
-  },
-  slider: {
-    width: '100%',
-    height: 40,
-  },
-  sliderLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  sliderLabelText: {
-    fontSize: 13,
-    color: '#8E8E93',
-  },
-  painDescription: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F2F2F7',
-  },
-  painDescriptionText: {
-    fontSize: 15,
-    color: '#8E8E93',
-    textAlign: 'center',
-  },
-  locationContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  locationColumn: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 12,
-  },
-  columnHeader: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  locationButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: '#F2F2F7',
-    marginBottom: 8,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  locationButtonActive: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  locationText: {
-    fontSize: 15,
-    color: '#000',
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  locationTextActive: {
-    color: '#fff',
-  },
-  chipContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#E5E5EA',
-  },
-  chipActive: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  chipText: {
-    fontSize: 15,
-    color: '#000',
-    fontWeight: '500',
-  },
-  chipTextActive: {
-    color: '#fff',
-  },
-  notesInput: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    color: '#000',
-    textAlignVertical: 'top',
-    minHeight: 100,
-  },
-  saveButtonContainer: {
-    marginTop: 24,
-    paddingHorizontal: 16,
-  },
-  saveButton: {
-    backgroundColor: '#007AFF',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  saveButtonDisabled: {
-    backgroundColor: '#C7C7CC',
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '600',
-  },
-});

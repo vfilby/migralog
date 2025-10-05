@@ -67,13 +67,13 @@ export const PAIN_SCALE: PainLevel[] = [
     value: 9,
     label: 'Excruciating',
     description: 'Unbearable, incapacitating',
-    color: '#AD1457', // Dark Pink
+    color: '#EC407A', // Bright Pink - better contrast in dark mode
   },
   {
     value: 10,
     label: 'Debilitating',
     description: 'Worst imaginable, requires emergency care',
-    color: '#6A1B9A', // Dark Purple
+    color: '#AB47BC', // Bright Purple - better contrast in dark mode
   },
 ];
 
