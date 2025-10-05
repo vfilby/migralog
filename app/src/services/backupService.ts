@@ -50,28 +50,45 @@ class BackupService {
 
   async createBackup(isAutomatic: boolean = false, db?: SQLite.SQLiteDatabase): Promise<BackupMetadata> {
     try {
+      console.log('[Backup] Starting backup creation, isAutomatic:', isAutomatic);
+      console.log('[Backup] Backup directory:', BACKUP_DIR);
       await this.initialize();
+      console.log('[Backup] Backup directory initialized');
 
       // Gather all data - pass db to avoid circular dependency during migrations
+      console.log('[Backup] Fetching episodes...');
       const episodes = await episodeRepository.getAll(50, 0, db);
+      console.log('[Backup] Fetched', episodes.length, 'episodes');
+
+      console.log('[Backup] Fetching medications...');
       const medications = await medicationRepository.getAll(db);
+      console.log('[Backup] Fetched', medications.length, 'medications');
+
+      console.log('[Backup] Fetching medication doses...');
       const medicationDoses = await medicationDoseRepository.getAll(100, db);
+      console.log('[Backup] Fetched', medicationDoses.length, 'doses');
 
       // Gather all episode notes
+      console.log('[Backup] Fetching episode notes...');
       const episodeNotes: EpisodeNote[] = [];
       for (const ep of episodes) {
         const notes = await episodeNoteRepository.getByEpisodeId(ep.id, db);
         episodeNotes.push(...notes);
       }
+      console.log('[Backup] Fetched', episodeNotes.length, 'episode notes');
 
       // Gather all medication schedules
+      console.log('[Backup] Fetching medication schedules...');
       const medicationSchedules: MedicationSchedule[] = [];
       for (const med of medications) {
         const schedules = await medicationScheduleRepository.getByMedicationId(med.id, db);
         medicationSchedules.push(...schedules);
       }
+      console.log('[Backup] Fetched', medicationSchedules.length, 'schedules');
 
+      console.log('[Backup] Generating backup ID...');
       const backupId = this.generateBackupId();
+      console.log('[Backup] Backup ID:', backupId);
       const backupData: BackupData = {
         metadata: {
           id: backupId,
@@ -89,12 +106,20 @@ class BackupService {
       };
 
       const backupPath = this.getBackupPath(backupId);
+      console.log('[Backup] Backup path:', backupPath);
+
+      console.log('[Backup] Stringifying backup data...');
       const backupJson = JSON.stringify(backupData, null, 2);
+      console.log('[Backup] Backup JSON size:', backupJson.length, 'characters');
 
+      console.log('[Backup] Writing backup file...');
       await FileSystem.writeAsStringAsync(backupPath, backupJson);
+      console.log('[Backup] Backup file written successfully');
 
+      console.log('[Backup] Getting file info...');
       const fileInfo = await FileSystem.getInfoAsync(backupPath);
       const fileSize = fileInfo.exists && 'size' in fileInfo ? fileInfo.size : 0;
+      console.log('[Backup] File size:', fileSize, 'bytes');
 
       const metadata: BackupMetadata = {
         ...backupData.metadata,
@@ -104,12 +129,16 @@ class BackupService {
 
       // Clean up old automatic backups if needed
       if (isAutomatic) {
+        console.log('[Backup] Cleaning up old automatic backups...');
         await this.cleanupOldAutoBackups();
       }
 
+      console.log('[Backup] Backup created successfully:', metadata.id);
       return metadata;
     } catch (error) {
-      console.error('Failed to create backup:', error);
+      console.error('[Backup] FAILED to create backup:', error);
+      console.error('[Backup] Error type:', typeof error);
+      console.error('[Backup] Error details:', JSON.stringify(error, null, 2));
       throw new Error('Failed to create backup: ' + (error as Error).message);
     }
   }
