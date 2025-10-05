@@ -395,6 +395,7 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
       }
     } catch (error) {
       console.error('Failed to save episode:', error);
+    } finally {
       setSaving(false);
     }
   };

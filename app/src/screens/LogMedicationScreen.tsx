@@ -296,6 +296,7 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
     } catch (error) {
       console.error('Failed to log medication:', error);
       Alert.alert('Error', 'Failed to log medication');
+    } finally {
       setSaving(false);
     }
   };

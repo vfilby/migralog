@@ -379,6 +379,7 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
     } catch (error) {
       console.error('Failed to update medication:', error);
       Alert.alert('Error', 'Failed to update medication');
+    } finally {
       setSaving(false);
     }
   };

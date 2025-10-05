@@ -326,6 +326,7 @@ export default function AddMedicationScreen({ navigation }: Props) {
     } catch (error) {
       console.error('Failed to add medication:', error);
       Alert.alert('Error', 'Failed to save medication');
+    } finally {
       setSaving(false);
     }
   };
