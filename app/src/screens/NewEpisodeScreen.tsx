@@ -379,9 +379,9 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
           console.log('[NewEpisode] Intensity updated');
         }
 
-        console.log('[NewEpisode] Navigating to episode detail...');
+        console.log('[NewEpisode] Dismissing edit modal...');
         setSaving(false);
-        navigation.navigate('EpisodeDetail', { episodeId });
+        navigation.goBack();
       } else {
         console.log('[NewEpisode] Creating new episode...');
         // Create new episode

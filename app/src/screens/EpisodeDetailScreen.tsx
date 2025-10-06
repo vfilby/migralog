@@ -794,6 +794,12 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
               >
                 <Text style={styles.actionButtonText}>Add Note</Text>
               </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => navigation.navigate('LogMedication', { episodeId })}
+              >
+                <Text style={styles.actionButtonText}>Log Medication</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
