@@ -176,20 +176,19 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
 
   const loadLatestData = async () => {
     try {
-      // Get episode to get initial intensity
+      // Get episode
       const episode = await episodeRepository.getById(episodeId);
 
-      // Get latest intensity reading
+      // Get all intensity readings sorted by timestamp ascending
       const intensityReadings = await intensityRepository.getByEpisodeId(episodeId);
       if (intensityReadings.length > 0) {
-        // Sort by timestamp descending to get latest
-        const sorted = intensityReadings.sort((a, b) => b.timestamp - a.timestamp);
-        setCurrentIntensity(sorted[0].intensity ?? 5);
-      } else if (episode?.initialIntensity != null) {
-        // Use initial intensity from episode
-        setCurrentIntensity(episode.initialIntensity);
+        // Get the latest intensity (last in chronological order)
+        const latestReading = intensityReadings[intensityReadings.length - 1];
+        setCurrentIntensity(latestReading.intensity ?? 5);
+      } else {
+        // No intensity readings found - use default
+        setCurrentIntensity(5);
       }
-      // If no intensity found, keep the default value of 5
 
       // Get latest symptoms
       const symptomLogs = await symptomLogRepository.getByEpisodeId(episodeId);
