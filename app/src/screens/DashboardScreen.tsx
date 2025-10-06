@@ -110,27 +110,13 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     textAlign: 'center',
     paddingVertical: 20,
   },
-  medicationItem: {
-    paddingVertical: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  medicationName: {
-    fontSize: 16,
-    color: theme.text,
-  },
-  medicationDosage: {
-    fontSize: 14,
-    color: theme.textSecondary,
-  },
 });
 
 export default function DashboardScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { theme } = useTheme();
   const { currentEpisode, episodes, loadCurrentEpisode, loadEpisodes } = useEpisodeStore();
-  const { preventativeMedications, rescueMedications, loadMedications } = useMedicationStore();
+  const { rescueMedications, loadMedications } = useMedicationStore();
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -227,32 +213,18 @@ export default function DashboardScreen() {
           <Text style={styles.emptyText}>No episodes recorded yet</Text>
         ) : (
           <View>
-            {episodes.slice(0, 3).map(episode => (
+            {episodes.slice(0, 3).map((episode, index, array) => (
               <EpisodeCard
                 key={episode.id}
                 episode={episode}
                 compact
+                isLast={index === array.length - 1}
                 onPress={() => navigation.navigate('EpisodeDetail', { episodeId: episode.id })}
               />
             ))}
           </View>
         )}
       </View>
-
-      {/* Active Medications */}
-      {preventativeMedications.length > 0 && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Active Preventative Medications</Text>
-          {preventativeMedications.map(med => (
-            <View key={med.id} style={styles.medicationItem}>
-              <Text style={styles.medicationName}>{med.name}</Text>
-              <Text style={styles.medicationDosage}>
-                {med.dosageAmount}{med.dosageUnit}
-              </Text>
-            </View>
-          ))}
-        </View>
-      )}
     </ScrollView>
   );
 }

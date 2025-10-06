@@ -10,6 +10,7 @@ interface EpisodeCardProps {
   episode: Episode;
   onPress?: () => void;
   compact?: boolean;
+  isLast?: boolean;
 }
 
 const createStyles = (theme: ThemeColors) => StyleSheet.create({
@@ -127,7 +128,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   },
 });
 
-const EpisodeCard = React.memo(({ episode, onPress, compact = false }: EpisodeCardProps) => {
+const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = false }: EpisodeCardProps) => {
   const { theme } = useTheme();
   const [locationAddress, setLocationAddress] = useState<string | null>(null);
 
@@ -150,7 +151,7 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false }: EpisodeCa
   if (compact) {
     return (
       <TouchableOpacity
-        style={styles.episodeItemCompact}
+        style={[styles.episodeItemCompact, isLast && { borderBottomWidth: 0 }]}
         onPress={onPress}
         disabled={!onPress}
         accessibilityRole="button"
