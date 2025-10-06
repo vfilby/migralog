@@ -77,6 +77,33 @@ const migrations: Migration[] = [
       await db.execAsync('DROP INDEX IF EXISTS idx_episode_notes_timestamp;');
     },
   },
+  {
+    version: 4,
+    name: 'add_notification_fields_to_schedules',
+    up: async (db: SQLite.SQLiteDatabase) => {
+      // Check if columns already exist before adding them
+      const tableInfo = await db.getAllAsync<{ name: string }>(
+        "PRAGMA table_info(medication_schedules)"
+      );
+      const columnNames = tableInfo.map(col => col.name);
+
+      // Add notification_id column if it doesn't exist
+      if (!columnNames.includes('notification_id')) {
+        await db.execAsync('ALTER TABLE medication_schedules ADD COLUMN notification_id TEXT;');
+      }
+
+      // Add reminder_enabled column if it doesn't exist (default to 1 = true)
+      if (!columnNames.includes('reminder_enabled')) {
+        await db.execAsync('ALTER TABLE medication_schedules ADD COLUMN reminder_enabled INTEGER NOT NULL DEFAULT 1;');
+      }
+
+      console.log('Added notification fields to medication_schedules table');
+    },
+    down: async (db: SQLite.SQLiteDatabase) => {
+      // SQLite doesn't support DROP COLUMN, so we'd need to recreate the table
+      console.warn('Rollback for migration 4 not implemented (SQLite limitation)');
+    },
+  },
 ];
 
 class MigrationRunner {

@@ -119,6 +119,8 @@ export interface MedicationSchedule {
   time: string; // HH:mm format for daily, date for monthly/quarterly
   dosage: number; // Number of doses for this schedule
   enabled: boolean;
+  notificationId?: string; // Expo notification identifier
+  reminderEnabled?: boolean; // Can disable reminder for this specific schedule
 }
 
 export interface MedicationDose {
