@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput,
 import Slider from '@react-native-community/slider';
 import MapView, { Marker } from 'react-native-maps';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/types';
 import { useEpisodeStore } from '../store/episodeStore';
 import { episodeRepository, intensityRepository, symptomLogRepository, episodeNoteRepository } from '../database/episodeRepository';
@@ -438,9 +439,11 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   const [locationAddress, setLocationAddress] = useState<string | null>(null);
   const [showMapModal, setShowMapModal] = useState(false);
 
-  useEffect(() => {
-    loadEpisodeData();
-  }, [episodeId]);
+  useFocusEffect(
+    React.useCallback(() => {
+      loadEpisodeData();
+    }, [episodeId])
+  );
 
   const loadEpisodeData = async () => {
     try {
