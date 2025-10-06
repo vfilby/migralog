@@ -163,9 +163,15 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const [currentIntensity, setCurrentIntensity] = useState(5);
+  const [intensityChanged, setIntensityChanged] = useState(false);
   const [currentSymptoms, setCurrentSymptoms] = useState<Symptom[]>([]);
   const [noteText, setNoteText] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const handleIntensityChange = (value: number) => {
+    setCurrentIntensity(value);
+    setIntensityChanged(true);
+  };
 
   const toggleSymptom = (symptom: Symptom) => {
     setCurrentSymptoms(prev =>
@@ -176,16 +182,24 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
   };
 
   const handleSave = async () => {
+    // Check if anything was actually changed
+    if (!intensityChanged && currentSymptoms.length === 0 && !noteText.trim()) {
+      Alert.alert('No Changes', 'Please make at least one change to log an update');
+      return;
+    }
+
     setSaving(true);
     try {
       const timestamp = Date.now();
 
-      // Log intensity
-      await intensityRepository.create({
-        episodeId,
-        timestamp,
-        intensity: currentIntensity,
-      });
+      // Only log intensity if it was changed
+      if (intensityChanged) {
+        await intensityRepository.create({
+          episodeId,
+          timestamp,
+          intensity: currentIntensity,
+        });
+      }
 
       // Log symptoms if any selected
       if (currentSymptoms.length > 0) {
@@ -246,7 +260,7 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
             maximumValue={10}
             step={1}
             value={currentIntensity}
-            onValueChange={setCurrentIntensity}
+            onValueChange={handleIntensityChange}
             minimumTrackTintColor={getPainLevel(currentIntensity).color}
             maximumTrackTintColor="#E5E5EA"
             thumbTintColor={getPainLevel(currentIntensity).color}

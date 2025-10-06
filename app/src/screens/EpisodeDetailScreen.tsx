@@ -27,6 +27,11 @@ type TimelineEvent = {
   data: IntensityReading | EpisodeNote | MedicationDoseWithDetails | null;
 };
 
+type GroupedTimelineEvent = {
+  timestamp: number;
+  events: TimelineEvent[];
+};
+
 const createStyles = (theme: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
@@ -503,7 +508,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   };
 
   // Build unified timeline
-  const buildTimeline = (): TimelineEvent[] => {
+  const buildTimeline = (): GroupedTimelineEvent[] => {
     const events: TimelineEvent[] = [];
 
     // Add intensity readings
@@ -547,109 +552,120 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     }
 
     // Sort by timestamp (oldest first)
-    return events.sort((a, b) => a.timestamp - b.timestamp);
+    const sortedEvents = events.sort((a, b) => a.timestamp - b.timestamp);
+
+    // Group events by timestamp
+    const grouped = new Map<number, TimelineEvent[]>();
+    sortedEvents.forEach(event => {
+      const existing = grouped.get(event.timestamp) || [];
+      existing.push(event);
+      grouped.set(event.timestamp, existing);
+    });
+
+    // Convert map to array
+    return Array.from(grouped.entries()).map(([timestamp, events]) => ({
+      timestamp,
+      events,
+    }));
   };
 
-  const renderTimelineEvent = (event: TimelineEvent, index: number, isLast: boolean) => {
-    const time = format(event.timestamp, 'h:mm a');
-
+  const renderEventContent = (event: TimelineEvent) => {
     switch (event.type) {
       case 'intensity':
         const reading = event.data as IntensityReading;
         return (
-          <View key={event.id} style={styles.timelineItem}>
-            <View style={styles.timelineLeft}>
-              <Text style={styles.timelineTime}>{time}</Text>
+          <View key={event.id} style={{ marginBottom: 12 }}>
+            <Text style={styles.timelineEventTitle}>Intensity Update</Text>
+            <View style={styles.timelineIntensityBar}>
+              <View
+                style={[
+                  styles.timelineIntensityBarFill,
+                  {
+                    width: `${(reading.intensity / 10) * 100}%`,
+                    backgroundColor: getPainColor(reading.intensity),
+                  },
+                ]}
+              />
             </View>
-            <View style={styles.timelineCenter}>
-              <View style={[styles.timelineDot, { backgroundColor: getPainColor(reading.intensity) }]} />
-              {!isLast && <View style={styles.timelineLine} />}
-            </View>
-            <View style={styles.timelineRight}>
-              <Text style={styles.timelineEventTitle}>Intensity Update</Text>
-              <View style={styles.timelineIntensityBar}>
-                <View
-                  style={[
-                    styles.timelineIntensityBarFill,
-                    {
-                      width: `${(reading.intensity / 10) * 100}%`,
-                      backgroundColor: getPainColor(reading.intensity),
-                    },
-                  ]}
-                />
-              </View>
-              <Text style={[styles.timelineIntensityValue, { color: getPainColor(reading.intensity) }]}>
-                {reading.intensity}/10 - {getPainLevel(reading.intensity).label}
-              </Text>
-            </View>
+            <Text style={[styles.timelineIntensityValue, { color: getPainColor(reading.intensity) }]}>
+              {reading.intensity}/10 - {getPainLevel(reading.intensity).label}
+            </Text>
           </View>
         );
 
       case 'note':
         const note = event.data as EpisodeNote;
         return (
-          <View key={event.id} style={styles.timelineItem}>
-            <View style={styles.timelineLeft}>
-              <Text style={styles.timelineTime}>{time}</Text>
-            </View>
-            <View style={styles.timelineCenter}>
-              <View style={styles.timelineDot} />
-              {!isLast && <View style={styles.timelineLine} />}
-            </View>
-            <View style={styles.timelineRight}>
-              <Text style={styles.timelineEventTitle}>Note</Text>
-              <Text style={styles.timelineNoteText}>{note.note}</Text>
-              <TouchableOpacity
-                style={styles.deleteEventButton}
-                onPress={() => handleDeleteNote(note.id)}
-              >
-                <Text style={styles.deleteEventButtonText}>Delete</Text>
-              </TouchableOpacity>
-            </View>
+          <View key={event.id} style={{ marginBottom: 12 }}>
+            <Text style={styles.timelineEventTitle}>Note</Text>
+            <Text style={styles.timelineNoteText}>{note.note}</Text>
+            <TouchableOpacity
+              style={styles.deleteEventButton}
+              onPress={() => handleDeleteNote(note.id)}
+            >
+              <Text style={styles.deleteEventButtonText}>Delete</Text>
+            </TouchableOpacity>
           </View>
         );
 
       case 'medication':
         const dose = event.data as MedicationDoseWithDetails;
         return (
-          <View key={event.id} style={styles.timelineItem}>
-            <View style={styles.timelineLeft}>
-              <Text style={styles.timelineTime}>{time}</Text>
-            </View>
-            <View style={styles.timelineCenter}>
-              <View style={[styles.timelineDot, { backgroundColor: theme.success }]} />
-              {!isLast && <View style={styles.timelineLine} />}
-            </View>
-            <View style={styles.timelineRight}>
-              <Text style={styles.timelineEventTitle}>Medication Taken</Text>
-              <Text style={styles.timelineEventContent}>
-                {dose.medication?.name || 'Unknown Medication'}
-              </Text>
-              <Text style={[styles.timelineEventContent, { marginTop: 4 }]}>
-                {dose.amount} × {dose.medication?.dosageAmount}{dose.medication?.dosageUnit}
-              </Text>
-            </View>
+          <View key={event.id} style={{ marginBottom: 12 }}>
+            <Text style={styles.timelineEventTitle}>Medication Taken</Text>
+            <Text style={styles.timelineEventContent}>
+              {dose.medication?.name || 'Unknown Medication'}
+            </Text>
+            <Text style={[styles.timelineEventContent, { marginTop: 4 }]}>
+              {dose.amount} × {dose.medication?.dosageAmount}{dose.medication?.dosageUnit}
+            </Text>
           </View>
         );
 
       case 'end':
         return (
-          <View key={event.id} style={styles.timelineItem}>
-            <View style={styles.timelineLeft}>
-              <Text style={styles.timelineTime}>{time}</Text>
-            </View>
-            <View style={styles.timelineCenter}>
-              <View style={[styles.timelineDot, { backgroundColor: theme.textSecondary }]} />
-            </View>
-            <View style={styles.timelineRight}>
-              <Text style={styles.timelineEventTitle}>Episode Ended</Text>
-            </View>
+          <View key={event.id} style={{ marginBottom: 12 }}>
+            <Text style={styles.timelineEventTitle}>Episode Ended</Text>
           </View>
         );
 
       default:
         return null;
     }
+  };
+
+  const renderGroupedTimelineEvent = (group: GroupedTimelineEvent, index: number, isLast: boolean) => {
+    const time = format(group.timestamp, 'h:mm a');
+
+    // Get the primary color for the dot (intensity > medication > note)
+    const intensityEvent = group.events.find(e => e.type === 'intensity');
+    const medicationEvent = group.events.find(e => e.type === 'medication');
+    const endEvent = group.events.find(e => e.type === 'end');
+
+    let dotColor = theme.primary;
+    if (intensityEvent) {
+      const reading = intensityEvent.data as IntensityReading;
+      dotColor = getPainColor(reading.intensity);
+    } else if (medicationEvent) {
+      dotColor = theme.success;
+    } else if (endEvent) {
+      dotColor = theme.textSecondary;
+    }
+
+    return (
+      <View key={`group-${group.timestamp}`} style={styles.timelineItem}>
+        <View style={styles.timelineLeft}>
+          <Text style={styles.timelineTime}>{time}</Text>
+        </View>
+        <View style={styles.timelineCenter}>
+          <View style={[styles.timelineDot, { backgroundColor: dotColor }]} />
+          {!isLast && <View style={styles.timelineLine} />}
+        </View>
+        <View style={styles.timelineRight}>
+          {group.events.map(event => renderEventContent(event))}
+        </View>
+      </View>
+    );
   };
 
   if (loading || !episode) {
@@ -774,8 +790,8 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Timeline</Text>
             <View style={styles.timelineContainer}>
-              {timeline.map((event, index) =>
-                renderTimelineEvent(event, index, index === timeline.length - 1)
+              {timeline.map((group, index) =>
+                renderGroupedTimelineEvent(group, index, index === timeline.length - 1)
               )}
             </View>
           </View>
