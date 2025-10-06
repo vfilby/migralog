@@ -23,8 +23,8 @@ type MedicationDoseWithDetails = MedicationDose & {
 type TimelineEvent = {
   id: string;
   timestamp: number;
-  type: 'intensity' | 'note' | 'medication' | 'end';
-  data: IntensityReading | EpisodeNote | MedicationDoseWithDetails | null;
+  type: 'intensity' | 'note' | 'medication' | 'symptom' | 'end';
+  data: IntensityReading | EpisodeNote | MedicationDoseWithDetails | SymptomLog | null;
 };
 
 type GroupedTimelineEvent = {
@@ -531,6 +531,16 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
       });
     });
 
+    // Add symptom logs
+    symptomLogs.forEach(symptom => {
+      events.push({
+        id: `symptom-${symptom.id}`,
+        timestamp: symptom.onsetTime,
+        type: 'symptom',
+        data: symptom,
+      });
+    });
+
     // Add medications
     medications.forEach(med => {
       events.push({
@@ -605,6 +615,17 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
             >
               <Text style={styles.deleteEventButtonText}>Delete</Text>
             </TouchableOpacity>
+          </View>
+        );
+
+      case 'symptom':
+        const symptomLog = event.data as SymptomLog;
+        return (
+          <View key={event.id} style={{ marginBottom: 12 }}>
+            <Text style={styles.timelineEventTitle}>Symptom Update</Text>
+            <Text style={styles.timelineEventContent}>
+              {symptomLog.symptom.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+            </Text>
           </View>
         );
 
