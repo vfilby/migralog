@@ -619,15 +619,8 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
         );
 
       case 'symptom':
-        const symptomLog = event.data as SymptomLog;
-        return (
-          <View key={event.id} style={{ marginBottom: 12 }}>
-            <Text style={styles.timelineEventTitle}>Symptom Update</Text>
-            <Text style={styles.timelineEventContent}>
-              {symptomLog.symptom.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-            </Text>
-          </View>
-        );
+        // Symptoms are now rendered grouped in renderGroupedTimelineEvent
+        return null;
 
       case 'medication':
         const dose = event.data as MedicationDoseWithDetails;
@@ -658,6 +651,10 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   const renderGroupedTimelineEvent = (group: GroupedTimelineEvent, index: number, isLast: boolean) => {
     const time = format(group.timestamp, 'h:mm a');
 
+    // Separate symptom events from other events
+    const symptomEvents = group.events.filter(e => e.type === 'symptom');
+    const otherEvents = group.events.filter(e => e.type !== 'symptom');
+
     // Get the primary color for the dot (intensity > medication > note)
     const intensityEvent = group.events.find(e => e.type === 'intensity');
     const medicationEvent = group.events.find(e => e.type === 'medication');
@@ -683,7 +680,27 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
           {!isLast && <View style={styles.timelineLine} />}
         </View>
         <View style={styles.timelineRight}>
-          {group.events.map(event => renderEventContent(event))}
+          {/* Render non-symptom events */}
+          {otherEvents.map(event => renderEventContent(event))}
+
+          {/* Render grouped symptoms with chips */}
+          {symptomEvents.length > 0 && (
+            <View style={{ marginBottom: 12 }}>
+              <Text style={styles.timelineEventTitle}>Symptoms</Text>
+              <View style={styles.chipContainer}>
+                {symptomEvents.map(event => {
+                  const symptomLog = event.data as SymptomLog;
+                  return (
+                    <View key={event.id} style={styles.chip}>
+                      <Text style={styles.chipText}>
+                        {symptomLog.symptom.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          )}
         </View>
       </View>
     );
