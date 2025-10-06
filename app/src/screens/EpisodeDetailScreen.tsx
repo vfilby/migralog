@@ -628,10 +628,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
           <View key={event.id} style={{ marginBottom: 12 }}>
             <Text style={styles.timelineEventTitle}>Medication Taken</Text>
             <Text style={styles.timelineEventContent}>
-              {dose.medication?.name || 'Unknown Medication'}
-            </Text>
-            <Text style={[styles.timelineEventContent, { marginTop: 4 }]}>
-              {dose.amount} × {dose.medication?.dosageAmount}{dose.medication?.dosageUnit}
+              {dose.medication?.name || 'Unknown Medication'} • {dose.amount} × {dose.medication?.dosageAmount}{dose.medication?.dosageUnit}
             </Text>
           </View>
         );
@@ -660,15 +657,14 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     const medicationEvent = group.events.find(e => e.type === 'medication');
     const endEvent = group.events.find(e => e.type === 'end');
 
-    let dotColor = theme.primary;
+    let dotColor = theme.textSecondary; // Default neutral gray
     if (intensityEvent) {
       const reading = intensityEvent.data as IntensityReading;
       dotColor = getPainColor(reading.intensity);
-    } else if (medicationEvent) {
-      dotColor = theme.success;
     } else if (endEvent) {
       dotColor = theme.textSecondary;
     }
+    // Medication and note events keep neutral gray
 
     return (
       <View key={`group-${group.timestamp}`} style={styles.timelineItem}>
