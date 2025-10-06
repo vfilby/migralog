@@ -195,9 +195,6 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -217,10 +214,38 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     fontSize: 14,
     color: theme.textSecondary,
   },
-  selectArrow: {
-    fontSize: 24,
-    color: theme.textTertiary,
-    marginLeft: 8,
+  medicationActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 12,
+  },
+  quickLogButton: {
+    flex: 1,
+    backgroundColor: theme.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickLogButtonText: {
+    color: theme.primaryText,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  detailsButton: {
+    backgroundColor: theme.borderLight,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 80,
+  },
+  detailsButtonText: {
+    color: theme.text,
+    fontSize: 14,
+    fontWeight: '600',
   },
   emptyContainer: {
     flex: 1,
@@ -274,6 +299,22 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
     }
   };
 
+  const handleQuickLog = async (med: Medication) => {
+    try {
+      await logDose({
+        medicationId: med.id,
+        timestamp: Date.now(),
+        amount: med.defaultDosage || 1,
+        episodeId: episodeId || undefined,
+      });
+
+      navigation.goBack();
+    } catch (error) {
+      console.error('Failed to quick log medication:', error);
+      Alert.alert('Error', 'Failed to log medication');
+    }
+  };
+
   const handleSave = async () => {
     if (!medication) return;
 
@@ -316,19 +357,28 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Select Medication</Text>
               {rescueMedications.map(med => (
-                <TouchableOpacity
-                  key={med.id}
-                  style={styles.medicationCard}
-                  onPress={() => setSelectedMedId(med.id)}
-                >
+                <View key={med.id} style={styles.medicationCard}>
                   <View style={styles.medicationInfo}>
                     <Text style={styles.medicationCardName}>{med.name}</Text>
                     <Text style={styles.medicationCardDosage}>
                       {med.dosageAmount}{med.dosageUnit}
                     </Text>
                   </View>
-                  <Text style={styles.selectArrow}>›</Text>
-                </TouchableOpacity>
+                  <View style={styles.medicationActions}>
+                    <TouchableOpacity
+                      style={styles.quickLogButton}
+                      onPress={() => handleQuickLog(med)}
+                    >
+                      <Text style={styles.quickLogButtonText}>Quick Log</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.detailsButton}
+                      onPress={() => setSelectedMedId(med.id)}
+                    >
+                      <Text style={styles.detailsButtonText}>Details</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
               ))}
             </View>
           ) : (
