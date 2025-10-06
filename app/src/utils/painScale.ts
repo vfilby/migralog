@@ -78,7 +78,10 @@ export const PAIN_SCALE: PainLevel[] = [
 ];
 
 export const getPainLevel = (intensity: number): PainLevel => {
-  return PAIN_SCALE[Math.max(0, Math.min(10, Math.round(intensity)))];
+  // Handle invalid inputs (NaN, null, undefined)
+  const validIntensity = isNaN(intensity) || intensity == null ? 0 : intensity;
+  const index = Math.max(0, Math.min(10, Math.round(validIntensity)));
+  return PAIN_SCALE[index];
 };
 
 export const getPainColor = (intensity: number): string => {
