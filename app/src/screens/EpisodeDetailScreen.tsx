@@ -8,7 +8,7 @@ import { RootStackParamList } from '../navigation/types';
 import { useEpisodeStore } from '../store/episodeStore';
 import { episodeRepository, intensityRepository, symptomLogRepository, episodeNoteRepository } from '../database/episodeRepository';
 import { medicationDoseRepository, medicationRepository } from '../database/medicationRepository';
-import { Episode, IntensityReading, SymptomLog, MedicationDose, Medication, EpisodeNote, Symptom } from '../models/types';
+import { Episode, IntensityReading, SymptomLog, MedicationDose, Medication, EpisodeNote } from '../models/types';
 import { format, differenceInMinutes } from 'date-fns';
 import { getPainColor, getPainLevel } from '../utils/painScale';
 import { locationService } from '../services/locationService';
@@ -19,18 +19,6 @@ type Props = NativeStackScreenProps<RootStackParamList, 'EpisodeDetail'>;
 type MedicationDoseWithDetails = MedicationDose & {
   medication?: Medication;
 };
-
-const SYMPTOMS: { value: Symptom; label: string }[] = [
-  { value: 'nausea', label: 'Nausea' },
-  { value: 'vomiting', label: 'Vomiting' },
-  { value: 'visual_disturbances', label: 'Visual Disturbances' },
-  { value: 'aura', label: 'Aura' },
-  { value: 'light_sensitivity', label: 'Light Sensitivity' },
-  { value: 'sound_sensitivity', label: 'Sound Sensitivity' },
-  { value: 'smell_sensitivity', label: 'Smell Sensitivity' },
-  { value: 'dizziness', label: 'Dizziness' },
-  { value: 'confusion', label: 'Confusion' },
-];
 
 type TimelineEvent = {
   id: string;
@@ -432,10 +420,6 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   const [medications, setMedications] = useState<MedicationDoseWithDetails[]>([]);
   const [episodeNotes, setEpisodeNotes] = useState<EpisodeNote[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentIntensity, setCurrentIntensity] = useState(3);
-  const [currentSymptoms, setCurrentSymptoms] = useState<Symptom[]>([]);
-  const [showUpdateModal, setShowUpdateModal] = useState(false);
-  const [noteText, setNoteText] = useState('');
   const [locationAddress, setLocationAddress] = useState<string | null>(null);
   const [showMapModal, setShowMapModal] = useState(false);
 
@@ -488,62 +472,6 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     if (episode && !episode.endTime) {
       await endEpisode(episode.id, Date.now());
       navigation.goBack();
-    }
-  };
-
-  const toggleSymptom = (symptom: Symptom) => {
-    setCurrentSymptoms(prev =>
-      prev.includes(symptom)
-        ? prev.filter(s => s !== symptom)
-        : [...prev, symptom]
-    );
-  };
-
-  const handleLogUpdate = async () => {
-    if (!episode || episode.endTime) {
-      return;
-    }
-
-    try {
-      const timestamp = Date.now();
-
-      // Log intensity
-      await intensityRepository.create({
-        episodeId: episode.id,
-        timestamp,
-        intensity: currentIntensity,
-      });
-
-      // Log symptoms if any selected
-      if (currentSymptoms.length > 0) {
-        await Promise.all(
-          currentSymptoms.map(symptom =>
-            symptomLogRepository.create({
-              episodeId: episode.id,
-              symptom,
-              onsetTime: timestamp,
-            })
-          )
-        );
-      }
-
-      // Add note if provided
-      if (noteText.trim()) {
-        await episodeNoteRepository.create({
-          episodeId: episode.id,
-          timestamp,
-          note: noteText.trim(),
-        });
-      }
-
-      // Reset state
-      setCurrentSymptoms([]);
-      setNoteText('');
-      setShowUpdateModal(false);
-      await loadEpisodeData();
-    } catch (error) {
-      console.error('Failed to log update:', error);
-      Alert.alert('Error', 'Failed to log update');
     }
   };
 
@@ -827,7 +755,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
             <View style={styles.actionButtons}>
               <TouchableOpacity
                 style={styles.actionButton}
-                onPress={() => setShowUpdateModal(true)}
+                onPress={() => navigation.navigate('LogUpdate', { episodeId })}
               >
                 <Text style={styles.actionButtonText}>Log Update</Text>
               </TouchableOpacity>
@@ -840,102 +768,6 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
             </View>
           )}
         </View>
-
-        {/* Log Update - Combined intensity, symptoms, and note */}
-        {showUpdateModal && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Log Update</Text>
-
-            {/* Intensity Section */}
-            <Text style={[styles.detailLabel, { marginTop: 12, marginBottom: 8 }]}>Pain Intensity</Text>
-            <View style={styles.sliderHeader}>
-              <Text style={[styles.intensityValue, { color: getPainLevel(currentIntensity).color }]}>
-                {currentIntensity}/10
-              </Text>
-              <Text style={styles.intensityLabel}>
-                {getPainLevel(currentIntensity).label}
-              </Text>
-            </View>
-            <Slider
-              style={styles.slider}
-              minimumValue={0}
-              maximumValue={10}
-              step={1}
-              value={currentIntensity}
-              onValueChange={setCurrentIntensity}
-              minimumTrackTintColor={getPainLevel(currentIntensity).color}
-              maximumTrackTintColor="#E5E5EA"
-              thumbTintColor={getPainLevel(currentIntensity).color}
-            />
-            <View style={styles.sliderLabels}>
-              <Text style={styles.sliderLabelText}>0 - No Pain</Text>
-              <Text style={styles.sliderLabelText}>10 - Debilitating</Text>
-            </View>
-            <Text style={styles.painDescription}>
-              {getPainLevel(currentIntensity).description}
-            </Text>
-
-            {/* Symptoms Section */}
-            <Text style={[styles.detailLabel, { marginTop: 20, marginBottom: 8 }]}>
-              Symptoms (optional)
-            </Text>
-            <View style={styles.chipContainer}>
-              {SYMPTOMS.map(symptom => {
-                const isSelected = currentSymptoms.includes(symptom.value);
-                return (
-                  <TouchableOpacity
-                    key={symptom.value}
-                    style={[
-                      styles.chip,
-                      isSelected && { backgroundColor: theme.primary, borderColor: theme.primary }
-                    ]}
-                    onPress={() => toggleSymptom(symptom.value)}
-                  >
-                    <Text style={[
-                      styles.chipText,
-                      isSelected && { color: theme.primaryText }
-                    ]}>
-                      {symptom.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* Note Section */}
-            <Text style={[styles.detailLabel, { marginTop: 20, marginBottom: 8 }]}>
-              Notes (optional)
-            </Text>
-            <TextInput
-              style={styles.noteInput}
-              placeholder="Add any additional notes..."
-              placeholderTextColor={theme.textTertiary}
-              value={noteText}
-              onChangeText={setNoteText}
-              multiline
-            />
-
-            {/* Action Buttons */}
-            <View style={styles.updateActions}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => {
-                  setShowUpdateModal(false);
-                  setCurrentSymptoms([]);
-                  setNoteText('');
-                }}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.saveIntensityButton}
-                onPress={handleLogUpdate}
-              >
-                <Text style={styles.saveIntensityButtonText}>Save Update</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
 
         {/* Timeline */}
         {timeline.length > 0 && (

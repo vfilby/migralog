@@ -13,6 +13,7 @@ import MedicationsScreen from '../screens/MedicationsScreen';
 import AnalyticsScreen from '../screens/AnalyticsScreen';
 import NewEpisodeScreen from '../screens/NewEpisodeScreen';
 import EpisodeDetailScreen from '../screens/EpisodeDetailScreen';
+import LogUpdateScreen from '../screens/LogUpdateScreen';
 import AddMedicationScreen from '../screens/AddMedicationScreen';
 import EditMedicationScreen from '../screens/EditMedicationScreen';
 import LogMedicationScreen from '../screens/LogMedicationScreen';
@@ -131,6 +132,11 @@ export default function AppNavigator() {
           name="EpisodeDetail"
           component={EpisodeDetailScreen}
           options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="LogUpdate"
+          component={LogUpdateScreen}
+          options={{ headerShown: false, presentation: 'modal' }}
         />
         <Stack.Screen
           name="AddMedication"
