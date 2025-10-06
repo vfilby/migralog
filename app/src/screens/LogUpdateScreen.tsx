@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
 import Slider from '@react-native-community/slider';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { intensityRepository, symptomLogRepository, episodeNoteRepository } from '../database/episodeRepository';
+import { intensityRepository, symptomLogRepository, episodeNoteRepository, episodeRepository } from '../database/episodeRepository';
 import { Symptom } from '../models/types';
 import { getPainColor, getPainLevel } from '../utils/painScale';
 import { useTheme, ThemeColors } from '../theme';
@@ -165,8 +165,52 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
   const [currentIntensity, setCurrentIntensity] = useState(5);
   const [intensityChanged, setIntensityChanged] = useState(false);
   const [currentSymptoms, setCurrentSymptoms] = useState<Symptom[]>([]);
+  const [initialSymptoms, setInitialSymptoms] = useState<Symptom[]>([]);
   const [noteText, setNoteText] = useState('');
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadLatestData();
+  }, [episodeId]);
+
+  const loadLatestData = async () => {
+    try {
+      // Get episode to get initial intensity
+      const episode = await episodeRepository.getById(episodeId);
+
+      // Get latest intensity reading
+      const intensityReadings = await intensityRepository.getByEpisodeId(episodeId);
+      if (intensityReadings.length > 0) {
+        // Sort by timestamp descending to get latest
+        const sorted = intensityReadings.sort((a, b) => b.timestamp - a.timestamp);
+        setCurrentIntensity(sorted[0].intensity);
+      } else if (episode) {
+        // Use initial intensity from episode
+        setCurrentIntensity(episode.initialIntensity);
+      }
+
+      // Get latest symptoms
+      const symptomLogs = await symptomLogRepository.getByEpisodeId(episodeId);
+      let symptomsToSet: Symptom[] = [];
+      if (symptomLogs.length > 0) {
+        // Sort by onset time descending to get latest
+        const sorted = symptomLogs.sort((a, b) => b.onsetTime - a.onsetTime);
+        // Get unique symptoms from the most recent log entries
+        const recentSymptoms = sorted.slice(0, 5).map(log => log.symptom);
+        symptomsToSet = Array.from(new Set(recentSymptoms));
+      } else if (episode) {
+        // Use initial symptoms from episode
+        symptomsToSet = episode.symptoms;
+      }
+      setCurrentSymptoms(symptomsToSet);
+      setInitialSymptoms(symptomsToSet);
+    } catch (error) {
+      console.error('Failed to load latest data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleIntensityChange = (value: number) => {
     setCurrentIntensity(value);
@@ -182,8 +226,13 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
   };
 
   const handleSave = async () => {
+    // Check if symptoms have changed
+    const symptomsChanged =
+      currentSymptoms.length !== initialSymptoms.length ||
+      !currentSymptoms.every(s => initialSymptoms.includes(s));
+
     // Check if anything was actually changed
-    if (!intensityChanged && currentSymptoms.length === 0 && !noteText.trim()) {
+    if (!intensityChanged && !symptomsChanged && !noteText.trim()) {
       Alert.alert('No Changes', 'Please make at least one change to log an update');
       return;
     }
@@ -201,8 +250,8 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
         });
       }
 
-      // Log symptoms if any selected
-      if (currentSymptoms.length > 0) {
+      // Log symptoms if they changed
+      if (symptomsChanged && currentSymptoms.length > 0) {
         await Promise.all(
           currentSymptoms.map(symptom =>
             symptomLogRepository.create({
@@ -231,6 +280,23 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
       setSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Text style={styles.cancelButton}>Cancel</Text>
+          </TouchableOpacity>
+          <Text style={styles.title}>Log Update</Text>
+          <View style={{ width: 60 }} />
+        </View>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: theme.textSecondary }}>Loading...</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
