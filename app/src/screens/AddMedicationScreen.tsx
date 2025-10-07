@@ -301,12 +301,6 @@ export default function AddMedicationScreen({ navigation }: Props) {
     console.log('[AddMedication] Validation passed');
     console.log('[AddMedication] Starting save process...');
 
-    // Log start (non-blocking)
-    errorLogger.log('general', 'AddMedication: Starting save', undefined, {
-      medicationName: name.trim(),
-      type
-    }).catch(e => console.error('[AddMedication] Failed to log start:', e));
-
     setSaving(true);
     try {
       console.log('[AddMedication] Creating medication...');
@@ -364,11 +358,6 @@ export default function AddMedicationScreen({ navigation }: Props) {
 
         console.log('[AddMedication] Schedules saved');
       }
-
-      // Log success (non-blocking)
-      errorLogger.log('general', 'AddMedication: Save successful', undefined, {
-        medicationId: newMedication.id
-      }).catch(e => console.error('[AddMedication] Failed to log success:', e));
 
       console.log('[AddMedication] Setting saving to false...');
       setSaving(false);
