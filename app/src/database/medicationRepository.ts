@@ -318,8 +318,16 @@ export const medicationScheduleRepository = {
     };
 
     await database.runAsync(
-      'INSERT INTO medication_schedules (id, medication_id, time, dosage, enabled) VALUES (?, ?, ?, ?, ?)',
-      [newSchedule.id, newSchedule.medicationId, newSchedule.time, newSchedule.dosage, newSchedule.enabled ? 1 : 0]
+      'INSERT INTO medication_schedules (id, medication_id, time, dosage, enabled, notification_id, reminder_enabled) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [
+        newSchedule.id,
+        newSchedule.medicationId,
+        newSchedule.time,
+        newSchedule.dosage,
+        newSchedule.enabled ? 1 : 0,
+        newSchedule.notificationId || null,
+        newSchedule.reminderEnabled !== undefined ? (newSchedule.reminderEnabled ? 1 : 0) : 1,
+      ]
     );
 
     return newSchedule;
@@ -341,6 +349,14 @@ export const medicationScheduleRepository = {
     if (updates.enabled !== undefined) {
       fields.push('enabled = ?');
       values.push(updates.enabled ? 1 : 0);
+    }
+    if (updates.notificationId !== undefined) {
+      fields.push('notification_id = ?');
+      values.push(updates.notificationId);
+    }
+    if (updates.reminderEnabled !== undefined) {
+      fields.push('reminder_enabled = ?');
+      values.push(updates.reminderEnabled ? 1 : 0);
     }
 
     if (fields.length === 0) return;
@@ -375,6 +391,8 @@ export const medicationScheduleRepository = {
       time: row.time,
       dosage: row.dosage,
       enabled: row.enabled === 1,
+      notificationId: row.notification_id,
+      reminderEnabled: row.reminder_enabled === 1,
     }));
   },
 };

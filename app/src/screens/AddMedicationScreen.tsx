@@ -18,6 +18,7 @@ import MedicationScheduleManager from '../components/MedicationScheduleManager';
 import { medicationScheduleRepository } from '../database/medicationRepository';
 import { useTheme, ThemeColors } from '../theme';
 import { errorLogger } from '../services/errorLogger';
+import { notificationService } from '../services/notificationService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AddMedication'>;
 
@@ -325,16 +326,42 @@ export default function AddMedicationScreen({ navigation }: Props) {
       // Save schedules if preventative medication
       if (type === 'preventative' && schedules.length > 0) {
         console.log('[AddMedication] Saving schedules...');
-        await Promise.all(
-          schedules.map(schedule =>
-            medicationScheduleRepository.create({
-              medicationId: newMedication.id,
-              time: schedule.time,
-              dosage: schedule.dosage,
-              enabled: schedule.enabled,
-            })
-          )
-        );
+
+        // Check notification permissions first
+        const permissions = await notificationService.getPermissions();
+
+        for (const schedule of schedules) {
+          // Create the schedule in the database
+          const savedSchedule = await medicationScheduleRepository.create({
+            medicationId: newMedication.id,
+            time: schedule.time,
+            dosage: schedule.dosage,
+            enabled: schedule.enabled,
+            reminderEnabled: true, // Default to enabled
+          });
+
+          // Schedule notification if permissions granted and schedule is for daily medication
+          if (permissions.granted && scheduleFrequency === 'daily' && schedule.enabled) {
+            try {
+              const notificationId = await notificationService.scheduleNotification(
+                newMedication,
+                savedSchedule
+              );
+
+              // Update schedule with notification ID
+              if (notificationId) {
+                await medicationScheduleRepository.update(savedSchedule.id, {
+                  notificationId,
+                });
+                console.log('[AddMedication] Notification scheduled:', notificationId);
+              }
+            } catch (error) {
+              console.error('[AddMedication] Failed to schedule notification:', error);
+              // Don't fail the whole operation if notification fails
+            }
+          }
+        }
+
         console.log('[AddMedication] Schedules saved');
       }
 

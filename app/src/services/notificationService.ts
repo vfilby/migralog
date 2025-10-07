@@ -172,10 +172,7 @@ class NotificationService {
           data: { medicationId, scheduleId },
           categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
         },
-        trigger: {
-          type: 'date' as const,
-          date: snoozeTime,
-        },
+        trigger: snoozeTime as any, // Type assertion for Date trigger
       });
 
       console.log('[Notification] Snoozed for', minutes, 'minutes');
@@ -269,10 +266,10 @@ class NotificationService {
           sound: true,
         },
         trigger: {
-          type: 'date' as const,
-          date: scheduledDate,
-          repeats: true, // Repeat daily
-        },
+          hour: hours,
+          minute: minutes,
+          repeats: true,
+        } as any, // Type assertion needed for calendar trigger
       });
 
       console.log('[Notification] Scheduled for', medication.name, 'at', schedule.time);
