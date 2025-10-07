@@ -245,6 +245,18 @@ class NotificationService {
 
       console.log('[Notification] Scheduling daily notification for', hours, ':', minutes);
 
+      // Calculate the next occurrence of this time
+      const now = new Date();
+      const scheduledDate = new Date();
+      scheduledDate.setHours(hours, minutes, 0, 0);
+
+      // If the time has already passed today, schedule for tomorrow
+      if (scheduledDate <= now) {
+        scheduledDate.setDate(scheduledDate.getDate() + 1);
+      }
+
+      console.log('[Notification] First notification will fire at:', scheduledDate.toLocaleString());
+
       const notificationId = await Notifications.scheduleNotificationAsync({
         content: {
           title: `Time for ${medication.name}`,
@@ -257,6 +269,7 @@ class NotificationService {
           sound: true,
         },
         trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
           hour: hours,
           minute: minutes,
           repeats: true,
