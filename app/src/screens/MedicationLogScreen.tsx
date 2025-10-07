@@ -38,7 +38,7 @@ export default function MedicationLogScreen({ navigation }: Props) {
       const dosesWithDetails = await Promise.all(
         allDoses.map(async (dose) => {
           const medication = await medicationRepository.getById(dose.medicationId);
-          return { ...dose, medication };
+          return { ...dose, medication: medication || undefined };
         })
       );
 

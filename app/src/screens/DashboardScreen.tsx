@@ -186,7 +186,7 @@ export default function DashboardScreen() {
         {!currentEpisode && (
           <TouchableOpacity
             style={[styles.actionButton, styles.primaryButton]}
-            onPress={() => navigation.navigate('NewEpisode')}
+            onPress={() => navigation.navigate('NewEpisode', {})}
           >
             <Text style={styles.primaryButtonText}>Start Episode</Text>
           </TouchableOpacity>

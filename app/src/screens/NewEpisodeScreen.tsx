@@ -8,6 +8,7 @@ import {
   TextInput,
   Platform,
   KeyboardAvoidingView,
+  Alert,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';

@@ -1,6 +1,7 @@
 import { getDatabase, generateId } from './db';
 import { Medication, MedicationDose, MedicationSchedule } from '../models/types';
 import * as SQLite from 'expo-sqlite';
+import { notificationService } from '../services/notificationService';
 
 export const medicationRepository = {
   async create(medication: Omit<Medication, 'id' | 'createdAt' | 'updatedAt'>, db?: SQLite.SQLiteDatabase): Promise<Medication> {
@@ -79,6 +80,42 @@ export const medicationRepository = {
     if (updates.active !== undefined) {
       fields.push('active = ?');
       values.push(updates.active ? 1 : 0);
+
+      // Cancel all notifications when archiving a medication
+      if (updates.active === false) {
+        await notificationService.cancelMedicationNotifications(id);
+        console.log('[Repository] Cancelled notifications for archived medication:', id);
+      }
+      // Re-enable notifications when restoring an archived medication
+      else if (updates.active === true) {
+        const medication = await this.getById(id, database);
+        if (medication && medication.type === 'preventative') {
+          const schedules = await medicationScheduleRepository.getByMedicationId(id, database);
+          const permissions = await notificationService.getPermissions();
+
+          if (permissions.granted) {
+            for (const schedule of schedules) {
+              if (schedule.enabled && medication.scheduleFrequency === 'daily') {
+                try {
+                  const notificationId = await notificationService.scheduleNotification(
+                    medication,
+                    schedule
+                  );
+
+                  if (notificationId) {
+                    await medicationScheduleRepository.update(schedule.id, {
+                      notificationId,
+                    }, database);
+                    console.log('[Repository] Notification rescheduled for restored medication:', notificationId);
+                  }
+                } catch (error) {
+                  console.error('[Repository] Failed to schedule notification for restored medication:', error);
+                }
+              }
+            }
+          }
+        }
+      }
     }
     if (updates.notes !== undefined) {
       fields.push('notes = ?');

@@ -17,6 +17,7 @@ import { medicationRepository, medicationScheduleRepository } from '../database/
 import { MedicationType, Medication, ScheduleFrequency, MedicationSchedule } from '../models/types';
 import MedicationScheduleManager from '../components/MedicationScheduleManager';
 import { useTheme, ThemeColors } from '../theme';
+import { notificationService } from '../services/notificationService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditMedication'>;
 
@@ -355,23 +356,55 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
 
       // Update schedules if preventative medication
       if (type === 'preventative') {
+        // Cancel all existing notifications for this medication
+        await notificationService.cancelMedicationNotifications(medicationId);
+
         // Delete all existing schedules
         await Promise.all(
           existingScheduleIds.map(id => medicationScheduleRepository.delete(id))
         );
 
-        // Create new schedules
+        // Get updated medication data
+        const updatedMedication = await medicationRepository.getById(medicationId);
+        if (!updatedMedication) {
+          throw new Error('Failed to retrieve updated medication');
+        }
+
+        // Create new schedules and notifications
         if (schedules.length > 0) {
-          await Promise.all(
-            schedules.map(schedule =>
-              medicationScheduleRepository.create({
-                medicationId,
-                time: schedule.time,
-                dosage: schedule.dosage,
-                enabled: schedule.enabled,
-              })
-            )
-          );
+          const permissions = await notificationService.getPermissions();
+
+          for (const schedule of schedules) {
+            // Create the schedule in the database
+            const savedSchedule = await medicationScheduleRepository.create({
+              medicationId,
+              time: schedule.time,
+              dosage: schedule.dosage,
+              enabled: schedule.enabled,
+              reminderEnabled: true,
+            });
+
+            // Schedule notification if permissions granted and schedule is for daily medication
+            if (permissions.granted && scheduleFrequency === 'daily' && schedule.enabled) {
+              try {
+                const notificationId = await notificationService.scheduleNotification(
+                  updatedMedication,
+                  savedSchedule
+                );
+
+                // Update schedule with notification ID
+                if (notificationId) {
+                  await medicationScheduleRepository.update(savedSchedule.id, {
+                    notificationId,
+                  });
+                  console.log('[EditMedication] Notification rescheduled:', notificationId);
+                }
+              } catch (error) {
+                console.error('[EditMedication] Failed to schedule notification:', error);
+                // Don't fail the whole operation if notification fails
+              }
+            }
+          }
         }
       }
 

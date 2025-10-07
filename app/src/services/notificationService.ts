@@ -272,7 +272,6 @@ class NotificationService {
           type: Notifications.SchedulableTriggerInputTypes.DAILY,
           hour: hours,
           minute: minutes,
-          repeats: true,
         },
       });
 

@@ -448,7 +448,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
       const medsWithDetails = await Promise.all(
         meds.map(async (dose) => {
           const medication = await medicationRepository.getById(dose.medicationId);
-          return { ...dose, medication };
+          return { ...dose, medication: medication || undefined };
         })
       );
 
