@@ -116,6 +116,42 @@ export default function SettingsScreen({ navigation }: Props) {
     }
   };
 
+  const handleViewScheduledNotifications = async () => {
+    try {
+      const scheduled = await notificationService.getAllScheduledNotifications();
+
+      if (scheduled.length === 0) {
+        Alert.alert('No Notifications', 'No notifications are currently scheduled');
+        return;
+      }
+
+      const message = scheduled.map((notif, index) => {
+        const trigger = notif.trigger as any;
+        let timeInfo = 'Unknown trigger';
+
+        if (trigger.type === 'calendar' || (trigger.hour !== undefined && trigger.minute !== undefined)) {
+          timeInfo = `Daily at ${trigger.hour}:${String(trigger.minute).padStart(2, '0')}`;
+        } else if (trigger.date) {
+          timeInfo = `At ${new Date(trigger.date).toLocaleString()}`;
+        } else if (trigger.seconds) {
+          timeInfo = `In ${trigger.seconds} seconds`;
+        }
+
+        return `${index + 1}. ${notif.content.title}\n   ${timeInfo}\n   ID: ${notif.identifier}`;
+      }).join('\n\n');
+
+      Alert.alert(
+        `Scheduled Notifications (${scheduled.length})`,
+        message,
+        [{ text: 'OK' }],
+        { cancelable: true }
+      );
+    } catch (error) {
+      console.error('Failed to get scheduled notifications:', error);
+      Alert.alert('Error', 'Failed to get scheduled notifications');
+    }
+  };
+
   const handleTestNotification = async () => {
     try {
       const permissions = await notificationService.getPermissions();
@@ -316,13 +352,23 @@ export default function SettingsScreen({ navigation }: Props) {
             )}
 
             {notificationPermissions?.granted && (
-              <TouchableOpacity
-                style={styles.developerButton}
-                onPress={handleTestNotification}
-              >
-                <Ionicons name="flask-outline" size={20} color={theme.primary} />
-                <Text style={styles.developerButtonText}>Send Test Notification (5s)</Text>
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity
+                  style={styles.developerButton}
+                  onPress={handleTestNotification}
+                >
+                  <Ionicons name="flask-outline" size={20} color={theme.primary} />
+                  <Text style={styles.developerButtonText}>Send Test Notification (5s)</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.developerButton}
+                  onPress={handleViewScheduledNotifications}
+                >
+                  <Ionicons name="list-outline" size={20} color={theme.primary} />
+                  <Text style={styles.developerButtonText}>View Scheduled Notifications</Text>
+                </TouchableOpacity>
+              </>
             )}
           </View>
         </View>

@@ -243,15 +243,7 @@ class NotificationService {
       // Parse the time (HH:mm format)
       const [hours, minutes] = schedule.time.split(':').map(Number);
 
-      // Calculate next occurrence
-      const now = new Date();
-      const scheduledDate = new Date();
-      scheduledDate.setHours(hours, minutes, 0, 0);
-
-      // If time has passed today, schedule for tomorrow
-      if (scheduledDate <= now) {
-        scheduledDate.setDate(scheduledDate.getDate() + 1);
-      }
+      console.log('[Notification] Scheduling daily notification for', hours, ':', minutes);
 
       const notificationId = await Notifications.scheduleNotificationAsync({
         content: {
@@ -268,7 +260,7 @@ class NotificationService {
           hour: hours,
           minute: minutes,
           repeats: true,
-        } as any, // Type assertion needed for calendar trigger
+        },
       });
 
       console.log('[Notification] Scheduled for', medication.name, 'at', schedule.time);
