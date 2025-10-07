@@ -360,7 +360,12 @@ export default function MedicationsScreen() {
             </View>
           ) : (
             preventativeMedications.map(med => (
-              <View key={med.id} style={styles.medicationCard}>
+              <TouchableOpacity
+                key={med.id}
+                style={styles.medicationCard}
+                onPress={() => navigation.navigate('MedicationDetail', { medicationId: med.id })}
+                disabled={isEditMode}
+              >
                 <View style={styles.medicationHeader}>
                   <Text style={styles.medicationName}>{med.name}</Text>
                   {isEditMode && (
@@ -388,7 +393,7 @@ export default function MedicationsScreen() {
                 {med.notes && (
                   <Text style={styles.notes} numberOfLines={2}>{med.notes}</Text>
                 )}
-              </View>
+              </TouchableOpacity>
             ))
           )}
         </View>
@@ -402,7 +407,12 @@ export default function MedicationsScreen() {
             </View>
           ) : (
             rescueMedications.map(med => (
-              <View key={med.id} style={styles.medicationCard}>
+              <TouchableOpacity
+                key={med.id}
+                style={styles.medicationCard}
+                onPress={() => navigation.navigate('MedicationDetail', { medicationId: med.id })}
+                disabled={isEditMode}
+              >
                 <View style={styles.medicationHeader}>
                   <Text style={styles.medicationName}>{med.name}</Text>
                   {isEditMode && (
@@ -440,7 +450,7 @@ export default function MedicationsScreen() {
                     </TouchableOpacity>
                   </View>
                 )}
-              </View>
+              </TouchableOpacity>
             ))
           )}
         </View>
