@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme, ThemeMode, ThemeColors } from '../theme';
 import { buildInfo } from '../buildInfo';
 import { errorLogger, ErrorLog } from '../services/errorLogger';
+import { notificationService, NotificationPermissions } from '../services/notificationService';
 import * as SQLite from 'expo-sqlite';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
@@ -22,6 +23,7 @@ export default function SettingsScreen({ navigation }: Props) {
   const styles = createStyles(theme);
   const [errorLogs, setErrorLogs] = useState<ErrorLog[]>([]);
   const [dbStatus, setDbStatus] = useState<'checking' | 'healthy' | 'error'>('checking');
+  const [notificationPermissions, setNotificationPermissions] = useState<NotificationPermissions | null>(null);
 
   useEffect(() => {
     loadDiagnostics();
@@ -35,6 +37,10 @@ export default function SettingsScreen({ navigation }: Props) {
 
       // Check database health
       await checkDatabaseHealth();
+
+      // Load notification permissions
+      const permissions = await notificationService.getPermissions();
+      setNotificationPermissions(permissions);
     } catch (error) {
       console.error('Failed to load diagnostics:', error);
     }
@@ -84,6 +90,30 @@ export default function SettingsScreen({ navigation }: Props) {
     );
     await loadDiagnostics();
     Alert.alert('Success', 'Test error logged');
+  };
+
+  const handleRequestNotifications = async () => {
+    try {
+      const permissions = await notificationService.requestPermissions();
+      setNotificationPermissions(permissions);
+
+      if (permissions.granted) {
+        Alert.alert('Success', 'Notification permissions granted');
+      } else if (!permissions.canAskAgain) {
+        Alert.alert(
+          'Permission Denied',
+          'Please enable notifications in Settings to receive medication reminders.',
+          [
+            { text: 'OK', style: 'cancel' },
+          ]
+        );
+      } else {
+        Alert.alert('Permission Denied', 'Notifications will not be sent');
+      }
+    } catch (error) {
+      console.error('Failed to request notification permissions:', error);
+      Alert.alert('Error', 'Failed to request notification permissions');
+    }
   };
 
   return (
@@ -195,6 +225,52 @@ export default function SettingsScreen({ navigation }: Props) {
               )}
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* Notifications Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Notifications</Text>
+          <Text style={styles.sectionDescription}>
+            Manage notification permissions for medication reminders
+          </Text>
+
+          <View style={styles.diagnosticCard}>
+            <View style={styles.diagnosticRow}>
+              <View style={styles.diagnosticLeft}>
+                <Ionicons
+                  name="notifications-outline"
+                  size={20}
+                  color={theme.textSecondary}
+                />
+                <Text style={styles.diagnosticLabel}>Status</Text>
+              </View>
+              <View style={styles.diagnosticRight}>
+                {!notificationPermissions ? (
+                  <Text style={styles.diagnosticValueSecondary}>Checking...</Text>
+                ) : notificationPermissions.granted ? (
+                  <>
+                    <Ionicons name="checkmark-circle" size={18} color={theme.success} />
+                    <Text style={styles.diagnosticValueSuccess}>Enabled</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="close-circle" size={18} color={theme.error} />
+                    <Text style={styles.diagnosticValueError}>Disabled</Text>
+                  </>
+                )}
+              </View>
+            </View>
+          </View>
+
+          {!notificationPermissions?.granted && (
+            <TouchableOpacity
+              style={styles.developerButton}
+              onPress={handleRequestNotifications}
+            >
+              <Ionicons name="notifications-outline" size={20} color={theme.primary} />
+              <Text style={styles.developerButtonText}>Enable Notifications</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Data Section */}
