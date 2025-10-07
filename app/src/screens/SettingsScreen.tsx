@@ -116,6 +116,48 @@ export default function SettingsScreen({ navigation }: Props) {
     }
   };
 
+  const handleTestNotification = async () => {
+    try {
+      const permissions = await notificationService.getPermissions();
+
+      if (!permissions.granted) {
+        Alert.alert('Permission Required', 'Please enable notifications first');
+        return;
+      }
+
+      // Schedule a test notification for 5 seconds from now
+      const testTime = new Date(Date.now() + 5000);
+
+      await notificationService.scheduleNotification(
+        {
+          id: 'test-med',
+          name: 'Test Medication',
+          type: 'preventative',
+          dosageAmount: 100,
+          dosageUnit: 'mg',
+          active: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+        {
+          id: 'test-schedule',
+          medicationId: 'test-med',
+          time: `${testTime.getHours()}:${testTime.getMinutes()}`,
+          dosage: 1,
+          enabled: true,
+        }
+      );
+
+      Alert.alert(
+        'Test Scheduled',
+        'A test notification will appear in ~5 seconds. Make sure your device is not in silent mode and the app is in the background or closed.'
+      );
+    } catch (error) {
+      console.error('Failed to schedule test notification:', error);
+      Alert.alert('Error', `Failed to schedule test: ${(error as Error).message}`);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -262,15 +304,27 @@ export default function SettingsScreen({ navigation }: Props) {
             </View>
           </View>
 
-          {!notificationPermissions?.granted && (
-            <TouchableOpacity
-              style={styles.developerButton}
-              onPress={handleRequestNotifications}
-            >
-              <Ionicons name="notifications-outline" size={20} color={theme.primary} />
-              <Text style={styles.developerButtonText}>Enable Notifications</Text>
-            </TouchableOpacity>
-          )}
+          <View style={styles.developerActions}>
+            {!notificationPermissions?.granted && (
+              <TouchableOpacity
+                style={styles.developerButton}
+                onPress={handleRequestNotifications}
+              >
+                <Ionicons name="notifications-outline" size={20} color={theme.primary} />
+                <Text style={styles.developerButtonText}>Enable Notifications</Text>
+              </TouchableOpacity>
+            )}
+
+            {notificationPermissions?.granted && (
+              <TouchableOpacity
+                style={styles.developerButton}
+                onPress={handleTestNotification}
+              >
+                <Ionicons name="flask-outline" size={20} color={theme.primary} />
+                <Text style={styles.developerButtonText}>Send Test Notification (5s)</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         {/* Data Section */}
