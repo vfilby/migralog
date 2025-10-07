@@ -6,7 +6,6 @@ import { medicationRepository, medicationDoseRepository } from '../database/medi
 // Configure notification behavior
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
     shouldShowBanner: true,
