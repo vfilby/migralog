@@ -45,8 +45,10 @@ jest.mock('@react-navigation/native', () => ({
 // Mock expo-notifications
 jest.mock('expo-notifications', () => ({
   setNotificationHandler: jest.fn(),
+  setNotificationCategoryAsync: jest.fn(() => Promise.resolve()),
   scheduleNotificationAsync: jest.fn(() => Promise.resolve('notification-id')),
   cancelScheduledNotificationAsync: jest.fn(() => Promise.resolve()),
+  cancelAllScheduledNotificationsAsync: jest.fn(() => Promise.resolve()),
   getAllScheduledNotificationsAsync: jest.fn(() => Promise.resolve([])),
   requestPermissionsAsync: jest.fn(() =>
     Promise.resolve({
@@ -56,11 +58,40 @@ jest.mock('expo-notifications', () => ({
       expires: 'never',
     })
   ),
+  getPermissionsAsync: jest.fn(() =>
+    Promise.resolve({
+      status: 'granted',
+      canAskAgain: true,
+      granted: true,
+      expires: 'never',
+    })
+  ),
+  addNotificationResponseReceivedListener: jest.fn(() => ({
+    remove: jest.fn(),
+  })),
+  addNotificationReceivedListener: jest.fn(() => ({
+    remove: jest.fn(),
+  })),
+  SchedulableTriggerInputTypes: {
+    DAILY: 'daily',
+    WEEKLY: 'weekly',
+    YEARLY: 'yearly',
+    CALENDAR: 'calendar',
+    TIME_INTERVAL: 'timeInterval',
+  },
 }));
 
 // Mock expo-location
 jest.mock('expo-location', () => ({
   requestForegroundPermissionsAsync: jest.fn(() =>
+    Promise.resolve({
+      status: 'granted',
+      canAskAgain: true,
+      granted: true,
+      expires: 'never',
+    })
+  ),
+  getForegroundPermissionsAsync: jest.fn(() =>
     Promise.resolve({
       status: 'granted',
       canAskAgain: true,
@@ -80,6 +111,49 @@ jest.mock('expo-location', () => ({
         speed: 0,
       },
       timestamp: Date.now(),
+    })
+  ),
+  reverseGeocodeAsync: jest.fn(() =>
+    Promise.resolve([
+      {
+        city: 'San Francisco',
+        region: 'CA',
+        country: 'USA',
+      },
+    ])
+  ),
+  Accuracy: {
+    Lowest: 1,
+    Low: 2,
+    Balanced: 3,
+    High: 4,
+    Highest: 5,
+    BestForNavigation: 6,
+  },
+}));
+
+// Mock expo-file-system
+jest.mock('expo-file-system/legacy', () => ({
+  documentDirectory: 'file:///mock/documents/',
+  getInfoAsync: jest.fn(() => Promise.resolve({ exists: false })),
+  makeDirectoryAsync: jest.fn(() => Promise.resolve()),
+  writeAsStringAsync: jest.fn(() => Promise.resolve()),
+  readAsStringAsync: jest.fn(() => Promise.resolve('{}')),
+  readDirectoryAsync: jest.fn(() => Promise.resolve([])),
+  deleteAsync: jest.fn(() => Promise.resolve()),
+}));
+
+// Mock expo-sharing
+jest.mock('expo-sharing', () => ({
+  isAvailableAsync: jest.fn(() => Promise.resolve(true)),
+  shareAsync: jest.fn(() => Promise.resolve()),
+}));
+
+// Mock expo-document-picker
+jest.mock('expo-document-picker', () => ({
+  getDocumentAsync: jest.fn(() =>
+    Promise.resolve({
+      canceled: true,
     })
   ),
 }));
