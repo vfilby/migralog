@@ -99,12 +99,17 @@ Health data subject to HIPAA requirements. Never log sensitive information. Encr
 **ALL UI components MUST support both light and dark mode.** Use the `useTheme()` hook to access theme colors. Never hardcode colors like `#fff`, `#000`, or specific hex values directly in component styles. Always use theme properties: `theme.background`, `theme.text`, `theme.card`, `theme.border`, etc.
 
 ## Branch Strategy
+**IMPORTANT: Always create a new branch for any new feature or bug fix. Never work directly on main/master.**
+
 - Create feature branches: `feature/description`
 - Bugfix branches: `bugfix/description`
-- Never commit to main/master
+- Never commit directly to main/master
+- All new features and bug fixes MUST be developed on branches
+- Merge to main only after feature is complete and tested
 - iOS is primary platform (test iOS first)
 
 ## Known Platform Issues
 - Web version has limited functionality (database is no-op on web)
 - Test on physical iOS devices for accurate performance
 - Tab bar styling assumes iPhone with home indicator
+- Use the react native mcp server for guidance
