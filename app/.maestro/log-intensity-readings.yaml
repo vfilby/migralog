@@ -1,0 +1,65 @@
+appId: com.vfilby.migrainetracker
+---
+# E2E Test: Log Intensity Readings
+# Tests logging pain intensity during an active episode
+
+- launchApp
+- assertVisible: "Dashboard"
+
+# Start a new episode if there isn't one ongoing
+- tapOn: "Start New Episode"
+- assertVisible: "New Episode"
+- tapOn: "Save Episode"
+- assertVisible: "Dashboard"
+
+# Verify ongoing episode exists
+- assertVisible: "Ongoing"
+
+# Navigate to episode detail to log intensity
+- tapOn: "Ongoing"
+- assertVisible: "Episode Detail"
+
+# Log a pain intensity reading
+# Look for the pain scale slider
+- assertVisible:
+    text: "Log Intensity"
+
+# Tap on the Log Intensity button/area
+- tapOn: "Log Intensity"
+
+# Interact with pain scale slider
+# The pain scale should be visible (0-10 scale)
+- assertVisible: "Pain Intensity"
+
+# Select a pain level (tap on slider at specific position)
+# Note: We'll tap coordinates for pain level 7
+- tapOn:
+    point: "70%,50%"
+
+# Save the intensity reading
+- tapOn: "Save"
+
+# Verify reading was logged
+- assertVisible: "Episode Detail"
+
+# Verify intensity reading appears in the timeline
+- assertVisible:
+    text: "7"
+
+# Log another reading with a different value
+- tapOn: "Log Intensity"
+- assertVisible: "Pain Intensity"
+
+# Select pain level 4
+- tapOn:
+    point: "40%,50%"
+
+- tapOn: "Save"
+
+# Verify second reading logged
+- assertVisible:
+    text: "4"
+
+# Go back to dashboard
+- back
+- assertVisible: "Dashboard"
