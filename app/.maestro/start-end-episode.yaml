@@ -39,6 +39,4 @@ appId: com.vfilby.migrainetracker
 
 # Verify dashboard shows completed episode (no longer "Ongoing")
 - assertVisible: "Dashboard"
-- assertNotVisible:
-    text: "Ongoing"
-    timeout: 2000
+- assertNotVisible: "Ongoing"
