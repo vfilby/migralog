@@ -1,12 +1,16 @@
 # Maestro E2E Tests
 
-This directory contains end-to-end tests for the MigraineTracker app using [Maestro](https://maestro.mobile.dev/).
+This directory contains End-to-End (E2E) tests for the Migraine Tracker app using [Maestro](https://maestro.mobile.dev/).
+
+## ✅ Status: Working
+
+The E2E testing framework is functional. The `working-smoke-test.yaml` validates the app launches and key UI elements are accessible via testID selectors.
 
 ## Prerequisites
 
 1. **Install Maestro CLI**:
    ```bash
-   curl -fsSL https://get.maestro.mobile.dev | bash
+   curl -Ls "https://get.maestro.mobile.dev" | bash
    ```
 
 2. **Install Java** (required by Maestro):
@@ -14,108 +18,127 @@ This directory contains end-to-end tests for the MigraineTracker app using [Maes
    brew install openjdk@17
    ```
 
-3. **Set up environment** (add to your `~/.zshrc` or `~/.bash_profile`):
-   ```bash
-   export JAVA_HOME="/opt/homebrew/opt/openjdk@17"
-   export PATH="$PATH:$HOME/.maestro/bin"
-   ```
-
-## Test Files
-
-- **`start-end-episode.yaml`** - Tests starting a new episode and ending it
-- **`log-intensity-readings.yaml`** - Tests logging pain intensity readings during an episode
-- **`add-log-medication.yaml`** - Tests adding a new medication and logging a dose
-- **`view-episode-details.yaml`** - Tests viewing comprehensive episode details
-
-## Running Tests
-
-### Run all E2E tests:
-```bash
-npm run test:e2e
-```
-
-### Run individual test flows:
-```bash
-npm run test:e2e:start-end    # Start and end episode
-npm run test:e2e:intensity     # Log intensity readings
-npm run test:e2e:medication    # Add and log medication
-npm run test:e2e:details       # View episode details
-```
-
-### Run tests manually with Maestro CLI:
-```bash
-maestro test .maestro/start-end-episode.yaml
-```
-
-## Prerequisites for Running Tests
-
-1. **Start the Expo development server**:
+3. **Start the Expo development server**:
    ```bash
    npm start
    ```
 
-2. **Launch the app on iOS Simulator**:
-   ```bash
-   npm run ios
-   ```
+4. **Open the app in iOS simulator** (press `i` in Expo terminal)
 
-   OR
+## Test Files
 
-   **Launch on Android Emulator**:
-   ```bash
-   npm run android
-   ```
+### Working Tests
+- **`working-smoke-test.yaml`** - ✅ **VERIFIED** - Validates app launch and dashboard UI elements
 
-3. **Wait for the app to fully load** before running Maestro tests.
+### Theoretical Tests (Not Yet Validated)
+- **`start-end-episode.yaml`** - Start/end episode flow (needs validation)
+- **`log-intensity-readings.yaml`** - Pain intensity logging (needs validation)
+- **`add-log-medication.yaml`** - Medication management (needs validation)
+- **`view-episode-details.yaml`** - Episode details viewing (needs validation)
 
-## Test Flow Details
+See `LIMITATIONS.md` for details on unvalidated tests.
 
-### Start/End Episode Flow
-1. Opens app to Dashboard
-2. Taps "Start New Episode"
-3. Saves episode
-4. Verifies "Ongoing" badge appears
-5. Opens episode detail
-6. Ends the episode
-7. Verifies episode is marked as "Ended"
+## Running Tests
 
-### Log Intensity Readings Flow
-1. Creates or uses existing episode
-2. Navigates to episode detail
-3. Logs multiple intensity readings (pain levels 7 and 4)
-4. Verifies readings appear in timeline
+### Quick Start (Verified Test):
+```bash
+# Make sure app is running in simulator first!
+npm start  # In one terminal
+# Press 'i' to open iOS simulator
 
-### Add/Log Medication Flow
-1. Navigates to Medications tab
-2. Adds new medication (Ibuprofen 400mg)
-3. Logs a dose with notes
-4. Verifies dose appears in medication history
+# In another terminal:
+export JAVA_HOME='/opt/homebrew/opt/openjdk@17'
+maestro test .maestro/working-smoke-test.yaml
+```
 
-### View Episode Details Flow
-1. Navigates to Episodes tab
-2. Opens an episode
-3. Views timeline, stats, and metadata
-4. Adds a note to the episode
-5. Verifies all details display correctly
+### Run all tests (some may fail):
+```bash
+npm run test:e2e
+```
 
-## Tips
+### Run individual tests:
+```bash
+npm run test:e2e:start-end     # Start/end episode flow
+npm run test:e2e:intensity     # Intensity logging
+npm run test:e2e:medication    # Medication management
+npm run test:e2e:details       # Episode details
+```
 
-- **Debugging**: Run Maestro Studio for interactive test development:
+## How It Works (Expo Go)
+
+Since the app runs in Expo Go (not as a standalone build), the tests:
+1. Launch Expo Go app (`host.exp.Exponent`)
+2. Tap on "Migraine Tracker" in the recently opened list
+3. Wait for the app to load
+4. Interact with UI elements using testIDs or text selectors
+
+## TestIDs Added
+
+The following testIDs have been added to make E2E testing reliable:
+
+**DashboardScreen.tsx:**
+- `dashboard-title` - Main "Pain Tracker" title
+- `settings-button` - Settings navigation button
+- `start-episode-button` - Button to start new episode
+- `log-medication-button` - Quick action to log medication
+
+## Troubleshooting
+
+### "Unable to launch app" error
+- Make sure the iOS simulator is running
+- Ensure the app appears in Expo Go's "Recently opened" list
+- Try opening the app manually in Expo Go first
+
+### Test can't find testID
+- Verify the app has reloaded with latest code changes
+- Use `maestro hierarchy` to inspect actual UI:
   ```bash
-  maestro studio
+  export JAVA_HOME='/opt/homebrew/opt/openjdk@17'
+  maestro hierarchy
   ```
 
-- **Inspect elements**: Use Maestro Studio's hierarchy viewer to find element IDs and text
+### Test timeout or hang
+- Check if a modal or alert is blocking the UI
+- Ensure the simulator is not locked
+- Try killing and restarting the simulator
 
-- **Adjust timing**: If tests fail due to timing issues, add `wait` commands:
-  ```yaml
-  - tapOn: "Save"
-  - wait: 1000  # Wait 1 second
-  - assertVisible: "Success"
-  ```
+### Element not found
+- Use `maestro hierarchy` to inspect the actual UI element IDs
+- Text matching is case-sensitive
+- Elements must be visible on screen (not scrolled off)
 
-## Continuous Integration
+## Writing New Tests
 
-These tests can be integrated into CI/CD pipelines. Maestro Cloud provides test execution on real devices.
+1. **Inspect the UI** with Maestro hierarchy:
+   ```bash
+   export JAVA_HOME='/opt/homebrew/opt/openjdk@17'
+   maestro hierarchy > ui-snapshot.json
+   ```
 
-See [Maestro Cloud docs](https://cloud.mobile.dev/) for more information.
+2. **Find element selectors** - look for:
+   - `resource-id` (testID props)
+   - `text` or `accessibilityText`
+
+3. **Create test file** following this pattern:
+   ```yaml
+   appId: host.exp.Exponent
+   ---
+   - launchApp
+   - tapOn: "Migraine Tracker"
+   - assertVisible: "Expected Text"
+   - tapOn:
+       id: "element-testid"
+   ```
+
+4. **Add testIDs to components** for reliable selection:
+   ```tsx
+   <TouchableOpacity testID="my-button">
+   ```
+
+5. **Run and validate** the test works consistently
+
+## Maestro Documentation
+
+- [Maestro Documentation](https://maestro.mobile.dev/)
+- [Maestro API Reference](https://maestro.mobile.dev/api-reference)
+- [Maestro Examples](https://github.com/mobile-dev-inc/maestro/tree/main/maestro-test)

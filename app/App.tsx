@@ -31,6 +31,12 @@ export default function App() {
         await notificationService.initialize();
         console.log('Notification service initialized');
 
+        // Initialize test deep links (dev only)
+        if (__DEV__) {
+          const { initializeTestDeepLinks } = await import('./src/utils/testDeepLinks');
+          initializeTestDeepLinks();
+        }
+
         setIsReady(true);
       } catch (err) {
         console.error('App initialization error:', err);

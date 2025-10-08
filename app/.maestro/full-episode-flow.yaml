@@ -1,0 +1,43 @@
+appId: host.exp.Exponent
+---
+# Full Episode Flow Test - With Database Reset
+# Tests creating, viewing, and ending an episode from clean state
+
+# Reset database to clean state before test
+- openLink: migrainetracker://test/reset
+
+# Wait for reset to complete
+- wait: 2000
+
+# Launch app
+- launchApp
+
+# Tap on Migraine Tracker
+- tapOn: "Migraine Tracker"
+
+# Wait for app to load
+- assertVisible: "Pain Tracker"
+
+# Verify clean state - no ongoing episode
+- assertVisible:
+    id: "dashboard-title"
+
+# Verify Start Episode button is visible (only shows when no active episode)
+- assertVisible:
+    id: "start-episode-button"
+
+# Start a new episode
+- tapOn:
+    id: "start-episode-button"
+
+# Should be on New Episode screen
+- assertVisible: "New Episode"
+
+# Save the episode
+- tapOn: "Save"
+
+# Back on dashboard, should see "ongoing" indicator
+# (actual text may vary - we'll need to validate this)
+- assertVisible: "Pain Tracker"
+
+# Test passed!

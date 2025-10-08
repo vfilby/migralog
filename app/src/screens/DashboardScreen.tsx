@@ -358,10 +358,11 @@ export default function DashboardScreen() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Pain Tracker</Text>
+        <Text style={styles.title} testID="dashboard-title">Pain Tracker</Text>
         <TouchableOpacity
           style={styles.settingsButton}
           onPress={() => navigation.navigate('Settings')}
+          testID="settings-button"
         >
           <Ionicons name="settings-outline" size={24} color={theme.primary} />
         </TouchableOpacity>
@@ -450,6 +451,7 @@ export default function DashboardScreen() {
           <TouchableOpacity
             style={[styles.actionButton, styles.primaryButton]}
             onPress={() => navigation.navigate('NewEpisode', {})}
+            testID="start-episode-button"
           >
             <Text style={styles.primaryButtonText}>Start Episode</Text>
           </TouchableOpacity>
@@ -463,6 +465,7 @@ export default function DashboardScreen() {
                 episodeId: currentEpisode?.id
               });
             }}
+            testID="log-medication-button"
           >
             <Text style={styles.secondaryButtonText}>Log Medication</Text>
           </TouchableOpacity>

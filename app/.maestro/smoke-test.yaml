@@ -1,0 +1,25 @@
+appId: com.eff3.app.headache-tracker
+---
+# Smoke Test: Verify app launches and basic navigation works
+# This is a minimal test to validate Maestro setup
+
+- launchApp
+
+# Wait for app to load
+- runFlow:
+    when:
+      visible: "Allow"
+    commands:
+      - tapOn: "Allow"
+
+# Simple test: verify we can see the main UI
+- assertVisible:
+    text: ".*"
+    timeout: 10000
+
+# Tap around to verify basic interactivity
+- tapOn:
+    point: "50%,50%"
+
+- assertVisible:
+    text: ".*"
