@@ -1,4 +1,4 @@
-appId: com.eff3.app.headache-tracker
+appId: host.exp.Exponent
 ---
 # E2E Test: Start and End an Episode
 # Tests the critical user flow of starting a new episode and ending it

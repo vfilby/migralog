@@ -1,4 +1,4 @@
-appId: com.eff3.app.headache-tracker
+appId: host.exp.Exponent
 ---
 # E2E Test: Log Intensity Readings
 # Tests logging pain intensity during an active episode
