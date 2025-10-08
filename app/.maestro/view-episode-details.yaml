@@ -1,4 +1,4 @@
-appId: com.vfilby.migrainetracker
+appId: com.eff3.app.headache-tracker
 ---
 # E2E Test: View Episode Details
 # Tests viewing comprehensive episode details including timeline, notes, and stats
