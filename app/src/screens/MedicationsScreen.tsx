@@ -32,11 +32,6 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     fontWeight: 'bold',
     color: theme.text,
   },
-  editButton: {
-    fontSize: 17,
-    color: theme.primary,
-    fontWeight: '600',
-  },
   content: {
     flex: 1,
   },
@@ -65,7 +60,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     marginBottom: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   medicationName: {
     fontSize: 18,
@@ -73,19 +68,15 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     color: theme.text,
     flex: 1,
   },
-  editModeButtons: {
-    flexDirection: 'row',
-    gap: 12,
+  typeBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 8,
   },
-  editText: {
-    fontSize: 14,
-    color: theme.primary,
-    fontWeight: '500',
-  },
-  archiveText: {
-    fontSize: 14,
-    color: theme.danger,
-    fontWeight: '500',
+  typeBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   medicationDetails: {
     gap: 4,
@@ -159,48 +150,14 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
   },
-  archivedCard: {
-    backgroundColor: theme.background,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: theme.border,
-  },
-  archivedMedicationInfo: {
-    flex: 1,
-  },
-  archivedMedicationName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: theme.textSecondary,
-    marginBottom: 2,
-  },
-  medicationType: {
-    fontSize: 13,
-    color: theme.textSecondary,
-  },
-  restoreButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: theme.primary,
-    borderRadius: 6,
-  },
-  restoreButtonText: {
-    fontSize: 14,
-    color: theme.primaryText,
-    fontWeight: '600',
-  },
 });
 
 export default function MedicationsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const { preventativeMedications, rescueMedications, loadMedications, logDose, archiveMedication, unarchiveMedication, loading } = useMedicationStore();
+  const { preventativeMedications, rescueMedications, loadMedications, logDose, loading } = useMedicationStore();
   const { currentEpisode, loadCurrentEpisode } = useEpisodeStore();
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [archivedMedications, setArchivedMedications] = useState<Medication[]>([]);
   const [medicationSchedules, setMedicationSchedules] = useState<Record<string, MedicationSchedule[]>>({});
 
   useEffect(() => {
@@ -208,12 +165,9 @@ export default function MedicationsScreen() {
       loadMedications();
       loadCurrentEpisode();
       loadSchedules();
-      if (isEditMode) {
-        loadArchivedMedications();
-      }
     });
     return unsubscribe;
-  }, [navigation, isEditMode]);
+  }, [navigation]);
 
   useEffect(() => {
     loadSchedules();
@@ -266,21 +220,6 @@ export default function MedicationsScreen() {
     return null;
   };
 
-  useEffect(() => {
-    if (isEditMode) {
-      loadArchivedMedications();
-    }
-  }, [isEditMode]);
-
-  const loadArchivedMedications = async () => {
-    try {
-      const archived = await medicationRepository.getArchived();
-      setArchivedMedications(archived);
-    } catch (error) {
-      console.error('Failed to load archived medications:', error);
-    }
-  };
-
   const handleQuickLog = async (medicationId: string, defaultDosage: number) => {
     try {
       await logDose({
@@ -296,58 +235,11 @@ export default function MedicationsScreen() {
     }
   };
 
-  const handleArchive = (medicationId: string, medicationName: string) => {
-    Alert.alert(
-      'Archive Medication',
-      `Are you sure you want to archive ${medicationName}? It will be hidden from your active list but kept in your history.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Archive',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await archiveMedication(medicationId);
-              loadArchivedMedications(); // Refresh archived list
-            } catch (error) {
-              console.error('Failed to archive medication:', error);
-              Alert.alert('Error', 'Failed to archive medication');
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleUnarchive = (medicationId: string, medicationName: string) => {
-    Alert.alert(
-      'Restore Medication',
-      `Restore ${medicationName} to your active medications?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Restore',
-          onPress: async () => {
-            try {
-              await unarchiveMedication(medicationId);
-              loadArchivedMedications(); // Refresh archived list
-            } catch (error) {
-              console.error('Failed to restore medication:', error);
-              Alert.alert('Error', 'Failed to restore medication');
-            }
-          },
-        },
-      ]
-    );
-  };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Medications</Text>
-        <TouchableOpacity onPress={() => setIsEditMode(!isEditMode)}>
-          <Text style={styles.editButton}>{isEditMode ? 'Done' : 'Edit'}</Text>
-        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content}>
@@ -359,25 +251,17 @@ export default function MedicationsScreen() {
               <Text style={styles.emptyText}>No preventative medications</Text>
             </View>
           ) : (
-            preventativeMedications.map(med => (
+            preventativeMedications.map((med) => (
               <TouchableOpacity
                 key={med.id}
                 style={styles.medicationCard}
                 onPress={() => navigation.navigate('MedicationDetail', { medicationId: med.id })}
-                disabled={isEditMode}
               >
                 <View style={styles.medicationHeader}>
                   <Text style={styles.medicationName}>{med.name}</Text>
-                  {isEditMode && (
-                    <View style={styles.editModeButtons}>
-                      <TouchableOpacity onPress={() => navigation.navigate('EditMedication', { medicationId: med.id })}>
-                        <Text style={styles.editText}>Edit</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleArchive(med.id, med.name)}>
-                        <Text style={styles.archiveText}>Archive</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
+                  <View style={[styles.typeBadge, { backgroundColor: theme.success + '20' }]}>
+                    <Text style={[styles.typeBadgeText, { color: theme.success }]}>Preventative</Text>
+                  </View>
                 </View>
                 <View style={styles.medicationDetails}>
                   <Text style={styles.dosageText}>
@@ -406,25 +290,17 @@ export default function MedicationsScreen() {
               <Text style={styles.emptyText}>No rescue medications</Text>
             </View>
           ) : (
-            rescueMedications.map(med => (
+            rescueMedications.map((med) => (
               <TouchableOpacity
                 key={med.id}
                 style={styles.medicationCard}
                 onPress={() => navigation.navigate('MedicationDetail', { medicationId: med.id })}
-                disabled={isEditMode}
               >
                 <View style={styles.medicationHeader}>
                   <Text style={styles.medicationName}>{med.name}</Text>
-                  {isEditMode && (
-                    <View style={styles.editModeButtons}>
-                      <TouchableOpacity onPress={() => navigation.navigate('EditMedication', { medicationId: med.id })}>
-                        <Text style={styles.editText}>Edit</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleArchive(med.id, med.name)}>
-                        <Text style={styles.archiveText}>Archive</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
+                  <View style={[styles.typeBadge, { backgroundColor: theme.primary + '20' }]}>
+                    <Text style={[styles.typeBadgeText, { color: theme.primary }]}>Rescue</Text>
+                  </View>
                 </View>
                 <View style={styles.medicationDetails}>
                   <Text style={styles.dosageText}>
@@ -434,56 +310,31 @@ export default function MedicationsScreen() {
                 {med.notes && (
                   <Text style={styles.notes} numberOfLines={2}>{med.notes}</Text>
                 )}
-                {!isEditMode && (
-                  <View style={styles.medicationActions}>
-                    <TouchableOpacity
-                      style={styles.quickLogButton}
-                      onPress={() => handleQuickLog(med.id, med.defaultDosage || 1)}
-                    >
-                      <Text style={styles.quickLogButtonText}>Quick Log</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.detailedLogButton}
-                      onPress={() => navigation.navigate('LogMedication', { medicationId: med.id })}
-                    >
-                      <Text style={styles.detailedLogButtonText}>Log Details</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
+                <View style={styles.medicationActions}>
+                  <TouchableOpacity
+                    style={styles.quickLogButton}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleQuickLog(med.id, med.defaultDosage || 1);
+                    }}
+                  >
+                    <Text style={styles.quickLogButtonText}>Quick Log</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.detailedLogButton}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      navigation.navigate('LogMedication', { medicationId: med.id });
+                    }}
+                  >
+                    <Text style={styles.detailedLogButtonText}>Log Details</Text>
+                  </TouchableOpacity>
+                </View>
               </TouchableOpacity>
             ))
           )}
         </View>
 
-        {/* Archived Medications Section - Only in Edit Mode */}
-        {isEditMode && archivedMedications.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Archived</Text>
-            {archivedMedications.map(med => (
-              <View key={med.id} style={styles.archivedCard}>
-                <View style={styles.medicationHeader}>
-                  <View style={styles.archivedMedicationInfo}>
-                    <Text style={styles.archivedMedicationName}>{med.name}</Text>
-                    <Text style={styles.medicationType}>
-                      {med.type.charAt(0).toUpperCase() + med.type.slice(1)}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.restoreButton}
-                    onPress={() => handleUnarchive(med.id, med.name)}
-                  >
-                    <Text style={styles.restoreButtonText}>Restore</Text>
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.medicationDetails}>
-                  <Text style={styles.dosageText}>
-                    {med.defaultDosage || 1} × {med.dosageAmount}{med.dosageUnit}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        )}
 
         <TouchableOpacity
           style={styles.addButton}

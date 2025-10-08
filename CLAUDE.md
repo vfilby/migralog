@@ -95,6 +95,9 @@ All data persists to SQLite immediately. No server sync yet. Consider HIPAA comp
 ### Data Privacy
 Health data subject to HIPAA requirements. Never log sensitive information. Encrypt data at rest when implementing cloud sync.
 
+### Theme Support
+**ALL UI components MUST support both light and dark mode.** Use the `useTheme()` hook to access theme colors. Never hardcode colors like `#fff`, `#000`, or specific hex values directly in component styles. Always use theme properties: `theme.background`, `theme.text`, `theme.card`, `theme.border`, etc.
+
 ## Branch Strategy
 - Create feature branches: `feature/description`
 - Bugfix branches: `bugfix/description`

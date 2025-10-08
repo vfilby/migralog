@@ -20,7 +20,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'MedicationDetail'>;
 
 export default function MedicationDetailScreen({ route, navigation }: Props) {
   const { medicationId } = route.params;
-  const { colors } = useTheme();
+  const { theme } = useTheme();
   const [medication, setMedication] = useState<Medication | null>(null);
   const [schedules, setSchedules] = useState<MedicationSchedule[]>([]);
   const [doses, setDoses] = useState<MedicationDose[]>([]);
@@ -29,6 +29,13 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
   useEffect(() => {
     loadMedicationData();
   }, [medicationId]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadMedicationData();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const loadMedicationData = async () => {
     try {
@@ -123,12 +130,12 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <View style={styles.header}>
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={[styles.backButton, { color: colors.primary }]}>← Back</Text>
+            <Text style={[styles.backButton, { color: theme.primary }]}>← Back</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Loading...</Text>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>Loading...</Text>
         </View>
       </View>
     );
@@ -143,81 +150,92 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
     : [];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={[styles.backButton, { color: colors.primary }]}>← Back</Text>
+          <Text style={[styles.backButton, { color: theme.primary }]}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Medication Details</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Medication Details</Text>
         <TouchableOpacity
           onPress={() => navigation.navigate('EditMedication', { medicationId })}
         >
-          <Text style={[styles.editButton, { color: colors.primary }]}>Edit</Text>
+          <Text style={[styles.editButton, { color: theme.primary }]}>Edit</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Medication Info */}
-        <View style={styles.section}>
-          <Text style={styles.medicationName}>{medication.name}</Text>
-          <View style={styles.typeBadge}>
-            <Text style={[styles.typeBadgeText, {
-              color: medication.type === 'preventative' ? colors.success : colors.warning
+        <View style={[styles.section, { backgroundColor: theme.card }]}>
+          <View style={styles.medicationHeader}>
+            <Text style={[styles.medicationName, { color: theme.text }]}>{medication.name}</Text>
+            <View style={[styles.typeBadge, {
+              backgroundColor: medication.type === 'preventative'
+                ? theme.success + '20'
+                : theme.primary + '20'
             }]}>
-              {medication.type === 'preventative' ? 'Preventative' : 'Rescue'}
-            </Text>
+              <Text style={[styles.typeBadgeText, {
+                color: medication.type === 'preventative' ? theme.success : theme.primary
+              }]}>
+                {medication.type === 'preventative' ? 'Preventative' : 'Rescue'}
+              </Text>
+            </View>
           </View>
 
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Dosage:</Text>
-            <Text style={styles.infoValue}>
+            <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Dosage:</Text>
+            <Text style={[styles.infoValue, { color: theme.text }]}>
               {medication.dosageAmount}{medication.dosageUnit}
             </Text>
           </View>
 
           {medication.defaultDosage && (
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Default Doses:</Text>
-              <Text style={styles.infoValue}>{medication.defaultDosage}</Text>
+              <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Default Doses:</Text>
+              <Text style={[styles.infoValue, { color: theme.text }]}>{medication.defaultDosage}</Text>
             </View>
           )}
 
           {medication.scheduleFrequency && (
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Frequency:</Text>
-              <Text style={styles.infoValue}>{medication.scheduleFrequency}</Text>
+              <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Frequency:</Text>
+              <Text style={[styles.infoValue, { color: theme.text }]}>{medication.scheduleFrequency}</Text>
             </View>
           )}
 
           {medication.notes && (
             <View style={styles.notesContainer}>
-              <Text style={styles.infoLabel}>Notes:</Text>
-              <Text style={styles.notesText}>{medication.notes}</Text>
+              <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Notes:</Text>
+              <Text style={[styles.notesText, { color: theme.text }]}>{medication.notes}</Text>
             </View>
           )}
         </View>
 
         {/* Schedules (Preventative only) */}
         {medication.type === 'preventative' && schedules.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Schedule</Text>
-            {schedules.map((schedule) => (
-              <View key={schedule.id} style={styles.scheduleItem}>
-                <View style={styles.scheduleInfo}>
-                  <Text style={styles.scheduleTime}>{schedule.time}</Text>
-                  <Text style={styles.scheduleDosage}>
-                    {schedule.dosage} dose{schedule.dosage > 1 ? 's' : ''}
-                  </Text>
+          <View style={[styles.section, { backgroundColor: theme.card }]}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Schedule</Text>
+            {schedules.map((schedule, index) => (
+              <View key={schedule.id}>
+                <View style={styles.scheduleItemRow}>
+                  <View style={styles.scheduleLeft}>
+                    <Text style={[styles.scheduleTime, { color: theme.text }]}>{schedule.time}</Text>
+                    <Text style={[styles.scheduleDosage, { color: theme.textSecondary }]}>
+                      {schedule.dosage} dose{schedule.dosage > 1 ? 's' : ''}
+                    </Text>
+                  </View>
+                  <View style={styles.scheduleToggle}>
+                    <Text style={[styles.toggleLabel, { color: theme.textSecondary }]}>Reminders</Text>
+                    <Switch
+                      value={schedule.enabled}
+                      onValueChange={() => handleToggleNotification(schedule)}
+                      trackColor={{ false: theme.border, true: theme.primary }}
+                    />
+                  </View>
                 </View>
-                <View style={styles.scheduleToggle}>
-                  <Text style={styles.toggleLabel}>Reminders</Text>
-                  <Switch
-                    value={schedule.enabled}
-                    onValueChange={() => handleToggleNotification(schedule)}
-                    trackColor={{ false: '#E5E5EA', true: colors.primary }}
-                  />
-                </View>
+                {index < schedules.length - 1 && (
+                  <View style={[styles.separator, { backgroundColor: theme.border }]} />
+                )}
               </View>
             ))}
           </View>
@@ -225,17 +243,17 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
 
         {/* 7-Day Timeline (Preventative Daily only) */}
         {last7Days.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Last 7 Days</Text>
+          <View style={[styles.section, { backgroundColor: theme.card }]}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Last 7 Days</Text>
             <View style={styles.timeline}>
               {last7Days.map((day, index) => (
                 <View key={index} style={styles.timelineDay}>
-                  <Text style={styles.dayLabel}>{format(day.date, 'EEE')}</Text>
+                  <Text style={[styles.dayLabel, { color: theme.textSecondary }]}>{format(day.date, 'EEE')}</Text>
                   <View style={[
                     styles.dayIndicator,
-                    day.taken ? { backgroundColor: colors.success } : { backgroundColor: '#E5E5EA' }
+                    day.taken ? { backgroundColor: theme.success } : { backgroundColor: theme.border }
                   ]} />
-                  <Text style={styles.dayDate}>{format(day.date, 'd')}</Text>
+                  <Text style={[styles.dayDate, { color: theme.textSecondary }]}>{format(day.date, 'd')}</Text>
                 </View>
               ))}
             </View>
@@ -243,35 +261,40 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
         )}
 
         {/* 30-Day Log */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recent Activity (30 days)</Text>
+        <View style={[styles.section, { backgroundColor: theme.card }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Recent Activity (30 days)</Text>
           {doses.length === 0 ? (
-            <Text style={styles.emptyText}>No doses logged in the last 30 days</Text>
+            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No doses logged in the last 30 days</Text>
           ) : (
             <>
               <View style={styles.logSummary}>
-                <Text style={styles.logSummaryText}>
+                <Text style={[styles.logSummaryText, { color: theme.textSecondary }]}>
                   {doses.length} dose{doses.length !== 1 ? 's' : ''} logged
                 </Text>
               </View>
-              {doses.slice(0, 10).map((dose) => (
-                <View key={dose.id} style={styles.logItem}>
-                  <View style={styles.logItemLeft}>
-                    <Text style={styles.logDate}>
-                      {format(new Date(dose.timestamp), 'MMM d, yyyy')}
-                    </Text>
-                    <Text style={styles.logTime}>
-                      {format(new Date(dose.timestamp), 'h:mm a')}
-                    </Text>
+              {doses.slice(0, 10).map((dose, index) => (
+                <View key={dose.id}>
+                  <View style={styles.logItem}>
+                    <View style={styles.logItemLeft}>
+                      <Text style={[styles.logDate, { color: theme.text }]}>
+                        {format(new Date(dose.timestamp), 'MMM d, yyyy')}
+                      </Text>
+                      <Text style={[styles.logTime, { color: theme.textSecondary }]}>
+                        {format(new Date(dose.timestamp), 'h:mm a')}
+                      </Text>
+                    </View>
+                    <View style={styles.logItemRight}>
+                      <Text style={[styles.logAmount, { color: theme.text }]}>
+                        {dose.amount} × {medication.dosageAmount}{medication.dosageUnit}
+                      </Text>
+                      {dose.notes && (
+                        <Text style={[styles.logNotes, { color: theme.textSecondary }]} numberOfLines={1}>{dose.notes}</Text>
+                      )}
+                    </View>
                   </View>
-                  <View style={styles.logItemRight}>
-                    <Text style={styles.logAmount}>
-                      {dose.amount} × {medication.dosageAmount}{medication.dosageUnit}
-                    </Text>
-                    {dose.notes && (
-                      <Text style={styles.logNotes} numberOfLines={1}>{dose.notes}</Text>
-                    )}
-                  </View>
+                  {index < doses.slice(0, 10).length - 1 && (
+                    <View style={[styles.separator, { backgroundColor: theme.border }]} />
+                  )}
                 </View>
               ))}
               {doses.length > 10 && (
@@ -279,7 +302,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
                   style={styles.viewAllButton}
                   onPress={() => navigation.navigate('MedicationLog')}
                 >
-                  <Text style={[styles.viewAllText, { color: colors.primary }]}>
+                  <Text style={[styles.viewAllText, { color: theme.primary }]}>
                     View All ({doses.length})
                   </Text>
                 </TouchableOpacity>
@@ -297,7 +320,6 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
   },
   header: {
     flexDirection: 'row',
@@ -306,9 +328,7 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 16,
     paddingHorizontal: 20,
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
   },
   backButton: {
     fontSize: 17,
@@ -317,7 +337,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#000',
   },
   editButton: {
     fontSize: 17,
@@ -327,24 +346,26 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   section: {
-    backgroundColor: '#fff',
     marginTop: 20,
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
+  medicationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
   medicationName: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#000',
-    marginBottom: 8,
+    flex: 1,
   },
   typeBadge: {
-    alignSelf: 'flex-start',
     paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingVertical: 6,
     borderRadius: 12,
-    backgroundColor: '#F2F2F7',
-    marginBottom: 16,
+    marginLeft: 12,
   },
   typeBadgeText: {
     fontSize: 13,
@@ -354,52 +375,45 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
   },
   infoLabel: {
     fontSize: 17,
-    color: '#8E8E93',
   },
   infoValue: {
     fontSize: 17,
     fontWeight: '500',
-    color: '#000',
   },
   notesContainer: {
     marginTop: 12,
   },
   notesText: {
     fontSize: 15,
-    color: '#000',
     marginTop: 4,
     lineHeight: 20,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#000',
     marginBottom: 16,
   },
-  scheduleItem: {
+  scheduleItemRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
   },
-  scheduleInfo: {
+  scheduleLeft: {
     flex: 1,
+  },
+  separator: {
+    height: 1,
+    marginVertical: 12,
   },
   scheduleTime: {
     fontSize: 17,
     fontWeight: '500',
-    color: '#000',
   },
   scheduleDosage: {
     fontSize: 15,
-    color: '#8E8E93',
     marginTop: 2,
   },
   scheduleToggle: {
@@ -409,7 +423,6 @@ const styles = StyleSheet.create({
   },
   toggleLabel: {
     fontSize: 15,
-    color: '#8E8E93',
   },
   timeline: {
     flexDirection: 'row',
@@ -421,7 +434,6 @@ const styles = StyleSheet.create({
   },
   dayLabel: {
     fontSize: 13,
-    color: '#8E8E93',
     fontWeight: '500',
   },
   dayIndicator: {
@@ -431,7 +443,6 @@ const styles = StyleSheet.create({
   },
   dayDate: {
     fontSize: 13,
-    color: '#8E8E93',
   },
   logSummary: {
     paddingVertical: 12,
@@ -439,15 +450,11 @@ const styles = StyleSheet.create({
   },
   logSummaryText: {
     fontSize: 15,
-    color: '#8E8E93',
     fontWeight: '500',
   },
   logItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
   },
   logItemLeft: {
     flex: 1,
@@ -455,11 +462,9 @@ const styles = StyleSheet.create({
   logDate: {
     fontSize: 17,
     fontWeight: '500',
-    color: '#000',
   },
   logTime: {
     fontSize: 15,
-    color: '#8E8E93',
     marginTop: 2,
   },
   logItemRight: {
@@ -468,17 +473,14 @@ const styles = StyleSheet.create({
   logAmount: {
     fontSize: 17,
     fontWeight: '500',
-    color: '#000',
   },
   logNotes: {
     fontSize: 13,
-    color: '#8E8E93',
     marginTop: 2,
     maxWidth: 150,
   },
   emptyText: {
     fontSize: 15,
-    color: '#8E8E93',
     textAlign: 'center',
     paddingVertical: 24,
   },
