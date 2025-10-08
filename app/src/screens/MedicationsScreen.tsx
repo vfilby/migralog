@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useMedicationStore } from '../store/medicationStore';
 import { useEpisodeStore } from '../store/episodeStore';
-import { medicationRepository, medicationScheduleRepository } from '../database/medicationRepository';
+import { medicationRepository, medicationScheduleRepository, medicationDoseRepository } from '../database/medicationRepository';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { Medication, MedicationSchedule } from '../models/types';
 import { useTheme, ThemeColors } from '../theme';
-import { format } from 'date-fns';
+import { format, isToday } from 'date-fns';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -96,6 +97,38 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     color: theme.textSecondary,
     fontStyle: 'italic',
   },
+  scheduleLogContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+    flexWrap: 'wrap',
+  },
+  scheduleLogButton: {
+    backgroundColor: theme.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    minWidth: 120,
+  },
+  scheduleLogButtonText: {
+    color: theme.primaryText,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  singleLogButton: {
+    backgroundColor: theme.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  singleLogButtonText: {
+    color: theme.primaryText,
+    fontSize: 15,
+    fontWeight: '600',
+  },
   medicationActions: {
     flexDirection: 'row',
     gap: 8,
@@ -116,11 +149,13 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   },
   detailedLogButton: {
     flex: 1,
-    backgroundColor: theme.background,
+    backgroundColor: theme.card,
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 8,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.primary,
   },
   detailedLogButtonText: {
     color: theme.primary,
@@ -150,39 +185,113 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
   },
+  loggedIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    minWidth: 120,
+  },
+  loggedText: {
+    fontSize: 13,
+    color: theme.success,
+    fontWeight: '500',
+  },
+  loggedNotificationsContainer: {
+    marginTop: 12,
+    marginBottom: 8,
+    gap: 6,
+  },
+  loggedNotification: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+  },
+  loggedNotificationText: {
+    fontSize: 13,
+    color: theme.success,
+    fontWeight: '500',
+    flex: 1,
+  },
+  undoButton: {
+    marginLeft: 4,
+    padding: 4,
+  },
+  undoButtonText: {
+    fontSize: 12,
+    color: theme.primary,
+    textDecorationLine: 'underline',
+  },
 });
+
+interface ScheduleLogState {
+  logged: boolean;
+  loggedAt?: Date;
+  doseId?: string;
+}
 
 export default function MedicationsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const { preventativeMedications, rescueMedications, loadMedications, logDose, loading } = useMedicationStore();
+  const { preventativeMedications, rescueMedications, loadMedications, logDose, deleteDose, loading } = useMedicationStore();
   const { currentEpisode, loadCurrentEpisode } = useEpisodeStore();
   const [medicationSchedules, setMedicationSchedules] = useState<Record<string, MedicationSchedule[]>>({});
+  const [scheduleLogStates, setScheduleLogStates] = useState<Record<string, ScheduleLogState>>({});
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       loadMedications();
       loadCurrentEpisode();
-      loadSchedules();
+      loadSchedulesAndDoses();
     });
     return unsubscribe;
   }, [navigation]);
 
   useEffect(() => {
-    loadSchedules();
+    loadSchedulesAndDoses();
   }, [preventativeMedications]);
 
-  const loadSchedules = async () => {
+  const loadSchedulesAndDoses = async () => {
     try {
       const schedules: Record<string, MedicationSchedule[]> = {};
+      const logStates: Record<string, ScheduleLogState> = {};
+
       for (const med of preventativeMedications) {
         const medSchedules = await medicationScheduleRepository.getByMedicationId(med.id);
         schedules[med.id] = medSchedules;
+
+        // Load today's doses for this medication
+        const doses = await medicationDoseRepository.getByMedicationId(med.id, 50);
+
+        // Check which schedules have been logged today
+        for (const schedule of medSchedules) {
+          const [hours, minutes] = schedule.time.split(':').map(Number);
+
+          const takenDose = doses.find(dose => {
+            const doseDate = new Date(dose.timestamp);
+            return isToday(doseDate) &&
+              doseDate.getHours() === hours &&
+              Math.abs(doseDate.getMinutes() - minutes) < 30; // Within 30 min window
+          });
+
+          if (takenDose) {
+            const stateKey = `${med.id}-${schedule.id}`;
+            logStates[stateKey] = {
+              logged: true,
+              loggedAt: new Date(takenDose.timestamp),
+              doseId: takenDose.id,
+            };
+          }
+        }
       }
+
       setMedicationSchedules(schedules);
+      setScheduleLogStates(logStates);
     } catch (error) {
-      console.error('Failed to load schedules:', error);
+      console.error('Failed to load schedules and doses:', error);
     }
   };
 
@@ -220,12 +329,60 @@ export default function MedicationsScreen() {
     return null;
   };
 
-  const handleQuickLog = async (medicationId: string, defaultDosage: number) => {
+  const handleQuickLog = async (medicationId: string, scheduleId: string, dosage: number, scheduleTime?: string) => {
+    try {
+      const now = Date.now();
+
+      // Log to database first to get the ID
+      const dose = await logDose({
+        medicationId,
+        timestamp: now,
+        amount: dosage,
+        episodeId: currentEpisode?.id,
+      });
+
+      // Update UI with optimistic state
+      const stateKey = `${medicationId}-${scheduleId}`;
+      setScheduleLogStates(prev => ({
+        ...prev,
+        [stateKey]: {
+          logged: true,
+          loggedAt: new Date(now),
+          doseId: dose.id,
+        }
+      }));
+    } catch (error) {
+      console.error('Failed to quick log medication:', error);
+      Alert.alert('Error', 'Failed to log medication');
+    }
+  };
+
+  const handleUndoLog = async (medicationId: string, scheduleId: string, doseId: string) => {
+    try {
+      // Optimistically update UI
+      const stateKey = `${medicationId}-${scheduleId}`;
+      setScheduleLogStates(prev => {
+        const newState = { ...prev };
+        delete newState[stateKey];
+        return newState;
+      });
+
+      // Delete from database
+      await deleteDose(doseId);
+    } catch (error) {
+      console.error('Failed to undo log:', error);
+      Alert.alert('Error', 'Failed to undo');
+      // Reload on error to sync with database
+      loadSchedulesAndDoses();
+    }
+  };
+
+  const handleRescueQuickLog = async (medicationId: string, dosage: number) => {
     try {
       await logDose({
         medicationId,
         timestamp: Date.now(),
-        amount: defaultDosage || 1,
+        amount: dosage,
         episodeId: currentEpisode?.id,
       });
       Alert.alert('Success', 'Medication logged successfully');
@@ -277,6 +434,78 @@ export default function MedicationsScreen() {
                 {med.notes && (
                   <Text style={styles.notes} numberOfLines={2}>{med.notes}</Text>
                 )}
+                {med.scheduleFrequency === 'daily' && medicationSchedules[med.id]?.length > 0 && (
+                  <View>
+                    {/* Show logged notifications first */}
+                    {medicationSchedules[med.id].some(schedule => {
+                      const stateKey = `${med.id}-${schedule.id}`;
+                      return scheduleLogStates[stateKey]?.logged;
+                    }) && (
+                      <View style={styles.loggedNotificationsContainer}>
+                        {medicationSchedules[med.id].map((schedule) => {
+                          const stateKey = `${med.id}-${schedule.id}`;
+                          const logState = scheduleLogStates[stateKey];
+
+                          if (!logState?.logged) return null;
+
+                          const [hours, minutes] = schedule.time.split(':');
+                          const date = new Date();
+                          date.setHours(parseInt(hours, 10), parseInt(minutes, 10));
+                          const scheduleTimeStr = format(date, 'h:mm a');
+
+                          return (
+                            <View key={schedule.id} style={styles.loggedNotification}>
+                              <Ionicons name="checkmark-circle" size={16} color={theme.success} />
+                              <Text style={styles.loggedNotificationText}>
+                                {scheduleTimeStr} dose taken at {logState.loggedAt && format(logState.loggedAt, 'h:mm a')}
+                              </Text>
+                              {logState.doseId && (
+                                <TouchableOpacity
+                                  style={styles.undoButton}
+                                  onPress={(e) => {
+                                    e.stopPropagation();
+                                    handleUndoLog(med.id, schedule.id, logState.doseId!);
+                                  }}
+                                >
+                                  <Text style={styles.undoButtonText}>Undo</Text>
+                                </TouchableOpacity>
+                              )}
+                            </View>
+                          );
+                        })}
+                      </View>
+                    )}
+
+                    {/* Show log buttons for unlogged schedules */}
+                    <View style={styles.scheduleLogContainer}>
+                      {medicationSchedules[med.id].map((schedule) => {
+                        const [hours, minutes] = schedule.time.split(':');
+                        const date = new Date();
+                        date.setHours(parseInt(hours, 10), parseInt(minutes, 10));
+                        const timeStr = format(date, 'h:mm a');
+                        const stateKey = `${med.id}-${schedule.id}`;
+                        const logState = scheduleLogStates[stateKey];
+
+                        if (logState?.logged) {
+                          return null; // Don't show button if already logged
+                        }
+
+                        return (
+                          <TouchableOpacity
+                            key={schedule.id}
+                            style={styles.scheduleLogButton}
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              handleQuickLog(med.id, schedule.id, schedule.dosage, timeStr);
+                            }}
+                          >
+                            <Text style={styles.scheduleLogButtonText}>Log {timeStr}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
               </TouchableOpacity>
             ))
           )}
@@ -315,7 +544,7 @@ export default function MedicationsScreen() {
                     style={styles.quickLogButton}
                     onPress={(e) => {
                       e.stopPropagation();
-                      handleQuickLog(med.id, med.defaultDosage || 1);
+                      handleRescueQuickLog(med.id, med.defaultDosage || 1);
                     }}
                   >
                     <Text style={styles.quickLogButtonText}>Quick Log</Text>

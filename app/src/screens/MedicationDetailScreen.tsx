@@ -5,22 +5,24 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Switch,
   Alert,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { Medication, MedicationDose, MedicationSchedule } from '../models/types';
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../database/medicationRepository';
-import { notificationService } from '../services/notificationService';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
 import { useTheme } from '../theme';
+import { useMedicationStore } from '../store/medicationStore';
+import { useEpisodeStore } from '../store/episodeStore';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MedicationDetail'>;
 
 export default function MedicationDetailScreen({ route, navigation }: Props) {
   const { medicationId } = route.params;
   const { theme } = useTheme();
+  const { logDose } = useMedicationStore();
+  const { currentEpisode } = useEpisodeStore();
   const [medication, setMedication] = useState<Medication | null>(null);
   const [schedules, setSchedules] = useState<MedicationSchedule[]>([]);
   const [doses, setDoses] = useState<MedicationDose[]>([]);
@@ -67,45 +69,21 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
     }
   };
 
-  const handleToggleNotification = async (schedule: MedicationSchedule) => {
+  const handleLogDoseNow = async () => {
     if (!medication) return;
 
     try {
-      const newEnabledState = !schedule.enabled;
-
-      // Update schedule in database
-      await medicationScheduleRepository.update(schedule.id, {
-        enabled: newEnabledState,
+      await logDose({
+        medicationId: medication.id,
+        timestamp: Date.now(),
+        amount: medication.defaultDosage || 1,
+        episodeId: currentEpisode?.id,
       });
-
-      // Cancel or schedule notification
-      if (newEnabledState) {
-        // Schedule new notification
-        const notificationId = await notificationService.scheduleNotification(
-          medication,
-          { ...schedule, enabled: true }
-        );
-
-        if (notificationId) {
-          await medicationScheduleRepository.update(schedule.id, {
-            notificationId,
-          });
-        }
-      } else {
-        // Cancel notification
-        if (schedule.notificationId) {
-          await notificationService.cancelNotification(schedule.notificationId);
-          await medicationScheduleRepository.update(schedule.id, {
-            notificationId: undefined,
-          });
-        }
-      }
-
-      // Reload data
-      await loadMedicationData();
+      Alert.alert('Success', 'Medication logged successfully');
+      await loadMedicationData(); // Reload to show in recent activity
     } catch (error) {
-      console.error('Failed to toggle notification:', error);
-      Alert.alert('Error', 'Failed to update notification');
+      console.error('Failed to log medication:', error);
+      Alert.alert('Error', 'Failed to log medication');
     }
   };
 
@@ -209,6 +187,16 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
               <Text style={[styles.notesText, { color: theme.text }]}>{medication.notes}</Text>
             </View>
           )}
+
+          {/* Quick Log Action */}
+          <View style={styles.logDoseSection}>
+            <TouchableOpacity
+              style={[styles.logDoseButton, { backgroundColor: theme.primary }]}
+              onPress={handleLogDoseNow}
+            >
+              <Text style={[styles.logDoseButtonText, { color: theme.primaryText }]}>Log Dose Now</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Schedules (Preventative only) */}
@@ -223,14 +211,6 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
                     <Text style={[styles.scheduleDosage, { color: theme.textSecondary }]}>
                       {schedule.dosage} dose{schedule.dosage > 1 ? 's' : ''}
                     </Text>
-                  </View>
-                  <View style={styles.scheduleToggle}>
-                    <Text style={[styles.toggleLabel, { color: theme.textSecondary }]}>Reminders</Text>
-                    <Switch
-                      value={schedule.enabled}
-                      onValueChange={() => handleToggleNotification(schedule)}
-                      trackColor={{ false: theme.border, true: theme.primary }}
-                    />
                   </View>
                 </View>
                 {index < schedules.length - 1 && (
@@ -390,6 +370,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginTop: 4,
     lineHeight: 20,
+  },
+  logDoseSection: {
+    marginTop: 20,
+  },
+  logDoseButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  logDoseButtonText: {
+    fontSize: 17,
+    fontWeight: '600',
   },
   sectionTitle: {
     fontSize: 20,

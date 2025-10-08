@@ -19,6 +19,7 @@ interface MedicationState {
   unarchiveMedication: (id: string) => Promise<void>;
   logDose: (dose: Omit<MedicationDose, 'id' | 'createdAt'>) => Promise<MedicationDose>;
   updateDose: (id: string, updates: Partial<MedicationDose>) => Promise<void>;
+  deleteDose: (id: string) => Promise<void>;
 }
 
 export const useMedicationStore = create<MedicationState>((set, get) => ({
@@ -135,6 +136,19 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
     try {
       await medicationDoseRepository.update(id, updates);
     } catch (error) {
+      set({ error: (error as Error).message });
+      throw error;
+    }
+  },
+
+  deleteDose: async (id) => {
+    try {
+      await medicationDoseRepository.delete(id);
+    } catch (error) {
+      await errorLogger.log('database', 'Failed to delete medication dose', error as Error, {
+        operation: 'deleteDose',
+        doseId: id
+      });
       set({ error: (error as Error).message });
       throw error;
     }

@@ -338,6 +338,11 @@ export const medicationDoseRepository = {
     };
   },
 
+  async delete(id: string, db?: SQLite.SQLiteDatabase): Promise<void> {
+    const database = db || await getDatabase();
+    await database.runAsync('DELETE FROM medication_doses WHERE id = ?', [id]);
+  },
+
   async deleteAll(db?: SQLite.SQLiteDatabase): Promise<void> {
     const database = db || await getDatabase();
     await database.runAsync('DELETE FROM medication_doses');
