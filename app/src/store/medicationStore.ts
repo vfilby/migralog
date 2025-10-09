@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { Medication, MedicationDose } from '../models/types';
-import { medicationRepository, medicationDoseRepository } from '../database/medicationRepository';
+import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../database/medicationRepository';
 import { errorLogger } from '../services/errorLogger';
+import { notificationService } from '../services/notificationService';
 
 interface MedicationState {
   medications: Medication[];
@@ -156,6 +157,10 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
 
   archiveMedication: async (id) => {
     try {
+      // Cancel notifications before archiving
+      await notificationService.cancelMedicationNotifications(id);
+      console.log('[Store] Cancelled notifications for archived medication:', id);
+
       await medicationRepository.update(id, { active: false });
 
       const medications = get().medications.map(m =>
@@ -178,6 +183,35 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
   unarchiveMedication: async (id) => {
     try {
       await medicationRepository.update(id, { active: true });
+
+      // Re-enable notifications for preventative medications
+      const medication = await medicationRepository.getById(id);
+      if (medication && medication.type === 'preventative') {
+        const schedules = await medicationScheduleRepository.getByMedicationId(id);
+        const permissions = await notificationService.getPermissions();
+
+        if (permissions.granted) {
+          for (const schedule of schedules) {
+            if (schedule.enabled && medication.scheduleFrequency === 'daily') {
+              try {
+                const notificationId = await notificationService.scheduleNotification(
+                  medication,
+                  schedule
+                );
+
+                if (notificationId) {
+                  await medicationScheduleRepository.update(schedule.id, {
+                    notificationId,
+                  });
+                  console.log('[Store] Notification rescheduled for restored medication:', notificationId);
+                }
+              } catch (error) {
+                console.error('[Store] Failed to schedule notification for restored medication:', error);
+              }
+            }
+          }
+        }
+      }
 
       const medications = get().medications.map(m =>
         m.id === id ? { ...m, active: true } : m
