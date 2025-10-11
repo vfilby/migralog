@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'app/**'
+      - '.github/workflows/ci.yml'
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: macos-14
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./app
+        run: npm ci
+
+      - name: Run type checking
+        working-directory: ./app
+        run: npx tsc --noEmit
+
+      - name: Run unit tests
+        working-directory: ./app
+        run: npm run test -- --ci --coverage --maxWorkers=2
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          directory: ./app/coverage
+          fail_ci_if_error: false
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+          working-directory: ./app/ios
+
+      - name: Install CocoaPods dependencies
+        working-directory: ./app/ios
+        run: |
+          gem install cocoapods
+          pod install
+
+      - name: Setup iOS Simulator
+        run: |
+          xcrun simctl list devices available
+          DEVICE_ID=$(xcrun simctl create "iPhone 15" "iPhone 15" "iOS17.5")
+          echo "SIMULATOR_UDID=$DEVICE_ID" >> $GITHUB_ENV
+          xcrun simctl boot $DEVICE_ID
+
+      - name: Build iOS app for Detox
+        working-directory: ./app
+        run: |
+          npx detox build --configuration ios.release
+
+      - name: Run Detox E2E tests
+        working-directory: ./app
+        run: |
+          npx detox test --configuration ios.release --headless --record-logs all --take-screenshots all
+
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-artifacts
+          path: |
+            app/e2e/artifacts/
+            app/coverage/
+          retention-days: 30
