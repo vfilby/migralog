@@ -583,27 +583,16 @@ export default function SettingsScreen({ navigation }: Props) {
             </TouchableOpacity>
 
             {__DEV__ && (
-              <>
-                <TouchableOpacity
-                  style={[styles.developerButton, styles.developerButtonDanger]}
-                  onPress={handleResetDatabase}
-                  testID="reset-database-button"
-                >
-                  <Ionicons name="refresh-outline" size={20} color={theme.error} />
-                  <Text style={[styles.developerButtonText, styles.developerButtonTextDanger]}>
-                    Reset Database (Testing)
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.developerButton}
-                  onPress={() => navigation.navigate('KeyboardTest')}
-                  testID="keyboard-test-button"
-                >
-                  <Ionicons name="keypad-outline" size={20} color={theme.primary} />
-                  <Text style={styles.developerButtonText}>Test Keyboard Handling</Text>
-                </TouchableOpacity>
-              </>
+              <TouchableOpacity
+                style={[styles.developerButton, styles.developerButtonDanger]}
+                onPress={handleResetDatabase}
+                testID="reset-database-button"
+              >
+                <Ionicons name="refresh-outline" size={20} color={theme.error} />
+                <Text style={[styles.developerButtonText, styles.developerButtonTextDanger]}>
+                  Reset Database (Testing)
+                </Text>
+              </TouchableOpacity>
             )}
           </View>
         </View>

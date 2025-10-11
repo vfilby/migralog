@@ -471,14 +471,6 @@ export default function DashboardScreen() {
             <Text style={styles.secondaryButtonText}>Log Medication</Text>
           </TouchableOpacity>
         )}
-
-        <TouchableOpacity
-          style={[styles.actionButton, styles.secondaryButton]}
-          onPress={() => navigation.navigate('KeyboardTest')}
-          testID="keyboard-test-button"
-        >
-          <Text style={styles.secondaryButtonText}>Test Keyboard</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Current Episode (if active) */}
