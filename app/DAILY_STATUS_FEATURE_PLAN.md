@@ -463,18 +463,55 @@ Add **Pattern Detection**:
 
 ## 10. Current Progress
 
-### Completed
+### ✅ Phase 1 Complete: Database & Repository Foundation
 - ✅ Created feature branch: `feature/daily-status-tracking`
 - ✅ Added TypeScript types to `src/models/types.ts`
   - `DayStatus` type
   - `YellowDayType` type
   - `DailyStatusLog` interface
+- ✅ Updated schema to v5 with `daily_status_logs` table
+- ✅ Created migration v5
+- ✅ Implemented `dailyStatusRepository` with full CRUD + upsert
+- ✅ Comprehensive unit tests (22 tests, all passing)
 
-### In Progress
-- 🔄 Phase 1: Database schema and repository
+### ✅ Phase 2 Complete: State Management
+- ✅ Created `dailyStatusStore` with Zustand
+  - Actions: loadDailyStatuses, loadMonthStats, logDayStatus, updateDayStatus, deleteDayStatus, getDayStatus, checkShouldPrompt
+- ✅ Integrated auto-red day logging in `episodeStore`
+  - `startEpisode`: auto-creates red day for episode start
+  - `endEpisode`: marks all days in episode range as red
+- ✅ Unit tests for dailyStatusStore (21 tests, all passing)
+- ✅ All episodeStore tests still pass
 
-### Next Steps
-1. Update database schema with daily_status_logs table
-2. Create migration
-3. Create dailyStatusRepository
-4. Write unit tests
+### ✅ Phase 4 Complete: UI Components (Skipped Phase 3 - Notifications)
+- ✅ Created `DailyStatusPromptScreen`
+  - Modal screen for daily check-ins
+  - Green/yellow day selection with emoji indicators
+  - Expandable yellow day type selection (prodrome, postdrome, anxiety, other)
+  - Optional notes input
+  - Validation and save/skip actions
+- ✅ Created `MonthlyCalendarView` component
+  - Calendar grid showing daily status with color-coded emoji (🟢🟡🔴)
+  - Month navigation (previous/next)
+  - Tap any day to navigate to DailyStatusPrompt
+  - Legend showing status meanings
+  - Loading state with spinner
+- ✅ Integrated calendar into `DashboardScreen`
+  - Added below recent episodes section
+- ✅ Added `DailyStatusPrompt` route to navigation
+  - Added to RootStackParamList with optional date parameter
+  - Registered in AppNavigator with modal presentation
+- ✅ Fixed errorLogger category in dailyStatusStore (changed 'app' to 'database')
+
+### 🔄 Next Steps
+1. **Phase 3: Notification System** (optional - requires more complex integration)
+   - Enhance notificationService for daily check-ins
+   - Add Settings UI for daily check-in preferences
+   - Integrate with App.tsx for daily prompts
+2. **Phase 5: Analytics Enhancement**
+   - Create dayStatusAnalytics utility
+   - Add trends section to Analytics screen
+3. **Phase 6: Testing (E2E with Maestro)**
+   - Create E2E tests for daily check-in flow
+   - Test calendar interaction and navigation
+   - Test auto-red day creation from episodes
