@@ -14,18 +14,8 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:ci": "jest --ci --coverage --watchAll=false",
-    "test:e2e": "export JAVA_HOME='/opt/homebrew/opt/openjdk@17' && export PATH=\"$PATH:$HOME/.maestro/bin\" && maestro test .maestro/working-smoke-test.yaml",
-    "test:e2e:reset": "export JAVA_HOME='/opt/homebrew/opt/openjdk@17' && export PATH=\"$PATH:$HOME/.maestro/bin\" && maestro test .maestro/full-episode-flow-with-reset.yaml",
-    "test:e2e:lifecycle": "export JAVA_HOME='/opt/homebrew/opt/openjdk@17' && export PATH=\"$PATH:$HOME/.maestro/bin\" && maestro test .maestro/complete-episode-lifecycle.yaml",
-    "test:e2e:comprehensive": "export JAVA_HOME='/opt/homebrew/opt/openjdk@17' && export PATH=\"$PATH:$HOME/.maestro/bin\" && maestro test .maestro/comprehensive-episode-test.yaml",
-    "test:e2e:build": "npm run generate-build-info && npx expo run:ios --configuration Debug",
-    "test:e2e:suite": "export JAVA_HOME='/opt/homebrew/opt/openjdk@17' && export PATH=\"$PATH:$HOME/.maestro/bin\" && maestro test .maestro/test-suite.yaml",
-    "test:e2e:suite:full": "npm run test:e2e:build && npm run test:e2e:suite",
-    "test:e2e:all": "export JAVA_HOME='/opt/homebrew/opt/openjdk@17' && export PATH=\"$PATH:$HOME/.maestro/bin\" && maestro test .maestro/",
-    "test:e2e:start-end": "export JAVA_HOME='/opt/homebrew/opt/openjdk@17' && export PATH=\"$PATH:$HOME/.maestro/bin\" && maestro test .maestro/start-end-episode.yaml",
-    "test:e2e:intensity": "export JAVA_HOME='/opt/homebrew/opt/openjdk@17' && export PATH=\"$PATH:$HOME/.maestro/bin\" && maestro test .maestro/log-intensity-readings.yaml",
-    "test:e2e:medication": "export JAVA_HOME='/opt/homebrew/opt/openjdk@17' && export PATH=\"$PATH:$HOME/.maestro/bin\" && maestro test .maestro/add-log-medication.yaml",
-    "test:e2e:details": "export JAVA_HOME='/opt/homebrew/opt/openjdk@17' && export PATH=\"$PATH:$HOME/.maestro/bin\" && maestro test .maestro/view-episode-details.yaml"
+    "test:e2e": "npx detox test --configuration ios.sim.debug",
+    "test:e2e:build": "npm run generate-build-info && npx expo run:ios --configuration Debug"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
