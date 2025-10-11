@@ -1,6 +1,6 @@
 // Database schema and initialization
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 5;
 
 export const createTables = `
   -- Episodes table
@@ -96,6 +96,18 @@ export const createTables = `
     FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE
   );
 
+  -- Daily status logs table
+  CREATE TABLE IF NOT EXISTS daily_status_logs (
+    id TEXT PRIMARY KEY,
+    date TEXT NOT NULL UNIQUE,
+    status TEXT NOT NULL,
+    status_type TEXT,
+    notes TEXT,
+    prompted INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+
   -- Indexes for better query performance
   CREATE INDEX IF NOT EXISTS idx_episodes_start_time ON episodes(start_time);
   CREATE INDEX IF NOT EXISTS idx_intensity_readings_episode ON intensity_readings(episode_id);
@@ -104,4 +116,6 @@ export const createTables = `
   CREATE INDEX IF NOT EXISTS idx_medication_doses_episode ON medication_doses(episode_id);
   CREATE INDEX IF NOT EXISTS idx_medication_doses_timestamp ON medication_doses(timestamp);
   CREATE INDEX IF NOT EXISTS idx_medication_reminders_scheduled ON medication_reminders(scheduled_time);
+  CREATE INDEX IF NOT EXISTS idx_daily_status_date ON daily_status_logs(date);
+  CREATE INDEX IF NOT EXISTS idx_daily_status_status ON daily_status_logs(status);
 `;

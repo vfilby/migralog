@@ -104,6 +104,41 @@ const migrations: Migration[] = [
       console.warn('Rollback for migration 4 not implemented (SQLite limitation)');
     },
   },
+  {
+    version: 5,
+    name: 'add_daily_status_logs_table',
+    up: async (db: SQLite.SQLiteDatabase) => {
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS daily_status_logs (
+          id TEXT PRIMARY KEY,
+          date TEXT NOT NULL UNIQUE,
+          status TEXT NOT NULL,
+          status_type TEXT,
+          notes TEXT,
+          prompted INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+      `);
+
+      // Create indexes for efficient queries
+      await db.execAsync(`
+        CREATE INDEX IF NOT EXISTS idx_daily_status_date ON daily_status_logs(date);
+      `);
+
+      await db.execAsync(`
+        CREATE INDEX IF NOT EXISTS idx_daily_status_status ON daily_status_logs(status);
+      `);
+
+      console.log('Created daily_status_logs table with indexes');
+    },
+    down: async (db: SQLite.SQLiteDatabase) => {
+      await db.execAsync('DROP TABLE IF EXISTS daily_status_logs;');
+      await db.execAsync('DROP INDEX IF EXISTS idx_daily_status_date;');
+      await db.execAsync('DROP INDEX IF EXISTS idx_daily_status_status;');
+      console.log('Dropped daily_status_logs table and indexes');
+    },
+  },
 ];
 
 class MigrationRunner {
