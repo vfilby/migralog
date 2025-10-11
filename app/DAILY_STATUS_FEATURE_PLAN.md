@@ -503,7 +503,20 @@ Add **Pattern Detection**:
   - Registered in AppNavigator with modal presentation
 - ✅ Fixed errorLogger category in dailyStatusStore (changed 'app' to 'database')
 
-### 🔄 Next Steps
+### ✅ Phase 6 Complete: E2E Testing (Detox)
+- ✅ Created `dailyStatusTracking.test.js`
+  - Test manual green day logging
+  - Test manual yellow day logging with type and notes
+  - Test auto-red day creation when episode starts
+  - Test red days persist after episode ends
+  - Test calendar month navigation
+  - Test skip functionality
+- ✅ Enhanced `episodeLifecycle.test.js`
+  - Added Phase 1.5: Verify auto-red day created after starting episode
+  - Added Phase 6.5: Verify red days persist after ending episode
+  - Calendar verification integrated into existing episode workflow
+
+### 🔄 Optional Future Enhancements
 1. **Phase 3: Notification System** (optional - requires more complex integration)
    - Enhance notificationService for daily check-ins
    - Add Settings UI for daily check-in preferences
@@ -511,7 +524,8 @@ Add **Pattern Detection**:
 2. **Phase 5: Analytics Enhancement**
    - Create dayStatusAnalytics utility
    - Add trends section to Analytics screen
-3. **Phase 6: Testing (E2E with Maestro)**
-   - Create E2E tests for daily check-in flow
-   - Test calendar interaction and navigation
-   - Test auto-red day creation from episodes
+   - Pattern detection and insights
+3. **Phase 7: Polish & Documentation**
+   - Ensure accessibility labels complete
+   - Performance testing
+   - Documentation updates
