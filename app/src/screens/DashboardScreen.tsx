@@ -5,7 +5,7 @@ import { useEpisodeStore } from '../store/episodeStore';
 import { useMedicationStore } from '../store/medicationStore';
 import { format, differenceInDays, isToday, parse, isBefore, isAfter, addMinutes } from 'date-fns';
 import { MainTabsScreenProps } from '../navigation/types';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, useNavigationState } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { getPainColor, getPainLevel } from '../utils/painScale';
@@ -287,17 +287,53 @@ export default function DashboardScreen() {
     }
   }, [preventativeMedications, schedules, doses]);
 
+  // Load data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      const loadData = async () => {
+        // Load episodes and medications first
+        await Promise.all([
+          loadCurrentEpisode(),
+          loadEpisodes(),
+          loadMedications(),
+        ]);
+
+        // THEN load schedules and doses (they depend on medications being loaded)
+        await Promise.all([
+          loadSchedules(),
+          loadRecentDoses(1),
+        ]);
+      };
+      loadData();
+    }, [loadCurrentEpisode, loadEpisodes, loadMedications, loadSchedules, loadRecentDoses])
+  );
+
+  // ALSO reload data when returning from modals (like Settings)
+  // useFocusEffect doesn't fire when a modal is dismissed because the tab never lost focus
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      loadCurrentEpisode();
-      loadEpisodes();
-      loadMedications();
-      loadSchedules();
-      loadRecentDoses(1); // Load today's doses
+      // This fires when the stack navigation refocuses this screen (after modal dismissal)
+      const loadData = async () => {
+        // Load episodes and medications first
+        await Promise.all([
+          loadCurrentEpisode(),
+          loadEpisodes(),
+          loadMedications(),
+        ]);
+
+        // THEN load schedules and doses (they depend on medications being loaded)
+        await Promise.all([
+          loadSchedules(),
+          loadRecentDoses(1),
+        ]);
+      };
+      loadData();
     });
+
     return unsubscribe;
   }, [navigation, loadCurrentEpisode, loadEpisodes, loadMedications, loadSchedules, loadRecentDoses]);
 
+  // Recalculate today's medications whenever store data changes
   useEffect(() => {
     loadTodaysMedications();
   }, [loadTodaysMedications]);
