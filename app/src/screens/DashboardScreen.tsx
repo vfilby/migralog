@@ -13,7 +13,6 @@ import EpisodeCard from '../components/EpisodeCard';
 import DailyStatusWidget from '../components/DailyStatusWidget';
 import { useTheme, ThemeColors } from '../theme';
 import { Medication, MedicationSchedule, MedicationDose } from '../models/types';
-import { medicationScheduleRepository, medicationDoseRepository } from '../database/medicationRepository';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -210,7 +209,17 @@ export default function DashboardScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { theme } = useTheme();
   const { currentEpisode, episodes, loadCurrentEpisode, loadEpisodes } = useEpisodeStore();
-  const { preventativeMedications, rescueMedications, loadMedications, logDose, deleteDose } = useMedicationStore();
+  const {
+    preventativeMedications,
+    rescueMedications,
+    schedules,
+    doses,
+    loadMedications,
+    loadSchedules,
+    loadRecentDoses,
+    logDose,
+    deleteDose
+  } = useMedicationStore();
   const [todaysMedications, setTodaysMedications] = useState<TodaysMedication[]>([]);
 
   const loadTodaysMedications = useCallback(async () => {
@@ -221,17 +230,19 @@ export default function DashboardScreen() {
       for (const med of preventativeMedications) {
         if (med.scheduleFrequency !== 'daily') continue;
 
-        const schedules = await medicationScheduleRepository.getByMedicationId(med.id);
-        const doses = await medicationDoseRepository.getByMedicationId(med.id);
+        // Get schedules from store
+        const medSchedules = schedules.filter(s => s.medicationId === med.id);
+        // Get doses from store
+        const medDoses = doses.filter(d => d.medicationId === med.id);
 
-        for (const schedule of schedules) {
+        for (const schedule of medSchedules) {
           // Parse schedule time (HH:mm format)
           const [hours, minutes] = schedule.time.split(':').map(Number);
           const doseTime = new Date();
           doseTime.setHours(hours, minutes, 0, 0);
 
           // Check if this dose was taken today
-          const takenDose = doses.find(dose => {
+          const takenDose = medDoses.find(dose => {
             const doseDate = new Date(dose.timestamp);
             return isToday(doseDate) &&
               doseDate.getHours() === hours &&
@@ -274,17 +285,18 @@ export default function DashboardScreen() {
     } catch (error) {
       console.error('Failed to load todays medications:', error);
     }
-  }, [preventativeMedications]);
+  }, [preventativeMedications, schedules, doses]);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       loadCurrentEpisode();
       loadEpisodes();
       loadMedications();
-      loadTodaysMedications();
+      loadSchedules();
+      loadRecentDoses(1); // Load today's doses
     });
     return unsubscribe;
-  }, [navigation, loadTodaysMedications, loadCurrentEpisode, loadEpisodes, loadMedications]);
+  }, [navigation, loadCurrentEpisode, loadEpisodes, loadMedications, loadSchedules, loadRecentDoses]);
 
   useEffect(() => {
     loadTodaysMedications();

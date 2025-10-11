@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Medication, MedicationDose } from '../models/types';
+import { Medication, MedicationDose, MedicationSchedule } from '../models/types';
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../database/medicationRepository';
 import { errorLogger } from '../services/errorLogger';
 import { notificationService } from '../services/notificationService';
@@ -8,11 +8,15 @@ interface MedicationState {
   medications: Medication[];
   preventativeMedications: Medication[];
   rescueMedications: Medication[];
+  schedules: MedicationSchedule[]; // All schedules for active medications
+  doses: MedicationDose[]; // Recent doses (last 7 days)
   loading: boolean;
   error: string | null;
 
   // Actions
   loadMedications: () => Promise<void>;
+  loadSchedules: (medicationId?: string) => Promise<void>;
+  loadRecentDoses: (days?: number) => Promise<void>;
   addMedication: (medication: Omit<Medication, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Medication>;
   updateMedication: (id: string, updates: Partial<Medication>) => Promise<void>;
   deleteMedication: (id: string) => Promise<void>;
@@ -27,6 +31,8 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
   medications: [],
   preventativeMedications: [],
   rescueMedications: [],
+  schedules: [],
+  doses: [],
   loading: false,
   error: null,
 
@@ -120,7 +126,11 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const newDose = await medicationDoseRepository.create(dose);
-      set({ loading: false });
+
+      // Add to doses in state
+      const doses = [newDose, ...get().doses];
+      set({ doses, loading: false });
+
       return newDose;
     } catch (error) {
       await errorLogger.log('database', 'Failed to log medication dose', error as Error, {
@@ -145,10 +155,69 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
   deleteDose: async (id) => {
     try {
       await medicationDoseRepository.delete(id);
+
+      // Update doses in state
+      const doses = get().doses.filter(d => d.id !== id);
+      set({ doses });
     } catch (error) {
       await errorLogger.log('database', 'Failed to delete medication dose', error as Error, {
         operation: 'deleteDose',
         doseId: id
+      });
+      set({ error: (error as Error).message });
+      throw error;
+    }
+  },
+
+  loadSchedules: async (medicationId?: string) => {
+    try {
+      let schedules: MedicationSchedule[];
+
+      if (medicationId) {
+        // Load schedules for specific medication
+        schedules = await medicationScheduleRepository.getByMedicationId(medicationId);
+      } else {
+        // Load all schedules for active medications
+        const allSchedules: MedicationSchedule[] = [];
+        for (const med of get().medications) {
+          const medSchedules = await medicationScheduleRepository.getByMedicationId(med.id);
+          allSchedules.push(...medSchedules);
+        }
+        schedules = allSchedules;
+      }
+
+      set({ schedules });
+    } catch (error) {
+      await errorLogger.log('database', 'Failed to load schedules', error as Error, {
+        operation: 'loadSchedules',
+        medicationId
+      });
+      set({ error: (error as Error).message });
+      throw error;
+    }
+  },
+
+  loadRecentDoses: async (days = 7) => {
+    try {
+      // Get all doses for each medication
+      const allDoses: MedicationDose[] = [];
+      const cutoffDate = Date.now() - (days * 24 * 60 * 60 * 1000);
+
+      for (const med of get().medications) {
+        const medDoses = await medicationDoseRepository.getByMedicationId(med.id);
+        // Filter to recent doses
+        const recentDoses = medDoses.filter(dose => dose.timestamp >= cutoffDate);
+        allDoses.push(...recentDoses);
+      }
+
+      // Sort by timestamp descending
+      allDoses.sort((a, b) => b.timestamp - a.timestamp);
+
+      set({ doses: allDoses });
+    } catch (error) {
+      await errorLogger.log('database', 'Failed to load recent doses', error as Error, {
+        operation: 'loadRecentDoses',
+        days
       });
       set({ error: (error as Error).message });
       throw error;
