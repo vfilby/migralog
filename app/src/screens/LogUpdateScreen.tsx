@@ -3,10 +3,10 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   TextInput,
   Alert,
+  ScrollView,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -308,7 +308,13 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
         <View style={{ width: 60 }} />
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView
+        style={styles.content}
+        keyboardShouldPersistTaps="handled"
+        contentInsetAdjustmentBehavior="automatic"
+        automaticallyAdjustKeyboardInsets={true}
+        testID="log-update-scroll-view"
+      >
         {/* Pain Intensity */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Pain Intensity</Text>
@@ -330,6 +336,7 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
             minimumTrackTintColor={getPainLevel(currentIntensity).color}
             maximumTrackTintColor="#E5E5EA"
             thumbTintColor={getPainLevel(currentIntensity).color}
+            testID="intensity-slider"
           />
           <View style={styles.sliderLabels}>
             <Text style={styles.sliderLabelText}>0 - No Pain</Text>
@@ -342,7 +349,7 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
 
         {/* Symptoms */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Symptoms (Optional)</Text>
+          <Text style={styles.sectionTitle}>Symptoms</Text>
           <View style={styles.chipContainer}>
             {SYMPTOMS.map(symptom => {
               const isSelected = currentSymptoms.includes(symptom.value);
@@ -369,7 +376,7 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
 
         {/* Notes */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notes (Optional)</Text>
+          <Text style={styles.sectionTitle}>Notes</Text>
           <TextInput
             style={styles.noteInput}
             multiline
@@ -378,6 +385,7 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
             placeholderTextColor={theme.textTertiary}
             value={noteText}
             onChangeText={setNoteText}
+            testID="update-notes-input"
           />
         </View>
 
@@ -390,6 +398,7 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
           style={[styles.saveButton, saving && styles.saveButtonDisabled]}
           onPress={handleSave}
           disabled={saving}
+          testID="save-update-button"
         >
           <Text style={styles.saveButtonText}>
             {saving ? 'Saving...' : 'Save Update'}

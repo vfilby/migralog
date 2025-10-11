@@ -3,12 +3,14 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   TextInput,
   Platform,
-  KeyboardAvoidingView,
   Alert,
+  ScrollView,
+  KeyboardAvoidingView,
+  Keyboard,
+  findNodeHandle,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -238,9 +240,12 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     textAlignVertical: 'top',
     minHeight: 100,
   },
-  saveButtonContainer: {
-    marginTop: 24,
-    paddingHorizontal: 16,
+  footer: {
+    backgroundColor: theme.card,
+    padding: 16,
+    paddingBottom: 34,
+    borderTopWidth: 1,
+    borderTopColor: theme.border,
   },
   saveButton: {
     backgroundColor: theme.primary,
@@ -265,6 +270,7 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
   const episodeId = route.params?.episodeId;
   const isEditing = !!episodeId;
 
+  const notesInputRef = useRef<TextInput>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const [startTime, setStartTime] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -324,18 +330,43 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
 
     const captureLocation = async () => {
       try {
-        const location = await locationService.getLocationWithPermissionRequest();
+        // Silently attempt to get location - don't show errors to user
+        const location = await locationService.getCurrentLocation();
         if (location) {
           setGpsLocation(location);
           console.log('Location captured:', location);
+        } else {
+          console.log('Location not available (no permission or error)');
         }
       } catch (error) {
-        console.error('Failed to capture location:', error);
+        // Silent failure - location is optional
+        console.log('Failed to capture location:', error);
       }
     };
 
     captureLocation();
   }, [isEditing]);
+
+  // Handle keyboard showing to scroll notes input into view
+  useEffect(() => {
+    const keyboardWillShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (event) => {
+        // When keyboard shows, scroll the view to show the notes input
+        // Use a fixed scroll position since notes is near the bottom
+        if (scrollViewRef.current) {
+          scrollViewRef.current.scrollTo({
+            y: 700, // Approximate position to show notes input above keyboard
+            animated: true,
+          });
+        }
+      }
+    );
+
+    return () => {
+      keyboardWillShowListener.remove();
+    };
+  }, []);
 
   const toggleSelection = <T,>(item: T, list: T[], setList: (list: T[]) => void) => {
     if (list.includes(item)) {
@@ -404,9 +435,9 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
           console.log('[NewEpisode] Intensity reading added');
         }
 
-        console.log('[NewEpisode] Navigating to main tabs...');
+        console.log('[NewEpisode] Dismissing new episode modal...');
         setSaving(false);
-        navigation.navigate('MainTabs');
+        navigation.goBack();
       }
     } catch (error) {
       console.error('[NewEpisode] CATCH BLOCK - Failed to save episode:', error);
@@ -419,11 +450,7 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={0}
-    >
+    <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.cancelButton}>Cancel</Text>
@@ -432,12 +459,17 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
         <View style={{ width: 60 }} />
       </View>
 
-      <ScrollView
-        ref={scrollViewRef}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.content}
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingBottom: 20 }}
       >
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.content}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          testID="new-episode-scroll-view"
+        >
         {/* Start Time */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Start Time</Text>
@@ -497,7 +529,7 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
 
         {/* Pain Locations */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pain Location (Optional)</Text>
+          <Text style={styles.sectionTitle}>Pain Location</Text>
           <View style={styles.locationContainer}>
             {/* Left Side Column */}
             <View style={styles.locationColumn}>
@@ -551,7 +583,7 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
 
         {/* Symptoms */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Symptoms (Optional)</Text>
+          <Text style={styles.sectionTitle}>Symptoms</Text>
           <View style={styles.chipContainer}>
             {SYMPTOMS.map(item => (
               <TouchableOpacity
@@ -577,7 +609,7 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
 
         {/* Triggers */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Possible Triggers (Optional)</Text>
+          <Text style={styles.sectionTitle}>Possible Triggers</Text>
           <View style={styles.chipContainer}>
             {TRIGGERS.map(item => (
               <TouchableOpacity
@@ -603,8 +635,9 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
 
         {/* Notes */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notes (Optional)</Text>
+          <Text style={styles.sectionTitle}>Notes</Text>
           <TextInput
+            ref={notesInputRef}
             style={styles.notesInput}
             multiline
             numberOfLines={4}
@@ -612,20 +645,31 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
             placeholderTextColor={theme.textTertiary}
             value={notes}
             onChangeText={setNotes}
+            blurOnSubmit={true}
+            returnKeyType="done"
             onFocus={() => {
-              setTimeout(() => {
-                scrollViewRef.current?.scrollToEnd({ animated: true });
-              }, 100);
+              // When notes input is focused, scroll it into view
+              // Use a fixed scroll position for simplicity
+              if (scrollViewRef.current) {
+                setTimeout(() => {
+                  scrollViewRef.current?.scrollTo({
+                    y: 650, // Scroll to position notes input above keyboard
+                    animated: true,
+                  });
+                }, 100);
+              }
             }}
+            testID="episode-notes-input"
           />
         </View>
 
         {/* Save Button */}
-        <View style={styles.saveButtonContainer}>
+        <View style={styles.section}>
           <TouchableOpacity
             style={[styles.saveButton, saving && styles.saveButtonDisabled]}
             onPress={handleSave}
             disabled={saving}
+            testID="save-episode-button"
           >
             <Text style={styles.saveButtonText}>
               {saving
@@ -636,8 +680,11 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         </View>
 
-        <View style={{ height: 100 }} />
-      </ScrollView>
-    </KeyboardAvoidingView>
+        {/* Bottom spacer to ensure save button is visible */}
+        <View style={{ height: 50 }} />
+
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
