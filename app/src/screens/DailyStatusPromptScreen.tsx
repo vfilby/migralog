@@ -7,6 +7,8 @@ import {
   TextInput,
   ScrollView,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -21,7 +23,6 @@ const YELLOW_TYPES: { value: YellowDayType; label: string; description: string }
   { value: 'prodrome', label: 'Prodrome', description: 'Warning signs before episode' },
   { value: 'postdrome', label: 'Postdrome', description: 'Recovery period after episode' },
   { value: 'anxiety', label: 'Migraine Anxiety', description: 'Worried about potential episode' },
-  { value: 'other', label: 'Other', description: 'Other non-clear state' },
 ];
 
 const createStyles = (theme: ThemeColors) => StyleSheet.create({
@@ -208,10 +209,7 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
       return;
     }
 
-    if (selectedStatus === 'yellow' && !selectedType) {
-      Alert.alert('Please provide details', 'Let us know why yesterday wasn\'t a clear day.');
-      return;
-    }
+    // Yellow day type is now optional - no validation needed
 
     setSaving(true);
     try {
@@ -302,7 +300,7 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
         {/* Expanded Yellow Day Details */}
         {selectedStatus === 'yellow' && (
           <View style={styles.expandedSection}>
-            <Text style={styles.sectionTitle}>Why wasn't it clear?</Text>
+            <Text style={styles.sectionTitle}>Why wasn't it clear? (optional)</Text>
             <View style={styles.typeChipContainer}>
               {YELLOW_TYPES.map((type) => (
                 <TouchableOpacity
@@ -341,26 +339,32 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
         )}
       </ScrollView>
 
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.saveButton, (saving || !selectedStatus) && styles.saveButtonDisabled]}
-          onPress={handleSave}
-          disabled={saving || !selectedStatus}
-          testID="save-status-button"
-        >
-          <Text style={styles.saveButtonText}>
-            {saving ? 'Saving...' : 'Save'}
-          </Text>
-        </TouchableOpacity>
+      {/* Save Button Footer - wrapped in KeyboardAvoidingView */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.saveButton, (saving || !selectedStatus) && styles.saveButtonDisabled]}
+            onPress={handleSave}
+            disabled={saving || !selectedStatus}
+            testID="save-status-button"
+          >
+            <Text style={styles.saveButtonText}>
+              {saving ? 'Saving...' : 'Save'}
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.skipButton}
-          onPress={handleSkip}
-          testID="skip-button"
-        >
-          <Text style={styles.skipButtonText}>Skip for now</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={styles.skipButton}
+            onPress={handleSkip}
+            testID="skip-button"
+          >
+            <Text style={styles.skipButtonText}>Skip for now</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }

@@ -23,7 +23,7 @@ describe('Daily Status Tracking', () => {
 
   it('should complete full daily status tracking workflow', async () => {
     // ======================
-    // Phase 1: View Calendar on Dashboard
+    // Phase 1: View Calendar on Analytics Screen
     // ======================
 
     // Verify we're on dashboard
@@ -31,19 +31,18 @@ describe('Daily Status Tracking', () => {
       .toBeVisible()
       .withTimeout(5000);
 
-    console.log('On Dashboard - looking for calendar');
+    console.log('On Dashboard - navigating to Analytics');
 
-    // Scroll down to find the calendar
-    // The calendar should be below the recent episodes section
-    try {
-      // Try scrolling down to make calendar visible
-      await element(by.id('dashboard-title')).swipe('up', 'slow', 0.8);
-      await waitForAnimation(500);
-      await element(by.id('dashboard-title')).swipe('up', 'slow', 0.8);
-      await waitForAnimation(500);
-    } catch (e) {
-      console.log('Could not scroll - calendar may already be visible');
-    }
+    // Navigate to Analytics tab to see calendar
+    await element(by.text('Trends')).tap();
+    await waitForAnimation(1000);
+
+    // Verify we're on Analytics screen
+    await waitFor(element(by.text('Trends & Analytics')))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    console.log('On Analytics screen - looking for calendar');
 
     // Calendar should show current month with previous/next buttons
     await waitFor(element(by.id('previous-month-button')))
@@ -112,24 +111,24 @@ describe('Daily Status Tracking', () => {
     await element(by.id('save-status-button')).tap();
     await waitForAnimation(1500);
 
-    // Should be back on dashboard with calendar visible
-    await waitFor(element(by.id('dashboard-title')))
+    // Should be back on Analytics screen (where we came from)
+    await waitFor(element(by.text('Trends & Analytics')))
       .toBeVisible()
       .withTimeout(3000);
 
     console.log('Successfully logged green day');
 
+    // Navigate back to Home (Dashboard)
+    await element(by.text('Home')).tap();
+    await waitForAnimation(1000);
+
     // ======================
     // Phase 3: Manually Log a Yellow Day
     // ======================
 
-    // Scroll to calendar again
-    try {
-      await element(by.id('dashboard-title')).swipe('up', 'slow', 0.8);
-      await waitForAnimation(500);
-    } catch (e) {
-      console.log('Already scrolled to calendar');
-    }
+    // Navigate back to Analytics to access calendar
+    await element(by.text('Trends')).tap();
+    await waitForAnimation(1000);
 
     // Tap on a different day (e.g., the 10th)
     const testDayYellow = '10';
@@ -196,12 +195,16 @@ describe('Daily Status Tracking', () => {
     await element(by.id('save-status-button')).tap();
     await waitForAnimation(1500);
 
-    // Should be back on dashboard
-    await waitFor(element(by.id('dashboard-title')))
+    // Should be back on Analytics screen (where we came from)
+    await waitFor(element(by.text('Trends & Analytics')))
       .toBeVisible()
       .withTimeout(3000);
 
     console.log('Successfully logged yellow day with prodrome type and notes');
+
+    // Navigate back to Home (Dashboard)
+    await element(by.text('Home')).tap();
+    await waitForAnimation(1000);
 
     // ======================
     // Phase 4: Create Episode and Verify Auto-Red Day
@@ -242,15 +245,9 @@ describe('Daily Status Tracking', () => {
 
     console.log('Created episode - red day should be auto-created for today');
 
-    // Scroll down to calendar to verify red day
-    try {
-      await element(by.id('dashboard-title')).swipe('up', 'slow', 0.8);
-      await waitForAnimation(500);
-      await element(by.id('dashboard-title')).swipe('up', 'slow', 0.8);
-      await waitForAnimation(500);
-    } catch (e) {
-      console.log('Already scrolled');
-    }
+    // Navigate to Analytics to verify red day in calendar
+    await element(by.text('Trends')).tap();
+    await waitForAnimation(1000);
 
     // Calendar should now show red day for today
     // We can't easily verify the emoji color, but we can verify the calendar is still visible
@@ -263,6 +260,10 @@ describe('Daily Status Tracking', () => {
     // ======================
     // Phase 5: End Episode and Verify in Calendar
     // ======================
+
+    // Navigate back to Home to see the active episode
+    await element(by.text('Home')).tap();
+    await waitForAnimation(1000);
 
     // Scroll back up to see active episode
     try {
@@ -308,15 +309,9 @@ describe('Daily Status Tracking', () => {
     // Phase 6: Navigate Month and Interact with Calendar
     // ======================
 
-    // Scroll down to calendar
-    try {
-      await element(by.id('dashboard-title')).swipe('up', 'slow', 0.8);
-      await waitForAnimation(500);
-      await element(by.id('dashboard-title')).swipe('up', 'slow', 0.8);
-      await waitForAnimation(500);
-    } catch (e) {
-      console.log('Already scrolled');
-    }
+    // Navigate to Analytics to test calendar navigation
+    await element(by.text('Trends')).tap();
+    await waitForAnimation(1000);
 
     // Test month navigation - go to previous month
     await waitFor(element(by.id('previous-month-button')))
@@ -355,6 +350,76 @@ describe('Daily Status Tracking', () => {
     console.log('Daily status tracking test completed successfully!');
   });
 
+  it('should allow logging yellow day without type selection', async () => {
+    // ======================
+    // Test Yellow Day Without Type (Optional)
+    // ======================
+
+    // Verify we're on dashboard
+    await waitFor(element(by.id('dashboard-title')))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    // Navigate to Analytics to access calendar
+    await element(by.text('Trends')).tap();
+    await waitForAnimation(1000);
+
+    // Tap on a day (e.g., the 15th)
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const testDay = '15';
+    const testDate = `${year}-${month}-${testDay}`;
+
+    console.log(`Attempting to log yellow day without type for: ${testDate}`);
+
+    try {
+      await waitFor(element(by.id(`calendar-day-${testDate}`)))
+        .toBeVisible()
+        .withTimeout(3000);
+
+      await element(by.id(`calendar-day-${testDate}`)).tap();
+      await waitForAnimation(1000);
+    } catch (e) {
+      console.log('Could not find day 15, trying day 4');
+      const altDay = '04';
+      const altDate = `${year}-${month}-${altDay}`;
+      await element(by.id(`calendar-day-${altDate}`)).tap();
+      await waitForAnimation(1000);
+    }
+
+    // Should open DailyStatusPrompt modal
+    await waitFor(element(by.text('Daily Check-in')))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    // Select "Not Clear" (yellow)
+    await waitFor(element(by.id('yellow-day-button')))
+      .toBeVisible()
+      .withTimeout(3000);
+
+    await element(by.id('yellow-day-button')).tap();
+    await waitForAnimation(500);
+
+    console.log('Selected yellow day - NOT selecting type to test optional behavior');
+
+    // DO NOT select any type - verify we can save without it
+    // Save the yellow day directly without selecting type
+    await waitFor(element(by.id('save-status-button')))
+      .toBeVisible()
+      .withTimeout(3000);
+
+    await element(by.id('save-status-button')).tap();
+    await waitForAnimation(1500);
+
+    // Should be back on Analytics screen (where we came from) without error
+    await waitFor(element(by.text('Trends & Analytics')))
+      .toBeVisible()
+      .withTimeout(3000);
+
+    console.log('Successfully logged yellow day WITHOUT type selection');
+  });
+
   it('should allow skipping daily status prompt', async () => {
     // ======================
     // Test Skip Functionality
@@ -365,15 +430,9 @@ describe('Daily Status Tracking', () => {
       .toBeVisible()
       .withTimeout(5000);
 
-    // Scroll down to calendar
-    try {
-      await element(by.id('dashboard-title')).swipe('up', 'slow', 0.8);
-      await waitForAnimation(500);
-      await element(by.id('dashboard-title')).swipe('up', 'slow', 0.8);
-      await waitForAnimation(500);
-    } catch (e) {
-      console.log('Already scrolled');
-    }
+    // Navigate to Analytics to access calendar
+    await element(by.text('Trends')).tap();
+    await waitForAnimation(1000);
 
     // Tap on a day
     const today = new Date();
@@ -381,6 +440,8 @@ describe('Daily Status Tracking', () => {
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const testDay = '07';
     const testDate = `${year}-${month}-${testDay}`;
+
+    console.log(`Attempting to test skip for: ${testDate}`);
 
     try {
       await waitFor(element(by.id(`calendar-day-${testDate}`)))
@@ -410,11 +471,235 @@ describe('Daily Status Tracking', () => {
     await element(by.id('skip-button')).tap();
     await waitForAnimation(1000);
 
-    // Should be back on dashboard without saving
-    await waitFor(element(by.id('dashboard-title')))
+    // Should be back on Analytics screen (where we came from) without saving
+    await waitFor(element(by.text('Trends & Analytics')))
       .toBeVisible()
       .withTimeout(3000);
 
     console.log('Successfully skipped daily status prompt');
+  });
+
+  it('should show widget for yesterday, hide after logging via calendar', async () => {
+    // ======================
+    // Test Widget Visibility Logic
+    // ======================
+
+    // Verify we're on dashboard
+    await waitFor(element(by.id('dashboard-title')))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    console.log('On Dashboard - checking for widget');
+
+    // Widget should be visible for yesterday (since we just reset database)
+    await waitFor(element(by.id('daily-status-widget')))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    await waitFor(element(by.text('How was yesterday?')))
+      .toBeVisible()
+      .withTimeout(3000);
+
+    console.log('Widget is visible with prompt for yesterday');
+
+    // Navigate to Analytics to log yesterday via calendar
+    await element(by.text('Trends')).tap();
+    await waitForAnimation(1000);
+
+    // Calculate yesterday's date
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const year = yesterday.getFullYear();
+    const month = String(yesterday.getMonth() + 1).padStart(2, '0');
+    const day = String(yesterday.getDate()).padStart(2, '0');
+    const yesterdayDate = `${year}-${month}-${day}`;
+
+    console.log(`Logging status for yesterday: ${yesterdayDate}`);
+
+    // Tap on yesterday in the calendar
+    await waitFor(element(by.id(`calendar-day-${yesterdayDate}`)))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    await element(by.id(`calendar-day-${yesterdayDate}`)).tap();
+    await waitForAnimation(1000);
+
+    // Should open DailyStatusPrompt modal
+    await waitFor(element(by.text('Daily Check-in')))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    // Select "Clear Day" (green)
+    await waitFor(element(by.id('green-day-button')))
+      .toBeVisible()
+      .withTimeout(3000);
+
+    await element(by.id('green-day-button')).tap();
+    await waitForAnimation(500);
+
+    // Save the green day
+    await waitFor(element(by.id('save-status-button')))
+      .toBeVisible()
+      .withTimeout(3000);
+
+    await element(by.id('save-status-button')).tap();
+    await waitForAnimation(1500);
+
+    console.log('Logged yesterday as green via calendar');
+
+    // Navigate back to Home (Dashboard)
+    await element(by.text('Home')).tap();
+    await waitForAnimation(1000);
+
+    // Widget should NOT be visible anymore (yesterday is now logged and past 15-min window)
+    // Wait a bit to ensure widget has time to update
+    await waitForAnimation(1000);
+
+    // Try to find the widget - it should not exist
+    try {
+      await waitFor(element(by.id('daily-status-widget')))
+        .toBeVisible()
+        .withTimeout(2000);
+
+      // If we get here, the widget is still visible - that's wrong
+      throw new Error('Widget should not be visible after logging yesterday');
+    } catch (e) {
+      if (e.message && e.message.includes('should not be visible')) {
+        throw e;
+      }
+      // Expected - widget is not visible
+      console.log('Widget correctly hidden after logging yesterday');
+    }
+
+    console.log('Widget visibility test passed!');
+  });
+
+  it('should update calendar after undoing status from widget', async () => {
+    // ======================
+    // Test Undo Flow: Calendar → Widget Undo → Calendar Update
+    // ======================
+
+    // Verify we're on dashboard
+    await waitFor(element(by.id('dashboard-title')))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    console.log('On Dashboard - navigating to Analytics to log yesterday');
+
+    // Navigate to Analytics to log yesterday via calendar
+    await element(by.text('Trends')).tap();
+    await waitForAnimation(1000);
+
+    // Calculate yesterday's date
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const year = yesterday.getFullYear();
+    const month = String(yesterday.getMonth() + 1).padStart(2, '0');
+    const day = String(yesterday.getDate()).padStart(2, '0');
+    const yesterdayDate = `${year}-${month}-${day}`;
+
+    console.log(`Logging status for yesterday: ${yesterdayDate}`);
+
+    // Tap on yesterday in the calendar
+    await waitFor(element(by.id(`calendar-day-${yesterdayDate}`)))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    await element(by.id(`calendar-day-${yesterdayDate}`)).tap();
+    await waitForAnimation(1000);
+
+    // Should open DailyStatusPrompt modal
+    await waitFor(element(by.text('Daily Check-in')))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    // Select "Clear Day" (green)
+    await waitFor(element(by.id('green-day-button')))
+      .toBeVisible()
+      .withTimeout(3000);
+
+    await element(by.id('green-day-button')).tap();
+    await waitForAnimation(500);
+
+    // Save the green day
+    await waitFor(element(by.id('save-status-button')))
+      .toBeVisible()
+      .withTimeout(3000);
+
+    await element(by.id('save-status-button')).tap();
+    await waitForAnimation(1500);
+
+    console.log('Logged yesterday as green via calendar');
+
+    // Verify green indicator appears on calendar
+    // We can't directly check for the emoji, but the day should be tappable
+    await waitFor(element(by.id(`calendar-day-${yesterdayDate}`)))
+      .toBeVisible()
+      .withTimeout(3000);
+
+    console.log('Calendar shows yesterday (indicator should be visible)');
+
+    // Navigate back to Home (Dashboard)
+    await element(by.text('Home')).tap();
+    await waitForAnimation(2000); // Give widget time to refresh and check status
+
+    // Widget should now show the logged state (with testID daily-status-widget-logged)
+    await waitFor(element(by.id('daily-status-widget-logged')))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    console.log('Widget shows logged state - checking for undo button');
+
+    // Press the Undo button
+    await waitFor(element(by.id('undo-status-button')))
+      .toBeVisible()
+      .withTimeout(3000);
+
+    await element(by.id('undo-status-button')).tap();
+    await waitForAnimation(1000);
+
+    console.log('Pressed undo button');
+
+    // Widget should now show prompt again (not logged state)
+    await waitFor(element(by.text('How was yesterday?')))
+      .toBeVisible()
+      .withTimeout(3000);
+
+    console.log('Widget now shows prompt again');
+
+    // Navigate back to Analytics to verify calendar updated
+    await element(by.text('Trends')).tap();
+    await waitForAnimation(1500); // Give it time to reload
+
+    // Calendar should be visible
+    await waitFor(element(by.id('previous-month-button')))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    // Yesterday should still be visible but WITHOUT the green indicator
+    // We can tap on it - if it opens the prompt, the status was properly cleared
+    await waitFor(element(by.id(`calendar-day-${yesterdayDate}`)))
+      .toBeVisible()
+      .withTimeout(3000);
+
+    await element(by.id(`calendar-day-${yesterdayDate}`)).tap();
+    await waitForAnimation(1000);
+
+    // Should open DailyStatusPrompt modal (proving status was cleared)
+    await waitFor(element(by.text('Daily Check-in')))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    console.log('Calendar correctly updated - status was cleared, prompt reopens');
+
+    // Close the prompt
+    await waitFor(element(by.id('skip-button')))
+      .toBeVisible()
+      .withTimeout(3000);
+
+    await element(by.id('skip-button')).tap();
+    await waitForAnimation(1000);
+
+    console.log('Undo flow test passed! Calendar properly updates after undo from widget');
   });
 });

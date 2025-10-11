@@ -18,6 +18,7 @@ interface DailyStatusState {
   deleteDayStatus: (id: string) => Promise<void>;
   getDayStatus: (date: string) => Promise<DailyStatusLog | null>;
   checkShouldPrompt: () => Promise<boolean>;
+  reset: () => void;
 }
 
 export const useDailyStatusStore = create<DailyStatusState>((set, get) => ({
@@ -158,5 +159,14 @@ export const useDailyStatusStore = create<DailyStatusState>((set, get) => ({
       });
       return false;
     }
+  },
+
+  reset: () => {
+    set({
+      dailyStatuses: [],
+      monthStats: null,
+      loading: false,
+      error: null,
+    });
   },
 }));

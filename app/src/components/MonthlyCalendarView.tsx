@@ -39,6 +39,7 @@ const createStyles = (theme: ThemeColors) =>
       borderRadius: 16,
       padding: 16,
       marginHorizontal: 16,
+      marginTop: 16,
       marginBottom: 16,
     },
     header: {
@@ -138,6 +139,15 @@ export default function MonthlyCalendarView({
     loadMonthData();
   }, [currentMonth]);
 
+  // Reload data when screen comes into focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadMonthData();
+    });
+
+    return unsubscribe;
+  }, [navigation, currentMonth]);
+
   const loadMonthData = async () => {
     const start = format(startOfMonth(currentMonth), 'yyyy-MM-dd');
     const end = format(endOfMonth(currentMonth), 'yyyy-MM-dd');
@@ -189,6 +199,12 @@ export default function MonthlyCalendarView({
       ...Array(firstDayOfWeek).fill(null),
       ...daysInMonth,
     ];
+
+    // Pad the end to ensure we always have complete weeks (multiples of 7)
+    const totalCells = Math.ceil(calendarDays.length / 7) * 7;
+    while (calendarDays.length < totalCells) {
+      calendarDays.push(null);
+    }
 
     // Group days into weeks
     const weeks: (Date | null)[][] = [];
