@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useEpisodeStore } from '../store/episodeStore';
 import { format, startOfMonth, endOfMonth, differenceInDays } from 'date-fns';
 import { useTheme, ThemeColors } from '../theme';
+import MonthlyCalendarView from '../components/MonthlyCalendarView';
 
 const createStyles = (theme: ThemeColors) => StyleSheet.create({
   container: {
@@ -149,6 +150,9 @@ export default function AnalyticsScreen() {
       </View>
 
       <ScrollView style={styles.content}>
+        {/* Monthly Calendar View */}
+        <MonthlyCalendarView />
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>This Month</Text>
           <View style={styles.statsGrid}>

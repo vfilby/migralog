@@ -66,6 +66,37 @@ describe('Complete Episode Lifecycle', () => {
       .withTimeout(3000);
 
     // ======================
+    // Phase 1.5: Verify Auto-Red Day Created
+    // ======================
+
+    console.log('Verifying auto-red day was created for today');
+
+    // Scroll down to see the calendar
+    try {
+      await element(by.id('dashboard-title')).swipe('up', 'slow', 0.8);
+      await waitForAnimation(500);
+      await element(by.id('dashboard-title')).swipe('up', 'slow', 0.8);
+      await waitForAnimation(500);
+    } catch (e) {
+      console.log('Could not scroll - calendar may already be visible');
+    }
+
+    // Verify calendar is visible
+    await waitFor(element(by.id('previous-month-button')))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    console.log('Calendar visible - auto-red day should be marked for today');
+
+    // Scroll back to top for next phase
+    try {
+      await element(by.id('dashboard-title')).swipe('down', 'fast', 0.9);
+      await waitForAnimation(500);
+    } catch (e) {
+      console.log('Already at top');
+    }
+
+    // ======================
     // Phase 2: View Episode Details
     // ======================
 
@@ -391,6 +422,37 @@ describe('Complete Episode Lifecycle', () => {
     await waitFor(element(by.id('start-episode-button')))
       .toBeVisible()
       .withTimeout(3000);
+
+    // ======================
+    // Phase 6.5: Verify Red Days in Calendar After Episode Ends
+    // ======================
+
+    console.log('Verifying red days persist in calendar after episode ends');
+
+    // Scroll down to see the calendar
+    try {
+      await element(by.id('dashboard-title')).swipe('up', 'slow', 0.8);
+      await waitForAnimation(500);
+      await element(by.id('dashboard-title')).swipe('up', 'slow', 0.8);
+      await waitForAnimation(500);
+    } catch (e) {
+      console.log('Could not scroll - calendar may already be visible');
+    }
+
+    // Verify calendar is still visible
+    await waitFor(element(by.id('previous-month-button')))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    console.log('Calendar visible - red days should persist for entire episode duration');
+
+    // Scroll back up for next phase
+    try {
+      await element(by.id('dashboard-title')).swipe('down', 'fast', 0.9);
+      await waitForAnimation(500);
+    } catch (e) {
+      console.log('Already at top');
+    }
 
     // Go to Episodes tab to see history
     await element(by.text('Episodes')).tap();

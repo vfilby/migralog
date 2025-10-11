@@ -10,6 +10,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { getPainColor, getPainLevel } from '../utils/painScale';
 import EpisodeCard from '../components/EpisodeCard';
+import DailyStatusWidget from '../components/DailyStatusWidget';
 import { useTheme, ThemeColors } from '../theme';
 import { Medication, MedicationSchedule, MedicationDose } from '../models/types';
 import { medicationScheduleRepository, medicationDoseRepository } from '../database/medicationRepository';
@@ -368,6 +369,9 @@ export default function DashboardScreen() {
           <Ionicons name="settings-outline" size={24} color={theme.primary} />
         </TouchableOpacity>
       </View>
+
+      {/* Daily Status Widget */}
+      <DailyStatusWidget />
 
       {/* Today's Medications */}
       {todaysMedications.length > 0 && (

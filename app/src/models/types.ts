@@ -144,3 +144,22 @@ export interface MedicationReminder {
   snoozedUntil?: number;
   completedAt?: number;
 }
+
+export type DayStatus = 'green' | 'yellow' | 'red';
+
+export type YellowDayType =
+  | 'prodrome'      // Warning signs before episode
+  | 'postdrome'     // Recovery period after episode
+  | 'anxiety'       // Worried about potential episode
+  | 'other';        // Other non-clear states
+
+export interface DailyStatusLog {
+  id: string;
+  date: string;           // YYYY-MM-DD format
+  status: DayStatus;
+  statusType?: YellowDayType;  // Only for yellow days
+  notes?: string;
+  prompted: boolean;      // Was this from daily prompt?
+  createdAt: number;
+  updatedAt: number;
+}

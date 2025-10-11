@@ -7,6 +7,7 @@
 
 import { getDatabase } from '../database/db';
 import { backupService } from '../services/backupService';
+import { useDailyStatusStore } from '../store/dailyStatusStore';
 import { Alert } from 'react-native';
 
 // Compile-time check - this entire module is excluded in production
@@ -47,10 +48,16 @@ export async function resetDatabaseForTesting(options: {
     await db.execAsync('DELETE FROM intensity_readings');
     await db.execAsync('DELETE FROM episode_notes');
     await db.execAsync('DELETE FROM episodes');
+    await db.execAsync('DELETE FROM daily_status_logs');
 
     console.log('[TestHelpers] All tables cleared');
 
-    // 4. Optionally load test fixtures
+    // 4. Reset Zustand stores to clear in-memory state
+    console.log('[TestHelpers] Resetting stores...');
+    useDailyStatusStore.getState().reset();
+    console.log('[TestHelpers] Stores reset');
+
+    // 5. Optionally load test fixtures
     if (loadFixtures) {
       console.log('[TestHelpers] Loading test fixtures...');
       await loadTestFixtures();
@@ -152,12 +159,16 @@ export async function getDatabaseState() {
   const doseCount = await db.getFirstAsync<{ count: number }>(
     'SELECT COUNT(*) as count FROM medication_doses'
   );
+  const dailyStatusCount = await db.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM daily_status_logs'
+  );
 
   return {
     episodes: episodeCount?.count || 0,
     medications: medicationCount?.count || 0,
     intensityReadings: intensityCount?.count || 0,
     medicationDoses: doseCount?.count || 0,
+    dailyStatusLogs: dailyStatusCount?.count || 0,
   };
 }
 

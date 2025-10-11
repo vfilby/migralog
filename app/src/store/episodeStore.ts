@@ -1,7 +1,9 @@
 import { create } from 'zustand';
 import { Episode, IntensityReading, SymptomLog } from '../models/types';
 import { episodeRepository, intensityRepository, symptomLogRepository } from '../database/episodeRepository';
+import { dailyStatusRepository } from '../database/dailyStatusRepository';
 import { errorLogger } from '../services/errorLogger';
+import { format, eachDayOfInterval } from 'date-fns';
 
 interface EpisodeState {
   currentEpisode: Episode | null;
@@ -49,6 +51,22 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const newEpisode = await episodeRepository.create(episode);
+
+      // Auto-create red day for episode start date
+      try {
+        const episodeDate = format(new Date(newEpisode.startTime), 'yyyy-MM-dd');
+        await dailyStatusRepository.upsert({
+          date: episodeDate,
+          status: 'red',
+          notes: 'Episode started',
+          prompted: false,
+        });
+        console.log('[EpisodeStore] Auto-created red day for episode:', episodeDate);
+      } catch (error) {
+        console.error('[EpisodeStore] Failed to create red day for episode:', error);
+        // Don't fail the episode creation if red day creation fails
+      }
+
       set({
         currentEpisode: newEpisode,
         episodes: [newEpisode, ...get().episodes],
@@ -69,6 +87,33 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       await episodeRepository.update(episodeId, { endTime });
+
+      // Get the episode to mark all days as red
+      const episode = get().episodes.find(ep => ep.id === episodeId);
+      if (episode) {
+        try {
+          const startDate = new Date(episode.startTime);
+          const endDate = new Date(endTime);
+
+          // Get all dates in the episode range
+          const dates = eachDayOfInterval({ start: startDate, end: endDate });
+
+          // Mark each day as red
+          for (const date of dates) {
+            const dateStr = format(date, 'yyyy-MM-dd');
+            await dailyStatusRepository.upsert({
+              date: dateStr,
+              status: 'red',
+              notes: dates.length > 1 ? `Episode (day ${dates.indexOf(date) + 1} of ${dates.length})` : 'Episode',
+              prompted: false,
+            });
+          }
+          console.log('[EpisodeStore] Marked', dates.length, 'day(s) as red for episode');
+        } catch (error) {
+          console.error('[EpisodeStore] Failed to mark episode days as red:', error);
+          // Don't fail the episode end if red day creation fails
+        }
+      }
 
       // Update local state
       const updatedEpisodes = get().episodes.map(ep =>
