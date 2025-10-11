@@ -1,0 +1,46 @@
+appId: com.eff3.app.headache-tracker
+---
+# Setup Flow - Reset Database to Clean State
+# This can be included at the start of test flows that need a clean database
+
+- launchApp
+
+# Wait for app to fully load
+- assertVisible: "Pain Tracker"
+
+# Dismiss any debug warnings/overlays if present
+- tapOn:
+    point: "50%,5%"
+    optional: true
+
+# Navigate to Settings
+- tapOn:
+    id: "settings-button"
+
+# Wait for Settings screen to load
+- assertVisible: "Settings"
+
+# Scroll down to Developer section
+- scrollUntilVisible:
+    element:
+      id: "reset-database-button"
+    direction: DOWN
+    speed: 80
+
+# Tap Reset Database button
+- tapOn:
+    id: "reset-database-button"
+
+# Confirm the reset in the alert
+- tapOn: "Reset"
+
+# Wait for reset to complete and alert to dismiss
+- tapOn: "OK"
+
+# Go back to dashboard
+- tapOn: "Done"
+
+# Verify we're back on dashboard with clean state
+- assertVisible: "Pain Tracker"
+- assertVisible:
+    id: "dashboard-title"

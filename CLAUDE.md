@@ -35,7 +35,18 @@ npx tsc --noEmit         # Run TypeScript compiler in check mode
 ```
 
 ### Testing
-No test framework is currently configured. When adding tests, ensure they cover unit, integration, and accessibility requirements per .clinerules.
+
+**E2E Testing with Maestro:**
+- **IMPORTANT: Maestro E2E tests require a development build, NOT Expo Go**
+- Run `npx expo run:ios` to create a development build in the simulator
+- Expo Go has limitations (no deep links, bundle identifier issues) that prevent proper E2E testing
+- All Maestro tests should use `appId: com.eff3.app.headache-tracker` (the development build bundle ID)
+- Tests are located in `.maestro/` directory
+- Run tests with `npm run test:e2e:comprehensive` or other test:e2e:* scripts
+
+**Unit/Integration Testing:**
+- Jest is configured but tests need to be written
+- When adding tests, ensure they cover unit, integration, and accessibility requirements per .clinerules
 
 ## Architecture
 
@@ -113,3 +124,7 @@ Health data subject to HIPAA requirements. Never log sensitive information. Encr
 - Test on physical iOS devices for accurate performance
 - Tab bar styling assumes iPhone with home indicator
 - Use the react native mcp server for guidance
+- always run tests using npm without preambles or env configuration.  The test scripts should do all necessary things to run a test
+- Do not "work around" bugs when testing the application...  we wouldn't expect a user to work around bugs, the the tests shouldn't either.
+- Don't reinvent the wheel.  Use exitisting libraries and components unless there is a good reason and I specifically instruct you to do otherwise.
+- Don't delcare success unless we have tested and accomplish our current goal.

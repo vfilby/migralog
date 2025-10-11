@@ -730,12 +730,12 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
           <Text style={styles.backButton}>Back</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Episode Details</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('NewEpisode', { episodeId })}>
+        <TouchableOpacity onPress={() => navigation.navigate('NewEpisode', { episodeId })} testID="edit-episode-button">
           <Text style={styles.editButton}>Edit</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} testID="episode-detail-scroll-view">
         {/* Status Card */}
         <View style={styles.card}>
           <View style={styles.statusHeader}>
@@ -806,12 +806,14 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
               <TouchableOpacity
                 style={styles.actionButton}
                 onPress={() => navigation.navigate('LogUpdate', { episodeId })}
+                testID="log-update-button"
               >
                 <Text style={styles.actionButtonText}>Log Update</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.actionButton}
                 onPress={() => navigation.navigate('LogMedication', { episodeId })}
+                testID="log-medication-from-episode-button"
               >
                 <Text style={styles.actionButtonText}>Log Medication</Text>
               </TouchableOpacity>
@@ -922,7 +924,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
       {/* End Episode Button */}
       {!episode.endTime && (
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.endButton} onPress={handleEndEpisode}>
+          <TouchableOpacity style={styles.endButton} onPress={handleEndEpisode} testID="end-episode-button">
             <Text style={styles.endButtonText}>End Episode</Text>
           </TouchableOpacity>
         </View>

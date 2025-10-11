@@ -1,5 +1,14 @@
 # MigraineTracker Feature Backlog
 
+
+## Feature X: Tracking red/yellow/green days
+
+The idea here is that someone who sufferes from migraines has headache days....  but not all the non-headache days are clear.  Some are pre- or post-drome, some you are worried
+about a headache, etc.  I would like to prompt the user once per day (ideally in the morning) to see how yesterday went.  If the user is logging an episode then we can skip this step, but if there is not log the day before we should give them the option to say clear or not clear.  
+
+
+## Feature Y: symptoms and triggers should be customizable (but with sensible defaults)
+
 ## Feature 1: Episode Intensity Graph with Medication Overlay
 **Status:** Not Started
 

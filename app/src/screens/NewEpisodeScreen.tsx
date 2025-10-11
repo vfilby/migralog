@@ -10,7 +10,6 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Keyboard,
-  findNodeHandle,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -270,8 +269,8 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
   const episodeId = route.params?.episodeId;
   const isEditing = !!episodeId;
 
-  const notesInputRef = useRef<TextInput>(null);
   const scrollViewRef = useRef<ScrollView>(null);
+  const shouldScrollOnKeyboard = useRef(false);
   const [startTime, setStartTime] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [intensity, setIntensity] = useState(3);
@@ -347,26 +346,26 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
     captureLocation();
   }, [isEditing]);
 
-  // Handle keyboard showing to scroll notes input into view
+  // Keyboard listener for auto-scroll
   useEffect(() => {
-    const keyboardWillShowListener = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (event) => {
-        // When keyboard shows, scroll the view to show the notes input
-        // Use a fixed scroll position since notes is near the bottom
-        if (scrollViewRef.current) {
-          scrollViewRef.current.scrollTo({
-            y: 700, // Approximate position to show notes input above keyboard
-            animated: true,
-          });
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => {
+        if (shouldScrollOnKeyboard.current) {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+          shouldScrollOnKeyboard.current = false;
         }
       }
     );
 
     return () => {
-      keyboardWillShowListener.remove();
+      keyboardDidShowListener.remove();
     };
   }, []);
+
+  const handleNotesInputFocus = () => {
+    shouldScrollOnKeyboard.current = true;
+  };
 
   const toggleSelection = <T,>(item: T, list: T[], setList: (list: T[]) => void) => {
     if (list.includes(item)) {
@@ -459,17 +458,13 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
         <View style={{ width: 60 }} />
       </View>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.content}
+      <ScrollView
+        ref={scrollViewRef}
+        style={{ flex: 1, backgroundColor: theme.background }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        testID="new-episode-scroll-view"
       >
-        <ScrollView
-          ref={scrollViewRef}
-          style={styles.content}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive"
-          testID="new-episode-scroll-view"
-        >
         {/* Start Time */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Start Time</Text>
@@ -637,7 +632,6 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Notes</Text>
           <TextInput
-            ref={notesInputRef}
             style={styles.notesInput}
             multiline
             numberOfLines={4}
@@ -645,26 +639,23 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
             placeholderTextColor={theme.textTertiary}
             value={notes}
             onChangeText={setNotes}
+            onFocus={handleNotesInputFocus}
             blurOnSubmit={true}
             returnKeyType="done"
-            onFocus={() => {
-              // When notes input is focused, scroll it into view
-              // Use a fixed scroll position for simplicity
-              if (scrollViewRef.current) {
-                setTimeout(() => {
-                  scrollViewRef.current?.scrollTo({
-                    y: 650, // Scroll to position notes input above keyboard
-                    animated: true,
-                  });
-                }, 100);
-              }
-            }}
             testID="episode-notes-input"
           />
         </View>
 
-        {/* Save Button */}
-        <View style={styles.section}>
+        {/* Bottom spacer to ensure content is scrollable above footer */}
+        <View style={{ height: 20 }} />
+      </ScrollView>
+
+      {/* Save Button Footer - wrapped in KeyboardAvoidingView */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        <View style={styles.footer}>
           <TouchableOpacity
             style={[styles.saveButton, saving && styles.saveButtonDisabled]}
             onPress={handleSave}
@@ -679,11 +670,6 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
             </Text>
           </TouchableOpacity>
         </View>
-
-        {/* Bottom spacer to ensure save button is visible */}
-        <View style={{ height: 50 }} />
-
-        </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );

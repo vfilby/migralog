@@ -16,6 +16,7 @@ export type RootStackParamList = {
   Settings: undefined;
   BackupRecovery: undefined;
   ErrorLogs: undefined;
+  KeyboardTest: undefined;
 };
 
 export type MainTabsParamList = {

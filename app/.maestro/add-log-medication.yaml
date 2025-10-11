@@ -1,4 +1,4 @@
-appId: host.exp.Exponent
+appId: com.eff3.app.headache-tracker
 ---
 # E2E Test: Add and Log Medication
 # Tests adding a new medication and logging a dose

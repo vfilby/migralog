@@ -14,6 +14,7 @@ import { useTheme, ThemeMode, ThemeColors } from '../theme';
 import { buildInfo } from '../buildInfo';
 import { errorLogger, ErrorLog } from '../services/errorLogger';
 import { notificationService, NotificationPermissions } from '../services/notificationService';
+import { locationService } from '../services/locationService';
 import * as SQLite from 'expo-sqlite';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
@@ -24,6 +25,7 @@ export default function SettingsScreen({ navigation }: Props) {
   const [errorLogs, setErrorLogs] = useState<ErrorLog[]>([]);
   const [dbStatus, setDbStatus] = useState<'checking' | 'healthy' | 'error'>('checking');
   const [notificationPermissions, setNotificationPermissions] = useState<NotificationPermissions | null>(null);
+  const [locationPermission, setLocationPermission] = useState<boolean | null>(null);
 
   useEffect(() => {
     loadDiagnostics();
@@ -41,6 +43,10 @@ export default function SettingsScreen({ navigation }: Props) {
       // Load notification permissions
       const permissions = await notificationService.getPermissions();
       setNotificationPermissions(permissions);
+
+      // Check location permissions
+      const hasLocationPermission = await locationService.checkPermission();
+      setLocationPermission(hasLocationPermission);
     } catch (error) {
       console.error('Failed to load diagnostics:', error);
     }
@@ -194,6 +200,57 @@ export default function SettingsScreen({ navigation }: Props) {
     }
   };
 
+  const handleRequestLocationPermission = async () => {
+    try {
+      const granted = await locationService.requestPermission();
+      setLocationPermission(granted);
+
+      if (granted) {
+        Alert.alert('Success', 'Location permission granted. The app will now capture your location when you start a new episode.');
+      } else {
+        Alert.alert(
+          'Permission Denied',
+          'Location permission is optional. The app will work without it, but you won\'t see location data in your episode history.'
+        );
+      }
+    } catch (error) {
+      console.error('Failed to request location permission:', error);
+      Alert.alert('Error', 'Failed to request location permission');
+    }
+  };
+
+  const handleResetDatabase = async () => {
+    Alert.alert(
+      'Reset Database (Testing)',
+      'This will:\n• Create an automatic backup\n• Clear ALL data from the database\n\nYou can restore from the backup in Backup & Recovery.\n\nThis action is for testing only.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Dynamically import test helper (only available in __DEV__)
+              if (__DEV__) {
+                const { resetDatabaseForTesting } = await import('../utils/testHelpers');
+                const result = await resetDatabaseForTesting({
+                  createBackup: true,
+                  loadFixtures: false,
+                });
+                Alert.alert('Database Reset', `Database has been reset.\n\nBackup ID: ${result.backupId || 'none'}`);
+              } else {
+                Alert.alert('Error', 'Database reset is only available in development mode');
+              }
+            } catch (error) {
+              console.error('Failed to reset database:', error);
+              Alert.alert('Error', `Failed to reset database: ${(error as Error).message}`);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -204,7 +261,7 @@ export default function SettingsScreen({ navigation }: Props) {
         <View style={{ width: 60 }} />
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} testID="settings-scroll-view">
         {/* About Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>About</Text>
@@ -373,6 +430,54 @@ export default function SettingsScreen({ navigation }: Props) {
           </View>
         </View>
 
+        {/* Location Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Location</Text>
+          <Text style={styles.sectionDescription}>
+            Allow the app to capture your location when starting episodes (optional)
+          </Text>
+
+          <View style={styles.diagnosticCard}>
+            <View style={styles.diagnosticRow}>
+              <View style={styles.diagnosticLeft}>
+                <Ionicons
+                  name="location-outline"
+                  size={20}
+                  color={theme.textSecondary}
+                />
+                <Text style={styles.diagnosticLabel}>Status</Text>
+              </View>
+              <View style={styles.diagnosticRight}>
+                {locationPermission === null ? (
+                  <Text style={styles.diagnosticValueSecondary}>Checking...</Text>
+                ) : locationPermission ? (
+                  <>
+                    <Ionicons name="checkmark-circle" size={18} color={theme.success} />
+                    <Text style={styles.diagnosticValueSuccess}>Enabled</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="close-circle" size={18} color={theme.error} />
+                    <Text style={styles.diagnosticValueError}>Disabled</Text>
+                  </>
+                )}
+              </View>
+            </View>
+          </View>
+
+          {!locationPermission && (
+            <View style={styles.developerActions}>
+              <TouchableOpacity
+                style={styles.developerButton}
+                onPress={handleRequestLocationPermission}
+              >
+                <Ionicons name="location-outline" size={20} color={theme.primary} />
+                <Text style={styles.developerButtonText}>Enable Location</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
         {/* Data Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Data</Text>
@@ -476,6 +581,30 @@ export default function SettingsScreen({ navigation }: Props) {
                 Clear Logs
               </Text>
             </TouchableOpacity>
+
+            {__DEV__ && (
+              <>
+                <TouchableOpacity
+                  style={[styles.developerButton, styles.developerButtonDanger]}
+                  onPress={handleResetDatabase}
+                  testID="reset-database-button"
+                >
+                  <Ionicons name="refresh-outline" size={20} color={theme.error} />
+                  <Text style={[styles.developerButtonText, styles.developerButtonTextDanger]}>
+                    Reset Database (Testing)
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.developerButton}
+                  onPress={() => navigation.navigate('KeyboardTest')}
+                  testID="keyboard-test-button"
+                >
+                  <Ionicons name="keypad-outline" size={20} color={theme.primary} />
+                  <Text style={styles.developerButtonText}>Test Keyboard Handling</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </View>
 

@@ -1,0 +1,114 @@
+appId: com.eff3.app.headache-tracker
+---
+# Test: Location Caching Behavior
+# Creates multiple episodes rapidly to demonstrate location caching
+
+# Setup: Reset database
+- launchApp
+- assertVisible: "Pain Tracker"
+- tapOn:
+    id: "settings-button"
+- assertVisible: "Settings"
+- scrollUntilVisible:
+    element:
+      id: "reset-database-button"
+    direction: DOWN
+    speed: 80
+- tapOn:
+    id: "reset-database-button"
+- tapOn: "Reset"
+- tapOn: "OK"
+- tapOn: "Done"
+- assertVisible: "Pain Tracker"
+
+# Create Episode 1
+- assertVisible:
+    id: "start-episode-button"
+- tapOn:
+    id: "start-episode-button"
+- assertVisible: "Start Episode"
+- scrollUntilVisible:
+    element:
+      id: "save-episode-button"
+    direction: DOWN
+    speed: 80
+- tapOn:
+    id: "save-episode-button"
+- waitForAnimationToEnd
+- assertVisible: "Pain Tracker"
+
+# Navigate to Episodes tab to end first episode
+- tapOn:
+    id: "episodes-tab"
+- tapOn:
+    id: "episode-card-0"
+- scrollUntilVisible:
+    element:
+      id: "end-episode-button"
+    direction: DOWN
+    speed: 80
+- tapOn:
+    id: "end-episode-button"
+- tapOn: "End Episode"
+- assertVisible: "Episode Details"
+- tapOn: "Done"
+
+# Back to Dashboard
+- tapOn:
+    id: "dashboard-tab"
+- assertVisible: "Pain Tracker"
+
+# Create Episode 2 (should use cached location if available)
+- assertVisible:
+    id: "start-episode-button"
+- tapOn:
+    id: "start-episode-button"
+- assertVisible: "Start Episode"
+- scrollUntilVisible:
+    element:
+      id: "save-episode-button"
+    direction: DOWN
+    speed: 80
+- tapOn:
+    id: "save-episode-button"
+- waitForAnimationToEnd
+- assertVisible: "Pain Tracker"
+
+# Navigate to Episodes tab to end second episode
+- tapOn:
+    id: "episodes-tab"
+- tapOn:
+    id: "episode-card-0"
+- scrollUntilVisible:
+    element:
+      id: "end-episode-button"
+    direction: DOWN
+    speed: 80
+- tapOn:
+    id: "end-episode-button"
+- tapOn: "End Episode"
+- assertVisible: "Episode Details"
+- tapOn: "Done"
+
+# Back to Dashboard
+- tapOn:
+    id: "dashboard-tab"
+- assertVisible: "Pain Tracker"
+
+# Create Episode 3 (should also use cached location if within 5 seconds)
+- assertVisible:
+    id: "start-episode-button"
+- tapOn:
+    id: "start-episode-button"
+- assertVisible: "Start Episode"
+- scrollUntilVisible:
+    element:
+      id: "save-episode-button"
+    direction: DOWN
+    speed: 80
+- tapOn:
+    id: "save-episode-button"
+- waitForAnimationToEnd
+- assertVisible: "Pain Tracker"
+
+# Test complete - check logs for "[Location] Returning cached location" messages

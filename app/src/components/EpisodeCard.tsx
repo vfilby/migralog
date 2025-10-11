@@ -11,6 +11,7 @@ interface EpisodeCardProps {
   onPress?: () => void;
   compact?: boolean;
   isLast?: boolean;
+  testID?: string;
 }
 
 const createStyles = (theme: ThemeColors) => StyleSheet.create({
@@ -128,7 +129,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   },
 });
 
-const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = false }: EpisodeCardProps) => {
+const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = false, testID }: EpisodeCardProps) => {
   const { theme } = useTheme();
   const [locationAddress, setLocationAddress] = useState<string | null>(null);
 
@@ -154,6 +155,7 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
         style={[styles.episodeItemCompact, isLast && { borderBottomWidth: 0 }]}
         onPress={onPress}
         disabled={!onPress}
+        testID={testID}
         accessibilityRole="button"
         accessibilityLabel={`Episode from ${format(episode.startTime, 'MMM d, yyyy')}`}
       >
@@ -203,6 +205,7 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
       style={styles.episodeCard}
       onPress={onPress}
       disabled={!onPress}
+      testID={testID}
       accessibilityRole="button"
       accessibilityLabel={`Episode from ${format(episode.startTime, 'EEEE, MMM d, yyyy')}`}
     >

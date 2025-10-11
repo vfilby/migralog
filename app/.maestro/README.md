@@ -38,31 +38,79 @@ The E2E testing framework is functional. The `working-smoke-test.yaml` validates
 
 See `LIMITATIONS.md` for details on unvalidated tests.
 
-## Running Tests
+## Test Harness & Setup
 
-### Quick Start (Verified Test):
+### Shared Setup Flow
+
+`setup-clean-database.yaml` - Resets the database to a clean state via the Settings UI. This can be:
+1. Run once before a test suite using `initFlow` in `test-suite.yaml`
+2. Included at the start of individual tests using `runFlow`
+
+### Running Tests
+
+#### Test Suite (Recommended)
+```bash
+# Run all tests with shared setup (runs setup once, then all tests)
+npm run test:e2e:suite
+```
+
+#### Individual Tests
+```bash
+# Run a single test (includes its own setup)
+npm run test:e2e:reset        # Full episode flow with reset
+npm run test:e2e:start-end    # Start/end episode flow
+npm run test:e2e:intensity    # Intensity logging
+npm run test:e2e:medication   # Medication management
+npm run test:e2e:details      # Episode details
+```
+
+#### Quick Start (Verified Test):
 ```bash
 # Make sure app is running in simulator first!
 npm start  # In one terminal
 # Press 'i' to open iOS simulator
 
 # In another terminal:
-export JAVA_HOME='/opt/homebrew/opt/openjdk@17'
-maestro test .maestro/working-smoke-test.yaml
+npm run test:e2e              # Smoke test
+npm run test:e2e:suite        # Full test suite
 ```
 
-### Run all tests (some may fail):
-```bash
-npm run test:e2e
+## Test Organization
+
+### Approach 1: Individual Tests with Setup
+Each test includes `runFlow: setup-clean-database.yaml` at the start.
+
+**Pros:**
+- Tests are independent and can run in any order
+- Easy to debug single tests
+- No state pollution between tests
+
+**Cons:**
+- Slower (setup runs for each test)
+- More UI navigation overhead
+
+### Approach 2: Test Suite with Shared Setup (Recommended)
+The `test-suite.yaml` uses `initFlow` to run setup once, then executes all tests.
+
+**Pros:**
+- Much faster (setup runs once)
+- Good for CI/CD pipelines
+- Ideal for full regression testing
+
+**Cons:**
+- Tests may depend on execution order
+- State can leak between tests
+- Harder to debug individual tests
+
+### Best Practices
+
+**For tests needing clean state:**
+```yaml
+- runFlow: setup-clean-database.yaml
 ```
 
-### Run individual tests:
-```bash
-npm run test:e2e:start-end     # Start/end episode flow
-npm run test:e2e:intensity     # Intensity logging
-npm run test:e2e:medication    # Medication management
-npm run test:e2e:details       # Episode details
-```
+**For tests building on existing state:**
+Add to the test suite after appropriate prerequisite tests.
 
 ## How It Works (Expo Go)
 

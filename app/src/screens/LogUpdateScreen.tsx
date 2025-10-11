@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   TextInput,
+  Platform,
   Alert,
   ScrollView,
+  KeyboardAvoidingView,
+  Keyboard,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -162,6 +165,8 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
   const { episodeId } = route.params;
   const { theme } = useTheme();
   const styles = createStyles(theme);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const shouldScrollOnKeyboard = useRef(false);
   const [currentIntensity, setCurrentIntensity] = useState(5);
   const [intensityChanged, setIntensityChanged] = useState(false);
   const [currentSymptoms, setCurrentSymptoms] = useState<Symptom[]>([]);
@@ -173,6 +178,23 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
   useEffect(() => {
     loadLatestData();
   }, [episodeId]);
+
+  // Keyboard listener for auto-scroll
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => {
+        if (shouldScrollOnKeyboard.current) {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+          shouldScrollOnKeyboard.current = false;
+        }
+      }
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+    };
+  }, []);
 
   const loadLatestData = async () => {
     try {
@@ -298,6 +320,10 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
     );
   }
 
+  const handleNotesInputFocus = () => {
+    shouldScrollOnKeyboard.current = true;
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -309,10 +335,10 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
       </View>
 
       <ScrollView
+        ref={scrollViewRef}
         style={styles.content}
         keyboardShouldPersistTaps="handled"
-        contentInsetAdjustmentBehavior="automatic"
-        automaticallyAdjustKeyboardInsets={true}
+        keyboardDismissMode="interactive"
         testID="log-update-scroll-view"
       >
         {/* Pain Intensity */}
@@ -385,26 +411,32 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
             placeholderTextColor={theme.textTertiary}
             value={noteText}
             onChangeText={setNoteText}
+            onFocus={handleNotesInputFocus}
             testID="update-notes-input"
           />
         </View>
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: 20 }} />
       </ScrollView>
 
-      {/* Save Button */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-          onPress={handleSave}
-          disabled={saving}
-          testID="save-update-button"
-        >
-          <Text style={styles.saveButtonText}>
-            {saving ? 'Saving...' : 'Save Update'}
-          </Text>
-        </TouchableOpacity>
-      </View>
+      {/* Save Button Footer - wrapped in KeyboardAvoidingView */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+            onPress={handleSave}
+            disabled={saving}
+            testID="save-update-button"
+          >
+            <Text style={styles.saveButtonText}>
+              {saving ? 'Saving...' : 'Save Update'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }

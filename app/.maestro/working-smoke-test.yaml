@@ -1,4 +1,4 @@
-appId: host.exp.Exponent
+appId: com.eff3.app.headache-tracker
 ---
 # Working Smoke Test - Verified against actual app UI
 # This test validates the app launches and key UI elements are visible

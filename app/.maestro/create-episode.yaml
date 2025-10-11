@@ -1,0 +1,46 @@
+appId: com.eff3.app.headache-tracker
+---
+# Test: Create Episode Flow
+# Tests creating a new episode from a clean state
+# Note: When run individually, database should be manually reset first
+#       When run as part of test-suite.yaml, setup is handled by the suite
+
+# Verify Start Episode button is visible (only shows when no active episode)
+- assertVisible:
+    id: "start-episode-button"
+
+# Start a new episode
+- tapOn:
+    id: "start-episode-button"
+
+# Should be on Start Episode screen
+- assertVisible: "Start Episode"
+
+# Scroll down to make sure save button is visible
+- scrollUntilVisible:
+    element:
+      id: "save-episode-button"
+    direction: DOWN
+    speed: 80
+
+# Tap the save button (which says "Start Episode")
+# This creates an episode with default intensity (3)
+- tapOn:
+    id: "save-episode-button"
+
+# Give it a moment to save and navigate
+- waitForAnimationToEnd
+
+# Wait for navigation back to dashboard
+- assertVisible: "Pain Tracker"
+
+# Verify we're on the dashboard
+- assertVisible:
+    id: "dashboard-title"
+
+# Verify episode was created - Start Episode button should NOT be visible anymore
+# (it only shows when there's no active episode)
+- assertNotVisible:
+    id: "start-episode-button"
+
+# Test passed - episode created successfully!
