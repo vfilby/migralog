@@ -201,12 +201,20 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
     try {
       // Get all doses for each medication
       const allDoses: MedicationDose[] = [];
-      const cutoffDate = Date.now() - (days * 24 * 60 * 60 * 1000);
 
-      for (const med of get().medications) {
+      // Calculate cutoff as start of N days ago (midnight), not trailing N * 24 hours
+      const now = new Date();
+      const cutoffDate = new Date(now);
+      cutoffDate.setDate(cutoffDate.getDate() - days);
+      cutoffDate.setHours(0, 0, 0, 0); // Start of that day
+      const cutoffTimestamp = cutoffDate.getTime();
+
+      const medications = get().medications;
+
+      for (const med of medications) {
         const medDoses = await medicationDoseRepository.getByMedicationId(med.id);
-        // Filter to recent doses
-        const recentDoses = medDoses.filter(dose => dose.timestamp >= cutoffDate);
+        // Filter to recent doses (since start of N days ago)
+        const recentDoses = medDoses.filter(dose => dose.timestamp >= cutoffTimestamp);
         allDoses.push(...recentDoses);
       }
 
