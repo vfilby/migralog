@@ -102,9 +102,13 @@ describe('Complete Episode Lifecycle', () => {
       .toBeVisible()
       .withTimeout(3000);
 
-    // Scroll to bottom where symptoms/triggers are
-    await element(by.id('new-episode-scroll-view')).scroll(500, 'down');
-    await waitForAnimation(300);
+    // Scroll to symptoms section
+    try {
+      await element(by.id('new-episode-scroll-view')).scroll(500, 'down');
+      await waitForAnimation(300);
+    } catch (e) {
+      console.log('Could not scroll - symptoms may already be visible');
+    }
 
     // Select Nausea symptom
     await element(by.text('Nausea')).tap();
@@ -114,9 +118,13 @@ describe('Complete Episode Lifecycle', () => {
     await element(by.text('Light Sensitivity')).tap();
     await waitForAnimation(200);
 
-    // Scroll a bit more for triggers
-    await element(by.id('new-episode-scroll-view')).scroll(300, 'down');
-    await waitForAnimation(300);
+    // Scroll to triggers section
+    try {
+      await element(by.id('new-episode-scroll-view')).scroll(300, 'down');
+      await waitForAnimation(300);
+    } catch (e) {
+      console.log('Could not scroll - triggers may already be visible');
+    }
 
     // Select Stress trigger
     await element(by.text('Stress')).tap();
@@ -149,22 +157,11 @@ describe('Complete Episode Lifecycle', () => {
     // Wait for keyboard to fully dismiss and KeyboardAvoidingView to readjust
     await waitForAnimation(1500);
 
-    // Save button should now be visible at the bottom
-    // Try tapping it directly first
-    try {
-      await waitFor(element(by.id('save-episode-button')))
-        .toBeVisible()
-        .withTimeout(2000);
-      await element(by.id('save-episode-button')).tap();
-    } catch (e) {
-      // If not visible, scroll down a bit and try again
-      await element(by.id('new-episode-scroll-view')).scroll(300, 'down');
-      await waitForAnimation(500);
-      await waitFor(element(by.id('save-episode-button')))
-        .toBeVisible()
-        .withTimeout(3000);
-      await element(by.id('save-episode-button')).tap();
-    }
+    // Save button is now in a fixed footer (outside ScrollView) and should always be visible
+    await waitFor(element(by.id('save-episode-button')))
+      .toBeVisible()
+      .withTimeout(3000);
+    await element(by.id('save-episode-button')).tap();
 
     // Wait for save and return to episode details
     await waitForAnimation(1500);

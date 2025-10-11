@@ -23,7 +23,6 @@ import ArchivedMedicationsScreen from '../screens/ArchivedMedicationsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import BackupRecoveryScreen from '../screens/BackupRecoveryScreen';
 import ErrorLogsScreen from '../screens/ErrorLogsScreen';
-import KeyboardTestScreen from '../screens/KeyboardTestScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabsParamList>();
@@ -187,11 +186,6 @@ export default function AppNavigator() {
         <Stack.Screen
           name="ErrorLogs"
           component={ErrorLogsScreen}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="KeyboardTest"
-          component={KeyboardTestScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>
