@@ -237,12 +237,44 @@ export default function SettingsScreen({ navigation }: Props) {
                   createBackup: true,
                   loadFixtures: false,
                 });
-                Alert.alert('Database Reset', `Database has been reset.\n\nBackup ID: ${result.backupId || 'none'}`);
+                Alert.alert('Database Reset', result.message);
               } else {
                 Alert.alert('Error', 'Database reset is only available in development mode');
               }
             } catch (error) {
               console.error('Failed to reset database:', error);
+              Alert.alert('Error', `Failed to reset database: ${(error as Error).message}`);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleResetDatabaseWithFixtures = async () => {
+    Alert.alert(
+      'Reset with Test Data',
+      'This will:\n• Create an automatic backup\n• Clear ALL data from the database\n• Load test medications and episodes\n\nTest data includes:\n• Preventative medication with daily schedule (8:00 AM)\n• Rescue medication\n• Sample episode from yesterday\n\nThis action is for testing only.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset & Load',
+          style: 'default',
+          onPress: async () => {
+            try {
+              // Dynamically import test helper (only available in __DEV__)
+              if (__DEV__) {
+                const { resetDatabaseForTesting } = await import('../utils/testHelpers');
+                const result = await resetDatabaseForTesting({
+                  createBackup: true,
+                  loadFixtures: true,
+                });
+                Alert.alert('Success', 'Database reset with test data loaded!\n\nCheck Dashboard to see test medications.');
+              } else {
+                Alert.alert('Error', 'Database reset is only available in development mode');
+              }
+            } catch (error) {
+              console.error('Failed to reset database with fixtures:', error);
               Alert.alert('Error', `Failed to reset database: ${(error as Error).message}`);
             }
           },
@@ -583,16 +615,29 @@ export default function SettingsScreen({ navigation }: Props) {
             </TouchableOpacity>
 
             {__DEV__ && (
-              <TouchableOpacity
-                style={[styles.developerButton, styles.developerButtonDanger]}
-                onPress={handleResetDatabase}
-                testID="reset-database-button"
-              >
-                <Ionicons name="refresh-outline" size={20} color={theme.error} />
-                <Text style={[styles.developerButtonText, styles.developerButtonTextDanger]}>
-                  Reset Database (Testing)
-                </Text>
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity
+                  style={[styles.developerButton, styles.developerButtonDanger]}
+                  onPress={handleResetDatabase}
+                  testID="reset-database-button"
+                >
+                  <Ionicons name="refresh-outline" size={20} color={theme.error} />
+                  <Text style={[styles.developerButtonText, styles.developerButtonTextDanger]}>
+                    Reset Database (Testing)
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.developerButton]}
+                  onPress={handleResetDatabaseWithFixtures}
+                  testID="reset-database-with-fixtures-button"
+                >
+                  <Ionicons name="flask-outline" size={20} color={theme.primary} />
+                  <Text style={[styles.developerButtonText]}>
+                    Reset with Test Data
+                  </Text>
+                </TouchableOpacity>
+              </>
             )}
           </View>
         </View>
