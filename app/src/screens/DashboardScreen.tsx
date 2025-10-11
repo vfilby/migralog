@@ -10,6 +10,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { getPainColor, getPainLevel } from '../utils/painScale';
 import EpisodeCard from '../components/EpisodeCard';
+import MonthlyCalendarView from '../components/MonthlyCalendarView';
 import { useTheme, ThemeColors } from '../theme';
 import { Medication, MedicationSchedule, MedicationDose } from '../models/types';
 import { medicationScheduleRepository, medicationDoseRepository } from '../database/medicationRepository';
@@ -505,6 +506,9 @@ export default function DashboardScreen() {
           </View>
         )}
       </View>
+
+      {/* Monthly Calendar View */}
+      <MonthlyCalendarView />
     </ScrollView>
   );
 }

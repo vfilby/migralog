@@ -153,7 +153,7 @@ export const useDailyStatusStore = create<DailyStatusState>((set, get) => ({
 
       return true;
     } catch (error) {
-      await errorLogger.log('app', 'Failed to check should prompt', error as Error, {
+      await errorLogger.log('database', 'Failed to check should prompt', error as Error, {
         operation: 'checkShouldPrompt'
       });
       return false;
