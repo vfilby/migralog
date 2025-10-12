@@ -86,7 +86,7 @@ jobs:
       - name: Build iOS app for Detox
         run: |
           npm run generate-build-info
-          npx expo run:ios --configuration Debug --no-install --no-bundler
+          npx expo run:ios --configuration Debug --no-bundler
         env:
           EXPO_NO_DOTENV: 1
         timeout-minutes: 20
