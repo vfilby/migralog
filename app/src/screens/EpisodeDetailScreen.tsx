@@ -20,11 +20,16 @@ type MedicationDoseWithDetails = MedicationDose & {
   medication?: Medication;
 };
 
+type SymptomChange = {
+  symptom: string;
+  changeType: 'added' | 'removed';
+};
+
 type TimelineEvent = {
   id: string;
   timestamp: number;
-  type: 'intensity' | 'note' | 'medication' | 'symptom' | 'end';
-  data: IntensityReading | EpisodeNote | MedicationDoseWithDetails | SymptomLog | null;
+  type: 'intensity' | 'note' | 'medication' | 'symptom' | 'symptom_initial' | 'end';
+  data: IntensityReading | EpisodeNote | MedicationDoseWithDetails | SymptomLog | SymptomChange[] | null;
 };
 
 type GroupedTimelineEvent = {
@@ -151,6 +156,20 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   chipText: {
     fontSize: 14,
     color: theme.text,
+  },
+  symptomAddedChip: {
+    backgroundColor: '#E8F5E9', // Light green background for added symptoms
+  },
+  symptomAddedText: {
+    color: '#2E7D32', // Dark green text for added symptoms
+    fontWeight: '600',
+  },
+  symptomRemovedChip: {
+    backgroundColor: '#FFEBEE', // Light red background for removed symptoms
+  },
+  symptomRemovedText: {
+    color: '#C62828', // Dark red text for removed symptoms
+    fontWeight: '600',
   },
   locationGrid: {
     flexDirection: 'row',
@@ -511,6 +530,36 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   const buildTimeline = (): GroupedTimelineEvent[] => {
     const events: TimelineEvent[] = [];
 
+    // Add initial symptoms as a timeline event (if episode has symptoms)
+    if (episode && episode.symptoms && episode.symptoms.length > 0) {
+      const initialSymptomChanges: SymptomChange[] = episode.symptoms.map(symptom => ({
+        symptom,
+        changeType: 'added' as const,
+      }));
+
+      events.push({
+        id: 'symptoms-initial',
+        timestamp: episode.startTime,
+        type: 'symptom_initial',
+        data: initialSymptomChanges,
+      });
+    }
+
+    // Add episode summary note (from episode creation) if it exists
+    if (episode && episode.notes) {
+      events.push({
+        id: 'episode-summary',
+        timestamp: episode.startTime,
+        type: 'note',
+        data: {
+          id: 'episode-summary',
+          episodeId: episode.id,
+          note: episode.notes,
+          timestamp: episode.startTime,
+        } as EpisodeNote,
+      });
+    }
+
     // Add intensity readings
     intensityReadings.forEach(reading => {
       events.push({
@@ -531,13 +580,33 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
       });
     });
 
-    // Add symptom logs
-    symptomLogs.forEach(symptom => {
+    // Add symptom logs with deltas
+    // Sort symptom logs by time to calculate deltas correctly
+    const sortedSymptomLogs = [...symptomLogs].sort((a, b) => a.onsetTime - b.onsetTime);
+
+    // Track current symptom state
+    let currentSymptoms = new Set(episode?.symptoms || []);
+
+    sortedSymptomLogs.forEach(symptomLog => {
+      // Determine if this is an addition or removal
+      const isAdded = symptomLog.resolutionTime === null || symptomLog.resolutionTime === undefined;
+      const symptomChanges: SymptomChange[] = [{
+        symptom: symptomLog.symptom,
+        changeType: isAdded ? 'added' : 'removed',
+      }];
+
+      // Update current state
+      if (isAdded) {
+        currentSymptoms.add(symptomLog.symptom);
+      } else {
+        currentSymptoms.delete(symptomLog.symptom);
+      }
+
       events.push({
-        id: `symptom-${symptom.id}`,
-        timestamp: symptom.onsetTime,
+        id: `symptom-${symptomLog.id}`,
+        timestamp: symptomLog.onsetTime,
         type: 'symptom',
-        data: symptom,
+        data: symptomChanges,
       });
     });
 
@@ -583,9 +652,14 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     switch (event.type) {
       case 'intensity':
         const reading = event.data as IntensityReading;
+        // Check if this is the initial intensity (same timestamp as episode start)
+        const isInitialIntensity = episode && reading.timestamp === episode.startTime;
         return (
           <View key={event.id} style={{ marginBottom: 12 }}>
-            <Text style={styles.timelineEventTitle}>Intensity Update</Text>
+            {/* Only show "Intensity Update" label for non-initial readings */}
+            {!isInitialIntensity && (
+              <Text style={styles.timelineEventTitle}>Intensity Update</Text>
+            )}
             <View style={styles.timelineIntensityBar}>
               <View
                 style={[
@@ -605,20 +679,28 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
 
       case 'note':
         const note = event.data as EpisodeNote;
+        const isEpisodeSummary = note.id === 'episode-summary';
         return (
           <View key={event.id} style={{ marginBottom: 12 }}>
-            <Text style={styles.timelineEventTitle}>Note</Text>
+            {/* Only show "Note" title for user-added notes, not episode summary */}
+            {!isEpisodeSummary && (
+              <Text style={styles.timelineEventTitle}>Note</Text>
+            )}
             <Text style={styles.timelineNoteText}>{note.note}</Text>
-            <TouchableOpacity
-              style={styles.deleteEventButton}
-              onPress={() => handleDeleteNote(note.id)}
-            >
-              <Text style={styles.deleteEventButtonText}>Delete</Text>
-            </TouchableOpacity>
+            {/* Only show delete button for user-added notes, not the episode summary */}
+            {!isEpisodeSummary && (
+              <TouchableOpacity
+                style={styles.deleteEventButton}
+                onPress={() => handleDeleteNote(note.id)}
+              >
+                <Text style={styles.deleteEventButtonText}>Delete</Text>
+              </TouchableOpacity>
+            )}
           </View>
         );
 
       case 'symptom':
+      case 'symptom_initial':
         // Symptoms are now rendered grouped in renderGroupedTimelineEvent
         return null;
 
@@ -649,8 +731,8 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     const time = format(group.timestamp, 'h:mm a');
 
     // Separate symptom events from other events
-    const symptomEvents = group.events.filter(e => e.type === 'symptom');
-    const otherEvents = group.events.filter(e => e.type !== 'symptom');
+    const symptomEvents = group.events.filter(e => e.type === 'symptom' || e.type === 'symptom_initial');
+    const otherEvents = group.events.filter(e => e.type !== 'symptom' && e.type !== 'symptom_initial');
 
     // Get the primary color for the dot (intensity > medication > note)
     const intensityEvent = group.events.find(e => e.type === 'intensity');
@@ -679,20 +761,44 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
           {/* Render non-symptom events */}
           {otherEvents.map(event => renderEventContent(event))}
 
-          {/* Render grouped symptoms with chips */}
+          {/* Render symptom changes with +/- indicators */}
           {symptomEvents.length > 0 && (
             <View style={{ marginBottom: 12 }}>
-              <Text style={styles.timelineEventTitle}>Symptoms</Text>
+              <Text style={styles.timelineEventTitle}>
+                {symptomEvents[0].type === 'symptom_initial' ? 'Initial Symptoms' : 'Symptom Changes'}
+              </Text>
               <View style={styles.chipContainer}>
                 {symptomEvents.map(event => {
-                  const symptomLog = event.data as SymptomLog;
-                  return (
-                    <View key={event.id} style={styles.chip}>
-                      <Text style={styles.chipText}>
-                        {symptomLog.symptom.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      </Text>
-                    </View>
-                  );
+                  const symptomChanges = event.data as SymptomChange[];
+                  const isInitial = event.type === 'symptom_initial';
+
+                  return symptomChanges.map((change, idx) => {
+                    const isAdded = change.changeType === 'added';
+
+                    // For initial symptoms, use neutral styling without indicators
+                    if (isInitial) {
+                      return (
+                        <View key={`${event.id}-${idx}`} style={styles.chip}>
+                          <Text style={styles.chipText}>
+                            {change.symptom.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          </Text>
+                        </View>
+                      );
+                    }
+
+                    // For symptom changes, show +/- with color coding
+                    const chipStyle = isAdded ? styles.symptomAddedChip : styles.symptomRemovedChip;
+                    const textStyle = isAdded ? styles.symptomAddedText : styles.symptomRemovedText;
+                    const indicator = isAdded ? '+ ' : '− ';
+
+                    return (
+                      <View key={`${event.id}-${idx}`} style={[styles.chip, chipStyle]}>
+                        <Text style={[styles.chipText, textStyle]}>
+                          {indicator}{change.symptom.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </Text>
+                      </View>
+                    );
+                  });
                 })}
               </View>
             </View>
@@ -821,18 +927,6 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
           )}
         </View>
 
-        {/* Timeline */}
-        {timeline.length > 0 && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Timeline</Text>
-            <View style={styles.timelineContainer}>
-              {timeline.map((group, index) =>
-                renderGroupedTimelineEvent(group, index, index === timeline.length - 1)
-              )}
-            </View>
-          </View>
-        )}
-
         {/* Pain Locations */}
         {episode.locations.length > 0 && (
           <View style={styles.card}>
@@ -878,22 +972,6 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
           </View>
         )}
 
-        {/* Symptoms */}
-        {episode.symptoms.length > 0 && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Symptoms</Text>
-            <View style={styles.chipContainer}>
-              {episode.symptoms.map(symptom => (
-                <View key={symptom} style={styles.chip}>
-                  <Text style={styles.chipText}>
-                    {symptom.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
         {/* Triggers */}
         {episode.triggers.length > 0 && (
           <View style={styles.card}>
@@ -910,11 +988,15 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
           </View>
         )}
 
-        {/* Old Episode Notes (from episode creation) */}
-        {episode.notes && (
+        {/* Timeline */}
+        {timeline.length > 0 && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Episode Summary</Text>
-            <Text style={styles.notesText}>{episode.notes}</Text>
+            <Text style={styles.cardTitle}>Timeline</Text>
+            <View style={styles.timelineContainer}>
+              {timeline.map((group, index) =>
+                renderGroupedTimelineEvent(group, index, index === timeline.length - 1)
+              )}
+            </View>
           </View>
         )}
 
