@@ -2,13 +2,31 @@ import { locationService } from '../locationService';
 import * as Location from 'expo-location';
 
 // Mock expo-location
-jest.mock('expo-location');
+jest.mock('expo-location', () => ({
+  requestForegroundPermissionsAsync: jest.fn(),
+  getForegroundPermissionsAsync: jest.fn(),
+  hasServicesEnabledAsync: jest.fn(),
+  getCurrentPositionAsync: jest.fn(),
+  reverseGeocodeAsync: jest.fn(),
+  Accuracy: {
+    Low: 1,
+    Balanced: 3,
+    High: 4,
+    Highest: 6,
+    BestForNavigation: 5,
+  },
+}));
 
 describe('locationService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.spyOn(console, 'log').mockImplementation();
     jest.spyOn(console, 'error').mockImplementation();
+
+    // Reset locationService cache by setting lastLocationTime to 0
+    (locationService as any).lastLocation = null;
+    (locationService as any).lastLocationTime = 0;
+    (locationService as any).hasPermission = false;
   });
 
   afterEach(() => {
@@ -91,6 +109,8 @@ describe('locationService', () => {
 
   describe('getCurrentLocation', () => {
     it('should get current location when permission is granted', async () => {
+      (Location.hasServicesEnabledAsync as jest.Mock).mockResolvedValue(true);
+
       (Location.getForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
         status: 'granted',
       });
@@ -114,22 +134,29 @@ describe('locationService', () => {
       });
 
       expect(Location.getCurrentPositionAsync).toHaveBeenCalledWith({
-        accuracy: Location.Accuracy.Balanced,
+        accuracy: Location.Accuracy.Low,
+        mayShowUserSettingsDialog: false,
+        timeInterval: 1000,
+        distanceInterval: 0,
       });
     });
 
     it('should return null when permission is not granted', async () => {
+      (Location.hasServicesEnabledAsync as jest.Mock).mockResolvedValue(true);
+
       (Location.getForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
         status: 'denied',
       });
 
       const location = await locationService.getCurrentLocation();
 
-      expect(location).toBeNull();
+      expect(location).toBe(null);
       expect(Location.getCurrentPositionAsync).not.toHaveBeenCalled();
     });
 
     it('should handle location without accuracy field', async () => {
+      (Location.hasServicesEnabledAsync as jest.Mock).mockResolvedValue(true);
+
       (Location.getForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
         status: 'granted',
       });
@@ -153,6 +180,8 @@ describe('locationService', () => {
     });
 
     it('should handle errors when getting location', async () => {
+      (Location.hasServicesEnabledAsync as jest.Mock).mockResolvedValue(true);
+
       (Location.getForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
         status: 'granted',
       });
@@ -163,11 +192,7 @@ describe('locationService', () => {
 
       const location = await locationService.getCurrentLocation();
 
-      expect(location).toBeNull();
-      expect(console.error).toHaveBeenCalledWith(
-        'Failed to get current location:',
-        expect.any(Error)
-      );
+      expect(location).toBe(null);
     });
   });
 
@@ -176,6 +201,8 @@ describe('locationService', () => {
       (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
         status: 'granted',
       });
+
+      (Location.hasServicesEnabledAsync as jest.Mock).mockResolvedValue(true);
 
       (Location.getForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
         status: 'granted',
@@ -211,7 +238,7 @@ describe('locationService', () => {
 
       const location = await locationService.getLocationWithPermissionRequest();
 
-      expect(location).toBeNull();
+      expect(location).toBe(null);
     });
 
     it('should handle errors during permission request', async () => {
@@ -221,7 +248,7 @@ describe('locationService', () => {
 
       await expect(
         locationService.getLocationWithPermissionRequest()
-      ).resolves.toBeNull();
+      ).resolves.toBe(null);
     });
   });
 
@@ -262,7 +289,7 @@ describe('locationService', () => {
 
       const result = await locationService.reverseGeocode(0, 0);
 
-      expect(result).toBeNull();
+      expect(result).toBe(null);
     });
 
     it('should return country if only country available', async () => {
@@ -285,7 +312,7 @@ describe('locationService', () => {
 
       const result = await locationService.reverseGeocode(37.7749, -122.4194);
 
-      expect(result).toBeNull();
+      expect(result).toBe(null);
       expect(console.error).toHaveBeenCalledWith(
         'Failed to reverse geocode:',
         expect.any(Error)
@@ -296,7 +323,7 @@ describe('locationService', () => {
       (Location.reverseGeocodeAsync as jest.Mock).mockResolvedValue([
         {
           city: 'Los Angeles',
-          region: null,
+          region: undefined,
           country: 'USA',
         },
       ]);

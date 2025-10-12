@@ -55,6 +55,8 @@ export async function resetDatabaseForTesting(options: {
     // 4. Reset Zustand stores to clear in-memory state
     console.log('[TestHelpers] Resetting stores...');
     useDailyStatusStore.getState().reset();
+    // Note: medicationStore and episodeStore don't have reset methods,
+    // but they will reload data when screens gain focus
     console.log('[TestHelpers] Stores reset');
 
     // 5. Optionally load test fixtures
@@ -83,62 +85,107 @@ async function loadTestFixtures() {
   const twentyHoursAgo = Date.now() - 20 * 60 * 60 * 1000;
 
   await db.runAsync(
-    `INSERT INTO episodes (id, startTime, endTime, peakIntensity, location, notes)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO episodes (id, start_time, end_time, peak_intensity, average_intensity, locations, qualities, symptoms, triggers, notes, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       testEpisodeId,
       oneDayAgo,
       twentyHoursAgo,
       7,
-      JSON.stringify({ latitude: 37.7749, longitude: -122.4194 }), // San Francisco
-      'Test episode for E2E testing'
+      6,
+      JSON.stringify(['front']),
+      JSON.stringify(['throbbing']),
+      JSON.stringify(['nausea']),
+      JSON.stringify(['stress']),
+      'Test episode for E2E testing',
+      oneDayAgo,
+      twentyHoursAgo
     ]
   );
 
   // Add intensity readings to the test episode
   await db.runAsync(
-    `INSERT INTO intensity_readings (id, episodeId, timestamp, intensity, location, notes)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO intensity_readings (id, episode_id, timestamp, intensity, created_at)
+     VALUES (?, ?, ?, ?, ?)`,
     [
       `test-reading-1-${Date.now()}`,
       testEpisodeId,
       oneDayAgo + 1000,
       5,
-      JSON.stringify({ latitude: 37.7749, longitude: -122.4194 }),
-      'Initial reading'
+      oneDayAgo + 1000
     ]
   );
 
   await db.runAsync(
-    `INSERT INTO intensity_readings (id, episodeId, timestamp, intensity, location, notes)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO intensity_readings (id, episode_id, timestamp, intensity, created_at)
+     VALUES (?, ?, ?, ?, ?)`,
     [
       `test-reading-2-${Date.now()}`,
       testEpisodeId,
       oneDayAgo + 2 * 60 * 60 * 1000, // 2 hours later
       7,
-      JSON.stringify({ latitude: 37.7749, longitude: -122.4194 }),
-      'Peak reading'
+      oneDayAgo + 2 * 60 * 60 * 1000
     ]
   );
 
-  // Create a test medication
-  const testMedicationId = `test-medication-${Date.now()}`;
+  // Create test medications
+
+  // 1. Preventative medication with daily schedule
+  const preventativeMedId = `test-preventative-${Date.now()}`;
   await db.runAsync(
-    `INSERT INTO medications (id, name, type, dosageAmount, dosageUnit, instructions, active)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, default_dosage, schedule_frequency, active, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
-      testMedicationId,
-      'Test Ibuprofen',
-      'rescue',
-      400,
+      preventativeMedId,
+      'Test Topiramate',
+      'preventative',
+      50,
       'mg',
-      'Take with food',
+      1,
+      'daily',
+      1,
+      Date.now(),
+      Date.now()
+    ]
+  );
+
+  // Add schedule for preventative medication (1 hour ago - will show as missed)
+  const now = new Date();
+  const scheduleTime = new Date(now.getTime() - 60 * 60 * 1000); // 1 hour ago
+  const timeString = `${scheduleTime.getHours().toString().padStart(2, '0')}:${scheduleTime.getMinutes().toString().padStart(2, '0')}`;
+
+  const scheduleId = `test-schedule-${Date.now()}`;
+  await db.runAsync(
+    `INSERT INTO medication_schedules (id, medication_id, time, dosage, enabled)
+     VALUES (?, ?, ?, ?, ?)`,
+    [
+      scheduleId,
+      preventativeMedId,
+      timeString,
+      1,
       1
     ]
   );
 
-  console.log('[TestHelpers] Test fixtures loaded');
+  // 2. Rescue medication
+  const rescueMedId = `test-rescue-${Date.now()}`;
+  await db.runAsync(
+    `INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, default_dosage, active, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      rescueMedId,
+      'Test Ibuprofen',
+      'rescue',
+      400,
+      'mg',
+      1,
+      1,
+      Date.now(),
+      Date.now()
+    ]
+  );
+
+  console.log('[TestHelpers] Test fixtures loaded (preventative + rescue medications)');
 }
 
 /**

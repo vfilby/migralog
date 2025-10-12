@@ -17,8 +17,8 @@ module.exports = {
     },
     'ios.debug': {
       type: 'ios.app',
-      build: 'npx expo run:ios --configuration Debug',
-      binaryPath: '/Users/vfilby/Library/Developer/Xcode/DerivedData/MigraineTracker-dbcroprvgxbqlrfveyoyxqtksiqq/Build/Products/Debug-iphonesimulator/MigraineTracker.app',
+      build: 'scripts/build-ios-for-detox.sh',
+      binaryPath: 'ios/build/Build/Products/Debug-iphonesimulator/MigraineTracker.app',
     },
   },
   devices: {

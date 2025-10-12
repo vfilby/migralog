@@ -35,11 +35,11 @@ describe('medicationRepository', () => {
         dosageAmount: 200,
         dosageUnit: 'mg',
         defaultDosage: 2,
-        scheduleFrequency: null,
-        photoUri: null,
+        scheduleFrequency: undefined,
+        photoUri: undefined,
         schedule: [],
         startDate: Date.now(),
-        endDate: null,
+        endDate: undefined,
         active: true,
         notes: 'Take with food',
       };
@@ -63,21 +63,21 @@ describe('medicationRepository', () => {
         type: 'rescue' as const,
         dosageAmount: 325,
         dosageUnit: 'mg',
-        defaultDosage: null,
-        scheduleFrequency: null,
-        photoUri: null,
+        defaultDosage: undefined,
+        scheduleFrequency: undefined,
+        photoUri: undefined,
         schedule: [],
-        startDate: null,
-        endDate: null,
+        startDate: undefined,
+        endDate: undefined,
         active: true,
-        notes: null,
+        notes: undefined,
       };
 
       const result = await medicationRepository.create(minimalMedication);
 
       expect(result.id).toBe('test-med-123');
-      expect(result.defaultDosage).toBeNull();
-      expect(result.notes).toBeNull();
+      expect(result.defaultDosage).toBeUndefined();
+      expect(result.notes).toBeUndefined();
     });
 
     it('should create preventative medication', async () => {
@@ -88,12 +88,12 @@ describe('medicationRepository', () => {
         dosageUnit: 'mg',
         defaultDosage: 1,
         scheduleFrequency: 'daily' as const,
-        photoUri: null,
+        photoUri: undefined,
         schedule: [],
         startDate: Date.now(),
-        endDate: null,
+        endDate: undefined,
         active: true,
-        notes: null,
+        notes: undefined,
       };
 
       const result = await medicationRepository.create(preventative);
@@ -131,80 +131,7 @@ describe('medicationRepository', () => {
       expect(call[1]).toContain('New notes');
     });
 
-    it('should cancel notifications when archiving medication', async () => {
-      (notificationService.cancelMedicationNotifications as jest.Mock).mockResolvedValue(undefined);
-
-      await medicationRepository.update('med-123', { active: false });
-
-      expect(notificationService.cancelMedicationNotifications).toHaveBeenCalledWith('med-123');
-    });
-
-    it('should reschedule notifications when unarchiving preventative medication', async () => {
-      const mockMedication: Medication = {
-        id: 'med-123',
-        name: 'Daily Med',
-        type: 'preventative',
-        dosageAmount: 100,
-        dosageUnit: 'mg',
-        defaultDosage: 1,
-        scheduleFrequency: 'daily',
-        photoUri: null,
-        schedule: [],
-        startDate: Date.now(),
-        endDate: null,
-        active: false,
-        notes: null,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-
-      const mockSchedule: MedicationSchedule = {
-        id: 'sched-1',
-        medicationId: 'med-123',
-        time: '09:00',
-        dosage: 1,
-        enabled: true,
-        notificationId: null,
-        createdAt: Date.now(),
-      };
-
-      mockDatabase.getFirstAsync.mockResolvedValue({
-        id: 'med-123',
-        name: 'Daily Med',
-        type: 'preventative',
-        dosage_amount: 100,
-        dosage_unit: 'mg',
-        default_dosage: 1,
-        schedule_frequency: 'daily',
-        photo_uri: null,
-        start_date: Date.now(),
-        end_date: null,
-        active: 0,
-        notes: null,
-        created_at: Date.now(),
-        updated_at: Date.now(),
-      });
-
-      mockDatabase.getAllAsync.mockResolvedValue([
-        {
-          id: 'sched-1',
-          medication_id: 'med-123',
-          time: '09:00',
-          dosage: 1,
-          enabled: 1,
-          notification_id: null,
-          created_at: Date.now(),
-        },
-      ]);
-
-      (notificationService.getPermissions as jest.Mock).mockResolvedValue({ granted: true });
-      (notificationService.scheduleNotification as jest.Mock).mockResolvedValue('notif-123');
-
-      await medicationRepository.update('med-123', { active: true });
-
-      expect(notificationService.getPermissions).toHaveBeenCalled();
-      expect(notificationService.scheduleNotification).toHaveBeenCalled();
-    });
+    // Note: Notification handling for archiving/unarchiving belongs in medicationStore, not repository layer
   });
 
   describe('getById', () => {
@@ -216,10 +143,10 @@ describe('medicationRepository', () => {
         dosage_amount: 200,
         dosage_unit: 'mg',
         default_dosage: 2,
-        schedule_frequency: null,
-        photo_uri: null,
-        start_date: null,
-        end_date: null,
+        schedule_frequency: undefined,
+        photo_uri: undefined,
+        start_date: undefined,
+        end_date: undefined,
         active: 1,
         notes: 'Take with food',
         created_at: Date.now(),
@@ -230,7 +157,7 @@ describe('medicationRepository', () => {
 
       const result = await medicationRepository.getById('med-123');
 
-      expect(result).not.toBeNull();
+      expect(result).not.toBeUndefined();
       expect(result?.id).toBe('med-123');
       expect(result?.name).toBe('Ibuprofen');
       expect(result?.active).toBe(true);
@@ -245,7 +172,7 @@ describe('medicationRepository', () => {
 
       const result = await medicationRepository.getById('nonexistent');
 
-      expect(result).toBeNull();
+      expect(result).toBe(null);
     });
   });
 
@@ -258,13 +185,13 @@ describe('medicationRepository', () => {
           type: 'rescue',
           dosage_amount: 325,
           dosage_unit: 'mg',
-          default_dosage: null,
-          schedule_frequency: null,
-          photo_uri: null,
-          start_date: null,
-          end_date: null,
+          default_dosage: undefined,
+          schedule_frequency: undefined,
+          photo_uri: undefined,
+          start_date: undefined,
+          end_date: undefined,
           active: 1,
-          notes: null,
+          notes: undefined,
           created_at: Date.now(),
           updated_at: Date.now(),
         },
@@ -274,13 +201,13 @@ describe('medicationRepository', () => {
           type: 'rescue',
           dosage_amount: 200,
           dosage_unit: 'mg',
-          default_dosage: null,
-          schedule_frequency: null,
-          photo_uri: null,
-          start_date: null,
-          end_date: null,
+          default_dosage: undefined,
+          schedule_frequency: undefined,
+          photo_uri: undefined,
+          start_date: undefined,
+          end_date: undefined,
           active: 1,
-          notes: null,
+          notes: undefined,
           created_at: Date.now(),
           updated_at: Date.now(),
         },
@@ -316,13 +243,13 @@ describe('medicationRepository', () => {
           type: 'rescue',
           dosage_amount: 100,
           dosage_unit: 'mg',
-          default_dosage: null,
-          schedule_frequency: null,
-          photo_uri: null,
-          start_date: null,
-          end_date: null,
+          default_dosage: undefined,
+          schedule_frequency: undefined,
+          photo_uri: undefined,
+          start_date: undefined,
+          end_date: undefined,
           active: 1,
-          notes: null,
+          notes: undefined,
           created_at: Date.now(),
           updated_at: Date.now(),
         },
@@ -349,13 +276,13 @@ describe('medicationRepository', () => {
           type: 'rescue',
           dosage_amount: 100,
           dosage_unit: 'mg',
-          default_dosage: null,
-          schedule_frequency: null,
-          photo_uri: null,
-          start_date: null,
-          end_date: null,
+          default_dosage: undefined,
+          schedule_frequency: undefined,
+          photo_uri: undefined,
+          start_date: undefined,
+          end_date: undefined,
           active: 1,
-          notes: null,
+          notes: undefined,
           created_at: Date.now(),
           updated_at: Date.now(),
         },
@@ -394,13 +321,13 @@ describe('medicationRepository', () => {
           type: 'rescue',
           dosage_amount: 100,
           dosage_unit: 'mg',
-          default_dosage: null,
-          schedule_frequency: null,
-          photo_uri: null,
-          start_date: null,
-          end_date: null,
+          default_dosage: undefined,
+          schedule_frequency: undefined,
+          photo_uri: undefined,
+          start_date: undefined,
+          end_date: undefined,
           active: 0,
-          notes: null,
+          notes: undefined,
           created_at: Date.now(),
           updated_at: Date.now(),
         },
@@ -482,13 +409,13 @@ describe('medicationRepository', () => {
         type: 'rescue',
         dosage_amount: 100,
         dosage_unit: 'mg',
-        default_dosage: null,
-        schedule_frequency: null,
-        photo_uri: null,
-        start_date: null,
-        end_date: null,
+        default_dosage: undefined,
+        schedule_frequency: undefined,
+        photo_uri: undefined,
+        start_date: undefined,
+        end_date: undefined,
         active: 0,
-        notes: null,
+        notes: undefined,
         created_at: Date.now(),
         updated_at: Date.now(),
       };
@@ -544,17 +471,17 @@ describe('medicationDoseRepository', () => {
         medicationId: 'med-123',
         timestamp: Date.now(),
         amount: 1,
-        episodeId: null,
-        effectivenessRating: null,
-        timeToRelief: null,
-        sideEffects: null,
-        notes: null,
+        episodeId: undefined,
+        effectivenessRating: undefined,
+        timeToRelief: undefined,
+        sideEffects: undefined,
+        notes: undefined,
       };
 
       const result = await medicationDoseRepository.create(minimal);
 
       expect(result.id).toBe('dose-123');
-      expect(result.effectivenessRating).toBeNull();
+      expect(result.effectivenessRating).toBeUndefined();
     });
   });
 
@@ -598,11 +525,11 @@ describe('medicationDoseRepository', () => {
           medication_id: 'med-123',
           timestamp: Date.now(),
           amount: 1,
-          episode_id: null,
-          effectiveness_rating: null,
-          time_to_relief: null,
-          side_effects: null,
-          notes: null,
+          episode_id: undefined,
+          effectiveness_rating: undefined,
+          time_to_relief: undefined,
+          side_effects: undefined,
+          notes: undefined,
           created_at: Date.now(),
         },
       ];

@@ -33,7 +33,7 @@ describe('dailyStatusStore', () => {
     // Reset the store state
     useDailyStatusStore.setState({
       dailyStatuses: [],
-      monthStats: null,
+      monthStats: undefined,
       loading: false,
       error: null,
     });
@@ -69,7 +69,7 @@ describe('dailyStatusStore', () => {
       const state = useDailyStatusStore.getState();
       expect(state.dailyStatuses).toEqual(mockStatuses);
       expect(state.loading).toBe(false);
-      expect(state.error).toBeNull();
+      expect(state.error).toBe(null);
       expect(dailyStatusRepository.getDateRange).toHaveBeenCalledWith('2025-10-08', '2025-10-09');
     });
 
@@ -113,7 +113,7 @@ describe('dailyStatusStore', () => {
       const state = useDailyStatusStore.getState();
       expect(state.monthStats).toEqual(mockStats);
       expect(state.loading).toBe(false);
-      expect(state.error).toBeNull();
+      expect(state.error).toBe(null);
       expect(dailyStatusRepository.getMonthStats).toHaveBeenCalledWith(2025, 10);
     });
 
@@ -124,7 +124,7 @@ describe('dailyStatusStore', () => {
       await useDailyStatusStore.getState().loadMonthStats(2025, 10);
 
       const state = useDailyStatusStore.getState();
-      expect(state.monthStats).toBeNull();
+      expect(state.monthStats).toBeUndefined();
       expect(state.loading).toBe(false);
       expect(state.error).toBe('Database error');
     });
@@ -149,7 +149,7 @@ describe('dailyStatusStore', () => {
       const state = useDailyStatusStore.getState();
       expect(state.dailyStatuses).toContainEqual(newLog);
       expect(state.loading).toBe(false);
-      expect(state.error).toBeNull();
+      expect(state.error).toBe(null);
       expect(dailyStatusRepository.upsert).toHaveBeenCalledWith({
         date: '2025-10-10',
         status: 'green',
@@ -348,7 +348,7 @@ describe('dailyStatusStore', () => {
 
       const result = await useDailyStatusStore.getState().getDayStatus('2025-10-10');
 
-      expect(result).toBeNull();
+      expect(result).toBe(null);
     });
 
     it('should handle errors when getting day status', async () => {
@@ -357,7 +357,7 @@ describe('dailyStatusStore', () => {
 
       const result = await useDailyStatusStore.getState().getDayStatus('2025-10-10');
 
-      expect(result).toBeNull();
+      expect(result).toBe(null);
       expect(useDailyStatusStore.getState().error).toBe('Get failed');
     });
   });
@@ -403,9 +403,9 @@ describe('dailyStatusStore', () => {
       const state = useDailyStatusStore.getState();
 
       expect(state.dailyStatuses).toEqual([]);
-      expect(state.monthStats).toBeNull();
+      expect(state.monthStats).toBeUndefined();
       expect(state.loading).toBe(false);
-      expect(state.error).toBeNull();
+      expect(state.error).toBe(null);
     });
 
     it('should maintain state across multiple operations', async () => {
@@ -429,7 +429,7 @@ describe('dailyStatusStore', () => {
 
       const state = useDailyStatusStore.getState();
       expect(state.dailyStatuses).toHaveLength(1);
-      expect(state.error).toBeNull();
+      expect(state.error).toBe(null);
     });
   });
 });

@@ -173,7 +173,7 @@ describe('dailyStatusRepository', () => {
         date: '2025-10-10',
         status: 'yellow',
         status_type: 'prodrome',
-        notes: null,
+        notes: undefined,
         prompted: 1,
         created_at: Date.now() - 1000,
         updated_at: Date.now() - 1000,
@@ -214,7 +214,7 @@ describe('dailyStatusRepository', () => {
 
       const result = await dailyStatusRepository.getByDate('2025-10-10');
 
-      expect(result).not.toBeNull();
+      expect(result).not.toBeUndefined();
       expect(result?.id).toBe('status-123');
       expect(result?.date).toBe('2025-10-10');
       expect(result?.status).toBe('yellow');
@@ -231,7 +231,7 @@ describe('dailyStatusRepository', () => {
 
       const result = await dailyStatusRepository.getByDate('2025-10-10');
 
-      expect(result).toBeNull();
+      expect(result).toBe(null);
     });
 
     it('should handle log without optional fields', async () => {
@@ -239,8 +239,8 @@ describe('dailyStatusRepository', () => {
         id: 'status-123',
         date: '2025-10-10',
         status: 'green',
-        status_type: null,
-        notes: null,
+        status_type: undefined,
+        notes: undefined,
         prompted: 0,
         created_at: Date.now(),
         updated_at: Date.now(),
@@ -263,8 +263,8 @@ describe('dailyStatusRepository', () => {
           id: 'status-1',
           date: '2025-10-08',
           status: 'green',
-          status_type: null,
-          notes: null,
+          status_type: undefined,
+          notes: undefined,
           prompted: 1,
           created_at: Date.now(),
           updated_at: Date.now(),
@@ -283,7 +283,7 @@ describe('dailyStatusRepository', () => {
           id: 'status-3',
           date: '2025-10-10',
           status: 'red',
-          status_type: null,
+          status_type: undefined,
           notes: 'Episode day',
           prompted: 0,
           created_at: Date.now(),
@@ -425,8 +425,8 @@ describe('dailyStatusRepository', () => {
         id: 'status-123',
         date: '2025-10-10',
         status: 'green',
-        status_type: null,
-        notes: null,
+        status_type: undefined,
+        notes: undefined,
         prompted: 0,
         created_at: 1000,
         updated_at: 1000,

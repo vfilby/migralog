@@ -74,12 +74,12 @@ describe('backupService', () => {
       {
         id: 'ep-1',
         startTime: Date.now(),
-        endTime: null,
-        locations: ['Head'],
+        endTime: undefined,
+        locations: ['left_head'],
         qualities: [],
         symptoms: [],
         triggers: [],
-        notes: null,
+        notes: undefined,
         peakIntensity: 7,
         averageIntensity: 5,
         createdAt: Date.now(),
@@ -94,14 +94,14 @@ describe('backupService', () => {
         type: 'rescue',
         dosageAmount: 100,
         dosageUnit: 'mg',
-        defaultDosage: null,
-        scheduleFrequency: null,
-        photoUri: null,
+        defaultDosage: undefined,
+        scheduleFrequency: undefined,
+        photoUri: undefined,
         schedule: [],
-        startDate: null,
-        endDate: null,
+        startDate: undefined,
+        endDate: undefined,
         active: true,
-        notes: null,
+        notes: undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       },
@@ -114,10 +114,10 @@ describe('backupService', () => {
         timestamp: Date.now(),
         amount: 1,
         episodeId: 'ep-1',
-        effectivenessRating: null,
-        timeToRelief: null,
-        sideEffects: null,
-        notes: null,
+        effectivenessRating: undefined,
+        timeToRelief: undefined,
+        sideEffects: undefined,
+        notes: undefined,
         createdAt: Date.now(),
       },
     ];
@@ -127,8 +127,7 @@ describe('backupService', () => {
         id: 'note-1',
         episodeId: 'ep-1',
         timestamp: Date.now(),
-        noteType: 'general',
-        content: 'Test note',
+        note: 'Test note',
         createdAt: Date.now(),
       },
     ];
@@ -346,7 +345,7 @@ describe('backupService', () => {
 
       const metadata = await backupService.getBackupMetadata('backup-123');
 
-      expect(metadata).not.toBeNull();
+      expect(metadata).not.toBeUndefined();
       expect(metadata?.id).toBe('backup-123');
       expect(metadata?.fileSize).toBe(1000);
     });
@@ -356,7 +355,7 @@ describe('backupService', () => {
 
       const metadata = await backupService.getBackupMetadata('nonexistent');
 
-      expect(metadata).toBeNull();
+      expect(metadata).toBe(null);
     });
 
     it('should return null on error', async () => {
@@ -364,7 +363,7 @@ describe('backupService', () => {
 
       const metadata = await backupService.getBackupMetadata('backup-123');
 
-      expect(metadata).toBeNull();
+      expect(metadata).toBe(null);
     });
   });
 
@@ -383,12 +382,12 @@ describe('backupService', () => {
         {
           id: 'ep-1',
           startTime: Date.now(),
-          endTime: null,
+          endTime: undefined,
           locations: [],
           qualities: [],
           symptoms: [],
           triggers: [],
-          notes: null,
+          notes: undefined,
           peakIntensity: 0,
           averageIntensity: 0,
           createdAt: Date.now(),
@@ -403,14 +402,14 @@ describe('backupService', () => {
           type: 'rescue',
           dosageAmount: 100,
           dosageUnit: 'mg',
-          defaultDosage: null,
-          scheduleFrequency: null,
-          photoUri: null,
+          defaultDosage: undefined,
+          scheduleFrequency: undefined,
+          photoUri: undefined,
           schedule: [],
-          startDate: null,
-          endDate: null,
+          startDate: undefined,
+          endDate: undefined,
           active: true,
-          notes: null,
+          notes: undefined,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         },

@@ -5,7 +5,7 @@ import { useEpisodeStore } from '../store/episodeStore';
 import { useMedicationStore } from '../store/medicationStore';
 import { format, differenceInDays, isToday, parse, isBefore, isAfter, addMinutes } from 'date-fns';
 import { MainTabsScreenProps } from '../navigation/types';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, useNavigationState } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { getPainColor, getPainLevel } from '../utils/painScale';
@@ -13,7 +13,6 @@ import EpisodeCard from '../components/EpisodeCard';
 import DailyStatusWidget from '../components/DailyStatusWidget';
 import { useTheme, ThemeColors } from '../theme';
 import { Medication, MedicationSchedule, MedicationDose } from '../models/types';
-import { medicationScheduleRepository, medicationDoseRepository } from '../database/medicationRepository';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -210,33 +209,55 @@ export default function DashboardScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { theme } = useTheme();
   const { currentEpisode, episodes, loadCurrentEpisode, loadEpisodes } = useEpisodeStore();
-  const { preventativeMedications, rescueMedications, loadMedications, logDose, deleteDose } = useMedicationStore();
+  const {
+    preventativeMedications,
+    rescueMedications,
+    schedules,
+    doses,
+    loadMedications,
+    loadSchedules,
+    loadRecentDoses,
+    logDose,
+    deleteDose
+  } = useMedicationStore();
   const [todaysMedications, setTodaysMedications] = useState<TodaysMedication[]>([]);
 
-  const loadTodaysMedications = useCallback(async () => {
+  const loadTodaysMedications = async () => {
     try {
+      // Read directly from store to get latest values (not from component closure)
+      const storeState = useMedicationStore.getState();
+      const { preventativeMedications: prevMeds, schedules: storeSchedules, doses: storeDoses } = storeState;
+
       const todayMeds: TodaysMedication[] = [];
       const now = new Date();
 
-      for (const med of preventativeMedications) {
-        if (med.scheduleFrequency !== 'daily') continue;
+      for (const med of prevMeds) {
+        if (med.scheduleFrequency !== 'daily') {
+          continue;
+        }
 
-        const schedules = await medicationScheduleRepository.getByMedicationId(med.id);
-        const doses = await medicationDoseRepository.getByMedicationId(med.id);
+        // Get schedules from store state
+        const medSchedules = storeSchedules.filter(s => s.medicationId === med.id);
+        // Get doses from store state
+        const medDoses = storeDoses.filter(d => d.medicationId === med.id);
 
-        for (const schedule of schedules) {
+        for (const schedule of medSchedules) {
           // Parse schedule time (HH:mm format)
           const [hours, minutes] = schedule.time.split(':').map(Number);
           const doseTime = new Date();
           doseTime.setHours(hours, minutes, 0, 0);
 
           // Check if this dose was taken today
-          const takenDose = doses.find(dose => {
+          // Find the most recent dose logged today (regardless of time)
+          const todaysDoses = medDoses.filter(dose => {
             const doseDate = new Date(dose.timestamp);
-            return isToday(doseDate) &&
-              doseDate.getHours() === hours &&
-              Math.abs(doseDate.getMinutes() - minutes) < 30; // Within 30 min window
+            return isToday(doseDate);
           });
+
+          // Sort by timestamp descending and take the most recent one
+          const takenDose = todaysDoses.length > 0
+            ? todaysDoses.sort((a, b) => b.timestamp - a.timestamp)[0]
+            : undefined;
 
           // Show if it's upcoming (within next 3 hours), missed (past), or taken
           const threeHoursFromNow = addMinutes(now, 180);
@@ -274,21 +295,32 @@ export default function DashboardScreen() {
     } catch (error) {
       console.error('Failed to load todays medications:', error);
     }
-  }, [preventativeMedications]);
+  };
 
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      loadCurrentEpisode();
-      loadEpisodes();
-      loadMedications();
-      loadTodaysMedications();
-    });
-    return unsubscribe;
-  }, [navigation, loadTodaysMedications, loadCurrentEpisode, loadEpisodes, loadMedications]);
+  // Load data when screen comes into focus (handles both tab navigation AND modal dismissal)
+  useFocusEffect(
+    useCallback(() => {
+      const loadData = async () => {
+        // Load episodes and medications first
+        await Promise.all([
+          loadCurrentEpisode(),
+          loadEpisodes(),
+          loadMedications(),
+        ]);
 
-  useEffect(() => {
-    loadTodaysMedications();
-  }, [loadTodaysMedications]);
+        // THEN load schedules and doses (they depend on medications being loaded)
+        await Promise.all([
+          loadSchedules(),
+          loadRecentDoses(1),
+        ]);
+
+        // FINALLY calculate today's medications after all data is loaded
+        await loadTodaysMedications();
+      };
+      loadData();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])  // Empty deps - store functions are stable, only run on focus
+  );
 
   const handleTakeMedication = async (item: TodaysMedication) => {
     try {

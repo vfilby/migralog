@@ -102,12 +102,12 @@ describe('notificationService', () => {
       dosageUnit: 'mg',
       defaultDosage: 1,
       scheduleFrequency: 'daily',
-      photoUri: null,
+      photoUri: undefined,
       schedule: [],
-      startDate: null,
-      endDate: null,
+      startDate: undefined,
+      endDate: undefined,
       active: true,
-      notes: null,
+      notes: undefined,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -118,8 +118,7 @@ describe('notificationService', () => {
       time: '09:00',
       dosage: 2,
       enabled: true,
-      notificationId: null,
-      createdAt: Date.now(),
+      notificationId: undefined,
     };
 
     it('should schedule a notification for enabled schedule', async () => {
@@ -160,7 +159,7 @@ describe('notificationService', () => {
         disabledSchedule
       );
 
-      expect(notifId).toBeNull();
+      expect(notifId).toBe(null);
       expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
     });
 
@@ -174,7 +173,7 @@ describe('notificationService', () => {
         mockSchedule
       );
 
-      expect(notifId).toBeNull();
+      expect(notifId).toBe(null);
     });
 
     it('should schedule for tomorrow if time has passed today', async () => {

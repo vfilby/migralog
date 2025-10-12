@@ -34,12 +34,12 @@ describe('medicationStore', () => {
           dosageUnit: 'mg',
           defaultDosage: 1,
           scheduleFrequency: 'daily',
-          photoUri: null,
+          photoUri: undefined,
           schedule: [],
-          startDate: null,
-          endDate: null,
+          startDate: undefined,
+          endDate: undefined,
           active: true,
-          notes: null,
+          notes: undefined,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         },
@@ -50,13 +50,13 @@ describe('medicationStore', () => {
           dosageAmount: 200,
           dosageUnit: 'mg',
           defaultDosage: 2,
-          scheduleFrequency: null,
-          photoUri: null,
+          scheduleFrequency: undefined,
+          photoUri: undefined,
           schedule: [],
-          startDate: null,
-          endDate: null,
+          startDate: undefined,
+          endDate: undefined,
           active: true,
-          notes: null,
+          notes: undefined,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         },
@@ -73,7 +73,7 @@ describe('medicationStore', () => {
       expect(state.preventativeMedications[0].id).toBe('prev-1');
       expect(state.rescueMedications[0].id).toBe('rescue-1');
       expect(state.loading).toBe(false);
-      expect(state.error).toBeNull();
+      expect(state.error).toBe(null);
     });
 
     it('should handle errors when loading medications', async () => {
@@ -110,13 +110,13 @@ describe('medicationStore', () => {
         dosageAmount: 500,
         dosageUnit: 'mg',
         defaultDosage: 1,
-        scheduleFrequency: null,
-        photoUri: null,
+        scheduleFrequency: undefined,
+        photoUri: undefined,
         schedule: [],
-        startDate: null,
-        endDate: null,
+        startDate: undefined,
+        endDate: undefined,
         active: true,
-        notes: null,
+        notes: undefined,
       };
 
       const createdMed: Medication = {
@@ -144,12 +144,12 @@ describe('medicationStore', () => {
         dosageUnit: 'mg',
         defaultDosage: 1,
         scheduleFrequency: 'daily' as const,
-        photoUri: null,
+        photoUri: undefined,
         schedule: [],
-        startDate: null,
-        endDate: null,
+        startDate: undefined,
+        endDate: undefined,
         active: true,
-        notes: null,
+        notes: undefined,
       };
 
       const created: Medication = {
@@ -175,13 +175,13 @@ describe('medicationStore', () => {
         dosageAmount: 200,
         dosageUnit: 'mg',
         defaultDosage: 2,
-        scheduleFrequency: null,
-        photoUri: null,
+        scheduleFrequency: undefined,
+        photoUri: undefined,
         schedule: [],
-        startDate: null,
-        endDate: null,
+        startDate: undefined,
+        endDate: undefined,
         active: true,
-        notes: null,
+        notes: undefined,
       };
 
       const created: Medication = {
@@ -209,14 +209,14 @@ describe('medicationStore', () => {
         type: 'rescue' as const,
         dosageAmount: 100,
         dosageUnit: 'mg',
-        defaultDosage: null,
-        scheduleFrequency: null,
-        photoUri: null,
+        defaultDosage: undefined,
+        scheduleFrequency: undefined,
+        photoUri: undefined,
         schedule: [],
-        startDate: null,
-        endDate: null,
+        startDate: undefined,
+        endDate: undefined,
         active: true,
-        notes: null,
+        notes: undefined,
       };
 
       await expect(
@@ -260,14 +260,14 @@ describe('medicationStore', () => {
         type: 'rescue',
         dosageAmount: 100,
         dosageUnit: 'mg',
-        defaultDosage: null,
-        scheduleFrequency: null,
-        photoUri: null,
+        defaultDosage: undefined,
+        scheduleFrequency: undefined,
+        photoUri: undefined,
         schedule: [],
-        startDate: null,
-        endDate: null,
+        startDate: undefined,
+        endDate: undefined,
         active: true,
-        notes: null,
+        notes: undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -278,14 +278,14 @@ describe('medicationStore', () => {
         type: 'rescue',
         dosageAmount: 200,
         dosageUnit: 'mg',
-        defaultDosage: null,
-        scheduleFrequency: null,
-        photoUri: null,
+        defaultDosage: undefined,
+        scheduleFrequency: undefined,
+        photoUri: undefined,
         schedule: [],
-        startDate: null,
-        endDate: null,
+        startDate: undefined,
+        endDate: undefined,
         active: true,
-        notes: null,
+        notes: undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -330,12 +330,12 @@ describe('medicationStore', () => {
         dosageUnit: 'mg',
         defaultDosage: 1,
         scheduleFrequency: 'daily',
-        photoUri: null,
+        photoUri: undefined,
         schedule: [],
-        startDate: null,
-        endDate: null,
+        startDate: undefined,
+        endDate: undefined,
         active: true,
-        notes: null,
+        notes: undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -376,14 +376,14 @@ describe('medicationStore', () => {
         type: 'rescue',
         dosageAmount: 100,
         dosageUnit: 'mg',
-        defaultDosage: null,
-        scheduleFrequency: null,
-        photoUri: null,
+        defaultDosage: undefined,
+        scheduleFrequency: undefined,
+        photoUri: undefined,
         schedule: [],
-        startDate: null,
-        endDate: null,
+        startDate: undefined,
+        endDate: undefined,
         active: false,
-        notes: null,
+        notes: undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -428,10 +428,10 @@ describe('medicationStore', () => {
         ...dose,
         id: 'dose-123',
         createdAt: Date.now(),
-        effectivenessRating: null,
-        timeToRelief: null,
-        sideEffects: null,
-        notes: null,
+        effectivenessRating: undefined,
+        timeToRelief: undefined,
+        sideEffects: undefined,
+        notes: undefined,
       };
 
       (medicationDoseRepository.create as jest.Mock).mockResolvedValue(createdDose);
@@ -451,7 +451,7 @@ describe('medicationStore', () => {
         medicationId: 'med-123',
         timestamp: Date.now(),
         amount: 1,
-        episodeId: null,
+        episodeId: undefined,
       };
 
       await expect(
@@ -515,7 +515,7 @@ describe('medicationStore', () => {
       expect(state.preventativeMedications).toEqual([]);
       expect(state.rescueMedications).toEqual([]);
       expect(state.loading).toBe(false);
-      expect(state.error).toBeNull();
+      expect(state.error).toBe(null);
     });
 
     it('should maintain state across multiple operations', async () => {
@@ -526,14 +526,14 @@ describe('medicationStore', () => {
           type: 'rescue',
           dosageAmount: 100,
           dosageUnit: 'mg',
-          defaultDosage: null,
-          scheduleFrequency: null,
-          photoUri: null,
+          defaultDosage: undefined,
+          scheduleFrequency: undefined,
+          photoUri: undefined,
           schedule: [],
-          startDate: null,
-          endDate: null,
+          startDate: undefined,
+          endDate: undefined,
           active: true,
-          notes: null,
+          notes: undefined,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         },
@@ -543,7 +543,7 @@ describe('medicationStore', () => {
       await useMedicationStore.getState().loadMedications();
 
       expect(useMedicationStore.getState().medications).toHaveLength(1);
-      expect(useMedicationStore.getState().error).toBeNull();
+      expect(useMedicationStore.getState().error).toBe(null);
     });
   });
 });

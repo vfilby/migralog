@@ -128,3 +128,4 @@ Health data subject to HIPAA requirements. Never log sensitive information. Encr
 - Do not "work around" bugs when testing the application...  we wouldn't expect a user to work around bugs, the the tests shouldn't either.
 - Don't reinvent the wheel.  Use exitisting libraries and components unless there is a good reason and I specifically instruct you to do otherwise.
 - Don't delcare success unless we have tested and accomplish our current goal.
+- All tests must pass before committing

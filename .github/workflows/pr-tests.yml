@@ -36,7 +36,7 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Run unit tests
-        run: npm run test:ci
+        run: npx jest --ci --watchAll=false --testPathIgnorePatterns="e2e"
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v4
@@ -74,31 +74,39 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
-          bundler-cache: true
-          working-directory: app/ios
-
-      - name: Install CocoaPods dependencies
-        run: |
-          cd ios
-          pod install --repo-update
 
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '15.4'
+          xcode-version: '16.1'
 
       - name: Install applesimutils
         run: brew tap wix/brew && brew install applesimutils
 
+      - name: Build Detox framework cache
+        run: npx detox build-framework-cache
+
       - name: Build iOS app for Detox
-        run: npm run test:e2e:build
+        run: |
+          npm run generate-build-info
+          npx detox build --configuration ios.sim.debug
         env:
           EXPO_NO_DOTENV: 1
+        timeout-minutes: 20
+
+      - name: Start Metro bundler in background
+        run: npx expo start --clear &
+        env:
+          CI: true
+
+      - name: Wait for Metro to start
+        run: sleep 30
 
       - name: Run Detox E2E tests
         run: npm run test:e2e
         env:
           CI: true
+        timeout-minutes: 30
 
       - name: Upload test artifacts
         if: always()

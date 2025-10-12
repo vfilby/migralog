@@ -153,7 +153,7 @@ export const episodeRepository = {
   mapRowToEpisode(row: any): Episode {
     // Build location object if GPS data exists
     let location = undefined;
-    if (row.latitude !== null && row.longitude !== null) {
+    if (row.latitude != null && row.longitude != null) {
       location = {
         latitude: row.latitude,
         longitude: row.longitude,

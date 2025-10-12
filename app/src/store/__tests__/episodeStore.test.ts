@@ -27,11 +27,11 @@ describe('episodeStore', () => {
           id: 'ep-1',
           startTime: Date.now() - 10000,
           endTime: Date.now(),
-          locations: ['Head'],
-          qualities: ['Throbbing'],
+          locations: ['left_head'],
+          qualities: ['throbbing'],
           symptoms: [],
           triggers: [],
-          notes: null,
+          notes: undefined,
           peakIntensity: 7,
           averageIntensity: 5,
           createdAt: Date.now() - 10000,
@@ -46,7 +46,7 @@ describe('episodeStore', () => {
       const state = useEpisodeStore.getState();
       expect(state.episodes).toEqual(mockEpisodes);
       expect(state.loading).toBe(false);
-      expect(state.error).toBeNull();
+      expect(state.error).toBe(null);
     });
 
     it('should handle errors when loading episodes', async () => {
@@ -83,14 +83,14 @@ describe('episodeStore', () => {
       const mockEpisode: Episode = {
         id: 'current-ep',
         startTime: Date.now(),
-        endTime: null,
-        locations: ['Head'],
+        endTime: undefined,
+        locations: ['left_head'],
         qualities: [],
         symptoms: [],
         triggers: [],
-        notes: null,
-        peakIntensity: null,
-        averageIntensity: null,
+        notes: undefined,
+        peakIntensity: undefined,
+        averageIntensity: undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -101,7 +101,7 @@ describe('episodeStore', () => {
 
       const state = useEpisodeStore.getState();
       expect(state.currentEpisode).toEqual(mockEpisode);
-      expect(state.error).toBeNull();
+      expect(state.error).toBe(null);
     });
 
     it('should handle null current episode', async () => {
@@ -110,7 +110,7 @@ describe('episodeStore', () => {
       await useEpisodeStore.getState().loadCurrentEpisode();
 
       const state = useEpisodeStore.getState();
-      expect(state.currentEpisode).toBeNull();
+      expect(state.currentEpisode).toBe(null);
     });
 
     it('should handle errors when loading current episode', async () => {
@@ -128,14 +128,14 @@ describe('episodeStore', () => {
     it('should start a new episode successfully', async () => {
       const newEpisodeData = {
         startTime: Date.now(),
-        endTime: null,
-        locations: ['Head'],
-        qualities: ['Throbbing'],
+        endTime: undefined,
+        locations: ['left_head'],
+        qualities: ['throbbing'],
         symptoms: [],
         triggers: [],
-        notes: null,
-        peakIntensity: null,
-        averageIntensity: null,
+        notes: undefined,
+        peakIntensity: undefined,
+        averageIntensity: undefined,
       };
 
       const createdEpisode: Episode = {
@@ -143,18 +143,18 @@ describe('episodeStore', () => {
         id: 'new-ep-123',
         createdAt: Date.now(),
         updatedAt: Date.now(),
-      };
+      } as Episode;
 
       (episodeRepository.create as jest.Mock).mockResolvedValue(createdEpisode);
 
-      const result = await useEpisodeStore.getState().startEpisode(newEpisodeData);
+      const result = await useEpisodeStore.getState().startEpisode(newEpisodeData as any);
 
       expect(result).toEqual(createdEpisode);
       const state = useEpisodeStore.getState();
       expect(state.currentEpisode).toEqual(createdEpisode);
       expect(state.episodes[0]).toEqual(createdEpisode);
       expect(state.loading).toBe(false);
-      expect(state.error).toBeNull();
+      expect(state.error).toBe(null);
     });
 
     it('should add new episode to front of episodes list', async () => {
@@ -166,9 +166,9 @@ describe('episodeStore', () => {
         qualities: [],
         symptoms: [],
         triggers: [],
-        notes: null,
-        peakIntensity: null,
-        averageIntensity: null,
+        notes: undefined,
+        peakIntensity: undefined,
+        averageIntensity: undefined,
         createdAt: Date.now() - 20000,
         updatedAt: Date.now() - 10000,
       };
@@ -177,14 +177,14 @@ describe('episodeStore', () => {
 
       const newEpisodeData = {
         startTime: Date.now(),
-        endTime: null,
+        endTime: undefined,
         locations: [],
         qualities: [],
         symptoms: [],
         triggers: [],
-        notes: null,
-        peakIntensity: null,
-        averageIntensity: null,
+        notes: undefined,
+        peakIntensity: undefined,
+        averageIntensity: undefined,
       };
 
       const createdEpisode: Episode = {
@@ -210,14 +210,14 @@ describe('episodeStore', () => {
 
       const newEpisodeData = {
         startTime: Date.now(),
-        endTime: null,
+        endTime: undefined,
         locations: [],
         qualities: [],
         symptoms: [],
         triggers: [],
-        notes: null,
-        peakIntensity: null,
-        averageIntensity: null,
+        notes: undefined,
+        peakIntensity: undefined,
+        averageIntensity: undefined,
       };
 
       await expect(
@@ -227,7 +227,7 @@ describe('episodeStore', () => {
       const state = useEpisodeStore.getState();
       expect(state.error).toBe('Failed to create episode');
       expect(state.loading).toBe(false);
-      expect(state.currentEpisode).toBeNull();
+      expect(state.currentEpisode).toBe(null);
     });
   });
 
@@ -236,12 +236,12 @@ describe('episodeStore', () => {
       const ongoingEpisode: Episode = {
         id: 'ep-123',
         startTime: Date.now() - 10000,
-        endTime: null,
+        endTime: undefined,
         locations: [],
         qualities: [],
         symptoms: [],
         triggers: [],
-        notes: null,
+        notes: undefined,
         peakIntensity: 6,
         averageIntensity: 5,
         createdAt: Date.now() - 10000,
@@ -259,7 +259,7 @@ describe('episodeStore', () => {
       await useEpisodeStore.getState().endEpisode('ep-123', endTime);
 
       const state = useEpisodeStore.getState();
-      expect(state.currentEpisode).toBeNull();
+      expect(state.currentEpisode).toBe(null);
       expect(state.episodes[0].endTime).toBe(endTime);
       expect(state.loading).toBe(false);
       expect(episodeRepository.update).toHaveBeenCalledWith('ep-123', { endTime });
@@ -284,12 +284,12 @@ describe('episodeStore', () => {
       const episode: Episode = {
         id: 'ep-123',
         startTime: Date.now(),
-        endTime: null,
-        locations: ['Head'],
+        endTime: undefined,
+        locations: ['left_head'],
         qualities: [],
         symptoms: [],
         triggers: [],
-        notes: null,
+        notes: undefined,
         peakIntensity: 5,
         averageIntensity: 4,
         createdAt: Date.now(),
@@ -317,14 +317,14 @@ describe('episodeStore', () => {
       const currentEpisode: Episode = {
         id: 'current-ep',
         startTime: Date.now(),
-        endTime: null,
+        endTime: undefined,
         locations: [],
         qualities: [],
         symptoms: [],
         triggers: [],
-        notes: null,
-        peakIntensity: null,
-        averageIntensity: null,
+        notes: undefined,
+        peakIntensity: undefined,
+        averageIntensity: undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -337,7 +337,7 @@ describe('episodeStore', () => {
         qualities: [],
         symptoms: [],
         triggers: [],
-        notes: null,
+        notes: undefined,
         peakIntensity: 5,
         averageIntensity: 4,
         createdAt: Date.now() - 20000,
@@ -383,14 +383,14 @@ describe('episodeStore', () => {
       const episode: Episode = {
         id: 'ep-123',
         startTime: Date.now(),
-        endTime: null,
+        endTime: undefined,
         locations: [],
         qualities: [],
         symptoms: [],
         triggers: [],
-        notes: null,
-        peakIntensity: null,
-        averageIntensity: null,
+        notes: undefined,
+        peakIntensity: undefined,
+        averageIntensity: undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -432,16 +432,16 @@ describe('episodeStore', () => {
 
       const symptomLog = {
         episodeId: 'ep-123',
-        symptom: 'Nausea',
+        symptom: 'nausea',
         onsetTime: Date.now(),
-        resolutionTime: null,
+        resolutionTime: undefined,
         severity: 7,
-      };
+      } as any;
 
       await useEpisodeStore.getState().addSymptomLog(symptomLog);
 
       expect(symptomLogRepository.create).toHaveBeenCalledWith(symptomLog);
-      expect(useEpisodeStore.getState().error).toBeNull();
+      expect(useEpisodeStore.getState().error).toBe(null);
     });
 
     it('should handle errors when adding symptom log', async () => {
@@ -450,11 +450,11 @@ describe('episodeStore', () => {
 
       const symptomLog = {
         episodeId: 'ep-123',
-        symptom: 'Nausea',
+        symptom: 'nausea',
         onsetTime: Date.now(),
-        resolutionTime: null,
+        resolutionTime: undefined,
         severity: 7,
-      };
+      } as any;
 
       await expect(
         useEpisodeStore.getState().addSymptomLog(symptomLog)
@@ -469,14 +469,14 @@ describe('episodeStore', () => {
       const ep1: Episode = {
         id: 'ep-1',
         startTime: Date.now(),
-        endTime: null,
+        endTime: undefined,
         locations: [],
         qualities: [],
         symptoms: [],
         triggers: [],
-        notes: null,
-        peakIntensity: null,
-        averageIntensity: null,
+        notes: undefined,
+        peakIntensity: undefined,
+        averageIntensity: undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -489,9 +489,9 @@ describe('episodeStore', () => {
         qualities: [],
         symptoms: [],
         triggers: [],
-        notes: null,
-        peakIntensity: null,
-        averageIntensity: null,
+        notes: undefined,
+        peakIntensity: undefined,
+        averageIntensity: undefined,
         createdAt: Date.now() - 10000,
         updatedAt: Date.now(),
       };
@@ -513,14 +513,14 @@ describe('episodeStore', () => {
       const currentEp: Episode = {
         id: 'current',
         startTime: Date.now(),
-        endTime: null,
+        endTime: undefined,
         locations: [],
         qualities: [],
         symptoms: [],
         triggers: [],
-        notes: null,
-        peakIntensity: null,
-        averageIntensity: null,
+        notes: undefined,
+        peakIntensity: undefined,
+        averageIntensity: undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -535,7 +535,7 @@ describe('episodeStore', () => {
       await useEpisodeStore.getState().deleteEpisode('current');
 
       const state = useEpisodeStore.getState();
-      expect(state.currentEpisode).toBeNull();
+      expect(state.currentEpisode).toBe(null);
       expect(state.episodes).toHaveLength(0);
     });
 
@@ -557,10 +557,10 @@ describe('episodeStore', () => {
     it('should have correct initial state', () => {
       const state = useEpisodeStore.getState();
 
-      expect(state.currentEpisode).toBeNull();
+      expect(state.currentEpisode).toBe(null);
       expect(state.episodes).toEqual([]);
       expect(state.loading).toBe(false);
-      expect(state.error).toBeNull();
+      expect(state.error).toBe(null);
     });
 
     it('should maintain state across multiple operations', async () => {
@@ -573,14 +573,14 @@ describe('episodeStore', () => {
       const newEpisode: Episode = {
         id: 'new',
         startTime: Date.now(),
-        endTime: null,
+        endTime: undefined,
         locations: [],
         qualities: [],
         symptoms: [],
         triggers: [],
-        notes: null,
-        peakIntensity: null,
-        averageIntensity: null,
+        notes: undefined,
+        peakIntensity: undefined,
+        averageIntensity: undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -591,7 +591,7 @@ describe('episodeStore', () => {
       const state = useEpisodeStore.getState();
       expect(state.currentEpisode).toEqual(newEpisode);
       expect(state.episodes).toHaveLength(1);
-      expect(state.error).toBeNull();
+      expect(state.error).toBe(null);
     });
   });
 });

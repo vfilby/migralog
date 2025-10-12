@@ -5,8 +5,9 @@
 /**
  * Reset the database to a clean state
  * This navigates to Settings and uses the Reset Database feature
+ * @param {boolean} withFixtures - If true, loads test data (medications, episodes)
  */
-async function resetDatabase() {
+async function resetDatabase(withFixtures = false) {
   // Ensure we're on the dashboard and any modals are dismissed
   try {
     await waitFor(element(by.id('dashboard-title')))
@@ -50,19 +51,31 @@ async function resetDatabase() {
     .withTimeout(5000);
 
   // Scroll down to Developer section to find Reset Database button
-  await waitFor(element(by.id('reset-database-button')))
-    .toBeVisible()
-    .whileElement(by.id('settings-scroll-view'))
-    .scroll(400, 'down');
+  const buttonId = withFixtures ? 'reset-database-with-fixtures-button' : 'reset-database-button';
 
-  // Tap Reset Database button
-  await element(by.id('reset-database-button')).tap();
+  // Try to scroll to button, or just check if it's visible
+  try {
+    await waitFor(element(by.id(buttonId)))
+      .toBeVisible()
+      .whileElement(by.id('settings-scroll-view'))
+      .scroll(400, 'down');
+  } catch (e) {
+    // If scroll fails, button might already be visible
+    console.log('Scroll failed, checking if button is already visible');
+    await waitFor(element(by.id(buttonId)))
+      .toBeVisible()
+      .withTimeout(3000);
+  }
+
+  // Tap the appropriate Reset Database button
+  await element(by.id(buttonId)).tap();
 
   // Wait for the confirmation alert to appear
   await waitForAnimation(500);
 
-  // Confirm the reset in the alert (tap "Reset" button)
-  await element(by.text('Reset')).tap();
+  // Confirm the reset in the alert (tap "Reset" or "Reset & Load" button)
+  const confirmButtonText = withFixtures ? 'Reset & Load' : 'Reset';
+  await element(by.text(confirmButtonText)).tap();
 
   // Wait for the database reset to complete
   await waitForAnimation(1000);
@@ -81,6 +94,13 @@ async function resetDatabase() {
   await waitFor(element(by.id('dashboard-title')))
     .toBeVisible()
     .withTimeout(3000);
+
+  // Wait for store to reload data after database reset
+  // This needs to be long enough for:
+  // 1. Dashboard to gain focus
+  // 2. Store actions to fire (loadMedications, loadSchedules, loadRecentDoses)
+  // 3. UI to update with new data
+  await waitForAnimation(3000);
 }
 
 /**
