@@ -36,7 +36,7 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Run unit tests
-        run: jest --ci --watchAll=false --testPathIgnorePatterns="e2e"
+        run: npx jest --ci --watchAll=false --testPathIgnorePatterns="e2e"
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v4
