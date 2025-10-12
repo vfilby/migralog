@@ -75,12 +75,18 @@ async function resetDatabase(withFixtures = false) {
 
   // Confirm the reset in the alert (tap "Reset" or "Reset & Load" button)
   const confirmButtonText = withFixtures ? 'Reset & Load' : 'Reset';
+  await waitFor(element(by.text(confirmButtonText)))
+    .toBeVisible()
+    .withTimeout(3000);
   await element(by.text(confirmButtonText)).tap();
 
-  // Wait for the database reset to complete
-  await waitForAnimation(1000);
+  // Wait for the database reset to complete (longer timeout for CI)
+  await waitForAnimation(3000);
 
-  // Dismiss the success alert (tap "OK" button)
+  // Dismiss the success alert (tap "OK" button) - wait for it to appear first
+  await waitFor(element(by.text('OK')))
+    .toBeVisible()
+    .withTimeout(5000);
   await element(by.text('OK')).tap();
 
   // Go back to dashboard
