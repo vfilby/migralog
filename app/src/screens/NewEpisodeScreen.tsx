@@ -427,10 +427,21 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
         });
         console.log('[NewEpisode] Episode created:', episode.id);
 
-        // Add initial intensity reading
+        // Add initial intensity reading with the same timestamp as episode start
         if (intensity > 0) {
           console.log('[NewEpisode] Adding intensity reading...');
-          await addIntensityReading(episode.id, intensity);
+          const { intensityRepository } = await import('../database/episodeRepository');
+          await intensityRepository.create({
+            episodeId: episode.id,
+            timestamp: episode.startTime, // Use episode start time for initial reading
+            intensity,
+          });
+
+          // Update peak and average intensity (should be same as initial for new episode)
+          await updateEpisode(episode.id, {
+            peakIntensity: intensity,
+            averageIntensity: intensity
+          });
           console.log('[NewEpisode] Intensity reading added');
         }
 
