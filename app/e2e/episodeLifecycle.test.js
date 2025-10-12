@@ -376,10 +376,8 @@ describe('Complete Episode Lifecycle', () => {
     await expect(element(by.text('Timeline'))).toBeVisible();
 
     // Verify our edit note is visible in the episode
-    await scrollToText('Episode Summary', 'episode-detail-scroll-view');
-    await waitFor(element(by.text('Started with stress and poor sleep')))
-      .toBeVisible()
-      .withTimeout(3000);
+    // Scroll directly to the note text to ensure it's in viewport
+    await scrollToText('Started with stress and poor sleep', 'episode-detail-scroll-view');
 
     // ======================
     // Phase 6: End Episode
