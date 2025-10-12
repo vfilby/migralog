@@ -73,6 +73,27 @@ npm run submit:ios
 
 Note: Build and submit commands are interactive and will prompt for required information.
 
+### Testing
+
+```bash
+# Run unit tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Generate coverage report
+npm run test:coverage
+
+# Build app for E2E testing (do this first)
+npm run test:e2e:build
+
+# Run E2E tests
+npm run test:e2e
+```
+
+See [Testing Guide](../docs/testing-guide.md) for detailed testing documentation.
+
 ### Type Checking
 
 ```bash
@@ -95,6 +116,7 @@ npm run generate-build-info
 ```
 app/
 ├── assets/              # App icons, images, splash screens
+├── e2e/                 # End-to-end tests (Detox)
 ├── scripts/             # Build and utility scripts
 ├── src/
 │   ├── components/      # Reusable UI components
@@ -108,11 +130,13 @@ app/
 │   ├── screens/         # Screen components
 │   ├── services/        # Business logic services
 │   │   ├── backupService.ts
-│   │   └── locationService.ts
+│   │   ├── locationService.ts
+│   │   └── notificationService.ts
 │   ├── store/           # Zustand state management
 │   ├── theme/           # Theme and color definitions
 │   └── utils/           # Utility functions
 ├── app.json             # Expo configuration
+├── CLAUDE.md            # Claude Code guidance
 ├── package.json         # Dependencies and scripts
 └── tsconfig.json        # TypeScript configuration
 ```

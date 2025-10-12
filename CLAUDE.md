@@ -36,17 +36,55 @@ npx tsc --noEmit         # Run TypeScript compiler in check mode
 
 ### Testing
 
-**E2E Testing with Maestro:**
-- **IMPORTANT: Maestro E2E tests require a development build, NOT Expo Go**
-- Run `npx expo run:ios` to create a development build in the simulator
-- Expo Go has limitations (no deep links, bundle identifier issues) that prevent proper E2E testing
-- All Maestro tests should use `appId: com.eff3.app.headache-tracker` (the development build bundle ID)
-- Tests are located in `.maestro/` directory
-- Run tests with `npm run test:e2e:comprehensive` or other test:e2e:* scripts
+**E2E Testing with Detox:**
+- **IMPORTANT: E2E tests require a development build, NOT Expo Go**
+- Run `npm run test:e2e:build` to create a development build in the simulator
+- Tests are located in `e2e/` directory
+- Run tests with `npm run test:e2e` or specific test files
+- Test files: `episodeLifecycle.test.js`, `medicationTracking.test.js`, `dailyStatusTracking.test.js`
 
 **Unit/Integration Testing:**
-- Jest is configured but tests need to be written
+- Jest configured for unit and integration tests
+- Place unit tests in `__tests__` directories alongside source files
+- Test coverage target: 80%+ for repositories, stores, and utilities
+- Run with `npm test`, `npm run test:watch`, or `npm run test:coverage`
 - When adding tests, ensure they cover unit, integration, and accessibility requirements per .clinerules
+
+**Testing Documentation:**
+- See [docs/testing-guide.md](docs/testing-guide.md) for complete testing guide
+
+## Project Structure
+
+```
+MigraineTracker/
+├── app/                 # React Native application
+│   ├── assets/          # App icons, images, splash screens
+│   ├── e2e/             # End-to-end tests (Detox)
+│   ├── scripts/         # Build and utility scripts
+│   └── src/             # Application source code
+├── docs/                # Documentation
+│   ├── archive/         # Historical documentation
+│   ├── features/        # Feature documentation and plans
+│   ├── wiki/            # GitHub Wiki pages
+│   └── *.md             # Guides (testing, functional spec, etc.)
+```
+
+```
+app/
+├── e2e/                 # End-to-end tests
+├── scripts/             # Build and utility scripts
+├── src/
+│   ├── components/      # Reusable UI components
+│   ├── database/        # SQLite database layer
+│   ├── models/          # TypeScript types
+│   ├── navigation/      # React Navigation setup
+│   ├── screens/         # Screen components
+│   ├── services/        # Business logic services
+│   ├── store/           # Zustand state management
+│   ├── theme/           # Theme and color system
+│   └── utils/           # Utility functions
+└── (config files)
+```
 
 ## Architecture
 

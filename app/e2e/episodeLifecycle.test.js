@@ -71,30 +71,25 @@ describe('Complete Episode Lifecycle', () => {
 
     console.log('Verifying auto-red day was created for today');
 
-    // Scroll down to see the calendar
-    try {
-      await element(by.id('dashboard-title')).swipe('up', 'slow', 0.8);
-      await waitForAnimation(500);
-      await element(by.id('dashboard-title')).swipe('up', 'slow', 0.8);
-      await waitForAnimation(500);
-    } catch (e) {
-      console.log('Could not scroll - calendar may already be visible');
-    }
+    // Navigate to Analytics/Trends tab to see the calendar
+    await element(by.text('Trends')).tap();
+    await waitForAnimation(1000);
+
+    // Verify we're on Analytics screen
+    await waitFor(element(by.text('Trends & Analytics')))
+      .toBeVisible()
+      .withTimeout(5000);
 
     // Verify calendar is visible
     await waitFor(element(by.id('previous-month-button')))
       .toBeVisible()
       .withTimeout(5000);
 
-    console.log('Calendar visible - auto-red day should be marked for today');
+    console.log('Calendar visible on Analytics screen - auto-red day should be marked for today');
 
-    // Scroll back to top for next phase
-    try {
-      await element(by.id('dashboard-title')).swipe('down', 'fast', 0.9);
-      await waitForAnimation(500);
-    } catch (e) {
-      console.log('Already at top');
-    }
+    // Navigate back to Home (Dashboard) for next phase
+    await element(by.text('Home')).tap();
+    await waitForAnimation(1000);
 
     // ======================
     // Phase 2: View Episode Details
@@ -429,30 +424,25 @@ describe('Complete Episode Lifecycle', () => {
 
     console.log('Verifying red days persist in calendar after episode ends');
 
-    // Scroll down to see the calendar
-    try {
-      await element(by.id('dashboard-title')).swipe('up', 'slow', 0.8);
-      await waitForAnimation(500);
-      await element(by.id('dashboard-title')).swipe('up', 'slow', 0.8);
-      await waitForAnimation(500);
-    } catch (e) {
-      console.log('Could not scroll - calendar may already be visible');
-    }
+    // Navigate to Analytics/Trends tab to see the calendar
+    await element(by.text('Trends')).tap();
+    await waitForAnimation(1000);
+
+    // Verify we're on Analytics screen
+    await waitFor(element(by.text('Trends & Analytics')))
+      .toBeVisible()
+      .withTimeout(5000);
 
     // Verify calendar is still visible
     await waitFor(element(by.id('previous-month-button')))
       .toBeVisible()
       .withTimeout(5000);
 
-    console.log('Calendar visible - red days should persist for entire episode duration');
+    console.log('Calendar visible on Analytics screen - red days should persist for entire episode duration');
 
-    // Scroll back up for next phase
-    try {
-      await element(by.id('dashboard-title')).swipe('down', 'fast', 0.9);
-      await waitForAnimation(500);
-    } catch (e) {
-      console.log('Already at top');
-    }
+    // Navigate back to Home (Dashboard) for next phase
+    await element(by.text('Home')).tap();
+    await waitForAnimation(1000);
 
     // Go to Episodes tab to see history
     await element(by.text('Episodes')).tap();
