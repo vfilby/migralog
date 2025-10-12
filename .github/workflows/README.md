@@ -56,8 +56,13 @@ Builds and submits iOS app to TestFlight for testing.
    - Uses `production` build profile by default
 
 **Triggers:**
-- Automatic: Pushes to main branch (after CI passes)
-- Manual: Via workflow_dispatch with optional build profile selection
+- Automatic: After CI workflow completes successfully on main branch
+- Manual: Via workflow_dispatch with optional build profile selection (bypasses CI check)
+
+**Dependency:**
+- Waits for `ci.yml` workflow to complete successfully before running
+- This ensures only tested code is deployed to TestFlight
+- Manual triggers bypass this check for emergency deployments
 
 **Build Profiles:**
 - `production`: App Store distribution with release configuration (default)

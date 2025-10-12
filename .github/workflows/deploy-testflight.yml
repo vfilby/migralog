@@ -1,12 +1,12 @@
 name: Deploy to TestFlight
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
     branches:
       - main
-    paths:
-      - 'app/**'
-      - '.github/workflows/deploy-testflight.yml'
   workflow_dispatch:
     inputs:
       build_profile:
@@ -22,8 +22,8 @@ jobs:
   deploy:
     name: Build and Deploy to TestFlight
     runs-on: ubuntu-latest
-    # Only run after CI tests pass on main
-    # You can add a 'needs' dependency if you want to require ci.yml to pass first
+    # Only run if CI workflow succeeded
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     defaults:
       run:
         working-directory: ./app
