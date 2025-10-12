@@ -455,10 +455,8 @@ describe('Complete Episode Lifecycle', () => {
         await waitForAnimation(1000);
 
         // Verify episode shows our note
-        await scrollToText('Episode Summary', 'episode-detail-scroll-view');
-        await waitFor(element(by.text('Started with stress and poor sleep')))
-          .toBeVisible()
-          .withTimeout(3000);
+        // Scroll directly to the note text to ensure it's in viewport
+        await scrollToText('Started with stress and poor sleep', 'episode-detail-scroll-view');
       } catch (e) {
         // If we can't find the episode in history, that's okay - the main flow completed successfully
         console.log('Could not verify episode in history, but main flow completed');
