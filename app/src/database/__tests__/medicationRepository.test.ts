@@ -165,7 +165,6 @@ describe('medicationRepository', () => {
         dosage: 1,
         enabled: true,
         notificationId: undefined,
-        createdAt: Date.now(),
       };
 
       mockDatabase.getFirstAsync.mockResolvedValue({

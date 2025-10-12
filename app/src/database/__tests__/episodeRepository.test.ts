@@ -140,7 +140,7 @@ describe('episodeRepository', () => {
         qualities: ['throbbing', 'sharp'],
         symptoms: ['nausea', 'light_sensitivity'],
         triggers: ['lack_of_sleep'],
-      };
+      } as any;
 
       await episodeRepository.update('episode-123', updates);
 
@@ -171,10 +171,10 @@ describe('episodeRepository', () => {
         id: 'episode-123',
         start_time: Date.now(),
         end_time: undefined,
-        locations: JSON.stringify(['Head']),
-        qualities: JSON.stringify(['Throbbing']),
-        symptoms: JSON.stringify(['Nausea']),
-        triggers: JSON.stringify(['Stress']),
+        locations: JSON.stringify(['left_head']),
+        qualities: JSON.stringify(['throbbing']),
+        symptoms: JSON.stringify(['nausea']),
+        triggers: JSON.stringify(['stress']),
         notes: 'Test notes',
         peak_intensity: 8,
         average_intensity: 6,
@@ -192,7 +192,7 @@ describe('episodeRepository', () => {
 
       expect(result).not.toBeNull();
       expect(result?.id).toBe('episode-123');
-      expect(result?.locations).toEqual(['Head']);
+      expect(result?.locations).toEqual(['left_head']);
       expect(result?.location).toBeDefined();
       expect(result?.location?.latitude).toBe(37.7749);
       expect(mockDatabase.getFirstAsync).toHaveBeenCalledWith(
@@ -378,10 +378,10 @@ describe('episodeRepository', () => {
         id: 'episode-123',
         start_time: 1000,
         end_time: 2000,
-        locations: JSON.stringify(['Head']),
-        qualities: JSON.stringify(['Throbbing']),
-        symptoms: JSON.stringify(['Nausea']),
-        triggers: JSON.stringify(['Stress']),
+        locations: JSON.stringify(['left_head']),
+        qualities: JSON.stringify(['throbbing']),
+        symptoms: JSON.stringify(['nausea']),
+        triggers: JSON.stringify(['stress']),
         notes: 'Test',
         peak_intensity: 8,
         average_intensity: 6,
@@ -398,10 +398,10 @@ describe('episodeRepository', () => {
       expect(episode.id).toBe('episode-123');
       expect(episode.startTime).toBe(1000);
       expect(episode.endTime).toBe(2000);
-      expect(episode.locations).toEqual(['Head']);
-      expect(episode.qualities).toEqual(['Throbbing']);
-      expect(episode.symptoms).toEqual(['Nausea']);
-      expect(episode.triggers).toEqual(['Stress']);
+      expect(episode.locations).toEqual(['left_head']);
+      expect(episode.qualities).toEqual(['throbbing']);
+      expect(episode.symptoms).toEqual(['nausea']);
+      expect(episode.triggers).toEqual(['stress']);
       expect(episode.notes).toBe('Test');
       expect(episode.peakIntensity).toBe(8);
       expect(episode.averageIntensity).toBe(6);
@@ -563,10 +563,10 @@ describe('symptomLogRepository', () => {
       const result = await symptomLogRepository.create(log);
 
       expect(result.id).toBe('symptom-id-123');
-      expect(result.symptom).toBe('Nausea');
+      expect(result.symptom).toBe('nausea');
       expect(mockDatabase.runAsync).toHaveBeenCalledWith(
         'INSERT INTO symptom_logs (id, episode_id, symptom, onset_time, resolution_time, severity, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        expect.arrayContaining(['symptom-id-123', 'episode-123', 'Nausea'])
+        expect.arrayContaining(['symptom-id-123', 'episode-123', 'nausea'])
       );
     });
   });
@@ -621,7 +621,7 @@ describe('symptomLogRepository', () => {
       const result = await symptomLogRepository.getByEpisodeId('episode-123');
 
       expect(result).toHaveLength(1);
-      expect(result[0].symptom).toBe('Nausea');
+      expect(result[0].symptom).toBe('nausea');
       expect(mockDatabase.getAllAsync).toHaveBeenCalledWith(
         'SELECT * FROM symptom_logs WHERE episode_id = ? ORDER BY onset_time ASC',
         ['episode-123']

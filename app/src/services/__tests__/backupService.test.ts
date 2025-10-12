@@ -127,8 +127,7 @@ describe('backupService', () => {
         id: 'note-1',
         episodeId: 'ep-1',
         timestamp: Date.now(),
-        noteType: 'general',
-        content: 'Test note',
+        note: 'Test note',
         createdAt: Date.now(),
       },
     ];

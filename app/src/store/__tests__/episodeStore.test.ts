@@ -27,8 +27,8 @@ describe('episodeStore', () => {
           id: 'ep-1',
           startTime: Date.now() - 10000,
           endTime: Date.now(),
-          locations: ['Head'],
-          qualities: ['Throbbing'],
+          locations: ['left_head'],
+          qualities: ['throbbing'],
           symptoms: [],
           triggers: [],
           notes: undefined,
@@ -84,7 +84,7 @@ describe('episodeStore', () => {
         id: 'current-ep',
         startTime: Date.now(),
         endTime: undefined,
-        locations: ['Head'],
+        locations: ['left_head'],
         qualities: [],
         symptoms: [],
         triggers: [],
@@ -129,8 +129,8 @@ describe('episodeStore', () => {
       const newEpisodeData = {
         startTime: Date.now(),
         endTime: undefined,
-        locations: ['Head'],
-        qualities: ['Throbbing'],
+        locations: ['left_head'],
+        qualities: ['throbbing'],
         symptoms: [],
         triggers: [],
         notes: undefined,
@@ -143,11 +143,11 @@ describe('episodeStore', () => {
         id: 'new-ep-123',
         createdAt: Date.now(),
         updatedAt: Date.now(),
-      };
+      } as Episode;
 
       (episodeRepository.create as jest.Mock).mockResolvedValue(createdEpisode);
 
-      const result = await useEpisodeStore.getState().startEpisode(newEpisodeData);
+      const result = await useEpisodeStore.getState().startEpisode(newEpisodeData as any);
 
       expect(result).toEqual(createdEpisode);
       const state = useEpisodeStore.getState();
@@ -285,7 +285,7 @@ describe('episodeStore', () => {
         id: 'ep-123',
         startTime: Date.now(),
         endTime: undefined,
-        locations: ['Head'],
+        locations: ['left_head'],
         qualities: [],
         symptoms: [],
         triggers: [],
@@ -432,11 +432,11 @@ describe('episodeStore', () => {
 
       const symptomLog = {
         episodeId: 'ep-123',
-        symptom: 'Nausea',
+        symptom: 'nausea',
         onsetTime: Date.now(),
         resolutionTime: undefined,
         severity: 7,
-      };
+      } as any;
 
       await useEpisodeStore.getState().addSymptomLog(symptomLog);
 
@@ -450,11 +450,11 @@ describe('episodeStore', () => {
 
       const symptomLog = {
         episodeId: 'ep-123',
-        symptom: 'Nausea',
+        symptom: 'nausea',
         onsetTime: Date.now(),
         resolutionTime: undefined,
         severity: 7,
-      };
+      } as any;
 
       await expect(
         useEpisodeStore.getState().addSymptomLog(symptomLog)

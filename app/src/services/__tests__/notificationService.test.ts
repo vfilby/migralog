@@ -119,7 +119,6 @@ describe('notificationService', () => {
       dosage: 2,
       enabled: true,
       notificationId: undefined,
-      createdAt: Date.now(),
     };
 
     it('should schedule a notification for enabled schedule', async () => {
