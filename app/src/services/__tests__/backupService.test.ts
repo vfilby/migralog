@@ -355,7 +355,7 @@ describe('backupService', () => {
 
       const metadata = await backupService.getBackupMetadata('nonexistent');
 
-      expect(metadata).toBeUndefined();
+      expect(metadata).toBe(null);
     });
 
     it('should return null on error', async () => {
@@ -363,7 +363,7 @@ describe('backupService', () => {
 
       const metadata = await backupService.getBackupMetadata('backup-123');
 
-      expect(metadata).toBeUndefined();
+      expect(metadata).toBe(null);
     });
   });
 
