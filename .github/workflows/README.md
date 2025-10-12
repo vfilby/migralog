@@ -52,15 +52,15 @@ Builds and submits iOS app to TestFlight for testing.
    - Generates build info
    - Builds iOS app using EAS Build
    - Auto-submits to TestFlight via App Store Connect
-   - Uses `preview` build profile by default
+   - Uses `production` build profile by default
 
 **Triggers:**
 - Automatic: Pushes to main branch (after CI passes)
 - Manual: Via workflow_dispatch with optional build profile selection
 
 **Build Profiles:**
-- `preview`: Internal distribution, auto-increment build number
-- `production`: App Store distribution with release configuration
+- `production`: App Store distribution with release configuration (default)
+- `preview`: App Store distribution for testing, auto-increment build number
 
 ## Configuration
 
@@ -92,8 +92,8 @@ The workflows use these npm scripts from `app/package.json`:
 
 ### Build Commands
 For TestFlight deployments:
-- `npm run build:ios` - Build and submit to TestFlight (local)
-- `eas build --platform ios --profile preview --non-interactive --auto-submit` - CI command
+- `npm run build:ios` - Build and submit to TestFlight (local, uses production profile)
+- `eas build --platform ios --profile production --non-interactive --auto-submit` - CI command
 
 ## Local Testing
 
