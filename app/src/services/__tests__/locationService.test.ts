@@ -296,7 +296,7 @@ describe('locationService', () => {
       (Location.reverseGeocodeAsync as jest.Mock).mockResolvedValue([
         {
           city: 'Los Angeles',
-          region: null,
+          region: undefined,
           country: 'USA',
         },
       ]);

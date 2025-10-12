@@ -102,12 +102,12 @@ describe('notificationService', () => {
       dosageUnit: 'mg',
       defaultDosage: 1,
       scheduleFrequency: 'daily',
-      photoUri: null,
+      photoUri: undefined,
       schedule: [],
-      startDate: null,
-      endDate: null,
+      startDate: undefined,
+      endDate: undefined,
       active: true,
-      notes: null,
+      notes: undefined,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -118,7 +118,7 @@ describe('notificationService', () => {
       time: '09:00',
       dosage: 2,
       enabled: true,
-      notificationId: null,
+      notificationId: undefined,
       createdAt: Date.now(),
     };
 

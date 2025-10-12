@@ -13,10 +13,10 @@ describe('episodeStore', () => {
 
     // Reset the store state
     useEpisodeStore.setState({
-      currentEpisode: null,
+      currentEpisode: undefined,
       episodes: [],
       loading: false,
-      error: null,
+      error: undefined,
     });
   });
 
@@ -31,7 +31,7 @@ describe('episodeStore', () => {
           qualities: ['Throbbing'],
           symptoms: [],
           triggers: [],
-          notes: null,
+          notes: undefined,
           peakIntensity: 7,
           averageIntensity: 5,
           createdAt: Date.now() - 10000,
@@ -83,14 +83,14 @@ describe('episodeStore', () => {
       const mockEpisode: Episode = {
         id: 'current-ep',
         startTime: Date.now(),
-        endTime: null,
+        endTime: undefined,
         locations: ['Head'],
         qualities: [],
         symptoms: [],
         triggers: [],
-        notes: null,
-        peakIntensity: null,
-        averageIntensity: null,
+        notes: undefined,
+        peakIntensity: undefined,
+        averageIntensity: undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -128,14 +128,14 @@ describe('episodeStore', () => {
     it('should start a new episode successfully', async () => {
       const newEpisodeData = {
         startTime: Date.now(),
-        endTime: null,
+        endTime: undefined,
         locations: ['Head'],
         qualities: ['Throbbing'],
         symptoms: [],
         triggers: [],
-        notes: null,
-        peakIntensity: null,
-        averageIntensity: null,
+        notes: undefined,
+        peakIntensity: undefined,
+        averageIntensity: undefined,
       };
 
       const createdEpisode: Episode = {
@@ -166,9 +166,9 @@ describe('episodeStore', () => {
         qualities: [],
         symptoms: [],
         triggers: [],
-        notes: null,
-        peakIntensity: null,
-        averageIntensity: null,
+        notes: undefined,
+        peakIntensity: undefined,
+        averageIntensity: undefined,
         createdAt: Date.now() - 20000,
         updatedAt: Date.now() - 10000,
       };
@@ -177,14 +177,14 @@ describe('episodeStore', () => {
 
       const newEpisodeData = {
         startTime: Date.now(),
-        endTime: null,
+        endTime: undefined,
         locations: [],
         qualities: [],
         symptoms: [],
         triggers: [],
-        notes: null,
-        peakIntensity: null,
-        averageIntensity: null,
+        notes: undefined,
+        peakIntensity: undefined,
+        averageIntensity: undefined,
       };
 
       const createdEpisode: Episode = {
@@ -210,14 +210,14 @@ describe('episodeStore', () => {
 
       const newEpisodeData = {
         startTime: Date.now(),
-        endTime: null,
+        endTime: undefined,
         locations: [],
         qualities: [],
         symptoms: [],
         triggers: [],
-        notes: null,
-        peakIntensity: null,
-        averageIntensity: null,
+        notes: undefined,
+        peakIntensity: undefined,
+        averageIntensity: undefined,
       };
 
       await expect(
@@ -236,12 +236,12 @@ describe('episodeStore', () => {
       const ongoingEpisode: Episode = {
         id: 'ep-123',
         startTime: Date.now() - 10000,
-        endTime: null,
+        endTime: undefined,
         locations: [],
         qualities: [],
         symptoms: [],
         triggers: [],
-        notes: null,
+        notes: undefined,
         peakIntensity: 6,
         averageIntensity: 5,
         createdAt: Date.now() - 10000,
@@ -284,12 +284,12 @@ describe('episodeStore', () => {
       const episode: Episode = {
         id: 'ep-123',
         startTime: Date.now(),
-        endTime: null,
+        endTime: undefined,
         locations: ['Head'],
         qualities: [],
         symptoms: [],
         triggers: [],
-        notes: null,
+        notes: undefined,
         peakIntensity: 5,
         averageIntensity: 4,
         createdAt: Date.now(),
@@ -317,14 +317,14 @@ describe('episodeStore', () => {
       const currentEpisode: Episode = {
         id: 'current-ep',
         startTime: Date.now(),
-        endTime: null,
+        endTime: undefined,
         locations: [],
         qualities: [],
         symptoms: [],
         triggers: [],
-        notes: null,
-        peakIntensity: null,
-        averageIntensity: null,
+        notes: undefined,
+        peakIntensity: undefined,
+        averageIntensity: undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -337,7 +337,7 @@ describe('episodeStore', () => {
         qualities: [],
         symptoms: [],
         triggers: [],
-        notes: null,
+        notes: undefined,
         peakIntensity: 5,
         averageIntensity: 4,
         createdAt: Date.now() - 20000,
@@ -383,14 +383,14 @@ describe('episodeStore', () => {
       const episode: Episode = {
         id: 'ep-123',
         startTime: Date.now(),
-        endTime: null,
+        endTime: undefined,
         locations: [],
         qualities: [],
         symptoms: [],
         triggers: [],
-        notes: null,
-        peakIntensity: null,
-        averageIntensity: null,
+        notes: undefined,
+        peakIntensity: undefined,
+        averageIntensity: undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -434,7 +434,7 @@ describe('episodeStore', () => {
         episodeId: 'ep-123',
         symptom: 'Nausea',
         onsetTime: Date.now(),
-        resolutionTime: null,
+        resolutionTime: undefined,
         severity: 7,
       };
 
@@ -452,7 +452,7 @@ describe('episodeStore', () => {
         episodeId: 'ep-123',
         symptom: 'Nausea',
         onsetTime: Date.now(),
-        resolutionTime: null,
+        resolutionTime: undefined,
         severity: 7,
       };
 
@@ -469,14 +469,14 @@ describe('episodeStore', () => {
       const ep1: Episode = {
         id: 'ep-1',
         startTime: Date.now(),
-        endTime: null,
+        endTime: undefined,
         locations: [],
         qualities: [],
         symptoms: [],
         triggers: [],
-        notes: null,
-        peakIntensity: null,
-        averageIntensity: null,
+        notes: undefined,
+        peakIntensity: undefined,
+        averageIntensity: undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -489,9 +489,9 @@ describe('episodeStore', () => {
         qualities: [],
         symptoms: [],
         triggers: [],
-        notes: null,
-        peakIntensity: null,
-        averageIntensity: null,
+        notes: undefined,
+        peakIntensity: undefined,
+        averageIntensity: undefined,
         createdAt: Date.now() - 10000,
         updatedAt: Date.now(),
       };
@@ -513,14 +513,14 @@ describe('episodeStore', () => {
       const currentEp: Episode = {
         id: 'current',
         startTime: Date.now(),
-        endTime: null,
+        endTime: undefined,
         locations: [],
         qualities: [],
         symptoms: [],
         triggers: [],
-        notes: null,
-        peakIntensity: null,
-        averageIntensity: null,
+        notes: undefined,
+        peakIntensity: undefined,
+        averageIntensity: undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -573,14 +573,14 @@ describe('episodeStore', () => {
       const newEpisode: Episode = {
         id: 'new',
         startTime: Date.now(),
-        endTime: null,
+        endTime: undefined,
         locations: [],
         qualities: [],
         symptoms: [],
         triggers: [],
-        notes: null,
-        peakIntensity: null,
-        averageIntensity: null,
+        notes: undefined,
+        peakIntensity: undefined,
+        averageIntensity: undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };

@@ -33,9 +33,9 @@ describe('dailyStatusStore', () => {
     // Reset the store state
     useDailyStatusStore.setState({
       dailyStatuses: [],
-      monthStats: null,
+      monthStats: undefined,
       loading: false,
-      error: null,
+      error: undefined,
     });
   });
 
