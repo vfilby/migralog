@@ -159,7 +159,7 @@ describe('notificationService', () => {
         disabledSchedule
       );
 
-      expect(notifId).toBeNull();
+      expect(notifId).toBe(null);
       expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
     });
 
@@ -173,7 +173,7 @@ describe('notificationService', () => {
         mockSchedule
       );
 
-      expect(notifId).toBeNull();
+      expect(notifId).toBe(null);
     });
 
     it('should schedule for tomorrow if time has passed today', async () => {

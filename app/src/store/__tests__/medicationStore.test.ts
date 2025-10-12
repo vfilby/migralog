@@ -19,7 +19,7 @@ describe('medicationStore', () => {
       preventativeMedications: [],
       rescueMedications: [],
       loading: false,
-      error: undefined,
+      error: null,
     });
   });
 
@@ -73,7 +73,7 @@ describe('medicationStore', () => {
       expect(state.preventativeMedications[0].id).toBe('prev-1');
       expect(state.rescueMedications[0].id).toBe('rescue-1');
       expect(state.loading).toBe(false);
-      expect(state.error).toBeNull();
+      expect(state.error).toBe(null);
     });
 
     it('should handle errors when loading medications', async () => {
@@ -515,7 +515,7 @@ describe('medicationStore', () => {
       expect(state.preventativeMedications).toEqual([]);
       expect(state.rescueMedications).toEqual([]);
       expect(state.loading).toBe(false);
-      expect(state.error).toBeNull();
+      expect(state.error).toBe(null);
     });
 
     it('should maintain state across multiple operations', async () => {
@@ -543,7 +543,7 @@ describe('medicationStore', () => {
       await useMedicationStore.getState().loadMedications();
 
       expect(useMedicationStore.getState().medications).toHaveLength(1);
-      expect(useMedicationStore.getState().error).toBeNull();
+      expect(useMedicationStore.getState().error).toBe(null);
     });
   });
 });

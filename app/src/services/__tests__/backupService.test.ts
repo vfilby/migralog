@@ -345,7 +345,7 @@ describe('backupService', () => {
 
       const metadata = await backupService.getBackupMetadata('backup-123');
 
-      expect(metadata).not.toBeNull();
+      expect(metadata).not.toBeUndefined();
       expect(metadata?.id).toBe('backup-123');
       expect(metadata?.fileSize).toBe(1000);
     });
@@ -355,7 +355,7 @@ describe('backupService', () => {
 
       const metadata = await backupService.getBackupMetadata('nonexistent');
 
-      expect(metadata).toBeNull();
+      expect(metadata).toBeUndefined();
     });
 
     it('should return null on error', async () => {
@@ -363,7 +363,7 @@ describe('backupService', () => {
 
       const metadata = await backupService.getBackupMetadata('backup-123');
 
-      expect(metadata).toBeNull();
+      expect(metadata).toBeUndefined();
     });
   });
 

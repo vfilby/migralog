@@ -13,10 +13,10 @@ describe('episodeStore', () => {
 
     // Reset the store state
     useEpisodeStore.setState({
-      currentEpisode: undefined,
+      currentEpisode: null,
       episodes: [],
       loading: false,
-      error: undefined,
+      error: null,
     });
   });
 
@@ -46,7 +46,7 @@ describe('episodeStore', () => {
       const state = useEpisodeStore.getState();
       expect(state.episodes).toEqual(mockEpisodes);
       expect(state.loading).toBe(false);
-      expect(state.error).toBeNull();
+      expect(state.error).toBe(null);
     });
 
     it('should handle errors when loading episodes', async () => {
@@ -101,7 +101,7 @@ describe('episodeStore', () => {
 
       const state = useEpisodeStore.getState();
       expect(state.currentEpisode).toEqual(mockEpisode);
-      expect(state.error).toBeNull();
+      expect(state.error).toBe(null);
     });
 
     it('should handle null current episode', async () => {
@@ -110,7 +110,7 @@ describe('episodeStore', () => {
       await useEpisodeStore.getState().loadCurrentEpisode();
 
       const state = useEpisodeStore.getState();
-      expect(state.currentEpisode).toBeNull();
+      expect(state.currentEpisode).toBe(null);
     });
 
     it('should handle errors when loading current episode', async () => {
@@ -154,7 +154,7 @@ describe('episodeStore', () => {
       expect(state.currentEpisode).toEqual(createdEpisode);
       expect(state.episodes[0]).toEqual(createdEpisode);
       expect(state.loading).toBe(false);
-      expect(state.error).toBeNull();
+      expect(state.error).toBe(null);
     });
 
     it('should add new episode to front of episodes list', async () => {
@@ -227,7 +227,7 @@ describe('episodeStore', () => {
       const state = useEpisodeStore.getState();
       expect(state.error).toBe('Failed to create episode');
       expect(state.loading).toBe(false);
-      expect(state.currentEpisode).toBeNull();
+      expect(state.currentEpisode).toBe(null);
     });
   });
 
@@ -259,7 +259,7 @@ describe('episodeStore', () => {
       await useEpisodeStore.getState().endEpisode('ep-123', endTime);
 
       const state = useEpisodeStore.getState();
-      expect(state.currentEpisode).toBeNull();
+      expect(state.currentEpisode).toBe(null);
       expect(state.episodes[0].endTime).toBe(endTime);
       expect(state.loading).toBe(false);
       expect(episodeRepository.update).toHaveBeenCalledWith('ep-123', { endTime });
@@ -441,7 +441,7 @@ describe('episodeStore', () => {
       await useEpisodeStore.getState().addSymptomLog(symptomLog);
 
       expect(symptomLogRepository.create).toHaveBeenCalledWith(symptomLog);
-      expect(useEpisodeStore.getState().error).toBeNull();
+      expect(useEpisodeStore.getState().error).toBe(null);
     });
 
     it('should handle errors when adding symptom log', async () => {
@@ -535,7 +535,7 @@ describe('episodeStore', () => {
       await useEpisodeStore.getState().deleteEpisode('current');
 
       const state = useEpisodeStore.getState();
-      expect(state.currentEpisode).toBeNull();
+      expect(state.currentEpisode).toBe(null);
       expect(state.episodes).toHaveLength(0);
     });
 
@@ -557,10 +557,10 @@ describe('episodeStore', () => {
     it('should have correct initial state', () => {
       const state = useEpisodeStore.getState();
 
-      expect(state.currentEpisode).toBeNull();
+      expect(state.currentEpisode).toBe(null);
       expect(state.episodes).toEqual([]);
       expect(state.loading).toBe(false);
-      expect(state.error).toBeNull();
+      expect(state.error).toBe(null);
     });
 
     it('should maintain state across multiple operations', async () => {
@@ -591,7 +591,7 @@ describe('episodeStore', () => {
       const state = useEpisodeStore.getState();
       expect(state.currentEpisode).toEqual(newEpisode);
       expect(state.episodes).toHaveLength(1);
-      expect(state.error).toBeNull();
+      expect(state.error).toBe(null);
     });
   });
 });

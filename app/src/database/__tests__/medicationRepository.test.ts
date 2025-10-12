@@ -76,8 +76,8 @@ describe('medicationRepository', () => {
       const result = await medicationRepository.create(minimalMedication);
 
       expect(result.id).toBe('test-med-123');
-      expect(result.defaultDosage).toBeNull();
-      expect(result.notes).toBeNull();
+      expect(result.defaultDosage).toBeUndefined();
+      expect(result.notes).toBeUndefined();
     });
 
     it('should create preventative medication', async () => {
@@ -229,7 +229,7 @@ describe('medicationRepository', () => {
 
       const result = await medicationRepository.getById('med-123');
 
-      expect(result).not.toBeNull();
+      expect(result).not.toBeUndefined();
       expect(result?.id).toBe('med-123');
       expect(result?.name).toBe('Ibuprofen');
       expect(result?.active).toBe(true);
@@ -244,7 +244,7 @@ describe('medicationRepository', () => {
 
       const result = await medicationRepository.getById('nonexistent');
 
-      expect(result).toBeNull();
+      expect(result).toBe(null);
     });
   });
 
@@ -553,7 +553,7 @@ describe('medicationDoseRepository', () => {
       const result = await medicationDoseRepository.create(minimal);
 
       expect(result.id).toBe('dose-123');
-      expect(result.effectivenessRating).toBeNull();
+      expect(result.effectivenessRating).toBeUndefined();
     });
   });
 

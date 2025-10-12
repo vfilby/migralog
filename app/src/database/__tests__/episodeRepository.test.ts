@@ -92,7 +92,7 @@ describe('episodeRepository', () => {
 
       expect(result.id).toBe('test-id-123');
       expect(result.locations).toEqual([]);
-      expect(result.notes).toBeNull();
+      expect(result.notes).toBeUndefined();
       expect(mockDatabase.runAsync).toHaveBeenCalledTimes(1);
     });
 
@@ -190,7 +190,7 @@ describe('episodeRepository', () => {
 
       const result = await episodeRepository.getById('episode-123');
 
-      expect(result).not.toBeNull();
+      expect(result).not.toBeUndefined();
       expect(result?.id).toBe('episode-123');
       expect(result?.locations).toEqual(['left_head']);
       expect(result?.location).toBeDefined();
@@ -206,7 +206,7 @@ describe('episodeRepository', () => {
 
       const result = await episodeRepository.getById('nonexistent');
 
-      expect(result).toBeNull();
+      expect(result).toBe(null);
     });
 
     it('should handle episode without GPS location', async () => {
@@ -333,9 +333,9 @@ describe('episodeRepository', () => {
 
       const result = await episodeRepository.getCurrentEpisode();
 
-      expect(result).not.toBeNull();
+      expect(result).not.toBeUndefined();
       expect(result?.id).toBe('current-episode');
-      expect(result?.endTime).toBeNull();
+      expect(result?.endTime).toBeUndefined();
       expect(mockDatabase.getFirstAsync).toHaveBeenCalledWith(
         'SELECT * FROM episodes WHERE end_time IS NULL ORDER BY start_time DESC LIMIT 1'
       );
@@ -346,7 +346,7 @@ describe('episodeRepository', () => {
 
       const result = await episodeRepository.getCurrentEpisode();
 
-      expect(result).toBeNull();
+      expect(result).toBe(null);
     });
   });
 

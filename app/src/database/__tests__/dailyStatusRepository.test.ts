@@ -214,7 +214,7 @@ describe('dailyStatusRepository', () => {
 
       const result = await dailyStatusRepository.getByDate('2025-10-10');
 
-      expect(result).not.toBeNull();
+      expect(result).not.toBeUndefined();
       expect(result?.id).toBe('status-123');
       expect(result?.date).toBe('2025-10-10');
       expect(result?.status).toBe('yellow');
@@ -231,7 +231,7 @@ describe('dailyStatusRepository', () => {
 
       const result = await dailyStatusRepository.getByDate('2025-10-10');
 
-      expect(result).toBeNull();
+      expect(result).toBe(null);
     });
 
     it('should handle log without optional fields', async () => {

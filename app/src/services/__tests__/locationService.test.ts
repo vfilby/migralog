@@ -125,7 +125,7 @@ describe('locationService', () => {
 
       const location = await locationService.getCurrentLocation();
 
-      expect(location).toBeNull();
+      expect(location).toBe(null);
       expect(Location.getCurrentPositionAsync).not.toHaveBeenCalled();
     });
 
@@ -163,7 +163,7 @@ describe('locationService', () => {
 
       const location = await locationService.getCurrentLocation();
 
-      expect(location).toBeNull();
+      expect(location).toBe(null);
       expect(console.error).toHaveBeenCalledWith(
         'Failed to get current location:',
         expect.any(Error)
@@ -211,7 +211,7 @@ describe('locationService', () => {
 
       const location = await locationService.getLocationWithPermissionRequest();
 
-      expect(location).toBeNull();
+      expect(location).toBe(null);
     });
 
     it('should handle errors during permission request', async () => {
@@ -221,7 +221,7 @@ describe('locationService', () => {
 
       await expect(
         locationService.getLocationWithPermissionRequest()
-      ).resolves.toBeNull();
+      ).resolves.toBe(null);
     });
   });
 
@@ -262,7 +262,7 @@ describe('locationService', () => {
 
       const result = await locationService.reverseGeocode(0, 0);
 
-      expect(result).toBeNull();
+      expect(result).toBe(null);
     });
 
     it('should return country if only country available', async () => {
@@ -285,7 +285,7 @@ describe('locationService', () => {
 
       const result = await locationService.reverseGeocode(37.7749, -122.4194);
 
-      expect(result).toBeNull();
+      expect(result).toBe(null);
       expect(console.error).toHaveBeenCalledWith(
         'Failed to reverse geocode:',
         expect.any(Error)
