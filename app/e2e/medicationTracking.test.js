@@ -364,7 +364,8 @@ describe('Medication Tracking UI', () => {
     await waitForAnimation(2000);
 
     // Should show taken status (looking for "dose taken at" text)
-    await waitFor(element(by.text(/dose taken at \d+:\d+ [AP]M/)))
+    // Pattern: "9:00 AM dose taken at 10:00 AM" (schedule time + "dose taken at" + logged time)
+    await waitFor(element(by.text(/\d+:\d+ [AP]M dose taken at \d+:\d+ [AP]M/)))
       .toBeVisible()
       .withTimeout(8000);
 
