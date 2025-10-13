@@ -123,11 +123,14 @@ export interface MedicationSchedule {
   reminderEnabled?: boolean; // Can disable reminder for this specific schedule
 }
 
+export type DoseStatus = 'taken' | 'skipped';
+
 export interface MedicationDose {
   id: string;
   medicationId: string;
   timestamp: number;
   amount: number; // Number of dosage units taken
+  status?: DoseStatus; // Whether dose was taken or skipped (defaults to 'taken')
   episodeId?: string; // Link to episode if rescue medication
   effectivenessRating?: number; // 0-10
   timeToRelief?: number; // Minutes

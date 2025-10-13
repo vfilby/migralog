@@ -228,6 +228,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
 
 interface ScheduleLogState {
   logged: boolean;
+  skipped?: boolean;
   loggedAt?: Date;
   doseId?: string;
 }
@@ -266,23 +267,26 @@ export default function MedicationsScreen() {
         // Load today's doses for this medication
         const doses = await medicationDoseRepository.getByMedicationId(med.id, 50);
 
-        // Check which schedules have been logged today
-        for (const schedule of medSchedules) {
-          const [hours, minutes] = schedule.time.split(':').map(Number);
+        // Check which schedules have been logged or skipped today
+        // Use the same logic as DashboardScreen: any dose logged today counts as taken/skipped
+        const todaysDoses = doses.filter(dose => {
+          const doseDate = new Date(dose.timestamp);
+          return isToday(doseDate);
+        });
 
-          const takenDose = doses.find(dose => {
-            const doseDate = new Date(dose.timestamp);
-            return isToday(doseDate) &&
-              doseDate.getHours() === hours &&
-              Math.abs(doseDate.getMinutes() - minutes) < 30; // Within 30 min window
-          });
+        // If there are any doses logged today, mark the most recent one
+        if (todaysDoses.length > 0) {
+          // Sort by timestamp descending and take the most recent one
+          const latestDose = todaysDoses.sort((a, b) => b.timestamp - a.timestamp)[0];
 
-          if (takenDose) {
+          // Mark all schedules with the latest dose status
+          for (const schedule of medSchedules) {
             const stateKey = `${med.id}-${schedule.id}`;
             logStates[stateKey] = {
-              logged: true,
-              loggedAt: new Date(takenDose.timestamp),
-              doseId: takenDose.id,
+              logged: latestDose.status === 'taken',
+              skipped: latestDose.status === 'skipped',
+              loggedAt: new Date(latestDose.timestamp),
+              doseId: latestDose.id,
             };
           }
         }
@@ -436,17 +440,17 @@ export default function MedicationsScreen() {
                 )}
                 {med.scheduleFrequency === 'daily' && medicationSchedules[med.id]?.length > 0 && (
                   <View>
-                    {/* Show logged notifications first */}
+                    {/* Show logged/skipped notifications first */}
                     {medicationSchedules[med.id].some(schedule => {
                       const stateKey = `${med.id}-${schedule.id}`;
-                      return scheduleLogStates[stateKey]?.logged;
+                      return scheduleLogStates[stateKey]?.logged || scheduleLogStates[stateKey]?.skipped;
                     }) && (
                       <View style={styles.loggedNotificationsContainer}>
                         {medicationSchedules[med.id].map((schedule) => {
                           const stateKey = `${med.id}-${schedule.id}`;
                           const logState = scheduleLogStates[stateKey];
 
-                          if (!logState?.logged) return null;
+                          if (!logState?.logged && !logState?.skipped) return null;
 
                           const [hours, minutes] = schedule.time.split(':');
                           const date = new Date();
@@ -455,9 +459,17 @@ export default function MedicationsScreen() {
 
                           return (
                             <View key={schedule.id} style={styles.loggedNotification}>
-                              <Ionicons name="checkmark-circle" size={16} color={theme.success} />
-                              <Text style={styles.loggedNotificationText}>
-                                {scheduleTimeStr} dose taken at {logState.loggedAt && format(logState.loggedAt, 'h:mm a')}
+                              <Ionicons
+                                name={logState.logged ? "checkmark-circle" : "close-circle"}
+                                size={16}
+                                color={logState.logged ? theme.success : theme.textSecondary}
+                              />
+                              <Text style={[
+                                styles.loggedNotificationText,
+                                logState.skipped && { color: theme.textSecondary }
+                              ]}>
+                                {logState.logged && `${scheduleTimeStr} dose taken at ${logState.loggedAt && format(logState.loggedAt, 'h:mm a')}`}
+                                {logState.skipped && `${scheduleTimeStr} dose skipped`}
                               </Text>
                               {logState.doseId && (
                                 <TouchableOpacity
@@ -486,8 +498,8 @@ export default function MedicationsScreen() {
                         const stateKey = `${med.id}-${schedule.id}`;
                         const logState = scheduleLogStates[stateKey];
 
-                        if (logState?.logged) {
-                          return null; // Don't show button if already logged
+                        if (logState?.logged || logState?.skipped) {
+                          return null; // Don't show button if already logged or skipped
                         }
 
                         return (

@@ -440,7 +440,10 @@ describe('medicationStore', () => {
 
       expect(result).toEqual(createdDose);
       expect(useMedicationStore.getState().loading).toBe(false);
-      expect(medicationDoseRepository.create).toHaveBeenCalledWith(dose);
+      expect(medicationDoseRepository.create).toHaveBeenCalledWith({
+        ...dose,
+        status: 'taken', // Store adds default status
+      });
     });
 
     it('should handle errors when logging dose', async () => {

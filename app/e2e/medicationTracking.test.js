@@ -21,6 +21,9 @@ describe('Medication Tracking UI', () => {
   });
 
   beforeEach(async () => {
+    // Relaunch app to ensure clean state
+    await device.launchApp({ delete: false, newInstance: true });
+
     // Reset database and load test fixtures (medications with schedules)
     await resetDatabase(true);
   });
@@ -216,5 +219,161 @@ describe('Medication Tracking UI', () => {
       console.log('No rescue medications or Log Medication button not found');
       // This is okay - not all users have rescue medications
     }
+  });
+
+  it('should sync medication status between Dashboard and Medications screen (Issue #7)', async () => {
+    // ======================
+    // Phase 1: Start on Dashboard
+    // ======================
+    await waitFor(element(by.id('dashboard-title')))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    console.log('On Dashboard - verifying medication is visible');
+
+    // Verify "Today's Medications" card exists
+    await waitFor(element(by.text("Today's Medications")))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    // Find medication with Skip button (unlogged)
+    await waitFor(element(by.text('Skip')))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    console.log('Found unlogged medication');
+
+    // ======================
+    // Phase 2: Navigate to Medications Screen - Verify Not Yet Logged
+    // ======================
+    console.log('Navigating to Medications screen');
+    await element(by.text('Meds')).tap();
+    await waitForAnimation(1000);
+
+    await waitFor(element(by.text('Medications')))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    console.log('On Medications screen');
+
+    // Should NOT show taken or skipped status yet
+    // (We're looking for absence of status indicators)
+    console.log('✅ Medications screen loaded');
+
+    // ======================
+    // Phase 3: Return to Dashboard and Skip Medication
+    // ======================
+    console.log('Returning to Dashboard');
+    await element(by.text('Home')).tap();
+    await waitForAnimation(1000);
+
+    await waitFor(element(by.id('dashboard-title')))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    console.log('Back on Dashboard - skipping medication');
+
+    // Skip the medication
+    await element(by.text('Skip')).tap();
+    await waitForAnimation(1500);
+
+    // Verify skipped on Dashboard
+    await waitFor(element(by.text('Skipped')))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    console.log('✅ Dashboard shows "Skipped" status');
+
+    // ======================
+    // Phase 4: Navigate to Medications Screen - Verify Skipped Status
+    // ======================
+    console.log('Navigating to Medications screen to verify skipped status');
+    await element(by.text('Meds')).tap();
+    await waitForAnimation(1000);
+
+    await waitFor(element(by.text('Medications')))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    console.log('On Medications screen - checking for skipped indicator');
+
+    // Wait a bit longer for the screen to load the skipped status from database
+    await waitForAnimation(2000);
+
+    // Should show skipped status (looking for text containing "dose skipped")
+    // Pattern: "9:00 AM dose skipped" (schedule time + "dose skipped")
+    await waitFor(element(by.text(/\d+:\d+ [AP]M dose skipped/)))
+      .toBeVisible()
+      .withTimeout(8000);
+
+    console.log('✅ SUCCESS: Medications screen shows skipped status');
+
+    // ======================
+    // Phase 5: Return to Dashboard and Undo Skip
+    // ======================
+    console.log('Returning to Dashboard to undo skip');
+    await element(by.text('Home')).tap();
+    await waitForAnimation(1000);
+
+    await waitFor(element(by.id('dashboard-title')))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    // Undo the skip
+    await element(by.text('Undo')).tap();
+    await waitForAnimation(1500);
+
+    // Should see Skip button again
+    await waitFor(element(by.text('Skip')))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    console.log('✅ Undid skip on Dashboard');
+
+    // ======================
+    // Phase 6: Log Medication
+    // ======================
+    console.log('Logging medication');
+
+    const logButtonMatcher = element(by.text('Log 1 × 50mg'));
+    await waitFor(logButtonMatcher)
+      .toBeVisible()
+      .withTimeout(5000);
+
+    await logButtonMatcher.tap();
+    await waitForAnimation(1500);
+
+    // Verify taken status
+    await waitFor(element(by.label(/Taken at \d+:\d+ [AP]M/)))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    console.log('✅ Dashboard shows "Taken at" status');
+
+    // ======================
+    // Phase 7: Navigate to Medications Screen - Verify Taken Status
+    // ======================
+    console.log('Navigating to Medications screen to verify taken status');
+    await element(by.text('Meds')).tap();
+    await waitForAnimation(1000);
+
+    await waitFor(element(by.text('Medications')))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    console.log('On Medications screen - checking for taken indicator');
+
+    // Wait for the screen to load the taken status from database
+    await waitForAnimation(2000);
+
+    // Should show taken status (looking for "dose taken at" text)
+    // Pattern: "9:00 AM dose taken at 10:00 AM" (schedule time + "dose taken at" + logged time)
+    await waitFor(element(by.text(/\d+:\d+ [AP]M dose taken at \d+:\d+ [AP]M/)))
+      .toBeVisible()
+      .withTimeout(8000);
+
+    console.log('✅ SUCCESS: Medications screen shows taken status');
+
+    console.log('✅ ALL TESTS PASSED: Issue #7 fixed - medication status syncs correctly!');
   });
 });

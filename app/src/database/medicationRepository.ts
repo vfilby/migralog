@@ -188,19 +188,21 @@ export const medicationDoseRepository = {
     const newDose: MedicationDose = {
       ...dose,
       id,
+      status: dose.status || 'taken', // Default to 'taken' if not provided
       createdAt: now,
     };
 
     await database.runAsync(
       `INSERT INTO medication_doses (
-        id, medication_id, timestamp, amount, episode_id, effectiveness_rating,
+        id, medication_id, timestamp, amount, status, episode_id, effectiveness_rating,
         time_to_relief, side_effects, notes, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         newDose.id,
         newDose.medicationId,
         newDose.timestamp,
         newDose.amount,
+        newDose.status || 'taken', // Ensure it's never undefined
         newDose.episodeId || null,
         newDose.effectivenessRating || null,
         newDose.timeToRelief || null,
@@ -292,6 +294,7 @@ export const medicationDoseRepository = {
       medicationId: row.medication_id,
       timestamp: row.timestamp,
       amount: row.amount,
+      status: row.status || 'taken', // Default to 'taken' for backwards compatibility
       episodeId: row.episode_id,
       effectivenessRating: row.effectiveness_rating,
       timeToRelief: row.time_to_relief,
