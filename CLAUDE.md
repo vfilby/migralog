@@ -167,3 +167,4 @@ Health data subject to HIPAA requirements. Never log sensitive information. Encr
 - Don't reinvent the wheel.  Use exitisting libraries and components unless there is a good reason and I specifically instruct you to do otherwise.
 - Don't delcare success unless we have tested and accomplish our current goal.
 - All tests must pass before committing
+- Never delete, skip, or comment out a test that is failing with the excuse that "it's working anyways, so don't worry".  Always fix the test, don't skip it.

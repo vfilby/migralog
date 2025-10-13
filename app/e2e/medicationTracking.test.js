@@ -297,8 +297,9 @@ describe('Medication Tracking UI', () => {
     // Wait a bit longer for the screen to load the skipped status from database
     await waitForAnimation(2000);
 
-    // Should show skipped status (looking for text containing "skipped")
-    await waitFor(element(by.text(/skipped/i)))
+    // Should show skipped status (looking for text containing "dose skipped")
+    // Pattern: "9:00 AM dose skipped" (schedule time + "dose skipped")
+    await waitFor(element(by.text(/\d+:\d+ [AP]M dose skipped/)))
       .toBeVisible()
       .withTimeout(8000);
 
@@ -359,10 +360,13 @@ describe('Medication Tracking UI', () => {
 
     console.log('On Medications screen - checking for taken indicator');
 
+    // Wait for the screen to load the taken status from database
+    await waitForAnimation(2000);
+
     // Should show taken status (looking for "dose taken at" text)
     await waitFor(element(by.text(/dose taken at \d+:\d+ [AP]M/)))
       .toBeVisible()
-      .withTimeout(5000);
+      .withTimeout(8000);
 
     console.log('✅ SUCCESS: Medications screen shows taken status');
 
