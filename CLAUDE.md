@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-MigraineTracker is a React Native mobile app built with Expo for tracking pain episodes, symptoms, and medication usage. The app uses SQLite for offline-first data storage and follows iOS-first design patterns.
+MigraLog is a React Native mobile app built with Expo for tracking pain episodes, symptoms, and medication usage. The app uses SQLite for offline-first data storage and follows iOS-first design patterns.
 
 **Tech Stack:**
 - React Native 0.81.4 + Expo ~54
@@ -56,7 +56,7 @@ npx tsc --noEmit         # Run TypeScript compiler in check mode
 ## Project Structure
 
 ```
-MigraineTracker/
+MigraLog/
 ├── app/                 # React Native application
 │   ├── assets/          # App icons, images, splash screens
 │   ├── e2e/             # End-to-end tests (Detox)

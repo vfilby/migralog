@@ -93,7 +93,7 @@ async function resetDatabase(withFixtures = false) {
   await element(by.text('Done')).tap();
 
   // Verify we're back on dashboard with clean state
-  await waitFor(element(by.text('Pain Tracker')))
+  await waitFor(element(by.text('MigraLog')))
     .toBeVisible()
     .withTimeout(3000);
 

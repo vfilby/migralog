@@ -54,7 +54,7 @@ export default function SettingsScreen({ navigation }: Props) {
 
   const checkDatabaseHealth = async () => {
     try {
-      const db = await SQLite.openDatabaseAsync('migrainetracker.db');
+      const db = await SQLite.openDatabaseAsync('migralog.db');
       await db.execAsync('SELECT 1'); // Simple query to test connection
       setDbStatus('healthy');
     } catch (error) {
@@ -300,7 +300,7 @@ export default function SettingsScreen({ navigation }: Props) {
           <View style={styles.aboutCard}>
             <View style={styles.aboutRow}>
               <Text style={styles.aboutLabel}>App Name</Text>
-              <Text style={styles.aboutValue}>MigraineTracker</Text>
+              <Text style={styles.aboutValue}>MigraLog</Text>
             </View>
             <View style={styles.divider} />
             <View style={styles.aboutRow}>

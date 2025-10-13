@@ -1,4 +1,4 @@
-# Migraine Tracker
+# MigraLog
 
 A React Native mobile app for tracking migraine episodes, symptoms, medications, and triggers.
 
