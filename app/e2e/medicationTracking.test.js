@@ -32,15 +32,18 @@ describe('Medication Tracking UI', () => {
 
     await waitFor(element(by.id('dashboard-title')))
       .toBeVisible()
-      .withTimeout(5000);
+      .withTimeout(10000);
 
     console.log('On Dashboard');
+
+    // Wait for data to load after database reset (longer timeout for CI)
+    await waitForAnimation(3000);
 
     // Check if "Today's Medications" card exists
     // Test fixtures should have loaded medications with schedules
     await waitFor(element(by.text("Today's Medications")))
       .toBeVisible()
-      .withTimeout(5000);
+      .withTimeout(10000);
 
     console.log("Today's Medications card is visible");
 
