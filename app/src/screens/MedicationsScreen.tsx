@@ -267,17 +267,19 @@ export default function MedicationsScreen() {
         const doses = await medicationDoseRepository.getByMedicationId(med.id, 50);
 
         // Check which schedules have been logged today
-        for (const schedule of medSchedules) {
-          const [hours, minutes] = schedule.time.split(':').map(Number);
+        // Use the same logic as DashboardScreen: any dose logged today counts as taken
+        const todaysDoses = doses.filter(dose => {
+          const doseDate = new Date(dose.timestamp);
+          return isToday(doseDate);
+        });
 
-          const takenDose = doses.find(dose => {
-            const doseDate = new Date(dose.timestamp);
-            return isToday(doseDate) &&
-              doseDate.getHours() === hours &&
-              Math.abs(doseDate.getMinutes() - minutes) < 30; // Within 30 min window
-          });
+        // If there are any doses logged today, mark the most recent one
+        if (todaysDoses.length > 0) {
+          // Sort by timestamp descending and take the most recent one
+          const takenDose = todaysDoses.sort((a, b) => b.timestamp - a.timestamp)[0];
 
-          if (takenDose) {
+          // Mark all schedules as logged since a dose was taken today
+          for (const schedule of medSchedules) {
             const stateKey = `${med.id}-${schedule.id}`;
             logStates[stateKey] = {
               logged: true,
