@@ -138,8 +138,8 @@ describe('migrationRunner', () => {
     it('should return the highest migration version', async () => {
       const targetVersion = await migrationRunner.getTargetVersion();
 
-      // Should return the highest version from migrations array (currently 5)
-      expect(targetVersion).toBe(5);
+      // Should return the highest version from migrations array (currently 6)
+      expect(targetVersion).toBe(6);
     });
   });
 

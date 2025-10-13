@@ -139,6 +139,28 @@ const migrations: Migration[] = [
       console.log('Dropped daily_status_logs table and indexes');
     },
   },
+  {
+    version: 6,
+    name: 'add_status_to_medication_doses',
+    up: async (db: SQLite.SQLiteDatabase) => {
+      // Check if column already exists before adding it
+      const tableInfo = await db.getAllAsync<{ name: string }>(
+        "PRAGMA table_info(medication_doses)"
+      );
+      const columnNames = tableInfo.map(col => col.name);
+
+      // Add status column if it doesn't exist (default to 'taken')
+      if (!columnNames.includes('status')) {
+        await db.execAsync('ALTER TABLE medication_doses ADD COLUMN status TEXT NOT NULL DEFAULT \'taken\';');
+      }
+
+      console.log('Added status column to medication_doses table');
+    },
+    down: async (db: SQLite.SQLiteDatabase) => {
+      // SQLite doesn't support DROP COLUMN, so we'd need to recreate the table
+      console.warn('Rollback for migration 6 not implemented (SQLite limitation)');
+    },
+  },
 ];
 
 class MigrationRunner {

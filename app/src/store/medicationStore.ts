@@ -125,7 +125,13 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
   logDose: async (dose) => {
     set({ loading: true, error: null });
     try {
-      const newDose = await medicationDoseRepository.create(dose);
+      // Ensure status field is present (default to 'taken' if not specified)
+      const doseWithStatus = {
+        ...dose,
+        status: dose.status || 'taken',
+      };
+
+      const newDose = await medicationDoseRepository.create(doseWithStatus);
 
       // Add to doses in state
       const doses = [newDose, ...get().doses];

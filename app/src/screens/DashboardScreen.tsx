@@ -247,7 +247,7 @@ export default function DashboardScreen() {
           const doseTime = new Date();
           doseTime.setHours(hours, minutes, 0, 0);
 
-          // Check if this dose was taken today
+          // Check if this dose was taken or skipped today
           // Find the most recent dose logged today (regardless of time)
           const todaysDoses = medDoses.filter(dose => {
             const doseDate = new Date(dose.timestamp);
@@ -255,23 +255,23 @@ export default function DashboardScreen() {
           });
 
           // Sort by timestamp descending and take the most recent one
-          const takenDose = todaysDoses.length > 0
+          const latestDose = todaysDoses.length > 0
             ? todaysDoses.sort((a, b) => b.timestamp - a.timestamp)[0]
             : undefined;
 
-          // Show if it's upcoming (within next 3 hours), missed (past), or taken
+          // Show if it's upcoming (within next 3 hours), missed (past), or taken/skipped
           const threeHoursFromNow = addMinutes(now, 180);
-          const shouldShow = isBefore(doseTime, threeHoursFromNow) || takenDose;
+          const shouldShow = isBefore(doseTime, threeHoursFromNow) || latestDose;
 
           if (shouldShow) {
             todayMeds.push({
               medication: med,
               schedule,
               doseTime,
-              taken: !!takenDose,
-              takenAt: takenDose ? new Date(takenDose.timestamp) : undefined,
-              skipped: false, // Will be set from local state after
-              doseId: takenDose?.id,
+              taken: latestDose?.status === 'taken',
+              takenAt: latestDose?.status === 'taken' ? new Date(latestDose.timestamp) : undefined,
+              skipped: latestDose?.status === 'skipped',
+              doseId: latestDose?.id,
             });
           }
         }
@@ -280,18 +280,8 @@ export default function DashboardScreen() {
       // Sort by time
       todayMeds.sort((a, b) => a.doseTime.getTime() - b.doseTime.getTime());
 
-      // Preserve skipped state from current state
-      setTodaysMedications(prev => {
-        return todayMeds.map(newMed => {
-          const existing = prev.find(
-            m => m.medication.id === newMed.medication.id && m.schedule.id === newMed.schedule.id
-          );
-          return {
-            ...newMed,
-            skipped: existing?.skipped || false,
-          };
-        });
-      });
+      // Set today's medications (no need to preserve skipped state - it's now in DB)
+      setTodaysMedications(todayMeds);
     } catch (error) {
       console.error('Failed to load todays medications:', error);
     }
@@ -348,15 +338,31 @@ export default function DashboardScreen() {
     }
   };
 
-  const handleSkipMedication = (item: TodaysMedication) => {
-    // Optimistically update UI immediately
-    setTodaysMedications(prev =>
-      prev.map(med =>
-        med.medication.id === item.medication.id && med.schedule.id === item.schedule.id
-          ? { ...med, skipped: true }
-          : med
-      )
-    );
+  const handleSkipMedication = async (item: TodaysMedication) => {
+    try {
+      const now = Date.now();
+
+      // Save skip to database with status 'skipped' and amount 0
+      const dose = await logDose({
+        medicationId: item.medication.id,
+        timestamp: now,
+        amount: 0, // 0 amount indicates skipped
+        status: 'skipped',
+        episodeId: currentEpisode?.id,
+      });
+
+      // Update UI with the dose ID
+      setTodaysMedications(prev =>
+        prev.map(med =>
+          med.medication.id === item.medication.id && med.schedule.id === item.schedule.id
+            ? { ...med, skipped: true, doseId: dose.id }
+            : med
+        )
+      );
+    } catch (error) {
+      console.error('Failed to skip medication:', error);
+      Alert.alert('Error', 'Failed to skip medication');
+    }
   };
 
   const handleUndoAction = async (item: TodaysMedication) => {

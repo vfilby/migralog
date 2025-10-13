@@ -1,6 +1,6 @@
 // Database schema and initialization
 
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 export const createTables = `
   -- Episodes table
@@ -75,6 +75,7 @@ export const createTables = `
     medication_id TEXT NOT NULL,
     timestamp INTEGER NOT NULL,
     amount REAL NOT NULL,
+    status TEXT NOT NULL DEFAULT 'taken',
     episode_id TEXT,
     effectiveness_rating REAL,
     time_to_relief INTEGER,
