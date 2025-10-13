@@ -130,7 +130,7 @@ export interface MedicationDose {
   medicationId: string;
   timestamp: number;
   amount: number; // Number of dosage units taken
-  status: DoseStatus; // Whether dose was taken or skipped
+  status?: DoseStatus; // Whether dose was taken or skipped (defaults to 'taken')
   episodeId?: string; // Link to episode if rescue medication
   effectivenessRating?: number; // 0-10
   timeToRelief?: number; // Minutes

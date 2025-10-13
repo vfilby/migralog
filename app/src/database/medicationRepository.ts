@@ -188,6 +188,7 @@ export const medicationDoseRepository = {
     const newDose: MedicationDose = {
       ...dose,
       id,
+      status: dose.status || 'taken', // Default to 'taken' if not provided
       createdAt: now,
     };
 
@@ -201,7 +202,7 @@ export const medicationDoseRepository = {
         newDose.medicationId,
         newDose.timestamp,
         newDose.amount,
-        newDose.status,
+        newDose.status || 'taken', // Ensure it's never undefined
         newDose.episodeId || null,
         newDose.effectivenessRating || null,
         newDose.timeToRelief || null,
