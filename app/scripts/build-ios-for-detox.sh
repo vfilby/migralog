@@ -15,13 +15,14 @@ cd ..
 
 # Step 3: Build with xcodebuild (without launching)
 echo "Building with xcodebuild..."
+# Use Release configuration to ensure JS bundle is embedded (required for Detox)
 xcodebuild \
-  -workspace ios/MigraineTracker.xcworkspace \
-  -scheme MigraineTracker \
-  -configuration Debug \
+  -workspace ios/MigraLog.xcworkspace \
+  -scheme MigraLog \
+  -configuration Release \
   -sdk iphonesimulator \
   -derivedDataPath ios/build \
-  -destination "platform=iOS Simulator,name=iPhone 16 Pro Max" \
+  -destination "generic/platform=iOS Simulator" \
   build
 
 echo "✅ Build complete!"

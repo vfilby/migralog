@@ -8,35 +8,15 @@
  * @param {boolean} withFixtures - If true, loads test data (medications, episodes)
  */
 async function resetDatabase(withFixtures = false) {
-  // Ensure we're on the dashboard and any modals are dismissed
-  try {
-    await waitFor(element(by.id('dashboard-title')))
-      .toBeVisible()
-      .withTimeout(3000);
-  } catch (e) {
-    console.log('Dashboard not visible, attempting to dismiss any modals');
-    // Try to go back if we're in a modal
-    try {
-      await element(by.text('Close')).tap();
-      await waitForAnimation(1000);
-    } catch (e2) {
-      // If no Close button, try Cancel
-      try {
-        await element(by.text('Cancel')).tap();
-        await waitForAnimation(1000);
-      } catch (e3) {
-        console.log('Could not dismiss modal');
-      }
-    }
+  // Wait for app to fully initialize
+  // This includes: DB init, running migrations, store initialization, UI render
+  // Migrations can take several seconds on first launch
+  await waitForAnimation(8000);
 
-    // Try to navigate to Home tab if still not on Dashboard
-    try {
-      await element(by.text('Home')).tap();
-      await waitForAnimation(1000);
-    } catch (e4) {
-      console.log('Could not navigate to Home tab');
-    }
-  }
+  // Wait for Dashboard to be visible - increased timeout for CI/slower machines
+  await waitFor(element(by.id('dashboard-title')))
+    .toBeVisible()
+    .withTimeout(15000);
 
   // Navigate to Settings
   await waitFor(element(by.id('settings-button')))

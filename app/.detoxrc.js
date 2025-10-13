@@ -13,12 +13,12 @@ module.exports = {
     'ios.release': {
       type: 'ios.app',
       build: 'npx expo run:ios --configuration Release --no-install --no-bundler',
-      binaryPath: 'ios/build/Build/Products/Release-iphonesimulator/MigraineTracker.app',
+      binaryPath: 'ios/build/Build/Products/Release-iphonesimulator/MigraLog.app',
     },
     'ios.debug': {
       type: 'ios.app',
       build: 'scripts/build-ios-for-detox.sh',
-      binaryPath: 'ios/build/Build/Products/Debug-iphonesimulator/MigraineTracker.app',
+      binaryPath: 'ios/build/Build/Products/Release-iphonesimulator/MigraLog.app',
     },
   },
   devices: {
