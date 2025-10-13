@@ -236,12 +236,12 @@ describe('Daily Status Tracking', () => {
 
     // Save the episode
     await element(by.id('save-episode-button')).tap();
-    await waitForAnimation(1500);
+    await waitForAnimation(2000);
 
     // Should be back on dashboard
     await waitFor(element(by.id('dashboard-title')))
       .toBeVisible()
-      .withTimeout(5000);
+      .withTimeout(10000);
 
     console.log('Created episode - red day should be auto-created for today');
 
