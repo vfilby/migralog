@@ -13,6 +13,14 @@ async function resetDatabase(withFixtures = false) {
   // Migrations can take several seconds on first launch
   await waitForAnimation(8000);
 
+  // Navigate to Dashboard first (in case we're on a different tab)
+  try {
+    await element(by.text('Home')).tap();
+    await waitForAnimation(1000);
+  } catch (e) {
+    console.log('Home tab not found or already on Home');
+  }
+
   // Wait for Dashboard to be visible - increased timeout for CI/slower machines
   await waitFor(element(by.id('dashboard-title')))
     .toBeVisible()

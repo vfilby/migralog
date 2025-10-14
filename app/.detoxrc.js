@@ -18,7 +18,7 @@ module.exports = {
     'ios.debug': {
       type: 'ios.app',
       build: 'scripts/build-ios-for-detox.sh',
-      binaryPath: 'ios/build/Build/Products/Release-iphonesimulator/MigraLog.app',
+      binaryPath: 'ios/build/Build/Products/Debug-iphonesimulator/MigraLog.app',
     },
   },
   devices: {

@@ -15,11 +15,11 @@ cd ..
 
 # Step 3: Build with xcodebuild (without launching)
 echo "Building with xcodebuild..."
-# Use Release configuration to ensure JS bundle is embedded (required for Detox)
+# Use Debug configuration to enable __DEV__ mode for test helpers
 xcodebuild \
   -workspace ios/MigraLog.xcworkspace \
   -scheme MigraLog \
-  -configuration Release \
+  -configuration Debug \
   -sdk iphonesimulator \
   -derivedDataPath ios/build \
   -destination "generic/platform=iOS Simulator" \
