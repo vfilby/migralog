@@ -382,6 +382,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: theme.primary,
+    marginBottom: 12,
     gap: 8,
   },
   secondaryButtonText: {

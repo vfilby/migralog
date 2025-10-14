@@ -221,6 +221,14 @@ export const medicationDoseRepository = {
     const fields: string[] = [];
     const values: any[] = [];
 
+    if (updates.amount !== undefined) {
+      fields.push('amount = ?');
+      values.push(updates.amount);
+    }
+    if (updates.timestamp !== undefined) {
+      fields.push('timestamp = ?');
+      values.push(updates.timestamp);
+    }
     if (updates.effectivenessRating !== undefined) {
       fields.push('effectiveness_rating = ?');
       values.push(updates.effectivenessRating);
