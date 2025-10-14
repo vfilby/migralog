@@ -26,7 +26,7 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
   const doInitialization = async (): Promise<SQLite.SQLiteDatabase> => {
     try {
       console.log('[DB] Opening database...');
-      db = await SQLite.openDatabaseAsync('pain_tracker.db');
+      db = await SQLite.openDatabaseAsync('migralog.db');
       console.log('[DB] Database opened successfully');
 
     // Initialize database schema (creates tables if they don't exist)

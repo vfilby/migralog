@@ -1,11 +1,11 @@
-# MigraineTracker
+# MigraLog
 
 A mobile app for tracking pain episodes, symptoms, and medication usage to help identify patterns and optimize treatment strategies.
 
 ## Project Structure
 
 ```
-MigraineTracker/
+MigraLog/
 ├── app/                    # React Native + Expo application
 │   ├── src/
 │   │   ├── database/      # SQLite database and repositories

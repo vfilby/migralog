@@ -15,13 +15,14 @@ cd ..
 
 # Step 3: Build with xcodebuild (without launching)
 echo "Building with xcodebuild..."
+# Use Debug configuration to enable __DEV__ mode for test helpers
 xcodebuild \
-  -workspace ios/MigraineTracker.xcworkspace \
-  -scheme MigraineTracker \
+  -workspace ios/MigraLog.xcworkspace \
+  -scheme MigraLog \
   -configuration Debug \
   -sdk iphonesimulator \
   -derivedDataPath ios/build \
-  -destination "platform=iOS Simulator,name=iPhone 16 Pro Max" \
+  -destination "generic/platform=iOS Simulator" \
   build
 
 echo "✅ Build complete!"

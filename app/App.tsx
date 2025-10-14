@@ -58,8 +58,8 @@ export default function App() {
 
   if (!isReady) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading...</Text>
+      <View style={styles.loadingContainer} testID="app-loading-screen">
+        <Text style={styles.loadingText} testID="loading-text">Loading...</Text>
       </View>
     );
   }

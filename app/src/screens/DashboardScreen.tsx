@@ -398,7 +398,7 @@ export default function DashboardScreen() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title} testID="dashboard-title">Pain Tracker</Text>
+        <Text style={styles.title} testID="dashboard-title">MigraLog</Text>
         <TouchableOpacity
           style={styles.settingsButton}
           onPress={() => navigation.navigate('Settings')}
