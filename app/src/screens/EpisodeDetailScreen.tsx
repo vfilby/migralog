@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, ActionSheetIOS, Platform } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import Slider from '@react-native-community/slider';
 import MapView, { Marker } from 'react-native-maps';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -446,6 +447,8 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   const [loading, setLoading] = useState(true);
   const [locationAddress, setLocationAddress] = useState<string | null>(null);
   const [showMapModal, setShowMapModal] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  const [customEndTime, setCustomEndTime] = useState<number>(Date.now());
 
   useFocusEffect(
     React.useCallback(() => {
@@ -492,9 +495,60 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     }
   };
 
-  const handleEndEpisode = async () => {
-    if (episode && !episode.endTime) {
+  const handleEndEpisode = () => {
+    if (!episode || episode.endTime) return;
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'End Now', 'Set End Time'],
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            // End Now
+            endEpisodeNow();
+          } else if (buttonIndex === 2) {
+            // Set End Time
+            setCustomEndTime(Date.now());
+            setShowEndTimePicker(true);
+          }
+        }
+      );
+    } else {
+      // Android - show Alert
+      Alert.alert(
+        'End Episode',
+        'Choose how to end this episode',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'End Now', onPress: endEpisodeNow },
+          { text: 'Set End Time', onPress: () => {
+            setCustomEndTime(Date.now());
+            setShowEndTimePicker(true);
+          }},
+        ]
+      );
+    }
+  };
+
+  const endEpisodeNow = async () => {
+    if (episode) {
       await endEpisode(episode.id, Date.now());
+      navigation.goBack();
+    }
+  };
+
+  const endEpisodeWithCustomTime = async () => {
+    if (episode) {
+      // Validate that end time is not before episode start
+      if (customEndTime < episode.startTime) {
+        Alert.alert('Invalid Time', 'End time cannot be before the episode start time.');
+        return;
+      }
+
+      await endEpisode(episode.id, customEndTime);
+      setShowEndTimePicker(false);
       navigation.goBack();
     }
   };
@@ -1058,6 +1112,41 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
                 Accuracy: ±{Math.round(episode.location.accuracy)}m
               </Text>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* End Time Picker Modal */}
+      <Modal
+        visible={showEndTimePicker}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowEndTimePicker(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowEndTimePicker(false)}>
+              <Text style={styles.modalCloseButton}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Set End Time</Text>
+            <TouchableOpacity onPress={endEpisodeWithCustomTime}>
+              <Text style={styles.modalCloseButton}>Done</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <DateTimePicker
+              value={new Date(customEndTime)}
+              mode="datetime"
+              display="spinner"
+              onChange={(event, selectedDate) => {
+                if (selectedDate) {
+                  setCustomEndTime(selectedDate.getTime());
+                }
+              }}
+              maximumDate={new Date()}
+              minimumDate={new Date(episode.startTime)}
+            />
           </View>
         </View>
       </Modal>
