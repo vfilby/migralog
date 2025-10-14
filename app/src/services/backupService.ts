@@ -726,6 +726,96 @@ class BackupService {
     const date = new Date(timestamp);
     return date.toLocaleString();
   }
+
+  /**
+   * Export the raw SQLite database file
+   * This creates a complete binary copy of the database
+   */
+  async exportDatabaseFile(): Promise<void> {
+    try {
+      const dbPath = `${FileSystem.documentDirectory}SQLite/migralog.db`;
+      const dbInfo = await FileSystem.getInfoAsync(dbPath);
+
+      if (!dbInfo.exists) {
+        throw new Error('Database file not found');
+      }
+
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (!isAvailable) {
+        throw new Error('Sharing is not available on this device');
+      }
+
+      // Create a timestamped copy for export
+      const timestamp = Date.now();
+      const exportPath = `${FileSystem.cacheDirectory}migralog_${timestamp}.db`;
+
+      await FileSystem.copyAsync({
+        from: dbPath,
+        to: exportPath,
+      });
+
+      await Sharing.shareAsync(exportPath, {
+        mimeType: 'application/x-sqlite3',
+        dialogTitle: 'Export MigraLog Database',
+        UTI: 'public.database',
+      });
+
+      // Clean up the temporary copy
+      await FileSystem.deleteAsync(exportPath, { idempotent: true });
+    } catch (error) {
+      console.error('Failed to export database file:', error);
+      throw new Error('Failed to export database file: ' + (error as Error).message);
+    }
+  }
+
+  /**
+   * Import a raw SQLite database file
+   * WARNING: This will replace the entire database!
+   */
+  async importDatabaseFile(): Promise<void> {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/x-sqlite3', 'application/octet-stream', '*/*'],
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) {
+        throw new Error('Import cancelled');
+      }
+
+      const fileUri = result.assets[0].uri;
+      const dbPath = `${FileSystem.documentDirectory}SQLite/migralog.db`;
+
+      // Close the current database connection
+      const { closeDatabase } = await import('../database/db');
+      await closeDatabase();
+
+      // Backup the current database before replacing it
+      const backupPath = `${FileSystem.documentDirectory}SQLite/migralog_backup_${Date.now()}.db`;
+      const currentDbInfo = await FileSystem.getInfoAsync(dbPath);
+      if (currentDbInfo.exists) {
+        await FileSystem.copyAsync({
+          from: dbPath,
+          to: backupPath,
+        });
+        console.log('Current database backed up to:', backupPath);
+      }
+
+      // Copy the imported file to the database location
+      await FileSystem.copyAsync({
+        from: fileUri,
+        to: dbPath,
+      });
+
+      console.log('Database file imported successfully');
+
+      // The app will need to be reloaded to reinitialize the database
+      // The database will be opened again on next getDatabase() call
+    } catch (error) {
+      console.error('Failed to import database file:', error);
+      throw new Error('Failed to import database file: ' + (error as Error).message);
+    }
+  }
 }
 
 export const backupService = new BackupService();

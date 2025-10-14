@@ -77,6 +77,56 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
     }
   };
 
+  const handleExportDatabaseFile = async () => {
+    Alert.alert(
+      'Export Database File',
+      'This will export the raw SQLite database file. This is a complete binary copy of all your data.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Export',
+          onPress: async () => {
+            try {
+              await backupService.exportDatabaseFile();
+            } catch (error) {
+              console.error('Failed to export database file:', error);
+              Alert.alert('Error', 'Failed to export database file: ' + (error as Error).message);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleImportDatabaseFile = async () => {
+    Alert.alert(
+      'Import Database File',
+      'WARNING: This will REPLACE your entire database with the imported file. Make sure you have a backup first!\n\nThe app will need to be restarted after import.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Import',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await backupService.importDatabaseFile();
+              Alert.alert(
+                'Success',
+                'Database file imported successfully. Please restart the app.',
+                [{ text: 'OK', onPress: () => navigation.goBack() }]
+              );
+            } catch (error) {
+              if ((error as Error).message !== 'Import cancelled') {
+                console.error('Failed to import database file:', error);
+                Alert.alert('Error', 'Failed to import database file: ' + (error as Error).message);
+              }
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleRestoreBackup = (backupId: string, backupDate: string) => {
     Alert.alert(
       'Restore Backup',
@@ -216,6 +266,29 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
+        {/* Database File Export/Import */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Advanced</Text>
+          <Text style={styles.sectionDescription}>
+            Export or import the raw SQLite database file. Use this for complete database transfers or external analysis.
+          </Text>
+
+          <TouchableOpacity style={styles.secondaryButton} onPress={handleExportDatabaseFile}>
+            <Ionicons name="save-outline" size={24} color={theme.primary} />
+            <Text style={styles.secondaryButtonText}>Export Database File</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.secondaryButton, styles.dangerSecondaryButton]}
+            onPress={handleImportDatabaseFile}
+          >
+            <Ionicons name="warning-outline" size={24} color={theme.danger} />
+            <Text style={[styles.secondaryButtonText, styles.dangerSecondaryButtonText]}>
+              Import Database File
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Available Backups */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Available Backups</Text>
@@ -315,6 +388,12 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     color: theme.primary,
     fontSize: 17,
     fontWeight: '600',
+  },
+  dangerSecondaryButton: {
+    borderColor: theme.danger,
+  },
+  dangerSecondaryButtonText: {
+    color: theme.danger,
   },
   backupCard: {
     backgroundColor: theme.card,
