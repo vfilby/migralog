@@ -1,8 +1,8 @@
 // Auto-generated file - do not edit manually
-// Generated at: 2025-10-14T15:44:48.578Z
+// Generated at: 2025-10-14T21:32:48.612Z
 
 export const buildInfo = {
-  "commitHash": "88b91c6",
+  "commitHash": "b7023cf",
   "branch": "feature/edit-delete-medication-doses",
-  "buildTime": "2025-10-14T15:44:48.578Z"
+  "buildTime": "2025-10-14T21:32:48.612Z"
 };

@@ -161,7 +161,7 @@ describe('Medication Dose Edit/Delete', () => {
     console.log('✅ ALL TESTS PASSED: Delete functionality works correctly!');
   });
 
-  it('should allow editing a medication dose from detail page', async () => {
+  it('should allow editing medication dose amount and persist changes', async () => {
     // ======================
     // Phase 1: Navigate to Medications Tab and Log a Dose
     // ======================
@@ -196,58 +196,100 @@ describe('Medication Dose Edit/Delete', () => {
     await element(by.text('OK')).tap();
     await waitForAnimation(1000);
 
-    console.log('Dose logged for editing test');
+    console.log('Dose logged - should show 1 × 50mg');
+
+    // Verify initial dose amount (1 × 50mg)
+    await waitFor(element(by.text('1 × 50mg')))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    console.log('✅ Initial dose amount verified: 1 × 50mg');
 
     // ======================
-    // Phase 2: Long-Press and Select Edit
+    // Phase 2: Open Edit Modal
     // ======================
     const today = new Date();
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const expectedDatePattern = `${monthNames[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`;
 
     console.log('Long-pressing on dose entry to edit');
-
     await element(by.text(expectedDatePattern)).longPress();
     await waitForAnimation(1000);
 
-    // Should see Edit option
-    // Note: There might be multiple "Edit" buttons (header edit + action menu edit)
-    // The action menu should appear after long press
-    await waitForAnimation(1000);
-
-    console.log('✅ Action menu appeared with Edit option');
-
-    // Tap the Edit button - use atIndex(1) to avoid the header Edit button
+    // Tap Edit from action menu
     try {
       await element(by.text('Edit')).atIndex(1).tap();
     } catch (e) {
-      // Fallback: if there's only one Edit button, tap it
       await element(by.text('Edit')).atIndex(0).tap();
     }
     await waitForAnimation(1000);
 
-    // ======================
-    // Phase 3: Edit Modal Should Open
-    // ======================
     await waitFor(element(by.text('Edit Dose')))
       .toBeVisible()
       .withTimeout(5000);
 
-    console.log('✅ Edit modal opened successfully');
+    console.log('✅ Edit modal opened');
 
-    // For now, just verify the modal opened and close it
-    // TODO: Add field editing tests once UI is accessible in tests
-    console.log('Closing edit modal (Cancel)');
+    // ======================
+    // Phase 3: Edit the Dosage Amount
+    // ======================
+    console.log('Finding and editing dosage amount field');
 
-    await element(by.text('Cancel')).tap();
-    await waitForAnimation(1000);
+    // Find the dose amount input field by testID and change it from 1 to 4
+    await element(by.id('dose-amount-input')).replaceText('4');
+    console.log('✅ Changed dosage amount from 1 to 4');
 
-    // Should be back on detail screen
-    await waitFor(element(by.text('Medication Details')))
+    await waitForAnimation(500);
+
+    // ======================
+    // Phase 4: Save Changes
+    // ======================
+    console.log('Saving changes');
+    await element(by.text('Save')).tap();
+    await waitForAnimation(1500);
+
+    // Should see success alert
+    await waitFor(element(by.text('Success')))
       .toBeVisible()
       .withTimeout(5000);
 
-    console.log('✅ Edit modal works - can open and close successfully');
+    console.log('✅ Dose updated successfully');
+
+    await element(by.text('OK')).tap();
+    await waitForAnimation(1000);
+
+    // ======================
+    // Phase 5: Verify Changes Persisted in UI
+    // ======================
+    console.log('Verifying updated dose amount appears in UI');
+
+    // Should now see 4 × 50mg instead of 1 × 50mg
+    await waitFor(element(by.text('4 × 50mg')))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    console.log('✅ Dose amount updated to 4 × 50mg in UI');
+
+    // ======================
+    // Phase 6: Verify Persistence After Navigation
+    // ======================
+    console.log('Testing persistence: navigating away and back');
+
+    // Navigate back to medications list
+    await element(by.text('← Back')).tap();
+    await waitForAnimation(1000);
+
+    // Navigate back to detail page
+    await element(by.text('Test Topiramate')).tap();
+    await waitForAnimation(1000);
+
+    // Should still see the updated dose amount
+    await waitFor(element(by.text('4 × 50mg')))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    console.log('✅ Dose amount persisted after navigation');
+    console.log('✅ ALL TESTS PASSED: Edit functionality works correctly with persistence!');
   });
 
   it('should allow canceling edit without saving changes', async () => {

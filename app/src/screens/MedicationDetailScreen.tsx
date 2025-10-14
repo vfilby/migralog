@@ -38,8 +38,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
   const [editAmount, setEditAmount] = useState('');
   const [editNotes, setEditNotes] = useState('');
   const [editTimestamp, setEditTimestamp] = useState<number>(Date.now());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showDateTimePicker, setShowDateTimePicker] = useState(false);
 
   useEffect(() => {
     loadMedicationData();
@@ -168,8 +167,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
     setEditingDose(null);
     setEditAmount('');
     setEditNotes('');
-    setShowDatePicker(false);
-    setShowTimePicker(false);
+    setShowDateTimePicker(false);
   };
 
   const handleDeleteDose = (dose: MedicationDose) => {
@@ -441,41 +439,23 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
                   backgroundColor: theme.background,
                   borderColor: theme.border,
                 }]}
-                onPress={() => setShowDatePicker(true)}
+                onPress={() => setShowDateTimePicker(true)}
               >
                 <Text style={[styles.modalValue, { color: theme.text }]}>
                   {editTimestamp && format(new Date(editTimestamp), 'MMM d, yyyy h:mm a')}
                 </Text>
               </TouchableOpacity>
-              {showDatePicker && (
+              {showDateTimePicker && (
                 <DateTimePicker
                   value={new Date(editTimestamp)}
-                  mode="date"
+                  mode="datetime"
                   display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={(event, selectedDate) => {
-                    setShowDatePicker(false);
-                    if (selectedDate) {
-                      // Preserve the time, just update the date
-                      const currentDate = new Date(editTimestamp);
-                      const newDate = new Date(selectedDate);
-                      newDate.setHours(currentDate.getHours());
-                      newDate.setMinutes(currentDate.getMinutes());
-                      setEditTimestamp(newDate.getTime());
-                      // After date is set, show time picker
-                      setTimeout(() => setShowTimePicker(true), 100);
+                  onChange={(event, selectedDateTime) => {
+                    if (Platform.OS === 'android') {
+                      setShowDateTimePicker(false);
                     }
-                  }}
-                />
-              )}
-              {showTimePicker && (
-                <DateTimePicker
-                  value={new Date(editTimestamp)}
-                  mode="time"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={(event, selectedTime) => {
-                    setShowTimePicker(false);
-                    if (selectedTime) {
-                      setEditTimestamp(selectedTime.getTime());
+                    if (selectedDateTime) {
+                      setEditTimestamp(selectedDateTime.getTime());
                     }
                   }}
                 />
@@ -485,6 +465,8 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
             <View style={[styles.modalSection, { backgroundColor: theme.card }]}>
               <Text style={[styles.modalLabel, { color: theme.textSecondary }]}>Number of Doses</Text>
               <TextInput
+                testID="dose-amount-input"
+                accessibilityLabel="Dose amount input"
                 style={[styles.modalInput, {
                   backgroundColor: theme.background,
                   color: theme.text,
