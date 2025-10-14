@@ -286,23 +286,16 @@ describe('Daily Status Tracking', () => {
       .toBeVisible()
       .withTimeout(3000);
 
-    // Scroll to bottom to find End Episode button
+    // Scroll to bottom to find End Episode buttons
     await element(by.id('episode-detail-scroll-view')).scrollTo('bottom');
     await waitForAnimation(500);
 
-    // End the episode
-    await waitFor(element(by.id('end-episode-button')))
+    // Tap "End Now" button (new two-button UX)
+    await waitFor(element(by.id('end-now-button')))
       .toBeVisible()
       .withTimeout(3000);
 
-    await element(by.id('end-episode-button')).tap();
-
-    // Wait for ActionSheet/Alert to appear
-    await waitForAnimation(500);
-
-    // Select "End Now" option from the ActionSheet (iOS) or Alert (Android)
-    // Detox handles both ActionSheet and Alert with the same syntax
-    await element(by.text('End Now')).tap();
+    await element(by.id('end-now-button')).tap();
 
     // Wait for episode to end and navigate back to dashboard
     await waitForAnimation(2000);

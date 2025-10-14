@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, ActionSheetIOS, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Slider from '@react-native-community/slider';
 import MapView, { Marker } from 'react-native-maps';
@@ -12,6 +12,7 @@ import { medicationDoseRepository, medicationRepository } from '../database/medi
 import { Episode, IntensityReading, SymptomLog, MedicationDose, Medication, EpisodeNote } from '../models/types';
 import { format, differenceInMinutes } from 'date-fns';
 import { getPainColor, getPainLevel } from '../utils/painScale';
+import { validateEpisodeEndTime } from '../utils/episodeValidation';
 import { locationService } from '../services/locationService';
 import { useTheme, ThemeColors } from '../theme';
 
@@ -261,7 +262,12 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: theme.border,
   },
+  endButtonsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
   endButton: {
+    flex: 1,
     backgroundColor: theme.danger,
     padding: 16,
     borderRadius: 12,
@@ -270,6 +276,20 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   endButtonText: {
     color: theme.dangerText,
     fontSize: 17,
+    fontWeight: '600',
+  },
+  endCustomButton: {
+    backgroundColor: 'transparent',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: theme.danger,
+  },
+  endCustomButtonText: {
+    color: theme.danger,
+    fontSize: 15,
     fontWeight: '600',
   },
   modalContainer: {
@@ -495,43 +515,6 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     }
   };
 
-  const handleEndEpisode = () => {
-    if (!episode || episode.endTime) return;
-
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ['Cancel', 'End Now', 'Set End Time'],
-          cancelButtonIndex: 0,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 1) {
-            // End Now
-            endEpisodeNow();
-          } else if (buttonIndex === 2) {
-            // Set End Time
-            setCustomEndTime(Date.now());
-            setShowEndTimePicker(true);
-          }
-        }
-      );
-    } else {
-      // Android - show Alert
-      Alert.alert(
-        'End Episode',
-        'Choose how to end this episode',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'End Now', onPress: endEpisodeNow },
-          { text: 'Set End Time', onPress: () => {
-            setCustomEndTime(Date.now());
-            setShowEndTimePicker(true);
-          }},
-        ]
-      );
-    }
-  };
-
   const endEpisodeNow = async () => {
     if (episode) {
       await endEpisode(episode.id, Date.now());
@@ -542,8 +525,9 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   const endEpisodeWithCustomTime = async () => {
     if (episode) {
       // Validate that end time is not before episode start
-      if (customEndTime < episode.startTime) {
-        Alert.alert('Invalid Time', 'End time cannot be before the episode start time.');
+      const validation = validateEpisodeEndTime(episode.startTime, customEndTime);
+      if (!validation.isValid) {
+        Alert.alert('Invalid Time', validation.error!);
         return;
       }
 
@@ -1057,12 +1041,24 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* End Episode Button */}
+      {/* End Episode Buttons */}
       {!episode.endTime && (
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.endButton} onPress={handleEndEpisode} testID="end-episode-button">
-            <Text style={styles.endButtonText}>End Episode</Text>
-          </TouchableOpacity>
+          <View style={styles.endButtonsContainer}>
+            <TouchableOpacity style={styles.endButton} onPress={endEpisodeNow} testID="end-now-button">
+              <Text style={styles.endButtonText}>End Now</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.endCustomButton}
+              onPress={() => {
+                setCustomEndTime(Date.now());
+                setShowEndTimePicker(true);
+              }}
+              testID="end-custom-button"
+            >
+              <Text style={styles.endCustomButtonText}>End...</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 
