@@ -5,12 +5,14 @@ import * as DocumentPicker from 'expo-document-picker';
 import {
   episodeRepository,
   episodeNoteRepository,
+  intensityRepository,
 } from '../../database/episodeRepository';
 import {
   medicationRepository,
   medicationDoseRepository,
   medicationScheduleRepository,
 } from '../../database/medicationRepository';
+import { dailyStatusRepository } from '../../database/dailyStatusRepository';
 import { migrationRunner } from '../../database/migrations';
 import { Episode, Medication, MedicationDose, EpisodeNote } from '../../models/types';
 
@@ -20,6 +22,7 @@ jest.mock('expo-sharing');
 jest.mock('expo-document-picker');
 jest.mock('../../database/episodeRepository');
 jest.mock('../../database/medicationRepository');
+jest.mock('../../database/dailyStatusRepository');
 jest.mock('../../database/migrations');
 jest.mock('../../services/errorLogger');
 
@@ -139,6 +142,8 @@ describe('backupService', () => {
       (medicationRepository.getAll as jest.Mock).mockResolvedValue(mockMedications);
       (medicationDoseRepository.getAll as jest.Mock).mockResolvedValue(mockDoses);
       (episodeNoteRepository.getByEpisodeId as jest.Mock).mockResolvedValue(mockNotes);
+      (intensityRepository.getByEpisodeId as jest.Mock).mockResolvedValue([]);
+      (dailyStatusRepository.getDateRange as jest.Mock).mockResolvedValue([]);
       (medicationScheduleRepository.getByMedicationId as jest.Mock).mockResolvedValue([]);
       (migrationRunner.getCurrentVersion as jest.Mock).mockResolvedValue(1);
       (mockDatabase.getAllAsync as jest.Mock).mockResolvedValue([
@@ -436,8 +441,8 @@ describe('backupService', () => {
       await backupService.restoreBackup('backup-123');
 
       expect(mockDatabase.execAsync).toHaveBeenCalledWith(mockBackupData.schemaSQL);
-      expect(episodeRepository.create).toHaveBeenCalled();
-      expect(medicationRepository.create).toHaveBeenCalled();
+      // Should use raw SQL inserts to preserve IDs
+      expect(mockDatabase.runAsync).toHaveBeenCalled();
     });
 
     it('should restore old backup without schemaSQL using legacy method', async () => {
@@ -457,7 +462,8 @@ describe('backupService', () => {
 
       expect(episodeRepository.deleteAll).toHaveBeenCalled();
       expect(medicationRepository.deleteAll).toHaveBeenCalled();
-      expect(episodeRepository.create).toHaveBeenCalled();
+      // Should use raw SQL inserts to preserve IDs
+      expect(mockDatabase.runAsync).toHaveBeenCalled();
     });
 
     it('should reject restoring backup from newer schema version', async () => {

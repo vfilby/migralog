@@ -3,10 +3,11 @@ import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { Platform } from 'react-native';
 import * as SQLite from 'expo-sqlite';
-import { episodeRepository, episodeNoteRepository } from '../database/episodeRepository';
+import { episodeRepository, episodeNoteRepository, intensityRepository } from '../database/episodeRepository';
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../database/medicationRepository';
+import { dailyStatusRepository } from '../database/dailyStatusRepository';
 import { migrationRunner } from '../database/migrations';
-import { Episode, Medication, MedicationDose, MedicationSchedule, EpisodeNote } from '../models/types';
+import { Episode, Medication, MedicationDose, MedicationSchedule, EpisodeNote, IntensityReading, DailyStatusLog } from '../models/types';
 
 export interface BackupMetadata {
   id: string;
@@ -24,6 +25,8 @@ export interface BackupData {
   schemaSQL?: string; // Complete CREATE TABLE statements for the schema at backup time (optional for backward compatibility)
   episodes: Episode[];
   episodeNotes?: EpisodeNote[]; // Optional for backward compatibility
+  intensityReadings?: IntensityReading[]; // Optional for backward compatibility
+  dailyStatusLogs?: DailyStatusLog[]; // Optional for backward compatibility
   medications: Medication[];
   medicationDoses: MedicationDose[];
   medicationSchedules: MedicationSchedule[];
@@ -78,6 +81,25 @@ class BackupService {
       }
       console.log('[Backup] Fetched', episodeNotes.length, 'episode notes');
 
+      // Gather all intensity readings
+      console.log('[Backup] Fetching intensity readings...');
+      const intensityReadings: IntensityReading[] = [];
+      for (const ep of episodes) {
+        const readings = await intensityRepository.getByEpisodeId(ep.id, db);
+        intensityReadings.push(...readings);
+      }
+      console.log('[Backup] Fetched', intensityReadings.length, 'intensity readings');
+
+      // Gather all daily status logs (get last 2 years of data)
+      console.log('[Backup] Fetching daily status logs...');
+      const twoYearsAgo = new Date();
+      twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+      const today = new Date();
+      const startDate = twoYearsAgo.toISOString().split('T')[0];
+      const endDate = today.toISOString().split('T')[0];
+      const dailyStatusLogs = await dailyStatusRepository.getDateRange(startDate, endDate, db);
+      console.log('[Backup] Fetched', dailyStatusLogs.length, 'daily status logs');
+
       // Gather all medication schedules
       console.log('[Backup] Fetching medication schedules...');
       const medicationSchedules: MedicationSchedule[] = [];
@@ -113,6 +135,8 @@ class BackupService {
         schemaSQL,
         episodes,
         episodeNotes,
+        intensityReadings,
+        dailyStatusLogs,
         medications,
         medicationDoses,
         medicationSchedules,
@@ -255,39 +279,56 @@ class BackupService {
 
       if (isOldBackup) {
         // Legacy restore method for old backups without schemaSQL
-        // Clear existing data and insert into current schema
-        console.log('[Restore] Using legacy restore (delete data, insert into current schema)');
+        // Clear existing data and insert into current schema, preserving IDs
+        console.log('[Restore] Using legacy restore (delete data, insert into current schema with ID preservation)');
         await episodeRepository.deleteAll();
         await episodeNoteRepository.deleteAll();
         await medicationRepository.deleteAll();
         await medicationDoseRepository.deleteAll();
         await medicationScheduleRepository.deleteAll();
 
+        // Get database instance for raw SQL inserts
+        const db = await import('../database/db').then(m => m.getDatabase());
+
         console.log('[Restore] Inserting episodes...');
         for (const episode of backupData.episodes) {
-          await episodeRepository.create(episode);
+          await this.insertEpisodeWithId(episode, db);
         }
 
         if (backupData.episodeNotes) {
           console.log('[Restore] Inserting episode notes...');
           for (const note of backupData.episodeNotes) {
-            await episodeNoteRepository.create(note);
+            await this.insertEpisodeNoteWithId(note, db);
+          }
+        }
+
+        if (backupData.intensityReadings) {
+          console.log('[Restore] Inserting intensity readings...');
+          for (const reading of backupData.intensityReadings) {
+            await this.insertIntensityReadingWithId(reading, db);
+          }
+        }
+
+        if (backupData.dailyStatusLogs) {
+          console.log('[Restore] Inserting daily status logs...');
+          for (const status of backupData.dailyStatusLogs) {
+            await this.insertDailyStatusWithId(status, db);
           }
         }
 
         console.log('[Restore] Inserting medications...');
         for (const medication of backupData.medications) {
-          await medicationRepository.create(medication);
+          await this.insertMedicationWithId(medication, db);
         }
 
         console.log('[Restore] Inserting medication doses...');
         for (const dose of backupData.medicationDoses) {
-          await medicationDoseRepository.create(dose);
+          await this.insertMedicationDoseWithId(dose, db);
         }
 
         console.log('[Restore] Inserting medication schedules...');
         for (const schedule of backupData.medicationSchedules) {
-          await medicationScheduleRepository.create(schedule);
+          await this.insertMedicationScheduleWithId(schedule, db);
         }
 
         console.log('[Restore] Legacy restore complete');
@@ -340,32 +381,46 @@ class BackupService {
           [backupSchemaVersion, Date.now()]
         );
 
-        // Insert backup data
+        // Insert backup data using raw SQL to preserve IDs
         console.log('[Restore] Inserting episodes...');
         for (const episode of backupData.episodes) {
-          await episodeRepository.create(episode);
+          await this.insertEpisodeWithId(episode, db);
         }
 
         if (backupData.episodeNotes) {
           console.log('[Restore] Inserting episode notes...');
           for (const note of backupData.episodeNotes) {
-            await episodeNoteRepository.create(note);
+            await this.insertEpisodeNoteWithId(note, db);
+          }
+        }
+
+        if (backupData.intensityReadings) {
+          console.log('[Restore] Inserting intensity readings...');
+          for (const reading of backupData.intensityReadings) {
+            await this.insertIntensityReadingWithId(reading, db);
+          }
+        }
+
+        if (backupData.dailyStatusLogs) {
+          console.log('[Restore] Inserting daily status logs...');
+          for (const status of backupData.dailyStatusLogs) {
+            await this.insertDailyStatusWithId(status, db);
           }
         }
 
         console.log('[Restore] Inserting medications...');
         for (const medication of backupData.medications) {
-          await medicationRepository.create(medication);
+          await this.insertMedicationWithId(medication, db);
         }
 
         console.log('[Restore] Inserting medication doses...');
         for (const dose of backupData.medicationDoses) {
-          await medicationDoseRepository.create(dose);
+          await this.insertMedicationDoseWithId(dose, db);
         }
 
         console.log('[Restore] Inserting medication schedules...');
         for (const schedule of backupData.medicationSchedules) {
-          await medicationScheduleRepository.create(schedule);
+          await this.insertMedicationScheduleWithId(schedule, db);
         }
 
         console.log('[Restore] Data insertion complete');
@@ -475,6 +530,134 @@ class BackupService {
       console.error('Failed to delete backup:', error);
       throw new Error('Failed to delete backup: ' + (error as Error).message);
     }
+  }
+
+  /**
+   * Insert data using raw SQL to preserve original IDs from backup
+   * This is critical for maintaining foreign key relationships during restore
+   */
+  private async insertEpisodeWithId(episode: Episode, db: SQLite.SQLiteDatabase): Promise<void> {
+    await db.runAsync(
+      `INSERT INTO episodes (
+        id, start_time, end_time, locations, qualities, symptoms, triggers, notes,
+        peak_intensity, average_intensity, latitude, longitude,
+        location_accuracy, location_timestamp, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        episode.id,
+        episode.startTime,
+        episode.endTime || null,
+        JSON.stringify(episode.locations),
+        JSON.stringify(episode.qualities),
+        JSON.stringify(episode.symptoms),
+        JSON.stringify(episode.triggers),
+        episode.notes || null,
+        episode.peakIntensity || null,
+        episode.averageIntensity || null,
+        episode.location?.latitude || null,
+        episode.location?.longitude || null,
+        episode.location?.accuracy || null,
+        episode.location?.timestamp || null,
+        episode.createdAt,
+        episode.updatedAt,
+      ]
+    );
+  }
+
+  private async insertEpisodeNoteWithId(note: EpisodeNote, db: SQLite.SQLiteDatabase): Promise<void> {
+    await db.runAsync(
+      `INSERT INTO episode_notes (id, episode_id, timestamp, note, created_at) VALUES (?, ?, ?, ?, ?)`,
+      [note.id, note.episodeId, note.timestamp, note.note, note.createdAt]
+    );
+  }
+
+  private async insertIntensityReadingWithId(reading: IntensityReading, db: SQLite.SQLiteDatabase): Promise<void> {
+    await db.runAsync(
+      `INSERT INTO intensity_readings (id, episode_id, timestamp, intensity, created_at) VALUES (?, ?, ?, ?, ?)`,
+      [reading.id, reading.episodeId, reading.timestamp, reading.intensity, reading.createdAt]
+    );
+  }
+
+  private async insertDailyStatusWithId(status: DailyStatusLog, db: SQLite.SQLiteDatabase): Promise<void> {
+    await db.runAsync(
+      `INSERT INTO daily_status_logs (
+        id, date, status, status_type, notes, prompted, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        status.id,
+        status.date,
+        status.status,
+        status.statusType || null,
+        status.notes || null,
+        status.prompted ? 1 : 0,
+        status.createdAt,
+        status.updatedAt,
+      ]
+    );
+  }
+
+  private async insertMedicationWithId(medication: Medication, db: SQLite.SQLiteDatabase): Promise<void> {
+    await db.runAsync(
+      `INSERT INTO medications (
+        id, name, type, dosage_amount, dosage_unit, default_dosage, schedule_frequency,
+        photo_uri, start_date, end_date, active, notes, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        medication.id,
+        medication.name,
+        medication.type,
+        medication.dosageAmount,
+        medication.dosageUnit,
+        medication.defaultDosage || null,
+        medication.scheduleFrequency || null,
+        medication.photoUri || null,
+        medication.startDate || null,
+        medication.endDate || null,
+        medication.active ? 1 : 0,
+        medication.notes || null,
+        medication.createdAt,
+        medication.updatedAt,
+      ]
+    );
+  }
+
+  private async insertMedicationDoseWithId(dose: MedicationDose, db: SQLite.SQLiteDatabase): Promise<void> {
+    await db.runAsync(
+      `INSERT INTO medication_doses (
+        id, medication_id, timestamp, amount, status, episode_id, effectiveness_rating,
+        time_to_relief, side_effects, notes, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        dose.id,
+        dose.medicationId,
+        dose.timestamp,
+        dose.amount,
+        dose.status || 'taken',
+        dose.episodeId || null,
+        dose.effectivenessRating || null,
+        dose.timeToRelief || null,
+        dose.sideEffects ? JSON.stringify(dose.sideEffects) : null,
+        dose.notes || null,
+        dose.createdAt,
+      ]
+    );
+  }
+
+  private async insertMedicationScheduleWithId(schedule: MedicationSchedule, db: SQLite.SQLiteDatabase): Promise<void> {
+    await db.runAsync(
+      `INSERT INTO medication_schedules (
+        id, medication_id, time, dosage, enabled, notification_id, reminder_enabled
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        schedule.id,
+        schedule.medicationId,
+        schedule.time,
+        schedule.dosage,
+        schedule.enabled ? 1 : 0,
+        schedule.notificationId || null,
+        schedule.reminderEnabled !== undefined ? (schedule.reminderEnabled ? 1 : 0) : 1,
+      ]
+    );
   }
 
   private async exportSchemaSQL(db?: SQLite.SQLiteDatabase): Promise<string> {
