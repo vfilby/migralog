@@ -6,7 +6,13 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActionSheetIOS,
+  Platform,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { Medication, MedicationDose, MedicationSchedule } from '../models/types';
@@ -27,6 +33,12 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
   const [schedules, setSchedules] = useState<MedicationSchedule[]>([]);
   const [doses, setDoses] = useState<MedicationDose[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingDose, setEditingDose] = useState<MedicationDose | null>(null);
+  const [editAmount, setEditAmount] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [editTimestamp, setEditTimestamp] = useState<number>(Date.now());
+  const [showDateTimePicker, setShowDateTimePicker] = useState(false);
 
   useEffect(() => {
     loadMedicationData();
@@ -85,6 +97,101 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
       console.error('Failed to log medication:', error);
       Alert.alert('Error', 'Failed to log medication');
     }
+  };
+
+  const handleDoseAction = (dose: MedicationDose) => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Edit', 'Delete'],
+          destructiveButtonIndex: 2,
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            handleEditDose(dose);
+          } else if (buttonIndex === 2) {
+            handleDeleteDose(dose);
+          }
+        }
+      );
+    } else {
+      // Android fallback - show Alert with options
+      Alert.alert(
+        'Dose Actions',
+        `${format(new Date(dose.timestamp), 'MMM d, yyyy h:mm a')}`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Edit', onPress: () => handleEditDose(dose) },
+          { text: 'Delete', style: 'destructive', onPress: () => handleDeleteDose(dose) },
+        ]
+      );
+    }
+  };
+
+  const handleEditDose = (dose: MedicationDose) => {
+    setEditingDose(dose);
+    setEditAmount(dose.amount.toString());
+    setEditNotes(dose.notes || '');
+    setEditTimestamp(dose.timestamp);
+    setEditModalVisible(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingDose || !medication) return;
+
+    const amount = parseFloat(editAmount);
+    if (isNaN(amount) || amount <= 0) {
+      Alert.alert('Invalid Amount', 'Please enter a valid dose amount');
+      return;
+    }
+
+    try {
+      await medicationDoseRepository.update(editingDose.id, {
+        ...editingDose,
+        amount,
+        notes: editNotes.trim() || undefined,
+        timestamp: editTimestamp,
+      });
+      Alert.alert('Success', 'Dose updated successfully');
+      setEditModalVisible(false);
+      await loadMedicationData(); // Reload to update the list
+    } catch (error) {
+      console.error('Failed to update dose:', error);
+      Alert.alert('Error', 'Failed to update dose');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditModalVisible(false);
+    setEditingDose(null);
+    setEditAmount('');
+    setEditNotes('');
+    setShowDateTimePicker(false);
+  };
+
+  const handleDeleteDose = (dose: MedicationDose) => {
+    Alert.alert(
+      'Delete Dose',
+      `Are you sure you want to delete this dose from ${format(new Date(dose.timestamp), 'MMM d, yyyy h:mm a')}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await medicationDoseRepository.delete(dose.id);
+              Alert.alert('Success', 'Dose deleted successfully');
+              await loadMedicationData(); // Reload to update the list
+            } catch (error) {
+              console.error('Failed to delete dose:', error);
+              Alert.alert('Error', 'Failed to delete dose');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const getLast7DaysTimeline = () => {
@@ -254,7 +361,11 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
               </View>
               {doses.slice(0, 10).map((dose, index) => (
                 <View key={dose.id}>
-                  <View style={styles.logItem}>
+                  <TouchableOpacity
+                    style={styles.logItem}
+                    onLongPress={() => handleDoseAction(dose)}
+                    activeOpacity={0.7}
+                  >
                     <View style={styles.logItemLeft}>
                       <Text style={[styles.logDate, { color: theme.text }]}>
                         {format(new Date(dose.timestamp), 'MMM d, yyyy')}
@@ -271,7 +382,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
                         <Text style={[styles.logNotes, { color: theme.textSecondary }]} numberOfLines={1}>{dose.notes}</Text>
                       )}
                     </View>
-                  </View>
+                  </TouchableOpacity>
                   {index < doses.slice(0, 10).length - 1 && (
                     <View style={[styles.separator, { backgroundColor: theme.border }]} />
                   )}
@@ -293,6 +404,102 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Edit Dose Modal */}
+      <Modal
+        visible={editModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={handleCancelEdit}
+      >
+        <KeyboardAvoidingView
+          style={[styles.modalContainer, { backgroundColor: theme.background }]}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={[styles.modalHeader, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+            <TouchableOpacity onPress={handleCancelEdit}>
+              <Text style={[styles.modalCancelButton, { color: theme.primary }]}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>Edit Dose</Text>
+            <TouchableOpacity onPress={handleSaveEdit}>
+              <Text style={[styles.modalSaveButton, { color: theme.primary }]}>Save</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            <View style={[styles.modalSection, { backgroundColor: theme.card }]}>
+              <Text style={[styles.modalLabel, { color: theme.textSecondary }]}>Medication</Text>
+              <Text style={[styles.modalValue, { color: theme.text }]}>{medication?.name}</Text>
+            </View>
+
+            <View style={[styles.modalSection, { backgroundColor: theme.card }]}>
+              <Text style={[styles.modalLabel, { color: theme.textSecondary }]}>Date & Time</Text>
+              <TouchableOpacity
+                style={[styles.dateTimeButton, {
+                  backgroundColor: theme.background,
+                  borderColor: theme.border,
+                }]}
+                onPress={() => setShowDateTimePicker(true)}
+              >
+                <Text style={[styles.modalValue, { color: theme.text }]}>
+                  {editTimestamp && format(new Date(editTimestamp), 'MMM d, yyyy h:mm a')}
+                </Text>
+              </TouchableOpacity>
+              {showDateTimePicker && (
+                <DateTimePicker
+                  value={new Date(editTimestamp)}
+                  mode="datetime"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={(event, selectedDateTime) => {
+                    if (Platform.OS === 'android') {
+                      setShowDateTimePicker(false);
+                    }
+                    if (selectedDateTime) {
+                      setEditTimestamp(selectedDateTime.getTime());
+                    }
+                  }}
+                />
+              )}
+            </View>
+
+            <View style={[styles.modalSection, { backgroundColor: theme.card }]}>
+              <Text style={[styles.modalLabel, { color: theme.textSecondary }]}>Number of Doses</Text>
+              <TextInput
+                testID="dose-amount-input"
+                accessibilityLabel="Dose amount input"
+                style={[styles.modalInput, {
+                  backgroundColor: theme.background,
+                  color: theme.text,
+                  borderColor: theme.border,
+                }]}
+                value={editAmount}
+                onChangeText={setEditAmount}
+                keyboardType="decimal-pad"
+                placeholder="Enter amount"
+                placeholderTextColor={theme.textTertiary}
+              />
+            </View>
+
+            <View style={[styles.modalSection, { backgroundColor: theme.card }]}>
+              <Text style={[styles.modalLabel, { color: theme.textSecondary }]}>Notes (Optional)</Text>
+              <TextInput
+                style={[styles.modalTextArea, {
+                  backgroundColor: theme.background,
+                  color: theme.text,
+                  borderColor: theme.border,
+                }]}
+                value={editNotes}
+                onChangeText={setEditNotes}
+                multiline
+                numberOfLines={4}
+                placeholder="Add notes about this dose"
+                placeholderTextColor={theme.textTertiary}
+                textAlignVertical="top"
+              />
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -484,5 +691,69 @@ const styles = StyleSheet.create({
   viewAllText: {
     fontSize: 17,
     fontWeight: '500',
+  },
+  modalContainer: {
+    flex: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 60,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+  },
+  modalCancelButton: {
+    fontSize: 17,
+    fontWeight: '400',
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  modalSaveButton: {
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  modalContent: {
+    flex: 1,
+  },
+  modalSection: {
+    marginTop: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  modalLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  modalValue: {
+    fontSize: 17,
+    fontWeight: '400',
+  },
+  dateTimeButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  modalInput: {
+    fontSize: 17,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  modalTextArea: {
+    fontSize: 17,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    minHeight: 100,
   },
 });
