@@ -77,7 +77,7 @@ export default function EpisodesScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="episodes-screen">
       <View style={styles.header}>
         <Text style={styles.title}>Episodes</Text>
       </View>

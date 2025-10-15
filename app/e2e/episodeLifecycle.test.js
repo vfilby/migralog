@@ -383,16 +383,16 @@ describe('Complete Episode Lifecycle', () => {
     // Phase 6: End Episode
     // ======================
 
-    // Scroll to bottom to find End Episode button
+    // Scroll to bottom to find End Episode buttons
     await element(by.id('episode-detail-scroll-view')).scrollTo('bottom');
     await waitForAnimation(500);
 
-    // Tap End Episode button
-    await waitFor(element(by.id('end-episode-button')))
+    // Tap "End Now" button (new two-button UX)
+    await waitFor(element(by.id('end-now-button')))
       .toBeVisible()
       .withTimeout(3000);
 
-    await element(by.id('end-episode-button')).tap();
+    await element(by.id('end-now-button')).tap();
 
     // Wait for episode to end and navigate back to dashboard
     await waitForAnimation(2000);
