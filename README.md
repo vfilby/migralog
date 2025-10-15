@@ -1,125 +1,130 @@
 # MigraLog
 
-A mobile app for tracking pain episodes, symptoms, and medication usage to help identify patterns and optimize treatment strategies.
+**Take control of your pain.** MigraLog is a comprehensive mobile app designed to help you track, understand, and manage your chronic pain episodes. Whether you experience migraines, headaches, or other episodic pain conditions, MigraLog provides the tools you need to identify patterns, optimize treatment, and communicate effectively with your healthcare providers.
 
-## Project Structure
+## Why MigraLog?
 
-```
-MigraLog/
-├── app/                    # React Native + Expo application
-│   ├── src/
-│   │   ├── database/      # SQLite database and repositories
-│   │   ├── models/        # TypeScript type definitions
-│   │   ├── navigation/    # React Navigation setup
-│   │   ├── screens/       # UI screens
-│   │   └── store/         # Zustand state management
-├── docs/                   # Documentation
-│   └── functional-specification.md
-└── .clinerules            # Development guidelines
+### 🎯 **Comprehensive Tracking**
+Track every aspect of your pain episodes in one place:
+- **Pain Episodes**: Record start and end times with custom timestamps
+- **Intensity Levels**: Log pain intensity on a 0-10 scale
+- **Symptoms**: Document associated symptoms (nausea, light sensitivity, dizziness, and more)
+- **Triggers**: Identify what might be causing your episodes (stress, sleep, weather, diet)
+- **Daily Status**: Mark your days as green (good), yellow (warning signs), or red (pain episode)
 
-```
+### 💊 **Medication Management**
+Stay on top of your treatment plan:
+- **Preventative Medications**: Schedule and track daily preventative medications
+- **Rescue Medications**: Log when you take rescue medications during episodes
+- **Dose Tracking**: Record exact doses and timing
+- **Medication History**: View your complete medication history and effectiveness
 
-## Tech Stack
+### 📊 **Insights & Analytics**
+Discover patterns and optimize your treatment:
+- **Visual Calendar**: See your good days, warning days, and pain days at a glance
+- **Episode Timeline**: View detailed timelines of your pain intensity and symptom changes
+- **Trend Analysis**: Identify patterns in your episodes over time
+- **Treatment Effectiveness**: Understand which medications and strategies work best
 
-- **React Native** with **Expo** - Cross-platform mobile framework
-- **TypeScript** - Type safety
-- **SQLite** (expo-sqlite) - Local database for offline support
-- **Zustand** - State management
-- **React Navigation** - Navigation framework
-- **date-fns** - Date utilities
+### 🔒 **Privacy First**
+Your health data stays with you:
+- **Offline-First**: All data stored locally on your device with SQLite
+- **No Cloud Required**: Works completely offline (cloud sync coming soon)
+- **HIPAA Considerations**: Built with healthcare data privacy in mind
+- **Backup & Restore**: Export and import your data for safekeeping
+
+## Features
+
+### ✅ Available Now
+- ✅ **Episode Tracking**: Start, end, and manage pain episodes with custom timestamps
+- ✅ **Intensity Logging**: Track pain levels throughout episodes
+- ✅ **Symptom Tracking**: Record symptoms during episodes
+- ✅ **Medication Management**: Track preventative and rescue medications
+- ✅ **Daily Status Tracking**: Mark each day's wellness status
+- ✅ **Visual Calendar**: See your patterns at a glance
+- ✅ **Analytics Dashboard**: View trends and insights
+- ✅ **Offline Support**: Full functionality without internet connection
+- ✅ **Backup & Restore**: Export and import your data
+
+### 🔜 Coming Soon
+- 📱 **Live Activities** (iOS): Track episodes directly from your Lock Screen
+- 🔔 **Smart Reminders**: Critical alerts for missed preventative medications
+- 📈 **Advanced Analytics**: Deeper pattern recognition and predictions
+- 📸 **Photo Documentation**: Take photos of your medications
+- ☁️ **Weather Integration**: Track how weather affects your episodes
+- 📄 **Report Generation**: Create professional reports for your healthcare provider
+- 🤝 **Provider Sharing**: Securely share data with your care team
 
 ## Getting Started
 
-### Prerequisites
-
-- Node.js 18+
-- npm or yarn
-- Expo CLI (installed automatically with npx)
-- iOS Simulator (for iOS development) or Android Studio (for Android)
-
 ### Installation
 
-1. Clone the repository
-2. Navigate to the app directory:
-   ```bash
-   cd app
-   ```
+**iOS** (Primary Platform)
+- Download from the App Store _(coming soon)_
+- Or build from source (see [DEVELOPMENT.md](DEVELOPMENT.md))
 
-3. Install dependencies:
-   ```bash
-   npm install
-   ```
+**Android** (Secondary Platform)
+- Download from Google Play _(coming soon)_
+- Or build from source (see [DEVELOPMENT.md](DEVELOPMENT.md))
 
-### Running the App
+### Quick Start Guide
 
-```bash
-# Start the development server
-npm start
+1. **Create Your First Episode**
+   - Tap the "Start Episode" button on the home screen
+   - Add symptoms and triggers as they occur
+   - Log your pain intensity throughout the episode
+   - End the episode when your pain resolves
 
-# Run on iOS simulator
-npm run ios
+2. **Track Your Medications**
+   - Add your preventative medications in the Medications tab
+   - Set up schedules for daily medications
+   - Log rescue medications when you take them during episodes
 
-# Run on Android emulator
-npm run android
+3. **Monitor Your Patterns**
+   - View the calendar in the Analytics tab to see your good and bad days
+   - Review episode history to identify triggers and patterns
+   - Use insights to adjust your treatment strategy
 
-# Run in web browser (limited functionality)
-npm run web
-```
+4. **Daily Status Tracking**
+   - Each day, mark your status: green (good), yellow (warning signs), or red (episode)
+   - Add notes about prodrome symptoms or triggers you notice
+   - Build a complete picture of your pain patterns
 
-## Current Features (v1)
+## Support & Feedback
 
-### ✅ Implemented
-- Episode tracking (start/end episodes)
-- Pain intensity logging (0-10 scale)
-- Symptom tracking
-- Medication management (preventative and rescue)
-- Basic analytics and trends
-- Offline-first SQLite database
-- iOS-style UI design
+### Getting Help
+- 📖 Check out our [User Guide](docs/user-guide.md) _(coming soon)_
+- 💬 Open an issue on [GitHub](https://github.com/vfilby/migralog/issues)
+- 📧 Contact: _(email coming soon)_
 
-### 🚧 In Progress
-- Episode detail view with intensity timeline
-- Medication dose logging
-- Advanced pattern recognition
-- Trigger analysis
-- Report generation
+### Report a Bug
+Found something that's not working right? [Open an issue](https://github.com/vfilby/migralog/issues) and we'll get it fixed.
 
-### 📋 Planned
-- Medication reminders with critical alerts
-- Photo documentation for medications
-- Weather API integration
-- Wearable device integration
-- Export reports (PDF, CSV)
-- Healthcare provider sharing
-
-## Development Guidelines
-
-See `.clinerules` for coding standards and best practices.
-
-Key principles:
-- All new features developed in feature branches
-- Automated testing required
-- HIPAA compliance considerations for health data
-- iOS is primary platform (Android secondary)
-
-## Database Schema
-
-The app uses SQLite with the following main tables:
-- `episodes` - Pain episode records
-- `intensity_readings` - Pain intensity over time
-- `symptom_logs` - Symptom tracking during episodes
-- `medications` - Medication definitions
-- `medication_doses` - Medication usage logs
-- `medication_schedules` - Preventative medication schedules
+### Feature Requests
+Have an idea for making MigraLog better? We'd love to hear it! [Share your idea](https://github.com/vfilby/migralog/issues) and we'll consider it for future releases.
 
 ## Contributing
 
-1. Create a feature branch: `git checkout -b feature/description`
-2. Make your changes
-3. Test thoroughly
-4. Commit with descriptive message
-5. Create a pull request
+MigraLog is open source and welcomes contributions! Whether you're a developer, designer, or healthcare professional, there are many ways to help:
+
+- 🐛 **Report Bugs**: Help us identify and fix issues
+- 💡 **Suggest Features**: Share ideas for new functionality
+- 💻 **Code Contributions**: Submit pull requests
+- 📝 **Documentation**: Improve our guides and documentation
+- 🌐 **Translations**: Help make MigraLog available in more languages
+
+See [DEVELOPMENT.md](DEVELOPMENT.md) for developer setup instructions and [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
+
+## About
+
+MigraLog was created to help people with chronic pain conditions better understand and manage their health. The app is designed with input from pain management specialists and people who live with chronic pain.
+
+**Built with:** React Native, Expo, TypeScript, SQLite
 
 ## License
 
-Private project
+MIT License - See [LICENSE](LICENSE) for details
+
+---
+
+**Disclaimer**: MigraLog is a tracking and management tool, not a medical diagnosis or treatment app. Always consult with healthcare professionals about your pain management strategy.
