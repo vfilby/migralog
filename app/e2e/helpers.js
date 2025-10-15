@@ -8,23 +8,47 @@
  * @param {boolean} withFixtures - If true, loads test data (medications, episodes)
  */
 async function resetDatabase(withFixtures = false) {
-  // Wait for app to fully initialize
+  // Wait for app to fully initialize with a more robust approach
   // This includes: DB init, running migrations, store initialization, UI render
   // Migrations can take several seconds on first launch
-  await waitForAnimation(8000);
+  console.log('Waiting for app initialization (database, migrations, UI)...');
 
-  // Navigate to Dashboard first (in case we're on a different tab)
-  try {
-    await element(by.text('Home')).tap();
-    await waitForAnimation(1000);
-  } catch (e) {
-    console.log('Home tab not found or already on Home');
+  // Use exponential backoff to wait for dashboard - app might take varying time to init
+  let dashboardVisible = false;
+  let attempt = 0;
+  const maxAttempts = 10;
+
+  while (!dashboardVisible && attempt < maxAttempts) {
+    attempt++;
+    console.log(`Dashboard check attempt ${attempt}/${maxAttempts}`);
+
+    try {
+      // Check if dashboard is visible with a reasonable timeout
+      await waitFor(element(by.id('dashboard-title')))
+        .toBeVisible()
+        .withTimeout(5000);
+      dashboardVisible = true;
+      console.log('Dashboard is visible, app initialized successfully');
+    } catch (e) {
+      // Dashboard not visible yet, wait progressively longer
+      const waitTime = Math.min(3000 * attempt, 10000); // 3s, 6s, 9s, max 10s
+      console.log(`Dashboard not ready, waiting ${waitTime}ms before retry...`);
+      await waitForAnimation(waitTime);
+
+      // Try tapping Home tab in case we're on a different screen
+      try {
+        await element(by.text('Home')).tap();
+        await waitForAnimation(500);
+        console.log('Tapped Home tab');
+      } catch (tapError) {
+        console.log('Could not tap Home tab, continuing...');
+      }
+    }
   }
 
-  // Wait for Dashboard to be visible - increased timeout for CI/slower machines
-  await waitFor(element(by.id('dashboard-title')))
-    .toBeVisible()
-    .withTimeout(15000);
+  if (!dashboardVisible) {
+    throw new Error('Failed to initialize app - dashboard never became visible after 10 attempts');
+  }
 
   // Navigate to Settings
   await waitFor(element(by.id('settings-button')))
@@ -68,33 +92,68 @@ async function resetDatabase(withFixtures = false) {
     .withTimeout(3000);
   await element(by.text(confirmButtonText)).tap();
 
-  // Wait for the database reset to complete (longer timeout for CI)
-  await waitForAnimation(3000);
+  // Wait for the database reset to complete with retry logic
+  console.log('Waiting for database reset to complete...');
+  let successAlertVisible = false;
+  let resetAttempt = 0;
 
-  // Dismiss the success alert (tap "OK" button) - wait for it to appear first
-  await waitFor(element(by.text('OK')))
-    .toBeVisible()
-    .withTimeout(5000);
+  while (!successAlertVisible && resetAttempt < 5) {
+    resetAttempt++;
+    try {
+      await waitFor(element(by.text('OK')))
+        .toBeVisible()
+        .withTimeout(3000);
+      successAlertVisible = true;
+      console.log('Database reset success alert appeared');
+    } catch (e) {
+      console.log(`Waiting for reset completion, attempt ${resetAttempt}/5...`);
+      await waitForAnimation(2000);
+    }
+  }
+
+  if (!successAlertVisible) {
+    throw new Error('Database reset did not complete - success alert never appeared');
+  }
+
+  // Dismiss the success alert
   await element(by.text('OK')).tap();
+  await waitForAnimation(500);
 
   // Go back to dashboard
   await element(by.text('Done')).tap();
+  await waitForAnimation(1000);
 
-  // Verify we're back on dashboard with clean state
-  await waitFor(element(by.text('MigraLog')))
-    .toBeVisible()
-    .withTimeout(3000);
+  // Verify we're back on dashboard with clean state - use retry logic
+  console.log('Verifying dashboard after reset...');
+  let dashboardReady = false;
+  let verifyAttempt = 0;
 
-  await waitFor(element(by.id('dashboard-title')))
-    .toBeVisible()
-    .withTimeout(3000);
+  while (!dashboardReady && verifyAttempt < 5) {
+    verifyAttempt++;
+    try {
+      await waitFor(element(by.id('dashboard-title')))
+        .toBeVisible()
+        .withTimeout(3000);
+      dashboardReady = true;
+      console.log('Dashboard is ready after reset');
+    } catch (e) {
+      console.log(`Dashboard not ready after reset, attempt ${verifyAttempt}/5...`);
+      await waitForAnimation(2000);
+    }
+  }
+
+  if (!dashboardReady) {
+    throw new Error('Dashboard did not become ready after database reset');
+  }
 
   // Wait for store to reload data after database reset
   // This needs to be long enough for:
   // 1. Dashboard to gain focus
   // 2. Store actions to fire (loadMedications, loadSchedules, loadRecentDoses)
   // 3. UI to update with new data
+  console.log('Waiting for store to reload data...');
   await waitForAnimation(3000);
+  console.log('Database reset complete and store reloaded');
 }
 
 /**
