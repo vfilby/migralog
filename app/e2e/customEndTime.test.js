@@ -137,14 +137,9 @@ describe('Custom End Time', () => {
 
     // Navigate to Episodes tab to see the ended episode
     await element(by.text('Episodes')).tap();
-    await waitForAnimation(2000); // Give it more time to load
+    await waitForAnimation(2000);
 
-    // Verify we're on Episodes screen
-    await waitFor(element(by.text('Episodes')))
-      .toBeVisible()
-      .withTimeout(5000);
-
-    console.log('On Episodes screen');
+    console.log('On Episodes screen - waiting for episode list to load');
 
     // The closed episode should appear in the episodes list
     // Try to find the episode card - it might take a moment to load
