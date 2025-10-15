@@ -13,6 +13,7 @@ import { Episode, IntensityReading, SymptomLog, MedicationDose, Medication, Epis
 import { format, differenceInMinutes } from 'date-fns';
 import { getPainColor, getPainLevel } from '../utils/painScale';
 import { validateEpisodeEndTime } from '../utils/episodeValidation';
+import { shouldShowMedicationInTimeline } from '../utils/timelineFilters';
 import { locationService } from '../services/locationService';
 import { useTheme, ThemeColors } from '../theme';
 
@@ -648,14 +649,17 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
       });
     });
 
-    // Add medications
+    // Add medications - only show rescue medications or skipped scheduled medications
+    // Exclude preventative medications that were taken as scheduled
     medications.forEach(med => {
-      events.push({
-        id: `medication-${med.id}`,
-        timestamp: med.timestamp,
-        type: 'medication',
-        data: med,
-      });
+      if (shouldShowMedicationInTimeline(med)) {
+        events.push({
+          id: `medication-${med.id}`,
+          timestamp: med.timestamp,
+          type: 'medication',
+          data: med,
+        });
+      }
     });
 
     // Add end event if episode has ended
