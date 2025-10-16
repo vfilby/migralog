@@ -142,6 +142,24 @@ export const episodeRepository = {
     return this.mapRowToEpisode(result);
   },
 
+  async findEpisodeByTimestamp(timestamp: number, db?: SQLite.SQLiteDatabase): Promise<Episode | null> {
+    const database = db || await getDatabase();
+    // Find episode where timestamp falls between start_time and end_time
+    // If end_time is NULL (ongoing episode), check if timestamp is after start_time
+    const result = await database.getFirstAsync<any>(
+      `SELECT * FROM episodes
+       WHERE start_time <= ?
+       AND (end_time IS NULL OR end_time >= ?)
+       ORDER BY start_time DESC
+       LIMIT 1`,
+      [timestamp, timestamp]
+    );
+
+    if (!result) return null;
+
+    return this.mapRowToEpisode(result);
+  },
+
   async delete(id: string, db?: SQLite.SQLiteDatabase): Promise<void> {
     const database = db || await getDatabase();
     await database.runAsync('DELETE FROM episodes WHERE id = ?', [id]);

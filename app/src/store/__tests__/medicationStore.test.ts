@@ -3,10 +3,12 @@ import {
   medicationRepository,
   medicationDoseRepository,
 } from '../../database/medicationRepository';
+import { episodeRepository } from '../../database/episodeRepository';
 import { Medication } from '../../models/types';
 
 // Mock dependencies
 jest.mock('../../database/medicationRepository');
+jest.mock('../../database/episodeRepository');
 jest.mock('../../services/errorLogger');
 
 describe('medicationStore', () => {
@@ -416,16 +418,31 @@ describe('medicationStore', () => {
   });
 
   describe('logDose', () => {
-    it('should log a medication dose', async () => {
+    it('should log a medication dose with timestamp-based episode association', async () => {
       const dose = {
         medicationId: 'med-123',
         timestamp: Date.now(),
         amount: 2,
-        episodeId: 'ep-123',
+        episodeId: 'ep-123', // This will be overridden by findEpisodeByTimestamp
       };
+
+      // Mock findEpisodeByTimestamp to return an episode
+      const mockEpisode = {
+        id: 'ep-456',
+        startTime: dose.timestamp - 1000,
+        endTime: dose.timestamp + 1000,
+        locations: [],
+        qualities: [],
+        symptoms: [],
+        triggers: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      (episodeRepository.findEpisodeByTimestamp as jest.Mock).mockResolvedValue(mockEpisode);
 
       const createdDose = {
         ...dose,
+        episodeId: 'ep-456', // Should use the timestamp-based episode
         id: 'dose-123',
         createdAt: Date.now(),
         effectivenessRating: undefined,
@@ -440,14 +457,52 @@ describe('medicationStore', () => {
 
       expect(result).toEqual(createdDose);
       expect(useMedicationStore.getState().loading).toBe(false);
+      expect(episodeRepository.findEpisodeByTimestamp).toHaveBeenCalledWith(dose.timestamp);
       expect(medicationDoseRepository.create).toHaveBeenCalledWith({
         ...dose,
+        episodeId: 'ep-456', // Should override with timestamp-based episode
         status: 'taken', // Store adds default status
+      });
+    });
+
+    it('should log medication without episode when timestamp is outside episode window', async () => {
+      const dose = {
+        medicationId: 'med-123',
+        timestamp: Date.now(),
+        amount: 1,
+        episodeId: undefined,
+      };
+
+      // Mock findEpisodeByTimestamp to return null (no episode found)
+      (episodeRepository.findEpisodeByTimestamp as jest.Mock).mockResolvedValue(null);
+
+      const createdDose = {
+        ...dose,
+        episodeId: undefined, // No episode found
+        id: 'dose-124',
+        createdAt: Date.now(),
+        effectivenessRating: undefined,
+        timeToRelief: undefined,
+        sideEffects: undefined,
+        notes: undefined,
+      };
+
+      (medicationDoseRepository.create as jest.Mock).mockResolvedValue(createdDose);
+
+      const result = await useMedicationStore.getState().logDose(dose);
+
+      expect(result).toEqual(createdDose);
+      expect(episodeRepository.findEpisodeByTimestamp).toHaveBeenCalledWith(dose.timestamp);
+      expect(medicationDoseRepository.create).toHaveBeenCalledWith({
+        ...dose,
+        episodeId: undefined,
+        status: 'taken',
       });
     });
 
     it('should handle errors when logging dose', async () => {
       const error = new Error('Failed to log dose');
+      (episodeRepository.findEpisodeByTimestamp as jest.Mock).mockResolvedValue(null);
       (medicationDoseRepository.create as jest.Mock).mockRejectedValue(error);
 
       const dose = {
