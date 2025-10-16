@@ -20,6 +20,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
 import { getPainLevel } from '../utils/painScale';
 import { locationService } from '../services/locationService';
+import { validateEpisodeEndTime } from '../utils/episodeValidation';
 import { useTheme, ThemeColors } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'NewEpisode'>;
@@ -273,6 +274,8 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
   const shouldScrollOnKeyboard = useRef(false);
   const [startTime, setStartTime] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [endTime, setEndTime] = useState<Date | null>(null);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [intensity, setIntensity] = useState(3);
   const [locations, setLocations] = useState<PainLocation[]>([]);
   const [qualities, setQualities] = useState<PainQuality[]>([]);
@@ -297,6 +300,7 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
 
         if (episode) {
           setStartTime(new Date(episode.startTime));
+          setEndTime(episode.endTime ? new Date(episode.endTime) : null);
           setLocations(episode.locations);
           setQualities(episode.qualities);
           setSymptoms(episode.symptoms);
@@ -379,6 +383,15 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
     console.log('[NewEpisode] handleSave called');
     console.log('[NewEpisode] isEditing:', isEditing, 'episodeId:', episodeId);
 
+    // Validate end time if provided
+    if (endTime) {
+      const validation = validateEpisodeEndTime(startTime.getTime(), endTime.getTime());
+      if (!validation.isValid) {
+        Alert.alert('Invalid End Time', validation.error!);
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       if (isEditing && episodeId) {
@@ -386,6 +399,7 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
         // Update existing episode
         await updateEpisode(episodeId, {
           startTime: startTime.getTime(),
+          endTime: endTime ? endTime.getTime() : undefined,
           locations,
           qualities,
           symptoms,
@@ -487,7 +501,7 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
           </TouchableOpacity>
           {showDatePicker && (
             <DateTimePicker
-              value={startTime}
+              value={startTime || new Date()}
               mode="datetime"
               display={Platform.OS === 'ios' ? 'spinner' : 'default'}
               onChange={(event, date) => {
@@ -497,6 +511,32 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
             />
           )}
         </View>
+
+        {/* End Time - Only show when editing an episode that has ended */}
+        {isEditing && endTime && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>End Time</Text>
+            <TouchableOpacity
+              style={styles.timeButton}
+              onPress={() => setShowEndDatePicker(true)}
+            >
+              <Text style={styles.timeText}>{format(endTime, 'MMM d, yyyy h:mm a')}</Text>
+            </TouchableOpacity>
+            {showEndDatePicker && (
+              <DateTimePicker
+                value={endTime || new Date()}
+                mode="datetime"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={(event, date) => {
+                  setShowEndDatePicker(Platform.OS === 'ios');
+                  if (date) setEndTime(date);
+                }}
+                minimumDate={startTime}
+                maximumDate={new Date()}
+              />
+            )}
+          </View>
+        )}
 
         {/* Initial Intensity */}
         <View style={styles.section}>

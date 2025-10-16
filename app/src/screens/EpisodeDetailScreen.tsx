@@ -13,6 +13,8 @@ import { Episode, IntensityReading, SymptomLog, MedicationDose, Medication, Epis
 import { format, differenceInMinutes } from 'date-fns';
 import { getPainColor, getPainLevel } from '../utils/painScale';
 import { validateEpisodeEndTime } from '../utils/episodeValidation';
+import { shouldShowMedicationInTimeline } from '../utils/timelineFilters';
+import { groupEventsByDay, groupEventsByTimestamp, DayGroup } from '../utils/timelineGrouping';
 import { locationService } from '../services/locationService';
 import { useTheme, ThemeColors } from '../theme';
 
@@ -376,6 +378,23 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     fontWeight: '500',
     marginTop: 2,
   },
+  timelineDate: {
+    fontSize: 11,
+    color: theme.textTertiary,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  timelineGapText: {
+    fontSize: 12,
+    color: theme.textTertiary,
+    fontStyle: 'italic',
+    marginTop: 2,
+  },
+  timelineGapDescription: {
+    fontSize: 14,
+    color: theme.textTertiary,
+    fontStyle: 'italic',
+  },
   timelineCenter: {
     width: 32,
     alignItems: 'center',
@@ -451,6 +470,55 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     minHeight: 80,
     textAlignVertical: 'top',
     marginBottom: 12,
+  },
+  // Multi-day timeline styles
+  daySeparator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  daySeparatorLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: theme.border,
+  },
+  daySeparatorContent: {
+    paddingHorizontal: 12,
+  },
+  daySeparatorIcon: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  daySeparatorText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.text,
+  },
+  dayStatsContainer: {
+    backgroundColor: theme.backgroundSecondary,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  dayStatItem: {
+    alignItems: 'center',
+    minWidth: 80,
+  },
+  dayStatValue: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.text,
+    marginBottom: 2,
+  },
+  dayStatLabel: {
+    fontSize: 12,
+    color: theme.textSecondary,
+    textAlign: 'center',
   },
 });
 
@@ -564,8 +632,8 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     setShowMapModal(true);
   };
 
-  // Build unified timeline
-  const buildTimeline = (): GroupedTimelineEvent[] => {
+  // Build unified timeline with multi-day grouping
+  const buildTimeline = (): DayGroup[] => {
     const events: TimelineEvent[] = [];
 
     // Add initial symptoms as a timeline event (if episode has symptoms)
@@ -648,14 +716,17 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
       });
     });
 
-    // Add medications
+    // Add medications - only show rescue medications or skipped scheduled medications
+    // Exclude preventative medications that were taken as scheduled
     medications.forEach(med => {
-      events.push({
-        id: `medication-${med.id}`,
-        timestamp: med.timestamp,
-        type: 'medication',
-        data: med,
-      });
+      if (shouldShowMedicationInTimeline(med)) {
+        events.push({
+          id: `medication-${med.id}`,
+          timestamp: med.timestamp,
+          type: 'medication',
+          data: med,
+        });
+      }
     });
 
     // Add end event if episode has ended
@@ -668,22 +739,73 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
       });
     }
 
-    // Sort by timestamp (oldest first)
-    const sortedEvents = events.sort((a, b) => a.timestamp - b.timestamp);
+    // Group events by day using the utility function
+    if (!episode) {
+      return [];
+    }
+    return groupEventsByDay(events, episode.startTime, episode.endTime || null);
+  };
 
-    // Group events by timestamp
-    const grouped = new Map<number, TimelineEvent[]>();
-    sortedEvents.forEach(event => {
-      const existing = grouped.get(event.timestamp) || [];
-      existing.push(event);
-      grouped.set(event.timestamp, existing);
-    });
+  // Render date label for first event of each day
+  const renderDateLabel = (dayGroup: DayGroup) => {
+    // Format as short date (e.g., "Oct 15")
+    const shortDate = format(dayGroup.date, 'MMM d');
+    return (
+      <Text style={styles.timelineDate}>{shortDate}</Text>
+    );
+  };
 
-    // Convert map to array
-    return Array.from(grouped.entries()).map(([timestamp, events]) => ({
-      timestamp,
-      events,
-    }));
+  // Render gap indicator for days without entries
+  const renderDayGap = (dayCount: number, isLast: boolean) => {
+    const gapText = dayCount === 1 ? '1 day' : `${dayCount} days`;
+    return (
+      <View key={`gap-${dayCount}`} style={styles.timelineItem}>
+        <View style={styles.timelineLeft}>
+          <Text style={styles.timelineGapText}>{gapText}</Text>
+        </View>
+        <View style={styles.timelineCenter}>
+          <View style={[styles.timelineDot, { backgroundColor: theme.borderLight }]} />
+          {!isLast && <View style={styles.timelineLine} />}
+        </View>
+        <View style={styles.timelineRight}>
+          <Text style={styles.timelineGapDescription}>No activity logged</Text>
+        </View>
+      </View>
+    );
+  };
+
+  // Render per-day statistics
+  const renderDayStats = (stats: import('../utils/timelineGrouping').DayStats) => {
+    return (
+      <View style={styles.dayStatsContainer}>
+        {stats.peakIntensity !== null && (
+          <View style={styles.dayStatItem}>
+            <Text style={[styles.dayStatValue, { color: getPainColor(stats.peakIntensity) }]}>
+              {stats.peakIntensity}/10
+            </Text>
+            <Text style={styles.dayStatLabel}>Peak</Text>
+          </View>
+        )}
+        {stats.averageIntensity !== null && (
+          <View style={styles.dayStatItem}>
+            <Text style={[styles.dayStatValue, { color: getPainColor(stats.averageIntensity) }]}>
+              {stats.averageIntensity.toFixed(1)}/10
+            </Text>
+            <Text style={styles.dayStatLabel}>Average</Text>
+          </View>
+        )}
+        {stats.medicationCount > 0 && (
+          <View style={styles.dayStatItem}>
+            <Text style={styles.dayStatValue}>{stats.medicationCount}</Text>
+            <Text style={styles.dayStatLabel}>Medications</Text>
+          </View>
+        )}
+        <View style={styles.dayStatItem}>
+          <Text style={styles.dayStatValue}>{stats.hoursInDay}h</Text>
+          <Text style={styles.dayStatLabel}>Duration</Text>
+        </View>
+      </View>
+    );
   };
 
   const renderEventContent = (event: TimelineEvent) => {
@@ -765,7 +887,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     }
   };
 
-  const renderGroupedTimelineEvent = (group: GroupedTimelineEvent, index: number, isLast: boolean) => {
+  const renderGroupedTimelineEvent = (group: GroupedTimelineEvent, index: number, isLast: boolean, dateLabel?: React.ReactNode) => {
     const time = format(group.timestamp, 'h:mm a');
 
     // Separate symptom events from other events
@@ -790,6 +912,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
       <View key={`group-${group.timestamp}`} style={styles.timelineItem}>
         <View style={styles.timelineLeft}>
           <Text style={styles.timelineTime}>{time}</Text>
+          {dateLabel}
         </View>
         <View style={styles.timelineCenter}>
           <View style={[styles.timelineDot, { backgroundColor: dotColor }]} />
@@ -1031,9 +1154,39 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Timeline</Text>
             <View style={styles.timelineContainer}>
-              {timeline.map((group, index) =>
-                renderGroupedTimelineEvent(group, index, index === timeline.length - 1)
-              )}
+              {timeline.map((dayGroup, dayIndex) => {
+                // Group events by timestamp within each day
+                const groupedEvents = groupEventsByTimestamp(dayGroup.events);
+
+                // Calculate gap from previous day
+                let dayGap = null;
+                if (dayIndex > 0) {
+                  const prevDayGroup = timeline[dayIndex - 1];
+                  const daysDiff = Math.floor((dayGroup.date - prevDayGroup.date) / (24 * 60 * 60 * 1000));
+                  if (daysDiff > 1) {
+                    // There's a gap of more than 1 day
+                    dayGap = daysDiff - 1; // Subtract 1 because we're counting the empty days
+                  }
+                }
+
+                return (
+                  <View key={dayGroup.date}>
+                    {/* Show gap indicator if there are missing days */}
+                    {dayGap && renderDayGap(dayGap, false)}
+
+                    {/* Render events for this day */}
+                    {groupedEvents.map((group, eventIndex) =>
+                      renderGroupedTimelineEvent(
+                        group,
+                        eventIndex,
+                        eventIndex === groupedEvents.length - 1 && dayIndex === timeline.length - 1,
+                        // Show date label for first event of each day (except first day for single-day episodes)
+                        eventIndex === 0 && (timeline.length > 1 || dayIndex > 0) ? renderDateLabel(dayGroup) : undefined
+                      )
+                    )}
+                  </View>
+                );
+              })}
             </View>
           </View>
         )}
@@ -1132,7 +1285,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
 
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
             <DateTimePicker
-              value={new Date(customEndTime)}
+              value={customEndTime && customEndTime > 0 ? new Date(customEndTime) : new Date()}
               mode="datetime"
               display="spinner"
               onChange={(event, selectedDate) => {
