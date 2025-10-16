@@ -414,12 +414,26 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
         });
         console.log('[NewEpisode] Episode updated');
 
-        // Update initial intensity reading timestamp if start time changed
-        if (startTimeChanged && initialReadingId) {
-          console.log('[NewEpisode] Start time changed, updating initial intensity reading timestamp...');
-          const { intensityRepository } = await import('../database/episodeRepository');
-          await intensityRepository.updateTimestamp(initialReadingId, startTime.getTime());
-          console.log('[NewEpisode] Initial intensity reading timestamp updated');
+        // Update all timeline entries with matching timestamp if start time changed
+        if (startTimeChanged) {
+          console.log('[NewEpisode] Start time changed, updating all timeline entries with original start time...');
+          const { intensityRepository, episodeNoteRepository } = await import('../database/episodeRepository');
+
+          // Update intensity readings
+          const intensityChanges = await intensityRepository.updateTimestampsForEpisode(
+            episodeId,
+            originalStartTime,
+            startTime.getTime()
+          );
+          console.log(`[NewEpisode] Updated ${intensityChanges} intensity reading(s)`);
+
+          // Update episode notes
+          const notesChanges = await episodeNoteRepository.updateTimestampsForEpisode(
+            episodeId,
+            originalStartTime,
+            startTime.getTime()
+          );
+          console.log(`[NewEpisode] Updated ${notesChanges} episode note(s)`);
         }
 
         // Update initial intensity reading if it changed
