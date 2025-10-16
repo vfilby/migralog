@@ -487,7 +487,7 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
           </TouchableOpacity>
           {showDatePicker && (
             <DateTimePicker
-              value={startTime}
+              value={startTime || new Date()}
               mode="datetime"
               display={Platform.OS === 'ios' ? 'spinner' : 'default'}
               onChange={(event, date) => {

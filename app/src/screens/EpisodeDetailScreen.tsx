@@ -1285,7 +1285,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
 
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
             <DateTimePicker
-              value={new Date(customEndTime)}
+              value={customEndTime && customEndTime > 0 ? new Date(customEndTime) : new Date()}
               mode="datetime"
               display="spinner"
               onChange={(event, selectedDate) => {

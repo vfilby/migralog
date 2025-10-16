@@ -424,7 +424,7 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
           </TouchableOpacity>
           {showDatePicker && (
             <DateTimePicker
-              value={timestamp}
+              value={timestamp || new Date()}
               mode="datetime"
               display={Platform.OS === 'ios' ? 'spinner' : 'default'}
               onChange={(event, date) => {

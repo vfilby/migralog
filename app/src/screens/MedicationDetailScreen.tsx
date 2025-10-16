@@ -447,7 +447,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
               </TouchableOpacity>
               {showDateTimePicker && (
                 <DateTimePicker
-                  value={new Date(editTimestamp)}
+                  value={editTimestamp && editTimestamp > 0 ? new Date(editTimestamp) : new Date()}
                   mode="datetime"
                   display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                   onChange={(event, selectedDateTime) => {
