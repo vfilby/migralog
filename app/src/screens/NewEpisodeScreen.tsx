@@ -287,6 +287,7 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
   const [gpsLocation, setGpsLocation] = useState<EpisodeLocation | null>(null);
   const [initialReadingId, setInitialReadingId] = useState<string | null>(null);
   const [initialIntensity, setInitialIntensity] = useState<number>(3);
+  const [originalStartTime, setOriginalStartTime] = useState<number | null>(null);
 
   // Load episode data if editing
   useEffect(() => {
@@ -300,6 +301,7 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
 
         if (episode) {
           setStartTime(new Date(episode.startTime));
+          setOriginalStartTime(episode.startTime); // Store original for calculating delta
           setEndTime(episode.endTime ? new Date(episode.endTime) : null);
           setLocations(episode.locations);
           setQualities(episode.qualities);
@@ -396,6 +398,10 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
     try {
       if (isEditing && episodeId) {
         console.log('[NewEpisode] Updating existing episode...');
+
+        // Check if start time changed to update initial intensity reading timestamp
+        const startTimeChanged = originalStartTime && startTime.getTime() !== originalStartTime;
+
         // Update existing episode
         await updateEpisode(episodeId, {
           startTime: startTime.getTime(),
@@ -407,6 +413,14 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
           notes: notes.trim() || undefined,
         });
         console.log('[NewEpisode] Episode updated');
+
+        // Update initial intensity reading timestamp if start time changed
+        if (startTimeChanged && initialReadingId) {
+          console.log('[NewEpisode] Start time changed, updating initial intensity reading timestamp...');
+          const { intensityRepository } = await import('../database/episodeRepository');
+          await intensityRepository.updateTimestamp(initialReadingId, startTime.getTime());
+          console.log('[NewEpisode] Initial intensity reading timestamp updated');
+        }
 
         // Update initial intensity reading if it changed
         if (initialReadingId && intensity !== initialIntensity) {

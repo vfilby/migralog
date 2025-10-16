@@ -52,6 +52,10 @@ export const episodeRepository = {
     const fields: string[] = [];
     const values: any[] = [];
 
+    if (updates.startTime !== undefined) {
+      fields.push('start_time = ?');
+      values.push(updates.startTime);
+    }
     if (updates.endTime !== undefined) {
       fields.push('end_time = ?');
       values.push(updates.endTime);
@@ -205,6 +209,14 @@ export const intensityRepository = {
     await database.runAsync(
       'UPDATE intensity_readings SET intensity = ? WHERE id = ?',
       [intensity, id]
+    );
+  },
+
+  async updateTimestamp(id: string, timestamp: number, db?: SQLite.SQLiteDatabase): Promise<void> {
+    const database = db || await getDatabase();
+    await database.runAsync(
+      'UPDATE intensity_readings SET timestamp = ? WHERE id = ?',
+      [timestamp, id]
     );
   },
 
