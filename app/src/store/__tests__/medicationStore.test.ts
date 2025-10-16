@@ -500,6 +500,41 @@ describe('medicationStore', () => {
       });
     });
 
+    it('should ignore passed episodeId when no episode found for timestamp', async () => {
+      const dose = {
+        medicationId: 'med-123',
+        timestamp: Date.now(),
+        amount: 1.5,
+        episodeId: 'ep-999', // This stale/invalid episodeId should be ignored
+      };
+
+      // Mock findEpisodeByTimestamp to return null (no episode found for this timestamp)
+      (episodeRepository.findEpisodeByTimestamp as jest.Mock).mockResolvedValue(null);
+
+      const createdDose = {
+        ...dose,
+        episodeId: undefined, // Should override passed episodeId with undefined
+        id: 'dose-125',
+        createdAt: Date.now(),
+        effectivenessRating: undefined,
+        timeToRelief: undefined,
+        sideEffects: undefined,
+        notes: undefined,
+      };
+
+      (medicationDoseRepository.create as jest.Mock).mockResolvedValue(createdDose);
+
+      const result = await useMedicationStore.getState().logDose(dose);
+
+      expect(result).toEqual(createdDose);
+      expect(episodeRepository.findEpisodeByTimestamp).toHaveBeenCalledWith(dose.timestamp);
+      expect(medicationDoseRepository.create).toHaveBeenCalledWith({
+        ...dose,
+        episodeId: undefined, // Passed 'ep-999' should be completely ignored
+        status: 'taken',
+      });
+    });
+
     it('should handle errors when logging dose', async () => {
       const error = new Error('Failed to log dose');
       (episodeRepository.findEpisodeByTimestamp as jest.Mock).mockResolvedValue(null);
