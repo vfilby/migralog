@@ -14,6 +14,7 @@ import { format, differenceInMinutes } from 'date-fns';
 import { getPainColor, getPainLevel } from '../utils/painScale';
 import { validateEpisodeEndTime } from '../utils/episodeValidation';
 import { shouldShowMedicationInTimeline } from '../utils/timelineFilters';
+import { groupEventsByDay, groupEventsByTimestamp, DayGroup } from '../utils/timelineGrouping';
 import { locationService } from '../services/locationService';
 import { useTheme, ThemeColors } from '../theme';
 
