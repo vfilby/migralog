@@ -143,8 +143,11 @@ describe('Episode Start Time Update', () => {
 
       // For E2E purposes, we'll add a symptom change to ensure the save works
       await scrollToText('Symptoms', 'new-episode-scroll-view');
+      await waitFor(element(by.text('Nausea')))
+        .toBeVisible()
+        .withTimeout(5000);
       await element(by.text('Nausea')).tap();
-      await waitForAnimation(200);
+      await waitForAnimation(500);
 
     } catch (e) {
       console.log('Could not interact with start time picker:', e.message);

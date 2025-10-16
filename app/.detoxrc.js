@@ -6,7 +6,8 @@ module.exports = {
       config: 'e2e/jest.config.js',
     },
     jest: {
-      setupTimeout: 120000,
+      setupTimeout: 180000, // 3 minutes for CI environments
+      testTimeout: 300000,  // 5 minutes per test for CI environments
     },
   },
   apps: {
