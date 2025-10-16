@@ -130,6 +130,19 @@ describe('episodeRepository', () => {
       );
     });
 
+    it('should update episode start_time', async () => {
+      const startTime = Date.now();
+
+      await episodeRepository.update('episode-123', { startTime });
+
+      expect(mockDatabase.runAsync).toHaveBeenCalledTimes(1);
+      const call = mockDatabase.runAsync.mock.calls[0];
+      expect(call[0]).toContain('UPDATE episodes SET');
+      expect(call[0]).toContain('start_time = ?');
+      expect(call[1]).toContain(startTime);
+      expect(call[1]).toContain('episode-123');
+    });
+
     it('should update multiple fields', async () => {
       const updates = {
         endTime: Date.now(),
@@ -152,6 +165,26 @@ describe('episodeRepository', () => {
       expect(call[0]).toContain('peak_intensity = ?');
       expect(call[0]).toContain('average_intensity = ?');
       expect(call[0]).toContain('updated_at = ?');
+      expect(call[1]).toContain('episode-123');
+    });
+
+    it('should update start_time along with other fields', async () => {
+      const startTime = Date.now();
+      const updates = {
+        startTime,
+        symptoms: ['nausea', 'dizziness'],
+        notes: 'Updated with new start time',
+      } as any;
+
+      await episodeRepository.update('episode-123', updates);
+
+      expect(mockDatabase.runAsync).toHaveBeenCalledTimes(1);
+      const call = mockDatabase.runAsync.mock.calls[0];
+      expect(call[0]).toContain('UPDATE episodes SET');
+      expect(call[0]).toContain('start_time = ?');
+      expect(call[0]).toContain('symptoms = ?');
+      expect(call[0]).toContain('notes = ?');
+      expect(call[1]).toContain(startTime);
       expect(call[1]).toContain('episode-123');
     });
 
@@ -493,6 +526,39 @@ describe('intensityRepository', () => {
     });
   });
 
+  describe('updateTimestampsForEpisode', () => {
+    it('should update timestamps for matching episode and timestamp', async () => {
+      const originalTimestamp = Date.now();
+      const newTimestamp = originalTimestamp + 1800000;
+
+      mockDatabase.runAsync.mockResolvedValueOnce({ changes: 2 });
+
+      const changedCount = await intensityRepository.updateTimestampsForEpisode(
+        'episode-123',
+        originalTimestamp,
+        newTimestamp
+      );
+
+      expect(changedCount).toBe(2);
+      expect(mockDatabase.runAsync).toHaveBeenCalledWith(
+        'UPDATE intensity_readings SET timestamp = ? WHERE episode_id = ? AND timestamp = ?',
+        [newTimestamp, 'episode-123', originalTimestamp]
+      );
+    });
+
+    it('should return 0 when no matching readings found', async () => {
+      mockDatabase.runAsync.mockResolvedValueOnce({ changes: 0 });
+
+      const changedCount = await intensityRepository.updateTimestampsForEpisode(
+        'episode-123',
+        Date.now(),
+        Date.now() + 1000
+      );
+
+      expect(changedCount).toBe(0);
+    });
+  });
+
   describe('getByEpisodeId', () => {
     it('should return intensity readings for episode', async () => {
       const mockRows = [
@@ -680,6 +746,39 @@ describe('episodeNoteRepository', () => {
       await episodeNoteRepository.deleteAll();
 
       expect(mockDatabase.runAsync).toHaveBeenCalledWith('DELETE FROM episode_notes');
+    });
+  });
+
+  describe('updateTimestampsForEpisode', () => {
+    it('should update timestamps for matching episode and timestamp', async () => {
+      const originalTimestamp = Date.now();
+      const newTimestamp = originalTimestamp + 1800000;
+
+      mockDatabase.runAsync.mockResolvedValueOnce({ changes: 1 });
+
+      const changedCount = await episodeNoteRepository.updateTimestampsForEpisode(
+        'episode-123',
+        originalTimestamp,
+        newTimestamp
+      );
+
+      expect(changedCount).toBe(1);
+      expect(mockDatabase.runAsync).toHaveBeenCalledWith(
+        'UPDATE episode_notes SET timestamp = ? WHERE episode_id = ? AND timestamp = ?',
+        [newTimestamp, 'episode-123', originalTimestamp]
+      );
+    });
+
+    it('should return 0 when no matching notes found', async () => {
+      mockDatabase.runAsync.mockResolvedValueOnce({ changes: 0 });
+
+      const changedCount = await episodeNoteRepository.updateTimestampsForEpisode(
+        'episode-123',
+        Date.now(),
+        Date.now() + 1000
+      );
+
+      expect(changedCount).toBe(0);
     });
   });
 
