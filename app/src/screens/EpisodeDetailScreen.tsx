@@ -454,6 +454,55 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     textAlignVertical: 'top',
     marginBottom: 12,
   },
+  // Multi-day timeline styles
+  daySeparator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  daySeparatorLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: theme.border,
+  },
+  daySeparatorContent: {
+    paddingHorizontal: 12,
+  },
+  daySeparatorIcon: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  daySeparatorText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.text,
+  },
+  dayStatsContainer: {
+    backgroundColor: theme.backgroundSecondary,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  dayStatItem: {
+    alignItems: 'center',
+    minWidth: 80,
+  },
+  dayStatValue: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.text,
+    marginBottom: 2,
+  },
+  dayStatLabel: {
+    fontSize: 12,
+    color: theme.textSecondary,
+    textAlign: 'center',
+  },
 });
 
 export default function EpisodeDetailScreen({ route, navigation }: Props) {
