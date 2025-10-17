@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Medication, MedicationDose, MedicationSchedule } from '../models/types';
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../database/medicationRepository';
+import { episodeRepository } from '../database/episodeRepository';
 import { errorLogger } from '../services/errorLogger';
 import { notificationService } from '../services/notificationService';
 
@@ -125,9 +126,16 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
   logDose: async (dose) => {
     set({ loading: true, error: null });
     try {
+      // Find episode that contains this timestamp (if any)
+      const episode = await episodeRepository.findEpisodeByTimestamp(dose.timestamp);
+
+      // Use the found episode ID, or undefined if no episode contains this timestamp
+      const episodeId = episode ? episode.id : undefined;
+
       // Ensure status field is present (default to 'taken' if not specified)
       const doseWithStatus = {
         ...dose,
+        episodeId, // Override with timestamp-based episode association
         status: dose.status || 'taken',
       };
 

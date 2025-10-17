@@ -52,6 +52,10 @@ export const episodeRepository = {
     const fields: string[] = [];
     const values: any[] = [];
 
+    if (updates.startTime !== undefined) {
+      fields.push('start_time = ?');
+      values.push(updates.startTime);
+    }
     if (updates.endTime !== undefined) {
       fields.push('end_time = ?');
       values.push(updates.endTime);
@@ -138,6 +142,24 @@ export const episodeRepository = {
     return this.mapRowToEpisode(result);
   },
 
+  async findEpisodeByTimestamp(timestamp: number, db?: SQLite.SQLiteDatabase): Promise<Episode | null> {
+    const database = db || await getDatabase();
+    // Find episode where timestamp falls between start_time and end_time
+    // If end_time is NULL (ongoing episode), check if timestamp is after start_time
+    const result = await database.getFirstAsync<any>(
+      `SELECT * FROM episodes
+       WHERE start_time <= ?
+       AND (end_time IS NULL OR end_time >= ?)
+       ORDER BY start_time DESC
+       LIMIT 1`,
+      [timestamp, timestamp]
+    );
+
+    if (!result) return null;
+
+    return this.mapRowToEpisode(result);
+  },
+
   async delete(id: string, db?: SQLite.SQLiteDatabase): Promise<void> {
     const database = db || await getDatabase();
     await database.runAsync('DELETE FROM episodes WHERE id = ?', [id]);
@@ -206,6 +228,23 @@ export const intensityRepository = {
       'UPDATE intensity_readings SET intensity = ? WHERE id = ?',
       [intensity, id]
     );
+  },
+
+  async updateTimestamp(id: string, timestamp: number, db?: SQLite.SQLiteDatabase): Promise<void> {
+    const database = db || await getDatabase();
+    await database.runAsync(
+      'UPDATE intensity_readings SET timestamp = ? WHERE id = ?',
+      [timestamp, id]
+    );
+  },
+
+  async updateTimestampsForEpisode(episodeId: string, oldTimestamp: number, newTimestamp: number, db?: SQLite.SQLiteDatabase): Promise<number> {
+    const database = db || await getDatabase();
+    const result = await database.runAsync(
+      'UPDATE intensity_readings SET timestamp = ? WHERE episode_id = ? AND timestamp = ?',
+      [newTimestamp, episodeId, oldTimestamp]
+    );
+    return result.changes;
   },
 
   async getByEpisodeId(episodeId: string, db?: SQLite.SQLiteDatabase): Promise<IntensityReading[]> {
@@ -309,6 +348,15 @@ export const episodeNoteRepository = {
   async deleteAll(db?: SQLite.SQLiteDatabase): Promise<void> {
     const database = db || await getDatabase();
     await database.runAsync('DELETE FROM episode_notes');
+  },
+
+  async updateTimestampsForEpisode(episodeId: string, oldTimestamp: number, newTimestamp: number, db?: SQLite.SQLiteDatabase): Promise<number> {
+    const database = db || await getDatabase();
+    const result = await database.runAsync(
+      'UPDATE episode_notes SET timestamp = ? WHERE episode_id = ? AND timestamp = ?',
+      [newTimestamp, episodeId, oldTimestamp]
+    );
+    return result.changes;
   },
 
   async getByEpisodeId(episodeId: string, db?: SQLite.SQLiteDatabase): Promise<EpisodeNote[]> {

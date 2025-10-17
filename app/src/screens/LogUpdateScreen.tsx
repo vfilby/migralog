@@ -201,6 +201,16 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
       // Get episode
       const episode = await episodeRepository.getById(episodeId);
 
+      // Check if episode has ended
+      if (episode?.endTime) {
+        Alert.alert(
+          'Episode Ended',
+          'This episode has already ended. You cannot add updates to a closed episode.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+        return;
+      }
+
       // Get all intensity readings sorted by timestamp ascending
       const intensityReadings = await intensityRepository.getByEpisodeId(episodeId);
       if (intensityReadings.length > 0) {
