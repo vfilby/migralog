@@ -17,14 +17,11 @@ import Constants from 'expo-constants';
 // Only enable in Debug/Testing builds, never in Release
 const enableTestDeepLinks = Constants.expoConfig?.extra?.enableTestDeepLinks === true || __DEV__;
 
-if (!enableTestDeepLinks) {
-  // In Release builds, this entire module becomes a no-op
-  console.log('[TestDeepLinks] Disabled in Release build');
-  // Export no-op function for Release builds
-  export const initializeTestDeepLinks = () => {};
-  // Don't throw error, just skip initialization
-} else {
+// Log configuration status at module load time
+if (enableTestDeepLinks) {
   console.log('[TestDeepLinks] Enabled in Debug/Testing build');
+} else {
+  console.log('[TestDeepLinks] Disabled in Release build');
 }
 
 // Dynamic import to prevent bundling in production
