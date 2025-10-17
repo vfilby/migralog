@@ -28,7 +28,7 @@ async function resetDatabase(withFixtures = false) {
     console.log('[E2E] Verifying app state after reset...');
     await waitFor(element(by.id('dashboard-title')))
       .toBeVisible()
-      .withTimeout(5000);
+      .withTimeout(10000); // Increased from 5s to 10s for reliability
 
     console.log('[E2E] ✅ Database reset complete via deep link');
   } catch (error) {
@@ -46,40 +46,62 @@ async function resetDatabase(withFixtures = false) {
 async function resetDatabaseViaUI(withFixtures = false) {
   console.log('[E2E] Using legacy UI-based database reset (slow)...');
 
-  // Wait for app to fully initialize
-  console.log('Waiting for app initialization (database, migrations, UI)...');
+  // Step 1: Use deep link to navigate home (much more reliable than tapping buttons)
+  console.log('[E2E] Using deep link to navigate to home...');
+  try {
+    await device.openURL({
+      url: 'migraine-tracker://test/home?token=detox'
+    });
+    await waitForAnimation(1000);
+    console.log('[E2E] Navigated to home via deep link');
+  } catch (e) {
+    console.warn('[E2E] Deep link home navigation failed, falling back to button taps');
 
+    // Fallback: Try to tap buttons
+    const modalDismissButtons = ['Cancel', '← Back', 'Done', 'Close'];
+    for (const buttonText of modalDismissButtons) {
+      try {
+        await element(by.text(buttonText)).tap();
+        await waitForAnimation(500);
+        console.log(`[E2E] Dismissed modal by tapping: ${buttonText}`);
+      } catch (err) {
+        // Button not found, continue
+      }
+    }
+
+    try {
+      await element(by.text('Home')).tap();
+      await waitForAnimation(1000);
+      console.log('[E2E] Tapped Home tab');
+    } catch (err) {
+      console.log('[E2E] Could not tap Home tab, continuing...');
+    }
+  }
+
+  // Step 2: Wait for dashboard to be visible
+  console.log('[E2E] Waiting for dashboard to be visible...');
   let dashboardVisible = false;
   let attempt = 0;
-  const maxAttempts = 10;
+  const maxAttempts = 3;
 
   while (!dashboardVisible && attempt < maxAttempts) {
     attempt++;
-    console.log(`Dashboard check attempt ${attempt}/${maxAttempts}`);
+    console.log(`[E2E] Dashboard check attempt ${attempt}/${maxAttempts}`);
 
     try {
       await waitFor(element(by.id('dashboard-title')))
         .toBeVisible()
         .withTimeout(5000);
       dashboardVisible = true;
-      console.log('Dashboard is visible, app initialized successfully');
+      console.log('[E2E] Dashboard is visible, app initialized successfully');
     } catch (e) {
-      const waitTime = Math.min(3000 * attempt, 10000);
-      console.log(`Dashboard not ready, waiting ${waitTime}ms before retry...`);
-      await waitForAnimation(waitTime);
-
-      try {
-        await element(by.text('Home')).tap();
-        await waitForAnimation(500);
-        console.log('Tapped Home tab');
-      } catch (tapError) {
-        console.log('Could not tap Home tab, continuing...');
-      }
+      console.log(`[E2E] Dashboard not ready, retrying...`);
+      await waitForAnimation(1000);
     }
   }
 
   if (!dashboardVisible) {
-    throw new Error('Failed to initialize app - dashboard never became visible after 10 attempts');
+    throw new Error('Failed to initialize app - dashboard never became visible after 3 attempts');
   }
 
   // Navigate to Settings
@@ -187,9 +209,42 @@ async function waitForAnimation(milliseconds = 500) {
   await new Promise(resolve => setTimeout(resolve, milliseconds));
 }
 
+/**
+ * Disable animations in the iOS simulator for faster test execution
+ * Sets FBSAnimationDragCoefficient to 0.0 which effectively disables all animations
+ * This speeds up tests by removing animation wait times
+ */
+async function disableAnimations() {
+  const { execSync } = require('child_process');
+  try {
+    console.log('[E2E] Disabling animations in simulator...');
+    execSync('xcrun simctl spawn booted defaults write com.apple.SpringBoard FBSAnimationDragCoefficient -float 0.0');
+    console.log('[E2E] ✅ Animations disabled');
+  } catch (error) {
+    console.warn('[E2E] ⚠️  Could not disable animations:', error.message);
+  }
+}
+
+/**
+ * Enable animations in the iOS simulator (restore normal behavior)
+ * Removes the FBSAnimationDragCoefficient setting to restore default animation speed
+ */
+async function enableAnimations() {
+  const { execSync } = require('child_process');
+  try {
+    console.log('[E2E] Enabling animations in simulator...');
+    execSync('xcrun simctl spawn booted defaults delete com.apple.SpringBoard FBSAnimationDragCoefficient');
+    console.log('[E2E] ✅ Animations enabled');
+  } catch (error) {
+    console.warn('[E2E] ⚠️  Could not enable animations:', error.message);
+  }
+}
+
 module.exports = {
   resetDatabase,
   scrollToElement,
   scrollToText,
   waitForAnimation,
+  disableAnimations,
+  enableAnimations,
 };

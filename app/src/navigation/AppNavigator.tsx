@@ -5,6 +5,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList, MainTabsParamList } from './types';
 import { useTheme } from '../theme';
+import { navigationRef } from './NavigationService';
 
 // Screens
 import DashboardScreen from '../screens/DashboardScreen';
@@ -118,7 +119,7 @@ function MainTabs() {
 
 export default function AppNavigator() {
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator>
         <Stack.Screen
           name="MainTabs"

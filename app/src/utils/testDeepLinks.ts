@@ -127,6 +127,7 @@ export function initializeTestDeepLinks() {
  * - migraine-tracker://test/reset?token=XXX - Reset database (requires token)
  * - migraine-tracker://test/reset?token=XXX&fixtures=true - Reset and load fixtures (requires token)
  * - migraine-tracker://test/state?token=XXX - Log current database state (requires token)
+ * - migraine-tracker://test/home?token=XXX - Navigate to home/dashboard (requires token)
  */
 async function handleTestDeepLink(event: { url: string }) {
   const { url } = event;
@@ -186,6 +187,21 @@ async function handleTestDeepLink(event: { url: string }) {
           console.log('[TestDeepLinks] ✅ Authorized: Getting database state');
           const state = await testHelpers.getDatabaseState();
           console.log('[TestDeepLinks] Current database state:', state);
+        }
+        break;
+
+      case '/home':
+        {
+          console.log('[TestDeepLinks] ✅ Authorized: Navigating to home/dashboard');
+          // Import navigation utilities
+          const { navigationRef } = await import('../navigation/NavigationService');
+          if (navigationRef.current) {
+            // Navigate to the Dashboard (Home tab)
+            navigationRef.current.navigate('MainTabs', { screen: 'Dashboard' });
+            console.log('[TestDeepLinks] Successfully navigated to Dashboard');
+          } else {
+            console.warn('[TestDeepLinks] Navigation ref not available');
+          }
         }
         break;
 
