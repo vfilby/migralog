@@ -3,17 +3,52 @@
  */
 
 /**
- * Reset the database to a clean state
- * This navigates to Settings and uses the Reset Database feature
+ * Reset the database to a clean state using deep links (FAST - ~2 seconds)
+ * Uses secure token-based authentication to prevent unauthorized access
  * @param {boolean} withFixtures - If true, loads test data (medications, episodes)
  */
 async function resetDatabase(withFixtures = false) {
-  // Wait for app to fully initialize with a more robust approach
-  // This includes: DB init, running migrations, store initialization, UI render
-  // Migrations can take several seconds on first launch
+  console.log(`[E2E] Resetting database via deep link (fixtures: ${withFixtures})...`);
+
+  try {
+    // Use special "detox" token for E2E testing
+    // This is accepted by the deep link handler only in Debug/Testing builds
+    const fixturesParam = withFixtures ? '&fixtures=true' : '';
+
+    console.log('[E2E] Executing database reset...');
+    await device.openURL({
+      url: `migralog://test/reset?token=detox${fixturesParam}`
+    });
+
+    // Wait for reset to complete
+    // This is much faster than UI navigation (~2s vs 15-25s)
+    await waitForAnimation(2000);
+
+    // Verify app is still responsive and dashboard is visible
+    console.log('[E2E] Verifying app state after reset...');
+    await waitFor(element(by.id('dashboard-title')))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    console.log('[E2E] ✅ Database reset complete via deep link');
+  } catch (error) {
+    console.error('[E2E] ❌ Deep link reset failed, falling back to UI navigation:', error);
+    // Fallback to old UI-based reset if deep link fails
+    await resetDatabaseViaUI(withFixtures);
+  }
+}
+
+/**
+ * Legacy database reset via UI navigation (SLOW - 15-25 seconds)
+ * Used as fallback if deep link approach fails
+ * @param {boolean} withFixtures - If true, loads test data
+ */
+async function resetDatabaseViaUI(withFixtures = false) {
+  console.log('[E2E] Using legacy UI-based database reset (slow)...');
+
+  // Wait for app to fully initialize
   console.log('Waiting for app initialization (database, migrations, UI)...');
 
-  // Use exponential backoff to wait for dashboard - app might take varying time to init
   let dashboardVisible = false;
   let attempt = 0;
   const maxAttempts = 10;
@@ -23,19 +58,16 @@ async function resetDatabase(withFixtures = false) {
     console.log(`Dashboard check attempt ${attempt}/${maxAttempts}`);
 
     try {
-      // Check if dashboard is visible with a reasonable timeout
       await waitFor(element(by.id('dashboard-title')))
         .toBeVisible()
         .withTimeout(5000);
       dashboardVisible = true;
       console.log('Dashboard is visible, app initialized successfully');
     } catch (e) {
-      // Dashboard not visible yet, wait progressively longer
-      const waitTime = Math.min(3000 * attempt, 10000); // 3s, 6s, 9s, max 10s
+      const waitTime = Math.min(3000 * attempt, 10000);
       console.log(`Dashboard not ready, waiting ${waitTime}ms before retry...`);
       await waitForAnimation(waitTime);
 
-      // Try tapping Home tab in case we're on a different screen
       try {
         await element(by.text('Home')).tap();
         await waitForAnimation(500);
@@ -54,49 +86,40 @@ async function resetDatabase(withFixtures = false) {
   await waitFor(element(by.id('settings-button')))
     .toBeVisible()
     .withTimeout(5000);
-
   await element(by.id('settings-button')).tap();
 
-  // Wait for Settings screen to load
+  // Wait for Settings screen
   await waitFor(element(by.text('Settings')))
     .toBeVisible()
     .withTimeout(5000);
 
-  // Scroll down to Developer section to find Reset Database button
+  // Scroll to reset button
   const buttonId = withFixtures ? 'reset-database-with-fixtures-button' : 'reset-database-button';
-
-  // Try to scroll to button, or just check if it's visible
   try {
     await waitFor(element(by.id(buttonId)))
       .toBeVisible()
       .whileElement(by.id('settings-scroll-view'))
       .scroll(400, 'down');
   } catch (e) {
-    // If scroll fails, button might already be visible
-    console.log('Scroll failed, checking if button is already visible');
     await waitFor(element(by.id(buttonId)))
       .toBeVisible()
       .withTimeout(3000);
   }
 
-  // Tap the appropriate Reset Database button
+  // Tap reset button
   await element(by.id(buttonId)).tap();
-
-  // Wait for the confirmation alert to appear
   await waitForAnimation(500);
 
-  // Confirm the reset in the alert (tap "Reset" or "Reset & Load" button)
+  // Confirm
   const confirmButtonText = withFixtures ? 'Reset & Load' : 'Reset';
   await waitFor(element(by.text(confirmButtonText)))
     .toBeVisible()
     .withTimeout(3000);
   await element(by.text(confirmButtonText)).tap();
 
-  // Wait for the database reset to complete with retry logic
-  console.log('Waiting for database reset to complete...');
+  // Wait for success
   let successAlertVisible = false;
   let resetAttempt = 0;
-
   while (!successAlertVisible && resetAttempt < 5) {
     resetAttempt++;
     try {
@@ -104,56 +127,28 @@ async function resetDatabase(withFixtures = false) {
         .toBeVisible()
         .withTimeout(3000);
       successAlertVisible = true;
-      console.log('Database reset success alert appeared');
     } catch (e) {
-      console.log(`Waiting for reset completion, attempt ${resetAttempt}/5...`);
       await waitForAnimation(2000);
     }
   }
 
   if (!successAlertVisible) {
-    throw new Error('Database reset did not complete - success alert never appeared');
+    throw new Error('Database reset did not complete');
   }
 
-  // Dismiss the success alert
+  // Dismiss and return to dashboard
   await element(by.text('OK')).tap();
   await waitForAnimation(500);
-
-  // Go back to dashboard
   await element(by.text('Done')).tap();
   await waitForAnimation(1000);
 
-  // Verify we're back on dashboard with clean state - use retry logic
-  console.log('Verifying dashboard after reset...');
-  let dashboardReady = false;
-  let verifyAttempt = 0;
+  // Verify dashboard
+  await waitFor(element(by.id('dashboard-title')))
+    .toBeVisible()
+    .withTimeout(5000);
 
-  while (!dashboardReady && verifyAttempt < 5) {
-    verifyAttempt++;
-    try {
-      await waitFor(element(by.id('dashboard-title')))
-        .toBeVisible()
-        .withTimeout(3000);
-      dashboardReady = true;
-      console.log('Dashboard is ready after reset');
-    } catch (e) {
-      console.log(`Dashboard not ready after reset, attempt ${verifyAttempt}/5...`);
-      await waitForAnimation(2000);
-    }
-  }
-
-  if (!dashboardReady) {
-    throw new Error('Dashboard did not become ready after database reset');
-  }
-
-  // Wait for store to reload data after database reset
-  // This needs to be long enough for:
-  // 1. Dashboard to gain focus
-  // 2. Store actions to fire (loadMedications, loadSchedules, loadRecentDoses)
-  // 3. UI to update with new data
-  console.log('Waiting for store to reload data...');
-  await waitForAnimation(3000);
-  console.log('Database reset complete and store reloaded');
+  await waitForAnimation(3000); // Store reload time
+  console.log('[E2E] Database reset complete via UI');
 }
 
 /**

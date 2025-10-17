@@ -1,7 +1,13 @@
 #!/bin/bash
 set -e
 
-echo "Building iOS app for Detox testing..."
+# Parse configuration argument (defaults to Testing)
+CONFIGURATION="Testing"
+if [[ "$1" == "--configuration" ]] && [[ -n "$2" ]]; then
+  CONFIGURATION="$2"
+fi
+
+echo "Building iOS app for Detox testing (Configuration: $CONFIGURATION)..."
 
 # Step 1: Run prebuild to create native ios directory
 echo "Running expo prebuild..."
@@ -15,14 +21,16 @@ cd ..
 
 # Step 3: Build with xcodebuild (without launching)
 echo "Building with xcodebuild..."
-# Use Debug configuration to enable __DEV__ mode for test helpers
+# Debug: Development with all debugging features
+# Testing: Production-optimized but with test hooks enabled
+# Release: True production, zero test code
 xcodebuild \
   -workspace ios/MigraLog.xcworkspace \
   -scheme MigraLog \
-  -configuration Debug \
+  -configuration "$CONFIGURATION" \
   -sdk iphonesimulator \
   -derivedDataPath ios/build \
   -destination "generic/platform=iOS Simulator" \
   build
 
-echo "✅ Build complete!"
+echo "✅ Build complete! ($CONFIGURATION)"
