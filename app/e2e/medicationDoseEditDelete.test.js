@@ -36,6 +36,9 @@ describe('Medication Dose Edit/Delete', () => {
 
     console.log('On Medications screen');
 
+    // Wait for data to load after navigation (CI needs extra time)
+    await waitForAnimation(3000);
+
     // ======================
     // Phase 2: Log a Dose for Testing
     // ======================
