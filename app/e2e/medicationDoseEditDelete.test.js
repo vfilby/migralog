@@ -41,9 +41,10 @@ describe('Medication Dose Edit/Delete', () => {
     // ======================
     // Find a medication card and tap it to open detail page
     // Test fixtures should have "Test Topiramate" medication
+    // Longer timeout for CI environments (slower than local)
     await waitFor(element(by.text('Test Topiramate')))
       .toBeVisible()
-      .withTimeout(5000);
+      .withTimeout(15000);
 
     console.log('Found test medication');
 

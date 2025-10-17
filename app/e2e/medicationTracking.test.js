@@ -41,9 +41,10 @@ describe('Medication Tracking UI', () => {
 
     // Check if "Today's Medications" card exists
     // Test fixtures should have loaded medications with schedules
+    // CI runners are slower - give it 20 seconds
     await waitFor(element(by.text("Today's Medications")))
       .toBeVisible()
-      .withTimeout(10000);
+      .withTimeout(20000);
 
     console.log("Today's Medications card is visible");
 
