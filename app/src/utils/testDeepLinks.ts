@@ -194,19 +194,19 @@ async function handleTestDeepLink(event: { url: string }) {
               // Reset to MainTabs root, dismissing any modals
               navigationRef.current.reset({
                 index: 0,
-                routes: [{ name: 'MainTabs', params: { screen: 'Dashboard' } }],
+                routes: [{ name: 'MainTabs', params: { screen: 'Dashboard' } as any }],
               });
               await new Promise(resolve => setTimeout(resolve, 300));
             }
 
             // Navigate to Episodes tab
             console.log('[TestDeepLinks] Navigating to Episodes...', new Date().toISOString());
-            navigationRef.current.navigate('MainTabs', { screen: 'Episodes' });
+            (navigationRef.current.navigate as any)('MainTabs', { screen: 'Episodes' });
             // Wait for navigation animation to complete
             await new Promise(resolve => setTimeout(resolve, 300));
             // Navigate back to Dashboard
             console.log('[TestDeepLinks] Navigating back to Dashboard...', new Date().toISOString());
-            navigationRef.current.navigate('MainTabs', { screen: 'Dashboard' });
+            (navigationRef.current.navigate as any)('MainTabs', { screen: 'Dashboard' });
             // Wait for navigation back and data loading to complete
             await new Promise(resolve => setTimeout(resolve, 500));
             console.log('[TestDeepLinks] Dashboard reload complete', new Date().toISOString());
@@ -229,7 +229,7 @@ async function handleTestDeepLink(event: { url: string }) {
           const { navigationRef } = await import('../navigation/NavigationService');
           if (navigationRef.current) {
             // Navigate to the Dashboard (Home tab)
-            navigationRef.current.navigate('MainTabs', { screen: 'Dashboard' });
+            (navigationRef.current.navigate as any)('MainTabs', { screen: 'Dashboard' });
             console.log('[TestDeepLinks] Successfully navigated to Dashboard');
           } else {
             console.warn('[TestDeepLinks] Navigation ref not available');
