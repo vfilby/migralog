@@ -109,7 +109,6 @@ describe('Daily Status Tracking', () => {
       .withTimeout(3000);
 
     await element(by.id('save-status-button')).tap();
-    await waitForAnimation(1500);
 
     // Should be back on Analytics screen (where we came from)
     await waitFor(element(by.text('Trends & Analytics')))
@@ -193,7 +192,6 @@ describe('Daily Status Tracking', () => {
       .withTimeout(3000);
 
     await element(by.id('save-status-button')).tap();
-    await waitForAnimation(1500);
 
     // Should be back on Analytics screen (where we came from)
     await waitFor(element(by.text('Trends & Analytics')))
@@ -236,7 +234,6 @@ describe('Daily Status Tracking', () => {
 
     // Save the episode
     await element(by.id('save-episode-button')).tap();
-    await waitForAnimation(2000);
 
     // Should be back on dashboard
     await waitFor(element(by.id('dashboard-title')))
@@ -298,7 +295,6 @@ describe('Daily Status Tracking', () => {
     await element(by.id('end-now-button')).tap();
 
     // Wait for episode to end and navigate back to dashboard
-    await waitForAnimation(2000);
 
     // Should be back on dashboard
     await waitFor(element(by.id('dashboard-title')))
@@ -412,7 +408,6 @@ describe('Daily Status Tracking', () => {
       .withTimeout(3000);
 
     await element(by.id('save-status-button')).tap();
-    await waitForAnimation(1500);
 
     // Should be back on Analytics screen (where we came from) without error
     await waitFor(element(by.text('Trends & Analytics')))
@@ -545,7 +540,6 @@ describe('Daily Status Tracking', () => {
       .withTimeout(3000);
 
     await element(by.id('save-status-button')).tap();
-    await waitForAnimation(1500);
 
     console.log('Logged yesterday as green via calendar');
 
@@ -629,7 +623,6 @@ describe('Daily Status Tracking', () => {
       .withTimeout(3000);
 
     await element(by.id('save-status-button')).tap();
-    await waitForAnimation(1500);
 
     console.log('Logged yesterday as green via calendar');
 
@@ -643,7 +636,6 @@ describe('Daily Status Tracking', () => {
 
     // Navigate back to Home (Dashboard)
     await element(by.text('Home')).tap();
-    await waitForAnimation(2000); // Give widget time to refresh and check status
 
     // Widget should now show the logged state (with testID daily-status-widget-logged)
     await waitFor(element(by.id('daily-status-widget-logged')))
@@ -671,7 +663,6 @@ describe('Daily Status Tracking', () => {
 
     // Navigate back to Analytics to verify calendar updated
     await element(by.text('Trends')).tap();
-    await waitForAnimation(1500); // Give it time to reload
 
     // Calendar should be visible
     await waitFor(element(by.id('previous-month-button')))

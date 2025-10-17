@@ -17,12 +17,9 @@ describe('Medication Dose Edit/Delete', () => {
   });
 
   beforeEach(async () => {
-    // Relaunch app to ensure clean state
-    await device.launchApp({ delete: false, newInstance: true });
-
     // Reset database and load test fixtures (medications with schedules)
+    // Deep link reset is fast (~2s) so no need to relaunch app
     await resetDatabase(true);
-    await waitForAnimation(2000);
   });
 
   it('should allow deleting a medication dose from detail page', async () => {
@@ -134,7 +131,6 @@ describe('Medication Dose Edit/Delete', () => {
 
     // Confirm deletion
     await element(by.text('Delete')).tap();
-    await waitForAnimation(1500);
 
     // Should see success message
     await waitFor(element(by.text('Success')))
@@ -246,7 +242,6 @@ describe('Medication Dose Edit/Delete', () => {
     // ======================
     console.log('Saving changes');
     await element(by.text('Save')).tap();
-    await waitForAnimation(1500);
 
     // Should see success alert
     await waitFor(element(by.text('Success')))

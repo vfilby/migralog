@@ -33,10 +33,20 @@ module.exports = {
         type: 'iPhone 16 Pro Max',
       },
     },
+    'simulator.se': {
+      type: 'ios.simulator',
+      device: {
+        type: 'iPhone SE (3rd generation)',
+      },
+    },
   },
   configurations: {
     'ios.sim.debug': {
       device: 'simulator',
+      app: 'ios.debug',
+    },
+    'ios.sim.debug.se': {
+      device: 'simulator.se',
       app: 'ios.debug',
     },
     'ios.sim.testing': {

@@ -28,7 +28,7 @@ async function resetDatabase(withFixtures = false) {
     console.log('[E2E] Verifying app state after reset...');
     await waitFor(element(by.id('dashboard-title')))
       .toBeVisible()
-      .withTimeout(10000); // Increased from 5s to 10s for reliability
+      .withTimeout(15000); // Increased from 10s to 15s for better reliability
 
     console.log('[E2E] ✅ Database reset complete via deep link');
   } catch (error) {

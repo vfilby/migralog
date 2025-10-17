@@ -149,9 +149,9 @@ async function loadTestFixtures() {
     ]
   );
 
-  // Add schedule for preventative medication (1 hour ago - will show as missed)
+  // Add schedule for preventative medication (1 hour from now - will show as upcoming)
   const now = new Date();
-  const scheduleTime = new Date(now.getTime() - 60 * 60 * 1000); // 1 hour ago
+  const scheduleTime = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
   const timeString = `${scheduleTime.getHours().toString().padStart(2, '0')}:${scheduleTime.getMinutes().toString().padStart(2, '0')}`;
 
   const scheduleId = `test-schedule-${Date.now()}`;

@@ -179,6 +179,38 @@ async function handleTestDeepLink(event: { url: string }) {
           });
 
           console.log('[TestDeepLinks] Reset result:', result);
+
+          // Force Dashboard to reload by navigating away and back
+          // This ensures useFocusEffect runs and UI re-renders with fresh data
+          console.log('[TestDeepLinks] Forcing Dashboard reload...', new Date().toISOString());
+          const { navigationRef } = await import('../navigation/NavigationService');
+          if (navigationRef.current) {
+            // First, dismiss any open modals by navigating to root
+            const state = navigationRef.current.getRootState();
+            const hasModal = state.routes.some(route => route.name !== 'MainTabs');
+
+            if (hasModal) {
+              console.log('[TestDeepLinks] Dismissing modal before reload...', new Date().toISOString());
+              // Reset to MainTabs root, dismissing any modals
+              navigationRef.current.reset({
+                index: 0,
+                routes: [{ name: 'MainTabs', params: { screen: 'Dashboard' } }],
+              });
+              await new Promise(resolve => setTimeout(resolve, 300));
+            }
+
+            // Navigate to Episodes tab
+            console.log('[TestDeepLinks] Navigating to Episodes...', new Date().toISOString());
+            navigationRef.current.navigate('MainTabs', { screen: 'Episodes' });
+            // Wait for navigation animation to complete
+            await new Promise(resolve => setTimeout(resolve, 300));
+            // Navigate back to Dashboard
+            console.log('[TestDeepLinks] Navigating back to Dashboard...', new Date().toISOString());
+            navigationRef.current.navigate('MainTabs', { screen: 'Dashboard' });
+            // Wait for navigation back and data loading to complete
+            await new Promise(resolve => setTimeout(resolve, 500));
+            console.log('[TestDeepLinks] Dashboard reload complete', new Date().toISOString());
+          }
         }
         break;
 

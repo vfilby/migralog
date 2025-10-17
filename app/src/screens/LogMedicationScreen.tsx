@@ -349,7 +349,7 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Text style={styles.cancelButton}>Cancel</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>Log Medication</Text>
+          <Text style={styles.title} testID="log-medication-title">Log Medication</Text>
           <View style={{ width: 60 }} />
         </View>
         <ScrollView style={styles.content}>
@@ -369,7 +369,9 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
                       style={styles.quickLogButton}
                       onPress={() => handleQuickLog(med)}
                     >
-                      <Text style={styles.quickLogButtonText}>Quick Log</Text>
+                      <Text style={styles.quickLogButtonText}>
+                        Log {med.defaultDosage || 1} × {med.dosageAmount}{med.dosageUnit}
+                      </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.detailsButton}
@@ -398,7 +400,7 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.cancelButton}>Cancel</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Log Medication</Text>
+        <Text style={styles.title} testID="log-medication-title">Log Medication</Text>
         <View style={{ width: 60 }} />
       </View>
 
