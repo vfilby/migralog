@@ -123,10 +123,10 @@ export function initializeTestDeepLinks() {
 /**
  * Handle test deep links
  * Supported URLs:
- * - migralog://test/activate - Activate test mode and generate session token
- * - migralog://test/reset?token=XXX - Reset database (requires token)
- * - migralog://test/reset?token=XXX&fixtures=true - Reset and load fixtures (requires token)
- * - migralog://test/state?token=XXX - Log current database state (requires token)
+ * - migraine-tracker://test/activate - Activate test mode and generate session token
+ * - migraine-tracker://test/reset?token=XXX - Reset database (requires token)
+ * - migraine-tracker://test/reset?token=XXX&fixtures=true - Reset and load fixtures (requires token)
+ * - migraine-tracker://test/state?token=XXX - Log current database state (requires token)
  */
 async function handleTestDeepLink(event: { url: string }) {
   const { url } = event;

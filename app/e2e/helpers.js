@@ -17,7 +17,7 @@ async function resetDatabase(withFixtures = false) {
 
     console.log('[E2E] Executing database reset...');
     await device.openURL({
-      url: `migralog://test/reset?token=detox${fixturesParam}`
+      url: `migraine-tracker://test/reset?token=detox${fixturesParam}`
     });
 
     // Wait for reset to complete
