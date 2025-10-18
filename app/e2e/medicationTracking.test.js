@@ -31,18 +31,19 @@ describe('Medication Tracking UI', () => {
     // Phase 1: Verify Dashboard and Medications Card
     // ======================
 
+    // resetDatabase() helper already waited for fixtures to load and Today's Medications card to appear
+    // Just verify we're on Dashboard
     await waitFor(element(by.id('dashboard-title')))
       .toBeVisible()
-      .withTimeout(10000);
+      .withTimeout(5000);
 
     console.log('On Dashboard');
 
-    // Check if "Today's Medications" card exists
-    // Test fixtures should have loaded medications with schedules
-    // CI runners are slower - give it 20 seconds
-    await waitFor(element(by.text("Today's Medications")))
+    // Verify "Today's Medications" card is visible
+    // (Should already be visible from resetDatabase wait, but double-check)
+    await waitFor(element(by.id('todays-medications-card')))
       .toBeVisible()
-      .withTimeout(20000);
+      .withTimeout(5000);
 
     console.log("Today's Medications card is visible");
 
@@ -224,8 +225,8 @@ describe('Medication Tracking UI', () => {
 
     console.log('On Dashboard - verifying medication is visible');
 
-    // Verify "Today's Medications" card exists
-    await waitFor(element(by.text("Today's Medications")))
+    // Verify "Today's Medications" card exists (should already be loaded by resetDatabase)
+    await waitFor(element(by.id('todays-medications-card')))
       .toBeVisible()
       .withTimeout(5000);
 

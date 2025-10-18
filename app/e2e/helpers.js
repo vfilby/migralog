@@ -20,8 +20,9 @@ async function resetDatabase(withFixtures = false) {
       url: `migraine-tracker://test/reset?token=detox${fixturesParam}`
     });
 
-    // Wait for reset to complete
-    // This is much faster than UI navigation (~2s vs 15-25s)
+    // Wait for reset to complete and navigate back to Dashboard
+    // The deep link handler navigates Episodes → Dashboard with 500ms final wait
+    // On slow CI runners, give it time to complete navigation
     await waitForAnimation(2000);
 
     // Verify app is still responsive and dashboard is visible
@@ -29,6 +30,24 @@ async function resetDatabase(withFixtures = false) {
     await waitFor(element(by.id('dashboard-title')))
       .toBeVisible()
       .withTimeout(15000); // Increased from 10s to 15s for better reliability
+
+    // If fixtures were loaded, wait for fixture data to appear
+    // This ensures stores have loaded data and UI has rendered before test proceeds
+    if (withFixtures) {
+      console.log('[E2E] Waiting for test fixture data to load...');
+
+      // Wait for "Today's Medications" card to appear (indicates Dashboard loaded schedules)
+      // CI runners are slower, so give this up to 15 seconds
+      try {
+        await waitFor(element(by.id('todays-medications-card')))
+          .toBeVisible()
+          .withTimeout(15000);
+        console.log('[E2E] ✅ Today\'s Medications card visible - fixtures loaded');
+      } catch (error) {
+        console.warn('[E2E] ⚠️  Today\'s Medications card not visible - this may cause test failures');
+        // Don't fail here - let the actual test fail with better error message
+      }
+    }
 
     console.log('[E2E] ✅ Database reset complete via deep link');
   } catch (error) {
