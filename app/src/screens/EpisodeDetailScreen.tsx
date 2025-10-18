@@ -41,17 +41,17 @@ type GroupedTimelineEvent = {
   events: TimelineEvent[];
 };
 
-const PAIN_LOCATIONS: { value: PainLocation; label: string }[] = [
-  { value: 'left_eye', label: 'Left Eye' },
-  { value: 'right_eye', label: 'Right Eye' },
-  { value: 'left_temple', label: 'Left Temple' },
-  { value: 'right_temple', label: 'Right Temple' },
-  { value: 'left_neck', label: 'Left Neck' },
-  { value: 'right_neck', label: 'Right Neck' },
-  { value: 'left_head', label: 'Left Head' },
-  { value: 'right_head', label: 'Right Head' },
-  { value: 'left_teeth', label: 'Left Teeth' },
-  { value: 'right_teeth', label: 'Right Teeth' },
+const PAIN_LOCATIONS: { value: PainLocation; label: string; side: 'left' | 'right' }[] = [
+  { value: 'left_eye', label: 'Eye', side: 'left' },
+  { value: 'left_temple', label: 'Temple', side: 'left' },
+  { value: 'left_neck', label: 'Neck', side: 'left' },
+  { value: 'left_head', label: 'Head', side: 'left' },
+  { value: 'left_teeth', label: 'Teeth', side: 'left' },
+  { value: 'right_eye', label: 'Eye', side: 'right' },
+  { value: 'right_temple', label: 'Temple', side: 'right' },
+  { value: 'right_neck', label: 'Neck', side: 'right' },
+  { value: 'right_head', label: 'Head', side: 'right' },
+  { value: 'right_teeth', label: 'Teeth', side: 'right' },
 ];
 
 const createStyles = (theme: ThemeColors) => StyleSheet.create({
@@ -894,7 +894,9 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
         const painLoc = event.data as PainLocationLog;
         const locationLabels = painLoc.painLocations.map(loc => {
           const location = PAIN_LOCATIONS.find(l => l.value === loc);
-          return location?.label || loc;
+          if (!location) return loc;
+          const sideLabel = location.side === 'left' ? 'Left' : 'Right';
+          return `${sideLabel} ${location.label}`;
         }).join(', ');
         return (
           <View key={event.id} style={{ marginBottom: 12 }}>

@@ -33,17 +33,17 @@ const SYMPTOMS: { value: Symptom; label: string }[] = [
   { value: 'confusion', label: 'Confusion' },
 ];
 
-const PAIN_LOCATIONS: { value: PainLocation; label: string }[] = [
-  { value: 'left_eye', label: 'Left Eye' },
-  { value: 'right_eye', label: 'Right Eye' },
-  { value: 'left_temple', label: 'Left Temple' },
-  { value: 'right_temple', label: 'Right Temple' },
-  { value: 'left_neck', label: 'Left Neck' },
-  { value: 'right_neck', label: 'Right Neck' },
-  { value: 'left_head', label: 'Left Head' },
-  { value: 'right_head', label: 'Right Head' },
-  { value: 'left_teeth', label: 'Left Teeth' },
-  { value: 'right_teeth', label: 'Right Teeth' },
+const PAIN_LOCATIONS: { value: PainLocation; label: string; side: 'left' | 'right' }[] = [
+  { value: 'left_eye', label: 'Eye', side: 'left' },
+  { value: 'left_temple', label: 'Temple', side: 'left' },
+  { value: 'left_neck', label: 'Neck', side: 'left' },
+  { value: 'left_head', label: 'Head', side: 'left' },
+  { value: 'left_teeth', label: 'Teeth', side: 'left' },
+  { value: 'right_eye', label: 'Eye', side: 'right' },
+  { value: 'right_temple', label: 'Temple', side: 'right' },
+  { value: 'right_neck', label: 'Neck', side: 'right' },
+  { value: 'right_head', label: 'Head', side: 'right' },
+  { value: 'right_teeth', label: 'Teeth', side: 'right' },
 ];
 
 const createStyles = (theme: ThemeColors) => StyleSheet.create({
@@ -141,6 +141,45 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   },
   chipTextSelected: {
     color: theme.primaryText,
+  },
+  locationContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  locationColumn: {
+    flex: 1,
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    padding: 12,
+  },
+  columnHeader: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.text,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  locationButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: theme.borderLight,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  locationButtonActive: {
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
+  },
+  locationText: {
+    fontSize: 15,
+    color: theme.text,
+    textAlign: 'center',
+  },
+  locationTextActive: {
+    color: theme.primaryText,
+    fontWeight: '600',
   },
   noteInput: {
     backgroundColor: theme.card,
@@ -463,28 +502,55 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
 
         {/* Pain Locations */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pain Locations</Text>
-          <View style={styles.chipContainer}>
-            {PAIN_LOCATIONS.map(location => {
-              const isSelected = currentPainLocations.includes(location.value);
-              return (
+          <Text style={styles.sectionTitle}>Pain Location</Text>
+          <View style={styles.locationContainer}>
+            {/* Left Side Column */}
+            <View style={styles.locationColumn}>
+              <Text style={styles.columnHeader}>Left Side</Text>
+              {PAIN_LOCATIONS.filter(item => item.side === 'left').map(item => (
                 <TouchableOpacity
-                  key={location.value}
+                  key={item.value}
                   style={[
-                    styles.chip,
-                    isSelected && styles.chipSelected,
+                    styles.locationButton,
+                    currentPainLocations.includes(item.value) && styles.locationButtonActive,
                   ]}
-                  onPress={() => togglePainLocation(location.value)}
+                  onPress={() => togglePainLocation(item.value)}
                 >
-                  <Text style={[
-                    styles.chipText,
-                    isSelected && styles.chipTextSelected,
-                  ]}>
-                    {location.label}
+                  <Text
+                    style={[
+                      styles.locationText,
+                      currentPainLocations.includes(item.value) && styles.locationTextActive,
+                    ]}
+                  >
+                    {item.label}
                   </Text>
                 </TouchableOpacity>
-              );
-            })}
+              ))}
+            </View>
+
+            {/* Right Side Column */}
+            <View style={styles.locationColumn}>
+              <Text style={styles.columnHeader}>Right Side</Text>
+              {PAIN_LOCATIONS.filter(item => item.side === 'right').map(item => (
+                <TouchableOpacity
+                  key={item.value}
+                  style={[
+                    styles.locationButton,
+                    currentPainLocations.includes(item.value) && styles.locationButtonActive,
+                  ]}
+                  onPress={() => togglePainLocation(item.value)}
+                >
+                  <Text
+                    style={[
+                      styles.locationText,
+                      currentPainLocations.includes(item.value) && styles.locationTextActive,
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         </View>
 
