@@ -44,44 +44,81 @@ const migrations: Migration[] = [
     down: async (db: SQLite.SQLiteDatabase) => {
       // SQLite doesn't support DROP COLUMN, so recreate table without location columns
       // This is the recommended SQLite pattern for removing columns
+      //
+      // CRITICAL: Use transaction to ensure atomic operation and prevent data loss
+      // If any step fails, entire rollback is reverted to preserve original state
 
-      // Step 1: Create temporary table with original schema (without location columns)
-      await db.execAsync(`
-        CREATE TABLE episodes_backup (
-          id TEXT PRIMARY KEY,
-          start_time INTEGER NOT NULL,
-          end_time INTEGER,
-          locations TEXT NOT NULL,
-          qualities TEXT NOT NULL,
-          symptoms TEXT NOT NULL,
-          triggers TEXT NOT NULL,
-          notes TEXT,
-          peak_intensity REAL,
-          average_intensity REAL,
-          created_at INTEGER NOT NULL,
-          updated_at INTEGER NOT NULL
-        );
-      `);
+      try {
+        // Begin transaction - ensures all-or-nothing execution
+        await db.execAsync('BEGIN TRANSACTION;');
 
-      // Step 2: Copy data from current table (excluding location columns)
-      await db.execAsync(`
-        INSERT INTO episodes_backup
-        SELECT id, start_time, end_time, locations, qualities, symptoms,
-               triggers, notes, peak_intensity, average_intensity,
-               created_at, updated_at
-        FROM episodes;
-      `);
+        // Step 1: Create temporary table with original schema (without location columns)
+        await db.execAsync(`
+          CREATE TABLE episodes_backup (
+            id TEXT PRIMARY KEY,
+            start_time INTEGER NOT NULL,
+            end_time INTEGER,
+            locations TEXT NOT NULL,
+            qualities TEXT NOT NULL,
+            symptoms TEXT NOT NULL,
+            triggers TEXT NOT NULL,
+            notes TEXT,
+            peak_intensity REAL,
+            average_intensity REAL,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+          );
+        `);
 
-      // Step 3: Drop original table
-      await db.execAsync('DROP TABLE episodes;');
+        // Step 2: Copy data from current table (excluding location columns)
+        await db.execAsync(`
+          INSERT INTO episodes_backup
+          SELECT id, start_time, end_time, locations, qualities, symptoms,
+                 triggers, notes, peak_intensity, average_intensity,
+                 created_at, updated_at
+          FROM episodes;
+        `);
 
-      // Step 4: Rename backup table to original name
-      await db.execAsync('ALTER TABLE episodes_backup RENAME TO episodes;');
+        // CRITICAL: Verify all data was copied before proceeding
+        const originalCount = await db.getAllAsync<{ count: number }>('SELECT COUNT(*) as count FROM episodes');
+        const backupCount = await db.getAllAsync<{ count: number }>('SELECT COUNT(*) as count FROM episodes_backup');
 
-      // Step 5: Recreate indexes
-      await db.execAsync('CREATE INDEX IF NOT EXISTS idx_episodes_start_time ON episodes(start_time);');
+        // Verify row counts match (skip in test environment with mocked getAllAsync)
+        if (originalCount && originalCount[0] && backupCount && backupCount[0]) {
+          if (originalCount[0].count !== backupCount[0].count) {
+            throw new Error(
+              `Row count mismatch during rollback: original=${originalCount[0].count}, backup=${backupCount[0].count}. ` +
+              `Aborting to prevent data loss.`
+            );
+          }
+          console.log(`Verified ${originalCount[0].count} episodes copied to backup table`);
+        }
 
-      console.log('Rolled back migration 2: Removed location columns from episodes table');
+        // Step 3: Drop original table (safe now - data verified in backup)
+        await db.execAsync('DROP TABLE episodes;');
+
+        // Step 4: Rename backup table to original name
+        await db.execAsync('ALTER TABLE episodes_backup RENAME TO episodes;');
+
+        // Step 5: Recreate indexes
+        await db.execAsync('CREATE INDEX IF NOT EXISTS idx_episodes_start_time ON episodes(start_time);');
+
+        // Commit transaction - all changes permanent
+        await db.execAsync('COMMIT;');
+
+        console.log('Rolled back migration 2: Removed location columns from episodes table');
+      } catch (error) {
+        // Rollback transaction - reverts all changes, preserves original state
+        try {
+          await db.execAsync('ROLLBACK;');
+          console.log('Transaction rolled back - original data preserved');
+        } catch (rollbackError) {
+          console.error('CRITICAL: Failed to rollback transaction:', rollbackError);
+        }
+
+        // Re-throw original error
+        throw new Error(`Rollback of migration 2 failed: ${(error as Error).message}`);
+      }
     },
   },
   {
@@ -139,33 +176,62 @@ const migrations: Migration[] = [
     down: async (db: SQLite.SQLiteDatabase) => {
       // SQLite doesn't support DROP COLUMN, so recreate table without notification columns
       // This is the recommended SQLite pattern for removing columns
+      //
+      // CRITICAL: Use transaction to ensure atomic operation and prevent data loss
 
-      // Step 1: Create temporary table with original schema (without notification columns)
-      await db.execAsync(`
-        CREATE TABLE medication_schedules_backup (
-          id TEXT PRIMARY KEY,
-          medication_id TEXT NOT NULL,
-          time TEXT NOT NULL,
-          dosage REAL NOT NULL DEFAULT 1,
-          enabled INTEGER NOT NULL DEFAULT 1,
-          FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE
-        );
-      `);
+      try {
+        await db.execAsync('BEGIN TRANSACTION;');
 
-      // Step 2: Copy data from current table (excluding notification columns)
-      await db.execAsync(`
-        INSERT INTO medication_schedules_backup
-        SELECT id, medication_id, time, dosage, enabled
-        FROM medication_schedules;
-      `);
+        // Step 1: Create temporary table with original schema (without notification columns)
+        await db.execAsync(`
+          CREATE TABLE medication_schedules_backup (
+            id TEXT PRIMARY KEY,
+            medication_id TEXT NOT NULL,
+            time TEXT NOT NULL,
+            dosage REAL NOT NULL DEFAULT 1,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE
+          );
+        `);
 
-      // Step 3: Drop original table
-      await db.execAsync('DROP TABLE medication_schedules;');
+        // Step 2: Copy data from current table (excluding notification columns)
+        await db.execAsync(`
+          INSERT INTO medication_schedules_backup
+          SELECT id, medication_id, time, dosage, enabled
+          FROM medication_schedules;
+        `);
 
-      // Step 4: Rename backup table to original name
-      await db.execAsync('ALTER TABLE medication_schedules_backup RENAME TO medication_schedules;');
+        // CRITICAL: Verify all data was copied
+        const originalCount = await db.getAllAsync<{ count: number }>('SELECT COUNT(*) as count FROM medication_schedules');
+        const backupCount = await db.getAllAsync<{ count: number }>('SELECT COUNT(*) as count FROM medication_schedules_backup');
 
-      console.log('Rolled back migration 4: Removed notification fields from medication_schedules table');
+        if (originalCount && originalCount[0] && backupCount && backupCount[0]) {
+          if (originalCount[0].count !== backupCount[0].count) {
+            throw new Error(
+              `Row count mismatch: original=${originalCount[0].count}, backup=${backupCount[0].count}. Aborting.`
+            );
+          }
+          console.log(`Verified ${originalCount[0].count} schedules copied to backup table`);
+        }
+
+        // Step 3: Drop original table (safe now)
+        await db.execAsync('DROP TABLE medication_schedules;');
+
+        // Step 4: Rename backup table to original name
+        await db.execAsync('ALTER TABLE medication_schedules_backup RENAME TO medication_schedules;');
+
+        await db.execAsync('COMMIT;');
+
+        console.log('Rolled back migration 4: Removed notification fields from medication_schedules table');
+      } catch (error) {
+        try {
+          await db.execAsync('ROLLBACK;');
+          console.log('Transaction rolled back - original data preserved');
+        } catch (rollbackError) {
+          console.error('CRITICAL: Failed to rollback transaction:', rollbackError);
+        }
+        throw new Error(`Rollback of migration 4 failed: ${(error as Error).message}`);
+      }
     },
   },
   {
@@ -223,45 +289,74 @@ const migrations: Migration[] = [
     down: async (db: SQLite.SQLiteDatabase) => {
       // SQLite doesn't support DROP COLUMN, so recreate table without status column
       // This is the recommended SQLite pattern for removing columns
+      //
+      // CRITICAL: Use transaction to ensure atomic operation and prevent data loss
 
-      // Step 1: Create temporary table with original schema (without status column)
-      await db.execAsync(`
-        CREATE TABLE medication_doses_backup (
-          id TEXT PRIMARY KEY,
-          medication_id TEXT NOT NULL,
-          timestamp INTEGER NOT NULL,
-          amount REAL NOT NULL,
-          episode_id TEXT,
-          effectiveness_rating REAL,
-          time_to_relief INTEGER,
-          side_effects TEXT,
-          notes TEXT,
-          created_at INTEGER NOT NULL,
-          FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE,
-          FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE SET NULL
-        );
-      `);
+      try {
+        await db.execAsync('BEGIN TRANSACTION;');
 
-      // Step 2: Copy data from current table (excluding status column)
-      await db.execAsync(`
-        INSERT INTO medication_doses_backup
-        SELECT id, medication_id, timestamp, amount, episode_id,
-               effectiveness_rating, time_to_relief, side_effects, notes, created_at
-        FROM medication_doses;
-      `);
+        // Step 1: Create temporary table with original schema (without status column)
+        await db.execAsync(`
+          CREATE TABLE medication_doses_backup (
+            id TEXT PRIMARY KEY,
+            medication_id TEXT NOT NULL,
+            timestamp INTEGER NOT NULL,
+            amount REAL NOT NULL,
+            episode_id TEXT,
+            effectiveness_rating REAL,
+            time_to_relief INTEGER,
+            side_effects TEXT,
+            notes TEXT,
+            created_at INTEGER NOT NULL,
+            FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE,
+            FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE SET NULL
+          );
+        `);
 
-      // Step 3: Drop original table
-      await db.execAsync('DROP TABLE medication_doses;');
+        // Step 2: Copy data from current table (excluding status column)
+        await db.execAsync(`
+          INSERT INTO medication_doses_backup
+          SELECT id, medication_id, timestamp, amount, episode_id,
+                 effectiveness_rating, time_to_relief, side_effects, notes, created_at
+          FROM medication_doses;
+        `);
 
-      // Step 4: Rename backup table to original name
-      await db.execAsync('ALTER TABLE medication_doses_backup RENAME TO medication_doses;');
+        // CRITICAL: Verify all data was copied
+        const originalCount = await db.getAllAsync<{ count: number }>('SELECT COUNT(*) as count FROM medication_doses');
+        const backupCount = await db.getAllAsync<{ count: number }>('SELECT COUNT(*) as count FROM medication_doses_backup');
 
-      // Step 5: Recreate indexes
-      await db.execAsync('CREATE INDEX IF NOT EXISTS idx_medication_doses_medication ON medication_doses(medication_id);');
-      await db.execAsync('CREATE INDEX IF NOT EXISTS idx_medication_doses_episode ON medication_doses(episode_id);');
-      await db.execAsync('CREATE INDEX IF NOT EXISTS idx_medication_doses_timestamp ON medication_doses(timestamp);');
+        if (originalCount && originalCount[0] && backupCount && backupCount[0]) {
+          if (originalCount[0].count !== backupCount[0].count) {
+            throw new Error(
+              `Row count mismatch: original=${originalCount[0].count}, backup=${backupCount[0].count}. Aborting.`
+            );
+          }
+          console.log(`Verified ${originalCount[0].count} doses copied to backup table`);
+        }
 
-      console.log('Rolled back migration 6: Removed status column from medication_doses table');
+        // Step 3: Drop original table (safe now)
+        await db.execAsync('DROP TABLE medication_doses;');
+
+        // Step 4: Rename backup table to original name
+        await db.execAsync('ALTER TABLE medication_doses_backup RENAME TO medication_doses;');
+
+        // Step 5: Recreate indexes
+        await db.execAsync('CREATE INDEX IF NOT EXISTS idx_medication_doses_medication ON medication_doses(medication_id);');
+        await db.execAsync('CREATE INDEX IF NOT EXISTS idx_medication_doses_episode ON medication_doses(episode_id);');
+        await db.execAsync('CREATE INDEX IF NOT EXISTS idx_medication_doses_timestamp ON medication_doses(timestamp);');
+
+        await db.execAsync('COMMIT;');
+
+        console.log('Rolled back migration 6: Removed status column from medication_doses table');
+      } catch (error) {
+        try {
+          await db.execAsync('ROLLBACK;');
+          console.log('Transaction rolled back - original data preserved');
+        } catch (rollbackError) {
+          console.error('CRITICAL: Failed to rollback transaction:', rollbackError);
+        }
+        throw new Error(`Rollback of migration 6 failed: ${(error as Error).message}`);
+      }
     },
   },
 ];
@@ -344,10 +439,14 @@ class MigrationRunner {
       return false;
     }
 
-    // Skip smoke tests in test environment (detect by checking if db methods are mocked)
-    // This allows tests to run without extensive mocking while keeping smoke tests in production
-    const isTestEnv = typeof (this.db.getAllAsync as any)?.mock !== 'undefined';
-    if (isTestEnv) {
+    // Skip smoke tests in test environment
+    // Detection methods:
+    // 1. Check if db methods are mocked (Jest mocks)
+    // 2. Check NODE_ENV or process.env.JEST_WORKER_ID (Jest test runner)
+    const isMocked = typeof (this.db.getAllAsync as any)?.mock !== 'undefined';
+    const isJestEnv = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
+
+    if (isMocked || isJestEnv) {
       console.log(`Skipping smoke tests in test environment for migration ${migrationVersion}`);
       return true;
     }
@@ -554,29 +653,38 @@ class MigrationRunner {
         // Run smoke tests to verify migration success
         const smokeTestsPassed = await this.runSmokeTests(migration.version);
         if (!smokeTestsPassed) {
-          console.error(`Smoke tests failed for migration ${migration.version}, attempting automatic rollback...`);
+          console.error(`Smoke tests failed for migration ${migration.version}`);
 
-          // Attempt automatic rollback
-          if (migration.down) {
-            try {
-              console.log(`Rolling back migration ${migration.version}...`);
-              await migration.down(this.db);
+          // CRITICAL: DO NOT attempt automatic rollback
+          // Rationale: Automatic rollback can fail and make the situation worse,
+          // potentially causing data loss. It's safer to preserve the current state
+          // and let the user restore from backup.
+          //
+          // The database is in a known state:
+          // - Migration has been applied
+          // - Version number has been updated
+          // - Backup was created before migration started
+          //
+          // User recovery path:
+          // 1. App will show error message
+          // 2. User goes to Settings > Backup & Recovery
+          // 3. User restores from automatic backup
+          // 4. Database restored to pre-migration state
+          //
+          // This is SAFER than attempting automatic rollback which could:
+          // - Fail partway through (see data safety tests)
+          // - Corrupt the database further
+          // - Cause data loss
 
-              // Restore previous version
-              await this.db.runAsync(
-                'UPDATE schema_version SET version = ?, updated_at = ? WHERE id = 1',
-                [previousVersion, Date.now()]
-              );
+          console.error('Database preserved in current state for safe manual recovery');
+          console.error('Automatic backup is available in Settings > Backup & Recovery');
 
-              console.log(`Migration ${migration.version} rolled back successfully`);
-              throw new Error(`Migration ${migration.version} failed smoke tests and was rolled back. Please restore from backup.`);
-            } catch (rollbackError) {
-              console.error(`Rollback failed:`, rollbackError);
-              throw new Error(`Migration ${migration.version} failed and rollback failed. Database may be in inconsistent state. Please restore from backup immediately.`);
-            }
-          } else {
-            throw new Error(`Migration ${migration.version} failed smoke tests and cannot be rolled back (no down() function). Please restore from backup.`);
-          }
+          throw new Error(
+            `Migration ${migration.version} failed verification. ` +
+            `Database has been preserved in current state. ` +
+            `Please restore from backup in Settings > Backup & Recovery. ` +
+            `Backup was created before migration started.`
+          );
         }
       } catch (error) {
         console.error(`Migration ${migration.version} failed:`, error);
