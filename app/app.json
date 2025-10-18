@@ -46,7 +46,8 @@
     "extra": {
       "eas": {
         "projectId": "88f6f366-51eb-49d6-8908-ed0f317363dd"
-      }
+      },
+      "enableTestDeepLinks": true
     }
   }
 }

@@ -43,7 +43,6 @@ describe('Custom End Time', () => {
 
     // Save the episode
     await element(by.id('save-episode-button')).tap();
-    await waitForAnimation(1500);
 
     // Verify we're back on dashboard
     await waitFor(element(by.id('dashboard-title')))
@@ -108,7 +107,6 @@ describe('Custom End Time', () => {
     await element(by.text('Done')).atIndex(0).tap();
 
     // Wait for episode to end and navigate back to dashboard
-    await waitForAnimation(2000);
 
     // ======================
     // Phase 4: Verify Episode Ended
@@ -137,7 +135,6 @@ describe('Custom End Time', () => {
 
     // Navigate to Episodes tab to see the ended episode
     await element(by.text('Episodes')).tap();
-    await waitForAnimation(2000);
 
     console.log('On Episodes screen - waiting for episode list to load');
 
@@ -205,7 +202,6 @@ describe('Custom End Time', () => {
 
     await scrollToElement('save-episode-button');
     await element(by.id('save-episode-button')).tap();
-    await waitForAnimation(1500);
 
     // Open episode details
     await waitFor(element(by.id('active-episode-card')))

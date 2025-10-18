@@ -413,7 +413,7 @@ export default function DashboardScreen() {
 
       {/* Today's Medications */}
       {todaysMedications.length > 0 && (
-        <View style={styles.card}>
+        <View style={styles.card} testID="todays-medications-card">
           <Text style={styles.cardTitle}>Today's Medications</Text>
           {todaysMedications.map((item, index) => (
             <View

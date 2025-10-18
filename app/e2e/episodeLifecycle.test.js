@@ -49,10 +49,7 @@ describe('Complete Episode Lifecycle', () => {
     // Save the episode (with default intensity = 3)
     await element(by.id('save-episode-button')).tap();
 
-    // Wait for save and modal dismissal
-    await waitForAnimation(1500);
-
-    // Verify we're back on dashboard
+    // Verify we're back on dashboard (waitFor handles the save/modal timing)
     await waitFor(element(by.id('dashboard-title')))
       .toBeVisible()
       .withTimeout(5000);
@@ -128,12 +125,14 @@ describe('Complete Episode Lifecycle', () => {
       .toBeVisible()
       .withTimeout(3000);
 
-    // Scroll to symptoms section
+    // Scroll to Nausea symptom (optimized - only scrolls if needed)
     try {
-      await element(by.id('new-episode-scroll-view')).scroll(500, 'down');
-      await waitForAnimation(300);
+      await waitFor(element(by.text('Nausea')))
+        .toBeVisible()
+        .whileElement(by.id('new-episode-scroll-view'))
+        .scroll(400, 'down');
     } catch (e) {
-      console.log('Could not scroll - symptoms may already be visible');
+      // Element already visible, no scroll needed
     }
 
     // Select Nausea symptom
@@ -144,12 +143,14 @@ describe('Complete Episode Lifecycle', () => {
     await element(by.text('Light Sensitivity')).tap();
     await waitForAnimation(200);
 
-    // Scroll to triggers section
+    // Scroll to Stress trigger (optimized - only scrolls if needed)
     try {
-      await element(by.id('new-episode-scroll-view')).scroll(300, 'down');
-      await waitForAnimation(300);
+      await waitFor(element(by.text('Stress')))
+        .toBeVisible()
+        .whileElement(by.id('new-episode-scroll-view'))
+        .scroll(400, 'down');
     } catch (e) {
-      console.log('Could not scroll - triggers may already be visible');
+      // Element already visible, no scroll needed
     }
 
     // Select Stress trigger
@@ -180,20 +181,16 @@ describe('Complete Episode Lifecycle', () => {
     // Tap return/done to dismiss keyboard (works with returnKeyType="done")
     await element(by.id('episode-notes-input')).tapReturnKey();
 
-    // Wait for keyboard to fully dismiss and KeyboardAvoidingView to readjust
-    await waitForAnimation(1500);
-
-    // Save button is now in a fixed footer (outside ScrollView) and should always be visible
+    // Verify save button is visible (waitFor handles keyboard dismissal timing)
     await waitFor(element(by.id('save-episode-button')))
       .toBeVisible()
       .withTimeout(3000);
     await element(by.id('save-episode-button')).tap();
 
-    // Wait for save and return to episode details
-    await waitForAnimation(1500);
-
-    // Should be back on Episode Details
-    await expect(element(by.text('Episode Details'))).toBeVisible();
+    // Verify we're back on Episode Details (wait For handles save timing)
+    await waitFor(element(by.text('Episode Details')))
+      .toBeVisible()
+      .withTimeout(3000);
 
     // ======================
     // Phase 4: Log Intensity Update with Symptom Changes
@@ -206,12 +203,8 @@ describe('Complete Episode Lifecycle', () => {
 
     console.log('Verified we are on Episode Details screen');
 
-    // Wait for episode data to fully reload after edit
-    await waitForAnimation(2000);
-
     // Scroll to very top to ensure Action Buttons section is visible
     await element(by.id('episode-detail-scroll-view')).scrollTo('top');
-    await waitForAnimation(1000);
 
     console.log('Scrolled to top of Episode Details');
 
@@ -284,15 +277,17 @@ describe('Complete Episode Lifecycle', () => {
         // Fallback: just proceed with symptoms and notes
       }
 
-      // Try to scroll down to symptoms section - use try/catch in case not scrollable
+      console.log('Selecting symptom changes');
+      // Scroll to Sound Sensitivity symptom (optimized - only scrolls if needed)
       try {
-        await element(by.id('log-update-scroll-view')).scroll(400, 'down');
-        await waitForAnimation(300);
+        await waitFor(element(by.text('Sound Sensitivity')))
+          .toBeVisible()
+          .whileElement(by.id('log-update-scroll-view'))
+          .scroll(400, 'down');
       } catch (e) {
-        console.log('Could not scroll - symptoms may already be visible');
+        // Element already visible, no scroll needed
       }
 
-      console.log('Selecting symptom changes');
       // Add some symptom changes - select Sound Sensitivity
       await element(by.text('Sound Sensitivity')).tap();
       await waitForAnimation(200);
@@ -394,19 +389,14 @@ describe('Complete Episode Lifecycle', () => {
 
     await element(by.id('end-now-button')).tap();
 
-    // Wait for episode to end and navigate back to dashboard
-    await waitForAnimation(2000);
-
     // ======================
     // Phase 6: Verify Episode in History
     // ======================
 
-    // Should be back on dashboard after ending episode
-
-    // Wait for dashboard
+    // Verify we're back on dashboard after ending episode (waitFor handles navigation timing)
     await waitFor(element(by.id('dashboard-title')))
       .toBeVisible()
-      .withTimeout(3000);
+      .withTimeout(5000);
 
     // The episode should no longer be in the "Current Episode" section
     await expect(element(by.id('active-episode-card'))).not.toBeVisible();

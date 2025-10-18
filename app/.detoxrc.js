@@ -11,15 +11,20 @@ module.exports = {
     },
   },
   apps: {
+    'ios.debug': {
+      type: 'ios.app',
+      build: 'scripts/build-ios-for-detox.sh --configuration Debug',
+      binaryPath: 'ios/build/Build/Products/Debug-iphonesimulator/MigraLog.app',
+    },
+    'ios.testing': {
+      type: 'ios.app',
+      build: 'scripts/build-ios-for-detox.sh --configuration Testing',
+      binaryPath: 'ios/build/Build/Products/Testing-iphonesimulator/MigraLog.app',
+    },
     'ios.release': {
       type: 'ios.app',
       build: 'npx expo run:ios --configuration Release --no-install --no-bundler',
       binaryPath: 'ios/build/Build/Products/Release-iphonesimulator/MigraLog.app',
-    },
-    'ios.debug': {
-      type: 'ios.app',
-      build: 'scripts/build-ios-for-detox.sh',
-      binaryPath: 'ios/build/Build/Products/Debug-iphonesimulator/MigraLog.app',
     },
   },
   devices: {
@@ -29,15 +34,42 @@ module.exports = {
         type: 'iPhone 16 Pro Max',
       },
     },
+    'simulator.se': {
+      type: 'ios.simulator',
+      device: {
+        type: 'iPhone SE (3rd generation)',
+      },
+    },
   },
   configurations: {
     'ios.sim.debug': {
       device: 'simulator',
       app: 'ios.debug',
     },
+    'ios.sim.debug.se': {
+      device: 'simulator.se',
+      app: 'ios.debug',
+    },
+    'ios.sim.testing': {
+      device: 'simulator',
+      app: 'ios.testing',
+    },
     'ios.sim.release': {
       device: 'simulator',
       app: 'ios.release',
+    },
+  },
+  artifacts: {
+    rootDir: './e2e/artifacts',
+    plugins: {
+      screenshot: {
+        shouldTakeAutomaticSnapshots: true,
+        keepOnlyFailedTestsArtifacts: false,
+        takeWhen: {
+          testStart: false,
+          testDone: true,
+        },
+      },
     },
   },
 };

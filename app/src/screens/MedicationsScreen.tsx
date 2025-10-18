@@ -242,6 +242,13 @@ export default function MedicationsScreen() {
   const [medicationSchedules, setMedicationSchedules] = useState<Record<string, MedicationSchedule[]>>({});
   const [scheduleLogStates, setScheduleLogStates] = useState<Record<string, ScheduleLogState>>({});
 
+  // Load data on initial mount
+  useEffect(() => {
+    loadMedications();
+    loadCurrentEpisode();
+  }, []);
+
+  // Also reload data when screen gains focus
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       loadMedications();
