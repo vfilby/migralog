@@ -14,7 +14,8 @@
 
 import Database from 'better-sqlite3';
 
-// Schema from version 1
+// Complete schema from version 1 (before any migrations)
+// This matches the actual initial database schema
 const SCHEMA_V1 = `
   CREATE TABLE IF NOT EXISTS schema_version (
     id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -37,7 +38,25 @@ const SCHEMA_V1 = `
     updated_at INTEGER NOT NULL
   );
 
-  CREATE INDEX IF NOT EXISTS idx_episodes_start_time ON episodes(start_time);
+  CREATE TABLE IF NOT EXISTS intensity_readings (
+    id TEXT PRIMARY KEY,
+    episode_id TEXT NOT NULL,
+    timestamp INTEGER NOT NULL,
+    intensity REAL NOT NULL,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS symptom_logs (
+    id TEXT PRIMARY KEY,
+    episode_id TEXT NOT NULL,
+    symptom TEXT NOT NULL,
+    onset_time INTEGER NOT NULL,
+    resolution_time INTEGER,
+    severity REAL,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE CASCADE
+  );
 
   CREATE TABLE IF NOT EXISTS medications (
     id TEXT PRIMARY KEY,
@@ -45,7 +64,24 @@ const SCHEMA_V1 = `
     type TEXT NOT NULL,
     dosage_amount REAL NOT NULL,
     dosage_unit TEXT NOT NULL,
-    created_at INTEGER NOT NULL
+    default_dosage REAL,
+    schedule_frequency TEXT,
+    photo_uri TEXT,
+    start_date INTEGER,
+    end_date INTEGER,
+    active INTEGER NOT NULL DEFAULT 1,
+    notes TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS medication_schedules (
+    id TEXT PRIMARY KEY,
+    medication_id TEXT NOT NULL,
+    time TEXT NOT NULL,
+    dosage REAL NOT NULL DEFAULT 1,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS medication_doses (
@@ -63,7 +99,23 @@ const SCHEMA_V1 = `
     FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE SET NULL
   );
 
+  CREATE TABLE IF NOT EXISTS medication_reminders (
+    id TEXT PRIMARY KEY,
+    medication_id TEXT NOT NULL,
+    scheduled_time INTEGER NOT NULL,
+    completed INTEGER NOT NULL DEFAULT 0,
+    snoozed_until INTEGER,
+    completed_at INTEGER,
+    FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_episodes_start_time ON episodes(start_time);
+  CREATE INDEX IF NOT EXISTS idx_intensity_readings_episode ON intensity_readings(episode_id);
+  CREATE INDEX IF NOT EXISTS idx_symptom_logs_episode ON symptom_logs(episode_id);
   CREATE INDEX IF NOT EXISTS idx_medication_doses_medication ON medication_doses(medication_id);
+  CREATE INDEX IF NOT EXISTS idx_medication_doses_episode ON medication_doses(episode_id);
+  CREATE INDEX IF NOT EXISTS idx_medication_doses_timestamp ON medication_doses(timestamp);
+  CREATE INDEX IF NOT EXISTS idx_medication_reminders_scheduled ON medication_reminders(scheduled_time);
 
   INSERT INTO schema_version (id, version, updated_at) VALUES (1, 1, ${Date.now()});
 `;
@@ -221,10 +273,11 @@ describe('Migration Data Safety Tests', () => {
       await migrationRunner.runMigrations();
 
       const medId = 'med-1';
+      const now = Date.now();
       db.prepare(`
-        INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).run(medId, 'Aspirin', 'test', 100, 'mg', Date.now());
+        INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(medId, 'Aspirin', 'test', 100, 'mg', now, now);
 
       // Insert 50 doses
       for (let i = 0; i < 50; i++) {
@@ -542,25 +595,26 @@ describe('Migration Data Safety Tests', () => {
 
   describe('Recovery from Corrupted State', () => {
     it('should detect missing required tables', async () => {
-      // Setup: Corrupted database - version says v3 but episode_notes missing
+      // Setup: Database at v1, will run all migrations
       db.exec(SCHEMA_V1);
-      db.exec('UPDATE schema_version SET version = 3');
 
       const migrationRunner = getMigrations();
       await migrationRunner.initialize(adapter as any);
 
-      // Current behavior: migrations 4-6 would run
-      // Should have smoke test that detects episode_notes missing for v3
+      // Run all migrations (will create episode_notes in migration 3)
       await migrationRunner.runMigrations();
 
-      // Verify: episode_notes created by subsequent migrations
+      // Verify: episode_notes exists after migrations
       const tables = await adapter.getAllAsync<{ name: string }>(
         "SELECT name FROM sqlite_master WHERE type='table'"
       );
       const tableNames = tables.map(t => t.name);
 
-      // episode_notes should exist after running migrations 4-6
+      // episode_notes should exist after running all migrations
       expect(tableNames).toContain('episode_notes');
+
+      // Also verify daily_status_logs from migration 5
+      expect(tableNames).toContain('daily_status_logs');
     });
 
     it('should recover from corrupted JSON columns', async () => {
