@@ -35,13 +35,11 @@ const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </ThemeProvider>
 );
 
-const mockRoute = {
-  key: 'daily-status-prompt',
-  name: 'DailyStatusPrompt' as const,
-  params: {
-    targetDate: '2024-01-15',
-  },
-};
+    const mockRoute = {
+      key: 'DailyStatusPrompt',
+      name: 'DailyStatusPrompt' as const,
+      params: { date: '2025-01-15' },
+    };
 
 describe('DailyStatusPromptScreen', () => {
   beforeEach(() => {
