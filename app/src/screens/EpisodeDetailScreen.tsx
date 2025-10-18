@@ -7,9 +7,9 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/types';
 import { useEpisodeStore } from '../store/episodeStore';
-import { episodeRepository, intensityRepository, symptomLogRepository, episodeNoteRepository } from '../database/episodeRepository';
+import { episodeRepository, intensityRepository, symptomLogRepository, episodeNoteRepository, painLocationLogRepository } from '../database/episodeRepository';
 import { medicationDoseRepository, medicationRepository } from '../database/medicationRepository';
-import { Episode, IntensityReading, SymptomLog, MedicationDose, Medication, EpisodeNote } from '../models/types';
+import { Episode, IntensityReading, SymptomLog, MedicationDose, Medication, EpisodeNote, PainLocationLog, PainLocation } from '../models/types';
 import { format, differenceInMinutes } from 'date-fns';
 import { getPainColor, getPainLevel } from '../utils/painScale';
 import { validateEpisodeEndTime } from '../utils/episodeValidation';
@@ -32,14 +32,27 @@ type SymptomChange = {
 type TimelineEvent = {
   id: string;
   timestamp: number;
-  type: 'intensity' | 'note' | 'medication' | 'symptom' | 'symptom_initial' | 'end';
-  data: IntensityReading | EpisodeNote | MedicationDoseWithDetails | SymptomLog | SymptomChange[] | null;
+  type: 'intensity' | 'note' | 'medication' | 'symptom' | 'symptom_initial' | 'pain_location' | 'end';
+  data: IntensityReading | EpisodeNote | MedicationDoseWithDetails | SymptomLog | SymptomChange[] | PainLocationLog | null;
 };
 
 type GroupedTimelineEvent = {
   timestamp: number;
   events: TimelineEvent[];
 };
+
+const PAIN_LOCATIONS: { value: PainLocation; label: string }[] = [
+  { value: 'left_eye', label: 'Left Eye' },
+  { value: 'right_eye', label: 'Right Eye' },
+  { value: 'left_temple', label: 'Left Temple' },
+  { value: 'right_temple', label: 'Right Temple' },
+  { value: 'left_neck', label: 'Left Neck' },
+  { value: 'right_neck', label: 'Right Neck' },
+  { value: 'left_head', label: 'Left Head' },
+  { value: 'right_head', label: 'Right Head' },
+  { value: 'left_teeth', label: 'Left Teeth' },
+  { value: 'right_teeth', label: 'Right Teeth' },
+];
 
 const createStyles = (theme: ThemeColors) => StyleSheet.create({
   container: {
@@ -530,6 +543,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   const [episode, setEpisode] = useState<Episode | null>(null);
   const [intensityReadings, setIntensityReadings] = useState<IntensityReading[]>([]);
   const [symptomLogs, setSymptomLogs] = useState<SymptomLog[]>([]);
+  const [painLocationLogs, setPainLocationLogs] = useState<PainLocationLog[]>([]);
   const [medications, setMedications] = useState<MedicationDoseWithDetails[]>([]);
   const [episodeNotes, setEpisodeNotes] = useState<EpisodeNote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -546,10 +560,11 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
 
   const loadEpisodeData = async () => {
     try {
-      const [ep, readings, symptoms, meds, notes] = await Promise.all([
+      const [ep, readings, symptoms, painLocs, meds, notes] = await Promise.all([
         episodeRepository.getById(episodeId),
         intensityRepository.getByEpisodeId(episodeId),
         symptomLogRepository.getByEpisodeId(episodeId),
+        painLocationLogRepository.getByEpisodeId(episodeId),
         medicationDoseRepository.getByEpisodeId(episodeId),
         episodeNoteRepository.getByEpisodeId(episodeId),
       ]);
@@ -565,6 +580,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
       setEpisode(ep);
       setIntensityReadings(readings);
       setSymptomLogs(symptoms);
+      setPainLocationLogs(painLocs);
       setMedications(medsWithDetails);
       setEpisodeNotes(notes);
 
@@ -716,6 +732,16 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
       });
     });
 
+    // Add pain location logs (changes in pain location areas over time)
+    painLocationLogs.forEach(painLoc => {
+      events.push({
+        id: `pain-location-${painLoc.id}`,
+        timestamp: painLoc.timestamp,
+        type: 'pain_location',
+        data: painLoc,
+      });
+    });
+
     // Add medications - only show rescue medications or skipped scheduled medications
     // Exclude preventative medications that were taken as scheduled
     medications.forEach(med => {
@@ -863,6 +889,19 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
       case 'symptom_initial':
         // Symptoms are now rendered grouped in renderGroupedTimelineEvent
         return null;
+
+      case 'pain_location':
+        const painLoc = event.data as PainLocationLog;
+        const locationLabels = painLoc.painLocations.map(loc => {
+          const location = PAIN_LOCATIONS.find(l => l.value === loc);
+          return location?.label || loc;
+        }).join(', ');
+        return (
+          <View key={event.id} style={{ marginBottom: 12 }}>
+            <Text style={styles.timelineEventTitle}>Pain Location Changed</Text>
+            <Text style={styles.timelineEventContent}>{locationLabels}</Text>
+          </View>
+        );
 
       case 'medication':
         const dose = event.data as MedicationDoseWithDetails;

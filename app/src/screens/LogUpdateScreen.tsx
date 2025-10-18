@@ -14,8 +14,8 @@ import {
 import Slider from '@react-native-community/slider';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { intensityRepository, symptomLogRepository, episodeNoteRepository, episodeRepository } from '../database/episodeRepository';
-import { Symptom } from '../models/types';
+import { intensityRepository, symptomLogRepository, episodeNoteRepository, episodeRepository, painLocationLogRepository } from '../database/episodeRepository';
+import { Symptom, PainLocation } from '../models/types';
 import { getPainColor, getPainLevel } from '../utils/painScale';
 import { useTheme, ThemeColors } from '../theme';
 
@@ -31,6 +31,19 @@ const SYMPTOMS: { value: Symptom; label: string }[] = [
   { value: 'smell_sensitivity', label: 'Smell Sensitivity' },
   { value: 'dizziness', label: 'Dizziness' },
   { value: 'confusion', label: 'Confusion' },
+];
+
+const PAIN_LOCATIONS: { value: PainLocation; label: string }[] = [
+  { value: 'left_eye', label: 'Left Eye' },
+  { value: 'right_eye', label: 'Right Eye' },
+  { value: 'left_temple', label: 'Left Temple' },
+  { value: 'right_temple', label: 'Right Temple' },
+  { value: 'left_neck', label: 'Left Neck' },
+  { value: 'right_neck', label: 'Right Neck' },
+  { value: 'left_head', label: 'Left Head' },
+  { value: 'right_head', label: 'Right Head' },
+  { value: 'left_teeth', label: 'Left Teeth' },
+  { value: 'right_teeth', label: 'Right Teeth' },
 ];
 
 const createStyles = (theme: ThemeColors) => StyleSheet.create({
@@ -171,6 +184,8 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
   const [intensityChanged, setIntensityChanged] = useState(false);
   const [currentSymptoms, setCurrentSymptoms] = useState<Symptom[]>([]);
   const [initialSymptoms, setInitialSymptoms] = useState<Symptom[]>([]);
+  const [currentPainLocations, setCurrentPainLocations] = useState<PainLocation[]>([]);
+  const [initialPainLocations, setInitialPainLocations] = useState<PainLocation[]>([]);
   const [noteText, setNoteText] = useState('');
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -237,6 +252,20 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
       }
       setCurrentSymptoms(symptomsToSet);
       setInitialSymptoms(symptomsToSet);
+
+      // Get latest pain locations (areas where pain is felt)
+      const painLocationLogs = await painLocationLogRepository.getByEpisodeId(episodeId);
+      let painLocationsToSet: PainLocation[] = [];
+      if (painLocationLogs.length > 0) {
+        // Get the most recent pain location log
+        const latestLog = painLocationLogs[painLocationLogs.length - 1];
+        painLocationsToSet = latestLog.painLocations;
+      } else if (episode) {
+        // Use initial pain locations from episode
+        painLocationsToSet = episode.locations; // TODO: This will be episode.painLocations after full migration
+      }
+      setCurrentPainLocations(painLocationsToSet);
+      setInitialPainLocations(painLocationsToSet);
     } catch (error) {
       console.error('Failed to load latest data:', error);
     } finally {
@@ -257,14 +286,27 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
     );
   };
 
+  const togglePainLocation = (painLocation: PainLocation) => {
+    setCurrentPainLocations(prev =>
+      prev.includes(painLocation)
+        ? prev.filter(l => l !== painLocation)
+        : [...prev, painLocation]
+    );
+  };
+
   const handleSave = async () => {
     // Check if symptoms have changed
     const symptomsChanged =
       currentSymptoms.length !== initialSymptoms.length ||
       !currentSymptoms.every(s => initialSymptoms.includes(s));
 
+    // Check if pain locations have changed
+    const painLocationsChanged =
+      currentPainLocations.length !== initialPainLocations.length ||
+      !currentPainLocations.every(l => initialPainLocations.includes(l));
+
     // Check if anything was actually changed
-    if (!intensityChanged && !symptomsChanged && !noteText.trim()) {
+    if (!intensityChanged && !symptomsChanged && !painLocationsChanged && !noteText.trim()) {
       Alert.alert('No Changes', 'Please make at least one change to log an update');
       return;
     }
@@ -293,6 +335,15 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
             })
           )
         );
+      }
+
+      // Log pain locations if they changed
+      if (painLocationsChanged) {
+        await painLocationLogRepository.create({
+          episodeId,
+          timestamp,
+          painLocations: currentPainLocations,
+        });
       }
 
       // Add note if provided
@@ -403,6 +454,33 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
                     isSelected && styles.chipTextSelected,
                   ]}>
                     {symptom.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Pain Locations */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Pain Locations</Text>
+          <View style={styles.chipContainer}>
+            {PAIN_LOCATIONS.map(location => {
+              const isSelected = currentPainLocations.includes(location.value);
+              return (
+                <TouchableOpacity
+                  key={location.value}
+                  style={[
+                    styles.chip,
+                    isSelected && styles.chipSelected,
+                  ]}
+                  onPress={() => togglePainLocation(location.value)}
+                >
+                  <Text style={[
+                    styles.chipText,
+                    isSelected && styles.chipTextSelected,
+                  ]}>
+                    {location.label}
                   </Text>
                 </TouchableOpacity>
               );
