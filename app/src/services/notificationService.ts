@@ -1,7 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { Medication, MedicationSchedule } from '../models/types';
-import { medicationRepository, medicationDoseRepository } from '../database/medicationRepository';
+import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../database/medicationRepository';
 
 // Configure notification behavior
 Notifications.setNotificationHandler({
@@ -15,6 +15,7 @@ Notifications.setNotificationHandler({
 
 // Notification categories for action buttons
 const MEDICATION_REMINDER_CATEGORY = 'MEDICATION_REMINDER';
+const MULTIPLE_MEDICATION_REMINDER_CATEGORY = 'MULTIPLE_MEDICATION_REMINDER';
 
 export interface NotificationPermissions {
   granted: boolean;
@@ -49,6 +50,7 @@ class NotificationService {
    * Register notification categories with action buttons
    */
   private async registerCategories(): Promise<void> {
+    // Single medication reminder
     await Notifications.setNotificationCategoryAsync(
       MEDICATION_REMINDER_CATEGORY,
       [
@@ -68,6 +70,34 @@ class NotificationService {
         },
       ]
     );
+
+    // Multiple medications reminder
+    await Notifications.setNotificationCategoryAsync(
+      MULTIPLE_MEDICATION_REMINDER_CATEGORY,
+      [
+        {
+          identifier: 'TAKE_ALL_NOW',
+          buttonTitle: '✓ Take All',
+          options: {
+            opensAppToForeground: false,
+          },
+        },
+        {
+          identifier: 'REMIND_LATER',
+          buttonTitle: 'Remind Later',
+          options: {
+            opensAppToForeground: false,
+          },
+        },
+        {
+          identifier: 'VIEW_DETAILS',
+          buttonTitle: 'View Details',
+          options: {
+            opensAppToForeground: true,
+          },
+        },
+      ]
+    );
   }
 
   /**
@@ -77,23 +107,43 @@ class NotificationService {
     // Handle notification response (tap or action button)
     Notifications.addNotificationResponseReceivedListener(async (response) => {
       const { actionIdentifier, notification } = response;
-      const { medicationId, scheduleId } = notification.request.content.data as {
-        medicationId: string;
-        scheduleId: string;
+      const data = notification.request.content.data as {
+        medicationId?: string;
+        medicationIds?: string[];
+        scheduleId?: string;
+        scheduleIds?: string[];
+        time?: string;
       };
 
       console.log('[Notification] Response received:', {
         actionIdentifier,
-        medicationId,
-        scheduleId,
+        data,
       });
 
       switch (actionIdentifier) {
         case 'TAKE_NOW':
-          await this.handleTakeNow(medicationId, scheduleId);
+          if (data.medicationId && data.scheduleId) {
+            await this.handleTakeNow(data.medicationId, data.scheduleId);
+          }
           break;
         case 'SNOOZE_10':
-          await this.handleSnooze(medicationId, scheduleId, 10);
+          if (data.medicationId && data.scheduleId) {
+            await this.handleSnooze(data.medicationId, data.scheduleId, 10);
+          }
+          break;
+        case 'TAKE_ALL_NOW':
+          if (data.medicationIds && data.scheduleIds) {
+            await this.handleTakeAllNow(data.medicationIds, data.scheduleIds);
+          }
+          break;
+        case 'REMIND_LATER':
+          if (data.medicationIds && data.scheduleIds && data.time) {
+            await this.handleRemindLater(data.medicationIds, data.scheduleIds, data.time, 10);
+          }
+          break;
+        case 'VIEW_DETAILS':
+          // This will be handled by navigation in the app
+          console.log('[Notification] View details tapped, opening app');
           break;
         default:
           // User tapped notification - let app navigation handle it
@@ -181,6 +231,103 @@ class NotificationService {
   }
 
   /**
+   * Handle "Take All Now" action - log all medications immediately
+   */
+  private async handleTakeAllNow(
+    medicationIds: string[],
+    scheduleIds: string[]
+  ): Promise<void> {
+    try {
+      const results: string[] = [];
+
+      for (let i = 0; i < medicationIds.length; i++) {
+        const medicationId = medicationIds[i];
+        const scheduleId = scheduleIds[i];
+
+        const medication = await medicationRepository.getById(medicationId);
+        if (!medication) {
+          console.error('[Notification] Medication not found:', medicationId);
+          continue;
+        }
+
+        // Find the schedule to get the dosage
+        const schedule = medication.schedule?.find(s => s.id === scheduleId);
+        const dosage = schedule?.dosage ?? medication.defaultDosage ?? 1;
+
+        // Log the dose
+        await medicationDoseRepository.create({
+          medicationId,
+          timestamp: Date.now(),
+          amount: dosage,
+          notes: 'Logged from notification',
+        });
+
+        results.push(`${medication.name} - ${dosage} dose(s)`);
+        console.log('[Notification] Medication logged:', {
+          medicationId,
+          dosage,
+        });
+      }
+
+      // Show success notification
+      if (results.length > 0) {
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: 'Medications Logged',
+            body: results.join('\n'),
+          },
+          trigger: null, // Show immediately
+        });
+      }
+    } catch (error) {
+      console.error('[Notification] Error logging medications:', error);
+    }
+  }
+
+  /**
+   * Handle "Remind Later" action - reschedule grouped notification
+   */
+  private async handleRemindLater(
+    medicationIds: string[],
+    scheduleIds: string[],
+    originalTime: string,
+    minutes: number
+  ): Promise<void> {
+    try {
+      const medications = await Promise.all(
+        medicationIds.map(id => medicationRepository.getById(id))
+      );
+
+      const validMedications = medications.filter(m => m !== null) as Medication[];
+      if (validMedications.length === 0) return;
+
+      // Schedule a new notification in X minutes
+      const snoozeTime = new Date(Date.now() + minutes * 60 * 1000);
+
+      const medicationNames = validMedications.map(m => m.name).join(', ');
+      const medicationCount = validMedications.length;
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `Reminder: ${medicationCount} Medications`,
+          body: `Time to take: ${medicationNames}`,
+          data: {
+            medicationIds,
+            scheduleIds,
+            time: originalTime,
+          },
+          categoryIdentifier: MULTIPLE_MEDICATION_REMINDER_CATEGORY,
+        },
+        trigger: snoozeTime as any, // Type assertion for Date trigger
+      });
+
+      console.log('[Notification] Reminder snoozed for', minutes, 'minutes');
+    } catch (error) {
+      console.error('[Notification] Error snoozing reminder:', error);
+    }
+  }
+
+  /**
    * Request notification permissions from the user
    */
   async requestPermissions(): Promise<NotificationPermissions> {
@@ -228,34 +375,72 @@ class NotificationService {
   }
 
   /**
-   * Schedule a notification for a medication schedule
+   * Schedule grouped notifications for all medications
+   * Groups medications by their schedule time and creates a single notification per time slot
    */
-  async scheduleNotification(
+  async scheduleGroupedNotifications(
+    medications: Array<{ medication: Medication; schedule: MedicationSchedule }>
+  ): Promise<Map<string, string>> {
+    // Map of schedule time -> notification ID
+    const notificationIds = new Map<string, string>();
+
+    try {
+      // Group by time
+      const grouped = new Map<string, Array<{ medication: Medication; schedule: MedicationSchedule }>>();
+
+      for (const item of medications) {
+        if (!item.schedule.enabled) {
+          console.log('[Notification] Schedule disabled, skipping:', item.schedule.id);
+          continue;
+        }
+
+        const time = item.schedule.time;
+        if (!grouped.has(time)) {
+          grouped.set(time, []);
+        }
+        grouped.get(time)!.push(item);
+      }
+
+      // Schedule notifications for each time group
+      for (const [time, items] of grouped.entries()) {
+        if (items.length === 1) {
+          // Single medication - use single notification
+          const { medication, schedule } = items[0];
+          const notificationId = await this.scheduleSingleNotification(medication, schedule);
+          if (notificationId) {
+            notificationIds.set(schedule.id, notificationId);
+          }
+        } else {
+          // Multiple medications - use grouped notification
+          const notificationId = await this.scheduleMultipleNotification(items, time);
+          if (notificationId) {
+            // Store the same notification ID for all schedules in this group
+            for (const { schedule } of items) {
+              notificationIds.set(schedule.id, notificationId);
+            }
+          }
+        }
+      }
+
+      return notificationIds;
+    } catch (error) {
+      console.error('[Notification] Error scheduling grouped notifications:', error);
+      return notificationIds;
+    }
+  }
+
+  /**
+   * Schedule a notification for a single medication schedule
+   */
+  private async scheduleSingleNotification(
     medication: Medication,
     schedule: MedicationSchedule
   ): Promise<string | null> {
     try {
-      if (!schedule.enabled) {
-        console.log('[Notification] Schedule disabled, skipping:', schedule.id);
-        return null;
-      }
-
       // Parse the time (HH:mm format)
       const [hours, minutes] = schedule.time.split(':').map(Number);
 
-      console.log('[Notification] Scheduling daily notification for', hours, ':', minutes);
-
-      // Calculate the next occurrence of this time
-      const now = new Date();
-      const scheduledDate = new Date();
-      scheduledDate.setHours(hours, minutes, 0, 0);
-
-      // If the time has already passed today, schedule for tomorrow
-      if (scheduledDate <= now) {
-        scheduledDate.setDate(scheduledDate.getDate() + 1);
-      }
-
-      console.log('[Notification] First notification will fire at:', scheduledDate.toLocaleString());
+      console.log('[Notification] Scheduling single medication for', hours, ':', minutes);
 
       const notificationId = await Notifications.scheduleNotificationAsync({
         content: {
@@ -278,9 +463,69 @@ class NotificationService {
       console.log('[Notification] Scheduled for', medication.name, 'at', schedule.time);
       return notificationId;
     } catch (error) {
-      console.error('[Notification] Error scheduling notification:', error);
+      console.error('[Notification] Error scheduling single notification:', error);
       return null;
     }
+  }
+
+  /**
+   * Schedule a grouped notification for multiple medications at the same time
+   */
+  private async scheduleMultipleNotification(
+    items: Array<{ medication: Medication; schedule: MedicationSchedule }>,
+    time: string
+  ): Promise<string | null> {
+    try {
+      // Parse the time (HH:mm format)
+      const [hours, minutes] = time.split(':').map(Number);
+
+      const medicationNames = items.map(({ medication }) => medication.name).join(', ');
+      const medicationCount = items.length;
+      const medicationIds = items.map(({ medication }) => medication.id);
+      const scheduleIds = items.map(({ schedule }) => schedule.id);
+
+      console.log('[Notification] Scheduling combined notification for', medicationCount, 'medications at', time);
+
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `Time for ${medicationCount} Medications`,
+          body: medicationNames,
+          data: {
+            medicationIds,
+            scheduleIds,
+            time,
+          },
+          categoryIdentifier: MULTIPLE_MEDICATION_REMINDER_CATEGORY,
+          sound: true,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour: hours,
+          minute: minutes,
+        },
+      });
+
+      console.log('[Notification] Scheduled combined notification for', medicationCount, 'medications at', time);
+      return notificationId;
+    } catch (error) {
+      console.error('[Notification] Error scheduling combined notification:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Schedule a notification for a medication schedule (legacy method, now uses grouped scheduling)
+   * @deprecated Use scheduleGroupedNotifications instead for better grouping support
+   */
+  async scheduleNotification(
+    medication: Medication,
+    schedule: MedicationSchedule
+  ): Promise<string | null> {
+    if (!schedule.enabled) {
+      console.log('[Notification] Schedule disabled, skipping:', schedule.id);
+      return null;
+    }
+    return this.scheduleSingleNotification(medication, schedule);
   }
 
   /**
@@ -328,6 +573,46 @@ class NotificationService {
   async cancelAllNotifications(): Promise<void> {
     await Notifications.cancelAllScheduledNotificationsAsync();
     console.log('[Notification] Cancelled all notifications');
+  }
+
+  /**
+   * Reschedule all medication notifications with grouping
+   * This should be called after any medication schedule changes
+   */
+  async rescheduleAllMedicationNotifications(): Promise<void> {
+    try {
+      // Cancel all existing medication notifications
+      await this.cancelAllNotifications();
+
+      // Get all active medications with schedules
+      const medications = await medicationRepository.getActive();
+      const items: Array<{ medication: Medication; schedule: MedicationSchedule }> = [];
+
+      for (const medication of medications) {
+        if (medication.type === 'preventative' && medication.scheduleFrequency === 'daily') {
+          const schedules = await medicationScheduleRepository.getByMedicationId(medication.id);
+          for (const schedule of schedules) {
+            if (schedule.enabled) {
+              items.push({ medication, schedule });
+            }
+          }
+        }
+      }
+
+      // Schedule grouped notifications
+      const notificationIds = await this.scheduleGroupedNotifications(items);
+
+      // Update schedules with notification IDs
+      for (const [scheduleId, notificationId] of notificationIds.entries()) {
+        await medicationScheduleRepository.update(scheduleId, {
+          notificationId,
+        });
+      }
+
+      console.log('[Notification] Rescheduled all medication notifications with grouping:', notificationIds.size);
+    } catch (error) {
+      console.error('[Notification] Error rescheduling all notifications:', error);
+    }
   }
 }
 
