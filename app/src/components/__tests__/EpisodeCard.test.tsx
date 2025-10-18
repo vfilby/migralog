@@ -32,6 +32,8 @@ describe('EpisodeCard', () => {
     symptoms: ['nausea', 'light_sensitivity'],
     triggers: ['stress'],
     notes: 'Started after stressful meeting',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
   };
 
   beforeEach(() => {
@@ -148,7 +150,11 @@ describe('EpisodeCard', () => {
     it('should display geocoded location', async () => {
       const episodeWithLocation = {
         ...baseEpisode,
-        location: { latitude: 37.7749, longitude: -122.4194 },
+        location: { 
+          latitude: 37.7749, 
+          longitude: -122.4194,
+          timestamp: Date.now(),
+        },
       };
 
       (locationService.reverseGeocode as jest.Mock).mockResolvedValue('San Francisco, CA');
@@ -164,7 +170,11 @@ describe('EpisodeCard', () => {
     it('should handle geocoding failure', async () => {
       const episodeWithLocation = {
         ...baseEpisode,
-        location: { latitude: 37.7749, longitude: -122.4194 },
+        location: { 
+          latitude: 37.7749, 
+          longitude: -122.4194,
+          timestamp: Date.now(),
+        },
       };
 
       (locationService.reverseGeocode as jest.Mock).mockRejectedValue(new Error('Failed'));
@@ -186,6 +196,8 @@ describe('EpisodeCard', () => {
         qualities: [],
         symptoms: [],
         triggers: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       };
 
       renderWithTheme(<EpisodeCard episode={minimalEpisode} />);
@@ -241,7 +253,11 @@ describe('EpisodeCard', () => {
     it('should display geocoded location', async () => {
       const episodeWithLocation = {
         ...baseEpisode,
-        location: { latitude: 37.7749, longitude: -122.4194 },
+        location: { 
+          latitude: 37.7749, 
+          longitude: -122.4194,
+          timestamp: Date.now(),
+        },
       };
 
       (locationService.reverseGeocode as jest.Mock).mockResolvedValue('San Francisco, CA');

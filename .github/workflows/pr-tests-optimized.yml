@@ -56,11 +56,12 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   # Job 2: Build iOS App
-  # Runs in parallel with fast-checks
+  # Depends on fast-checks (must pass first)
   # Creates reusable build artifact to avoid rebuilding on test retry
   build-ios:
     name: Build iOS App
     runs-on: macos-14
+    needs: [fast-checks]
     defaults:
       run:
         working-directory: ./app
