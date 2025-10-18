@@ -3,6 +3,7 @@ import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { Platform } from 'react-native';
 import * as SQLite from 'expo-sqlite';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { episodeRepository, episodeNoteRepository, intensityRepository } from '../database/episodeRepository';
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../database/medicationRepository';
 import { dailyStatusRepository } from '../database/dailyStatusRepository';
@@ -33,8 +34,10 @@ export interface BackupData {
 }
 
 const BACKUP_DIR = `${FileSystem.documentDirectory}backups/`;
-const MAX_AUTO_BACKUPS = 5;
+const MAX_AUTO_BACKUPS = 7; // Keep last 7 automatic backups (weekly backups for ~2 months)
+const WEEKLY_BACKUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 const APP_VERSION = '1.0.0'; // TODO: Get from app.json
+const LAST_WEEKLY_BACKUP_KEY = '@MigraLog:lastWeeklyBackup';
 
 class BackupService {
   async initialize(): Promise<void> {
@@ -705,12 +708,95 @@ class BackupService {
           .sort((a, b) => b.timestamp - a.timestamp)
           .slice(MAX_AUTO_BACKUPS);
 
+        console.log(`[Backup] Cleaning up ${toDelete.length} old automatic backups (keeping ${MAX_AUTO_BACKUPS} most recent)`);
         for (const backup of toDelete) {
           await this.deleteBackup(backup.id);
+          console.log(`[Backup] Deleted old backup: ${backup.id}`);
         }
       }
     } catch (error) {
       console.error('Failed to cleanup old backups:', error);
+    }
+  }
+
+  /**
+   * Check if a weekly backup is needed and create one if so
+   * This should be called on app startup to ensure weekly backups happen automatically
+   *
+   * Weekly backups are stored using the same automatic backup system,
+   * so they're included in the MAX_AUTO_BACKUPS retention policy (keeps last 7)
+   */
+  async checkAndCreateWeeklyBackup(db?: SQLite.SQLiteDatabase): Promise<BackupMetadata | null> {
+    try {
+      console.log('[Backup] Checking if weekly backup is needed...');
+
+      // Get last weekly backup timestamp
+      const lastBackupTime = await AsyncStorage.getItem(LAST_WEEKLY_BACKUP_KEY);
+      const lastBackupTimestamp = lastBackupTime ? parseInt(lastBackupTime, 10) : 0;
+      const now = Date.now();
+      const timeSinceLastBackup = now - lastBackupTimestamp;
+
+      console.log('[Backup] Last weekly backup:', lastBackupTimestamp ? new Date(lastBackupTimestamp).toISOString() : 'never');
+      console.log('[Backup] Time since last backup:', Math.floor(timeSinceLastBackup / (24 * 60 * 60 * 1000)), 'days');
+
+      if (timeSinceLastBackup >= WEEKLY_BACKUP_INTERVAL_MS) {
+        console.log('[Backup] Weekly backup needed, creating...');
+
+        // Create automatic backup
+        const metadata = await this.createBackup(true, db);
+
+        // Update last backup timestamp
+        await AsyncStorage.setItem(LAST_WEEKLY_BACKUP_KEY, now.toString());
+
+        console.log('[Backup] Weekly backup created successfully:', metadata.id);
+        return metadata;
+      } else {
+        const daysUntilNext = Math.ceil((WEEKLY_BACKUP_INTERVAL_MS - timeSinceLastBackup) / (24 * 60 * 60 * 1000));
+        console.log(`[Backup] No weekly backup needed. Next backup in ${daysUntilNext} days`);
+        return null;
+      }
+    } catch (error) {
+      console.error('[Backup] Failed to check/create weekly backup:', error);
+      // Don't throw - weekly backup failure shouldn't crash the app
+      return null;
+    }
+  }
+
+  /**
+   * Get the timestamp of the last weekly backup
+   */
+  async getLastWeeklyBackupTime(): Promise<number> {
+    try {
+      const lastBackupTime = await AsyncStorage.getItem(LAST_WEEKLY_BACKUP_KEY);
+      return lastBackupTime ? parseInt(lastBackupTime, 10) : 0;
+    } catch (error) {
+      console.error('[Backup] Failed to get last weekly backup time:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Get the number of days until the next weekly backup
+   */
+  async getDaysUntilNextWeeklyBackup(): Promise<number> {
+    try {
+      const lastBackupTime = await this.getLastWeeklyBackupTime();
+      if (lastBackupTime === 0) {
+        return 0; // Backup needed now
+      }
+
+      const now = Date.now();
+      const timeSinceLastBackup = now - lastBackupTime;
+      const timeUntilNextBackup = WEEKLY_BACKUP_INTERVAL_MS - timeSinceLastBackup;
+
+      if (timeUntilNextBackup <= 0) {
+        return 0; // Backup needed now
+      }
+
+      return Math.ceil(timeUntilNextBackup / (24 * 60 * 60 * 1000));
+    } catch (error) {
+      console.error('[Backup] Failed to calculate days until next backup:', error);
+      return 0;
     }
   }
 

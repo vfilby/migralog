@@ -96,6 +96,16 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
       console.log('[DB] No migrations needed');
     }
 
+    // Check and create weekly backup if needed (non-blocking)
+    try {
+      const { backupService } = await import('../services/backupService');
+      console.log('[DB] Checking for weekly backup...');
+      await backupService.checkAndCreateWeeklyBackup(db);
+    } catch (backupError) {
+      console.warn('[DB] Failed to check/create weekly backup:', backupError);
+      // Don't throw - weekly backup failure shouldn't prevent app from starting
+    }
+
       isInitialized = true;
       console.log('[DB] Database initialization complete');
       return db;
