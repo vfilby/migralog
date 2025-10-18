@@ -991,7 +991,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   const timeline = buildTimeline();
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="episode-detail-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backButton}>Back</Text>
