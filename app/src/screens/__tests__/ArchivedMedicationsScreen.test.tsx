@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, waitFor } from '@testing-library/react-native';
+import { render, waitFor, fireEvent } from '@testing-library/react-native';
 import ArchivedMedicationsScreen from '../ArchivedMedicationsScreen';
 import { ThemeProvider } from '../../theme/ThemeContext';
 
@@ -141,4 +141,22 @@ describe('ArchivedMedicationsScreen', () => {
       });
     });
   });
+
+  describe('Interactions', () => {
+    it('navigates back when back button is pressed', async () => {
+      const { getByText } = render(
+        <ArchivedMedicationsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        { wrapper: TestWrapper }
+      );
+
+      await waitFor(() => {
+        expect(getByText('Back')).toBeTruthy();
+      });
+
+      fireEvent.press(getByText('Back'));
+
+      expect(mockGoBack).toHaveBeenCalled();
+    });
+  });
+
 });

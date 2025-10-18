@@ -376,6 +376,158 @@ describe('SettingsScreen', () => {
     });
   });
 
+  describe('Location Settings', () => {
+    it('should request location permissions when Enable Location pressed', async () => {
+      (locationService.requestPermission as jest.Mock).mockResolvedValue(true);
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Enable Location')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Enable Location'));
+
+      await waitFor(() => {
+        expect(locationService.requestPermission).toHaveBeenCalled();
+        expect(Alert.alert).toHaveBeenCalledWith('Success', 'Location permission granted. The app will now capture your location when you start a new episode.');
+      });
+    });
+
+    it('should show alert when location permission denied', async () => {
+      (locationService.requestPermission as jest.Mock).mockResolvedValue(false);
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Enable Location')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Enable Location'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Permission Denied',
+          expect.stringContaining('location')
+        );
+      });
+    });
+  });
+
+  describe('Scheduled Notifications', () => {
+    it('should show no notifications message when none scheduled', async () => {
+      (notificationService.getPermissions as jest.Mock).mockResolvedValue({
+        granted: true,
+        canAskAgain: true,
+      });
+      (notificationService.getAllScheduledNotifications as jest.Mock).mockResolvedValue([]);
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('View Scheduled Notifications')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('View Scheduled Notifications'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith('No Notifications', 'No notifications are currently scheduled');
+      });
+    });
+
+    it('should display scheduled notifications list', async () => {
+      (notificationService.getPermissions as jest.Mock).mockResolvedValue({
+        granted: true,
+        canAskAgain: true,
+      });
+      (notificationService.getAllScheduledNotifications as jest.Mock).mockResolvedValue([
+        {
+          identifier: 'notif-1',
+          content: { title: 'Take Medication' },
+          trigger: { hour: 9, minute: 0, type: 'calendar' },
+        },
+        {
+          identifier: 'notif-2',
+          content: { title: 'Morning Dose' },
+          trigger: { hour: 13, minute: 30, type: 'calendar' },
+        },
+      ]);
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('View Scheduled Notifications')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('View Scheduled Notifications'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Scheduled Notifications (2)',
+          expect.stringContaining('Take Medication'),
+          expect.any(Array),
+          expect.any(Object)
+        );
+      });
+    });
+  });
+
+  describe('Database Management', () => {
+    it('should show confirmation before resetting database', async () => {
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('reset-database-button')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByTestId('reset-database-button'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Reset Database (Testing)',
+          expect.stringContaining('Clear ALL data'),
+          expect.arrayContaining([
+            expect.objectContaining({ text: 'Cancel' }),
+            expect.objectContaining({ text: 'Reset', style: 'destructive' })
+          ])
+        );
+      });
+    });
+
+    it('should show confirmation before resetting with test data', async () => {
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('reset-database-with-fixtures-button')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByTestId('reset-database-with-fixtures-button'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Reset with Test Data',
+          expect.stringContaining('Clear ALL data'),
+          expect.arrayContaining([
+            expect.objectContaining({ text: 'Cancel' }),
+            expect.objectContaining({ text: 'Reset & Load' })
+          ])
+        );
+      });
+    });
+  });
+
   describe('Error Handling', () => {
     beforeEach(() => {
       jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -422,6 +574,50 @@ describe('SettingsScreen', () => {
 
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalledWith('Error', expect.stringContaining('Failed to schedule test'));
+      });
+    });
+
+    it('should handle location permission request error', async () => {
+      (locationService.requestPermission as jest.Mock).mockRejectedValue(
+        new Error('Permission error')
+      );
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Enable Location')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Enable Location'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to request location permission');
+      });
+    });
+
+    it('should handle view scheduled notifications error', async () => {
+      (notificationService.getPermissions as jest.Mock).mockResolvedValue({
+        granted: true,
+        canAskAgain: true,
+      });
+      (notificationService.getAllScheduledNotifications as jest.Mock).mockRejectedValue(
+        new Error('Failed to fetch')
+      );
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('View Scheduled Notifications')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('View Scheduled Notifications'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to get scheduled notifications');
       });
     });
   });
