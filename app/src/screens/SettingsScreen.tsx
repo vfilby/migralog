@@ -284,7 +284,7 @@ export default function SettingsScreen({ navigation }: Props) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="settings-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backButton}>Done</Text>
