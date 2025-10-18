@@ -17,6 +17,8 @@ import { shouldShowMedicationInTimeline } from '../utils/timelineFilters';
 import { groupEventsByDay, groupEventsByTimestamp, DayGroup } from '../utils/timelineGrouping';
 import { locationService } from '../services/locationService';
 import { useTheme, ThemeColors } from '../theme';
+import IntensityGraph from '../components/IntensityGraph';
+import IntensitySparkline from '../components/IntensitySparkline';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EpisodeDetail'>;
 
@@ -1083,18 +1085,19 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
           {episode.peakIntensity !== undefined && (
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Peak Intensity:</Text>
-              <Text style={[styles.detailValue, { color: getPainColor(episode.peakIntensity), fontWeight: '600' }]}>
-                {episode.peakIntensity}/10 - {getPainLevel(episode.peakIntensity).label}
-              </Text>
-            </View>
-          )}
-
-          {episode.averageIntensity !== undefined && episode.averageIntensity !== null && (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Average Intensity:</Text>
-              <Text style={[styles.detailValue, { color: getPainColor(episode.averageIntensity), fontWeight: '600' }]}>
-                {episode.averageIntensity.toFixed(1)}/10 - {getPainLevel(episode.averageIntensity).label}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={[styles.detailValue, { color: getPainColor(episode.peakIntensity), fontWeight: '600' }]}>
+                  {episode.peakIntensity}/10 - {getPainLevel(episode.peakIntensity).label}
+                </Text>
+                {intensityReadings.length > 1 && (
+                  <IntensitySparkline
+                    intensityReadings={intensityReadings}
+                    peakIntensity={episode.peakIntensity}
+                    width={60}
+                    height={30}
+                  />
+                )}
+              </View>
             </View>
           )}
 
@@ -1187,6 +1190,22 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
                 </View>
               ))}
             </View>
+          </View>
+        )}
+
+        {/* Intensity Graph */}
+        {intensityReadings.length > 0 && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Intensity Over Time</Text>
+            <IntensityGraph
+              episodeId={episode.id}
+              intensityReadings={intensityReadings}
+              medicationDoses={medications}
+              medications={medications.map(m => m.medication).filter((m): m is Medication => m !== undefined)}
+              startTime={episode.startTime}
+              endTime={episode.endTime}
+              height={300}
+            />
           </View>
         )}
 
