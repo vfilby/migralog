@@ -37,9 +37,6 @@ describe('Medication Tracking UI', () => {
 
     console.log('On Dashboard');
 
-    // Wait for data to load after database reset (CI needs extra time)
-    await waitForAnimation(3000);
-
     // Check if "Today's Medications" card exists
     // Test fixtures should have loaded medications with schedules
     // CI runners are slower - give it 20 seconds
