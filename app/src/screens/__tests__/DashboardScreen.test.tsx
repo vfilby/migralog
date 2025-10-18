@@ -263,4 +263,173 @@ describe('DashboardScreen', () => {
       expect(mockLoadMedications).toHaveBeenCalled();
     });
   });
+
+  // User Interaction Tests
+  describe('User Interactions', () => {
+    it('should navigate to NewEpisode when Start Episode is pressed', async () => {
+      renderWithProviders(<DashboardScreen />);
+
+      await waitFor(() => {
+        const startButton = screen.getByTestId('start-episode-button');
+        expect(startButton).toBeTruthy();
+      });
+
+      const { fireEvent } = require('@testing-library/react-native');
+      fireEvent.press(screen.getByTestId('start-episode-button'));
+
+      expect(mockNavigate).toHaveBeenCalledWith('NewEpisode', {});
+    });
+
+    it('should navigate to Settings when settings button is pressed', async () => {
+      renderWithProviders(<DashboardScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('settings-button')).toBeTruthy();
+      });
+
+      const { fireEvent } = require('@testing-library/react-native');
+      fireEvent.press(screen.getByTestId('settings-button'));
+
+      expect(mockNavigate).toHaveBeenCalledWith('Settings');
+    });
+
+    it('should navigate to LogMedication with episodeId when Log Medication pressed during active episode', async () => {
+      (useEpisodeStore as unknown as jest.Mock).mockReturnValue({
+        currentEpisode: {
+          id: 'active-123',
+          startTime: Date.now(),
+          endTime: null,
+          peakIntensity: 5,
+          averageIntensity: 4,
+          locations: [],
+          qualities: [],
+          symptoms: [],
+          triggers: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+        episodes: [],
+        loading: false,
+        error: null,
+        loadCurrentEpisode: mockLoadCurrentEpisode,
+        loadEpisodes: mockLoadEpisodes,
+      });
+
+      (useMedicationStore as unknown as jest.Mock).mockReturnValue({
+        preventativeMedications: [],
+        rescueMedications: [{ id: 'med-1', name: 'Rescue', type: 'rescue', dosageAmount: 100, dosageUnit: 'mg', active: true, createdAt: Date.now(), updatedAt: Date.now() }],
+        schedules: [],
+        doses: [],
+        loading: false,
+        error: null,
+        loadMedications: mockLoadMedications,
+        loadSchedules: mockLoadSchedules,
+        loadRecentDoses: mockLoadRecentDoses,
+        logDose: mockLogDose,
+        deleteDose: mockDeleteDose,
+      });
+
+      renderWithProviders(<DashboardScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('log-medication-button')).toBeTruthy();
+      });
+
+      const { fireEvent } = require('@testing-library/react-native');
+      fireEvent.press(screen.getByTestId('log-medication-button'));
+
+      expect(mockNavigate).toHaveBeenCalledWith('LogMedication', { episodeId: 'active-123' });
+    });
+
+    it('should navigate to EpisodeDetail when active episode card is pressed', async () => {
+      (useEpisodeStore as unknown as jest.Mock).mockReturnValue({
+        currentEpisode: {
+          id: 'active-123',
+          startTime: Date.now(),
+          endTime: null,
+          peakIntensity: 5,
+          averageIntensity: 4,
+          locations: [],
+          qualities: [],
+          symptoms: [],
+          triggers: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+        episodes: [],
+        loading: false,
+        error: null,
+        loadCurrentEpisode: mockLoadCurrentEpisode,
+        loadEpisodes: mockLoadEpisodes,
+      });
+
+      renderWithProviders(<DashboardScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('active-episode-card')).toBeTruthy();
+      });
+
+      const { fireEvent } = require('@testing-library/react-native');
+      fireEvent.press(screen.getByTestId('active-episode-card'));
+
+      expect(mockNavigate).toHaveBeenCalledWith('EpisodeDetail', { episodeId: 'active-123' });
+    });
+  });
+
+  // Data Loading and Refresh Tests
+  describe('Data Loading', () => {
+    it('should load schedules and doses after loading medications', async () => {
+      renderWithProviders(<DashboardScreen />);
+
+      await waitFor(() => {
+        expect(mockLoadSchedules).toHaveBeenCalled();
+        expect(mockLoadRecentDoses).toHaveBeenCalledWith(1);
+      });
+    });
+
+    it('should display multiple recent episodes', async () => {
+      (useEpisodeStore as unknown as jest.Mock).mockReturnValue({
+        currentEpisode: null,
+        episodes: [
+          {
+            id: 'ep-1',
+            startTime: Date.now() - 86400000,
+            endTime: Date.now() - 82800000,
+            peakIntensity: 6,
+            averageIntensity: 4,
+            locations: [],
+            qualities: [],
+            symptoms: [],
+            triggers: [],
+            createdAt: Date.now() - 86400000,
+            updatedAt: Date.now() - 82800000,
+          },
+          {
+            id: 'ep-2',
+            startTime: Date.now() - 172800000,
+            endTime: Date.now() - 169200000,
+            peakIntensity: 7,
+            averageIntensity: 5,
+            locations: [],
+            qualities: [],
+            symptoms: [],
+            triggers: [],
+            createdAt: Date.now() - 172800000,
+            updatedAt: Date.now() - 169200000,
+          },
+        ],
+        loading: false,
+        error: null,
+        loadCurrentEpisode: mockLoadCurrentEpisode,
+        loadEpisodes: mockLoadEpisodes,
+      });
+
+      renderWithProviders(<DashboardScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('episode-card-ep-1')).toBeTruthy();
+        expect(screen.getByTestId('episode-card-ep-2')).toBeTruthy();
+      });
+    });
+  });
 });

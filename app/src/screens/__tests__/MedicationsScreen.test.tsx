@@ -268,4 +268,171 @@ describe('MedicationsScreen', () => {
       expect(screen.getByText('Rescue B')).toBeTruthy();
     });
   });
+
+  // User Interaction Tests
+  describe('User Interactions', () => {
+    const { fireEvent, within } = require('@testing-library/react-native');
+
+    it('should navigate to AddMedication when Add Medication button pressed', async () => {
+      renderWithProviders(<MedicationsScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('+ Add Medication')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('+ Add Medication'));
+      expect(mockNavigate).toHaveBeenCalledWith('AddMedication');
+    });
+
+    it('should navigate to MedicationDetail when medication card pressed', async () => {
+      (useMedicationStore as unknown as jest.Mock).mockReturnValue({
+        preventativeMedications: [{
+          id: 'prev-1',
+          name: 'Test Med',
+          type: 'preventative',
+          dosageAmount: 50,
+          dosageUnit: 'mg',
+          defaultDosage: 1,
+          active: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        }],
+        rescueMedications: [],
+        loadMedications: mockLoadMedications,
+        logDose: mockLogDose,
+        deleteDose: mockDeleteDose,
+        loading: false,
+      });
+
+      renderWithProviders(<MedicationsScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Med')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Test Med'));
+      expect(mockNavigate).toHaveBeenCalledWith('MedicationDetail', { medicationId: 'prev-1' });
+    });
+
+    it('should call logDose when Quick Log is pressed on rescue medication', async () => {
+      const Alert = require('react-native').Alert;
+      jest.spyOn(Alert, 'alert');
+
+      (useMedicationStore as unknown as jest.Mock).mockReturnValue({
+        preventativeMedications: [],
+        rescueMedications: [{
+          id: 'rescue-1',
+          name: 'Rescue Med',
+          type: 'rescue',
+          dosageAmount: 100,
+          dosageUnit: 'mg',
+          defaultDosage: 2,
+          active: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        }],
+        loadMedications: mockLoadMedications,
+        logDose: mockLogDose,
+        deleteDose: mockDeleteDose,
+        loading: false,
+      });
+
+      mockLogDose.mockResolvedValue({ id: 'dose-123' });
+
+      renderWithProviders(<MedicationsScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Quick Log')).toBeTruthy();
+      });
+
+      // Create a mock event with stopPropagation
+      const mockEvent = { stopPropagation: jest.fn() };
+      fireEvent(screen.getByText('Quick Log'), 'press', mockEvent);
+
+      await waitFor(() => {
+        expect(mockLogDose).toHaveBeenCalledWith({
+          medicationId: 'rescue-1',
+          timestamp: expect.any(Number),
+          amount: 2,
+          episodeId: undefined,
+        });
+        expect(Alert.alert).toHaveBeenCalledWith('Success', 'Medication logged successfully');
+      });
+    });
+
+    it('should navigate to LogMedication when Log Details pressed', async () => {
+      (useMedicationStore as unknown as jest.Mock).mockReturnValue({
+        preventativeMedications: [],
+        rescueMedications: [{
+          id: 'rescue-1',
+          name: 'Rescue Med',
+          type: 'rescue',
+          dosageAmount: 100,
+          dosageUnit: 'mg',
+          active: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        }],
+        loadMedications: mockLoadMedications,
+        logDose: mockLogDose,
+        deleteDose: mockDeleteDose,
+        loading: false,
+      });
+
+      renderWithProviders(<MedicationsScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Log Details')).toBeTruthy();
+      });
+
+      const mockEvent = { stopPropagation: jest.fn() };
+      fireEvent(screen.getByText('Log Details'), 'press', mockEvent);
+      expect(mockNavigate).toHaveBeenCalledWith('LogMedication', { medicationId: 'rescue-1' });
+    });
+  });
+
+  // Error Handling Tests
+  describe('Error Handling', () => {
+    const { fireEvent } = require('@testing-library/react-native');
+    const Alert = require('react-native').Alert;
+
+    it('should show error alert when Quick Log fails', async () => {
+      jest.spyOn(Alert, 'alert');
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      (useMedicationStore as unknown as jest.Mock).mockReturnValue({
+        preventativeMedications: [],
+        rescueMedications: [{
+          id: 'rescue-1',
+          name: 'Rescue Med',
+          type: 'rescue',
+          dosageAmount: 100,
+          dosageUnit: 'mg',
+          defaultDosage: 2,
+          active: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        }],
+        loadMedications: mockLoadMedications,
+        logDose: mockLogDose,
+        deleteDose: mockDeleteDose,
+        loading: false,
+      });
+
+      mockLogDose.mockRejectedValue(new Error('Network error'));
+
+      renderWithProviders(<MedicationsScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Quick Log')).toBeTruthy();
+      });
+
+      const mockEvent = { stopPropagation: jest.fn() };
+      fireEvent(screen.getByText('Quick Log'), 'press', mockEvent);
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to log medication');
+      });
+    });
+  });
 });

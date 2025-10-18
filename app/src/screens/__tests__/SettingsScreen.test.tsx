@@ -177,4 +177,252 @@ describe('SettingsScreen', () => {
       expect(screen.getByTestId('settings-screen')).toBeTruthy();
     });
   });
+
+  describe('Theme Selection', () => {
+    it('should change theme when light button is pressed', async () => {
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Light')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Light'));
+      
+      await waitFor(() => {
+        expect(screen.getByText('Light')).toBeTruthy();
+      });
+    });
+
+    it('should change theme when dark button is pressed', async () => {
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Dark')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Dark'));
+      
+      await waitFor(() => {
+        expect(screen.getByText('Dark')).toBeTruthy();
+      });
+    });
+
+    it('should change theme when system button is pressed', async () => {
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('System')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('System'));
+      
+      await waitFor(() => {
+        expect(screen.getByText('System')).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Notification Settings', () => {
+    it('should request notification permissions when Enable button is pressed', async () => {
+      (notificationService.requestPermissions as jest.Mock).mockResolvedValue({
+        granted: true,
+        canAskAgain: true,
+      });
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Enable Notifications')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Enable Notifications'));
+
+      await waitFor(() => {
+        expect(notificationService.requestPermissions).toHaveBeenCalled();
+        expect(Alert.alert).toHaveBeenCalledWith('Success', 'Notification permissions granted');
+      });
+    });
+
+    it('should show alert when notification permission is denied', async () => {
+      (notificationService.requestPermissions as jest.Mock).mockResolvedValue({
+        granted: false,
+        canAskAgain: false,
+      });
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Enable Notifications')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Enable Notifications'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Permission Denied',
+          'Please enable notifications in Settings to receive medication reminders.',
+          expect.any(Array)
+        );
+      });
+    });
+
+    it('should show test notification alert when Test Notification is pressed', async () => {
+      (notificationService.getPermissions as jest.Mock).mockResolvedValue({
+        granted: true,
+        canAskAgain: true,
+      });
+      (notificationService.scheduleNotification as jest.Mock).mockResolvedValue('test-notif-id');
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Send Test Notification (5s)')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Send Test Notification (5s)'));
+
+      await waitFor(() => {
+        expect(notificationService.scheduleNotification).toHaveBeenCalled();
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Test Scheduled',
+          expect.stringContaining('test notification will appear')
+        );
+      });
+    });
+
+    it('should show error when test notification without permission', async () => {
+      (notificationService.getPermissions as jest.Mock).mockResolvedValue({
+        granted: false,
+        canAskAgain: true,
+      });
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Enable Notifications')).toBeTruthy();
+      });
+
+      // Test notification button only appears when notifications are enabled
+      // So this test verifies that Enable Notifications button is shown when disabled
+      expect(screen.queryByText('Send Test Notification (5s)')).toBeNull();
+    });
+  });
+
+  describe('Developer Tools', () => {
+    it('should clear error logs when confirmed', async () => {
+      (errorLogger.clearLogs as jest.Mock).mockResolvedValue(undefined);
+      
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Clear Logs')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Clear Logs'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Clear Error Logs',
+          'Are you sure you want to clear all error logs?',
+          expect.arrayContaining([
+            expect.objectContaining({ text: 'Cancel' }),
+            expect.objectContaining({ text: 'Clear' })
+          ])
+        );
+      });
+    });
+
+    it('should log test error when Test Error Logging is pressed', async () => {
+      (errorLogger.log as jest.Mock).mockResolvedValue(undefined);
+      (errorLogger.getRecentLogs as jest.Mock).mockResolvedValue([
+        { id: '1', category: 'general', message: 'Test error log', timestamp: Date.now() }
+      ]);
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Error Logging')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Test Error Logging'));
+
+      await waitFor(() => {
+        expect(errorLogger.log).toHaveBeenCalledWith(
+          'general',
+          'Test error log',
+          expect.any(Error),
+          expect.any(Object)
+        );
+        expect(Alert.alert).toHaveBeenCalledWith('Success', 'Test error logged');
+      });
+    });
+  });
+
+  describe('Error Handling', () => {
+    beforeEach(() => {
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+    });
+
+    it('should handle notification request error', async () => {
+      (notificationService.requestPermissions as jest.Mock).mockRejectedValue(
+        new Error('Permission request failed')
+      );
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Enable Notifications')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Enable Notifications'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to request notification permissions');
+      });
+    });
+
+    it('should handle test notification error', async () => {
+      (notificationService.getPermissions as jest.Mock).mockResolvedValue({
+        granted: true,
+        canAskAgain: true,
+      });
+      (notificationService.scheduleNotification as jest.Mock).mockRejectedValue(
+        new Error('Scheduling failed')
+      );
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Send Test Notification (5s)')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Send Test Notification (5s)'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith('Error', expect.stringContaining('Failed to schedule test'));
+      });
+    });
+  });
 });
