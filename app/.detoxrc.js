@@ -4,6 +4,7 @@ module.exports = {
     args: {
       $0: 'jest',
       config: 'e2e/jest.config.js',
+      maxWorkers: 2, // Run tests in parallel with 2 workers
     },
     jest: {
       setupTimeout: 180000, // 3 minutes for CI environments

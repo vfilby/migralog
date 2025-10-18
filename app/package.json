@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
-    "start": "npm run generate-build-info && expo start",
+    "start": "npm run generate-build-info && expo start --dev-client",
     "android": "npm run generate-build-info && expo start --android",
     "ios": "npm run generate-build-info && expo start --ios",
     "web": "npm run generate-build-info && expo start --web",
@@ -14,7 +14,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:ci": "jest --ci --coverage --watchAll=false",
-    "test:e2e": "npx detox test --configuration ios.sim.debug",
+    "test:e2e": "npx detox test --configuration ios.sim.debug --maxWorkers 2",
     "test:e2e:build": "npm run generate-build-info && npx expo run:ios --configuration Debug --no-bundler",
     "test:e2e:start": "npm run generate-build-info && expo start"
   },
