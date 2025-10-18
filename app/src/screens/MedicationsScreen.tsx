@@ -405,7 +405,7 @@ export default function MedicationsScreen() {
 
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="medications-screen">
       <View style={styles.header}>
         <Text style={styles.title}>Medications</Text>
       </View>

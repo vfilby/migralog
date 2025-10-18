@@ -382,7 +382,7 @@ export default function AddMedicationScreen({ navigation }: Props) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="add-medication-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.cancelButton}>Cancel</Text>

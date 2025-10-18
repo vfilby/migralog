@@ -395,7 +395,7 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="log-medication-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.cancelButton}>Cancel</Text>

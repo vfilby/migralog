@@ -170,3 +170,15 @@ global.console = {
   error: jest.fn(),
   warn: jest.fn(),
 };
+
+// Extend Jest matchers for React Native Testing Library
+import '@testing-library/jest-native/extend-expect';
+
+// Mock @react-native-community/datetimepicker
+jest.mock('@react-native-community/datetimepicker', () => {
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
+    default: View,
+  };
+});

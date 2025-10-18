@@ -396,7 +396,7 @@ export default function DashboardScreen() {
   const styles = createStyles(theme);
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} testID="dashboard-screen">
       <View style={styles.header}>
         <Text style={styles.title} testID="dashboard-title">MigraLog</Text>
         <TouchableOpacity
