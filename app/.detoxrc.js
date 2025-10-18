@@ -58,4 +58,17 @@ module.exports = {
       app: 'ios.release',
     },
   },
+  artifacts: {
+    rootDir: './e2e/artifacts',
+    plugins: {
+      screenshot: {
+        shouldTakeAutomaticSnapshots: true,
+        keepOnlyFailedTestsArtifacts: false,
+        takeWhen: {
+          testStart: false,
+          testDone: true,
+        },
+      },
+    },
+  },
 };
