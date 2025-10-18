@@ -170,3 +170,6 @@ global.console = {
   error: jest.fn(),
   warn: jest.fn(),
 };
+
+// Extend Jest matchers for React Native Testing Library
+import '@testing-library/jest-native/extend-expect';

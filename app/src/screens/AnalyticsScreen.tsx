@@ -144,7 +144,7 @@ export default function AnalyticsScreen() {
   }, [episodes]);
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="analytics-screen">
       <View style={styles.header}>
         <Text style={styles.title}>Trends & Analytics</Text>
       </View>
