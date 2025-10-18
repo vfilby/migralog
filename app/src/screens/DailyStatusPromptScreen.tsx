@@ -241,7 +241,7 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="daily-status-prompt-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={handleSkip}>
           <Text style={styles.closeButton}>Close</Text>
