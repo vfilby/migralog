@@ -1,6 +1,6 @@
 // Database schema and initialization
 
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 export const createTables = `
   -- Episodes table
@@ -37,6 +37,16 @@ export const createTables = `
     onset_time INTEGER NOT NULL,
     resolution_time INTEGER,
     severity REAL,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE CASCADE
+  );
+
+  -- Pain location logs table (tracks changes in pain location areas over time)
+  CREATE TABLE IF NOT EXISTS pain_location_logs (
+    id TEXT PRIMARY KEY,
+    episode_id TEXT NOT NULL,
+    timestamp INTEGER NOT NULL,
+    pain_locations TEXT NOT NULL,  -- JSON array of PainLocation[] (e.g., ['left_temple', 'right_eye'])
     created_at INTEGER NOT NULL,
     FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE CASCADE
   );
@@ -113,6 +123,7 @@ export const createTables = `
   CREATE INDEX IF NOT EXISTS idx_episodes_start_time ON episodes(start_time);
   CREATE INDEX IF NOT EXISTS idx_intensity_readings_episode ON intensity_readings(episode_id);
   CREATE INDEX IF NOT EXISTS idx_symptom_logs_episode ON symptom_logs(episode_id);
+  CREATE INDEX IF NOT EXISTS idx_pain_location_logs_episode ON pain_location_logs(episode_id);
   CREATE INDEX IF NOT EXISTS idx_medication_doses_medication ON medication_doses(medication_id);
   CREATE INDEX IF NOT EXISTS idx_medication_doses_episode ON medication_doses(episode_id);
   CREATE INDEX IF NOT EXISTS idx_medication_doses_timestamp ON medication_doses(timestamp);

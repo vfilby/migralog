@@ -8,7 +8,7 @@ export type MedicationDoseWithDetails = MedicationDose & {
 export type TimelineEvent = {
   id: string;
   timestamp: number;
-  type: 'intensity' | 'note' | 'medication' | 'symptom' | 'symptom_initial' | 'end';
+  type: 'intensity' | 'note' | 'medication' | 'symptom' | 'symptom_initial' | 'pain_location' | 'end';
   data: any;
 };
 

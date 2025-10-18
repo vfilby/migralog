@@ -14,8 +14,8 @@ import {
 import Slider from '@react-native-community/slider';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { intensityRepository, symptomLogRepository, episodeNoteRepository, episodeRepository } from '../database/episodeRepository';
-import { Symptom } from '../models/types';
+import { intensityRepository, symptomLogRepository, episodeNoteRepository, episodeRepository, painLocationLogRepository } from '../database/episodeRepository';
+import { Symptom, PainLocation } from '../models/types';
 import { getPainColor, getPainLevel } from '../utils/painScale';
 import { useTheme, ThemeColors } from '../theme';
 
@@ -31,6 +31,19 @@ const SYMPTOMS: { value: Symptom; label: string }[] = [
   { value: 'smell_sensitivity', label: 'Smell Sensitivity' },
   { value: 'dizziness', label: 'Dizziness' },
   { value: 'confusion', label: 'Confusion' },
+];
+
+const PAIN_LOCATIONS: { value: PainLocation; label: string; side: 'left' | 'right' }[] = [
+  { value: 'left_eye', label: 'Eye', side: 'left' },
+  { value: 'left_temple', label: 'Temple', side: 'left' },
+  { value: 'left_neck', label: 'Neck', side: 'left' },
+  { value: 'left_head', label: 'Head', side: 'left' },
+  { value: 'left_teeth', label: 'Teeth', side: 'left' },
+  { value: 'right_eye', label: 'Eye', side: 'right' },
+  { value: 'right_temple', label: 'Temple', side: 'right' },
+  { value: 'right_neck', label: 'Neck', side: 'right' },
+  { value: 'right_head', label: 'Head', side: 'right' },
+  { value: 'right_teeth', label: 'Teeth', side: 'right' },
 ];
 
 const createStyles = (theme: ThemeColors) => StyleSheet.create({
@@ -129,6 +142,45 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   chipTextSelected: {
     color: theme.primaryText,
   },
+  locationContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  locationColumn: {
+    flex: 1,
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    padding: 12,
+  },
+  columnHeader: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.text,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  locationButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: theme.borderLight,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  locationButtonActive: {
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
+  },
+  locationText: {
+    fontSize: 15,
+    color: theme.text,
+    textAlign: 'center',
+  },
+  locationTextActive: {
+    color: theme.primaryText,
+    fontWeight: '600',
+  },
   noteInput: {
     backgroundColor: theme.card,
     borderRadius: 12,
@@ -171,6 +223,8 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
   const [intensityChanged, setIntensityChanged] = useState(false);
   const [currentSymptoms, setCurrentSymptoms] = useState<Symptom[]>([]);
   const [initialSymptoms, setInitialSymptoms] = useState<Symptom[]>([]);
+  const [currentPainLocations, setCurrentPainLocations] = useState<PainLocation[]>([]);
+  const [initialPainLocations, setInitialPainLocations] = useState<PainLocation[]>([]);
   const [noteText, setNoteText] = useState('');
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -237,6 +291,20 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
       }
       setCurrentSymptoms(symptomsToSet);
       setInitialSymptoms(symptomsToSet);
+
+      // Get latest pain locations (areas where pain is felt)
+      const painLocationLogs = await painLocationLogRepository.getByEpisodeId(episodeId);
+      let painLocationsToSet: PainLocation[] = [];
+      if (painLocationLogs.length > 0) {
+        // Get the most recent pain location log
+        const latestLog = painLocationLogs[painLocationLogs.length - 1];
+        painLocationsToSet = latestLog.painLocations;
+      } else if (episode) {
+        // Use initial pain locations from episode
+        painLocationsToSet = episode.locations; // TODO: This will be episode.painLocations after full migration
+      }
+      setCurrentPainLocations(painLocationsToSet);
+      setInitialPainLocations(painLocationsToSet);
     } catch (error) {
       console.error('Failed to load latest data:', error);
     } finally {
@@ -257,14 +325,27 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
     );
   };
 
+  const togglePainLocation = (painLocation: PainLocation) => {
+    setCurrentPainLocations(prev =>
+      prev.includes(painLocation)
+        ? prev.filter(l => l !== painLocation)
+        : [...prev, painLocation]
+    );
+  };
+
   const handleSave = async () => {
     // Check if symptoms have changed
     const symptomsChanged =
       currentSymptoms.length !== initialSymptoms.length ||
       !currentSymptoms.every(s => initialSymptoms.includes(s));
 
+    // Check if pain locations have changed
+    const painLocationsChanged =
+      currentPainLocations.length !== initialPainLocations.length ||
+      !currentPainLocations.every(l => initialPainLocations.includes(l));
+
     // Check if anything was actually changed
-    if (!intensityChanged && !symptomsChanged && !noteText.trim()) {
+    if (!intensityChanged && !symptomsChanged && !painLocationsChanged && !noteText.trim()) {
       Alert.alert('No Changes', 'Please make at least one change to log an update');
       return;
     }
@@ -293,6 +374,15 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
             })
           )
         );
+      }
+
+      // Log pain locations if they changed
+      if (painLocationsChanged) {
+        await painLocationLogRepository.create({
+          episodeId,
+          timestamp,
+          painLocations: currentPainLocations,
+        });
       }
 
       // Add note if provided
@@ -407,6 +497,60 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
                 </TouchableOpacity>
               );
             })}
+          </View>
+        </View>
+
+        {/* Pain Locations */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Pain Location</Text>
+          <View style={styles.locationContainer}>
+            {/* Left Side Column */}
+            <View style={styles.locationColumn}>
+              <Text style={styles.columnHeader}>Left Side</Text>
+              {PAIN_LOCATIONS.filter(item => item.side === 'left').map(item => (
+                <TouchableOpacity
+                  key={item.value}
+                  style={[
+                    styles.locationButton,
+                    currentPainLocations.includes(item.value) && styles.locationButtonActive,
+                  ]}
+                  onPress={() => togglePainLocation(item.value)}
+                >
+                  <Text
+                    style={[
+                      styles.locationText,
+                      currentPainLocations.includes(item.value) && styles.locationTextActive,
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Right Side Column */}
+            <View style={styles.locationColumn}>
+              <Text style={styles.columnHeader}>Right Side</Text>
+              {PAIN_LOCATIONS.filter(item => item.side === 'right').map(item => (
+                <TouchableOpacity
+                  key={item.value}
+                  style={[
+                    styles.locationButton,
+                    currentPainLocations.includes(item.value) && styles.locationButtonActive,
+                  ]}
+                  onPress={() => togglePainLocation(item.value)}
+                >
+                  <Text
+                    style={[
+                      styles.locationText,
+                      currentPainLocations.includes(item.value) && styles.locationTextActive,
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         </View>
 

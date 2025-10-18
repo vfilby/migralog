@@ -1,5 +1,5 @@
 import { getDatabase, generateId } from './db';
-import { Episode, IntensityReading, SymptomLog, EpisodeNote } from '../models/types';
+import { Episode, IntensityReading, SymptomLog, EpisodeNote, PainLocationLog } from '../models/types';
 import * as SQLite from 'expo-sqlite';
 
 export const episodeRepository = {
@@ -317,6 +317,53 @@ export const symptomLogRepository = {
       severity: row.severity,
       createdAt: row.created_at,
     }));
+  },
+};
+
+export const painLocationLogRepository = {
+  async create(log: Omit<PainLocationLog, 'id' | 'createdAt'>, db?: SQLite.SQLiteDatabase): Promise<PainLocationLog> {
+    const database = db || await getDatabase();
+    const now = Date.now();
+    const id = generateId();
+
+    const newLog: PainLocationLog = {
+      ...log,
+      id,
+      createdAt: now,
+    };
+
+    await database.runAsync(
+      'INSERT INTO pain_location_logs (id, episode_id, timestamp, pain_locations, created_at) VALUES (?, ?, ?, ?, ?)',
+      [newLog.id, newLog.episodeId, newLog.timestamp, JSON.stringify(newLog.painLocations), newLog.createdAt]
+    );
+
+    return newLog;
+  },
+
+  async getByEpisodeId(episodeId: string, db?: SQLite.SQLiteDatabase): Promise<PainLocationLog[]> {
+    const database = db || await getDatabase();
+    const results = await database.getAllAsync<any>(
+      'SELECT * FROM pain_location_logs WHERE episode_id = ? ORDER BY timestamp ASC',
+      [episodeId]
+    );
+
+    return results.map(row => ({
+      id: row.id,
+      episodeId: row.episode_id,
+      timestamp: row.timestamp,
+      painLocations: JSON.parse(row.pain_locations),
+      createdAt: row.created_at,
+    }));
+  },
+
+  async delete(id: string, db?: SQLite.SQLiteDatabase): Promise<void> {
+    const database = db || await getDatabase();
+    await database.runAsync('DELETE FROM pain_location_logs WHERE id = ?', [id]);
+  },
+
+  async deleteAll(db?: SQLite.SQLiteDatabase): Promise<void> {
+    const database = db || await getDatabase();
+    await database.runAsync('DELETE FROM pain_location_logs');
   },
 };
 

@@ -95,6 +95,14 @@ export interface SymptomLog {
   createdAt: number;
 }
 
+export interface PainLocationLog {
+  id: string;
+  episodeId: string;
+  timestamp: number;
+  painLocations: PainLocation[];  // Pain location areas (e.g., 'left_temple', 'right_eye')
+  createdAt: number;
+}
+
 export interface Medication {
   id: string;
   name: string;
