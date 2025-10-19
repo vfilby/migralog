@@ -44,7 +44,8 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
   const handleCreateBackup = async () => {
     setCreatingBackup(true);
     try {
-      const backup = await backupService.createBackup(false);
+      // Create snapshot backup (complete database copy - safer than JSON)
+      const backup = await backupService.createSnapshotBackup();
       Alert.alert('Success', 'Backup created successfully');
       await loadBackups();
     } catch (error) {
@@ -65,60 +66,22 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
   };
 
   const handleImportBackup = async () => {
-    try {
-      const backup = await backupService.importBackup();
-      Alert.alert('Success', 'Backup imported successfully');
-      await loadBackups();
-    } catch (error) {
-      if ((error as Error).message !== 'Import cancelled') {
-        console.error('Failed to import backup:', error);
-        Alert.alert('Error', 'Failed to import backup: ' + (error as Error).message);
-      }
-    }
-  };
-
-  const handleExportDatabaseFile = async () => {
     Alert.alert(
-      'Export Database File',
-      'This will export the raw SQLite database file. This is a complete binary copy of all your data.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Export',
-          onPress: async () => {
-            try {
-              await backupService.exportDatabaseFile();
-            } catch (error) {
-              console.error('Failed to export database file:', error);
-              Alert.alert('Error', 'Failed to export database file: ' + (error as Error).message);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleImportDatabaseFile = async () => {
-    Alert.alert(
-      'Import Database File',
-      'WARNING: This will REPLACE your entire database with the imported file. Make sure you have a backup first!\n\nThe app will need to be restarted after import.',
+      'Import Backup',
+      'Select a backup file to import. Supports both .db (snapshot) and .json (export) formats.\n\nNote: Imported backups will be added to your backup list.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Import',
-          style: 'destructive',
           onPress: async () => {
             try {
-              await backupService.importDatabaseFile();
-              Alert.alert(
-                'Success',
-                'Database file imported successfully. Please restart the app.',
-                [{ text: 'OK', onPress: () => navigation.goBack() }]
-              );
+              const backup = await backupService.importBackup();
+              Alert.alert('Success', 'Backup imported successfully');
+              await loadBackups();
             } catch (error) {
               if ((error as Error).message !== 'Import cancelled') {
-                console.error('Failed to import database file:', error);
-                Alert.alert('Error', 'Failed to import database file: ' + (error as Error).message);
+                console.error('Failed to import backup:', error);
+                Alert.alert('Error', 'Failed to import backup: ' + (error as Error).message);
               }
             }
           },
@@ -183,12 +146,20 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
   const renderBackupItem = (backup: BackupMetadata) => {
     const date = backupService.formatDate(backup.timestamp);
     const size = backupService.formatFileSize(backup.fileSize);
+    const isSnapshot = backup.backupType === 'snapshot';
 
     return (
       <View key={backup.id} style={styles.backupCard}>
         <View style={styles.backupHeader}>
           <View style={styles.backupInfo}>
-            <Text style={styles.backupDate}>{date}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={styles.backupDate}>{date}</Text>
+              <View style={[styles.badge, isSnapshot ? styles.snapshotBadge : styles.jsonBadge]}>
+                <Text style={[styles.badgeText, isSnapshot ? styles.snapshotBadgeText : styles.jsonBadgeText]}>
+                  {isSnapshot ? 'Snapshot' : 'JSON'}
+                </Text>
+              </View>
+            </View>
             <Text style={styles.backupStats}>
               {backup.episodeCount} episodes • {backup.medicationCount} medications • {size}
             </Text>
@@ -242,7 +213,7 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
       >
         <View style={styles.section}>
           <Text style={styles.sectionDescription}>
-            Create backups of your migraine data for safekeeping. Backups are stored locally on your device.
+            Create complete snapshots of your migraine data for safekeeping. Backups are stored locally on your device and include all episodes, medications, and notes.
           </Text>
 
           <TouchableOpacity
@@ -263,29 +234,6 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
           <TouchableOpacity style={styles.secondaryButton} onPress={handleImportBackup}>
             <Ionicons name="cloud-download-outline" size={24} color={theme.primary} />
             <Text style={styles.secondaryButtonText}>Import Backup</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Database File Export/Import */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Advanced</Text>
-          <Text style={styles.sectionDescription}>
-            Export or import the raw SQLite database file. Use this for complete database transfers or external analysis.
-          </Text>
-
-          <TouchableOpacity style={styles.secondaryButton} onPress={handleExportDatabaseFile}>
-            <Ionicons name="save-outline" size={24} color={theme.primary} />
-            <Text style={styles.secondaryButtonText}>Export Database File</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.secondaryButton, styles.dangerSecondaryButton]}
-            onPress={handleImportDatabaseFile}
-          >
-            <Ionicons name="warning-outline" size={24} color={theme.danger} />
-            <Text style={[styles.secondaryButtonText, styles.dangerSecondaryButtonText]}>
-              Import Database File
-            </Text>
           </TouchableOpacity>
         </View>
 
@@ -466,5 +414,26 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     color: theme.textTertiary,
     marginTop: 4,
     textAlign: 'center',
+  },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  snapshotBadge: {
+    backgroundColor: theme.primary + '20', // 20% opacity
+  },
+  jsonBadge: {
+    backgroundColor: theme.textTertiary + '20',
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  snapshotBadgeText: {
+    color: theme.primary,
+  },
+  jsonBadgeText: {
+    color: theme.textSecondary,
   },
 });
