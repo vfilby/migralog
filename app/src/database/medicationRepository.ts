@@ -1,6 +1,13 @@
 import { getDatabase, generateId } from './db';
 import { Medication, MedicationDose, MedicationSchedule } from '../models/types';
 import * as SQLite from 'expo-sqlite';
+import {
+  MedicationRow,
+  MedicationDoseRow,
+  MedicationScheduleRow,
+  safeJSONParse,
+  isStringArray,
+} from './types';
 
 export const medicationRepository = {
   async create(medication: Omit<Medication, 'id' | 'createdAt' | 'updatedAt'>, db?: SQLite.SQLiteDatabase): Promise<Medication> {
@@ -46,7 +53,7 @@ export const medicationRepository = {
     const now = Date.now();
 
     const fields: string[] = [];
-    const values: any[] = [];
+    const values: (string | number | null)[] = [];
 
     if (updates.name) {
       fields.push('name = ?');
@@ -101,7 +108,7 @@ export const medicationRepository = {
 
   async getById(id: string, db?: SQLite.SQLiteDatabase): Promise<Medication | null> {
     const database = db || await getDatabase();
-    const result = await database.getFirstAsync<any>(
+    const result = await database.getFirstAsync<MedicationRow>(
       'SELECT * FROM medications WHERE id = ?',
       [id]
     );
@@ -113,7 +120,7 @@ export const medicationRepository = {
 
   async getAll(db?: SQLite.SQLiteDatabase): Promise<Medication[]> {
     const database = db || await getDatabase();
-    const results = await database.getAllAsync<any>(
+    const results = await database.getAllAsync<MedicationRow>(
       'SELECT * FROM medications ORDER BY name ASC'
     );
 
@@ -122,7 +129,7 @@ export const medicationRepository = {
 
   async getActive(db?: SQLite.SQLiteDatabase): Promise<Medication[]> {
     const database = db || await getDatabase();
-    const results = await database.getAllAsync<any>(
+    const results = await database.getAllAsync<MedicationRow>(
       'SELECT * FROM medications WHERE active = 1 ORDER BY name ASC'
     );
 
@@ -131,7 +138,7 @@ export const medicationRepository = {
 
   async getByType(type: 'preventative' | 'rescue', db?: SQLite.SQLiteDatabase): Promise<Medication[]> {
     const database = db || await getDatabase();
-    const results = await database.getAllAsync<any>(
+    const results = await database.getAllAsync<MedicationRow>(
       'SELECT * FROM medications WHERE type = ? AND active = 1 ORDER BY name ASC',
       [type]
     );
@@ -141,7 +148,7 @@ export const medicationRepository = {
 
   async getArchived(db?: SQLite.SQLiteDatabase): Promise<Medication[]> {
     const database = db || await getDatabase();
-    const results = await database.getAllAsync<any>(
+    const results = await database.getAllAsync<MedicationRow>(
       'SELECT * FROM medications WHERE active = 0 ORDER BY name ASC'
     );
 
@@ -158,21 +165,21 @@ export const medicationRepository = {
     await database.runAsync('DELETE FROM medications');
   },
 
-  mapRowToMedication(row: any): Medication {
+  mapRowToMedication(row: MedicationRow): Medication {
     return {
       id: row.id,
       name: row.name,
-      type: row.type,
+      type: row.type as import('../models/types').MedicationType, // Type assertion for union type
       dosageAmount: row.dosage_amount,
       dosageUnit: row.dosage_unit,
-      defaultDosage: row.default_dosage,
-      scheduleFrequency: row.schedule_frequency,
-      photoUri: row.photo_uri,
+      defaultDosage: row.default_dosage || undefined,
+      scheduleFrequency: (row.schedule_frequency as import('../models/types').ScheduleFrequency) || undefined, // Type assertion for union type
+      photoUri: row.photo_uri || undefined,
       schedule: [], // Will be loaded separately
-      startDate: row.start_date,
-      endDate: row.end_date,
+      startDate: row.start_date || undefined,
+      endDate: row.end_date || undefined,
       active: row.active === 1,
-      notes: row.notes,
+      notes: row.notes || undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -219,7 +226,7 @@ export const medicationDoseRepository = {
     const database = db || await getDatabase();
 
     const fields: string[] = [];
-    const values: any[] = [];
+    const values: (string | number | null)[] = [];
 
     if (updates.amount !== undefined) {
       fields.push('amount = ?');
@@ -258,7 +265,7 @@ export const medicationDoseRepository = {
 
   async getAll(limit = 100, db?: SQLite.SQLiteDatabase): Promise<MedicationDose[]> {
     const database = db || await getDatabase();
-    const results = await database.getAllAsync<any>(
+    const results = await database.getAllAsync<MedicationDoseRow>(
       'SELECT * FROM medication_doses ORDER BY timestamp DESC LIMIT ?',
       [limit]
     );
@@ -268,7 +275,7 @@ export const medicationDoseRepository = {
 
   async getByMedicationId(medicationId: string, limit = 50, db?: SQLite.SQLiteDatabase): Promise<MedicationDose[]> {
     const database = db || await getDatabase();
-    const results = await database.getAllAsync<any>(
+    const results = await database.getAllAsync<MedicationDoseRow>(
       'SELECT * FROM medication_doses WHERE medication_id = ? ORDER BY timestamp DESC LIMIT ?',
       [medicationId, limit]
     );
@@ -278,7 +285,7 @@ export const medicationDoseRepository = {
 
   async getByEpisodeId(episodeId: string, db?: SQLite.SQLiteDatabase): Promise<MedicationDose[]> {
     const database = db || await getDatabase();
-    const results = await database.getAllAsync<any>(
+    const results = await database.getAllAsync<MedicationDoseRow>(
       'SELECT * FROM medication_doses WHERE episode_id = ? ORDER BY timestamp ASC',
       [episodeId]
     );
@@ -288,7 +295,7 @@ export const medicationDoseRepository = {
 
   async getByDateRange(startDate: number, endDate: number, db?: SQLite.SQLiteDatabase): Promise<MedicationDose[]> {
     const database = db || await getDatabase();
-    const results = await database.getAllAsync<any>(
+    const results = await database.getAllAsync<MedicationDoseRow>(
       'SELECT * FROM medication_doses WHERE timestamp >= ? AND timestamp <= ? ORDER BY timestamp DESC',
       [startDate, endDate]
     );
@@ -296,18 +303,18 @@ export const medicationDoseRepository = {
     return results.map(this.mapRowToDose);
   },
 
-  mapRowToDose(row: any): MedicationDose {
+  mapRowToDose(row: MedicationDoseRow): MedicationDose {
     return {
       id: row.id,
       medicationId: row.medication_id,
       timestamp: row.timestamp,
       amount: row.amount,
-      status: row.status || 'taken', // Default to 'taken' for backwards compatibility
-      episodeId: row.episode_id,
-      effectivenessRating: row.effectiveness_rating,
-      timeToRelief: row.time_to_relief,
-      sideEffects: row.side_effects ? JSON.parse(row.side_effects) : undefined,
-      notes: row.notes,
+      status: (row.status as import('../models/types').DoseStatus) || 'taken', // Type assertion with default
+      episodeId: row.episode_id || undefined,
+      effectivenessRating: row.effectiveness_rating || undefined,
+      timeToRelief: row.time_to_relief || undefined,
+      sideEffects: safeJSONParse(row.side_effects, undefined, isStringArray),
+      notes: row.notes || undefined,
       createdAt: row.created_at,
     };
   },
@@ -352,7 +359,7 @@ export const medicationScheduleRepository = {
   async update(id: string, updates: Partial<MedicationSchedule>, db?: SQLite.SQLiteDatabase): Promise<void> {
     const database = db || await getDatabase();
     const fields: string[] = [];
-    const values: any[] = [];
+    const values: (string | number | null)[] = [];
 
     if (updates.time !== undefined) {
       fields.push('time = ?');
@@ -396,7 +403,7 @@ export const medicationScheduleRepository = {
 
   async getByMedicationId(medicationId: string, db?: SQLite.SQLiteDatabase): Promise<MedicationSchedule[]> {
     const database = db || await getDatabase();
-    const results = await database.getAllAsync<any>(
+    const results = await database.getAllAsync<MedicationScheduleRow>(
       'SELECT * FROM medication_schedules WHERE medication_id = ? ORDER BY time ASC',
       [medicationId]
     );
@@ -407,7 +414,7 @@ export const medicationScheduleRepository = {
       time: row.time,
       dosage: row.dosage,
       enabled: row.enabled === 1,
-      notificationId: row.notification_id,
+      notificationId: row.notification_id || undefined,
       reminderEnabled: row.reminder_enabled === 1,
     }));
   },
