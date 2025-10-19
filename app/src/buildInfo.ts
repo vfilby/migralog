@@ -1,8 +1,8 @@
 // Auto-generated file - do not edit manually
-// Generated at: 2025-10-17T00:20:04.345Z
+// Generated at: 2025-10-18T23:12:16.188Z
 
 export const buildInfo = {
-  "commitHash": "5835d87",
-  "branch": "feature/e2e-test-optimization",
-  "buildTime": "2025-10-17T00:20:04.345Z"
+  "commitHash": "7648344",
+  "branch": "feature/migration-rollback-support",
+  "buildTime": "2025-10-18T23:12:16.188Z"
 };

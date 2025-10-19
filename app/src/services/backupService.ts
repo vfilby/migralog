@@ -3,6 +3,7 @@ import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { Platform } from 'react-native';
 import * as SQLite from 'expo-sqlite';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { episodeRepository, episodeNoteRepository, intensityRepository } from '../database/episodeRepository';
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../database/medicationRepository';
 import { dailyStatusRepository } from '../database/dailyStatusRepository';
@@ -18,10 +19,11 @@ export interface BackupMetadata {
   medicationCount: number;
   fileSize: number;
   fileName: string;
+  backupType: 'snapshot' | 'json'; // DB file snapshot or JSON export
 }
 
 export interface BackupData {
-  metadata: Omit<BackupMetadata, 'fileSize' | 'fileName'>;
+  metadata: Omit<BackupMetadata, 'fileSize' | 'fileName' | 'backupType'>;
   schemaSQL?: string; // Complete CREATE TABLE statements for the schema at backup time (optional for backward compatibility)
   episodes: Episode[];
   episodeNotes?: EpisodeNote[]; // Optional for backward compatibility
@@ -33,8 +35,11 @@ export interface BackupData {
 }
 
 const BACKUP_DIR = `${FileSystem.documentDirectory}backups/`;
-const MAX_AUTO_BACKUPS = 5;
+const DB_PATH = `${FileSystem.documentDirectory}SQLite/migralog.db`;
+const MAX_AUTO_BACKUPS = 7; // Keep last 7 automatic backups (weekly backups for ~2 months)
+const WEEKLY_BACKUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 const APP_VERSION = '1.0.0'; // TODO: Get from app.json
+const LAST_WEEKLY_BACKUP_KEY = '@MigraLog:lastWeeklyBackup';
 
 class BackupService {
   async initialize(): Promise<void> {
@@ -48,10 +53,81 @@ class BackupService {
     return `backup_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  private getBackupPath(backupId: string): string {
-    return `${BACKUP_DIR}${backupId}.json`;
+  private getBackupPath(backupId: string, backupType: 'snapshot' | 'json'): string {
+    const extension = backupType === 'snapshot' ? 'db' : 'json';
+    return `${BACKUP_DIR}${backupId}.${extension}`;
   }
 
+  private getMetadataPath(backupId: string): string {
+    return `${BACKUP_DIR}${backupId}.meta.json`;
+  }
+
+  /**
+   * Create a database snapshot backup (DB file copy)
+   * This is the preferred method for automatic backups (pre-migration, weekly)
+   * because it captures the complete database without risk of missing fields
+   */
+  async createSnapshotBackup(db?: SQLite.SQLiteDatabase): Promise<BackupMetadata> {
+    try {
+      console.log('[Backup] Starting snapshot backup creation');
+      await this.initialize();
+
+      // Generate backup ID
+      const backupId = this.generateBackupId();
+      const backupPath = this.getBackupPath(backupId, 'snapshot');
+      const metadataPath = this.getMetadataPath(backupId);
+
+      // Check if database file exists
+      const dbInfo = await FileSystem.getInfoAsync(DB_PATH);
+      if (!dbInfo.exists) {
+        throw new Error('Database file not found');
+      }
+
+      // Copy database file to backup location
+      console.log('[Backup] Copying database file...');
+      await FileSystem.copyAsync({
+        from: DB_PATH,
+        to: backupPath,
+      });
+
+      // Get counts for metadata (quick queries)
+      const episodeCount = await this.getEpisodeCount(db);
+      const medicationCount = await this.getMedicationCount(db);
+      const schemaVersion = await migrationRunner.getCurrentVersion();
+
+      // Get file size
+      const backupInfo = await FileSystem.getInfoAsync(backupPath);
+      const fileSize = backupInfo.exists && 'size' in backupInfo ? backupInfo.size : 0;
+
+      // Create metadata
+      const metadata: BackupMetadata = {
+        id: backupId,
+        timestamp: Date.now(),
+        version: APP_VERSION,
+        schemaVersion,
+        episodeCount,
+        medicationCount,
+        fileSize,
+        fileName: `${backupId}.db`,
+        backupType: 'snapshot',
+      };
+
+      // Save metadata sidecar file
+      await FileSystem.writeAsStringAsync(metadataPath, JSON.stringify(metadata, null, 2));
+
+      console.log('[Backup] Snapshot backup created successfully:', metadata.id);
+      return metadata;
+    } catch (error) {
+      console.error('[Backup] FAILED to create snapshot backup:', error);
+      throw new Error('Failed to create snapshot backup: ' + (error as Error).message);
+    }
+  }
+
+  /**
+   * Legacy method - creates JSON backup
+   * Now mainly used for user-initiated exports for portability
+   * Automatic backups should use createSnapshotBackup instead
+   */
   async createBackup(isAutomatic: boolean = false, db?: SQLite.SQLiteDatabase): Promise<BackupMetadata> {
     try {
       console.log('[Backup] Starting backup creation, isAutomatic:', isAutomatic);
@@ -142,7 +218,7 @@ class BackupService {
         medicationSchedules,
       };
 
-      const backupPath = this.getBackupPath(backupId);
+      const backupPath = this.getBackupPath(backupId, 'json');
       console.log('[Backup] Backup path:', backupPath);
 
       console.log('[Backup] Stringifying backup data...');
@@ -162,6 +238,7 @@ class BackupService {
         ...backupData.metadata,
         fileName: `${backupId}.json`,
         fileSize,
+        backupType: 'json',
       };
 
       // Clean up old automatic backups if needed
@@ -193,8 +270,41 @@ class BackupService {
       const backups: BackupMetadata[] = [];
 
       for (const file of files) {
-        if (file.endsWith('.json')) {
-          try {
+        try {
+          // Handle snapshot backups (.db files with .meta.json sidecar)
+          // Metadata sidecar pattern: For each backup_xyz.db file, we store a backup_xyz.meta.json
+          // containing episode/medication counts, schema version, and file size for quick display
+          // without needing to open the database file
+          if (file.endsWith('.db')) {
+            const backupId = file.replace('.db', '');
+            const metadataPath = this.getMetadataPath(backupId);
+            const metadataInfo = await FileSystem.getInfoAsync(metadataPath);
+
+            if (metadataInfo.exists) {
+              const metadataContent = await FileSystem.readAsStringAsync(metadataPath);
+              const metadata: BackupMetadata = JSON.parse(metadataContent);
+              backups.push(metadata);
+            } else {
+              // Legacy snapshot without metadata - create basic metadata
+              const filePath = BACKUP_DIR + file;
+              const fileInfo = await FileSystem.getInfoAsync(filePath);
+              const fileSize = fileInfo.exists && 'size' in fileInfo ? fileInfo.size : 0;
+
+              backups.push({
+                id: backupId,
+                timestamp: 0, // Unknown
+                version: APP_VERSION,
+                schemaVersion: 0, // Unknown
+                episodeCount: 0,
+                medicationCount: 0,
+                fileName: file,
+                fileSize,
+                backupType: 'snapshot',
+              });
+            }
+          }
+          // Handle JSON backups (legacy or user exports)
+          else if (file.endsWith('.json') && !file.endsWith('.meta.json')) {
             const filePath = BACKUP_DIR + file;
             const content = await FileSystem.readAsStringAsync(filePath);
             const backupData: BackupData = JSON.parse(content);
@@ -206,10 +316,11 @@ class BackupService {
               ...backupData.metadata,
               fileName: file,
               fileSize,
+              backupType: 'json',
             });
-          } catch (error) {
-            console.error(`Failed to read backup ${file}:`, error);
           }
+        } catch (error) {
+          console.error(`Failed to read backup ${file}:`, error);
         }
       }
 
@@ -223,22 +334,33 @@ class BackupService {
 
   async getBackupMetadata(backupId: string): Promise<BackupMetadata | null> {
     try {
-      const backupPath = this.getBackupPath(backupId);
-      const fileInfo = await FileSystem.getInfoAsync(backupPath);
+      // Try snapshot first (.meta.json)
+      const metadataPath = this.getMetadataPath(backupId);
+      const metadataInfo = await FileSystem.getInfoAsync(metadataPath);
 
-      if (!fileInfo.exists) {
-        return null;
+      if (metadataInfo.exists) {
+        const content = await FileSystem.readAsStringAsync(metadataPath);
+        return JSON.parse(content);
       }
 
-      const content = await FileSystem.readAsStringAsync(backupPath);
-      const backupData: BackupData = JSON.parse(content);
-      const fileSize = 'size' in fileInfo ? fileInfo.size : 0;
+      // Try JSON backup
+      const jsonPath = this.getBackupPath(backupId, 'json');
+      const jsonInfo = await FileSystem.getInfoAsync(jsonPath);
 
-      return {
-        ...backupData.metadata,
-        fileName: `${backupId}.json`,
-        fileSize,
-      };
+      if (jsonInfo.exists) {
+        const content = await FileSystem.readAsStringAsync(jsonPath);
+        const backupData: BackupData = JSON.parse(content);
+        const fileSize = 'size' in jsonInfo ? jsonInfo.size : 0;
+
+        return {
+          ...backupData.metadata,
+          fileName: `${backupId}.json`,
+          fileSize,
+          backupType: 'json',
+        };
+      }
+
+      return null;
     } catch (error) {
       console.error('Failed to get backup metadata:', error);
       return null;
@@ -248,7 +370,109 @@ class BackupService {
   async restoreBackup(backupId: string): Promise<void> {
     try {
       console.log('[Restore] Starting backup restore:', backupId);
-      const backupPath = this.getBackupPath(backupId);
+
+      // Get metadata to determine backup type
+      const metadata = await this.getBackupMetadata(backupId);
+      if (!metadata) {
+        throw new Error('Backup not found');
+      }
+
+      if (metadata.backupType === 'snapshot') {
+        await this.restoreSnapshotBackup(backupId, metadata);
+      } else {
+        await this.restoreJsonBackup(backupId);
+      }
+
+      console.log('[Restore] Backup restored successfully');
+    } catch (error) {
+      console.error('[Restore] FAILED to restore backup:', error);
+      throw new Error('Failed to restore backup: ' + (error as Error).message);
+    }
+  }
+
+  /**
+   * Restore from a database snapshot backup (.db file)
+   * This is much simpler than JSON restore - just copy the file and run migrations
+   */
+  private async restoreSnapshotBackup(backupId: string, metadata: BackupMetadata): Promise<void> {
+    try {
+      console.log('[Restore] Restoring from snapshot backup');
+
+      const backupPath = this.getBackupPath(backupId, 'snapshot');
+      const backupInfo = await FileSystem.getInfoAsync(backupPath);
+
+      if (!backupInfo.exists) {
+        throw new Error('Snapshot backup file not found');
+      }
+
+      // Validate backup schema version compatibility
+      const appSchemaVersion = await migrationRunner.getCurrentVersion();
+      if (metadata.schemaVersion > appSchemaVersion) {
+        throw new Error(
+          `Cannot restore backup from newer schema version (backup: v${metadata.schemaVersion}, current: v${appSchemaVersion}). ` +
+          `Please update the app to the latest version before restoring this backup.`
+        );
+      }
+
+      // Close current database connection
+      const { closeDatabase } = await import('../database/db');
+      await closeDatabase();
+
+      // Create a safety backup of current database before replacing
+      const safetyBackupPath = `${FileSystem.documentDirectory}SQLite/migralog_pre_restore_${Date.now()}.db`;
+      const currentDbInfo = await FileSystem.getInfoAsync(DB_PATH);
+      if (currentDbInfo.exists) {
+        console.log('[Restore] Creating safety backup of current database');
+        await FileSystem.copyAsync({
+          from: DB_PATH,
+          to: safetyBackupPath,
+        });
+        console.log('[Restore] Safety backup created at:', safetyBackupPath);
+      }
+
+      // Copy snapshot to database location
+      console.log('[Restore] Copying snapshot to database location');
+      await FileSystem.copyAsync({
+        from: backupPath,
+        to: DB_PATH,
+      });
+
+      // Re-open database and run migrations if needed
+      console.log('[Restore] Reopening database');
+      const db = await import('../database/db').then(m => m.getDatabase());
+
+      const restoredSchemaVersion = await migrationRunner.getCurrentVersion();
+      console.log('[Restore] Current schema version after restore:', restoredSchemaVersion);
+      console.log('[Restore] Backup schema version:', metadata.schemaVersion);
+
+      if (metadata.schemaVersion < appSchemaVersion) {
+        console.log('[Restore] Running migrations from version', metadata.schemaVersion, 'to', appSchemaVersion);
+        await migrationRunner.runMigrations();
+        console.log('[Restore] Migrations completed successfully');
+      } else {
+        console.log('[Restore] No migrations needed');
+      }
+
+      console.log('[Restore] Snapshot restore complete');
+    } catch (error) {
+      console.error('[Restore] FAILED to restore snapshot:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Restore from a JSON backup (legacy format)
+   * This recreates the database from exported JSON data
+   *
+   * TODO: Remove this code path after 1 month migration period (added 2025-10-18)
+   * This is only needed for backward compatibility with JSON backups created before
+   * the snapshot-based backup system. After users have migrated to snapshot backups,
+   * this can be safely removed to simplify the codebase.
+   */
+  private async restoreJsonBackup(backupId: string): Promise<void> {
+    try {
+      console.log('[Restore] Restoring from JSON backup');
+      const backupPath = this.getBackupPath(backupId, 'json');
       const content = await FileSystem.readAsStringAsync(backupPath);
       const backupData: BackupData = JSON.parse(content);
 
@@ -435,16 +659,117 @@ class BackupService {
         }
       }
 
-      console.log('[Restore] Backup restored successfully');
+      console.log('[Restore] JSON backup restored successfully');
     } catch (error) {
-      console.error('[Restore] FAILED to restore backup:', error);
-      throw new Error('Failed to restore backup: ' + (error as Error).message);
+      console.error('[Restore] FAILED to restore JSON backup:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Export current database as JSON for sharing with healthcare providers
+   * Creates temporary file and immediately prompts user to save/share
+   * Does NOT store the file in backups directory - this is for data export, not backup
+   */
+  async exportDataForSharing(): Promise<void> {
+    try {
+      console.log('[Export] Creating JSON export for sharing...');
+
+      // Get current database instance
+      const db = await import('../database/db').then(m => m.getDatabase());
+
+      // Gather all data
+      console.log('[Export] Fetching all data...');
+      const episodes = await episodeRepository.getAll(50, 0, db);
+      const medications = await medicationRepository.getAll(db);
+      const medicationDoses = await medicationDoseRepository.getAll(100, db);
+
+      const episodeNotes: EpisodeNote[] = [];
+      for (const ep of episodes) {
+        const notes = await episodeNoteRepository.getByEpisodeId(ep.id, db);
+        episodeNotes.push(...notes);
+      }
+
+      const intensityReadings: IntensityReading[] = [];
+      for (const ep of episodes) {
+        const readings = await intensityRepository.getByEpisodeId(ep.id, db);
+        intensityReadings.push(...readings);
+      }
+
+      const twoYearsAgo = new Date();
+      twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+      const today = new Date();
+      const startDate = twoYearsAgo.toISOString().split('T')[0];
+      const endDate = today.toISOString().split('T')[0];
+      const dailyStatusLogs = await dailyStatusRepository.getDateRange(startDate, endDate, db);
+
+      const medicationSchedules: MedicationSchedule[] = [];
+      for (const med of medications) {
+        const schedules = await medicationScheduleRepository.getByMedicationId(med.id, db);
+        medicationSchedules.push(...schedules);
+      }
+
+      const schemaVersion = await migrationRunner.getCurrentVersion();
+
+      // Create export data structure
+      // Note: schemaSQL omitted because this is for data sharing, not backup/restore
+      const exportData: BackupData = {
+        metadata: {
+          id: `export_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          timestamp: Date.now(),
+          version: APP_VERSION,
+          schemaVersion,
+          episodeCount: episodes.length,
+          medicationCount: medications.length,
+        },
+        schemaSQL: '', // Not needed for data sharing - only for backup/restore
+        episodes,
+        episodeNotes,
+        intensityReadings,
+        dailyStatusLogs,
+        medications,
+        medicationDoses,
+        medicationSchedules,
+      };
+
+      // Create temporary file for sharing (in cache directory, will be auto-cleaned)
+      const tempFileName = `migralog_export_${new Date().toISOString().split('T')[0]}.json`;
+      const tempFilePath = `${FileSystem.cacheDirectory}${tempFileName}`;
+
+      console.log('[Export] Writing temporary JSON file...');
+      await FileSystem.writeAsStringAsync(tempFilePath, JSON.stringify(exportData, null, 2));
+      console.log('[Export] Temporary file created at:', tempFilePath);
+
+      // Check if sharing is available
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (!isAvailable) {
+        throw new Error('Sharing is not available on this device');
+      }
+
+      // Share the file (user can save to Files, email, etc.)
+      console.log('[Export] Opening share dialog...');
+      await Sharing.shareAsync(tempFilePath, {
+        mimeType: 'application/json',
+        dialogTitle: 'Export MigraLog Data',
+        UTI: 'public.json',
+      });
+
+      console.log('[Export] JSON export completed successfully');
+    } catch (error) {
+      console.error('[Export] Failed to export data as JSON:', error);
+      throw new Error('Failed to export data: ' + (error as Error).message);
     }
   }
 
   async exportBackup(backupId: string): Promise<void> {
     try {
-      const backupPath = this.getBackupPath(backupId);
+      // Get metadata to determine backup type
+      const metadata = await this.getBackupMetadata(backupId);
+      if (!metadata) {
+        throw new Error('Backup not found');
+      }
+
+      const backupPath = this.getBackupPath(backupId, metadata.backupType);
       const fileInfo = await FileSystem.getInfoAsync(backupPath);
 
       if (!fileInfo.exists) {
@@ -456,10 +781,13 @@ class BackupService {
         throw new Error('Sharing is not available on this device');
       }
 
+      const mimeType = metadata.backupType === 'snapshot' ? 'application/x-sqlite3' : 'application/json';
+      const uti = metadata.backupType === 'snapshot' ? 'public.database' : 'public.json';
+
       await Sharing.shareAsync(backupPath, {
-        mimeType: 'application/json',
-        dialogTitle: 'Export Migraine Tracker Backup',
-        UTI: 'public.json',
+        mimeType,
+        dialogTitle: 'Export MigraLog Backup',
+        UTI: uti,
       });
     } catch (error) {
       console.error('Failed to export backup:', error);
@@ -496,7 +824,7 @@ class BackupService {
 
       // Create a new backup with imported data
       const backupId = this.generateBackupId();
-      const backupPath = this.getBackupPath(backupId);
+      const backupPath = this.getBackupPath(backupId, 'json');
 
       // Update metadata with new ID and timestamp
       backupData.metadata.id = backupId;
@@ -511,6 +839,7 @@ class BackupService {
         ...backupData.metadata,
         fileName: `${backupId}.json`,
         fileSize,
+        backupType: 'json',
       };
     } catch (error) {
       console.error('Failed to import backup:', error);
@@ -520,11 +849,31 @@ class BackupService {
 
   async deleteBackup(backupId: string): Promise<void> {
     try {
-      const backupPath = this.getBackupPath(backupId);
+      // Get metadata to determine backup type
+      const metadata = await this.getBackupMetadata(backupId);
+      if (!metadata) {
+        // Try both types if metadata not found
+        const snapshotPath = this.getBackupPath(backupId, 'snapshot');
+        const jsonPath = this.getBackupPath(backupId, 'json');
+        const metadataPath = this.getMetadataPath(backupId);
+
+        await FileSystem.deleteAsync(snapshotPath, { idempotent: true });
+        await FileSystem.deleteAsync(jsonPath, { idempotent: true });
+        await FileSystem.deleteAsync(metadataPath, { idempotent: true });
+        return;
+      }
+
+      const backupPath = this.getBackupPath(backupId, metadata.backupType);
       const fileInfo = await FileSystem.getInfoAsync(backupPath);
 
       if (fileInfo.exists) {
         await FileSystem.deleteAsync(backupPath);
+      }
+
+      // Delete metadata if it's a snapshot
+      if (metadata.backupType === 'snapshot') {
+        const metadataPath = this.getMetadataPath(backupId);
+        await FileSystem.deleteAsync(metadataPath, { idempotent: true });
       }
     } catch (error) {
       console.error('Failed to delete backup:', error);
@@ -660,6 +1009,50 @@ class BackupService {
     );
   }
 
+  /**
+   * Helper method to get episode count for metadata
+   */
+  private async getEpisodeCount(db?: SQLite.SQLiteDatabase): Promise<number> {
+    try {
+      let database: SQLite.SQLiteDatabase;
+      if (db) {
+        database = db;
+      } else {
+        database = await import('../database/db').then(m => m.getDatabase());
+      }
+
+      const result = await database.getAllAsync<{ count: number }>(
+        'SELECT COUNT(*) as count FROM episodes'
+      );
+      return result[0]?.count || 0;
+    } catch (error) {
+      console.error('[Backup] Failed to get episode count:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Helper method to get medication count for metadata
+   */
+  private async getMedicationCount(db?: SQLite.SQLiteDatabase): Promise<number> {
+    try {
+      let database: SQLite.SQLiteDatabase;
+      if (db) {
+        database = db;
+      } else {
+        database = await import('../database/db').then(m => m.getDatabase());
+      }
+
+      const result = await database.getAllAsync<{ count: number }>(
+        'SELECT COUNT(*) as count FROM medications'
+      );
+      return result[0]?.count || 0;
+    } catch (error) {
+      console.error('[Backup] Failed to get medication count:', error);
+      return 0;
+    }
+  }
+
   private async exportSchemaSQL(db?: SQLite.SQLiteDatabase): Promise<string> {
     try {
       // Get database instance
@@ -705,12 +1098,98 @@ class BackupService {
           .sort((a, b) => b.timestamp - a.timestamp)
           .slice(MAX_AUTO_BACKUPS);
 
+        console.log(`[Backup] Cleaning up ${toDelete.length} old automatic backups (keeping ${MAX_AUTO_BACKUPS} most recent)`);
         for (const backup of toDelete) {
           await this.deleteBackup(backup.id);
+          console.log(`[Backup] Deleted old backup: ${backup.id}`);
         }
       }
     } catch (error) {
       console.error('Failed to cleanup old backups:', error);
+    }
+  }
+
+  /**
+   * Check if a weekly backup is needed and create one if so
+   * This should be called on app startup to ensure weekly backups happen automatically
+   *
+   * Weekly backups are stored using the same automatic backup system,
+   * so they're included in the MAX_AUTO_BACKUPS retention policy (keeps last 7)
+   */
+  async checkAndCreateWeeklyBackup(db?: SQLite.SQLiteDatabase): Promise<BackupMetadata | null> {
+    try {
+      console.log('[Backup] Checking if weekly backup is needed...');
+
+      // Get last weekly backup timestamp
+      const lastBackupTime = await AsyncStorage.getItem(LAST_WEEKLY_BACKUP_KEY);
+      const lastBackupTimestamp = lastBackupTime ? parseInt(lastBackupTime, 10) : 0;
+      const now = Date.now();
+      const timeSinceLastBackup = now - lastBackupTimestamp;
+
+      console.log('[Backup] Last weekly backup:', lastBackupTimestamp ? new Date(lastBackupTimestamp).toISOString() : 'never');
+      console.log('[Backup] Time since last backup:', Math.floor(timeSinceLastBackup / (24 * 60 * 60 * 1000)), 'days');
+
+      if (timeSinceLastBackup >= WEEKLY_BACKUP_INTERVAL_MS) {
+        console.log('[Backup] Weekly backup needed, creating...');
+
+        // Create automatic snapshot backup (safer than JSON)
+        const metadata = await this.createSnapshotBackup(db);
+
+        // Cleanup old automatic backups
+        await this.cleanupOldAutoBackups();
+
+        // Update last backup timestamp
+        await AsyncStorage.setItem(LAST_WEEKLY_BACKUP_KEY, now.toString());
+
+        console.log('[Backup] Weekly backup created successfully:', metadata.id);
+        return metadata;
+      } else {
+        const daysUntilNext = Math.ceil((WEEKLY_BACKUP_INTERVAL_MS - timeSinceLastBackup) / (24 * 60 * 60 * 1000));
+        console.log(`[Backup] No weekly backup needed. Next backup in ${daysUntilNext} days`);
+        return null;
+      }
+    } catch (error) {
+      console.error('[Backup] Failed to check/create weekly backup:', error);
+      // Don't throw - weekly backup failure shouldn't crash the app
+      return null;
+    }
+  }
+
+  /**
+   * Get the timestamp of the last weekly backup
+   */
+  async getLastWeeklyBackupTime(): Promise<number> {
+    try {
+      const lastBackupTime = await AsyncStorage.getItem(LAST_WEEKLY_BACKUP_KEY);
+      return lastBackupTime ? parseInt(lastBackupTime, 10) : 0;
+    } catch (error) {
+      console.error('[Backup] Failed to get last weekly backup time:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Get the number of days until the next weekly backup
+   */
+  async getDaysUntilNextWeeklyBackup(): Promise<number> {
+    try {
+      const lastBackupTime = await this.getLastWeeklyBackupTime();
+      if (lastBackupTime === 0) {
+        return 0; // Backup needed now
+      }
+
+      const now = Date.now();
+      const timeSinceLastBackup = now - lastBackupTime;
+      const timeUntilNextBackup = WEEKLY_BACKUP_INTERVAL_MS - timeSinceLastBackup;
+
+      if (timeUntilNextBackup <= 0) {
+        return 0; // Backup needed now
+      }
+
+      return Math.ceil(timeUntilNextBackup / (24 * 60 * 60 * 1000));
+    } catch (error) {
+      console.error('[Backup] Failed to calculate days until next backup:', error);
+      return 0;
     }
   }
 

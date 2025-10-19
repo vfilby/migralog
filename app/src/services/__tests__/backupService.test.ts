@@ -17,9 +17,23 @@ import { migrationRunner } from '../../database/migrations';
 import { Episode, Medication, MedicationDose, EpisodeNote } from '../../models/types';
 
 // Mock dependencies
-jest.mock('expo-file-system/legacy');
+jest.mock('expo-file-system/legacy', () => ({
+  documentDirectory: 'file://mockDocDir/',
+  getInfoAsync: jest.fn(),
+  makeDirectoryAsync: jest.fn(),
+  readDirectoryAsync: jest.fn(),
+  readAsStringAsync: jest.fn(),
+  writeAsStringAsync: jest.fn(),
+  deleteAsync: jest.fn(),
+  copyAsync: jest.fn(),
+}));
 jest.mock('expo-sharing');
 jest.mock('expo-document-picker');
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+}));
 jest.mock('../../database/episodeRepository');
 jest.mock('../../database/medicationRepository');
 jest.mock('../../database/dailyStatusRepository');
@@ -196,40 +210,39 @@ describe('backupService', () => {
     });
 
     it('should clean up old automatic backups', async () => {
-      // Mock 6 existing backups
-      (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue([
-        'backup_1.json',
-        'backup_2.json',
-        'backup_3.json',
-        'backup_4.json',
-        'backup_5.json',
-        'backup_6.json',
-      ]);
-
-      const mockBackupMetadata: BackupMetadata = {
-        id: 'backup_1',
-        timestamp: 1000,
+      // Mock 8 existing backups (more than MAX_AUTO_BACKUPS = 7)
+      const mockBackups = Array.from({ length: 8 }, (_, i) => ({
+        id: `backup_${i}`,
+        timestamp: Date.now() - (i * 24 * 60 * 60 * 1000), // i days old
         version: '1.0.0',
         schemaVersion: 1,
         episodeCount: 0,
         medicationCount: 0,
         fileSize: 100,
-        fileName: 'backup_1.json',
-      };
+        fileName: `backup_${i}.json`,
+      }));
 
-      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
-        JSON.stringify({
-          metadata: mockBackupMetadata,
-          episodes: [],
-          medications: [],
-          medicationDoses: [],
-          medicationSchedules: [],
-        })
+      (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue(
+        mockBackups.map(b => b.fileName)
       );
+
+      (FileSystem.readAsStringAsync as jest.Mock).mockImplementation((path: string) => {
+        const fileName = path.split('/').pop();
+        const backup = mockBackups.find(b => b.fileName === fileName);
+        return Promise.resolve(
+          JSON.stringify({
+            metadata: backup,
+            episodes: [],
+            medications: [],
+            medicationDoses: [],
+            medicationSchedules: [],
+          })
+        );
+      });
 
       await backupService.createBackup(true);
 
-      // Should delete oldest backup (keeps 5 newest)
+      // Should trigger cleanup and delete at least 1 old backup
       expect(FileSystem.deleteAsync).toHaveBeenCalled();
     });
 
@@ -327,7 +340,7 @@ describe('backupService', () => {
   });
 
   describe('getBackupMetadata', () => {
-    it('should return backup metadata if backup exists', async () => {
+    it('should return backup metadata for JSON backup if backup exists', async () => {
       const mockBackup = {
         metadata: {
           id: 'backup-123',
@@ -343,7 +356,13 @@ describe('backupService', () => {
         medicationSchedules: [],
       };
 
-      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true, size: 1000 });
+      // Mock: .meta.json doesn't exist (not a snapshot), but .json exists
+      (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
+        if (path.includes('.meta.json')) {
+          return Promise.resolve({ exists: false });
+        }
+        return Promise.resolve({ exists: true, size: 1000 });
+      });
       (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
         JSON.stringify(mockBackup)
       );
@@ -353,6 +372,7 @@ describe('backupService', () => {
       expect(metadata).not.toBeUndefined();
       expect(metadata?.id).toBe('backup-123');
       expect(metadata?.fileSize).toBe(1000);
+      expect(metadata?.backupType).toBe('json');
     });
 
     it('should return null if backup does not exist', async () => {
@@ -424,6 +444,13 @@ describe('backupService', () => {
     };
 
     beforeEach(() => {
+      // Mock getInfoAsync to simulate JSON backup (not snapshot)
+      (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
+        if (path.includes('.meta.json')) {
+          return Promise.resolve({ exists: false });
+        }
+        return Promise.resolve({ exists: true, size: 1000 });
+      });
       (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
         JSON.stringify(mockBackupData)
       );
@@ -526,8 +553,32 @@ describe('backupService', () => {
   });
 
   describe('exportBackup', () => {
-    it('should export backup via sharing', async () => {
-      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true });
+    it('should export JSON backup via sharing', async () => {
+      const mockBackup = {
+        metadata: {
+          id: 'backup-123',
+          timestamp: Date.now(),
+          version: '1.0.0',
+          schemaVersion: 1,
+          episodeCount: 5,
+          medicationCount: 3,
+        },
+        episodes: [],
+        medications: [],
+        medicationDoses: [],
+        medicationSchedules: [],
+      };
+
+      // Mock: .meta.json doesn't exist (not a snapshot), but .json exists
+      (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
+        if (path.includes('.meta.json')) {
+          return Promise.resolve({ exists: false });
+        }
+        return Promise.resolve({ exists: true, size: 1000 });
+      });
+      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
+        JSON.stringify(mockBackup)
+      );
       (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true);
       (Sharing.shareAsync as jest.Mock).mockResolvedValue(undefined);
 
@@ -540,12 +591,36 @@ describe('backupService', () => {
       (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: false });
 
       await expect(backupService.exportBackup('nonexistent')).rejects.toThrow(
-        'Backup file not found'
+        'Backup not found'
       );
     });
 
     it('should throw error if sharing is not available', async () => {
-      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true });
+      const mockBackup = {
+        metadata: {
+          id: 'backup-123',
+          timestamp: Date.now(),
+          version: '1.0.0',
+          schemaVersion: 1,
+          episodeCount: 5,
+          medicationCount: 3,
+        },
+        episodes: [],
+        medications: [],
+        medicationDoses: [],
+        medicationSchedules: [],
+      };
+
+      // Mock: .meta.json doesn't exist (not a snapshot), but .json exists
+      (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
+        if (path.includes('.meta.json')) {
+          return Promise.resolve({ exists: false });
+        }
+        return Promise.resolve({ exists: true, size: 1000 });
+      });
+      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
+        JSON.stringify(mockBackup)
+      );
       (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(false);
 
       await expect(backupService.exportBackup('backup-123')).rejects.toThrow(
@@ -680,6 +755,233 @@ describe('backupService', () => {
 
       expect(formatted).toBeDefined();
       expect(typeof formatted).toBe('string');
+    });
+  });
+
+  describe('Weekly Backup Strategy', () => {
+    const AsyncStorage = require('@react-native-async-storage/async-storage');
+
+    beforeEach(() => {
+      // Reset AsyncStorage mocks
+      AsyncStorage.getItem.mockClear();
+      AsyncStorage.setItem.mockClear();
+
+      // Setup default mocks for createSnapshotBackup (now used for weekly backups)
+      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true, size: 1234 });
+      (FileSystem.copyAsync as jest.Mock).mockResolvedValue(undefined);
+      (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
+      (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue([]);
+      (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
+
+      // Mock database queries for metadata counts
+      (mockDatabase.getAllAsync as jest.Mock).mockImplementation((query: string) => {
+        if (query.includes('COUNT(*)')) {
+          return Promise.resolve([{ count: 10 }]);
+        }
+        if (query.includes('sqlite_master')) {
+          return Promise.resolve([{ sql: 'CREATE TABLE episodes (...)' }]);
+        }
+        return Promise.resolve([]);
+      });
+
+      (migrationRunner.getCurrentVersion as jest.Mock).mockResolvedValue(6);
+    });
+
+    describe('checkAndCreateWeeklyBackup', () => {
+      it('should create backup when no previous backup exists', async () => {
+        AsyncStorage.getItem.mockResolvedValue(null);
+
+        const result = await backupService.checkAndCreateWeeklyBackup();
+
+        expect(result).toBeDefined();
+        expect(result?.id).toBeDefined();
+        expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+          '@MigraLog:lastWeeklyBackup',
+          expect.any(String)
+        );
+        // Should use snapshot backup (copyAsync) not JSON (writeAsStringAsync)
+        expect(FileSystem.copyAsync).toHaveBeenCalled();
+        expect(FileSystem.writeAsStringAsync).toHaveBeenCalled(); // For metadata
+      });
+
+      it('should create backup when 7 days have passed', async () => {
+        const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+        AsyncStorage.getItem.mockResolvedValue(sevenDaysAgo.toString());
+
+        const result = await backupService.checkAndCreateWeeklyBackup();
+
+        expect(result).toBeDefined();
+        expect(result?.id).toBeDefined();
+        expect(AsyncStorage.setItem).toHaveBeenCalled();
+      });
+
+      it('should create backup when more than 7 days have passed', async () => {
+        const tenDaysAgo = Date.now() - (10 * 24 * 60 * 60 * 1000);
+        AsyncStorage.getItem.mockResolvedValue(tenDaysAgo.toString());
+
+        const result = await backupService.checkAndCreateWeeklyBackup();
+
+        expect(result).toBeDefined();
+        expect(result?.id).toBeDefined();
+      });
+
+      it('should not create backup when less than 7 days have passed', async () => {
+        const threeDaysAgo = Date.now() - (3 * 24 * 60 * 60 * 1000);
+        AsyncStorage.getItem.mockResolvedValue(threeDaysAgo.toString());
+
+        const result = await backupService.checkAndCreateWeeklyBackup();
+
+        expect(result).toBeNull();
+        expect(FileSystem.copyAsync).not.toHaveBeenCalled();
+        expect(AsyncStorage.setItem).not.toHaveBeenCalled();
+      });
+
+      it('should not throw if backup creation fails', async () => {
+        AsyncStorage.getItem.mockResolvedValue(null);
+        (FileSystem.copyAsync as jest.Mock).mockRejectedValue(
+          new Error('Disk full')
+        );
+
+        const result = await backupService.checkAndCreateWeeklyBackup();
+
+        expect(result).toBeNull();
+        // Should not throw
+      });
+
+      it('should update last backup timestamp after successful backup', async () => {
+        AsyncStorage.getItem.mockResolvedValue(null);
+        const beforeTime = Date.now();
+
+        await backupService.checkAndCreateWeeklyBackup();
+
+        expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+          '@MigraLog:lastWeeklyBackup',
+          expect.any(String)
+        );
+
+        const savedTimestamp = parseInt(
+          (AsyncStorage.setItem as jest.Mock).mock.calls[0][1],
+          10
+        );
+        expect(savedTimestamp).toBeGreaterThanOrEqual(beforeTime);
+        expect(savedTimestamp).toBeLessThanOrEqual(Date.now());
+      });
+    });
+
+    describe('getLastWeeklyBackupTime', () => {
+      it('should return timestamp when backup exists', async () => {
+        const timestamp = Date.now() - 100000;
+        AsyncStorage.getItem.mockResolvedValue(timestamp.toString());
+
+        const result = await backupService.getLastWeeklyBackupTime();
+
+        expect(result).toBe(timestamp);
+      });
+
+      it('should return 0 when no backup exists', async () => {
+        AsyncStorage.getItem.mockResolvedValue(null);
+
+        const result = await backupService.getLastWeeklyBackupTime();
+
+        expect(result).toBe(0);
+      });
+
+      it('should return 0 on error', async () => {
+        AsyncStorage.getItem.mockRejectedValue(new Error('Storage error'));
+
+        const result = await backupService.getLastWeeklyBackupTime();
+
+        expect(result).toBe(0);
+      });
+    });
+
+    describe('getDaysUntilNextWeeklyBackup', () => {
+      it('should return 0 when no previous backup exists', async () => {
+        AsyncStorage.getItem.mockResolvedValue(null);
+
+        const result = await backupService.getDaysUntilNextWeeklyBackup();
+
+        expect(result).toBe(0);
+      });
+
+      it('should return 0 when backup is overdue', async () => {
+        const tenDaysAgo = Date.now() - (10 * 24 * 60 * 60 * 1000);
+        AsyncStorage.getItem.mockResolvedValue(tenDaysAgo.toString());
+
+        const result = await backupService.getDaysUntilNextWeeklyBackup();
+
+        expect(result).toBe(0);
+      });
+
+      it('should return correct days remaining', async () => {
+        const threeDaysAgo = Date.now() - (3 * 24 * 60 * 60 * 1000);
+        AsyncStorage.getItem.mockResolvedValue(threeDaysAgo.toString());
+
+        const result = await backupService.getDaysUntilNextWeeklyBackup();
+
+        expect(result).toBe(4); // 7 - 3 = 4 days remaining
+      });
+
+      it('should return 1 when less than 1 day remaining', async () => {
+        const sixDaysAgoAndSomeHours = Date.now() - (6.5 * 24 * 60 * 60 * 1000);
+        AsyncStorage.getItem.mockResolvedValue(sixDaysAgoAndSomeHours.toString());
+
+        const result = await backupService.getDaysUntilNextWeeklyBackup();
+
+        expect(result).toBe(1); // Should round up
+      });
+
+      it('should return 0 on error', async () => {
+        AsyncStorage.getItem.mockRejectedValue(new Error('Storage error'));
+
+        const result = await backupService.getDaysUntilNextWeeklyBackup();
+
+        expect(result).toBe(0);
+      });
+    });
+
+    describe('Retention Policy (7 backups)', () => {
+      it('should keep only 7 most recent automatic backups', async () => {
+        // Mock 8 existing snapshot backups (more than MAX_AUTO_BACKUPS = 7)
+        const mockBackups = Array.from({ length: 8 }, (_, i) => ({
+          id: `backup_${Date.now() - i * 1000}_${i}`,
+          timestamp: Date.now() - (i * 24 * 60 * 60 * 1000), // i days old
+          version: '1.0.0',
+          schemaVersion: 6,
+          episodeCount: 0,
+          medicationCount: 0,
+          fileSize: 100,
+          fileName: `backup_${Date.now() - i * 1000}_${i}.db`,
+          backupType: 'snapshot' as const,
+        }));
+
+        // Mock directory listing with .db files and .meta.json files
+        const files = mockBackups.flatMap(b => [
+          b.fileName,
+          b.fileName.replace('.db', '.meta.json'),
+        ]);
+
+        (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue(files);
+
+        // Mock readAsStringAsync for metadata files
+        (FileSystem.readAsStringAsync as jest.Mock).mockImplementation((path: string) => {
+          const fileName = path.split('/').pop();
+          if (fileName?.endsWith('.meta.json')) {
+            const backupId = fileName.replace('.meta.json', '');
+            const backup = mockBackups.find(b => b.id === backupId);
+            return Promise.resolve(JSON.stringify(backup));
+          }
+          return Promise.resolve('{}');
+        });
+
+        AsyncStorage.getItem.mockResolvedValue(null);
+
+        // Create a new backup (should trigger cleanup)
+        await backupService.checkAndCreateWeeklyBackup();
+
+        // Should trigger cleanup and delete old backups
+        expect(FileSystem.deleteAsync).toHaveBeenCalled();
+      });
     });
   });
 });
