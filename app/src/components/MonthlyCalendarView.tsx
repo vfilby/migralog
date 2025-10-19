@@ -22,6 +22,9 @@ import {
   isSameMonth,
   addMonths,
   subMonths,
+  isAfter,
+  startOfDay,
+  isToday,
 } from 'date-fns';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -90,9 +93,27 @@ const createStyles = (theme: ThemeColors) =>
     dayCellOtherMonth: {
       opacity: 0.3,
     },
+    dayCellFuture: {
+      backgroundColor: theme.backgroundSecondary,
+      borderWidth: 1,
+      borderColor: theme.borderLight,
+    },
+    dayCellToday: {
+      borderWidth: 2,
+      borderColor: theme.primary,
+    },
     dayNumber: {
       fontSize: 14,
       color: theme.text,
+    },
+    dayNumberFuture: {
+      fontSize: 14,
+      color: theme.textSecondary,
+    },
+    dayNumberToday: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.primary,
     },
     statusIndicator: {
       fontSize: 20,
@@ -163,6 +184,15 @@ export default function MonthlyCalendarView({
   };
 
   const handleDayPress = (date: Date, dateStr: string) => {
+    // Only allow editing today or past dates
+    const today = startOfDay(new Date());
+    const selectedDay = startOfDay(date);
+
+    if (isAfter(selectedDay, today)) {
+      // Future date - do nothing
+      return;
+    }
+
     // Navigate to DailyStatusPrompt with the selected date
     navigation.navigate('DailyStatusPrompt', { date: dateStr });
   };
@@ -229,6 +259,10 @@ export default function MonthlyCalendarView({
               const dateStr = format(day, 'yyyy-MM-dd');
               const status = getStatusForDate(dateStr);
               const isCurrentMonth = isSameMonth(day, currentMonth);
+              const today = startOfDay(new Date());
+              const selectedDay = startOfDay(day);
+              const isFuture = isAfter(selectedDay, today);
+              const isTodayDate = isToday(day);
 
               return (
                 <TouchableOpacity
@@ -236,12 +270,17 @@ export default function MonthlyCalendarView({
                   style={[
                     styles.dayCell,
                     !isCurrentMonth && styles.dayCellOtherMonth,
+                    isFuture && styles.dayCellFuture,
+                    isTodayDate && styles.dayCellToday,
                   ]}
                   onPress={() => handleDayPress(day, dateStr)}
+                  disabled={isFuture}
                   testID={`calendar-day-${dateStr}`}
                 >
                   {renderStatusIndicator(status)}
-                  <Text style={styles.dayNumber}>{format(day, 'd')}</Text>
+                  <Text style={isTodayDate ? styles.dayNumberToday : (isFuture ? styles.dayNumberFuture : styles.dayNumber)}>
+                    {format(day, 'd')}
+                  </Text>
                 </TouchableOpacity>
               );
             })}

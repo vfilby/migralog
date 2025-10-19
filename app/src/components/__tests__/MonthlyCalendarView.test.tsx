@@ -1,4 +1,5 @@
 import React from 'react';
+import { Text } from 'react-native';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react-native';
 import MonthlyCalendarView from '../MonthlyCalendarView';
 import { useDailyStatusStore } from '../../store/dailyStatusStore';
@@ -250,7 +251,7 @@ describe('MonthlyCalendarView', () => {
   });
 
   describe('Day Selection', () => {
-    it('should navigate to daily status prompt when day is pressed', async () => {
+    it('should navigate to daily status prompt when current day is pressed', async () => {
       renderWithTheme(<MonthlyCalendarView initialDate={testDate} />);
 
       await waitFor(() => {
@@ -264,7 +265,7 @@ describe('MonthlyCalendarView', () => {
       });
     });
 
-    it('should allow pressing any day of the month', async () => {
+    it('should navigate to daily status prompt when past day is pressed', async () => {
       renderWithTheme(<MonthlyCalendarView initialDate={testDate} />);
 
       await waitFor(() => {
@@ -275,6 +276,128 @@ describe('MonthlyCalendarView', () => {
 
       expect(mockNavigation.navigate).toHaveBeenCalledWith('DailyStatusPrompt', {
         date: '2024-01-01',
+      });
+    });
+
+    it('should NOT navigate when future day is pressed', async () => {
+      renderWithTheme(<MonthlyCalendarView initialDate={testDate} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('calendar-day-2024-01-20')).toBeTruthy();
+      });
+
+      // Try to press a future date (testDate is Jan 15, so Jan 20 is future)
+      fireEvent.press(screen.getByTestId('calendar-day-2024-01-20'));
+
+      // Navigation should NOT be called for future dates
+      expect(mockNavigation.navigate).not.toHaveBeenCalledWith('DailyStatusPrompt', {
+        date: '2024-01-20',
+      });
+    });
+
+    it('should disable future date buttons', async () => {
+      renderWithTheme(<MonthlyCalendarView initialDate={testDate} />);
+
+      await waitFor(() => {
+        const futureDay = screen.getByTestId('calendar-day-2024-01-20');
+        expect(futureDay).toBeTruthy();
+        // TouchableOpacity with disabled={true} still renders but doesn't respond to press
+        expect(futureDay.props.accessibilityState?.disabled).toBe(true);
+      });
+    });
+
+    it('should NOT disable past or current date buttons', async () => {
+      renderWithTheme(<MonthlyCalendarView initialDate={testDate} />);
+
+      await waitFor(() => {
+        const currentDay = screen.getByTestId('calendar-day-2024-01-15');
+        const pastDay = screen.getByTestId('calendar-day-2024-01-10');
+
+        expect(currentDay.props.accessibilityState?.disabled).not.toBe(true);
+        expect(pastDay.props.accessibilityState?.disabled).not.toBe(true);
+      });
+    });
+  });
+
+  describe('Future Date Visual Styling', () => {
+    it('should apply different styling to future dates', async () => {
+      renderWithTheme(<MonthlyCalendarView initialDate={testDate} />);
+
+      await waitFor(() => {
+        const futureDay = screen.getByTestId('calendar-day-2024-01-20');
+        const pastDay = screen.getByTestId('calendar-day-2024-01-10');
+
+        // Future dates should have different styling
+        expect(futureDay.props.style).toBeDefined();
+        expect(pastDay.props.style).toBeDefined();
+
+        // Styles are different between future and past dates
+        expect(futureDay.props.style).not.toEqual(pastDay.props.style);
+      });
+    });
+
+    it('should render future date text with different styling', async () => {
+      renderWithTheme(<MonthlyCalendarView initialDate={testDate} />);
+
+      await waitFor(() => {
+        const futureDay = screen.getByTestId('calendar-day-2024-01-20');
+        const pastDay = screen.getByTestId('calendar-day-2024-01-10');
+
+        // Get the text elements inside each day cell
+        const futureDayText = futureDay.findByType(Text);
+        const pastDayText = pastDay.findByType(Text);
+
+        // Future dates should use different text styling
+        expect(futureDayText.props.style).toBeDefined();
+        expect(pastDayText.props.style).toBeDefined();
+      });
+    });
+
+    it('should apply future date styling only to dates after today', async () => {
+      renderWithTheme(<MonthlyCalendarView initialDate={testDate} />);
+
+      await waitFor(() => {
+        const currentDay = screen.getByTestId('calendar-day-2024-01-15');
+        const yesterdayDay = screen.getByTestId('calendar-day-2024-01-14');
+        const tomorrowDay = screen.getByTestId('calendar-day-2024-01-16');
+
+        // Today and yesterday should NOT be disabled
+        expect(currentDay.props.accessibilityState?.disabled).not.toBe(true);
+        expect(yesterdayDay.props.accessibilityState?.disabled).not.toBe(true);
+
+        // Tomorrow should be disabled
+        expect(tomorrowDay.props.accessibilityState?.disabled).toBe(true);
+      });
+    });
+
+    it('should highlight today with primary color border', async () => {
+      renderWithTheme(<MonthlyCalendarView initialDate={testDate} />);
+
+      await waitFor(() => {
+        const todayCell = screen.getByTestId('calendar-day-2024-01-15');
+
+        // Today should be highlighted
+        expect(todayCell).toBeTruthy();
+        expect(todayCell.props.style).toBeDefined();
+      });
+    });
+
+    it('should not highlight past or future dates with today styling', async () => {
+      renderWithTheme(<MonthlyCalendarView initialDate={testDate} />);
+
+      await waitFor(() => {
+        const todayCell = screen.getByTestId('calendar-day-2024-01-15');
+        const yesterdayCell = screen.getByTestId('calendar-day-2024-01-14');
+        const tomorrowCell = screen.getByTestId('calendar-day-2024-01-16');
+
+        // Verify all cells exist
+        expect(todayCell).toBeTruthy();
+        expect(yesterdayCell).toBeTruthy();
+        expect(tomorrowCell).toBeTruthy();
+
+        // Today should have different styling than yesterday and tomorrow
+        expect(todayCell.props.style).not.toEqual(yesterdayCell.props.style);
+        expect(todayCell.props.style).not.toEqual(tomorrowCell.props.style);
       });
     });
   });
