@@ -24,6 +24,7 @@ import {
   subMonths,
   isAfter,
   startOfDay,
+  isToday,
 } from 'date-fns';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -97,6 +98,10 @@ const createStyles = (theme: ThemeColors) =>
       borderWidth: 1,
       borderColor: theme.borderLight,
     },
+    dayCellToday: {
+      borderWidth: 2,
+      borderColor: theme.primary,
+    },
     dayNumber: {
       fontSize: 14,
       color: theme.text,
@@ -104,6 +109,11 @@ const createStyles = (theme: ThemeColors) =>
     dayNumberFuture: {
       fontSize: 14,
       color: theme.textSecondary,
+    },
+    dayNumberToday: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.primary,
     },
     statusIndicator: {
       fontSize: 20,
@@ -252,6 +262,7 @@ export default function MonthlyCalendarView({
               const today = startOfDay(new Date());
               const selectedDay = startOfDay(day);
               const isFuture = isAfter(selectedDay, today);
+              const isTodayDate = isToday(day);
 
               return (
                 <TouchableOpacity
@@ -260,13 +271,14 @@ export default function MonthlyCalendarView({
                     styles.dayCell,
                     !isCurrentMonth && styles.dayCellOtherMonth,
                     isFuture && styles.dayCellFuture,
+                    isTodayDate && styles.dayCellToday,
                   ]}
                   onPress={() => handleDayPress(day, dateStr)}
                   disabled={isFuture}
                   testID={`calendar-day-${dateStr}`}
                 >
                   {renderStatusIndicator(status)}
-                  <Text style={isFuture ? styles.dayNumberFuture : styles.dayNumber}>
+                  <Text style={isTodayDate ? styles.dayNumberToday : (isFuture ? styles.dayNumberFuture : styles.dayNumber)}>
                     {format(day, 'd')}
                   </Text>
                 </TouchableOpacity>

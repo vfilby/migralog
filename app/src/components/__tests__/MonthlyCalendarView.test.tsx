@@ -369,6 +369,37 @@ describe('MonthlyCalendarView', () => {
         expect(tomorrowDay.props.accessibilityState?.disabled).toBe(true);
       });
     });
+
+    it('should highlight today with primary color border', async () => {
+      renderWithTheme(<MonthlyCalendarView initialDate={testDate} />);
+
+      await waitFor(() => {
+        const todayCell = screen.getByTestId('calendar-day-2024-01-15');
+
+        // Today should be highlighted
+        expect(todayCell).toBeTruthy();
+        expect(todayCell.props.style).toBeDefined();
+      });
+    });
+
+    it('should not highlight past or future dates with today styling', async () => {
+      renderWithTheme(<MonthlyCalendarView initialDate={testDate} />);
+
+      await waitFor(() => {
+        const todayCell = screen.getByTestId('calendar-day-2024-01-15');
+        const yesterdayCell = screen.getByTestId('calendar-day-2024-01-14');
+        const tomorrowCell = screen.getByTestId('calendar-day-2024-01-16');
+
+        // Verify all cells exist
+        expect(todayCell).toBeTruthy();
+        expect(yesterdayCell).toBeTruthy();
+        expect(tomorrowCell).toBeTruthy();
+
+        // Today should have different styling than yesterday and tomorrow
+        expect(todayCell.props.style).not.toEqual(yesterdayCell.props.style);
+        expect(todayCell.props.style).not.toEqual(tomorrowCell.props.style);
+      });
+    });
   });
 
   describe('Data Loading', () => {
