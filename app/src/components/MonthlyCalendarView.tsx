@@ -22,6 +22,8 @@ import {
   isSameMonth,
   addMonths,
   subMonths,
+  isAfter,
+  startOfDay,
 } from 'date-fns';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -90,9 +92,16 @@ const createStyles = (theme: ThemeColors) =>
     dayCellOtherMonth: {
       opacity: 0.3,
     },
+    dayCellFuture: {
+      opacity: 0.4,
+    },
     dayNumber: {
       fontSize: 14,
       color: theme.text,
+    },
+    dayNumberFuture: {
+      fontSize: 14,
+      color: theme.textTertiary,
     },
     statusIndicator: {
       fontSize: 20,
@@ -163,6 +172,15 @@ export default function MonthlyCalendarView({
   };
 
   const handleDayPress = (date: Date, dateStr: string) => {
+    // Only allow editing today or past dates
+    const today = startOfDay(new Date());
+    const selectedDay = startOfDay(date);
+
+    if (isAfter(selectedDay, today)) {
+      // Future date - do nothing
+      return;
+    }
+
     // Navigate to DailyStatusPrompt with the selected date
     navigation.navigate('DailyStatusPrompt', { date: dateStr });
   };
@@ -229,6 +247,9 @@ export default function MonthlyCalendarView({
               const dateStr = format(day, 'yyyy-MM-dd');
               const status = getStatusForDate(dateStr);
               const isCurrentMonth = isSameMonth(day, currentMonth);
+              const today = startOfDay(new Date());
+              const selectedDay = startOfDay(day);
+              const isFuture = isAfter(selectedDay, today);
 
               return (
                 <TouchableOpacity
@@ -236,12 +257,16 @@ export default function MonthlyCalendarView({
                   style={[
                     styles.dayCell,
                     !isCurrentMonth && styles.dayCellOtherMonth,
+                    isFuture && styles.dayCellFuture,
                   ]}
                   onPress={() => handleDayPress(day, dateStr)}
+                  disabled={isFuture}
                   testID={`calendar-day-${dateStr}`}
                 >
                   {renderStatusIndicator(status)}
-                  <Text style={styles.dayNumber}>{format(day, 'd')}</Text>
+                  <Text style={isFuture ? styles.dayNumberFuture : styles.dayNumber}>
+                    {format(day, 'd')}
+                  </Text>
                 </TouchableOpacity>
               );
             })}

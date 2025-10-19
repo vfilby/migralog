@@ -250,7 +250,7 @@ describe('MonthlyCalendarView', () => {
   });
 
   describe('Day Selection', () => {
-    it('should navigate to daily status prompt when day is pressed', async () => {
+    it('should navigate to daily status prompt when current day is pressed', async () => {
       renderWithTheme(<MonthlyCalendarView initialDate={testDate} />);
 
       await waitFor(() => {
@@ -264,7 +264,7 @@ describe('MonthlyCalendarView', () => {
       });
     });
 
-    it('should allow pressing any day of the month', async () => {
+    it('should navigate to daily status prompt when past day is pressed', async () => {
       renderWithTheme(<MonthlyCalendarView initialDate={testDate} />);
 
       await waitFor(() => {
@@ -275,6 +275,45 @@ describe('MonthlyCalendarView', () => {
 
       expect(mockNavigation.navigate).toHaveBeenCalledWith('DailyStatusPrompt', {
         date: '2024-01-01',
+      });
+    });
+
+    it('should NOT navigate when future day is pressed', async () => {
+      renderWithTheme(<MonthlyCalendarView initialDate={testDate} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('calendar-day-2024-01-20')).toBeTruthy();
+      });
+
+      // Try to press a future date (testDate is Jan 15, so Jan 20 is future)
+      fireEvent.press(screen.getByTestId('calendar-day-2024-01-20'));
+
+      // Navigation should NOT be called for future dates
+      expect(mockNavigation.navigate).not.toHaveBeenCalledWith('DailyStatusPrompt', {
+        date: '2024-01-20',
+      });
+    });
+
+    it('should disable future date buttons', async () => {
+      renderWithTheme(<MonthlyCalendarView initialDate={testDate} />);
+
+      await waitFor(() => {
+        const futureDay = screen.getByTestId('calendar-day-2024-01-20');
+        expect(futureDay).toBeTruthy();
+        // TouchableOpacity with disabled={true} still renders but doesn't respond to press
+        expect(futureDay.props.accessibilityState?.disabled).toBe(true);
+      });
+    });
+
+    it('should NOT disable past or current date buttons', async () => {
+      renderWithTheme(<MonthlyCalendarView initialDate={testDate} />);
+
+      await waitFor(() => {
+        const currentDay = screen.getByTestId('calendar-day-2024-01-15');
+        const pastDay = screen.getByTestId('calendar-day-2024-01-10');
+
+        expect(currentDay.props.accessibilityState?.disabled).not.toBe(true);
+        expect(pastDay.props.accessibilityState?.disabled).not.toBe(true);
       });
     });
   });
