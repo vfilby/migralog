@@ -38,14 +38,13 @@ jobs:
       - name: Run type checking
         run: npx tsc --noEmit
 
-      - name: Run unit tests
-        run: npx jest --ci --watchAll=false --testPathIgnorePatterns="e2e"
+      - name: Run unit tests with coverage
+        run: npm run test:ci
 
-      - name: Run ESLint
-        run: npx eslint . --ext .ts,.tsx,.js,.jsx --max-warnings 0
-        continue-on-error: true
+      - name: Run ESLint (errors only)
+        run: npm run lint:ci
 
-      - name: Upload coverage reports
+      - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4
         if: always()
         with:
@@ -54,6 +53,14 @@ jobs:
           fail_ci_if_error: false
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: app/coverage
+          retention-days: 30
 
   # Job 2: Build iOS App
   # Depends on fast-checks (must pass first)
