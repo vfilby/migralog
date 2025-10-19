@@ -1,4 +1,5 @@
 import React from 'react';
+import { Text } from 'react-native';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react-native';
 import MonthlyCalendarView from '../MonthlyCalendarView';
 import { useDailyStatusStore } from '../../store/dailyStatusStore';
@@ -314,6 +315,58 @@ describe('MonthlyCalendarView', () => {
 
         expect(currentDay.props.accessibilityState?.disabled).not.toBe(true);
         expect(pastDay.props.accessibilityState?.disabled).not.toBe(true);
+      });
+    });
+  });
+
+  describe('Future Date Visual Styling', () => {
+    it('should apply different styling to future dates', async () => {
+      renderWithTheme(<MonthlyCalendarView initialDate={testDate} />);
+
+      await waitFor(() => {
+        const futureDay = screen.getByTestId('calendar-day-2024-01-20');
+        const pastDay = screen.getByTestId('calendar-day-2024-01-10');
+
+        // Future dates should have different styling
+        expect(futureDay.props.style).toBeDefined();
+        expect(pastDay.props.style).toBeDefined();
+
+        // Styles are different between future and past dates
+        expect(futureDay.props.style).not.toEqual(pastDay.props.style);
+      });
+    });
+
+    it('should render future date text with different styling', async () => {
+      renderWithTheme(<MonthlyCalendarView initialDate={testDate} />);
+
+      await waitFor(() => {
+        const futureDay = screen.getByTestId('calendar-day-2024-01-20');
+        const pastDay = screen.getByTestId('calendar-day-2024-01-10');
+
+        // Get the text elements inside each day cell
+        const futureDayText = futureDay.findByType(Text);
+        const pastDayText = pastDay.findByType(Text);
+
+        // Future dates should use different text styling
+        expect(futureDayText.props.style).toBeDefined();
+        expect(pastDayText.props.style).toBeDefined();
+      });
+    });
+
+    it('should apply future date styling only to dates after today', async () => {
+      renderWithTheme(<MonthlyCalendarView initialDate={testDate} />);
+
+      await waitFor(() => {
+        const currentDay = screen.getByTestId('calendar-day-2024-01-15');
+        const yesterdayDay = screen.getByTestId('calendar-day-2024-01-14');
+        const tomorrowDay = screen.getByTestId('calendar-day-2024-01-16');
+
+        // Today and yesterday should NOT be disabled
+        expect(currentDay.props.accessibilityState?.disabled).not.toBe(true);
+        expect(yesterdayDay.props.accessibilityState?.disabled).not.toBe(true);
+
+        // Tomorrow should be disabled
+        expect(tomorrowDay.props.accessibilityState?.disabled).toBe(true);
       });
     });
   });

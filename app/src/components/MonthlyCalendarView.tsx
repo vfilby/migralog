@@ -93,7 +93,9 @@ const createStyles = (theme: ThemeColors) =>
       opacity: 0.3,
     },
     dayCellFuture: {
-      opacity: 0.4,
+      backgroundColor: theme.backgroundSecondary,
+      borderWidth: 1,
+      borderColor: theme.borderLight,
     },
     dayNumber: {
       fontSize: 14,
@@ -101,7 +103,7 @@ const createStyles = (theme: ThemeColors) =>
     },
     dayNumberFuture: {
       fontSize: 14,
-      color: theme.textTertiary,
+      color: theme.textSecondary,
     },
     statusIndicator: {
       fontSize: 20,
