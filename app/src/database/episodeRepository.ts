@@ -1,6 +1,18 @@
 import { getDatabase, generateId } from './db';
 import { Episode, IntensityReading, SymptomLog, EpisodeNote, PainLocationLog } from '../models/types';
 import * as SQLite from 'expo-sqlite';
+import {
+  EpisodeRow,
+  IntensityReadingRow,
+  SymptomLogRow,
+  PainLocationLogRow,
+  EpisodeNoteRow,
+  safeJSONParse,
+  isPainLocationArray,
+  isPainQualityArray,
+  isSymptomArray,
+  isTriggerArray,
+} from './types';
 
 export const episodeRepository = {
   async create(episode: Omit<Episode, 'id' | 'createdAt' | 'updatedAt'>, db?: SQLite.SQLiteDatabase): Promise<Episode> {
@@ -50,7 +62,7 @@ export const episodeRepository = {
     const now = Date.now();
 
     const fields: string[] = [];
-    const values: any[] = [];
+    const values: (string | number | null)[] = [];
 
     if (updates.startTime !== undefined) {
       fields.push('start_time = ?');
@@ -101,7 +113,7 @@ export const episodeRepository = {
 
   async getById(id: string, db?: SQLite.SQLiteDatabase): Promise<Episode | null> {
     const database = db || await getDatabase();
-    const result = await database.getFirstAsync<any>(
+    const result = await database.getFirstAsync<EpisodeRow>(
       'SELECT * FROM episodes WHERE id = ?',
       [id]
     );
@@ -113,7 +125,7 @@ export const episodeRepository = {
 
   async getAll(limit = 50, offset = 0, db?: SQLite.SQLiteDatabase): Promise<Episode[]> {
     const database = db || await getDatabase();
-    const results = await database.getAllAsync<any>(
+    const results = await database.getAllAsync<EpisodeRow>(
       'SELECT * FROM episodes ORDER BY start_time DESC LIMIT ? OFFSET ?',
       [limit, offset]
     );
@@ -123,7 +135,7 @@ export const episodeRepository = {
 
   async getByDateRange(startDate: number, endDate: number, db?: SQLite.SQLiteDatabase): Promise<Episode[]> {
     const database = db || await getDatabase();
-    const results = await database.getAllAsync<any>(
+    const results = await database.getAllAsync<EpisodeRow>(
       'SELECT * FROM episodes WHERE start_time >= ? AND start_time <= ? ORDER BY start_time DESC',
       [startDate, endDate]
     );
@@ -133,7 +145,7 @@ export const episodeRepository = {
 
   async getCurrentEpisode(db?: SQLite.SQLiteDatabase): Promise<Episode | null> {
     const database = db || await getDatabase();
-    const result = await database.getFirstAsync<any>(
+    const result = await database.getFirstAsync<EpisodeRow>(
       'SELECT * FROM episodes WHERE end_time IS NULL ORDER BY start_time DESC LIMIT 1'
     );
 
@@ -146,7 +158,7 @@ export const episodeRepository = {
     const database = db || await getDatabase();
     // Find episode where timestamp falls between start_time and end_time
     // If end_time is NULL (ongoing episode), check if timestamp is after start_time
-    const result = await database.getFirstAsync<any>(
+    const result = await database.getFirstAsync<EpisodeRow>(
       `SELECT * FROM episodes
        WHERE start_time <= ?
        AND (end_time IS NULL OR end_time >= ?)
@@ -172,10 +184,10 @@ export const episodeRepository = {
     await database.runAsync('DELETE FROM symptom_logs');
   },
 
-  mapRowToEpisode(row: any): Episode {
+  mapRowToEpisode(row: EpisodeRow): Episode {
     // Build location object if GPS data exists
     let location = undefined;
-    if (row.latitude != null && row.longitude != null) {
+    if (row.latitude != null && row.longitude != null && row.location_timestamp != null) {
       location = {
         latitude: row.latitude,
         longitude: row.longitude,
@@ -187,14 +199,14 @@ export const episodeRepository = {
     return {
       id: row.id,
       startTime: row.start_time,
-      endTime: row.end_time,
-      locations: JSON.parse(row.locations),
-      qualities: JSON.parse(row.qualities),
-      symptoms: JSON.parse(row.symptoms),
-      triggers: JSON.parse(row.triggers),
-      notes: row.notes,
-      peakIntensity: row.peak_intensity,
-      averageIntensity: row.average_intensity,
+      endTime: row.end_time ?? undefined, // Convert null to undefined
+      locations: safeJSONParse(row.locations, [], isPainLocationArray),
+      qualities: safeJSONParse(row.qualities, [], isPainQualityArray),
+      symptoms: safeJSONParse(row.symptoms, [], isSymptomArray),
+      triggers: safeJSONParse(row.triggers, [], isTriggerArray),
+      notes: row.notes || undefined,
+      peakIntensity: row.peak_intensity || undefined,
+      averageIntensity: row.average_intensity || undefined,
       location,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -249,7 +261,7 @@ export const intensityRepository = {
 
   async getByEpisodeId(episodeId: string, db?: SQLite.SQLiteDatabase): Promise<IntensityReading[]> {
     const database = db || await getDatabase();
-    const results = await database.getAllAsync<any>(
+    const results = await database.getAllAsync<IntensityReadingRow>(
       'SELECT * FROM intensity_readings WHERE episode_id = ? ORDER BY timestamp ASC',
       [episodeId]
     );
@@ -303,7 +315,7 @@ export const symptomLogRepository = {
 
   async getByEpisodeId(episodeId: string, db?: SQLite.SQLiteDatabase): Promise<SymptomLog[]> {
     const database = db || await getDatabase();
-    const results = await database.getAllAsync<any>(
+    const results = await database.getAllAsync<SymptomLogRow>(
       'SELECT * FROM symptom_logs WHERE episode_id = ? ORDER BY onset_time ASC',
       [episodeId]
     );
@@ -311,10 +323,10 @@ export const symptomLogRepository = {
     return results.map(row => ({
       id: row.id,
       episodeId: row.episode_id,
-      symptom: row.symptom,
+      symptom: row.symptom as import('../models/types').Symptom, // Type assertion for union type
       onsetTime: row.onset_time,
-      resolutionTime: row.resolution_time,
-      severity: row.severity,
+      resolutionTime: row.resolution_time || undefined,
+      severity: row.severity || undefined,
       createdAt: row.created_at,
     }));
   },
@@ -342,7 +354,7 @@ export const painLocationLogRepository = {
 
   async getByEpisodeId(episodeId: string, db?: SQLite.SQLiteDatabase): Promise<PainLocationLog[]> {
     const database = db || await getDatabase();
-    const results = await database.getAllAsync<any>(
+    const results = await database.getAllAsync<PainLocationLogRow>(
       'SELECT * FROM pain_location_logs WHERE episode_id = ? ORDER BY timestamp ASC',
       [episodeId]
     );
@@ -351,7 +363,7 @@ export const painLocationLogRepository = {
       id: row.id,
       episodeId: row.episode_id,
       timestamp: row.timestamp,
-      painLocations: JSON.parse(row.pain_locations),
+      painLocations: safeJSONParse(row.pain_locations, [], isPainLocationArray),
       createdAt: row.created_at,
     }));
   },
@@ -408,7 +420,7 @@ export const episodeNoteRepository = {
 
   async getByEpisodeId(episodeId: string, db?: SQLite.SQLiteDatabase): Promise<EpisodeNote[]> {
     const database = db || await getDatabase();
-    const results = await database.getAllAsync<any>(
+    const results = await database.getAllAsync<EpisodeNoteRow>(
       'SELECT * FROM episode_notes WHERE episode_id = ? ORDER BY timestamp ASC',
       [episodeId]
     );
