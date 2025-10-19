@@ -1,3 +1,5 @@
+import { logger } from '../utils/logger';
+
 /**
  * Database Row Types
  *
@@ -233,12 +235,12 @@ export function safeJSONParse<T>(
   try {
     const parsed = JSON.parse(jsonString);
     if (validator && !validator(parsed)) {
-      console.warn('[DB] JSON validation failed, using default value. Invalid data:', parsed);
+      logger.warn('[DB] JSON validation failed, using default value. Invalid data:', parsed);
       return defaultValue;
     }
     return parsed as T;
   } catch (error) {
-    console.error('[DB] Failed to parse JSON:', error);
+    logger.error('[DB] Failed to parse JSON:', error);
     return defaultValue;
   }
 }

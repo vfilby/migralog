@@ -5,6 +5,7 @@
  * and will be stripped from production builds.
  */
 
+import { logger } from '../utils/logger';
 import { getDatabase } from '../database/db';
 import { backupService } from '../services/backupService';
 import { useDailyStatusStore } from '../store/dailyStatusStore';
@@ -25,21 +26,21 @@ export async function resetDatabaseForTesting(options: {
 } = {}) {
   const { createBackup = true, loadFixtures = false } = options;
 
-  console.log('[TestHelpers] Starting database reset...');
+  logger.log('[TestHelpers] Starting database reset...');
 
   try {
     // 1. Create backup before reset (safety measure)
     if (createBackup) {
-      console.log('[TestHelpers] Creating pre-reset backup...');
+      logger.log('[TestHelpers] Creating pre-reset backup...');
       const backupId = await backupService.createBackup(false); // Not automatic
-      console.log(`[TestHelpers] Backup created: ${backupId}`);
+      logger.log(`[TestHelpers] Backup created: ${backupId}`);
     }
 
     // 2. Get database instance
     const db = await getDatabase();
 
     // 3. Clear all data from tables (preserves schema)
-    console.log('[TestHelpers] Clearing all tables...');
+    logger.log('[TestHelpers] Clearing all tables...');
     await db.execAsync('DELETE FROM medication_reminders');
     await db.execAsync('DELETE FROM medication_doses');
     await db.execAsync('DELETE FROM medication_schedules');
@@ -50,25 +51,25 @@ export async function resetDatabaseForTesting(options: {
     await db.execAsync('DELETE FROM episodes');
     await db.execAsync('DELETE FROM daily_status_logs');
 
-    console.log('[TestHelpers] All tables cleared');
+    logger.log('[TestHelpers] All tables cleared');
 
     // 4. Reset Zustand stores to clear in-memory state
-    console.log('[TestHelpers] Resetting stores...');
+    logger.log('[TestHelpers] Resetting stores...');
     useDailyStatusStore.getState().reset();
     // Note: medicationStore and episodeStore don't have reset methods,
     // but they will reload data when screens gain focus
-    console.log('[TestHelpers] Stores reset');
+    logger.log('[TestHelpers] Stores reset');
 
     // 5. Optionally load test fixtures
     if (loadFixtures) {
-      console.log('[TestHelpers] Loading test fixtures...');
+      logger.log('[TestHelpers] Loading test fixtures...');
       await loadTestFixtures();
     }
 
-    console.log('[TestHelpers] Database reset complete');
+    logger.log('[TestHelpers] Database reset complete');
     return { success: true, message: 'Database reset successfully' };
   } catch (error) {
-    console.error('[TestHelpers] Failed to reset database:', error);
+    logger.error('[TestHelpers] Failed to reset database:', error);
     return { success: false, message: `Reset failed: ${error}` };
   }
 }
@@ -185,7 +186,7 @@ async function loadTestFixtures() {
     ]
   );
 
-  console.log('[TestHelpers] Test fixtures loaded (preventative + rescue medications)');
+  logger.log('[TestHelpers] Test fixtures loaded (preventative + rescue medications)');
 }
 
 /**

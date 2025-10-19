@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { logger } from '../utils/logger';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useMedicationStore } from '../store/medicationStore';
@@ -302,7 +303,7 @@ export default function MedicationsScreen() {
       setMedicationSchedules(schedules);
       setScheduleLogStates(logStates);
     } catch (error) {
-      console.error('Failed to load schedules and doses:', error);
+      logger.error('Failed to load schedules and doses:', error);
     }
   };
 
@@ -363,7 +364,7 @@ export default function MedicationsScreen() {
         }
       }));
     } catch (error) {
-      console.error('Failed to quick log medication:', error);
+      logger.error('Failed to quick log medication:', error);
       Alert.alert('Error', 'Failed to log medication');
     }
   };
@@ -381,7 +382,7 @@ export default function MedicationsScreen() {
       // Delete from database
       await deleteDose(doseId);
     } catch (error) {
-      console.error('Failed to undo log:', error);
+      logger.error('Failed to undo log:', error);
       Alert.alert('Error', 'Failed to undo');
       // Reload on error to sync with database
       loadSchedulesAndDoses();
@@ -398,7 +399,7 @@ export default function MedicationsScreen() {
       });
       Alert.alert('Success', 'Medication logged successfully');
     } catch (error) {
-      console.error('Failed to quick log medication:', error);
+      logger.error('Failed to quick log medication:', error);
       Alert.alert('Error', 'Failed to log medication');
     }
   };

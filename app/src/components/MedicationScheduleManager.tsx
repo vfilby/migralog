@@ -120,7 +120,6 @@ export default function MedicationScheduleManager({
   const { theme, isDark } = useTheme();
   const styles = createStyles(theme);
   const [editingScheduleIndex, setEditingScheduleIndex] = useState<number | null>(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDateScheduleIndex, setSelectedDateScheduleIndex] = useState<number | null>(null);
 
   const handleAddSchedule = () => {
@@ -173,7 +172,6 @@ export default function MedicationScheduleManager({
 
   const handleDatePickerChange = (event: any, selectedDate?: Date) => {
     if (Platform.OS === 'android') {
-      setShowDatePicker(false);
       setSelectedDateScheduleIndex(null);
     }
 
@@ -185,7 +183,6 @@ export default function MedicationScheduleManager({
 
   const toggleDatePicker = (index: number) => {
     setSelectedDateScheduleIndex(selectedDateScheduleIndex === index ? null : index);
-    setShowDatePicker(selectedDateScheduleIndex !== index);
   };
 
   const getFrequencyLabel = () => {

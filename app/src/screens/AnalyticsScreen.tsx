@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useEpisodeStore } from '../store/episodeStore';
-import { format, startOfMonth, endOfMonth, differenceInDays } from 'date-fns';
+import { startOfMonth, endOfMonth } from 'date-fns';
 import { useTheme, ThemeColors } from '../theme';
 import MonthlyCalendarView from '../components/MonthlyCalendarView';
 
@@ -109,6 +109,7 @@ export default function AnalyticsScreen() {
 
   useEffect(() => {
     loadEpisodes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

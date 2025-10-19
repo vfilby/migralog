@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { logger } from '../utils/logger';
 import {
   View,
   Text,
@@ -241,7 +242,6 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
   const styles = createStyles(theme);
   const { medicationId } = route.params;
   const { updateMedication } = useMedicationStore();
-  const [medication, setMedication] = useState<Medication | null>(null);
   const [name, setName] = useState('');
   const [type, setType] = useState<MedicationType>('rescue');
   const [dosageAmount, setDosageAmount] = useState('');
@@ -255,15 +255,10 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadMedication();
-  }, [medicationId]);
-
-  const loadMedication = async () => {
+  const loadMedication = useCallback(async () => {
     try {
       const med = await medicationRepository.getById(medicationId);
       if (med) {
-        setMedication(med);
         setName(med.name);
         setType(med.type);
         setDosageAmount(med.dosageAmount.toString());
@@ -283,13 +278,17 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
         })));
       }
     } catch (error) {
-      console.error('Failed to load medication:', error);
+      logger.error('Failed to load medication:', error);
       Alert.alert('Error', 'Failed to load medication');
       navigation.goBack();
     } finally {
       setLoading(false);
     }
-  };
+  }, [medicationId, navigation]);
+
+  useEffect(() => {
+    loadMedication();
+  }, [loadMedication]);
 
   const pickImage = async (useCamera: boolean) => {
     const permissionResult = useCamera
@@ -379,9 +378,9 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
         if (permissions.granted && scheduleFrequency === 'daily') {
           try {
             await notificationService.rescheduleAllMedicationNotifications();
-            console.log('[EditMedication] Notifications rescheduled with grouping');
+            logger.log('[EditMedication] Notifications rescheduled with grouping');
           } catch (error) {
-            console.error('[EditMedication] Failed to reschedule notifications:', error);
+            logger.error('[EditMedication] Failed to reschedule notifications:', error);
             // Don't fail the whole operation if notification fails
           }
         }
@@ -389,7 +388,7 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
 
       navigation.goBack();
     } catch (error) {
-      console.error('Failed to update medication:', error);
+      logger.error('Failed to update medication:', error);
       Alert.alert('Error', 'Failed to update medication');
     } finally {
       setSaving(false);

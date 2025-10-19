@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import { createTables, SCHEMA_VERSION } from './schema';
+import { createTables } from './schema';
 import { migrationRunner } from './migrations';
 import { errorLogger } from '../services/errorLogger';
 import { logger } from '../utils/logger';

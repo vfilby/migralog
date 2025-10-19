@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { logger } from '../utils/logger';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useTheme, ThemeColors } from '../theme';
 import { useDailyStatusStore } from '../store/dailyStatusStore';
@@ -111,6 +112,7 @@ export default function DailyStatusWidget({ onStatusLogged }: DailyStatusWidgetP
     });
 
     return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigation]);
 
   const checkStatus = async () => {
@@ -146,7 +148,7 @@ export default function DailyStatusWidget({ onStatusLogged }: DailyStatusWidgetP
       setYesterdayStatus({ status, loggedAt: Date.now() });
       onStatusLogged?.();
     } catch (error) {
-      console.error('Failed to log status:', error);
+      logger.error('Failed to log status:', error);
     } finally {
       setLoading(false);
     }
@@ -163,7 +165,7 @@ export default function DailyStatusWidget({ onStatusLogged }: DailyStatusWidgetP
         onStatusLogged?.();
       }
     } catch (error) {
-      console.error('Failed to undo status:', error);
+      logger.error('Failed to undo status:', error);
     } finally {
       setLoading(false);
     }

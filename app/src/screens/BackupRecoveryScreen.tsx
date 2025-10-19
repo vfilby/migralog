@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { logger } from '../utils/logger';
 import {
   View,
   Text,
@@ -33,7 +34,7 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
       const backupList = await backupService.listBackups();
       setBackups(backupList);
     } catch (error) {
-      console.error('Failed to load backups:', error);
+      logger.error('Failed to load backups:', error);
       Alert.alert('Error', 'Failed to load backups');
     } finally {
       setLoading(false);
@@ -45,11 +46,11 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
     setCreatingBackup(true);
     try {
       // Create snapshot backup (complete database copy - safer than JSON)
-      const backup = await backupService.createSnapshotBackup();
+      await backupService.createSnapshotBackup();
       Alert.alert('Success', 'Backup created successfully');
       await loadBackups();
     } catch (error) {
-      console.error('Failed to create backup:', error);
+      logger.error('Failed to create backup:', error);
       Alert.alert('Error', 'Failed to create backup: ' + (error as Error).message);
     } finally {
       setCreatingBackup(false);
@@ -60,7 +61,7 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
     try {
       await backupService.exportBackup(backupId);
     } catch (error) {
-      console.error('Failed to export backup:', error);
+      logger.error('Failed to export backup:', error);
       Alert.alert('Error', 'Failed to export backup: ' + (error as Error).message);
     }
   };
@@ -75,12 +76,12 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
           text: 'Import',
           onPress: async () => {
             try {
-              const backup = await backupService.importBackup();
+              await backupService.importBackup();
               Alert.alert('Success', 'Backup imported successfully');
               await loadBackups();
             } catch (error) {
               if ((error as Error).message !== 'Import cancelled') {
-                console.error('Failed to import backup:', error);
+                logger.error('Failed to import backup:', error);
                 Alert.alert('Error', 'Failed to import backup: ' + (error as Error).message);
               }
             }
@@ -108,7 +109,7 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
                 [{ text: 'OK', onPress: () => navigation.goBack() }]
               );
             } catch (error) {
-              console.error('Failed to restore backup:', error);
+              logger.error('Failed to restore backup:', error);
               Alert.alert('Error', 'Failed to restore backup: ' + (error as Error).message);
             }
           },
@@ -132,7 +133,7 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
               Alert.alert('Success', 'Backup deleted successfully');
               await loadBackups();
             } catch (error) {
-              console.error('Failed to delete backup:', error);
+              logger.error('Failed to delete backup:', error);
               Alert.alert('Error', 'Failed to delete backup: ' + (error as Error).message);
             }
           },

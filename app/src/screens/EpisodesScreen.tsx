@@ -67,6 +67,7 @@ export default function EpisodesScreen() {
       loadEpisodes();
     });
     return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigation]);
 
   const renderEpisode = ({ item }: { item: Episode }) => (

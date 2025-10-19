@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { logger } from '../utils/logger';
 import {
   View,
   Text,
@@ -310,7 +311,7 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
 
       navigation.goBack();
     } catch (error) {
-      console.error('Failed to quick log medication:', error);
+      logger.error('Failed to quick log medication:', error);
       Alert.alert('Error', 'Failed to log medication');
     }
   };
@@ -335,7 +336,7 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
 
       navigation.goBack();
     } catch (error) {
-      console.error('Failed to log medication:', error);
+      logger.error('Failed to log medication:', error);
       Alert.alert('Error', 'Failed to log medication');
     } finally {
       setSaving(false);

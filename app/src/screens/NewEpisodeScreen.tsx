@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { logger } from '../utils/logger';
 import {
   View,
   Text,
@@ -320,7 +321,7 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
           }
         }
       } catch (error) {
-        console.error('Failed to load episode:', error);
+        logger.error('Failed to load episode:', error);
       } finally {
         setLoading(false);
       }
@@ -339,13 +340,13 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
         const location = await locationService.getCurrentLocation();
         if (location) {
           setGpsLocation(location);
-          console.log('Location captured:', location);
+          logger.log('Location captured:', location);
         } else {
-          console.log('Location not available (no permission or error)');
+          logger.log('Location not available (no permission or error)');
         }
       } catch (error) {
         // Silent failure - location is optional
-        console.log('Failed to capture location:', error);
+        logger.log('Failed to capture location:', error);
       }
     };
 
@@ -382,8 +383,8 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
   };
 
   const handleSave = async () => {
-    console.log('[NewEpisode] handleSave called');
-    console.log('[NewEpisode] isEditing:', isEditing, 'episodeId:', episodeId);
+    logger.log('[NewEpisode] handleSave called');
+    logger.log('[NewEpisode] isEditing:', isEditing, 'episodeId:', episodeId);
 
     // Validate end time if provided
     if (endTime) {
@@ -397,7 +398,7 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
     setSaving(true);
     try {
       if (isEditing && episodeId) {
-        console.log('[NewEpisode] Updating existing episode...');
+        logger.log('[NewEpisode] Updating existing episode...');
 
         // Check if start time changed to update initial intensity reading timestamp
         const startTimeChanged = originalStartTime && startTime.getTime() !== originalStartTime;
@@ -412,11 +413,11 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
           triggers,
           notes: notes.trim() || undefined,
         });
-        console.log('[NewEpisode] Episode updated');
+        logger.log('[NewEpisode] Episode updated');
 
         // Update all timeline entries with matching timestamp if start time changed
         if (startTimeChanged) {
-          console.log('[NewEpisode] Start time changed, updating all timeline entries with original start time...');
+          logger.log('[NewEpisode] Start time changed, updating all timeline entries with original start time...');
           const { intensityRepository, episodeNoteRepository } = await import('../database/episodeRepository');
 
           // Update intensity readings
@@ -425,7 +426,7 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
             originalStartTime,
             startTime.getTime()
           );
-          console.log(`[NewEpisode] Updated ${intensityChanges} intensity reading(s)`);
+          logger.log(`[NewEpisode] Updated ${intensityChanges} intensity reading(s)`);
 
           // Update episode notes
           const notesChanges = await episodeNoteRepository.updateTimestampsForEpisode(
@@ -433,12 +434,12 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
             originalStartTime,
             startTime.getTime()
           );
-          console.log(`[NewEpisode] Updated ${notesChanges} episode note(s)`);
+          logger.log(`[NewEpisode] Updated ${notesChanges} episode note(s)`);
         }
 
         // Update initial intensity reading if it changed
         if (initialReadingId && intensity !== initialIntensity) {
-          console.log('[NewEpisode] Updating intensity reading...');
+          logger.log('[NewEpisode] Updating intensity reading...');
           const { intensityRepository } = await import('../database/episodeRepository');
           await intensityRepository.update(initialReadingId, intensity);
 
@@ -449,14 +450,14 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
           const averageIntensity = intensities.reduce((a, b) => a + b, 0) / intensities.length;
 
           await updateEpisode(episodeId, { peakIntensity, averageIntensity });
-          console.log('[NewEpisode] Intensity updated');
+          logger.log('[NewEpisode] Intensity updated');
         }
 
-        console.log('[NewEpisode] Dismissing edit modal...');
+        logger.log('[NewEpisode] Dismissing edit modal...');
         setSaving(false);
         navigation.goBack();
       } else {
-        console.log('[NewEpisode] Creating new episode...');
+        logger.log('[NewEpisode] Creating new episode...');
         // Create new episode
         const episode = await startEpisode({
           startTime: startTime.getTime(),
@@ -467,11 +468,11 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
           notes: notes.trim() || undefined,
           location: gpsLocation || undefined,
         });
-        console.log('[NewEpisode] Episode created:', episode.id);
+        logger.log('[NewEpisode] Episode created:', episode.id);
 
         // Add initial intensity reading with the same timestamp as episode start
         if (intensity > 0) {
-          console.log('[NewEpisode] Adding intensity reading...');
+          logger.log('[NewEpisode] Adding intensity reading...');
           const { intensityRepository } = await import('../database/episodeRepository');
           await intensityRepository.create({
             episodeId: episode.id,
@@ -484,18 +485,18 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
             peakIntensity: intensity,
             averageIntensity: intensity
           });
-          console.log('[NewEpisode] Intensity reading added');
+          logger.log('[NewEpisode] Intensity reading added');
         }
 
-        console.log('[NewEpisode] Dismissing new episode modal...');
+        logger.log('[NewEpisode] Dismissing new episode modal...');
         setSaving(false);
         navigation.goBack();
       }
     } catch (error) {
-      console.error('[NewEpisode] CATCH BLOCK - Failed to save episode:', error);
-      console.error('[NewEpisode] Error type:', typeof error);
-      console.error('[NewEpisode] Error message:', (error as Error).message);
-      console.error('[NewEpisode] Error stack:', (error as Error).stack);
+      logger.error('[NewEpisode] CATCH BLOCK - Failed to save episode:', error);
+      logger.error('[NewEpisode] Error type:', typeof error);
+      logger.error('[NewEpisode] Error message:', (error as Error).message);
+      logger.error('[NewEpisode] Error stack:', (error as Error).stack);
       setSaving(false);
       Alert.alert('Error', `Failed to save episode: ${(error as Error).message || 'Unknown error'}`);
     }

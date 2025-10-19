@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { logger } from '../utils/logger';
 import {
   View,
   Text,
@@ -286,7 +287,7 @@ export default function AddMedicationScreen({ navigation }: Props) {
   };
 
   const handleSave = async () => {
-    console.log('[AddMedication] handleSave called');
+    logger.log('[AddMedication] handleSave called');
 
     if (!name.trim()) {
       Alert.alert('Error', 'Please enter a medication name');
@@ -298,12 +299,12 @@ export default function AddMedicationScreen({ navigation }: Props) {
       return;
     }
 
-    console.log('[AddMedication] Validation passed');
-    console.log('[AddMedication] Starting save process...');
+    logger.log('[AddMedication] Validation passed');
+    logger.log('[AddMedication] Starting save process...');
 
     setSaving(true);
     try {
-      console.log('[AddMedication] Creating medication...');
+      logger.log('[AddMedication] Creating medication...');
       const newMedication = await addMedication({
         name: name.trim(),
         type,
@@ -315,11 +316,11 @@ export default function AddMedicationScreen({ navigation }: Props) {
         active: true,
         notes: notes.trim() || undefined,
       });
-      console.log('[AddMedication] Medication created:', newMedication.id);
+      logger.log('[AddMedication] Medication created:', newMedication.id);
 
       // Save schedules if preventative medication
       if (type === 'preventative' && schedules.length > 0) {
-        console.log('[AddMedication] Saving schedules...');
+        logger.log('[AddMedication] Saving schedules...');
 
         for (const schedule of schedules) {
           // Create the schedule in the database
@@ -332,7 +333,7 @@ export default function AddMedicationScreen({ navigation }: Props) {
           });
         }
 
-        console.log('[AddMedication] Schedules saved');
+        logger.log('[AddMedication] Schedules saved');
 
         // Reschedule all medication notifications with grouping
         // This will cancel all existing notifications and recreate them with proper grouping
@@ -340,30 +341,30 @@ export default function AddMedicationScreen({ navigation }: Props) {
         if (permissions.granted && scheduleFrequency === 'daily') {
           try {
             await notificationService.rescheduleAllMedicationNotifications();
-            console.log('[AddMedication] Notifications rescheduled with grouping');
+            logger.log('[AddMedication] Notifications rescheduled with grouping');
           } catch (error) {
-            console.error('[AddMedication] Failed to reschedule notifications:', error);
+            logger.error('[AddMedication] Failed to reschedule notifications:', error);
             // Don't fail the whole operation if notification fails
           }
         }
       }
 
-      console.log('[AddMedication] Setting saving to false...');
+      logger.log('[AddMedication] Setting saving to false...');
       setSaving(false);
 
-      console.log('[AddMedication] Navigating back...');
+      logger.log('[AddMedication] Navigating back...');
       navigation.goBack();
-      console.log('[AddMedication] Navigation complete');
+      logger.log('[AddMedication] Navigation complete');
     } catch (error) {
-      console.error('[AddMedication] CATCH BLOCK - Failed to add medication:', error);
-      console.error('[AddMedication] Error type:', typeof error);
-      console.error('[AddMedication] Error message:', (error as Error).message);
-      console.error('[AddMedication] Error stack:', (error as Error).stack);
+      logger.error('[AddMedication] CATCH BLOCK - Failed to add medication:', error);
+      logger.error('[AddMedication] Error type:', typeof error);
+      logger.error('[AddMedication] Error message:', (error as Error).message);
+      logger.error('[AddMedication] Error stack:', (error as Error).stack);
 
       // Log error (non-blocking)
       errorLogger.log('general', 'AddMedication: Save failed', error as Error, {
         medicationName: name.trim()
-      }).catch(e => console.error('[AddMedication] Failed to log error:', e));
+      }).catch(e => logger.error('[AddMedication] Failed to log error:', e));
 
       setSaving(false);
       Alert.alert('Error', `Failed to save medication: ${(error as Error).message || 'Unknown error'}`);

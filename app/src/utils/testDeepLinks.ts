@@ -10,6 +10,7 @@
  * 4. Audit Logging: All operations logged for security review
  */
 
+import { logger } from '../utils/logger';
 import { Linking } from 'react-native';
 import Constants from 'expo-constants';
 
@@ -19,9 +20,9 @@ const enableTestDeepLinks = Constants.expoConfig?.extra?.enableTestDeepLinks ===
 
 // Log configuration status at module load time
 if (enableTestDeepLinks) {
-  console.log('[TestDeepLinks] Enabled in Debug/Testing build');
+  logger.log('[TestDeepLinks] Enabled in Debug/Testing build');
 } else {
-  console.log('[TestDeepLinks] Disabled in Release build');
+  logger.log('[TestDeepLinks] Disabled in Release build');
 }
 
 // Dynamic import to prevent bundling in production
@@ -61,12 +62,12 @@ function activateTestMode(): string {
   testModeTimeout = setTimeout(() => {
     isTestModeActive = false;
     testModeToken = null;
-    console.log('[TestDeepLinks] Test mode auto-disabled after timeout');
+    logger.log('[TestDeepLinks] Test mode auto-disabled after timeout');
   }, TEST_MODE_TIMEOUT_MS);
 
   // Layer 4: Audit Logging
-  console.log(`[TestDeepLinks] Test mode ACTIVATED (expires in ${TEST_MODE_TIMEOUT_MS / 1000}s)`);
-  console.log(`[TestDeepLinks] Session token: ${testModeToken}`);
+  logger.log(`[TestDeepLinks] Test mode ACTIVATED (expires in ${TEST_MODE_TIMEOUT_MS / 1000}s)`);
+  logger.log(`[TestDeepLinks] Session token: ${testModeToken}`);
 
   return testModeToken;
 }
@@ -78,17 +79,17 @@ function activateTestMode(): string {
 function verifyTestModeToken(providedToken: string | null): boolean {
   // Special bypass for Detox E2E tests
   if (providedToken === 'detox') {
-    console.log('[TestDeepLinks] ✅ Authorized: Detox E2E token accepted');
+    logger.log('[TestDeepLinks] ✅ Authorized: Detox E2E token accepted');
     return true;
   }
 
   if (!isTestModeActive) {
-    console.warn('[TestDeepLinks] REJECTED: Test mode not activated');
+    logger.warn('[TestDeepLinks] REJECTED: Test mode not activated');
     return false;
   }
 
   if (providedToken !== testModeToken) {
-    console.warn('[TestDeepLinks] REJECTED: Invalid or missing token');
+    logger.warn('[TestDeepLinks] REJECTED: Invalid or missing token');
     return false;
   }
 
@@ -101,11 +102,11 @@ function verifyTestModeToken(providedToken: string | null): boolean {
  */
 export function initializeTestDeepLinks() {
   if (!enableTestDeepLinks) {
-    console.warn('[TestDeepLinks] Attempted to initialize but disabled in this build');
+    logger.warn('[TestDeepLinks] Attempted to initialize but disabled in this build');
     return;
   }
 
-  console.log('[TestDeepLinks] Initializing test deep link handlers...');
+  logger.log('[TestDeepLinks] Initializing test deep link handlers...');
 
   // Listen for deep links
   Linking.addEventListener('url', handleTestDeepLink);
@@ -117,7 +118,7 @@ export function initializeTestDeepLinks() {
     }
   });
 
-  console.log('[TestDeepLinks] Test deep link handlers initialized');
+  logger.log('[TestDeepLinks] Test deep link handlers initialized');
 }
 
 /**
@@ -132,7 +133,7 @@ export function initializeTestDeepLinks() {
 async function handleTestDeepLink(event: { url: string }) {
   const { url } = event;
 
-  console.log('[TestDeepLinks] Received URL:', url);
+  logger.log('[TestDeepLinks] Received URL:', url);
 
   // Only process test URLs
   if (!url.includes('://test/')) {
@@ -144,12 +145,12 @@ async function handleTestDeepLink(event: { url: string }) {
     const path = parsedUrl.pathname;
     const params = parsedUrl.searchParams;
 
-    console.log('[TestDeepLinks] Path:', path, 'Params:', Array.from(params.entries()));
+    logger.log('[TestDeepLinks] Path:', path, 'Params:', Array.from(params.entries()));
 
     // Special case: Activate test mode (no token required)
     if (path === '/activate') {
       const token = activateTestMode();
-      console.log('[TestDeepLinks] ✅ Test mode activated successfully');
+      logger.log('[TestDeepLinks] ✅ Test mode activated successfully');
       // Token is already logged in activateTestMode()
       return;
     }
@@ -157,7 +158,7 @@ async function handleTestDeepLink(event: { url: string }) {
     // All other commands require valid token
     const providedToken = params.get('token');
     if (!verifyTestModeToken(providedToken)) {
-      console.error('[TestDeepLinks] ❌ Unauthorized: Token verification failed');
+      logger.error('[TestDeepLinks] ❌ Unauthorized: Token verification failed');
       return;
     }
 
@@ -171,18 +172,18 @@ async function handleTestDeepLink(event: { url: string }) {
       case '/reset':
         {
           const loadFixtures = params.get('fixtures') === 'true';
-          console.log('[TestDeepLinks] ✅ Authorized: Resetting database, fixtures:', loadFixtures);
+          logger.log('[TestDeepLinks] ✅ Authorized: Resetting database, fixtures:', loadFixtures);
 
           const result = await testHelpers.resetDatabaseForTesting({
             createBackup: true,
             loadFixtures,
           });
 
-          console.log('[TestDeepLinks] Reset result:', result);
+          logger.log('[TestDeepLinks] Reset result:', result);
 
           // Force Dashboard to reload by navigating away and back
           // This ensures useFocusEffect runs and UI re-renders with fresh data
-          console.log('[TestDeepLinks] Forcing Dashboard reload...', new Date().toISOString());
+          logger.log('[TestDeepLinks] Forcing Dashboard reload...', new Date().toISOString());
           const { navigationRef } = await import('../navigation/NavigationService');
           if (navigationRef.current) {
             // First, dismiss any open modals by navigating to root
@@ -190,7 +191,7 @@ async function handleTestDeepLink(event: { url: string }) {
             const hasModal = state.routes.some(route => route.name !== 'MainTabs');
 
             if (hasModal) {
-              console.log('[TestDeepLinks] Dismissing modal before reload...', new Date().toISOString());
+              logger.log('[TestDeepLinks] Dismissing modal before reload...', new Date().toISOString());
               // Reset to MainTabs root, dismissing any modals
               navigationRef.current.reset({
                 index: 0,
@@ -200,48 +201,48 @@ async function handleTestDeepLink(event: { url: string }) {
             }
 
             // Navigate to Episodes tab
-            console.log('[TestDeepLinks] Navigating to Episodes...', new Date().toISOString());
+            logger.log('[TestDeepLinks] Navigating to Episodes...', new Date().toISOString());
             (navigationRef.current.navigate as any)('MainTabs', { screen: 'Episodes' });
             // Wait for navigation animation to complete
             await new Promise(resolve => setTimeout(resolve, 300));
             // Navigate back to Dashboard
-            console.log('[TestDeepLinks] Navigating back to Dashboard...', new Date().toISOString());
+            logger.log('[TestDeepLinks] Navigating back to Dashboard...', new Date().toISOString());
             (navigationRef.current.navigate as any)('MainTabs', { screen: 'Dashboard' });
             // Wait for navigation back and data loading to complete
             await new Promise(resolve => setTimeout(resolve, 500));
-            console.log('[TestDeepLinks] Dashboard reload complete', new Date().toISOString());
+            logger.log('[TestDeepLinks] Dashboard reload complete', new Date().toISOString());
           }
         }
         break;
 
       case '/state':
         {
-          console.log('[TestDeepLinks] ✅ Authorized: Getting database state');
+          logger.log('[TestDeepLinks] ✅ Authorized: Getting database state');
           const state = await testHelpers.getDatabaseState();
-          console.log('[TestDeepLinks] Current database state:', state);
+          logger.log('[TestDeepLinks] Current database state:', state);
         }
         break;
 
       case '/home':
         {
-          console.log('[TestDeepLinks] ✅ Authorized: Navigating to home/dashboard');
+          logger.log('[TestDeepLinks] ✅ Authorized: Navigating to home/dashboard');
           // Import navigation utilities
           const { navigationRef } = await import('../navigation/NavigationService');
           if (navigationRef.current) {
             // Navigate to the Dashboard (Home tab)
             (navigationRef.current.navigate as any)('MainTabs', { screen: 'Dashboard' });
-            console.log('[TestDeepLinks] Successfully navigated to Dashboard');
+            logger.log('[TestDeepLinks] Successfully navigated to Dashboard');
           } else {
-            console.warn('[TestDeepLinks] Navigation ref not available');
+            logger.warn('[TestDeepLinks] Navigation ref not available');
           }
         }
         break;
 
       default:
-        console.warn('[TestDeepLinks] Unknown test path:', path);
+        logger.warn('[TestDeepLinks] Unknown test path:', path);
     }
   } catch (error) {
-    console.error('[TestDeepLinks] Error handling deep link:', error);
+    logger.error('[TestDeepLinks] Error handling deep link:', error);
   }
 }
 
@@ -260,5 +261,5 @@ export function cleanupTestDeepLinks() {
   }
 
   Linking.removeAllListeners('url');
-  console.log('[TestDeepLinks] Test deep link handlers cleaned up');
+  logger.log('[TestDeepLinks] Test deep link handlers cleaned up');
 }

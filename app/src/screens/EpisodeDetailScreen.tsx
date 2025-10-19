@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { logger } from '../utils/logger';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import Slider from '@react-native-community/slider';
 import MapView, { Marker } from 'react-native-maps';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -539,7 +539,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   const { episodeId } = route.params;
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const { endEpisode, addIntensityReading } = useEpisodeStore();
+  const { endEpisode } = useEpisodeStore();
   const [episode, setEpisode] = useState<Episode | null>(null);
   const [intensityReadings, setIntensityReadings] = useState<IntensityReading[]>([]);
   const [symptomLogs, setSymptomLogs] = useState<SymptomLog[]>([]);
@@ -593,7 +593,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
         setLocationAddress(address);
       }
     } catch (error) {
-      console.error('Failed to load episode:', error);
+      logger.error('Failed to load episode:', error);
     } finally {
       setLoading(false);
     }
@@ -635,7 +635,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
               await episodeNoteRepository.delete(noteId);
               await loadEpisodeData();
             } catch (error) {
-              console.error('Failed to delete note:', error);
+              logger.error('Failed to delete note:', error);
               Alert.alert('Error', 'Failed to delete note');
             }
           },
@@ -795,40 +795,6 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
         </View>
         <View style={styles.timelineRight}>
           <Text style={styles.timelineGapDescription}>No activity logged</Text>
-        </View>
-      </View>
-    );
-  };
-
-  // Render per-day statistics
-  const renderDayStats = (stats: import('../utils/timelineGrouping').DayStats) => {
-    return (
-      <View style={styles.dayStatsContainer}>
-        {stats.peakIntensity !== null && (
-          <View style={styles.dayStatItem}>
-            <Text style={[styles.dayStatValue, { color: getPainColor(stats.peakIntensity) }]}>
-              {stats.peakIntensity}/10
-            </Text>
-            <Text style={styles.dayStatLabel}>Peak</Text>
-          </View>
-        )}
-        {stats.averageIntensity !== null && (
-          <View style={styles.dayStatItem}>
-            <Text style={[styles.dayStatValue, { color: getPainColor(stats.averageIntensity) }]}>
-              {stats.averageIntensity.toFixed(1)}/10
-            </Text>
-            <Text style={styles.dayStatLabel}>Average</Text>
-          </View>
-        )}
-        {stats.medicationCount > 0 && (
-          <View style={styles.dayStatItem}>
-            <Text style={styles.dayStatValue}>{stats.medicationCount}</Text>
-            <Text style={styles.dayStatLabel}>Medications</Text>
-          </View>
-        )}
-        <View style={styles.dayStatItem}>
-          <Text style={styles.dayStatValue}>{stats.hoursInDay}h</Text>
-          <Text style={styles.dayStatLabel}>Duration</Text>
         </View>
       </View>
     );

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { logger } from '../utils/logger';
 import {
   View,
   Text,
@@ -306,7 +307,7 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
       setCurrentPainLocations(painLocationsToSet);
       setInitialPainLocations(painLocationsToSet);
     } catch (error) {
-      console.error('Failed to load latest data:', error);
+      logger.error('Failed to load latest data:', error);
     } finally {
       setLoading(false);
     }
@@ -396,7 +397,7 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
 
       navigation.goBack();
     } catch (error) {
-      console.error('Failed to log update:', error);
+      logger.error('Failed to log update:', error);
       Alert.alert('Error', 'Failed to log update');
     } finally {
       setSaving(false);

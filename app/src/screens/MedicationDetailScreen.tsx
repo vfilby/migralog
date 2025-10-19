@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { logger } from '../utils/logger';
 import {
   View,
   Text,
@@ -74,7 +75,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
       const recentDoses = allDoses.filter(d => d.timestamp >= thirtyDaysAgo);
       setDoses(recentDoses);
     } catch (error) {
-      console.error('Failed to load medication data:', error);
+      logger.error('Failed to load medication data:', error);
       Alert.alert('Error', 'Failed to load medication details');
     } finally {
       setLoading(false);
@@ -94,7 +95,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
       Alert.alert('Success', 'Medication logged successfully');
       await loadMedicationData(); // Reload to show in recent activity
     } catch (error) {
-      console.error('Failed to log medication:', error);
+      logger.error('Failed to log medication:', error);
       Alert.alert('Error', 'Failed to log medication');
     }
   };
@@ -157,7 +158,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
       setEditModalVisible(false);
       await loadMedicationData(); // Reload to update the list
     } catch (error) {
-      console.error('Failed to update dose:', error);
+      logger.error('Failed to update dose:', error);
       Alert.alert('Error', 'Failed to update dose');
     }
   };
@@ -185,7 +186,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
               Alert.alert('Success', 'Dose deleted successfully');
               await loadMedicationData(); // Reload to update the list
             } catch (error) {
-              console.error('Failed to delete dose:', error);
+              logger.error('Failed to delete dose:', error);
               Alert.alert('Error', 'Failed to delete dose');
             }
           },
