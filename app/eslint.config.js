@@ -73,7 +73,7 @@ module.exports = [
       'react-native/no-color-literals': 'off',
 
       // General
-      'no-console': 'off',
+      'no-console': 'warn', // Warn on direct console usage - use logger utility instead
       'no-debugger': 'warn',
     },
     settings: {
