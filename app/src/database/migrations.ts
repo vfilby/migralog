@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import { logger } from '../utils/logger';
 
 const SCHEMA_VERSION_TABLE = `
   CREATE TABLE IF NOT EXISTS schema_version (
@@ -91,7 +92,7 @@ const migrations: Migration[] = [
               `Aborting to prevent data loss.`
             );
           }
-          console.log(`Verified ${originalCount[0].count} episodes copied to backup table`);
+          logger.log(`Verified ${originalCount[0].count} episodes copied to backup table`);
         }
 
         // Step 3: Drop original table (safe now - data verified in backup)
@@ -106,14 +107,14 @@ const migrations: Migration[] = [
         // Commit transaction - all changes permanent
         await db.execAsync('COMMIT;');
 
-        console.log('Rolled back migration 2: Removed location columns from episodes table');
+        logger.log('Rolled back migration 2: Removed location columns from episodes table');
       } catch (error) {
         // Rollback transaction - reverts all changes, preserves original state
         try {
           await db.execAsync('ROLLBACK;');
-          console.log('Transaction rolled back - original data preserved');
+          logger.log('Transaction rolled back - original data preserved');
         } catch (rollbackError) {
-          console.error('CRITICAL: Failed to rollback transaction:', rollbackError);
+          logger.error('CRITICAL: Failed to rollback transaction:', rollbackError);
         }
 
         // Re-throw original error
@@ -171,7 +172,7 @@ const migrations: Migration[] = [
         await db.execAsync('ALTER TABLE medication_schedules ADD COLUMN reminder_enabled INTEGER NOT NULL DEFAULT 1;');
       }
 
-      console.log('Added notification fields to medication_schedules table');
+      logger.log('Added notification fields to medication_schedules table');
     },
     down: async (db: SQLite.SQLiteDatabase) => {
       // SQLite doesn't support DROP COLUMN, so recreate table without notification columns
@@ -211,7 +212,7 @@ const migrations: Migration[] = [
               `Row count mismatch: original=${originalCount[0].count}, backup=${backupCount[0].count}. Aborting.`
             );
           }
-          console.log(`Verified ${originalCount[0].count} schedules copied to backup table`);
+          logger.log(`Verified ${originalCount[0].count} schedules copied to backup table`);
         }
 
         // Step 3: Drop original table (safe now)
@@ -222,13 +223,13 @@ const migrations: Migration[] = [
 
         await db.execAsync('COMMIT;');
 
-        console.log('Rolled back migration 4: Removed notification fields from medication_schedules table');
+        logger.log('Rolled back migration 4: Removed notification fields from medication_schedules table');
       } catch (error) {
         try {
           await db.execAsync('ROLLBACK;');
-          console.log('Transaction rolled back - original data preserved');
+          logger.log('Transaction rolled back - original data preserved');
         } catch (rollbackError) {
-          console.error('CRITICAL: Failed to rollback transaction:', rollbackError);
+          logger.error('CRITICAL: Failed to rollback transaction:', rollbackError);
         }
         throw new Error(`Rollback of migration 4 failed: ${(error as Error).message}`);
       }
@@ -260,13 +261,13 @@ const migrations: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_daily_status_status ON daily_status_logs(status);
       `);
 
-      console.log('Created daily_status_logs table with indexes');
+      logger.log('Created daily_status_logs table with indexes');
     },
     down: async (db: SQLite.SQLiteDatabase) => {
       await db.execAsync('DROP TABLE IF EXISTS daily_status_logs;');
       await db.execAsync('DROP INDEX IF EXISTS idx_daily_status_date;');
       await db.execAsync('DROP INDEX IF EXISTS idx_daily_status_status;');
-      console.log('Dropped daily_status_logs table and indexes');
+      logger.log('Dropped daily_status_logs table and indexes');
     },
   },
   {
@@ -284,7 +285,7 @@ const migrations: Migration[] = [
         await db.execAsync('ALTER TABLE medication_doses ADD COLUMN status TEXT NOT NULL DEFAULT \'taken\';');
       }
 
-      console.log('Added status column to medication_doses table');
+      logger.log('Added status column to medication_doses table');
     },
     down: async (db: SQLite.SQLiteDatabase) => {
       // SQLite doesn't support DROP COLUMN, so recreate table without status column
@@ -331,7 +332,7 @@ const migrations: Migration[] = [
               `Row count mismatch: original=${originalCount[0].count}, backup=${backupCount[0].count}. Aborting.`
             );
           }
-          console.log(`Verified ${originalCount[0].count} doses copied to backup table`);
+          logger.log(`Verified ${originalCount[0].count} doses copied to backup table`);
         }
 
         // Step 3: Drop original table (safe now)
@@ -347,13 +348,13 @@ const migrations: Migration[] = [
 
         await db.execAsync('COMMIT;');
 
-        console.log('Rolled back migration 6: Removed status column from medication_doses table');
+        logger.log('Rolled back migration 6: Removed status column from medication_doses table');
       } catch (error) {
         try {
           await db.execAsync('ROLLBACK;');
-          console.log('Transaction rolled back - original data preserved');
+          logger.log('Transaction rolled back - original data preserved');
         } catch (rollbackError) {
-          console.error('CRITICAL: Failed to rollback transaction:', rollbackError);
+          logger.error('CRITICAL: Failed to rollback transaction:', rollbackError);
         }
         throw new Error(`Rollback of migration 6 failed: ${(error as Error).message}`);
       }
@@ -409,7 +410,7 @@ class MigrationRunner {
 
     // Warn if migration doesn't have down function (not an error, but important)
     if (!migration.down) {
-      console.warn(`Migration ${migration.version} does not have a 'down' function - rollback will not be possible`);
+      logger.warn(`Migration ${migration.version} does not have a 'down' function - rollback will not be possible`);
     }
 
     // Verify database connection is valid
@@ -435,7 +436,7 @@ class MigrationRunner {
    */
   private async runSmokeTests(migrationVersion: number): Promise<boolean> {
     if (!this.db) {
-      console.error('Cannot run smoke tests: MigrationRunner not initialized');
+      logger.error('Cannot run smoke tests: MigrationRunner not initialized');
       return false;
     }
 
@@ -447,12 +448,12 @@ class MigrationRunner {
     const isJestEnv = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
 
     if (isMocked || isJestEnv) {
-      console.log(`Skipping smoke tests in test environment for migration ${migrationVersion}`);
+      logger.log(`Skipping smoke tests in test environment for migration ${migrationVersion}`);
       return true;
     }
 
     try {
-      console.log(`Running smoke tests for migration ${migrationVersion}...`);
+      logger.log(`Running smoke tests for migration ${migrationVersion}...`);
 
       // Basic connectivity test
       await this.db.getAllAsync('SELECT 1');
@@ -462,7 +463,7 @@ class MigrationRunner {
         'SELECT version FROM schema_version WHERE id = 1'
       );
       if (versionResult[0]?.version !== migrationVersion) {
-        console.error(`Smoke test failed: Expected version ${migrationVersion}, got ${versionResult[0]?.version}`);
+        logger.error(`Smoke test failed: Expected version ${migrationVersion}, got ${versionResult[0]?.version}`);
         return false;
       }
 
@@ -475,7 +476,7 @@ class MigrationRunner {
       const requiredTables = ['episodes', 'medications', 'medication_doses', 'intensity_readings'];
       for (const tableName of requiredTables) {
         if (!tableNames.includes(tableName)) {
-          console.error(`Smoke test failed: Required table '${tableName}' not found`);
+          logger.error(`Smoke test failed: Required table '${tableName}' not found`);
           return false;
         }
       }
@@ -489,7 +490,7 @@ class MigrationRunner {
           );
           const episodeColumnNames = episodeColumns.map(c => c.name);
           if (!episodeColumnNames.includes('latitude') || !episodeColumnNames.includes('longitude')) {
-            console.error('Smoke test failed: Location columns not found in episodes table');
+            logger.error('Smoke test failed: Location columns not found in episodes table');
             return false;
           }
           break;
@@ -497,7 +498,7 @@ class MigrationRunner {
         case 3:
           // Verify episode_notes table exists
           if (!tableNames.includes('episode_notes')) {
-            console.error('Smoke test failed: episode_notes table not found');
+            logger.error('Smoke test failed: episode_notes table not found');
             return false;
           }
           break;
@@ -509,7 +510,7 @@ class MigrationRunner {
           );
           const scheduleColumnNames = scheduleColumns.map(c => c.name);
           if (!scheduleColumnNames.includes('notification_id')) {
-            console.error('Smoke test failed: notification_id column not found in medication_schedules');
+            logger.error('Smoke test failed: notification_id column not found in medication_schedules');
             return false;
           }
           break;
@@ -517,7 +518,7 @@ class MigrationRunner {
         case 5:
           // Verify daily_status_logs table exists
           if (!tableNames.includes('daily_status_logs')) {
-            console.error('Smoke test failed: daily_status_logs table not found');
+            logger.error('Smoke test failed: daily_status_logs table not found');
             return false;
           }
           break;
@@ -529,16 +530,16 @@ class MigrationRunner {
           );
           const doseColumnNames = doseColumns.map(c => c.name);
           if (!doseColumnNames.includes('status')) {
-            console.error('Smoke test failed: status column not found in medication_doses');
+            logger.error('Smoke test failed: status column not found in medication_doses');
             return false;
           }
           break;
       }
 
-      console.log(`Smoke tests passed for migration ${migrationVersion}`);
+      logger.log(`Smoke tests passed for migration ${migrationVersion}`);
       return true;
     } catch (error) {
-      console.error(`Smoke tests failed for migration ${migrationVersion}:`, error);
+      logger.error(`Smoke tests failed for migration ${migrationVersion}:`, error);
       return false;
     }
   }
@@ -602,26 +603,26 @@ class MigrationRunner {
     const targetVersion = await this.getTargetVersion();
 
     if (currentVersion >= targetVersion) {
-      console.log('Database is up to date, no migrations needed');
+      logger.log('Database is up to date, no migrations needed');
       return;
     }
 
-    console.log(`Migrating database from version ${currentVersion} to ${targetVersion}`);
+    logger.log(`Migrating database from version ${currentVersion} to ${targetVersion}`);
 
     // Create backup before migration if backup function provided
     // This is CRITICAL for recovery if migration fails
     if (createBackup) {
       try {
-        console.log('Creating automatic backup before migration...');
+        logger.log('Creating automatic backup before migration...');
         await createBackup(this.db);
-        console.log('Backup created successfully');
+        logger.log('Backup created successfully');
       } catch (error) {
-        console.error('Failed to create backup before migration:', error);
+        logger.error('Failed to create backup before migration:', error);
         throw new Error('Migration aborted: Failed to create backup');
       }
     } else {
-      console.warn('No backup function provided, skipping automatic backup');
-      console.warn('WARNING: If migration fails, manual data recovery may be required');
+      logger.warn('No backup function provided, skipping automatic backup');
+      logger.warn('WARNING: If migration fails, manual data recovery may be required');
     }
 
     // Run pending migrations in order
@@ -632,14 +633,14 @@ class MigrationRunner {
       // Validate migration before execution
       const validation = await this.validateMigration(migration);
       if (!validation.valid) {
-        console.error(`Migration ${migration.version} validation failed:`, validation.errors);
+        logger.error(`Migration ${migration.version} validation failed:`, validation.errors);
         throw new Error(`Migration ${migration.version} validation failed: ${validation.errors.join(', ')}`);
       }
 
       const previousVersion = await this.getCurrentVersion();
 
       try {
-        console.log(`Running migration ${migration.version}: ${migration.name}`);
+        logger.log(`Running migration ${migration.version}: ${migration.name}`);
         await migration.up(this.db);
 
         // Update schema version
@@ -648,12 +649,12 @@ class MigrationRunner {
           [migration.version, Date.now()]
         );
 
-        console.log(`Migration ${migration.version} completed successfully`);
+        logger.log(`Migration ${migration.version} completed successfully`);
 
         // Run smoke tests to verify migration success
         const smokeTestsPassed = await this.runSmokeTests(migration.version);
         if (!smokeTestsPassed) {
-          console.error(`Smoke tests failed for migration ${migration.version}`);
+          logger.error(`Smoke tests failed for migration ${migration.version}`);
 
           // CRITICAL: DO NOT attempt automatic rollback
           // Rationale: Automatic rollback can fail and make the situation worse,
@@ -676,8 +677,8 @@ class MigrationRunner {
           // - Corrupt the database further
           // - Cause data loss
 
-          console.error('Database preserved in current state for safe manual recovery');
-          console.error('Automatic backup is available in Settings > Backup & Recovery');
+          logger.error('Database preserved in current state for safe manual recovery');
+          logger.error('Automatic backup is available in Settings > Backup & Recovery');
 
           throw new Error(
             `Migration ${migration.version} failed verification. ` +
@@ -687,12 +688,12 @@ class MigrationRunner {
           );
         }
       } catch (error) {
-        console.error(`Migration ${migration.version} failed:`, error);
+        logger.error(`Migration ${migration.version} failed:`, error);
         throw new Error(`Migration ${migration.version} failed: ${(error as Error).message}. Database backup available - restore from Settings > Backup & Recovery.`);
       }
     }
 
-    console.log('All migrations completed successfully');
+    logger.log('All migrations completed successfully');
   }
 
   async rollback(toVersion: number, createBackup?: (db: SQLite.SQLiteDatabase) => Promise<void>): Promise<void> {
@@ -703,24 +704,24 @@ class MigrationRunner {
     const currentVersion = await this.getCurrentVersion();
 
     if (toVersion >= currentVersion) {
-      console.log('No rollback needed');
+      logger.log('No rollback needed');
       return;
     }
 
-    console.log(`Rolling back database from version ${currentVersion} to ${toVersion}`);
+    logger.log(`Rolling back database from version ${currentVersion} to ${toVersion}`);
 
     // Create backup before rollback if backup function provided
     if (createBackup) {
       try {
-        console.log('Creating automatic backup before rollback...');
+        logger.log('Creating automatic backup before rollback...');
         await createBackup(this.db);
-        console.log('Backup created successfully');
+        logger.log('Backup created successfully');
       } catch (error) {
-        console.error('Failed to create backup before rollback:', error);
+        logger.error('Failed to create backup before rollback:', error);
         throw new Error('Rollback aborted: Failed to create backup');
       }
     } else {
-      console.warn('No backup function provided, skipping automatic backup');
+      logger.warn('No backup function provided, skipping automatic backup');
     }
 
     // Get migrations to rollback in reverse order
@@ -734,7 +735,7 @@ class MigrationRunner {
       }
 
       try {
-        console.log(`Rolling back migration ${migration.version}: ${migration.name}`);
+        logger.log(`Rolling back migration ${migration.version}: ${migration.name}`);
         await migration.down(this.db);
 
         // Update schema version
@@ -744,14 +745,14 @@ class MigrationRunner {
           [newVersion, Date.now()]
         );
 
-        console.log(`Rollback of migration ${migration.version} completed successfully`);
+        logger.log(`Rollback of migration ${migration.version} completed successfully`);
       } catch (error) {
-        console.error(`Rollback of migration ${migration.version} failed:`, error);
+        logger.error(`Rollback of migration ${migration.version} failed:`, error);
         throw new Error(`Rollback failed: ${(error as Error).message}`);
       }
     }
 
-    console.log('Rollback completed successfully');
+    logger.log('Rollback completed successfully');
   }
 }
 

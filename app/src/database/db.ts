@@ -2,6 +2,7 @@ import * as SQLite from 'expo-sqlite';
 import { createTables, SCHEMA_VERSION } from './schema';
 import { migrationRunner } from './migrations';
 import { errorLogger } from '../services/errorLogger';
+import { logger } from '../utils/logger';
 
 let db: SQLite.SQLiteDatabase | null = null;
 let isInitialized = false;
@@ -10,61 +11,61 @@ let initializationPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
   // If already initialized, return immediately
   if (db && isInitialized) {
-    console.log('[DB] Returning existing database instance');
+    logger.log('[DB] Returning existing database instance');
     return db;
   }
 
   // If initialization is in progress, wait for it
   if (initializationPromise) {
-    console.log('[DB] Waiting for existing initialization to complete...');
+    logger.log('[DB] Waiting for existing initialization to complete...');
     return initializationPromise;
   }
 
-  console.log('[DB] Initializing database...');
+  logger.log('[DB] Initializing database...');
 
   // Create and store initialization promise BEFORE starting async work
   const doInitialization = async (): Promise<SQLite.SQLiteDatabase> => {
     try {
-      console.log('[DB] Opening database...');
+      logger.log('[DB] Opening database...');
       db = await SQLite.openDatabaseAsync('migralog.db');
-      console.log('[DB] Database opened successfully');
+      logger.log('[DB] Database opened successfully');
 
     // Initialize database schema (creates tables if they don't exist)
     try {
-      console.log('[DB] Creating tables...');
+      logger.log('[DB] Creating tables...');
       await db.execAsync(createTables);
-      console.log('[DB] Tables created successfully');
+      logger.log('[DB] Tables created successfully');
     } catch (error) {
-      console.error('[DB] FAILED to create tables:', error);
+      logger.error('[DB] FAILED to create tables:', error);
       await errorLogger.log(
         'database',
         'Failed to create database tables',
         error as Error,
         { operation: 'createTables' }
-      ).catch(e => console.error('[DB] Failed to log error:', e));
+      ).catch(e => logger.error('[DB] Failed to log error:', e));
       throw error;
     }
 
     // Initialize migration runner
     try {
-      console.log('[DB] Initializing migration runner...');
+      logger.log('[DB] Initializing migration runner...');
       await migrationRunner.initialize(db);
-      console.log('[DB] Migration runner initialized');
+      logger.log('[DB] Migration runner initialized');
     } catch (error) {
-      console.error('[DB] FAILED to initialize migration runner:', error);
+      logger.error('[DB] FAILED to initialize migration runner:', error);
       await errorLogger.log(
         'database',
         'Failed to initialize migration runner',
         error as Error,
         { operation: 'migrationRunner.initialize' }
-      ).catch(e => console.error('[DB] Failed to log error:', e));
+      ).catch(e => logger.error('[DB] Failed to log error:', e));
       throw error;
     }
 
     // Run any pending migrations
     const needsMigration = await migrationRunner.needsMigration();
     if (needsMigration) {
-      console.log('[DB] Database migrations needed, running migrations...');
+      logger.log('[DB] Database migrations needed, running migrations...');
       try {
         // Create snapshot backup before migration (DB file copy - safer than JSON export)
         // Make backup non-blocking - if it fails, log warning but continue with migration
@@ -72,51 +73,51 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
           try {
             const { backupService } = await import('../services/backupService');
             await backupService.createSnapshotBackup(db);
-            console.log('[DB] Automatic snapshot backup created successfully before migration');
+            logger.log('[DB] Automatic snapshot backup created successfully before migration');
           } catch (backupError) {
-            console.warn('[DB] Failed to create automatic snapshot backup before migration:', backupError);
-            console.warn('[DB] Continuing with migration without backup');
+            logger.warn('[DB] Failed to create automatic snapshot backup before migration:', backupError);
+            logger.warn('[DB] Continuing with migration without backup');
             // Don't throw - allow migration to proceed
           }
         };
 
         await migrationRunner.runMigrations(createBackup);
-        console.log('[DB] Database migrations completed successfully');
+        logger.log('[DB] Database migrations completed successfully');
       } catch (error) {
-        console.error('[DB] FAILED database migration:', error);
+        logger.error('[DB] FAILED database migration:', error);
         await errorLogger.log(
           'database',
           'Database migration failed',
           error as Error,
           { operation: 'runMigrations' }
-        ).catch(e => console.error('[DB] Failed to log error:', e));
+        ).catch(e => logger.error('[DB] Failed to log error:', e));
         throw error;
       }
     } else {
-      console.log('[DB] No migrations needed');
+      logger.log('[DB] No migrations needed');
     }
 
     // Check and create weekly backup if needed (non-blocking)
     try {
       const { backupService } = await import('../services/backupService');
-      console.log('[DB] Checking for weekly backup...');
+      logger.log('[DB] Checking for weekly backup...');
       await backupService.checkAndCreateWeeklyBackup(db);
     } catch (backupError) {
-      console.warn('[DB] Failed to check/create weekly backup:', backupError);
+      logger.warn('[DB] Failed to check/create weekly backup:', backupError);
       // Don't throw - weekly backup failure shouldn't prevent app from starting
     }
 
       isInitialized = true;
-      console.log('[DB] Database initialization complete');
+      logger.log('[DB] Database initialization complete');
       return db;
     } catch (error) {
-      console.error('[DB] FATAL: Failed to initialize database:', error);
+      logger.error('[DB] FATAL: Failed to initialize database:', error);
       await errorLogger.log(
         'database',
         'Failed to initialize database',
         error as Error,
         { operation: 'getDatabase' }
-      ).catch(e => console.error('[DB] Failed to log error:', e));
+      ).catch(e => logger.error('[DB] Failed to log error:', e));
       throw error;
     } finally {
       // Clear initialization promise whether success or failure
