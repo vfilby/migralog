@@ -68,8 +68,8 @@ module.exports = [
       'react-hooks/exhaustive-deps': 'warn',
 
       // React Native
-      'react-native/no-unused-styles': 'warn',
-      'react-native/no-inline-styles': 'warn',
+      'react-native/no-unused-styles': 'off', // Disabled: false positives with createStyles(theme) pattern
+      'react-native/no-inline-styles': 'off', // Disabled: intentional for conditional styling
       'react-native/no-color-literals': 'off',
 
       // General
