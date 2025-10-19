@@ -2,6 +2,7 @@ import { getDatabase, generateId } from './db';
 import { DailyStatusLog } from '../models/types';
 import * as SQLite from 'expo-sqlite';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { DailyStatusLogRow } from './types';
 
 export const dailyStatusRepository = {
   async create(log: Omit<DailyStatusLog, 'id' | 'createdAt' | 'updatedAt'>, db?: SQLite.SQLiteDatabase): Promise<DailyStatusLog> {
@@ -40,7 +41,7 @@ export const dailyStatusRepository = {
     const now = Date.now();
 
     const fields: string[] = [];
-    const values: any[] = [];
+    const values: (string | number | null)[] = [];
 
     if (updates.status) {
       fields.push('status = ?');
@@ -87,7 +88,7 @@ export const dailyStatusRepository = {
 
   async getByDate(date: string, db?: SQLite.SQLiteDatabase): Promise<DailyStatusLog | null> {
     const database = db || await getDatabase();
-    const result = await database.getFirstAsync<any>(
+    const result = await database.getFirstAsync<DailyStatusLogRow>(
       'SELECT * FROM daily_status_logs WHERE date = ?',
       [date]
     );
@@ -99,7 +100,7 @@ export const dailyStatusRepository = {
 
   async getDateRange(startDate: string, endDate: string, db?: SQLite.SQLiteDatabase): Promise<DailyStatusLog[]> {
     const database = db || await getDatabase();
-    const results = await database.getAllAsync<any>(
+    const results = await database.getAllAsync<DailyStatusLogRow>(
       'SELECT * FROM daily_status_logs WHERE date >= ? AND date <= ? ORDER BY date ASC',
       [startDate, endDate]
     );
@@ -148,12 +149,12 @@ export const dailyStatusRepository = {
     await database.runAsync('DELETE FROM daily_status_logs');
   },
 
-  mapRowToLog(row: any): DailyStatusLog {
+  mapRowToLog(row: DailyStatusLogRow): DailyStatusLog {
     return {
       id: row.id,
       date: row.date,
-      status: row.status,
-      statusType: row.status_type || undefined,
+      status: row.status as import('../models/types').DayStatus, // Type assertion for union type
+      statusType: (row.status_type as import('../models/types').YellowDayType) || undefined, // Type assertion for union type
       notes: row.notes || undefined,
       prompted: row.prompted === 1,
       createdAt: row.created_at,

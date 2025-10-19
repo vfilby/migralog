@@ -16,7 +16,8 @@
     "test:ci": "jest --ci --coverage --watchAll=false",
     "test:e2e": "npx detox test --configuration ios.sim.debug --maxWorkers 2",
     "test:e2e:build": "npm run generate-build-info && npx expo run:ios --configuration Debug --no-bundler",
-    "test:e2e:start": "npm run generate-build-info && expo start"
+    "test:e2e:start": "npm run generate-build-info && expo start",
+    "test:load-db": "bash scripts/load-test-db.sh"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
