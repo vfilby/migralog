@@ -272,6 +272,9 @@ class BackupService {
       for (const file of files) {
         try {
           // Handle snapshot backups (.db files with .meta.json sidecar)
+          // Metadata sidecar pattern: For each backup_xyz.db file, we store a backup_xyz.meta.json
+          // containing episode/medication counts, schema version, and file size for quick display
+          // without needing to open the database file
           if (file.endsWith('.db')) {
             const backupId = file.replace('.db', '');
             const metadataPath = this.getMetadataPath(backupId);
@@ -402,6 +405,15 @@ class BackupService {
         throw new Error('Snapshot backup file not found');
       }
 
+      // Validate backup schema version compatibility
+      const appSchemaVersion = await migrationRunner.getCurrentVersion();
+      if (metadata.schemaVersion > appSchemaVersion) {
+        throw new Error(
+          `Cannot restore backup from newer schema version (backup: v${metadata.schemaVersion}, current: v${appSchemaVersion}). ` +
+          `Please update the app to the latest version before restoring this backup.`
+        );
+      }
+
       // Close current database connection
       const { closeDatabase } = await import('../database/db');
       await closeDatabase();
@@ -429,12 +441,12 @@ class BackupService {
       console.log('[Restore] Reopening database');
       const db = await import('../database/db').then(m => m.getDatabase());
 
-      const currentSchemaVersion = await migrationRunner.getCurrentVersion();
-      console.log('[Restore] Current schema version after restore:', currentSchemaVersion);
+      const restoredSchemaVersion = await migrationRunner.getCurrentVersion();
+      console.log('[Restore] Current schema version after restore:', restoredSchemaVersion);
       console.log('[Restore] Backup schema version:', metadata.schemaVersion);
 
-      if (metadata.schemaVersion < currentSchemaVersion) {
-        console.log('[Restore] Running migrations from version', metadata.schemaVersion, 'to', currentSchemaVersion);
+      if (metadata.schemaVersion < appSchemaVersion) {
+        console.log('[Restore] Running migrations from version', metadata.schemaVersion, 'to', appSchemaVersion);
         await migrationRunner.runMigrations();
         console.log('[Restore] Migrations completed successfully');
       } else {
@@ -451,6 +463,11 @@ class BackupService {
   /**
    * Restore from a JSON backup (legacy format)
    * This recreates the database from exported JSON data
+   *
+   * TODO: Remove this code path after 1 month migration period (added 2025-10-18)
+   * This is only needed for backward compatibility with JSON backups created before
+   * the snapshot-based backup system. After users have migrated to snapshot backups,
+   * this can be safely removed to simplify the codebase.
    */
   private async restoreJsonBackup(backupId: string): Promise<void> {
     try {
@@ -650,10 +667,11 @@ class BackupService {
   }
 
   /**
-   * Export current database as JSON and immediately prompt user to save/share it
-   * Does NOT store the file in backups directory - creates temporary file for sharing only
+   * Export current database as JSON for sharing with healthcare providers
+   * Creates temporary file and immediately prompts user to save/share
+   * Does NOT store the file in backups directory - this is for data export, not backup
    */
-  async exportDataAsJSON(): Promise<void> {
+  async exportDataForSharing(): Promise<void> {
     try {
       console.log('[Export] Creating JSON export for sharing...');
 
@@ -692,9 +710,9 @@ class BackupService {
       }
 
       const schemaVersion = await migrationRunner.getCurrentVersion();
-      const schemaSQL = await this.exportSchemaSQL(db);
 
       // Create export data structure
+      // Note: schemaSQL omitted because this is for data sharing, not backup/restore
       const exportData: BackupData = {
         metadata: {
           id: `export_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -704,7 +722,7 @@ class BackupService {
           episodeCount: episodes.length,
           medicationCount: medications.length,
         },
-        schemaSQL,
+        schemaSQL: '', // Not needed for data sharing - only for backup/restore
         episodes,
         episodeNotes,
         intensityReadings,

@@ -66,15 +66,15 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
     if (needsMigration) {
       console.log('[DB] Database migrations needed, running migrations...');
       try {
-        // Create backup before migration using db parameter to avoid circular dependency
+        // Create snapshot backup before migration (DB file copy - safer than JSON export)
         // Make backup non-blocking - if it fails, log warning but continue with migration
         const createBackup = async (db: SQLite.SQLiteDatabase) => {
           try {
             const { backupService } = await import('../services/backupService');
-            await backupService.createBackup(true, db);
-            console.log('[DB] Automatic backup created successfully before migration');
+            await backupService.createSnapshotBackup(db);
+            console.log('[DB] Automatic snapshot backup created successfully before migration');
           } catch (backupError) {
-            console.warn('[DB] Failed to create automatic backup before migration:', backupError);
+            console.warn('[DB] Failed to create automatic snapshot backup before migration:', backupError);
             console.warn('[DB] Continuing with migration without backup');
             // Don't throw - allow migration to proceed
           }

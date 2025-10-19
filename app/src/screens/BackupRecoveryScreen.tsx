@@ -65,15 +65,6 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
     }
   };
 
-  const handleExportDataAsJSON = async () => {
-    try {
-      await backupService.exportDataAsJSON();
-    } catch (error) {
-      console.error('Failed to export data:', error);
-      Alert.alert('Error', 'Failed to export data: ' + (error as Error).message);
-    }
-  };
-
   const handleImportBackup = async () => {
     Alert.alert(
       'Import Backup',
@@ -244,18 +235,6 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
             <Ionicons name="cloud-download-outline" size={24} color={theme.primary} />
             <Text style={styles.secondaryButtonText}>Import Backup</Text>
           </TouchableOpacity>
-
-          <View style={styles.divider} />
-
-          <Text style={styles.sectionSubtitle}>Share Your Data</Text>
-          <Text style={styles.sectionDescription}>
-            Export your data as a JSON file to share with healthcare providers or for your records. This creates a human-readable file without storing it locally.
-          </Text>
-
-          <TouchableOpacity style={styles.secondaryButton} onPress={handleExportDataAsJSON}>
-            <Ionicons name="document-text-outline" size={24} color={theme.primary} />
-            <Text style={styles.secondaryButtonText}>Export Data (JSON)</Text>
-          </TouchableOpacity>
         </View>
 
         {/* Available Backups */}
@@ -318,22 +297,11 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     color: theme.text,
     marginBottom: 8,
   },
-  sectionSubtitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: theme.text,
-    marginBottom: 8,
-  },
   sectionDescription: {
     fontSize: 15,
     color: theme.textSecondary,
     marginBottom: 16,
     lineHeight: 20,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: theme.borderLight,
-    marginVertical: 24,
   },
   primaryButton: {
     backgroundColor: theme.primary,

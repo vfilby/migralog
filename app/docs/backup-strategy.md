@@ -4,27 +4,48 @@
 
 MigraLog implements a comprehensive backup strategy to protect user data from loss during database migrations and general usage. This document outlines the backup system architecture, automatic backup policies, and recovery procedures.
 
+## Backup Architecture
+
+**Two Separate Backup Systems:**
+
+1. **Automatic Backups (Database Snapshots)** - Primary safety mechanism
+   - File format: SQLite database file (`.db`)
+   - Storage: Complete binary copy of database
+   - Metadata: Sidecar JSON file (`.meta.json`) with counts and version info
+   - **Key Advantage**: Cannot miss fields - entire database copied
+
+2. **User Data Export (JSON)** - For portability and sharing
+   - File format: JSON (`.json`)
+   - Storage: Human-readable structured data
+   - Purpose: Manual exports for sharing with healthcare providers
+   - **Key Advantage**: Cross-platform compatibility, human-readable
+
 ## Backup Types
 
-### 1. Pre-Migration Snapshots
+### 1. Pre-Migration Snapshots (Database File)
 
 **When**: Automatically created before every database migration
 
 **Purpose**: Provides recovery point if migration fails or causes data corruption
 
 **Implementation**:
-- Located in: `src/database/db.ts:71-81`
-- Called from: `migrationRunner.runMigrations(createBackup)`
-- Storage: JSON format in `${FileSystem.documentDirectory}backups/`
+- Located in: `src/database/db.ts:69-81`
+- Method: `backupService.createSnapshotBackup(db)`
+- Storage: SQLite file in `${FileSystem.documentDirectory}backups/backup_<timestamp>_<random>.db`
+- Metadata: `${FileSystem.documentDirectory}backups/backup_<timestamp>_<random>.meta.json`
 
 **Behavior**:
-- Creates full database snapshot including:
+- Creates complete binary copy of SQLite database file
+  - **Automatically includes all data** - no risk of missing fields/tables
   - All episodes with notes and intensity readings
   - All medications with doses and schedules
   - All daily status logs
-  - Complete schema SQL (for version-specific restore)
-- Marks backup as automatic (`isAutomatic: true`)
-- Includes schema version and app version metadata
+  - All schema structures, indexes, triggers
+- Stores metadata separately in `.meta.json` file:
+  - Backup ID, timestamp, app version
+  - Schema version (for migration planning)
+  - Episode count, medication count (for quick verification)
+  - File size
 - Non-blocking: If backup fails, logs warning but continues migration
   - **Note**: This is intentional - backup failure shouldn't prevent critical bug fixes
   - User should be notified to manually create backup before updating
@@ -40,21 +61,22 @@ User opens app → Database v1 detected → Migration needed to v6
    - User guided to Settings > Backup & Recovery
 ```
 
-### 2. Weekly Automatic Backups
+### 2. Weekly Automatic Backups (Database File)
 
 **When**: Automatically every 7 days on app startup
 
 **Purpose**: Regular protection against data loss from app bugs, device issues, or accidental deletion
 
 **Implementation**:
-- Located in: `src/services/backupService.ts:729-763`
+- Located in: `src/services/backupService.ts:963-997`
+- Method: `backupService.checkAndCreateWeeklyBackup(db)` calls `createSnapshotBackup()`
 - Called from: `src/database/db.ts:99-107` (on database initialization)
 - Tracking: Last backup time stored in AsyncStorage (`@MigraLog:lastWeeklyBackup`)
 
 **Behavior**:
 - Checks time since last weekly backup on every app launch
 - If ≥7 days since last backup:
-  - Creates automatic backup
+  - Creates automatic snapshot backup (database file copy)
   - Updates last backup timestamp
   - Triggers cleanup of old backups
 - If <7 days: Logs "Next backup in X days", no action
@@ -65,7 +87,8 @@ User opens app → Database v1 detected → Migration needed to v6
 const WEEKLY_BACKUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 if (now - lastBackupTime >= WEEKLY_BACKUP_INTERVAL_MS) {
-  createBackup(isAutomatic: true);
+  createSnapshotBackup(db); // Database file copy, not JSON
+  cleanupOldAutoBackups();
   updateLastBackupTime(now);
 }
 ```
@@ -74,47 +97,71 @@ if (now - lastBackupTime >= WEEKLY_BACKUP_INTERVAL_MS) {
 
 **Policy**: Keep last 7 automatic backups (≈2 months of weekly backups)
 
-**Constant**: `MAX_AUTO_BACKUPS = 7` (src/services/backupService.ts:36)
+**Constant**: `MAX_AUTO_BACKUPS = 7` (src/services/backupService.ts:39)
 
 **Cleanup Trigger**: After each automatic backup creation
 
-**Implementation**: `src/services/backupService.ts:700-720`
+**Implementation**: `src/services/backupService.ts:934-954`
 
 **Logic**:
-1. List all backups in backup directory
+1. List all backups in backup directory (.db files and .meta.json)
 2. Filter to automatic backups (ID starts with `backup_`)
 3. If count > MAX_AUTO_BACKUPS:
    - Sort by timestamp (newest first)
-   - Delete backups beyond the 7 newest
+   - Delete both .db and .meta.json files for backups beyond the 7 newest
 
 **Example**:
 ```
-Existing backups: 7 weekly backups (day 0, 7, 14, 21, 28, 35, 42)
+Existing backups: 7 weekly snapshots (day 0, 7, 14, 21, 28, 35, 42)
 Weekly backup triggered on day 49:
-  1. Create new backup (day 49)
+  1. Create new snapshot (backup_<timestamp>.db + .meta.json)
   2. Total backups: 8
-  3. Delete oldest backup (day 0)
+  3. Delete oldest backup (day 0 - both .db and .meta.json)
   4. Remaining: 7 backups (day 7, 14, 21, 28, 35, 42, 49)
 ```
 
-**Manual Backups**: Not subject to automatic cleanup (different ID prefix)
+**Manual Backups/Exports**: Not subject to automatic cleanup (JSON files or different ID prefix)
 
 ## Backup Storage Format
 
 ### File Structure
 ```
 ${FileSystem.documentDirectory}backups/
-├── backup_1729123456789_abc123.json  (automatic)
-├── backup_1729234567890_def456.json  (automatic)
-├── manual_1729345678901_ghi789.json  (manual - not auto-deleted)
+├── backup_1729123456789_abc123.db           (automatic snapshot)
+├── backup_1729123456789_abc123.meta.json   (metadata sidecar)
+├── backup_1729234567890_def456.db           (automatic snapshot)
+├── backup_1729234567890_def456.meta.json   (metadata sidecar)
+├── export_1729345678901_ghi789.json         (manual JSON export - not auto-deleted)
 └── ...
 ```
 
-### Backup File Format (JSON)
+### Snapshot Backup Format
+
+**Database File** (`.db`):
+- Complete binary copy of `migralog.db`
+- Contains all tables, indexes, triggers, data
+- Identical structure to original database
+
+**Metadata Sidecar** (`.meta.json`):
+```json
+{
+  "id": "backup_1729123456789_abc123",
+  "timestamp": 1729123456789,
+  "version": "1.0.0",
+  "schemaVersion": 6,
+  "episodeCount": 150,
+  "medicationCount": 5,
+  "fileSize": 524288,
+  "fileName": "backup_1729123456789_abc123.db",
+  "backupType": "snapshot"
+}
+```
+
+### JSON Export Format (Legacy/Manual)
 ```json
 {
   "metadata": {
-    "id": "backup_1729123456789_abc123",
+    "id": "export_1729123456789_abc123",
     "timestamp": 1729123456789,
     "version": "1.0.0",
     "schemaVersion": 6,
@@ -235,9 +282,41 @@ ${FileSystem.documentDirectory}backups/
 
 ### BackupService Methods
 
+#### `createSnapshotBackup(db?: SQLite.SQLiteDatabase): Promise<BackupMetadata>`
+
+Creates a database snapshot backup (binary file copy).
+
+**Purpose**: Preferred method for automatic backups - captures complete database without risk of missing fields
+
+**Parameters**:
+- `db`: Database instance (optional, used during migrations to avoid circular dependency)
+
+**Returns**: Backup metadata including ID, file size, counts, backup type ('snapshot')
+
+**Usage**:
+```typescript
+const { backupService } = await import('../services/backupService');
+const metadata = await backupService.createSnapshotBackup(db);
+console.log('Snapshot created:', metadata.fileName); // backup_<timestamp>.db
+```
+
+#### `createBackup(isAutomatic?: boolean, db?: SQLite.SQLiteDatabase): Promise<BackupMetadata>`
+
+Creates JSON backup (legacy method).
+
+**Purpose**: Used for manual exports and backward compatibility
+
+**Parameters**:
+- `isAutomatic`: If true, backup is subject to retention policy cleanup
+- `db`: Database instance (optional)
+
+**Returns**: Backup metadata with backup type ('json')
+
+**Note**: Automatic backups now use `createSnapshotBackup()` instead
+
 #### `checkAndCreateWeeklyBackup(db?: SQLite.SQLiteDatabase): Promise<BackupMetadata | null>`
 
-Checks if weekly backup is needed and creates one if 7+ days have passed.
+Checks if weekly backup is needed and creates a snapshot backup if 7+ days have passed.
 
 **Returns**: Backup metadata if created, null if not needed or failed
 
@@ -259,21 +338,19 @@ Calculates days remaining until next weekly backup.
 
 **Returns**: Number of days (0 if backup needed now)
 
-#### `createBackup(isAutomatic?: boolean, db?: SQLite.SQLiteDatabase): Promise<BackupMetadata>`
-
-Creates backup immediately.
-
-**Parameters**:
-- `isAutomatic`: If true, backup is subject to retention policy cleanup
-- `db`: Database instance (optional, used during migrations to avoid circular dependency)
-
-**Returns**: Backup metadata including ID, file size, counts
-
 #### `restoreBackup(backupId: string): Promise<void>`
 
-Restores database from backup file.
+Restores database from backup (handles both snapshot and JSON backups).
 
-**Process**:
+**Process for Snapshot Backups**:
+1. Get backup metadata to determine type
+2. Close current database connection
+3. Create safety backup of current database
+4. Copy snapshot file to database location
+5. Reopen database
+6. Run migrations if backup is older schema version
+
+**Process for JSON Backups (Legacy)**:
 1. Validate backup file format
 2. Check schema version compatibility
 3. Drop all current tables
@@ -377,9 +454,36 @@ Restores database from backup file.
 ## Conclusion
 
 The backup strategy provides multiple layers of protection:
-1. **Pre-migration snapshots** prevent data loss during updates
-2. **Weekly automatic backups** protect against app/device issues
-3. **7-backup retention** balances storage with recovery window
-4. **Manual backups** allow user control for critical data
 
-Combined with transaction-safe migrations and row count verification, users have strong protection against data loss in a healthcare app where data is irreplaceable.
+### Snapshot-Based Approach (New Architecture)
+1. **Pre-migration snapshots** (DB file copy) prevent data loss during updates
+   - **Advantage**: Entire database copied - no risk of missing fields
+   - **Speed**: Faster than JSON serialization
+   - **Reliability**: Binary file copy less prone to errors
+
+2. **Weekly automatic snapshots** protect against app/device issues
+   - **Automatic**: No user intervention required
+   - **Comprehensive**: Complete database state preserved
+   - **Efficient**: Minimal performance impact
+
+3. **7-backup retention** balances storage with recovery window
+   - ≈2 months of weekly backups
+   - Automatic cleanup of old backups
+   - Manual exports preserved separately
+
+4. **JSON exports** for portability and sharing
+   - **Human-readable**: Can be inspected and shared
+   - **Cross-platform**: Compatible with other tools
+   - **Healthcare**: Share with doctors/specialists
+
+### Data Safety Guarantees
+
+Combined with transaction-safe migrations and row count verification, users have strong protection against data loss:
+
+- **No missed fields**: Snapshot backups capture entire database automatically
+- **Fast recovery**: Binary file copy vs data deserialization
+- **Migration safety**: Pre-migration snapshots + rollback support
+- **Multiple recovery points**: 7 automatic backups + manual exports
+- **Healthcare compliance**: Data never leaves device unless user exports
+
+This architecture is critical for a healthcare app where user data is irreplaceable and privacy is paramount.

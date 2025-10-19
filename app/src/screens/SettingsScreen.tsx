@@ -15,6 +15,7 @@ import { buildInfo } from '../buildInfo';
 import { errorLogger, ErrorLog } from '../services/errorLogger';
 import { notificationService, NotificationPermissions } from '../services/notificationService';
 import { locationService } from '../services/locationService';
+import { backupService } from '../services/backupService';
 import * as SQLite from 'expo-sqlite';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
@@ -283,6 +284,15 @@ export default function SettingsScreen({ navigation }: Props) {
     );
   };
 
+  const handleExportData = async () => {
+    try {
+      await backupService.exportDataForSharing();
+    } catch (error) {
+      console.error('Failed to export data:', error);
+      Alert.alert('Error', 'Failed to export data: ' + (error as Error).message);
+    }
+  };
+
   return (
     <View style={styles.container} testID="settings-screen">
       <View style={styles.header}>
@@ -513,6 +523,22 @@ export default function SettingsScreen({ navigation }: Props) {
         {/* Data Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Data</Text>
+          <TouchableOpacity
+            style={styles.navigationItem}
+            onPress={handleExportData}
+          >
+            <View style={styles.navigationItemContent}>
+              <Ionicons name="document-text-outline" size={24} color={theme.primary} />
+              <View style={styles.navigationItemText}>
+                <Text style={styles.navigationItemTitle}>Export Data</Text>
+                <Text style={styles.navigationItemDescription}>
+                  Share your data as JSON with healthcare providers
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="share-outline" size={20} color={theme.textTertiary} />
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.navigationItem}
             onPress={() => navigation.navigate('BackupRecovery')}
