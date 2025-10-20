@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TimestampSchema, OptionalTimestampSchema, NotesSchema } from './common.schema';
 
 /**
  * Medication Validation Schemas
@@ -59,24 +60,12 @@ export const MedicationSchema = z.object({
   photoUri: z.string()
     .max(500, 'Photo URI must be <= 500 characters')
     .optional(),
-  startDate: z.number()
-    .int('Start date must be an integer')
-    .positive('Start date must be positive')
-    .optional(),
-  endDate: z.number()
-    .int('End date must be an integer')
-    .positive('End date must be positive')
-    .optional(),
+  startDate: OptionalTimestampSchema,
+  endDate: OptionalTimestampSchema,
   active: z.boolean(),
-  notes: z.string()
-    .max(5000, 'Notes must be <= 5000 characters')
-    .optional(),
-  createdAt: z.number()
-    .int('Created at must be an integer')
-    .positive('Created at must be positive'),
-  updatedAt: z.number()
-    .int('Updated at must be an integer')
-    .positive('Updated at must be positive'),
+  notes: NotesSchema,
+  createdAt: TimestampSchema,
+  updatedAt: TimestampSchema,
 }).refine(
   (data) => {
     // Validate that endDate is after startDate if both are present
@@ -127,9 +116,7 @@ export const EffectivenessRatingSchema = z.number()
 export const MedicationDoseSchema = z.object({
   id: z.string().min(1, 'ID is required'),
   medicationId: z.string().min(1, 'Medication ID is required'),
-  timestamp: z.number()
-    .int('Timestamp must be an integer')
-    .positive('Timestamp must be positive'),
+  timestamp: TimestampSchema,
   amount: z.number()
     .nonnegative('Amount must be non-negative') // Allow 0 for skipped doses
     .finite('Amount must be a finite number'),
@@ -145,12 +132,8 @@ export const MedicationDoseSchema = z.object({
     .optional(),
   sideEffects: z.array(z.string().max(200, 'Side effect must be <= 200 characters'))
     .optional(),
-  notes: z.string()
-    .max(5000, 'Notes must be <= 5000 characters')
-    .optional(),
-  createdAt: z.number()
-    .int('Created at must be an integer')
-    .positive('Created at must be positive'),
+  notes: NotesSchema,
+  createdAt: TimestampSchema,
 }).refine(
   (data) => {
     // Skipped doses can have amount 0, but taken doses must have positive amount
@@ -170,18 +153,10 @@ export const MedicationDoseSchema = z.object({
 export const MedicationReminderSchema = z.object({
   id: z.string().min(1, 'ID is required'),
   medicationId: z.string().min(1, 'Medication ID is required'),
-  scheduledTime: z.number()
-    .int('Scheduled time must be an integer')
-    .positive('Scheduled time must be positive'),
+  scheduledTime: TimestampSchema,
   completed: z.boolean(),
-  snoozedUntil: z.number()
-    .int('Snoozed until must be an integer')
-    .positive('Snoozed until must be positive')
-    .optional(),
-  completedAt: z.number()
-    .int('Completed at must be an integer')
-    .positive('Completed at must be positive')
-    .optional(),
+  snoozedUntil: OptionalTimestampSchema,
+  completedAt: OptionalTimestampSchema,
 }).refine(
   (data) => {
     // If completed is true, completedAt should be present

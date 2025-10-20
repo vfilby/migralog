@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TimestampSchema, OptionalTimestampSchema, NotesSchema, RequiredNotesSchema } from './common.schema';
 
 /**
  * Episode Validation Schemas
@@ -73,9 +74,7 @@ export const EpisodeLocationSchema = z.object({
   accuracy: z.number()
     .positive('Accuracy must be positive')
     .optional(),
-  timestamp: z.number()
-    .int('Timestamp must be an integer')
-    .positive('Timestamp must be positive'),
+  timestamp: TimestampSchema,
 });
 
 // Intensity value (0-10 scale)
@@ -86,13 +85,8 @@ export const IntensityValueSchema = z.number()
 // Episode schema
 export const EpisodeSchema = z.object({
   id: z.string().min(1, 'ID is required'),
-  startTime: z.number()
-    .int('Start time must be an integer')
-    .positive('Start time must be positive'),
-  endTime: z.number()
-    .int('End time must be an integer')
-    .positive('End time must be positive')
-    .optional(),
+  startTime: TimestampSchema,
+  endTime: OptionalTimestampSchema,
   locations: z.array(PainLocationSchema)
     .default([]),
   qualities: z.array(PainQualitySchema)
@@ -101,18 +95,12 @@ export const EpisodeSchema = z.object({
     .default([]),
   triggers: z.array(TriggerSchema)
     .default([]),
-  notes: z.string()
-    .max(5000, 'Notes must be <= 5000 characters')
-    .optional(),
+  notes: NotesSchema,
   peakIntensity: IntensityValueSchema.optional(),
   averageIntensity: IntensityValueSchema.optional(),
   location: EpisodeLocationSchema.optional(),
-  createdAt: z.number()
-    .int('Created at must be an integer')
-    .positive('Created at must be positive'),
-  updatedAt: z.number()
-    .int('Updated at must be an integer')
-    .positive('Updated at must be positive'),
+  createdAt: TimestampSchema,
+  updatedAt: TimestampSchema,
 }).refine(
   (data) => {
     // Validate that endTime is after startTime if both are present
@@ -143,28 +131,18 @@ export const EpisodeSchema = z.object({
 export const IntensityReadingSchema = z.object({
   id: z.string().min(1, 'ID is required'),
   episodeId: z.string().min(1, 'Episode ID is required'),
-  timestamp: z.number()
-    .int('Timestamp must be an integer')
-    .positive('Timestamp must be positive'),
+  timestamp: TimestampSchema,
   intensity: IntensityValueSchema,
-  createdAt: z.number()
-    .int('Created at must be an integer')
-    .positive('Created at must be positive'),
+  createdAt: TimestampSchema,
 });
 
 // Episode note schema
 export const EpisodeNoteSchema = z.object({
   id: z.string().min(1, 'ID is required'),
   episodeId: z.string().min(1, 'Episode ID is required'),
-  timestamp: z.number()
-    .int('Timestamp must be an integer')
-    .positive('Timestamp must be positive'),
-  note: z.string()
-    .min(1, 'Note cannot be empty')
-    .max(5000, 'Note must be <= 5000 characters'),
-  createdAt: z.number()
-    .int('Created at must be an integer')
-    .positive('Created at must be positive'),
+  timestamp: TimestampSchema,
+  note: RequiredNotesSchema,
+  createdAt: TimestampSchema,
 });
 
 // Symptom log schema
@@ -172,17 +150,10 @@ export const SymptomLogSchema = z.object({
   id: z.string().min(1, 'ID is required'),
   episodeId: z.string().min(1, 'Episode ID is required'),
   symptom: SymptomSchema,
-  onsetTime: z.number()
-    .int('Onset time must be an integer')
-    .positive('Onset time must be positive'),
-  resolutionTime: z.number()
-    .int('Resolution time must be an integer')
-    .positive('Resolution time must be positive')
-    .optional(),
+  onsetTime: TimestampSchema,
+  resolutionTime: OptionalTimestampSchema,
   severity: IntensityValueSchema.optional(),
-  createdAt: z.number()
-    .int('Created at must be an integer')
-    .positive('Created at must be positive'),
+  createdAt: TimestampSchema,
 }).refine(
   (data) => {
     // Validate that resolutionTime is after onsetTime if present
@@ -201,14 +172,10 @@ export const SymptomLogSchema = z.object({
 export const PainLocationLogSchema = z.object({
   id: z.string().min(1, 'ID is required'),
   episodeId: z.string().min(1, 'Episode ID is required'),
-  timestamp: z.number()
-    .int('Timestamp must be an integer')
-    .positive('Timestamp must be positive'),
+  timestamp: TimestampSchema,
   painLocations: z.array(PainLocationSchema)
     .min(1, 'At least one pain location is required'),
-  createdAt: z.number()
-    .int('Created at must be an integer')
-    .positive('Created at must be positive'),
+  createdAt: TimestampSchema,
 });
 
 // Export types inferred from schemas

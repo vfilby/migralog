@@ -858,6 +858,41 @@ describe('episodeNoteRepository', () => {
       });
     });
 
+    describe('episodeRepository.update validation', () => {
+      it('should throw error when updating both startTime and endTime with invalid order', async () => {
+        const updates = {
+          startTime: 2000,
+          endTime: 1000,
+        };
+
+        await expect(episodeRepository.update('episode-123', updates)).rejects.toThrow('End time must be after start time');
+      });
+
+      it('should throw error for invalid peak intensity in update', async () => {
+        const updates = {
+          peakIntensity: 11,
+        };
+
+        await expect(episodeRepository.update('episode-123', updates)).rejects.toThrow('Invalid peak intensity');
+      });
+
+      it('should throw error for invalid average intensity in update', async () => {
+        const updates = {
+          averageIntensity: -1,
+        };
+
+        await expect(episodeRepository.update('episode-123', updates)).rejects.toThrow('Invalid average intensity');
+      });
+
+      it('should throw error for notes > 5000 characters in update', async () => {
+        const updates = {
+          notes: 'x'.repeat(5001),
+        };
+
+        await expect(episodeRepository.update('episode-123', updates)).rejects.toThrow('Notes must be <= 5000 characters');
+      });
+    });
+
     describe('intensityRepository.create validation', () => {
       it('should throw error for intensity > 10', async () => {
         const invalidReading: Omit<IntensityReading, 'id' | 'createdAt'> = {

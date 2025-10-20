@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TimestampSchema, NotesSchema } from './common.schema';
 
 /**
  * Daily Status Validation Schemas
@@ -57,16 +58,10 @@ export const DailyStatusLogSchema = z.object({
   date: DateStringSchema,
   status: DayStatusSchema,
   statusType: YellowDayTypeSchema.optional(),
-  notes: z.string()
-    .max(5000, 'Notes must be <= 5000 characters')
-    .optional(),
+  notes: NotesSchema,
   prompted: z.boolean(),
-  createdAt: z.number()
-    .int('Created at must be an integer')
-    .positive('Created at must be positive'),
-  updatedAt: z.number()
-    .int('Updated at must be an integer')
-    .positive('Updated at must be positive'),
+  createdAt: TimestampSchema,
+  updatedAt: TimestampSchema,
 }).refine(
   (data) => {
     // Status type should only be present for yellow days
