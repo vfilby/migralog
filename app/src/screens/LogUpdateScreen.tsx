@@ -17,7 +17,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { intensityRepository, symptomLogRepository, episodeNoteRepository, episodeRepository, painLocationLogRepository } from '../database/episodeRepository';
 import { Symptom, PainLocation } from '../models/types';
-import { getPainColor, getPainLevel } from '../utils/painScale';
+import { getPainLevel } from '../utils/painScale';
 import { useTheme, ThemeColors } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LogUpdate'>;
@@ -232,6 +232,7 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
 
   useEffect(() => {
     loadLatestData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [episodeId]);
 
   // Keyboard listener for auto-scroll
@@ -249,6 +250,7 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
     return () => {
       keyboardDidShowListener.remove();
     };
+     
   }, []);
 
   const loadLatestData = async () => {

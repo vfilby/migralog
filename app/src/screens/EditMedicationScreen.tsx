@@ -15,7 +15,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { useMedicationStore } from '../store/medicationStore';
 import { medicationRepository, medicationScheduleRepository } from '../database/medicationRepository';
-import { MedicationType, Medication, ScheduleFrequency, MedicationSchedule } from '../models/types';
+import { MedicationType, ScheduleFrequency, MedicationSchedule } from '../models/types';
 import MedicationScheduleManager from '../components/MedicationScheduleManager';
 import { useTheme, ThemeColors } from '../theme';
 import { notificationService } from '../services/notificationService';

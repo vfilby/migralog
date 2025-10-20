@@ -11,7 +11,7 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme, ThemeMode, ThemeColors } from '../theme';
+import { useTheme, ThemeColors } from '../theme';
 import { buildInfo } from '../buildInfo';
 import { errorLogger, ErrorLog } from '../services/errorLogger';
 import { notificationService, NotificationPermissions } from '../services/notificationService';
@@ -31,6 +31,7 @@ export default function SettingsScreen({ navigation }: Props) {
 
   useEffect(() => {
     loadDiagnostics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadDiagnostics = async () => {
@@ -267,7 +268,7 @@ export default function SettingsScreen({ navigation }: Props) {
               // Dynamically import test helper (only available in __DEV__)
               if (__DEV__) {
                 const { resetDatabaseForTesting } = await import('../utils/testHelpers');
-                const result = await resetDatabaseForTesting({
+                const _result = await resetDatabaseForTesting({
                   createBackup: true,
                   loadFixtures: true,
                 });

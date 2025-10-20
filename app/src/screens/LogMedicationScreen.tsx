@@ -13,7 +13,6 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { useMedicationStore } from '../store/medicationStore';
-import { useEpisodeStore } from '../store/episodeStore';
 import { medicationRepository } from '../database/medicationRepository';
 import { Medication } from '../models/types';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -284,12 +283,14 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
 
   useEffect(() => {
     loadMedications();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (selectedMedId) {
       loadMedication(selectedMedId);
     }
+     
   }, [selectedMedId]);
 
   const loadMedication = async (medId: string) => {

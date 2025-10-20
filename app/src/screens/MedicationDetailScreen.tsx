@@ -43,6 +43,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
 
   useEffect(() => {
     loadMedicationData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [medicationId]);
 
   useEffect(() => {
@@ -50,6 +51,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
       loadMedicationData();
     });
     return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigation]);
 
   const loadMedicationData = async () => {

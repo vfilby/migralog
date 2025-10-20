@@ -2,7 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { logger } from '../utils/logger';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
-import { Platform } from 'react-native';
+
 import * as SQLite from 'expo-sqlite';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { episodeRepository, episodeNoteRepository, intensityRepository } from '../database/episodeRepository';
@@ -440,7 +440,7 @@ class BackupService {
 
       // Re-open database and run migrations if needed
       logger.log('[Restore] Reopening database');
-      const db = await import('../database/db').then(m => m.getDatabase());
+      const _db = await import('../database/db').then(m => m.getDatabase());
 
       const restoredSchemaVersion = await migrationRunner.getCurrentVersion();
       logger.log('[Restore] Current schema version after restore:', restoredSchemaVersion);

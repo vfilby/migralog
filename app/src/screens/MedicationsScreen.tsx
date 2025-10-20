@@ -238,7 +238,7 @@ export default function MedicationsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const { preventativeMedications, rescueMedications, loadMedications, logDose, deleteDose, loading } = useMedicationStore();
+  const { preventativeMedications, rescueMedications, loadMedications, logDose, deleteDose } = useMedicationStore();
   const { currentEpisode, loadCurrentEpisode } = useEpisodeStore();
   const [medicationSchedules, setMedicationSchedules] = useState<Record<string, MedicationSchedule[]>>({});
   const [scheduleLogStates, setScheduleLogStates] = useState<Record<string, ScheduleLogState>>({});
@@ -247,6 +247,7 @@ export default function MedicationsScreen() {
   useEffect(() => {
     loadMedications();
     loadCurrentEpisode();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Also reload data when screen gains focus
@@ -257,10 +258,12 @@ export default function MedicationsScreen() {
       loadSchedulesAndDoses();
     });
     return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigation]);
 
   useEffect(() => {
     loadSchedulesAndDoses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preventativeMedications]);
 
   const loadSchedulesAndDoses = async () => {
@@ -341,7 +344,7 @@ export default function MedicationsScreen() {
     return null;
   };
 
-  const handleQuickLog = async (medicationId: string, scheduleId: string, dosage: number, scheduleTime?: string) => {
+  const handleQuickLog = async (medicationId: string, scheduleId: string, dosage: number, _scheduleTime?: string) => {
     try {
       const now = Date.now();
 

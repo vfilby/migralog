@@ -39,7 +39,7 @@ const PAIN_LOCATIONS: { value: PainLocation; label: string; side: 'left' | 'righ
   { value: 'right_teeth', label: 'Teeth', side: 'right' },
 ];
 
-const PAIN_QUALITIES: { value: PainQuality; label: string }[] = [
+const _PAIN_QUALITIES: { value: PainQuality; label: string }[] = [
   { value: 'throbbing', label: 'Throbbing' },
   { value: 'sharp', label: 'Sharp' },
   { value: 'dull', label: 'Dull' },
@@ -267,7 +267,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
 export default function NewEpisodeScreen({ navigation, route }: Props) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const { startEpisode, addIntensityReading, updateEpisode } = useEpisodeStore();
+  const { startEpisode, updateEpisode } = useEpisodeStore();
   const episodeId = route.params?.episodeId;
   const isEditing = !!episodeId;
 
@@ -284,7 +284,7 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
   const [triggers, setTriggers] = useState<Trigger[]>([]);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [_loading, setLoading] = useState(false);
   const [gpsLocation, setGpsLocation] = useState<EpisodeLocation | null>(null);
   const [initialReadingId, setInitialReadingId] = useState<string | null>(null);
   const [initialIntensity, setInitialIntensity] = useState<number>(3);

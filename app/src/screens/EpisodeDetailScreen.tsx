@@ -903,7 +903,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
 
     // Get the primary color for the dot (intensity > medication > note)
     const intensityEvent = group.events.find(e => e.type === 'intensity');
-    const medicationEvent = group.events.find(e => e.type === 'medication');
+    const _medicationEvent = group.events.find(e => e.type === 'medication');
     const endEvent = group.events.find(e => e.type === 'end');
 
     let dotColor = theme.textSecondary; // Default neutral gray
