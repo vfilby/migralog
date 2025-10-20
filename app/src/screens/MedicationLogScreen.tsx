@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { logger } from '../utils/logger';
 import {
   View,
   Text,
@@ -44,7 +45,7 @@ export default function MedicationLogScreen({ navigation }: Props) {
 
       setDoses(dosesWithDetails);
     } catch (error) {
-      console.error('Failed to load medication log:', error);
+      logger.error('Failed to load medication log:', error);
     } finally {
       setLoading(false);
     }

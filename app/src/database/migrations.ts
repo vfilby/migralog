@@ -637,8 +637,6 @@ class MigrationRunner {
         throw new Error(`Migration ${migration.version} validation failed: ${validation.errors.join(', ')}`);
       }
 
-      const previousVersion = await this.getCurrentVersion();
-
       try {
         logger.log(`Running migration ${migration.version}: ${migration.name}`);
         await migration.up(this.db);

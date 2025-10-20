@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { logger } from '../utils/logger';
 import { Episode, IntensityReading, SymptomLog } from '../models/types';
 import { episodeRepository, intensityRepository, symptomLogRepository } from '../database/episodeRepository';
 import { dailyStatusRepository } from '../database/dailyStatusRepository';
@@ -61,9 +62,9 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
           notes: 'Episode started',
           prompted: false,
         });
-        console.log('[EpisodeStore] Auto-created red day for episode:', episodeDate);
+        logger.log('[EpisodeStore] Auto-created red day for episode:', episodeDate);
       } catch (error) {
-        console.error('[EpisodeStore] Failed to create red day for episode:', error);
+        logger.error('[EpisodeStore] Failed to create red day for episode:', error);
         // Don't fail the episode creation if red day creation fails
       }
 
@@ -108,9 +109,9 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
               prompted: false,
             });
           }
-          console.log('[EpisodeStore] Marked', dates.length, 'day(s) as red for episode');
+          logger.log('[EpisodeStore] Marked', dates.length, 'day(s) as red for episode');
         } catch (error) {
-          console.error('[EpisodeStore] Failed to mark episode days as red:', error);
+          logger.error('[EpisodeStore] Failed to mark episode days as red:', error);
           // Don't fail the episode end if red day creation fails
         }
       }

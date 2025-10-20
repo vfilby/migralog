@@ -1,6 +1,8 @@
 // Web-compatible database implementation using localStorage
 // This is a simplified version for web testing - data won't persist across sessions in production
 
+import { logger } from '../utils/logger';
+
 interface WebDatabase {
   execAsync: (sql: string) => Promise<void>;
   runAsync: (sql: string, params?: any[]) => Promise<void>;
@@ -20,7 +22,7 @@ const getTableName = (sql: string): string => {
 
 const webDb: WebDatabase = {
   async execAsync(sql: string) {
-    console.log('[WebDB] exec:', sql);
+    logger.log('[WebDB] exec:', sql);
     // Initialize tables in memory
     const tableMatch = sql.match(/CREATE TABLE IF NOT EXISTS (\w+)/i);
     if (tableMatch) {
@@ -32,7 +34,7 @@ const webDb: WebDatabase = {
   },
 
   async runAsync(sql: string, params: any[] = []) {
-    console.log('[WebDB] run:', sql, params);
+    logger.log('[WebDB] run:', sql, params);
 
     if (sql.trim().startsWith('INSERT')) {
       const tableName = getTableName(sql);
@@ -44,7 +46,7 @@ const webDb: WebDatabase = {
       store.set(tableName, table);
     } else if (sql.trim().startsWith('UPDATE')) {
       // For demo purposes, update operations are logged but not fully implemented
-      console.log('[WebDB] UPDATE not fully implemented for web demo');
+      logger.log('[WebDB] UPDATE not fully implemented for web demo');
     } else if (sql.trim().startsWith('DELETE')) {
       const tableName = getTableName(sql);
       // Simple delete - clear the table
@@ -53,13 +55,13 @@ const webDb: WebDatabase = {
   },
 
   async getFirstAsync<T>(sql: string, params: any[] = []): Promise<T | null> {
-    console.log('[WebDB] getFirst:', sql, params);
+    logger.log('[WebDB] getFirst:', sql, params);
     const results = await this.getAllAsync<T>(sql, params);
     return results.length > 0 ? results[0] : null;
   },
 
   async getAllAsync<T>(sql: string, params: any[] = []): Promise<T[]> {
-    console.log('[WebDB] getAll:', sql, params);
+    logger.log('[WebDB] getAll:', sql, params);
     const tableName = getTableName(sql);
     const table = store.get(tableName) || [];
 
@@ -68,7 +70,7 @@ const webDb: WebDatabase = {
   },
 
   async closeAsync() {
-    console.log('[WebDB] close');
+    logger.log('[WebDB] close');
   },
 };
 

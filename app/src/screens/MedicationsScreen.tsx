@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { logger } from '../utils/logger';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useMedicationStore } from '../store/medicationStore';
@@ -237,7 +238,7 @@ export default function MedicationsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const { preventativeMedications, rescueMedications, loadMedications, logDose, deleteDose, loading } = useMedicationStore();
+  const { preventativeMedications, rescueMedications, loadMedications, logDose, deleteDose } = useMedicationStore();
   const { currentEpisode, loadCurrentEpisode } = useEpisodeStore();
   const [medicationSchedules, setMedicationSchedules] = useState<Record<string, MedicationSchedule[]>>({});
   const [scheduleLogStates, setScheduleLogStates] = useState<Record<string, ScheduleLogState>>({});
@@ -246,6 +247,7 @@ export default function MedicationsScreen() {
   useEffect(() => {
     loadMedications();
     loadCurrentEpisode();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Also reload data when screen gains focus
@@ -256,10 +258,12 @@ export default function MedicationsScreen() {
       loadSchedulesAndDoses();
     });
     return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigation]);
 
   useEffect(() => {
     loadSchedulesAndDoses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preventativeMedications]);
 
   const loadSchedulesAndDoses = async () => {
@@ -302,7 +306,7 @@ export default function MedicationsScreen() {
       setMedicationSchedules(schedules);
       setScheduleLogStates(logStates);
     } catch (error) {
-      console.error('Failed to load schedules and doses:', error);
+      logger.error('Failed to load schedules and doses:', error);
     }
   };
 
@@ -340,7 +344,7 @@ export default function MedicationsScreen() {
     return null;
   };
 
-  const handleQuickLog = async (medicationId: string, scheduleId: string, dosage: number, scheduleTime?: string) => {
+  const handleQuickLog = async (medicationId: string, scheduleId: string, dosage: number, _scheduleTime?: string) => {
     try {
       const now = Date.now();
 
@@ -363,7 +367,7 @@ export default function MedicationsScreen() {
         }
       }));
     } catch (error) {
-      console.error('Failed to quick log medication:', error);
+      logger.error('Failed to quick log medication:', error);
       Alert.alert('Error', 'Failed to log medication');
     }
   };
@@ -381,7 +385,7 @@ export default function MedicationsScreen() {
       // Delete from database
       await deleteDose(doseId);
     } catch (error) {
-      console.error('Failed to undo log:', error);
+      logger.error('Failed to undo log:', error);
       Alert.alert('Error', 'Failed to undo');
       // Reload on error to sync with database
       loadSchedulesAndDoses();
@@ -398,7 +402,7 @@ export default function MedicationsScreen() {
       });
       Alert.alert('Success', 'Medication logged successfully');
     } catch (error) {
-      console.error('Failed to quick log medication:', error);
+      logger.error('Failed to quick log medication:', error);
       Alert.alert('Error', 'Failed to log medication');
     }
   };

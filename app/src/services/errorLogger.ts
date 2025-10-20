@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface ErrorLog {
@@ -26,7 +27,7 @@ class ErrorLogger {
       }
       this.initialized = true;
     } catch (error) {
-      console.error('Failed to load error logs:', error);
+      logger.error('Failed to load error logs:', error);
     }
   }
 
@@ -54,13 +55,13 @@ class ErrorLogger {
     }
 
     // Log to console in development
-    console.error(`[${type}] ${message}`, error, context);
+    logger.error(`[${type}] ${message}`, error, context);
 
     // Persist to storage
     try {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.logs));
     } catch (storageError) {
-      console.error('Failed to persist error logs:', storageError);
+      logger.error('Failed to persist error logs:', storageError);
     }
   }
 
@@ -74,7 +75,7 @@ class ErrorLogger {
     try {
       await AsyncStorage.removeItem(STORAGE_KEY);
     } catch (error) {
-      console.error('Failed to clear error logs:', error);
+      logger.error('Failed to clear error logs:', error);
     }
   }
 

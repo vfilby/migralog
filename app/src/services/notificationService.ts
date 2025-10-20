@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import { logger } from '../utils/logger';
 import { Platform } from 'react-native';
 import { Medication, MedicationSchedule } from '../models/types';
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../database/medicationRepository';
@@ -115,7 +116,7 @@ class NotificationService {
         time?: string;
       };
 
-      console.log('[Notification] Response received:', {
+      logger.log('[Notification] Response received:', {
         actionIdentifier,
         data,
       });
@@ -143,18 +144,18 @@ class NotificationService {
           break;
         case 'VIEW_DETAILS':
           // This will be handled by navigation in the app
-          console.log('[Notification] View details tapped, opening app');
+          logger.log('[Notification] View details tapped, opening app');
           break;
         default:
           // User tapped notification - let app navigation handle it
-          console.log('[Notification] Notification tapped, opening app');
+          logger.log('[Notification] Notification tapped, opening app');
           break;
       }
     });
 
     // Handle notifications received while app is in foreground
     Notifications.addNotificationReceivedListener((notification) => {
-      console.log('[Notification] Received in foreground:', notification);
+      logger.log('[Notification] Received in foreground:', notification);
     });
   }
 
@@ -165,7 +166,7 @@ class NotificationService {
     try {
       const medication = await medicationRepository.getById(medicationId);
       if (!medication) {
-        console.error('[Notification] Medication not found:', medicationId);
+        logger.error('[Notification] Medication not found:', medicationId);
         return;
       }
 
@@ -190,12 +191,12 @@ class NotificationService {
         trigger: null, // Show immediately
       });
 
-      console.log('[Notification] Medication logged:', {
+      logger.log('[Notification] Medication logged:', {
         medicationId,
         dosage,
       });
     } catch (error) {
-      console.error('[Notification] Error logging medication:', error);
+      logger.error('[Notification] Error logging medication:', error);
     }
   }
 
@@ -224,9 +225,9 @@ class NotificationService {
         trigger: snoozeTime as any, // Type assertion for Date trigger
       });
 
-      console.log('[Notification] Snoozed for', minutes, 'minutes');
+      logger.log('[Notification] Snoozed for', minutes, 'minutes');
     } catch (error) {
-      console.error('[Notification] Error snoozing notification:', error);
+      logger.error('[Notification] Error snoozing notification:', error);
     }
   }
 
@@ -246,7 +247,7 @@ class NotificationService {
 
         const medication = await medicationRepository.getById(medicationId);
         if (!medication) {
-          console.error('[Notification] Medication not found:', medicationId);
+          logger.error('[Notification] Medication not found:', medicationId);
           continue;
         }
 
@@ -263,7 +264,7 @@ class NotificationService {
         });
 
         results.push(`${medication.name} - ${dosage} dose(s)`);
-        console.log('[Notification] Medication logged:', {
+        logger.log('[Notification] Medication logged:', {
           medicationId,
           dosage,
         });
@@ -280,7 +281,7 @@ class NotificationService {
         });
       }
     } catch (error) {
-      console.error('[Notification] Error logging medications:', error);
+      logger.error('[Notification] Error logging medications:', error);
     }
   }
 
@@ -321,9 +322,9 @@ class NotificationService {
         trigger: snoozeTime as any, // Type assertion for Date trigger
       });
 
-      console.log('[Notification] Reminder snoozed for', minutes, 'minutes');
+      logger.log('[Notification] Reminder snoozed for', minutes, 'minutes');
     } catch (error) {
-      console.error('[Notification] Error snoozing reminder:', error);
+      logger.error('[Notification] Error snoozing reminder:', error);
     }
   }
 
@@ -390,7 +391,7 @@ class NotificationService {
 
       for (const item of medications) {
         if (!item.schedule.enabled) {
-          console.log('[Notification] Schedule disabled, skipping:', item.schedule.id);
+          logger.log('[Notification] Schedule disabled, skipping:', item.schedule.id);
           continue;
         }
 
@@ -424,7 +425,7 @@ class NotificationService {
 
       return notificationIds;
     } catch (error) {
-      console.error('[Notification] Error scheduling grouped notifications:', error);
+      logger.error('[Notification] Error scheduling grouped notifications:', error);
       return notificationIds;
     }
   }
@@ -440,7 +441,7 @@ class NotificationService {
       // Parse the time (HH:mm format)
       const [hours, minutes] = schedule.time.split(':').map(Number);
 
-      console.log('[Notification] Scheduling single medication for', hours, ':', minutes);
+      logger.log('[Notification] Scheduling single medication for', hours, ':', minutes);
 
       const notificationId = await Notifications.scheduleNotificationAsync({
         content: {
@@ -460,10 +461,10 @@ class NotificationService {
         },
       });
 
-      console.log('[Notification] Scheduled for', medication.name, 'at', schedule.time);
+      logger.log('[Notification] Scheduled for', medication.name, 'at', schedule.time);
       return notificationId;
     } catch (error) {
-      console.error('[Notification] Error scheduling single notification:', error);
+      logger.error('[Notification] Error scheduling single notification:', error);
       return null;
     }
   }
@@ -484,7 +485,7 @@ class NotificationService {
       const medicationIds = items.map(({ medication }) => medication.id);
       const scheduleIds = items.map(({ schedule }) => schedule.id);
 
-      console.log('[Notification] Scheduling combined notification for', medicationCount, 'medications at', time);
+      logger.log('[Notification] Scheduling combined notification for', medicationCount, 'medications at', time);
 
       const notificationId = await Notifications.scheduleNotificationAsync({
         content: {
@@ -505,10 +506,10 @@ class NotificationService {
         },
       });
 
-      console.log('[Notification] Scheduled combined notification for', medicationCount, 'medications at', time);
+      logger.log('[Notification] Scheduled combined notification for', medicationCount, 'medications at', time);
       return notificationId;
     } catch (error) {
-      console.error('[Notification] Error scheduling combined notification:', error);
+      logger.error('[Notification] Error scheduling combined notification:', error);
       return null;
     }
   }
@@ -522,7 +523,7 @@ class NotificationService {
     schedule: MedicationSchedule
   ): Promise<string | null> {
     if (!schedule.enabled) {
-      console.log('[Notification] Schedule disabled, skipping:', schedule.id);
+      logger.log('[Notification] Schedule disabled, skipping:', schedule.id);
       return null;
     }
     return this.scheduleSingleNotification(medication, schedule);
@@ -534,9 +535,9 @@ class NotificationService {
   async cancelNotification(notificationId: string): Promise<void> {
     try {
       await Notifications.cancelScheduledNotificationAsync(notificationId);
-      console.log('[Notification] Cancelled:', notificationId);
+      logger.log('[Notification] Cancelled:', notificationId);
     } catch (error) {
-      console.error('[Notification] Error cancelling notification:', error);
+      logger.error('[Notification] Error cancelling notification:', error);
     }
   }
 
@@ -554,9 +555,9 @@ class NotificationService {
         await Notifications.cancelScheduledNotificationAsync(notif.identifier);
       }
 
-      console.log('[Notification] Cancelled', medicationNotifs.length, 'notifications for medication');
+      logger.log('[Notification] Cancelled', medicationNotifs.length, 'notifications for medication');
     } catch (error) {
-      console.error('[Notification] Error cancelling medication notifications:', error);
+      logger.error('[Notification] Error cancelling medication notifications:', error);
     }
   }
 
@@ -572,7 +573,7 @@ class NotificationService {
    */
   async cancelAllNotifications(): Promise<void> {
     await Notifications.cancelAllScheduledNotificationsAsync();
-    console.log('[Notification] Cancelled all notifications');
+    logger.log('[Notification] Cancelled all notifications');
   }
 
   /**
@@ -609,9 +610,9 @@ class NotificationService {
         });
       }
 
-      console.log('[Notification] Rescheduled all medication notifications with grouping:', notificationIds.size);
+      logger.log('[Notification] Rescheduled all medication notifications with grouping:', notificationIds.size);
     } catch (error) {
-      console.error('[Notification] Error rescheduling all notifications:', error);
+      logger.error('[Notification] Error rescheduling all notifications:', error);
     }
   }
 }

@@ -1,7 +1,8 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import { logger } from '../utils/logger';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
-import { Platform } from 'react-native';
+
 import * as SQLite from 'expo-sqlite';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { episodeRepository, episodeNoteRepository, intensityRepository } from '../database/episodeRepository';
@@ -69,7 +70,7 @@ class BackupService {
    */
   async createSnapshotBackup(db?: SQLite.SQLiteDatabase): Promise<BackupMetadata> {
     try {
-      console.log('[Backup] Starting snapshot backup creation');
+      logger.log('[Backup] Starting snapshot backup creation');
       await this.initialize();
 
       // Generate backup ID
@@ -84,7 +85,7 @@ class BackupService {
       }
 
       // Copy database file to backup location
-      console.log('[Backup] Copying database file...');
+      logger.log('[Backup] Copying database file...');
       await FileSystem.copyAsync({
         from: DB_PATH,
         to: backupPath,
@@ -115,10 +116,10 @@ class BackupService {
       // Save metadata sidecar file
       await FileSystem.writeAsStringAsync(metadataPath, JSON.stringify(metadata, null, 2));
 
-      console.log('[Backup] Snapshot backup created successfully:', metadata.id);
+      logger.log('[Backup] Snapshot backup created successfully:', metadata.id);
       return metadata;
     } catch (error) {
-      console.error('[Backup] FAILED to create snapshot backup:', error);
+      logger.error('[Backup] FAILED to create snapshot backup:', error);
       throw new Error('Failed to create snapshot backup: ' + (error as Error).message);
     }
   }
@@ -130,74 +131,74 @@ class BackupService {
    */
   async createBackup(isAutomatic: boolean = false, db?: SQLite.SQLiteDatabase): Promise<BackupMetadata> {
     try {
-      console.log('[Backup] Starting backup creation, isAutomatic:', isAutomatic);
-      console.log('[Backup] Backup directory:', BACKUP_DIR);
+      logger.log('[Backup] Starting backup creation, isAutomatic:', isAutomatic);
+      logger.log('[Backup] Backup directory:', BACKUP_DIR);
       await this.initialize();
-      console.log('[Backup] Backup directory initialized');
+      logger.log('[Backup] Backup directory initialized');
 
       // Gather all data - pass db to avoid circular dependency during migrations
-      console.log('[Backup] Fetching episodes...');
+      logger.log('[Backup] Fetching episodes...');
       const episodes = await episodeRepository.getAll(50, 0, db);
-      console.log('[Backup] Fetched', episodes.length, 'episodes');
+      logger.log('[Backup] Fetched', episodes.length, 'episodes');
 
-      console.log('[Backup] Fetching medications...');
+      logger.log('[Backup] Fetching medications...');
       const medications = await medicationRepository.getAll(db);
-      console.log('[Backup] Fetched', medications.length, 'medications');
+      logger.log('[Backup] Fetched', medications.length, 'medications');
 
-      console.log('[Backup] Fetching medication doses...');
+      logger.log('[Backup] Fetching medication doses...');
       const medicationDoses = await medicationDoseRepository.getAll(100, db);
-      console.log('[Backup] Fetched', medicationDoses.length, 'doses');
+      logger.log('[Backup] Fetched', medicationDoses.length, 'doses');
 
       // Gather all episode notes
-      console.log('[Backup] Fetching episode notes...');
+      logger.log('[Backup] Fetching episode notes...');
       const episodeNotes: EpisodeNote[] = [];
       for (const ep of episodes) {
         const notes = await episodeNoteRepository.getByEpisodeId(ep.id, db);
         episodeNotes.push(...notes);
       }
-      console.log('[Backup] Fetched', episodeNotes.length, 'episode notes');
+      logger.log('[Backup] Fetched', episodeNotes.length, 'episode notes');
 
       // Gather all intensity readings
-      console.log('[Backup] Fetching intensity readings...');
+      logger.log('[Backup] Fetching intensity readings...');
       const intensityReadings: IntensityReading[] = [];
       for (const ep of episodes) {
         const readings = await intensityRepository.getByEpisodeId(ep.id, db);
         intensityReadings.push(...readings);
       }
-      console.log('[Backup] Fetched', intensityReadings.length, 'intensity readings');
+      logger.log('[Backup] Fetched', intensityReadings.length, 'intensity readings');
 
       // Gather all daily status logs (get last 2 years of data)
-      console.log('[Backup] Fetching daily status logs...');
+      logger.log('[Backup] Fetching daily status logs...');
       const twoYearsAgo = new Date();
       twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
       const today = new Date();
       const startDate = twoYearsAgo.toISOString().split('T')[0];
       const endDate = today.toISOString().split('T')[0];
       const dailyStatusLogs = await dailyStatusRepository.getDateRange(startDate, endDate, db);
-      console.log('[Backup] Fetched', dailyStatusLogs.length, 'daily status logs');
+      logger.log('[Backup] Fetched', dailyStatusLogs.length, 'daily status logs');
 
       // Gather all medication schedules
-      console.log('[Backup] Fetching medication schedules...');
+      logger.log('[Backup] Fetching medication schedules...');
       const medicationSchedules: MedicationSchedule[] = [];
       for (const med of medications) {
         const schedules = await medicationScheduleRepository.getByMedicationId(med.id, db);
         medicationSchedules.push(...schedules);
       }
-      console.log('[Backup] Fetched', medicationSchedules.length, 'schedules');
+      logger.log('[Backup] Fetched', medicationSchedules.length, 'schedules');
 
-      console.log('[Backup] Generating backup ID...');
+      logger.log('[Backup] Generating backup ID...');
       const backupId = this.generateBackupId();
-      console.log('[Backup] Backup ID:', backupId);
+      logger.log('[Backup] Backup ID:', backupId);
 
       // Get actual database schema version
-      console.log('[Backup] Getting current schema version...');
+      logger.log('[Backup] Getting current schema version...');
       const schemaVersion = await migrationRunner.getCurrentVersion();
-      console.log('[Backup] Current schema version:', schemaVersion);
+      logger.log('[Backup] Current schema version:', schemaVersion);
 
       // Export complete schema SQL from database
-      console.log('[Backup] Exporting schema SQL...');
+      logger.log('[Backup] Exporting schema SQL...');
       const schemaSQL = await this.exportSchemaSQL(db);
-      console.log('[Backup] Schema SQL exported, length:', schemaSQL.length);
+      logger.log('[Backup] Schema SQL exported, length:', schemaSQL.length);
 
       const backupData: BackupData = {
         metadata: {
@@ -219,20 +220,20 @@ class BackupService {
       };
 
       const backupPath = this.getBackupPath(backupId, 'json');
-      console.log('[Backup] Backup path:', backupPath);
+      logger.log('[Backup] Backup path:', backupPath);
 
-      console.log('[Backup] Stringifying backup data...');
+      logger.log('[Backup] Stringifying backup data...');
       const backupJson = JSON.stringify(backupData, null, 2);
-      console.log('[Backup] Backup JSON size:', backupJson.length, 'characters');
+      logger.log('[Backup] Backup JSON size:', backupJson.length, 'characters');
 
-      console.log('[Backup] Writing backup file...');
+      logger.log('[Backup] Writing backup file...');
       await FileSystem.writeAsStringAsync(backupPath, backupJson);
-      console.log('[Backup] Backup file written successfully');
+      logger.log('[Backup] Backup file written successfully');
 
-      console.log('[Backup] Getting file info...');
+      logger.log('[Backup] Getting file info...');
       const fileInfo = await FileSystem.getInfoAsync(backupPath);
       const fileSize = fileInfo.exists && 'size' in fileInfo ? fileInfo.size : 0;
-      console.log('[Backup] File size:', fileSize, 'bytes');
+      logger.log('[Backup] File size:', fileSize, 'bytes');
 
       const metadata: BackupMetadata = {
         ...backupData.metadata,
@@ -243,16 +244,16 @@ class BackupService {
 
       // Clean up old automatic backups if needed
       if (isAutomatic) {
-        console.log('[Backup] Cleaning up old automatic backups...');
+        logger.log('[Backup] Cleaning up old automatic backups...');
         await this.cleanupOldAutoBackups();
       }
 
-      console.log('[Backup] Backup created successfully:', metadata.id);
+      logger.log('[Backup] Backup created successfully:', metadata.id);
       return metadata;
     } catch (error) {
-      console.error('[Backup] FAILED to create backup:', error);
-      console.error('[Backup] Error type:', typeof error);
-      console.error('[Backup] Error details:', JSON.stringify(error, null, 2));
+      logger.error('[Backup] FAILED to create backup:', error);
+      logger.error('[Backup] Error type:', typeof error);
+      logger.error('[Backup] Error details:', JSON.stringify(error, null, 2));
       throw new Error('Failed to create backup: ' + (error as Error).message);
     }
   }
@@ -320,14 +321,14 @@ class BackupService {
             });
           }
         } catch (error) {
-          console.error(`Failed to read backup ${file}:`, error);
+          logger.error(`Failed to read backup ${file}:`, error);
         }
       }
 
       // Sort by timestamp, newest first
       return backups.sort((a, b) => b.timestamp - a.timestamp);
     } catch (error) {
-      console.error('Failed to list backups:', error);
+      logger.error('Failed to list backups:', error);
       return [];
     }
   }
@@ -362,14 +363,14 @@ class BackupService {
 
       return null;
     } catch (error) {
-      console.error('Failed to get backup metadata:', error);
+      logger.error('Failed to get backup metadata:', error);
       return null;
     }
   }
 
   async restoreBackup(backupId: string): Promise<void> {
     try {
-      console.log('[Restore] Starting backup restore:', backupId);
+      logger.log('[Restore] Starting backup restore:', backupId);
 
       // Get metadata to determine backup type
       const metadata = await this.getBackupMetadata(backupId);
@@ -383,9 +384,9 @@ class BackupService {
         await this.restoreJsonBackup(backupId);
       }
 
-      console.log('[Restore] Backup restored successfully');
+      logger.log('[Restore] Backup restored successfully');
     } catch (error) {
-      console.error('[Restore] FAILED to restore backup:', error);
+      logger.error('[Restore] FAILED to restore backup:', error);
       throw new Error('Failed to restore backup: ' + (error as Error).message);
     }
   }
@@ -396,7 +397,7 @@ class BackupService {
    */
   private async restoreSnapshotBackup(backupId: string, metadata: BackupMetadata): Promise<void> {
     try {
-      console.log('[Restore] Restoring from snapshot backup');
+      logger.log('[Restore] Restoring from snapshot backup');
 
       const backupPath = this.getBackupPath(backupId, 'snapshot');
       const backupInfo = await FileSystem.getInfoAsync(backupPath);
@@ -422,40 +423,40 @@ class BackupService {
       const safetyBackupPath = `${FileSystem.documentDirectory}SQLite/migralog_pre_restore_${Date.now()}.db`;
       const currentDbInfo = await FileSystem.getInfoAsync(DB_PATH);
       if (currentDbInfo.exists) {
-        console.log('[Restore] Creating safety backup of current database');
+        logger.log('[Restore] Creating safety backup of current database');
         await FileSystem.copyAsync({
           from: DB_PATH,
           to: safetyBackupPath,
         });
-        console.log('[Restore] Safety backup created at:', safetyBackupPath);
+        logger.log('[Restore] Safety backup created at:', safetyBackupPath);
       }
 
       // Copy snapshot to database location
-      console.log('[Restore] Copying snapshot to database location');
+      logger.log('[Restore] Copying snapshot to database location');
       await FileSystem.copyAsync({
         from: backupPath,
         to: DB_PATH,
       });
 
       // Re-open database and run migrations if needed
-      console.log('[Restore] Reopening database');
-      const db = await import('../database/db').then(m => m.getDatabase());
+      logger.log('[Restore] Reopening database');
+      const _db = await import('../database/db').then(m => m.getDatabase());
 
       const restoredSchemaVersion = await migrationRunner.getCurrentVersion();
-      console.log('[Restore] Current schema version after restore:', restoredSchemaVersion);
-      console.log('[Restore] Backup schema version:', metadata.schemaVersion);
+      logger.log('[Restore] Current schema version after restore:', restoredSchemaVersion);
+      logger.log('[Restore] Backup schema version:', metadata.schemaVersion);
 
       if (metadata.schemaVersion < appSchemaVersion) {
-        console.log('[Restore] Running migrations from version', metadata.schemaVersion, 'to', appSchemaVersion);
+        logger.log('[Restore] Running migrations from version', metadata.schemaVersion, 'to', appSchemaVersion);
         await migrationRunner.runMigrations();
-        console.log('[Restore] Migrations completed successfully');
+        logger.log('[Restore] Migrations completed successfully');
       } else {
-        console.log('[Restore] No migrations needed');
+        logger.log('[Restore] No migrations needed');
       }
 
-      console.log('[Restore] Snapshot restore complete');
+      logger.log('[Restore] Snapshot restore complete');
     } catch (error) {
-      console.error('[Restore] FAILED to restore snapshot:', error);
+      logger.error('[Restore] FAILED to restore snapshot:', error);
       throw error;
     }
   }
@@ -471,7 +472,7 @@ class BackupService {
    */
   private async restoreJsonBackup(backupId: string): Promise<void> {
     try {
-      console.log('[Restore] Restoring from JSON backup');
+      logger.log('[Restore] Restoring from JSON backup');
       const backupPath = this.getBackupPath(backupId, 'json');
       const content = await FileSystem.readAsStringAsync(backupPath);
       const backupData: BackupData = JSON.parse(content);
@@ -484,15 +485,15 @@ class BackupService {
       // Handle old backups without schemaSQL (backward compatibility)
       const isOldBackup = !backupData.schemaSQL;
       if (isOldBackup) {
-        console.warn('[Restore] Old backup format detected (no schemaSQL) - using legacy restore method');
+        logger.warn('[Restore] Old backup format detected (no schemaSQL) - using legacy restore method');
       }
 
       // Check schema version compatibility
       const currentSchemaVersion = await migrationRunner.getCurrentVersion();
       const backupSchemaVersion = backupData.metadata.schemaVersion;
 
-      console.log('[Restore] Current schema version:', currentSchemaVersion);
-      console.log('[Restore] Backup schema version:', backupSchemaVersion);
+      logger.log('[Restore] Current schema version:', currentSchemaVersion);
+      logger.log('[Restore] Backup schema version:', backupSchemaVersion);
 
       if (backupSchemaVersion > currentSchemaVersion) {
         throw new Error(
@@ -504,7 +505,7 @@ class BackupService {
       if (isOldBackup) {
         // Legacy restore method for old backups without schemaSQL
         // Clear existing data and insert into current schema, preserving IDs
-        console.log('[Restore] Using legacy restore (delete data, insert into current schema with ID preservation)');
+        logger.log('[Restore] Using legacy restore (delete data, insert into current schema with ID preservation)');
         await episodeRepository.deleteAll();
         await episodeNoteRepository.deleteAll();
         await medicationRepository.deleteAll();
@@ -514,57 +515,57 @@ class BackupService {
         // Get database instance for raw SQL inserts
         const db = await import('../database/db').then(m => m.getDatabase());
 
-        console.log('[Restore] Inserting episodes...');
+        logger.log('[Restore] Inserting episodes...');
         for (const episode of backupData.episodes) {
           await this.insertEpisodeWithId(episode, db);
         }
 
         if (backupData.episodeNotes) {
-          console.log('[Restore] Inserting episode notes...');
+          logger.log('[Restore] Inserting episode notes...');
           for (const note of backupData.episodeNotes) {
             await this.insertEpisodeNoteWithId(note, db);
           }
         }
 
         if (backupData.intensityReadings) {
-          console.log('[Restore] Inserting intensity readings...');
+          logger.log('[Restore] Inserting intensity readings...');
           for (const reading of backupData.intensityReadings) {
             await this.insertIntensityReadingWithId(reading, db);
           }
         }
 
         if (backupData.dailyStatusLogs) {
-          console.log('[Restore] Inserting daily status logs...');
+          logger.log('[Restore] Inserting daily status logs...');
           for (const status of backupData.dailyStatusLogs) {
             await this.insertDailyStatusWithId(status, db);
           }
         }
 
-        console.log('[Restore] Inserting medications...');
+        logger.log('[Restore] Inserting medications...');
         for (const medication of backupData.medications) {
           await this.insertMedicationWithId(medication, db);
         }
 
-        console.log('[Restore] Inserting medication doses...');
+        logger.log('[Restore] Inserting medication doses...');
         for (const dose of backupData.medicationDoses) {
           await this.insertMedicationDoseWithId(dose, db);
         }
 
-        console.log('[Restore] Inserting medication schedules...');
+        logger.log('[Restore] Inserting medication schedules...');
         for (const schedule of backupData.medicationSchedules) {
           await this.insertMedicationScheduleWithId(schedule, db);
         }
 
-        console.log('[Restore] Legacy restore complete');
+        logger.log('[Restore] Legacy restore complete');
       } else {
         // New restore method: restore to backup's schema version, then run migrations
-        console.log('[Restore] Using new restore (recreate schema from backup, then migrate)');
+        logger.log('[Restore] Using new restore (recreate schema from backup, then migrate)');
 
         // Get database instance
         const db = await import('../database/db').then(m => m.getDatabase());
 
         // Drop all tables except schema_version (which is managed by migration runner)
-        console.log('[Restore] Dropping existing tables...');
+        logger.log('[Restore] Dropping existing tables...');
         const tables = await db.getAllAsync<{ name: string }>(
           `SELECT name FROM sqlite_master
            WHERE type = 'table'
@@ -573,12 +574,12 @@ class BackupService {
         );
 
         for (const { name } of tables) {
-          console.log('[Restore] Dropping table:', name);
+          logger.log('[Restore] Dropping table:', name);
           await db.execAsync(`DROP TABLE IF EXISTS ${name}`);
         }
 
         // Drop all indexes
-        console.log('[Restore] Dropping existing indexes...');
+        logger.log('[Restore] Dropping existing indexes...');
         const indexes = await db.getAllAsync<{ name: string }>(
           `SELECT name FROM sqlite_master
            WHERE type = 'index'
@@ -586,82 +587,82 @@ class BackupService {
         );
 
         for (const { name } of indexes) {
-          console.log('[Restore] Dropping index:', name);
+          logger.log('[Restore] Dropping index:', name);
           await db.execAsync(`DROP INDEX IF EXISTS ${name}`);
         }
 
         // Execute schema SQL from backup to recreate tables at backup's schema version
-        console.log('[Restore] Recreating tables from backup schema...');
+        logger.log('[Restore] Recreating tables from backup schema...');
         if (!backupData.schemaSQL) {
           throw new Error('Backup schema SQL is missing - cannot restore');
         }
         await db.execAsync(backupData.schemaSQL);
-        console.log('[Restore] Tables recreated successfully');
+        logger.log('[Restore] Tables recreated successfully');
 
         // Set schema_version to backup's version
-        console.log('[Restore] Setting schema version to:', backupSchemaVersion);
+        logger.log('[Restore] Setting schema version to:', backupSchemaVersion);
         await db.runAsync(
           'UPDATE schema_version SET version = ?, updated_at = ? WHERE id = 1',
           [backupSchemaVersion, Date.now()]
         );
 
         // Insert backup data using raw SQL to preserve IDs
-        console.log('[Restore] Inserting episodes...');
+        logger.log('[Restore] Inserting episodes...');
         for (const episode of backupData.episodes) {
           await this.insertEpisodeWithId(episode, db);
         }
 
         if (backupData.episodeNotes) {
-          console.log('[Restore] Inserting episode notes...');
+          logger.log('[Restore] Inserting episode notes...');
           for (const note of backupData.episodeNotes) {
             await this.insertEpisodeNoteWithId(note, db);
           }
         }
 
         if (backupData.intensityReadings) {
-          console.log('[Restore] Inserting intensity readings...');
+          logger.log('[Restore] Inserting intensity readings...');
           for (const reading of backupData.intensityReadings) {
             await this.insertIntensityReadingWithId(reading, db);
           }
         }
 
         if (backupData.dailyStatusLogs) {
-          console.log('[Restore] Inserting daily status logs...');
+          logger.log('[Restore] Inserting daily status logs...');
           for (const status of backupData.dailyStatusLogs) {
             await this.insertDailyStatusWithId(status, db);
           }
         }
 
-        console.log('[Restore] Inserting medications...');
+        logger.log('[Restore] Inserting medications...');
         for (const medication of backupData.medications) {
           await this.insertMedicationWithId(medication, db);
         }
 
-        console.log('[Restore] Inserting medication doses...');
+        logger.log('[Restore] Inserting medication doses...');
         for (const dose of backupData.medicationDoses) {
           await this.insertMedicationDoseWithId(dose, db);
         }
 
-        console.log('[Restore] Inserting medication schedules...');
+        logger.log('[Restore] Inserting medication schedules...');
         for (const schedule of backupData.medicationSchedules) {
           await this.insertMedicationScheduleWithId(schedule, db);
         }
 
-        console.log('[Restore] Data insertion complete');
+        logger.log('[Restore] Data insertion complete');
 
         // Run migrations from backup version to current version
         if (backupSchemaVersion < currentSchemaVersion) {
-          console.log('[Restore] Running migrations from version', backupSchemaVersion, 'to', currentSchemaVersion);
+          logger.log('[Restore] Running migrations from version', backupSchemaVersion, 'to', currentSchemaVersion);
           await migrationRunner.runMigrations();
-          console.log('[Restore] Migrations completed successfully');
+          logger.log('[Restore] Migrations completed successfully');
         } else {
-          console.log('[Restore] No migrations needed - backup is at current version');
+          logger.log('[Restore] No migrations needed - backup is at current version');
         }
       }
 
-      console.log('[Restore] JSON backup restored successfully');
+      logger.log('[Restore] JSON backup restored successfully');
     } catch (error) {
-      console.error('[Restore] FAILED to restore JSON backup:', error);
+      logger.error('[Restore] FAILED to restore JSON backup:', error);
       throw error;
     }
   }
@@ -673,13 +674,13 @@ class BackupService {
    */
   async exportDataForSharing(): Promise<void> {
     try {
-      console.log('[Export] Creating JSON export for sharing...');
+      logger.log('[Export] Creating JSON export for sharing...');
 
       // Get current database instance
       const db = await import('../database/db').then(m => m.getDatabase());
 
       // Gather all data
-      console.log('[Export] Fetching all data...');
+      logger.log('[Export] Fetching all data...');
       const episodes = await episodeRepository.getAll(50, 0, db);
       const medications = await medicationRepository.getAll(db);
       const medicationDoses = await medicationDoseRepository.getAll(100, db);
@@ -736,9 +737,9 @@ class BackupService {
       const tempFileName = `migralog_export_${new Date().toISOString().split('T')[0]}.json`;
       const tempFilePath = `${FileSystem.cacheDirectory}${tempFileName}`;
 
-      console.log('[Export] Writing temporary JSON file...');
+      logger.log('[Export] Writing temporary JSON file...');
       await FileSystem.writeAsStringAsync(tempFilePath, JSON.stringify(exportData, null, 2));
-      console.log('[Export] Temporary file created at:', tempFilePath);
+      logger.log('[Export] Temporary file created at:', tempFilePath);
 
       // Check if sharing is available
       const isAvailable = await Sharing.isAvailableAsync();
@@ -747,16 +748,16 @@ class BackupService {
       }
 
       // Share the file (user can save to Files, email, etc.)
-      console.log('[Export] Opening share dialog...');
+      logger.log('[Export] Opening share dialog...');
       await Sharing.shareAsync(tempFilePath, {
         mimeType: 'application/json',
         dialogTitle: 'Export MigraLog Data',
         UTI: 'public.json',
       });
 
-      console.log('[Export] JSON export completed successfully');
+      logger.log('[Export] JSON export completed successfully');
     } catch (error) {
-      console.error('[Export] Failed to export data as JSON:', error);
+      logger.error('[Export] Failed to export data as JSON:', error);
       throw new Error('Failed to export data: ' + (error as Error).message);
     }
   }
@@ -790,7 +791,7 @@ class BackupService {
         UTI: uti,
       });
     } catch (error) {
-      console.error('Failed to export backup:', error);
+      logger.error('Failed to export backup:', error);
       throw new Error('Failed to export backup: ' + (error as Error).message);
     }
   }
@@ -817,7 +818,7 @@ class BackupService {
 
       // If imported backup doesn't have schemaSQL (old format), add current schema
       if (!backupData.schemaSQL) {
-        console.log('[Import] Old backup format detected, adding current schema SQL');
+        logger.log('[Import] Old backup format detected, adding current schema SQL');
         backupData.schemaSQL = await this.exportSchemaSQL();
         backupData.metadata.schemaVersion = await migrationRunner.getCurrentVersion();
       }
@@ -842,7 +843,7 @@ class BackupService {
         backupType: 'json',
       };
     } catch (error) {
-      console.error('Failed to import backup:', error);
+      logger.error('Failed to import backup:', error);
       throw new Error('Failed to import backup: ' + (error as Error).message);
     }
   }
@@ -876,7 +877,7 @@ class BackupService {
         await FileSystem.deleteAsync(metadataPath, { idempotent: true });
       }
     } catch (error) {
-      console.error('Failed to delete backup:', error);
+      logger.error('Failed to delete backup:', error);
       throw new Error('Failed to delete backup: ' + (error as Error).message);
     }
   }
@@ -1026,7 +1027,7 @@ class BackupService {
       );
       return result[0]?.count || 0;
     } catch (error) {
-      console.error('[Backup] Failed to get episode count:', error);
+      logger.error('[Backup] Failed to get episode count:', error);
       return 0;
     }
   }
@@ -1048,7 +1049,7 @@ class BackupService {
       );
       return result[0]?.count || 0;
     } catch (error) {
-      console.error('[Backup] Failed to get medication count:', error);
+      logger.error('[Backup] Failed to get medication count:', error);
       return 0;
     }
   }
@@ -1082,7 +1083,7 @@ class BackupService {
 
       return schemaSQL;
     } catch (error) {
-      console.error('[Backup] Failed to export schema SQL:', error);
+      logger.error('[Backup] Failed to export schema SQL:', error);
       throw new Error('Failed to export schema SQL: ' + (error as Error).message);
     }
   }
@@ -1098,14 +1099,14 @@ class BackupService {
           .sort((a, b) => b.timestamp - a.timestamp)
           .slice(MAX_AUTO_BACKUPS);
 
-        console.log(`[Backup] Cleaning up ${toDelete.length} old automatic backups (keeping ${MAX_AUTO_BACKUPS} most recent)`);
+        logger.log(`[Backup] Cleaning up ${toDelete.length} old automatic backups (keeping ${MAX_AUTO_BACKUPS} most recent)`);
         for (const backup of toDelete) {
           await this.deleteBackup(backup.id);
-          console.log(`[Backup] Deleted old backup: ${backup.id}`);
+          logger.log(`[Backup] Deleted old backup: ${backup.id}`);
         }
       }
     } catch (error) {
-      console.error('Failed to cleanup old backups:', error);
+      logger.error('Failed to cleanup old backups:', error);
     }
   }
 
@@ -1118,7 +1119,7 @@ class BackupService {
    */
   async checkAndCreateWeeklyBackup(db?: SQLite.SQLiteDatabase): Promise<BackupMetadata | null> {
     try {
-      console.log('[Backup] Checking if weekly backup is needed...');
+      logger.log('[Backup] Checking if weekly backup is needed...');
 
       // Get last weekly backup timestamp
       const lastBackupTime = await AsyncStorage.getItem(LAST_WEEKLY_BACKUP_KEY);
@@ -1126,11 +1127,11 @@ class BackupService {
       const now = Date.now();
       const timeSinceLastBackup = now - lastBackupTimestamp;
 
-      console.log('[Backup] Last weekly backup:', lastBackupTimestamp ? new Date(lastBackupTimestamp).toISOString() : 'never');
-      console.log('[Backup] Time since last backup:', Math.floor(timeSinceLastBackup / (24 * 60 * 60 * 1000)), 'days');
+      logger.log('[Backup] Last weekly backup:', lastBackupTimestamp ? new Date(lastBackupTimestamp).toISOString() : 'never');
+      logger.log('[Backup] Time since last backup:', Math.floor(timeSinceLastBackup / (24 * 60 * 60 * 1000)), 'days');
 
       if (timeSinceLastBackup >= WEEKLY_BACKUP_INTERVAL_MS) {
-        console.log('[Backup] Weekly backup needed, creating...');
+        logger.log('[Backup] Weekly backup needed, creating...');
 
         // Create automatic snapshot backup (safer than JSON)
         const metadata = await this.createSnapshotBackup(db);
@@ -1141,15 +1142,15 @@ class BackupService {
         // Update last backup timestamp
         await AsyncStorage.setItem(LAST_WEEKLY_BACKUP_KEY, now.toString());
 
-        console.log('[Backup] Weekly backup created successfully:', metadata.id);
+        logger.log('[Backup] Weekly backup created successfully:', metadata.id);
         return metadata;
       } else {
         const daysUntilNext = Math.ceil((WEEKLY_BACKUP_INTERVAL_MS - timeSinceLastBackup) / (24 * 60 * 60 * 1000));
-        console.log(`[Backup] No weekly backup needed. Next backup in ${daysUntilNext} days`);
+        logger.log(`[Backup] No weekly backup needed. Next backup in ${daysUntilNext} days`);
         return null;
       }
     } catch (error) {
-      console.error('[Backup] Failed to check/create weekly backup:', error);
+      logger.error('[Backup] Failed to check/create weekly backup:', error);
       // Don't throw - weekly backup failure shouldn't crash the app
       return null;
     }
@@ -1163,7 +1164,7 @@ class BackupService {
       const lastBackupTime = await AsyncStorage.getItem(LAST_WEEKLY_BACKUP_KEY);
       return lastBackupTime ? parseInt(lastBackupTime, 10) : 0;
     } catch (error) {
-      console.error('[Backup] Failed to get last weekly backup time:', error);
+      logger.error('[Backup] Failed to get last weekly backup time:', error);
       return 0;
     }
   }
@@ -1188,7 +1189,7 @@ class BackupService {
 
       return Math.ceil(timeUntilNextBackup / (24 * 60 * 60 * 1000));
     } catch (error) {
-      console.error('[Backup] Failed to calculate days until next backup:', error);
+      logger.error('[Backup] Failed to calculate days until next backup:', error);
       return 0;
     }
   }
@@ -1242,7 +1243,7 @@ class BackupService {
       // Clean up the temporary copy
       await FileSystem.deleteAsync(exportPath, { idempotent: true });
     } catch (error) {
-      console.error('Failed to export database file:', error);
+      logger.error('Failed to export database file:', error);
       throw new Error('Failed to export database file: ' + (error as Error).message);
     }
   }
@@ -1277,7 +1278,7 @@ class BackupService {
           from: dbPath,
           to: backupPath,
         });
-        console.log('Current database backed up to:', backupPath);
+        logger.log('Current database backed up to:', backupPath);
       }
 
       // Copy the imported file to the database location
@@ -1286,12 +1287,12 @@ class BackupService {
         to: dbPath,
       });
 
-      console.log('Database file imported successfully');
+      logger.log('Database file imported successfully');
 
       // The app will need to be reloaded to reinitialize the database
       // The database will be opened again on next getDatabase() call
     } catch (error) {
-      console.error('Failed to import database file:', error);
+      logger.error('Failed to import database file:', error);
       throw new Error('Failed to import database file: ' + (error as Error).message);
     }
   }

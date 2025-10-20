@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { logger } from '../utils/logger';
 import {
   View,
   Text,
@@ -10,7 +11,7 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme, ThemeMode, ThemeColors } from '../theme';
+import { useTheme, ThemeColors } from '../theme';
 import { buildInfo } from '../buildInfo';
 import { errorLogger, ErrorLog } from '../services/errorLogger';
 import { notificationService, NotificationPermissions } from '../services/notificationService';
@@ -30,6 +31,7 @@ export default function SettingsScreen({ navigation }: Props) {
 
   useEffect(() => {
     loadDiagnostics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadDiagnostics = async () => {
@@ -49,7 +51,7 @@ export default function SettingsScreen({ navigation }: Props) {
       const hasLocationPermission = await locationService.checkPermission();
       setLocationPermission(hasLocationPermission);
     } catch (error) {
-      console.error('Failed to load diagnostics:', error);
+      logger.error('Failed to load diagnostics:', error);
     }
   };
 
@@ -59,7 +61,7 @@ export default function SettingsScreen({ navigation }: Props) {
       await db.execAsync('SELECT 1'); // Simple query to test connection
       setDbStatus('healthy');
     } catch (error) {
-      console.error('Database health check failed:', error);
+      logger.error('Database health check failed:', error);
       setDbStatus('error');
       await errorLogger.log('database', 'Database health check failed', error as Error);
     }
@@ -118,7 +120,7 @@ export default function SettingsScreen({ navigation }: Props) {
         Alert.alert('Permission Denied', 'Notifications will not be sent');
       }
     } catch (error) {
-      console.error('Failed to request notification permissions:', error);
+      logger.error('Failed to request notification permissions:', error);
       Alert.alert('Error', 'Failed to request notification permissions');
     }
   };
@@ -154,7 +156,7 @@ export default function SettingsScreen({ navigation }: Props) {
         { cancelable: true }
       );
     } catch (error) {
-      console.error('Failed to get scheduled notifications:', error);
+      logger.error('Failed to get scheduled notifications:', error);
       Alert.alert('Error', 'Failed to get scheduled notifications');
     }
   };
@@ -196,7 +198,7 @@ export default function SettingsScreen({ navigation }: Props) {
         'A test notification will appear in ~5 seconds. Make sure your device is not in silent mode and the app is in the background or closed.'
       );
     } catch (error) {
-      console.error('Failed to schedule test notification:', error);
+      logger.error('Failed to schedule test notification:', error);
       Alert.alert('Error', `Failed to schedule test: ${(error as Error).message}`);
     }
   };
@@ -215,7 +217,7 @@ export default function SettingsScreen({ navigation }: Props) {
         );
       }
     } catch (error) {
-      console.error('Failed to request location permission:', error);
+      logger.error('Failed to request location permission:', error);
       Alert.alert('Error', 'Failed to request location permission');
     }
   };
@@ -243,7 +245,7 @@ export default function SettingsScreen({ navigation }: Props) {
                 Alert.alert('Error', 'Database reset is only available in development mode');
               }
             } catch (error) {
-              console.error('Failed to reset database:', error);
+              logger.error('Failed to reset database:', error);
               Alert.alert('Error', `Failed to reset database: ${(error as Error).message}`);
             }
           },
@@ -266,7 +268,7 @@ export default function SettingsScreen({ navigation }: Props) {
               // Dynamically import test helper (only available in __DEV__)
               if (__DEV__) {
                 const { resetDatabaseForTesting } = await import('../utils/testHelpers');
-                const result = await resetDatabaseForTesting({
+                const _result = await resetDatabaseForTesting({
                   createBackup: true,
                   loadFixtures: true,
                 });
@@ -275,7 +277,7 @@ export default function SettingsScreen({ navigation }: Props) {
                 Alert.alert('Error', 'Database reset is only available in development mode');
               }
             } catch (error) {
-              console.error('Failed to reset database with fixtures:', error);
+              logger.error('Failed to reset database with fixtures:', error);
               Alert.alert('Error', `Failed to reset database: ${(error as Error).message}`);
             }
           },
@@ -288,7 +290,7 @@ export default function SettingsScreen({ navigation }: Props) {
     try {
       await backupService.exportDataForSharing();
     } catch (error) {
-      console.error('Failed to export data:', error);
+      logger.error('Failed to export data:', error);
       Alert.alert('Error', 'Failed to export data: ' + (error as Error).message);
     }
   };

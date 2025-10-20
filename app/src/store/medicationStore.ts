@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { logger } from '../utils/logger';
 import { Medication, MedicationDose, MedicationSchedule } from '../models/types';
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../database/medicationRepository';
 import { episodeRepository } from '../database/episodeRepository';
@@ -250,7 +251,7 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
     try {
       // Cancel notifications before archiving
       await notificationService.cancelMedicationNotifications(id);
-      console.log('[Store] Cancelled notifications for archived medication:', id);
+      logger.log('[Store] Cancelled notifications for archived medication:', id);
 
       await medicationRepository.update(id, { active: false });
 
@@ -294,10 +295,10 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
                   await medicationScheduleRepository.update(schedule.id, {
                     notificationId,
                   });
-                  console.log('[Store] Notification rescheduled for restored medication:', notificationId);
+                  logger.log('[Store] Notification rescheduled for restored medication:', notificationId);
                 }
               } catch (error) {
-                console.error('[Store] Failed to schedule notification for restored medication:', error);
+                logger.error('[Store] Failed to schedule notification for restored medication:', error);
               }
             }
           }

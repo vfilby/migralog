@@ -62,7 +62,7 @@ function MainTabs() {
         component={DashboardScreen}
         options={{
           tabBarLabel: 'Home',
-          tabBarIcon: ({ color, size, focused }) => (
+          tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'home' : 'home-outline'}
               size={24}
@@ -76,7 +76,7 @@ function MainTabs() {
         component={EpisodesScreen}
         options={{
           tabBarLabel: 'Episodes',
-          tabBarIcon: ({ color, size, focused }) => (
+          tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'list' : 'list-outline'}
               size={24}
@@ -90,7 +90,7 @@ function MainTabs() {
         component={MedicationsScreen}
         options={{
           tabBarLabel: 'Meds',
-          tabBarIcon: ({ color, size, focused }) => (
+          tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'medical' : 'medical-outline'}
               size={24}
@@ -104,7 +104,7 @@ function MainTabs() {
         component={AnalyticsScreen}
         options={{
           tabBarLabel: 'Trends',
-          tabBarIcon: ({ color, size, focused }) => (
+          tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'stats-chart' : 'stats-chart-outline'}
               size={24}

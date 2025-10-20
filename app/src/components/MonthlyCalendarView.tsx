@@ -158,6 +158,7 @@ export default function MonthlyCalendarView({
 
   useEffect(() => {
     loadMonthData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentMonth]);
 
   // Reload data when screen comes into focus
@@ -167,6 +168,7 @@ export default function MonthlyCalendarView({
     });
 
     return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigation, currentMonth]);
 
   const loadMonthData = async () => {

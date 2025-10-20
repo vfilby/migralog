@@ -6,7 +6,7 @@
  * and potential information leakage.
  *
  * Usage:
- *   import { logger } from '@/utils/logger';
+ *   import { logger } from '../utils/logger';
  *   logger.log('Debug message');
  *   logger.warn('Warning message');
  *   logger.error('Error message');

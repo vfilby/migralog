@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { logger } from '../utils/logger';
 import {
   View,
   Text,
@@ -16,7 +17,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { intensityRepository, symptomLogRepository, episodeNoteRepository, episodeRepository, painLocationLogRepository } from '../database/episodeRepository';
 import { Symptom, PainLocation } from '../models/types';
-import { getPainColor, getPainLevel } from '../utils/painScale';
+import { getPainLevel } from '../utils/painScale';
 import { useTheme, ThemeColors } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LogUpdate'>;
@@ -231,6 +232,7 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
 
   useEffect(() => {
     loadLatestData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [episodeId]);
 
   // Keyboard listener for auto-scroll
@@ -248,6 +250,7 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
     return () => {
       keyboardDidShowListener.remove();
     };
+     
   }, []);
 
   const loadLatestData = async () => {
@@ -306,7 +309,7 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
       setCurrentPainLocations(painLocationsToSet);
       setInitialPainLocations(painLocationsToSet);
     } catch (error) {
-      console.error('Failed to load latest data:', error);
+      logger.error('Failed to load latest data:', error);
     } finally {
       setLoading(false);
     }
@@ -396,7 +399,7 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
 
       navigation.goBack();
     } catch (error) {
-      console.error('Failed to log update:', error);
+      logger.error('Failed to log update:', error);
       Alert.alert('Error', 'Failed to log update');
     } finally {
       setSaving(false);

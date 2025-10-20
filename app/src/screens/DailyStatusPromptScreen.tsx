@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { logger } from '../utils/logger';
 import {
   View,
   Text,
@@ -222,6 +223,7 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
       );
       navigation.goBack();
     } catch (error) {
+      logger.error('[DailyStatusPrompt] Failed to log status:', error);
       Alert.alert('Error', 'Failed to log status. Please try again.');
       setSaving(false);
     }

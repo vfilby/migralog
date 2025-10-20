@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { logger } from '../utils/logger';
 import {
   View,
   Text,
@@ -30,7 +31,7 @@ export default function ArchivedMedicationsScreen({ navigation }: Props) {
       const archived = await medicationRepository.getArchived();
       setArchivedMedications(archived);
     } catch (error) {
-      console.error('Failed to load archived medications:', error);
+      logger.error('Failed to load archived medications:', error);
     } finally {
       setLoading(false);
     }
@@ -50,7 +51,7 @@ export default function ArchivedMedicationsScreen({ navigation }: Props) {
               await loadArchivedMedications(); // Refresh list
               Alert.alert('Success', 'Medication restored to active list');
             } catch (error) {
-              console.error('Failed to unarchive medication:', error);
+              logger.error('Failed to unarchive medication:', error);
               Alert.alert('Error', 'Failed to restore medication');
             }
           },

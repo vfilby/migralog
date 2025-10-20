@@ -1,18 +1,17 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
+import { logger } from '../utils/logger';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useEpisodeStore } from '../store/episodeStore';
 import { useMedicationStore } from '../store/medicationStore';
-import { format, differenceInDays, isToday, parse, isBefore, isAfter, addMinutes } from 'date-fns';
-import { MainTabsScreenProps } from '../navigation/types';
-import { useNavigation, useFocusEffect, useNavigationState } from '@react-navigation/native';
+import { format, isToday, isBefore, addMinutes } from 'date-fns';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { getPainColor, getPainLevel } from '../utils/painScale';
 import EpisodeCard from '../components/EpisodeCard';
 import DailyStatusWidget from '../components/DailyStatusWidget';
 import { useTheme, ThemeColors } from '../theme';
-import { Medication, MedicationSchedule, MedicationDose } from '../models/types';
+import { Medication, MedicationSchedule } from '../models/types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -210,10 +209,7 @@ export default function DashboardScreen() {
   const { theme } = useTheme();
   const { currentEpisode, episodes, loadCurrentEpisode, loadEpisodes } = useEpisodeStore();
   const {
-    preventativeMedications,
     rescueMedications,
-    schedules,
-    doses,
     loadMedications,
     loadSchedules,
     loadRecentDoses,
@@ -283,7 +279,7 @@ export default function DashboardScreen() {
       // Set today's medications (no need to preserve skipped state - it's now in DB)
       setTodaysMedications(todayMeds);
     } catch (error) {
-      console.error('Failed to load todays medications:', error);
+      logger.error('Failed to load todays medications:', error);
     }
   };
 
@@ -333,7 +329,7 @@ export default function DashboardScreen() {
         )
       );
     } catch (error) {
-      console.error('Failed to log medication:', error);
+      logger.error('Failed to log medication:', error);
       Alert.alert('Error', 'Failed to log medication');
     }
   };
@@ -360,7 +356,7 @@ export default function DashboardScreen() {
         )
       );
     } catch (error) {
-      console.error('Failed to skip medication:', error);
+      logger.error('Failed to skip medication:', error);
       Alert.alert('Error', 'Failed to skip medication');
     }
   };
@@ -381,17 +377,12 @@ export default function DashboardScreen() {
         await deleteDose(item.doseId);
       }
     } catch (error) {
-      console.error('Failed to undo medication:', error);
+      logger.error('Failed to undo medication:', error);
       Alert.alert('Error', 'Failed to undo');
       // Reload on error to sync with database
       loadTodaysMedications();
     }
   };
-
-  const lastEpisode = episodes.find(ep => ep.endTime);
-  const daysSinceLastEpisode = lastEpisode
-    ? differenceInDays(Date.now(), lastEpisode.endTime!)
-    : null;
 
   const styles = createStyles(theme);
 

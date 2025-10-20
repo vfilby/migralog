@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { logger } from '../utils/logger';
 import {
   View,
   Text,
@@ -12,7 +13,6 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { useMedicationStore } from '../store/medicationStore';
-import { useEpisodeStore } from '../store/episodeStore';
 import { medicationRepository } from '../database/medicationRepository';
 import { Medication } from '../models/types';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -283,12 +283,14 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
 
   useEffect(() => {
     loadMedications();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (selectedMedId) {
       loadMedication(selectedMedId);
     }
+     
   }, [selectedMedId]);
 
   const loadMedication = async (medId: string) => {
@@ -310,7 +312,7 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
 
       navigation.goBack();
     } catch (error) {
-      console.error('Failed to quick log medication:', error);
+      logger.error('Failed to quick log medication:', error);
       Alert.alert('Error', 'Failed to log medication');
     }
   };
@@ -335,7 +337,7 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
 
       navigation.goBack();
     } catch (error) {
-      console.error('Failed to log medication:', error);
+      logger.error('Failed to log medication:', error);
       Alert.alert('Error', 'Failed to log medication');
     } finally {
       setSaving(false);

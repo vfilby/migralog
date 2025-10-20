@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { logger } from '../utils/logger';
 import {
   View,
   Text,
@@ -34,7 +35,7 @@ export default function ErrorLogsScreen({ navigation }: Props) {
       const allLogs = await errorLogger.getLogs();
       setLogs(allLogs);
     } catch (error) {
-      console.error('Failed to load error logs:', error);
+      logger.error('Failed to load error logs:', error);
       Alert.alert('Error', 'Failed to load error logs');
     } finally {
       setLoading(false);
