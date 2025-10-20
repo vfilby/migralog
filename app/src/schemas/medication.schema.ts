@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TimestampSchema, OptionalTimestampSchema, NotesSchema } from './common.schema';
+import { TimestampSchema, NotesSchema } from './common.schema';
 
 /**
  * Medication Validation Schemas
@@ -60,8 +60,8 @@ export const MedicationSchema = z.object({
   photoUri: z.string()
     .max(500, 'Photo URI must be <= 500 characters')
     .optional(),
-  startDate: OptionalTimestampSchema,
-  endDate: OptionalTimestampSchema,
+  startDate: TimestampSchema.optional(),
+  endDate: TimestampSchema.optional(),
   active: z.boolean(),
   notes: NotesSchema,
   createdAt: TimestampSchema,
@@ -155,8 +155,8 @@ export const MedicationReminderSchema = z.object({
   medicationId: z.string().min(1, 'Medication ID is required'),
   scheduledTime: TimestampSchema,
   completed: z.boolean(),
-  snoozedUntil: OptionalTimestampSchema,
-  completedAt: OptionalTimestampSchema,
+  snoozedUntil: TimestampSchema.optional(),
+  completedAt: TimestampSchema.optional(),
 }).refine(
   (data) => {
     // If completed is true, completedAt should be present

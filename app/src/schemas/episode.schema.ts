@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TimestampSchema, OptionalTimestampSchema, NotesSchema, RequiredNotesSchema } from './common.schema';
+import { TimestampSchema, NotesSchema, RequiredNotesSchema } from './common.schema';
 
 /**
  * Episode Validation Schemas
@@ -86,7 +86,7 @@ export const IntensityValueSchema = z.number()
 export const EpisodeSchema = z.object({
   id: z.string().min(1, 'ID is required'),
   startTime: TimestampSchema,
-  endTime: OptionalTimestampSchema,
+  endTime: TimestampSchema.optional(),
   locations: z.array(PainLocationSchema)
     .default([]),
   qualities: z.array(PainQualitySchema)
@@ -151,7 +151,7 @@ export const SymptomLogSchema = z.object({
   episodeId: z.string().min(1, 'Episode ID is required'),
   symptom: SymptomSchema,
   onsetTime: TimestampSchema,
-  resolutionTime: OptionalTimestampSchema,
+  resolutionTime: TimestampSchema.optional(),
   severity: IntensityValueSchema.optional(),
   createdAt: TimestampSchema,
 }).refine(

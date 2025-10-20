@@ -12,16 +12,11 @@ import { z } from 'zod';
  * Validates Unix timestamps (milliseconds since epoch)
  * - Must be a positive integer
  * - Used for: startTime, endTime, timestamp, createdAt, updatedAt, scheduledTime, etc.
+ * - For optional timestamps, use: TimestampSchema.optional()
  */
 export const TimestampSchema = z.number()
   .int('Timestamp must be an integer')
   .positive('Timestamp must be positive');
-
-/**
- * Optional Timestamp Schema
- * Same as TimestampSchema but allows undefined
- */
-export const OptionalTimestampSchema = TimestampSchema.optional();
 
 /**
  * Notes Schema
