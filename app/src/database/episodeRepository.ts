@@ -13,6 +13,15 @@ import {
   isSymptomArray,
   isTriggerArray,
 } from './types';
+import {
+  EpisodeSchema,
+  IntensityReadingSchema,
+  IntensityValueSchema,
+  SymptomLogSchema,
+  EpisodeNoteSchema,
+  PainLocationLogSchema,
+} from '../schemas';
+import { logger } from '../utils/logger';
 
 export const episodeRepository = {
   async create(episode: Omit<Episode, 'id' | 'createdAt' | 'updatedAt'>, db?: SQLite.SQLiteDatabase): Promise<Episode> {
@@ -26,6 +35,14 @@ export const episodeRepository = {
       createdAt: now,
       updatedAt: now,
     };
+
+    // Validate episode data
+    const validationResult = EpisodeSchema.safeParse(newEpisode);
+    if (!validationResult.success) {
+      const errorMessage = `Invalid episode data: ${validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`;
+      logger.error('[EpisodeRepository] Validation failed:', errorMessage);
+      throw new Error(errorMessage);
+    }
 
     await database.runAsync(
       `INSERT INTO episodes (
@@ -60,6 +77,40 @@ export const episodeRepository = {
   async update(id: string, updates: Partial<Episode>, db?: SQLite.SQLiteDatabase): Promise<void> {
     const database = db || await getDatabase();
     const now = Date.now();
+
+    // Validate individual update fields
+    if (updates.startTime !== undefined && updates.endTime !== undefined) {
+      // Validate that endTime > startTime if both are being updated
+      if (updates.endTime <= updates.startTime) {
+        const errorMessage = 'End time must be after start time';
+        logger.error('[EpisodeRepository] Validation failed:', errorMessage);
+        throw new Error(errorMessage);
+      }
+    }
+
+    if (updates.peakIntensity !== undefined) {
+      const intensityResult = IntensityValueSchema.safeParse(updates.peakIntensity);
+      if (!intensityResult.success) {
+        const errorMessage = `Invalid peak intensity: ${intensityResult.error.errors.map(e => e.message).join(', ')}`;
+        logger.error('[EpisodeRepository] Validation failed:', errorMessage);
+        throw new Error(errorMessage);
+      }
+    }
+
+    if (updates.averageIntensity !== undefined) {
+      const intensityResult = IntensityValueSchema.safeParse(updates.averageIntensity);
+      if (!intensityResult.success) {
+        const errorMessage = `Invalid average intensity: ${intensityResult.error.errors.map(e => e.message).join(', ')}`;
+        logger.error('[EpisodeRepository] Validation failed:', errorMessage);
+        throw new Error(errorMessage);
+      }
+    }
+
+    if (updates.notes !== undefined && updates.notes !== null && updates.notes.length > 5000) {
+      const errorMessage = 'Notes must be <= 5000 characters';
+      logger.error('[EpisodeRepository] Validation failed:', errorMessage);
+      throw new Error(errorMessage);
+    }
 
     const fields: string[] = [];
     const values: (string | number | null)[] = [];
@@ -226,6 +277,14 @@ export const intensityRepository = {
       createdAt: now,
     };
 
+    // Validate intensity reading data
+    const validationResult = IntensityReadingSchema.safeParse(newReading);
+    if (!validationResult.success) {
+      const errorMessage = `Invalid intensity reading: ${validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`;
+      logger.error('[IntensityRepository] Validation failed:', errorMessage);
+      throw new Error(errorMessage);
+    }
+
     await database.runAsync(
       'INSERT INTO intensity_readings (id, episode_id, timestamp, intensity, created_at) VALUES (?, ?, ?, ?, ?)',
       [newReading.id, newReading.episodeId, newReading.timestamp, newReading.intensity, newReading.createdAt]
@@ -288,6 +347,14 @@ export const symptomLogRepository = {
       createdAt: now,
     };
 
+    // Validate symptom log data
+    const validationResult = SymptomLogSchema.safeParse(newLog);
+    if (!validationResult.success) {
+      const errorMessage = `Invalid symptom log: ${validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`;
+      logger.error('[SymptomLogRepository] Validation failed:', errorMessage);
+      throw new Error(errorMessage);
+    }
+
     await database.runAsync(
       'INSERT INTO symptom_logs (id, episode_id, symptom, onset_time, resolution_time, severity, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [newLog.id, newLog.episodeId, newLog.symptom, newLog.onsetTime, newLog.resolutionTime || null, newLog.severity || null, newLog.createdAt]
@@ -344,6 +411,14 @@ export const painLocationLogRepository = {
       createdAt: now,
     };
 
+    // Validate pain location log data
+    const validationResult = PainLocationLogSchema.safeParse(newLog);
+    if (!validationResult.success) {
+      const errorMessage = `Invalid pain location log: ${validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`;
+      logger.error('[PainLocationLogRepository] Validation failed:', errorMessage);
+      throw new Error(errorMessage);
+    }
+
     await database.runAsync(
       'INSERT INTO pain_location_logs (id, episode_id, timestamp, pain_locations, created_at) VALUES (?, ?, ?, ?, ?)',
       [newLog.id, newLog.episodeId, newLog.timestamp, JSON.stringify(newLog.painLocations), newLog.createdAt]
@@ -390,6 +465,14 @@ export const episodeNoteRepository = {
       id,
       createdAt: now,
     };
+
+    // Validate episode note data
+    const validationResult = EpisodeNoteSchema.safeParse(newNote);
+    if (!validationResult.success) {
+      const errorMessage = `Invalid episode note: ${validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`;
+      logger.error('[EpisodeNoteRepository] Validation failed:', errorMessage);
+      throw new Error(errorMessage);
+    }
 
     await database.runAsync(
       'INSERT INTO episode_notes (id, episode_id, timestamp, note, created_at) VALUES (?, ?, ?, ?, ?)',

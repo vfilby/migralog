@@ -11,6 +11,11 @@ jest.mock('../../services/locationService', () => ({
     checkPermission: jest.fn().mockResolvedValue(false),
   },
 }));
+jest.mock('../../database/episodeRepository', () => ({
+  intensityRepository: {
+    create: jest.fn().mockResolvedValue({ id: 'reading-123' }),
+  },
+}));
 jest.mock('@react-native-community/slider', () => {
   const { View } = require('react-native');
   return function Slider(props: any) {
@@ -41,6 +46,7 @@ describe('NewEpisodeScreen', () => {
 
     mockStartEpisode.mockResolvedValue({ id: 'new-episode-123' });
     mockAddIntensityReading.mockResolvedValue({ id: 'reading-123' });
+    mockUpdateEpisode.mockResolvedValue(undefined);
   });
 
   it('should render new episode screen with title', async () => {

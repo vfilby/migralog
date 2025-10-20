@@ -814,4 +814,151 @@ describe('episodeNoteRepository', () => {
       expect(result).toEqual([]);
     });
   });
+
+  describe('Validation Error Handling', () => {
+    describe('episodeRepository.create validation', () => {
+      it('should throw error when endTime is before startTime', async () => {
+        const invalidEpisode: Omit<Episode, 'id' | 'createdAt' | 'updatedAt'> = {
+          startTime: 2000,
+          endTime: 1000,
+          locations: [],
+          qualities: [],
+          symptoms: [],
+          triggers: [],
+        };
+
+        await expect(episodeRepository.create(invalidEpisode)).rejects.toThrow('End time must be after start time');
+      });
+
+      it('should throw error when average intensity > peak intensity', async () => {
+        const invalidEpisode: Omit<Episode, 'id' | 'createdAt' | 'updatedAt'> = {
+          startTime: 1000,
+          locations: [],
+          qualities: [],
+          symptoms: [],
+          triggers: [],
+          peakIntensity: 5,
+          averageIntensity: 7,
+        };
+
+        await expect(episodeRepository.create(invalidEpisode)).rejects.toThrow('Average intensity cannot be greater than peak intensity');
+      });
+
+      it('should throw error for invalid peak intensity', async () => {
+        const invalidEpisode: Omit<Episode, 'id' | 'createdAt' | 'updatedAt'> = {
+          startTime: 1000,
+          locations: [],
+          qualities: [],
+          symptoms: [],
+          triggers: [],
+          peakIntensity: 11,
+        };
+
+        await expect(episodeRepository.create(invalidEpisode)).rejects.toThrow('Invalid episode data');
+      });
+    });
+
+    describe('episodeRepository.update validation', () => {
+      it('should throw error when updating both startTime and endTime with invalid order', async () => {
+        const updates = {
+          startTime: 2000,
+          endTime: 1000,
+        };
+
+        await expect(episodeRepository.update('episode-123', updates)).rejects.toThrow('End time must be after start time');
+      });
+
+      it('should throw error for invalid peak intensity in update', async () => {
+        const updates = {
+          peakIntensity: 11,
+        };
+
+        await expect(episodeRepository.update('episode-123', updates)).rejects.toThrow('Invalid peak intensity');
+      });
+
+      it('should throw error for invalid average intensity in update', async () => {
+        const updates = {
+          averageIntensity: -1,
+        };
+
+        await expect(episodeRepository.update('episode-123', updates)).rejects.toThrow('Invalid average intensity');
+      });
+
+      it('should throw error for notes > 5000 characters in update', async () => {
+        const updates = {
+          notes: 'x'.repeat(5001),
+        };
+
+        await expect(episodeRepository.update('episode-123', updates)).rejects.toThrow('Notes must be <= 5000 characters');
+      });
+    });
+
+    describe('intensityRepository.create validation', () => {
+      it('should throw error for intensity > 10', async () => {
+        const invalidReading: Omit<IntensityReading, 'id' | 'createdAt'> = {
+          episodeId: 'episode-123',
+          timestamp: 1000,
+          intensity: 11,
+        };
+
+        await expect(intensityRepository.create(invalidReading)).rejects.toThrow('Invalid intensity reading');
+      });
+
+      it('should throw error for negative intensity', async () => {
+        const invalidReading: Omit<IntensityReading, 'id' | 'createdAt'> = {
+          episodeId: 'episode-123',
+          timestamp: 1000,
+          intensity: -1,
+        };
+
+        await expect(intensityRepository.create(invalidReading)).rejects.toThrow('Invalid intensity reading');
+      });
+    });
+
+    describe('symptomLogRepository.create validation', () => {
+      it('should throw error when resolutionTime is before onsetTime', async () => {
+        const invalidLog: Omit<SymptomLog, 'id' | 'createdAt'> = {
+          episodeId: 'episode-123',
+          symptom: 'nausea',
+          onsetTime: 2000,
+          resolutionTime: 1000,
+        };
+
+        await expect(symptomLogRepository.create(invalidLog)).rejects.toThrow('Resolution time must be after onset time');
+      });
+
+      it('should throw error for invalid severity', async () => {
+        const invalidLog: Omit<SymptomLog, 'id' | 'createdAt'> = {
+          episodeId: 'episode-123',
+          symptom: 'nausea',
+          onsetTime: 1000,
+          severity: 11,
+        };
+
+        await expect(symptomLogRepository.create(invalidLog)).rejects.toThrow('Invalid symptom log');
+      });
+    });
+
+    describe('episodeNoteRepository.create validation', () => {
+      it('should throw error for empty note', async () => {
+        const invalidNote: Omit<EpisodeNote, 'id' | 'createdAt'> = {
+          episodeId: 'episode-123',
+          timestamp: 1000,
+          note: '',
+        };
+
+        await expect(episodeNoteRepository.create(invalidNote)).rejects.toThrow('Note cannot be empty');
+      });
+
+      it('should throw error for note > 5000 characters', async () => {
+        const invalidNote: Omit<EpisodeNote, 'id' | 'createdAt'> = {
+          episodeId: 'episode-123',
+          timestamp: 1000,
+          note: 'x'.repeat(5001),
+        };
+
+        await expect(episodeNoteRepository.create(invalidNote)).rejects.toThrow('Note must be <= 5000 characters');
+      });
+    });
+  });
 });
