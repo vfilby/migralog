@@ -580,4 +580,129 @@ describe('medicationDoseRepository', () => {
       );
     });
   });
+
+  describe('Validation Error Handling', () => {
+    describe('medicationRepository.create validation', () => {
+      it('should throw error for preventative medication without schedule frequency', async () => {
+        const invalidMed: any = {
+          name: 'Test Med',
+          type: 'preventative',
+          dosageAmount: 50,
+          dosageUnit: 'mg',
+          active: true,
+        };
+
+        await expect(medicationRepository.create(invalidMed)).rejects.toThrow('Preventative medications must have a schedule frequency');
+      });
+
+      it('should throw error for medication with endDate before startDate', async () => {
+        const invalidMed: any = {
+          name: 'Test Med',
+          type: 'rescue',
+          dosageAmount: 50,
+          dosageUnit: 'mg',
+          active: true,
+          startDate: 2000,
+          endDate: 1000,
+        };
+
+        await expect(medicationRepository.create(invalidMed)).rejects.toThrow('End date must be after start date');
+      });
+
+      it('should throw error for negative dosage amount', async () => {
+        const invalidMed: any = {
+          name: 'Test Med',
+          type: 'rescue',
+          dosageAmount: -1,
+          dosageUnit: 'mg',
+          active: true,
+        };
+
+        await expect(medicationRepository.create(invalidMed)).rejects.toThrow('Dosage amount must be positive');
+      });
+    });
+
+    describe('medicationDoseRepository.create validation', () => {
+      it('should throw error for taken dose with amount 0', async () => {
+        const invalidDose: any = {
+          medicationId: 'med-123',
+          timestamp: 1000,
+          amount: 0,
+          status: 'taken',
+        };
+
+        await expect(medicationDoseRepository.create(invalidDose)).rejects.toThrow('Amount must be positive for taken doses');
+      });
+
+      it('should allow skipped dose with amount 0', async () => {
+        const validDose: any = {
+          medicationId: 'med-123',
+          timestamp: 1000,
+          amount: 0,
+          status: 'skipped',
+        };
+
+        const result = await medicationDoseRepository.create(validDose);
+        expect(result.amount).toBe(0);
+        expect(result.status).toBe('skipped');
+      });
+
+      it('should throw error for effectiveness rating > 10', async () => {
+        const invalidDose: any = {
+          medicationId: 'med-123',
+          timestamp: 1000,
+          amount: 50,
+          effectivenessRating: 11,
+        };
+
+        await expect(medicationDoseRepository.create(invalidDose)).rejects.toThrow('Effectiveness rating must be <= 10');
+      });
+
+      it('should throw error for timeToRelief > 1440', async () => {
+        const invalidDose: any = {
+          medicationId: 'med-123',
+          timestamp: 1000,
+          amount: 50,
+          timeToRelief: 1441,
+        };
+
+        await expect(medicationDoseRepository.create(invalidDose)).rejects.toThrow('Time to relief must be <= 1440 minutes');
+      });
+    });
+
+    describe('medicationScheduleRepository.create validation', () => {
+      it('should throw error for invalid time format', async () => {
+        const invalidSchedule: any = {
+          medicationId: 'med-123',
+          time: '9:30', // Missing leading zero
+          dosage: 1,
+          enabled: true,
+        };
+
+        await expect(medicationScheduleRepository.create(invalidSchedule)).rejects.toThrow('Time must be in HH:mm format');
+      });
+
+      it('should throw error for negative dosage', async () => {
+        const invalidSchedule: any = {
+          medicationId: 'med-123',
+          time: '09:30',
+          dosage: -1,
+          enabled: true,
+        };
+
+        await expect(medicationScheduleRepository.create(invalidSchedule)).rejects.toThrow('Dosage must be positive');
+      });
+
+      it('should throw error for zero dosage', async () => {
+        const invalidSchedule: any = {
+          medicationId: 'med-123',
+          time: '09:30',
+          dosage: 0,
+          enabled: true,
+        };
+
+        await expect(medicationScheduleRepository.create(invalidSchedule)).rejects.toThrow('Dosage must be positive');
+      });
+    });
+  });
 });

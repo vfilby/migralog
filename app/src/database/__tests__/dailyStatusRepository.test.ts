@@ -439,4 +439,67 @@ describe('dailyStatusRepository', () => {
       expect(log.prompted).toBe(false);
     });
   });
+
+  describe('Validation Error Handling', () => {
+    describe('dailyStatusRepository.create validation', () => {
+      it('should throw error for non-yellow day with status type', async () => {
+        const invalidLog: any = {
+          date: '2025-01-15',
+          status: 'green',
+          statusType: 'prodrome',
+          prompted: false,
+        };
+
+        await expect(dailyStatusRepository.create(invalidLog)).rejects.toThrow('Status type can only be set for yellow days');
+      });
+
+      it('should throw error for invalid date format', async () => {
+        const invalidLog: any = {
+          date: '01-15-2025',
+          status: 'green',
+          prompted: false,
+        };
+
+        await expect(dailyStatusRepository.create(invalidLog)).rejects.toThrow('Date must be in YYYY-MM-DD format');
+      });
+
+      it('should throw error for future date', async () => {
+        const futureDate = new Date();
+        futureDate.setFullYear(futureDate.getFullYear() + 1);
+        const dateStr = futureDate.toISOString().split('T')[0];
+
+        const invalidLog: any = {
+          date: dateStr,
+          status: 'green',
+          prompted: false,
+        };
+
+        await expect(dailyStatusRepository.create(invalidLog)).rejects.toThrow('Date cannot be in the future');
+      });
+
+      it('should allow yellow day with status type', async () => {
+        const validLog: any = {
+          date: '2025-01-15',
+          status: 'yellow',
+          statusType: 'prodrome',
+          prompted: false,
+        };
+
+        const result = await dailyStatusRepository.create(validLog);
+        expect(result.status).toBe('yellow');
+        expect(result.statusType).toBe('prodrome');
+      });
+
+      it('should throw error for notes > 5000 characters', async () => {
+        const invalidLog: any = {
+          date: '2025-01-15',
+          status: 'green',
+          notes: 'x'.repeat(5001),
+          prompted: false,
+        };
+
+        await expect(dailyStatusRepository.create(invalidLog)).rejects.toThrow('Notes must be <= 5000 characters');
+      });
+    });
+  });
 });
