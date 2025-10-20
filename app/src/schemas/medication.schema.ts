@@ -131,7 +131,7 @@ export const MedicationDoseSchema = z.object({
     .int('Timestamp must be an integer')
     .positive('Timestamp must be positive'),
   amount: z.number()
-    .positive('Amount must be positive')
+    .nonnegative('Amount must be non-negative') // Allow 0 for skipped doses
     .finite('Amount must be a finite number'),
   status: DoseStatusSchema.optional(),
   episodeId: z.string()
@@ -151,7 +151,20 @@ export const MedicationDoseSchema = z.object({
   createdAt: z.number()
     .int('Created at must be an integer')
     .positive('Created at must be positive'),
-});
+}).refine(
+  (data) => {
+    // Skipped doses can have amount 0, but taken doses must have positive amount
+    if (data.status === 'skipped') {
+      return true; // Allow any amount for skipped doses
+    }
+    // For taken doses (or no status specified), amount must be positive
+    return data.amount > 0;
+  },
+  {
+    message: 'Amount must be positive for taken doses',
+    path: ['amount'],
+  }
+);
 
 // Medication reminder schema
 export const MedicationReminderSchema = z.object({
