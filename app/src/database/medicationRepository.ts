@@ -8,6 +8,12 @@ import {
   safeJSONParse,
   isStringArray,
 } from './types';
+import {
+  MedicationSchema,
+  MedicationDoseSchema,
+  MedicationScheduleSchema,
+} from '../schemas';
+import { logger } from '../utils/logger';
 
 export const medicationRepository = {
   async create(medication: Omit<Medication, 'id' | 'createdAt' | 'updatedAt'>, db?: SQLite.SQLiteDatabase): Promise<Medication> {
@@ -21,6 +27,14 @@ export const medicationRepository = {
       createdAt: now,
       updatedAt: now,
     };
+
+    // Validate medication data
+    const validationResult = MedicationSchema.safeParse(newMedication);
+    if (!validationResult.success) {
+      const errorMessage = `Invalid medication data: ${validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`;
+      logger.error('[MedicationRepository] Validation failed:', errorMessage);
+      throw new Error(errorMessage);
+    }
 
     await database.runAsync(
       `INSERT INTO medications (
@@ -199,6 +213,14 @@ export const medicationDoseRepository = {
       createdAt: now,
     };
 
+    // Validate medication dose data
+    const validationResult = MedicationDoseSchema.safeParse(newDose);
+    if (!validationResult.success) {
+      const errorMessage = `Invalid medication dose: ${validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`;
+      logger.error('[MedicationDoseRepository] Validation failed:', errorMessage);
+      throw new Error(errorMessage);
+    }
+
     await database.runAsync(
       `INSERT INTO medication_doses (
         id, medication_id, timestamp, amount, status, episode_id, effectiveness_rating,
@@ -339,6 +361,14 @@ export const medicationScheduleRepository = {
       ...schedule,
       id,
     };
+
+    // Validate medication schedule data
+    const validationResult = MedicationScheduleSchema.safeParse(newSchedule);
+    if (!validationResult.success) {
+      const errorMessage = `Invalid medication schedule: ${validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`;
+      logger.error('[MedicationScheduleRepository] Validation failed:', errorMessage);
+      throw new Error(errorMessage);
+    }
 
     await database.runAsync(
       'INSERT INTO medication_schedules (id, medication_id, time, dosage, enabled, notification_id, reminder_enabled) VALUES (?, ?, ?, ?, ?, ?, ?)',

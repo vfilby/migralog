@@ -3,6 +3,8 @@ import { DailyStatusLog } from '../models/types';
 import * as SQLite from 'expo-sqlite';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { DailyStatusLogRow } from './types';
+import { DailyStatusLogSchema } from '../schemas';
+import { logger } from '../utils/logger';
 
 export const dailyStatusRepository = {
   async create(log: Omit<DailyStatusLog, 'id' | 'createdAt' | 'updatedAt'>, db?: SQLite.SQLiteDatabase): Promise<DailyStatusLog> {
@@ -16,6 +18,14 @@ export const dailyStatusRepository = {
       createdAt: now,
       updatedAt: now,
     };
+
+    // Validate daily status log data
+    const validationResult = DailyStatusLogSchema.safeParse(newLog);
+    if (!validationResult.success) {
+      const errorMessage = `Invalid daily status log: ${validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`;
+      logger.error('[DailyStatusRepository] Validation failed:', errorMessage);
+      throw new Error(errorMessage);
+    }
 
     await database.runAsync(
       `INSERT INTO daily_status_logs (
