@@ -703,4 +703,129 @@ describe('medicationDoseRepository', () => {
       });
     });
   });
+
+  describe('wasLoggedForScheduleToday', () => {
+    it('should return true if medication was logged before scheduled time today', async () => {
+      // Set up: medication scheduled for 9:30 PM (21:30)
+      const scheduledTime = '21:30';
+      const medicationId = 'med-123';
+      const scheduleId = 'schedule-123';
+
+      // Create a dose logged at 9:00 PM (before scheduled time)
+      const now = new Date();
+      const ninepm = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 21, 0, 0);
+
+      const mockRows = [
+        {
+          id: 'dose-1',
+          medication_id: medicationId,
+          timestamp: ninepm.getTime(),
+          amount: 1,
+          status: 'taken',
+          created_at: ninepm.getTime(),
+        },
+      ];
+
+      mockDatabase.getAllAsync.mockResolvedValue(mockRows);
+
+      const result = await medicationDoseRepository.wasLoggedForScheduleToday(
+        medicationId,
+        scheduleId,
+        scheduledTime
+      );
+
+      expect(result).toBe(true);
+      expect(mockDatabase.getAllAsync).toHaveBeenCalledWith(
+        expect.stringContaining('WHERE medication_id = ?'),
+        expect.arrayContaining([medicationId])
+      );
+    });
+
+    it('should return false if medication was not logged before scheduled time today', async () => {
+      const scheduledTime = '21:30';
+      const medicationId = 'med-123';
+      const scheduleId = 'schedule-123';
+
+      // No doses logged
+      mockDatabase.getAllAsync.mockResolvedValue([]);
+
+      const result = await medicationDoseRepository.wasLoggedForScheduleToday(
+        medicationId,
+        scheduleId,
+        scheduledTime
+      );
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false if medication was logged after scheduled time', async () => {
+      // Set up: medication scheduled for 9:30 PM (21:30)
+      const scheduledTime = '21:30';
+      const medicationId = 'med-123';
+      const scheduleId = 'schedule-123';
+
+      // Create a dose logged at 10:00 PM (after scheduled time)
+      // In a real scenario, the SQL query would filter this out
+      // since it's after the scheduled time, so we mock an empty result
+      mockDatabase.getAllAsync.mockResolvedValue([]);
+
+      const result = await medicationDoseRepository.wasLoggedForScheduleToday(
+        medicationId,
+        scheduleId,
+        scheduledTime
+      );
+
+      // Should return false because dose was logged after the scheduled time
+      expect(result).toBe(false);
+    });
+
+    it('should only count doses with status "taken"', async () => {
+      const scheduledTime = '21:30';
+      const medicationId = 'med-123';
+      const scheduleId = 'schedule-123';
+
+      // Mock empty result - doses with status other than 'taken' are filtered by SQL query
+      const mockRows: any[] = [];
+
+      mockDatabase.getAllAsync.mockResolvedValue(mockRows);
+
+      const result = await medicationDoseRepository.wasLoggedForScheduleToday(
+        medicationId,
+        scheduleId,
+        scheduledTime
+      );
+
+      expect(result).toBe(false);
+      // Verify the query includes status = 'taken' filter
+      expect(mockDatabase.getAllAsync).toHaveBeenCalledWith(
+        expect.stringContaining("status = 'taken'"),
+        expect.any(Array)
+      );
+    });
+
+    it('should check within today\'s time boundaries', async () => {
+      const scheduledTime = '09:30';
+      const medicationId = 'med-123';
+      const scheduleId = 'schedule-123';
+
+      mockDatabase.getAllAsync.mockResolvedValue([]);
+
+      await medicationDoseRepository.wasLoggedForScheduleToday(
+        medicationId,
+        scheduleId,
+        scheduledTime
+      );
+
+      // Verify the query includes timestamp boundaries for today
+      const call = mockDatabase.getAllAsync.mock.calls[0];
+      expect(call[0]).toContain('timestamp >= ?');
+      expect(call[0]).toContain('timestamp <= ?');
+
+      // The parameters should include start of day and scheduled time
+      const params = call[1];
+      expect(params[0]).toBe(medicationId);
+      expect(params[1]).toBeGreaterThan(0); // Start of today timestamp
+      expect(params[2]).toBeGreaterThan(0); // Scheduled time timestamp
+    });
+  });
 });
