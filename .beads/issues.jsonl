@@ -1,0 +1,1 @@
+{"id":"MigraineTracker-1","title":"Fix medication notifications triggering after early dose","description":"Notifications should not fire if medication was already logged before the scheduled time. GitHub issue #49","status":"open","priority":1,"issue_type":"bug","created_at":"2025-10-20T21:58:17.322506-07:00","updated_at":"2025-10-20T21:58:17.322506-07:00"}

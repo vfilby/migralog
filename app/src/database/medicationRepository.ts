@@ -350,6 +350,44 @@ export const medicationDoseRepository = {
     const database = db || await getDatabase();
     await database.runAsync('DELETE FROM medication_doses');
   },
+
+  /**
+   * Check if a medication was logged for a specific scheduled time today
+   * @param medicationId The medication ID to check
+   * @param scheduleId The schedule ID to check
+   * @param scheduledTime The scheduled time in HH:mm format
+   * @returns true if medication was logged within the time window, false otherwise
+   */
+  async wasLoggedForScheduleToday(
+    medicationId: string,
+    scheduleId: string,
+    scheduledTime: string,
+    db?: SQLite.SQLiteDatabase
+  ): Promise<boolean> {
+    const database = db || await getDatabase();
+
+    // Parse scheduled time
+    const [hours, minutes] = scheduledTime.split(':').map(Number);
+
+    // Get start of today and the scheduled time for today
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    const scheduledDateTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0);
+
+    // Query for doses of this medication logged today before the scheduled time
+    // We check if the dose was logged any time before the notification fires
+    const results = await database.getAllAsync<MedicationDoseRow>(
+      `SELECT id FROM medication_doses
+       WHERE medication_id = ?
+       AND timestamp >= ?
+       AND timestamp <= ?
+       AND status = 'taken'
+       LIMIT 1`,
+      [medicationId, todayStart.getTime(), scheduledDateTime.getTime()]
+    );
+
+    return results.length > 0;
+  },
 };
 
 export const medicationScheduleRepository = {

@@ -3,14 +3,104 @@ import { logger } from '../utils/logger';
 import { Medication, MedicationSchedule } from '../models/types';
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../database/medicationRepository';
 
-// Configure notification behavior
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
+/**
+ * Handle incoming notifications and decide whether to show them
+ * Exported for testing purposes
+ */
+export async function handleIncomingNotification(notification: Notifications.Notification): Promise<Notifications.NotificationBehavior> {
+  // Check if this is a medication reminder
+  const data = notification.request.content.data as {
+    medicationId?: string;
+    medicationIds?: string[];
+    scheduleId?: string;
+    scheduleIds?: string[];
+    time?: string;
+  };
+
+  // For single medication reminders, check if already logged
+  if (data.medicationId && data.scheduleId) {
+    // Get the medication to find the schedule time
+    const medication = await medicationRepository.getById(data.medicationId);
+    if (medication) {
+      const schedule = medication.schedule?.find(s => s.id === data.scheduleId);
+      if (schedule) {
+        const wasLogged = await medicationDoseRepository.wasLoggedForScheduleToday(
+          data.medicationId,
+          data.scheduleId,
+          schedule.time
+        );
+
+        if (wasLogged) {
+          logger.log('[Notification] Medication already logged for schedule, suppressing notification:', {
+            medicationId: data.medicationId,
+            scheduleId: data.scheduleId,
+          });
+          // Don't show the notification
+          return {
+            shouldPlaySound: false,
+            shouldSetBadge: false,
+            shouldShowBanner: false,
+            shouldShowList: false,
+          };
+        }
+      }
+    }
+  }
+
+  // For multiple medication reminders, filter out already-logged medications
+  if (data.medicationIds && data.scheduleIds && data.time) {
+    const notLoggedMedications: string[] = [];
+    const notLoggedSchedules: string[] = [];
+
+    for (let i = 0; i < data.medicationIds.length; i++) {
+      const medicationId = data.medicationIds[i];
+      const scheduleId = data.scheduleIds[i];
+
+      const wasLogged = await medicationDoseRepository.wasLoggedForScheduleToday(
+        medicationId,
+        scheduleId,
+        data.time
+      );
+
+      if (!wasLogged) {
+        notLoggedMedications.push(medicationId);
+        notLoggedSchedules.push(scheduleId);
+      }
+    }
+
+    // If all medications were logged, don't show notification
+    if (notLoggedMedications.length === 0) {
+      logger.log('[Notification] All medications already logged, suppressing notification');
+      return {
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+        shouldShowBanner: false,
+        shouldShowList: false,
+      };
+    }
+
+    // If some were logged, we still show the notification but ideally would update the content
+    // For now, we show the notification as-is (future enhancement: update content to show only unlogged meds)
+    if (notLoggedMedications.length < data.medicationIds.length) {
+      logger.log('[Notification] Some medications already logged, showing reminder for remaining:', {
+        total: data.medicationIds.length,
+        remaining: notLoggedMedications.length,
+      });
+    }
+  }
+
+  // Default behavior: show the notification
+  return {
     shouldPlaySound: true,
     shouldSetBadge: true,
     shouldShowBanner: true,
     shouldShowList: true,
-  }),
+  };
+}
+
+// Configure notification behavior
+Notifications.setNotificationHandler({
+  handleNotification: handleIncomingNotification,
 });
 
 // Notification categories for action buttons
