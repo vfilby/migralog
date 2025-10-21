@@ -35,6 +35,9 @@ jobs:
       - name: Run type checking
         run: npx tsc --noEmit
 
+      - name: Run ESLint
+        run: npm run lint:ci
+
       - name: Run unit tests
         run: npm run test:ci
 
