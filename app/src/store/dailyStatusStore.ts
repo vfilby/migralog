@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { DailyStatusLog, DayStatus, YellowDayType } from '../models/types';
 import { dailyStatusRepository } from '../database/dailyStatusRepository';
 import { errorLogger } from '../services/errorLogger';
+import { toastService } from '../services/toastService';
 import { format, subDays } from 'date-fns';
 
 interface DailyStatusState {
@@ -75,6 +76,10 @@ export const useDailyStatusStore = create<DailyStatusState>((set, get) => ({
         : [...get().dailyStatuses, newLog].sort((a, b) => a.date.localeCompare(b.date));
 
       set({ dailyStatuses: updatedStatuses, loading: false });
+
+      // Show success toast
+      toastService.success('Daily status logged');
+
       return newLog;
     } catch (error) {
       await errorLogger.log('database', 'Failed to log day status', error as Error, {
@@ -83,6 +88,10 @@ export const useDailyStatusStore = create<DailyStatusState>((set, get) => ({
         status
       });
       set({ error: (error as Error).message, loading: false });
+
+      // Show error toast
+      toastService.error('Failed to log daily status');
+
       throw error;
     }
   },

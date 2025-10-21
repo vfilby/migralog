@@ -4,6 +4,7 @@ import { Episode, SymptomLog } from '../models/types';
 import { episodeRepository, intensityRepository, symptomLogRepository } from '../database/episodeRepository';
 import { dailyStatusRepository } from '../database/dailyStatusRepository';
 import { errorLogger } from '../services/errorLogger';
+import { toastService } from '../services/toastService';
 import { format, eachDayOfInterval } from 'date-fns';
 
 interface EpisodeState {
@@ -73,6 +74,10 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
         episodes: [newEpisode, ...get().episodes],
         loading: false
       });
+
+      // Show success toast
+      toastService.success('Episode started');
+
       return newEpisode;
     } catch (error) {
       await errorLogger.log('database', 'Failed to start episode', error as Error, {
@@ -80,6 +85,10 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
         startTime: episode.startTime
       });
       set({ error: (error as Error).message, loading: false });
+
+      // Show error toast
+      toastService.error('Failed to start episode');
+
       throw error;
     }
   },
@@ -126,8 +135,15 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
         episodes: updatedEpisodes,
         loading: false
       });
+
+      // Show success toast
+      toastService.success('Episode ended');
     } catch (error) {
       set({ error: (error as Error).message, loading: false });
+
+      // Show error toast
+      toastService.error('Failed to end episode');
+
       throw error;
     }
   },
