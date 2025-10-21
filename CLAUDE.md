@@ -94,7 +94,12 @@ app/
 - **Repository Pattern**: All database access goes through repository classes:
   - `episodeRepository.ts`: CRUD for episodes, intensity readings, symptom logs
   - `medicationRepository.ts`: CRUD for medications, doses, schedules, reminders
-- **ID Generation**: Uses `generateId()` from db.ts: `${Date.now()}-${Math.random()}`
+- **ID Generation**: Uses `generateId()` from db.ts which returns ULID (Universally Unique Lexicographically Sortable Identifier)
+  - 26-character Base32 encoded string
+  - Timestamp-ordered (first 48 bits) for natural sorting
+  - Cryptographically secure random component (80 bits)
+  - No configuration required, works offline
+  - Implementation uses `ulidx` library with `react-native-get-random-values` polyfill
 
 ### State Management (src/store/)
 - **Zustand stores** for client state, wrapping repository calls

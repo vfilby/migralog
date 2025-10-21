@@ -1,6 +1,7 @@
 // Web-compatible database implementation using localStorage
 // This is a simplified version for web testing - data won't persist across sessions in production
 
+import { ulid } from 'ulidx';
 import { logger } from '../utils/logger';
 
 interface WebDatabase {
@@ -105,6 +106,8 @@ export const closeDatabase = async (): Promise<void> => {
   }
 };
 
+// Utility function to generate unique IDs using ULID
+// ULID provides: 128-bit, lexicographically sortable, cryptographically secure
 export const generateId = (): string => {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return ulid();
 };

@@ -1,3 +1,7 @@
+// IMPORTANT: react-native-get-random-values must be imported first
+// before any code that uses crypto.getRandomValues (including ULID)
+import 'react-native-get-random-values';
+
 import { registerRootComponent } from 'expo';
 
 import App from './App';

@@ -1,3 +1,4 @@
+import { ulid } from 'ulidx';
 import * as SQLite from 'expo-sqlite';
 import { createTables } from './schema';
 import { migrationRunner } from './migrations';
@@ -137,7 +138,8 @@ export const closeDatabase = async (): Promise<void> => {
   }
 };
 
-// Utility function to generate unique IDs
+// Utility function to generate unique IDs using ULID
+// ULID provides: 128-bit, lexicographically sortable, cryptographically secure
 export const generateId = (): string => {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return ulid();
 };

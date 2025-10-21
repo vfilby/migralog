@@ -11,6 +11,19 @@ import { backupService } from '../services/backupService';
 import { useDailyStatusStore } from '../store/dailyStatusStore';
 import { Alert } from 'react-native';
 
+/**
+ * Mock ULID for deterministic tests
+ * Generates a valid ULID format with predictable values for testing
+ */
+export const mockUlid = (seed: number = 0): string => {
+  // ULID format: 26 characters, Base32 encoded
+  // First 10 chars: timestamp (48 bits)
+  // Last 16 chars: randomness (80 bits)
+  const timestamp = (1609459200000 + seed).toString(36).toUpperCase().padStart(10, '0');
+  const random = seed.toString(36).toUpperCase().padStart(16, '0');
+  return `${timestamp}${random}`.substring(0, 26);
+};
+
 // Compile-time check - this entire module is excluded in production
 if (__DEV__ === false) {
   throw new Error('testHelpers.ts should not be imported in production builds');
