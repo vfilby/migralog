@@ -397,11 +397,6 @@ describe('notificationService', () => {
       expect(notificationIds.get('sched-3')).toBe('notif-2');
     });
 
-    it.skip('should create single notification for one medication', async () => {
-      // Test skipped: scheduleGroupedNotifications method pending implementation
-      (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('notif-single');
-    });
-
     it('should skip disabled schedules', async () => {
       const disabledSchedule: MedicationSchedule = {
         ...mockSchedule1,
