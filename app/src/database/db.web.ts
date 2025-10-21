@@ -5,13 +5,17 @@ import { logger } from '../utils/logger';
 
 interface WebDatabase {
   execAsync: (sql: string) => Promise<void>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   runAsync: (sql: string, params?: any[]) => Promise<void>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getFirstAsync: <T>(sql: string, params?: any[]) => Promise<T | null>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getAllAsync: <T>(sql: string, params?: any[]) => Promise<T[]>;
   closeAsync: () => Promise<void>;
 }
 
-// Simple in-memory store for web
+// Simple in-memory store for web (row data types vary by table)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const store: Map<string, any[]> = new Map();
 
 // Helper to parse table name from SQL
@@ -33,6 +37,7 @@ const webDb: WebDatabase = {
     }
   },
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async runAsync(sql: string, params: any[] = []) {
     logger.log('[WebDB] run:', sql, params);
 
@@ -54,12 +59,14 @@ const webDb: WebDatabase = {
     }
   },
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getFirstAsync<T>(sql: string, params: any[] = []): Promise<T | null> {
     logger.log('[WebDB] getFirst:', sql, params);
     const results = await this.getAllAsync<T>(sql, params);
     return results.length > 0 ? results[0] : null;
   },
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getAllAsync<T>(sql: string, params: any[] = []): Promise<T[]> {
     logger.log('[WebDB] getAll:', sql, params);
     const tableName = getTableName(sql);
@@ -76,6 +83,7 @@ const webDb: WebDatabase = {
 
 let db: WebDatabase | null = null;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const getDatabase = async (): Promise<any> => {
   if (db) {
     return db;

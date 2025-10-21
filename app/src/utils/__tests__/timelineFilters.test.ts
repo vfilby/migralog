@@ -1,5 +1,5 @@
-import { shouldShowMedicationInTimeline, MedicationDoseWithDetails } from '../timelineFilters';
-import { Medication, MedicationDose } from '../../models/types';
+import { shouldShowMedicationInTimeline } from '../timelineFilters';
+import { Medication } from '../../models/types';
 
 describe('shouldShowMedicationInTimeline', () => {
   // Helper to create a medication

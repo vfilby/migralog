@@ -14,7 +14,6 @@
  */
 
 import Database from 'better-sqlite3';
-import type * as SQLite from 'expo-sqlite';
 
 // Schema from version 1 (before any migrations)
 const SCHEMA_V1 = `

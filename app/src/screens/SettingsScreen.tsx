@@ -135,6 +135,8 @@ export default function SettingsScreen({ navigation }: Props) {
       }
 
       const message = scheduled.map((notif, index) => {
+        // Trigger types vary (calendar/time/date) - use dynamic access
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const trigger = notif.trigger as any;
         let timeInfo = 'Unknown trigger';
 
@@ -268,7 +270,7 @@ export default function SettingsScreen({ navigation }: Props) {
               // Dynamically import test helper (only available in __DEV__)
               if (__DEV__) {
                 const { resetDatabaseForTesting } = await import('../utils/testHelpers');
-                const _result = await resetDatabaseForTesting({
+                const _result = await resetDatabaseForTesting({ // Intentionally unused - tracks operation for future features
                   createBackup: true,
                   loadFixtures: true,
                 });

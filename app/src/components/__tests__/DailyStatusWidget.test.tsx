@@ -326,7 +326,7 @@ describe('DailyStatusWidget', () => {
 
       mockGetDayStatus.mockResolvedValue(statusData);
 
-      const { rerender } = renderWithTheme(<DailyStatusWidget />);
+      const { } = renderWithTheme(<DailyStatusWidget />);
 
       await waitFor(() => {
         expect(screen.getByTestId('undo-status-button')).toBeTruthy();
@@ -374,6 +374,7 @@ describe('DailyStatusWidget', () => {
       fireEvent.press(screen.getByTestId('widget-green-button'));
 
       await waitFor(() => {
+        // eslint-disable-next-line no-console
         expect(console.error).toHaveBeenCalledWith('Failed to log status:', expect.any(Error));
       });
     });
@@ -401,6 +402,7 @@ describe('DailyStatusWidget', () => {
       fireEvent.press(screen.getByTestId('undo-status-button'));
 
       await waitFor(() => {
+        // eslint-disable-next-line no-console
         expect(console.error).toHaveBeenCalledWith('Failed to undo status:', expect.any(Error));
       });
     });

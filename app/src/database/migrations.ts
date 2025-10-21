@@ -444,6 +444,7 @@ class MigrationRunner {
     // Detection methods:
     // 1. Check if db methods are mocked (Jest mocks)
     // 2. Check NODE_ENV or process.env.JEST_WORKER_ID (Jest test runner)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const isMocked = typeof (this.db.getAllAsync as any)?.mock !== 'undefined';
     const isJestEnv = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
 

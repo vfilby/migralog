@@ -15,8 +15,13 @@ export const navigationRef = createNavigationContainerRef<RootStackParamList>();
  * @param name Route name
  * @param params Route parameters
  */
-export function navigate(name: keyof RootStackParamList, params?: any) {
+export function navigate<T extends keyof RootStackParamList>(
+  name: T,
+  params?: RootStackParamList[T]
+) {
   if (navigationRef.isReady()) {
+    // Type assertion needed due to React Navigation's complex type structure
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     navigationRef.navigate(name as any, params);
   }
 }

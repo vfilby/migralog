@@ -1,4 +1,4 @@
-import { groupEventsByDay, groupEventsByTimestamp, TimelineEvent, DayGroup } from '../timelineGrouping';
+import { groupEventsByDay, groupEventsByTimestamp, TimelineEvent } from '../timelineGrouping';
 import { startOfDay } from 'date-fns';
 
 describe('timelineGrouping', () => {

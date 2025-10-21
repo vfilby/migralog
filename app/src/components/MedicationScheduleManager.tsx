@@ -7,7 +7,7 @@ import {
   TextInput,
   Platform,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { ScheduleFrequency, MedicationSchedule } from '../models/types';
 import { useTheme, ThemeColors } from '../theme';
 
@@ -154,7 +154,7 @@ export default function MedicationScheduleManager({
     onSchedulesChange(updated);
   };
 
-  const handleTimePickerChange = (event: any, selectedDate?: Date) => {
+  const handleTimePickerChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
     if (Platform.OS === 'android') {
       setEditingScheduleIndex(null);
     }
@@ -170,7 +170,7 @@ export default function MedicationScheduleManager({
     setEditingScheduleIndex(editingScheduleIndex === index ? null : index);
   };
 
-  const handleDatePickerChange = (event: any, selectedDate?: Date) => {
+  const handleDatePickerChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
     if (Platform.OS === 'android') {
       setSelectedDateScheduleIndex(null);
     }

@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import { useMedicationStore } from '../store/medicationStore';
 import { useEpisodeStore } from '../store/episodeStore';
-import { medicationRepository, medicationScheduleRepository, medicationDoseRepository } from '../database/medicationRepository';
+import { medicationScheduleRepository, medicationDoseRepository } from '../database/medicationRepository';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';

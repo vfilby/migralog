@@ -38,8 +38,9 @@ const TEST_MODE_TIMEOUT_MS = 30000; // 30 seconds
 
 /**
  * Generate a random session token for test mode
+ * Currently unused but reserved for future enhanced security
  */
-function generateTestToken(): string {
+function _generateTestToken(): string {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
 }
 
@@ -149,7 +150,7 @@ async function handleTestDeepLink(event: { url: string }) {
 
     // Special case: Activate test mode (no token required)
     if (path === '/activate') {
-      const token = activateTestMode();
+      const _token = activateTestMode();
       logger.log('[TestDeepLinks] ✅ Test mode activated successfully');
       // Token is already logged in activateTestMode()
       return;
@@ -193,6 +194,7 @@ async function handleTestDeepLink(event: { url: string }) {
             if (hasModal) {
               logger.log('[TestDeepLinks] Dismissing modal before reload...', new Date().toISOString());
               // Reset to MainTabs root, dismissing any modals
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               navigationRef.current.reset({
                 index: 0,
                 routes: [{ name: 'MainTabs', params: { screen: 'Dashboard' } as any }],
@@ -202,11 +204,13 @@ async function handleTestDeepLink(event: { url: string }) {
 
             // Navigate to Episodes tab
             logger.log('[TestDeepLinks] Navigating to Episodes...', new Date().toISOString());
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (navigationRef.current.navigate as any)('MainTabs', { screen: 'Episodes' });
             // Wait for navigation animation to complete
             await new Promise(resolve => setTimeout(resolve, 300));
             // Navigate back to Dashboard
             logger.log('[TestDeepLinks] Navigating back to Dashboard...', new Date().toISOString());
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (navigationRef.current.navigate as any)('MainTabs', { screen: 'Dashboard' });
             // Wait for navigation back and data loading to complete
             await new Promise(resolve => setTimeout(resolve, 500));
@@ -230,6 +234,7 @@ async function handleTestDeepLink(event: { url: string }) {
           const { navigationRef } = await import('../navigation/NavigationService');
           if (navigationRef.current) {
             // Navigate to the Dashboard (Home tab)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (navigationRef.current.navigate as any)('MainTabs', { screen: 'Dashboard' });
             logger.log('[TestDeepLinks] Successfully navigated to Dashboard');
           } else {
