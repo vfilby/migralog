@@ -19,7 +19,7 @@
     "test:ci": "jest --ci --coverage --watchAll=false",
     "precommit": "npm run lint:ci && npx tsc --noEmit && npm run test:ci",
     "test:e2e": "npx detox test --configuration ios.sim.debug --maxWorkers 2",
-    "test:e2e:build": "npm run generate-build-info && npx expo run:ios --configuration Debug --no-bundler",
+    "test:e2e:build": "npm run generate-build-info && npx detox build -c ios.sim.debug",
     "test:e2e:start": "npm run generate-build-info && expo start",
     "test:load-db": "bash scripts/load-test-db.sh"
   },
