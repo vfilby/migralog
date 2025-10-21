@@ -271,7 +271,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
 export default function LogMedicationScreen({ route, navigation }: Props) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const { medicationId, episodeId } = route.params;
+  const { medicationId } = route.params; // episodeId available in route.params if needed
   const { rescueMedications, loadMedications, logDose } = useMedicationStore();
   const [selectedMedId, setSelectedMedId] = useState<string | null>(medicationId || null);
   const [medication, setMedication] = useState<Medication | null>(null);

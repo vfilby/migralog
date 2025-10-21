@@ -6,9 +6,8 @@
  * 3. All data is correctly restored
  */
 
-import { backupService } from '../src/services/backupService';
 import { episodeRepository } from '../src/database/episodeRepository';
-import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../src/database/medicationRepository';
+import { medicationRepository, medicationDoseRepository } from '../src/database/medicationRepository';
 import { getDatabase } from '../src/database/db';
 
 async function testBackupRestore() {

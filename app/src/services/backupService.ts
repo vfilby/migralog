@@ -440,7 +440,7 @@ class BackupService {
 
       // Re-open database and run migrations if needed
       logger.log('[Restore] Reopening database');
-      const _db = await import('../database/db').then(m => m.getDatabase());
+      // await import('../database/db').then(m => m.getDatabase());
 
       const restoredSchemaVersion = await migrationRunner.getCurrentVersion();
       logger.log('[Restore] Current schema version after restore:', restoredSchemaVersion);

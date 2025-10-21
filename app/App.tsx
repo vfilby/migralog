@@ -6,6 +6,7 @@ import { ThemeProvider } from './src/theme';
 import { getDatabase } from './src/database/db';
 import { migrationRunner } from './src/database/migrations';
 import { notificationService } from './src/services/notificationService';
+import { logger } from './src/utils/logger';
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
@@ -22,14 +23,14 @@ export default function App() {
         const needsMigration = await migrationRunner.needsMigration();
 
         if (needsMigration) {
-          console.log('Running database migrations...');
+          logger.log('Running database migrations...');
           await migrationRunner.runMigrations();
-          console.log('Migrations completed successfully');
+          logger.log('Migrations completed successfully');
         }
 
         // Initialize notification service
         await notificationService.initialize();
-        console.log('Notification service initialized');
+        logger.log('Notification service initialized');
 
         // Initialize test deep links (dev only)
         if (__DEV__) {
@@ -39,7 +40,7 @@ export default function App() {
 
         setIsReady(true);
       } catch (err) {
-        console.error('App initialization error:', err);
+        logger.error('App initialization error:', err);
         setError(err instanceof Error ? err.message : 'Unknown error');
       }
     }

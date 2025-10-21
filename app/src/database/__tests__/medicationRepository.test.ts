@@ -3,9 +3,7 @@ import {
   medicationDoseRepository,
   medicationScheduleRepository,
 } from '../medicationRepository';
-import { Medication, MedicationDose, MedicationSchedule } from '../../models/types';
 import * as db from '../db';
-import { notificationService } from '../../services/notificationService';
 
 // Mock dependencies
 jest.mock('../db');

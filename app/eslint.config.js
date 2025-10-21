@@ -82,4 +82,34 @@ module.exports = [
       },
     },
   },
+  // Test file overrides - relax some rules for test code
+  {
+    files: ['**/__tests__/**/*.{ts,tsx}', '**/*.{test,spec}.{ts,tsx}'],
+    rules: {
+      // Allow 'any' type in tests for mocking purposes
+      '@typescript-eslint/no-explicit-any': 'off',
+      // Allow console statements in tests (for testing console output and debugging)
+      'no-console': 'off',
+      // Allow unused variables in catch blocks (common in error assertions)
+      '@typescript-eslint/no-unused-vars': ['warn', {
+        argsIgnorePattern: '^_',
+        caughtErrors: 'none' // Don't warn about unused catch variables
+      }],
+    },
+  },
+  // E2E test overrides - allow console statements for debugging
+  {
+    files: ['e2e/**/*.{js,ts}', 'scripts/**/*.{js,ts}'],
+    rules: {
+      // Allow 'any' type in E2E tests for mocking
+      '@typescript-eslint/no-explicit-any': 'off',
+      // Allow console statements in E2E tests (debugging)
+      'no-console': 'off',
+      // Allow unused variables in catch blocks
+      '@typescript-eslint/no-unused-vars': ['warn', {
+        argsIgnorePattern: '^_',
+        caughtErrors: 'none'
+      }],
+    },
+  },
 ];

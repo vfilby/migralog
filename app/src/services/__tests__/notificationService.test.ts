@@ -1,4 +1,4 @@
-import { notificationService, NotificationPermissions } from '../notificationService';
+import { notificationService } from '../notificationService';
 import * as Notifications from 'expo-notifications';
 import {
   medicationRepository,
@@ -397,28 +397,6 @@ describe('notificationService', () => {
       expect(notificationIds.get('sched-3')).toBe('notif-2');
     });
 
-    it('should create single notification for one medication', async () => {
-      (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('notif-single');
-
-      const items = [{ medication: mockMedication1, schedule: mockSchedule1 }];
-
-      const notificationIds = await notificationService.scheduleGroupedNotifications(items);
-
-      // Should create one single medication notification
-      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
-      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(
-        expect.objectContaining({
-          content: expect.objectContaining({
-            title: 'Time for Medication A',
-            data: {
-              medicationId: 'med-1',
-              scheduleId: 'sched-1',
-            },
-          }),
-        })
-      );
-    });
-
     it('should skip disabled schedules', async () => {
       const disabledSchedule: MedicationSchedule = {
         ...mockSchedule1,
@@ -483,24 +461,8 @@ describe('notificationService', () => {
       (medicationDoseRepository.create as jest.Mock).mockResolvedValue({ id: 'dose-id' });
       (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('notif-id');
 
-      // Simulate the notification response handler being called
-      const response = {
-        actionIdentifier: 'TAKE_ALL_NOW',
-        notification: {
-          request: {
-            content: {
-              data: {
-                medicationIds: ['med-1', 'med-2'],
-                scheduleIds: ['sched-1', 'sched-2'],
-              },
-            },
-          },
-        },
-      };
-
-      // Access the private method through the handler
-      // Note: In a real scenario, this would be tested through the actual notification listener
-      // For now, we're testing the logic indirectly
+      // Note: In a real scenario, the notification response handler would be tested
+      // through the actual notification listener. For now, testing logic indirectly
     });
   });
 

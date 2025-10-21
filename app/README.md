@@ -94,12 +94,23 @@ npm run test:e2e
 
 See [Testing Guide](../docs/testing-guide.md) for detailed testing documentation.
 
-### Type Checking
+### Type Checking & Linting
 
 ```bash
 # Run TypeScript compiler in check mode
 npx tsc --noEmit
+
+# Run ESLint
+npm run lint
+
+# Fix auto-fixable lint issues
+npm run lint:fix
+
+# Run all CI checks locally (lint, types, tests)
+npm run precommit
 ```
+
+**Pro tip:** Run `npm run precommit` before pushing to ensure your code passes CI checks.
 
 ### Utilities
 

@@ -271,7 +271,7 @@ describe('MedicationsScreen', () => {
 
   // User Interaction Tests
   describe('User Interactions', () => {
-    const { fireEvent, within } = require('@testing-library/react-native');
+    const { fireEvent } = require('@testing-library/react-native');
 
     it('should navigate to AddMedication when Add Medication button pressed', async () => {
       renderWithProviders(<MedicationsScreen />);

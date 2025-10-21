@@ -68,6 +68,7 @@ describe('errorLogger', () => {
       // Should not throw
       const logs = await testLogger.getLogs();
       expect(logs).toEqual([]);
+       
       expect(console.error).toHaveBeenCalledWith('Failed to load error logs:', expect.any(Error));
     });
 
@@ -233,6 +234,7 @@ describe('errorLogger', () => {
       await errorLogger.clearLogs();
 
       expect(console.error).toHaveBeenCalledWith('Failed to clear error logs:', expect.any(Error));
+       
     });
   });
 

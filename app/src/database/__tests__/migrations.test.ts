@@ -1,5 +1,4 @@
 import { migrationRunner } from '../migrations';
-import * as SQLite from 'expo-sqlite';
 
 // Mock expo-sqlite
 jest.mock('expo-sqlite');
@@ -65,6 +64,7 @@ describe('migrationRunner', () => {
       expect(createBackup).toHaveBeenCalledWith(mockDatabase);
       expect(console.log).toHaveBeenCalledWith('Creating automatic backup before migration...');
       expect(console.log).toHaveBeenCalledWith('Backup created successfully');
+       
     });
 
     it('should abort migration if backup creation fails', async () => {

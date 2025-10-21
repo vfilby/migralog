@@ -1,6 +1,6 @@
 import React from 'react';
 import { screen, waitFor, fireEvent } from '@testing-library/react-native';
-import { Alert } from 'react-native';
+
 import EditMedicationScreen from '../EditMedicationScreen';
 import { renderWithProviders } from '../../utils/screenTestHelpers';
 import { useMedicationStore } from '../../store/medicationStore';

@@ -1,4 +1,4 @@
-const { resetDatabase, scrollToElement, scrollToText, waitForAnimation } = require('./helpers');
+const { resetDatabase, scrollToElement, waitForAnimation } = require('./helpers');
 
 /**
  * Daily Status Tracking E2E Test
