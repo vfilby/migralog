@@ -1,4 +1,4 @@
-import { shouldShowMedicationInTimeline } from '../timelineFilters';
+import { shouldShowMedicationInTimeline, MedicationDoseWithDetails } from '../timelineFilters';
 import { Medication } from '../../models/types';
 
 describe('shouldShowMedicationInTimeline', () => {
