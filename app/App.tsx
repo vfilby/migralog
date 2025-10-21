@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import Toast from 'react-native-toast-message';
 import AppNavigator from './src/navigation/AppNavigator';
 import { ThemeProvider } from './src/theme';
 import { getDatabase } from './src/database/db';
 import { notificationService } from './src/services/notificationService';
 import { logger } from './src/utils/logger';
+import ErrorBoundary from './src/components/ErrorBoundary';
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
@@ -75,10 +77,13 @@ export default function App() {
   }
 
   return (
-    <ThemeProvider>
-      <AppNavigator />
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AppNavigator />
+        <StatusBar style="auto" />
+        <Toast />
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 
