@@ -305,10 +305,6 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
         }
       }
 
-      const medications = get().medications.map(m =>
-        m.id === id ? { ...m, active: true } : m
-      );
-
       // Reload to get the medication back in the active lists
       await get().loadMedications();
     } catch (error) {

@@ -1,5 +1,4 @@
 import { migrationRunner } from '../migrations';
-import * as SQLite from 'expo-sqlite';
 
 // Mock expo-sqlite
 jest.mock('expo-sqlite');
@@ -65,8 +64,9 @@ describe('migrationRunner', () => {
       expect(createBackup).toHaveBeenCalledWith(mockDatabase);
       // eslint-disable-next-line no-console
       expect(console.log).toHaveBeenCalledWith('Creating automatic backup before migration...');
-      expect(console.log).toHaveBeenCalledWith('Backup created successfully');
       // eslint-disable-next-line no-console
+      expect(console.log).toHaveBeenCalledWith('Backup created successfully');
+       
     });
 
     it('should abort migration if backup creation fails', async () => {
@@ -77,8 +77,8 @@ describe('migrationRunner', () => {
       );
 
       expect(createBackup).toHaveBeenCalledWith(mockDatabase);
-      expect(console.error).toHaveBeenCalledWith(
       // eslint-disable-next-line no-console
+      expect(console.error).toHaveBeenCalledWith(
         'Failed to create backup before migration:',
         expect.any(Error)
       );
@@ -87,8 +87,8 @@ describe('migrationRunner', () => {
     it('should warn when no backup function provided', async () => {
       await migrationRunner.runMigrations();
 
-      expect(console.warn).toHaveBeenCalledWith(
       // eslint-disable-next-line no-console
+      expect(console.warn).toHaveBeenCalledWith(
         'No backup function provided, skipping automatic backup'
       );
     });
@@ -155,8 +155,8 @@ describe('migrationRunner', () => {
 
       await migrationRunner.runMigrations();
 
-      expect(console.log).toHaveBeenCalledWith(
       // eslint-disable-next-line no-console
+      expect(console.log).toHaveBeenCalledWith(
         'Database is up to date, no migrations needed'
       );
     });

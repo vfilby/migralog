@@ -69,8 +69,6 @@ describe('Migration SQL Verification', () => {
     it('should execute ALTER TABLE statements to add location columns', async () => {
       await migrationRunner.runMigrations();
 
-      const sql = getExecutedSQL();
-
       // Should add all 4 location columns
       expect(executedSQLContains('ALTER TABLE episodes ADD COLUMN latitude')).toBe(true);
       expect(executedSQLContains('ALTER TABLE episodes ADD COLUMN longitude')).toBe(true);

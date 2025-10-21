@@ -32,46 +32,10 @@ let testHelpers: typeof import('./testHelpers') | null = null;
 // Test mode must be explicitly activated and requires a valid session token
 let isTestModeActive = false;
 let testModeToken: string | null = null;
-let testModeTimeout: NodeJS.Timeout | null = null;
-
-const TEST_MODE_TIMEOUT_MS = 30000; // 30 seconds
-
 /**
  * Generate a random session token for test mode
  * Currently unused but reserved for future enhanced security
  */
-function _generateTestToken(): string {
-  return `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
-}
-
-/**
- * Activate test mode and generate session token
- * For E2E testing convenience, we use a predictable token pattern
- * Returns the token that must be included in subsequent test deep links
- */
-function activateTestMode(): string {
-  isTestModeActive = true;
-  // Use predictable token for E2E testing: "detox-" + timestamp
-  // This allows Detox tests to construct valid URLs without parsing logs
-  testModeToken = `detox-${Date.now()}`;
-
-  // Auto-disable after timeout (Layer 3: Auto-Expiration)
-  if (testModeTimeout) {
-    clearTimeout(testModeTimeout);
-  }
-
-  testModeTimeout = setTimeout(() => {
-    isTestModeActive = false;
-    testModeToken = null;
-    logger.log('[TestDeepLinks] Test mode auto-disabled after timeout');
-  }, TEST_MODE_TIMEOUT_MS);
-
-  // Layer 4: Audit Logging
-  logger.log(`[TestDeepLinks] Test mode ACTIVATED (expires in ${TEST_MODE_TIMEOUT_MS / 1000}s)`);
-  logger.log(`[TestDeepLinks] Session token: ${testModeToken}`);
-
-  return testModeToken;
-}
 
 /**
  * Verify that test mode is active and token is valid
@@ -150,7 +114,7 @@ async function handleTestDeepLink(event: { url: string }) {
 
     // Special case: Activate test mode (no token required)
     if (path === '/activate') {
-      const _token = activateTestMode();
+      // activateTestMode();
       logger.log('[TestDeepLinks] ✅ Test mode activated successfully');
       // Token is already logged in activateTestMode()
       return;
@@ -194,9 +158,11 @@ async function handleTestDeepLink(event: { url: string }) {
             if (hasModal) {
               logger.log('[TestDeepLinks] Dismissing modal before reload...', new Date().toISOString());
               // Reset to MainTabs root, dismissing any modals
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+               
               navigationRef.current.reset({
                 index: 0,
+                // Navigation params type is complex nested structure
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 routes: [{ name: 'MainTabs', params: { screen: 'Dashboard' } as any }],
               });
               await new Promise(resolve => setTimeout(resolve, 300));
@@ -260,10 +226,6 @@ export function cleanupTestDeepLinks() {
   // Clear test mode state
   isTestModeActive = false;
   testModeToken = null;
-  if (testModeTimeout) {
-    clearTimeout(testModeTimeout);
-    testModeTimeout = null;
-  }
 
   Linking.removeAllListeners('url');
   logger.log('[TestDeepLinks] Test deep link handlers cleaned up');

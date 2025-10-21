@@ -39,15 +39,6 @@ const PAIN_LOCATIONS: { value: PainLocation; label: string; side: 'left' | 'righ
   { value: 'right_teeth', label: 'Teeth', side: 'right' },
 ];
 
-const _PAIN_QUALITIES: { value: PainQuality; label: string }[] = [
-  { value: 'throbbing', label: 'Throbbing' },
-  { value: 'sharp', label: 'Sharp' },
-  { value: 'dull', label: 'Dull' },
-  { value: 'pressure', label: 'Pressure' },
-  { value: 'stabbing', label: 'Stabbing' },
-  { value: 'burning', label: 'Burning' },
-];
-
 const SYMPTOMS: { value: Symptom; label: string }[] = [
   { value: 'nausea', label: 'Nausea' },
   { value: 'vomiting', label: 'Vomiting' },
@@ -284,7 +275,6 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
   const [triggers, setTriggers] = useState<Trigger[]>([]);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
-  const [_loading, setLoading] = useState(false);
   const [gpsLocation, setGpsLocation] = useState<EpisodeLocation | null>(null);
   const [initialReadingId, setInitialReadingId] = useState<string | null>(null);
   const [initialIntensity, setInitialIntensity] = useState<number>(3);
@@ -295,7 +285,6 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
     const loadEpisode = async () => {
       if (!episodeId) return;
 
-      setLoading(true);
       try {
         const { episodeRepository, intensityRepository } = await import('../database/episodeRepository');
         const episode = await episodeRepository.getById(episodeId);
@@ -322,8 +311,6 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
         }
       } catch (error) {
         logger.error('Failed to load episode:', error);
-      } finally {
-        setLoading(false);
       }
     };
 

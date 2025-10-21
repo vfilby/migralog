@@ -83,7 +83,10 @@ class LocationService {
       return episodeLocation;
     } catch (error) {
       logger.log('[Location] Failed to get current location');
+      // Error object structure is not typed by expo-location
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       logger.error('[Location] Error code:', (error as any)?.code);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       logger.error('[Location] Error message:', (error as any)?.message);
       logger.error('[Location] Full error:', JSON.stringify(error, null, 2));
 

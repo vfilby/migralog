@@ -7,6 +7,8 @@ export interface ErrorLog {
   type: 'database' | 'network' | 'storage' | 'general';
   message: string;
   stack?: string;
+  // Context can contain arbitrary error metadata
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   context?: Record<string, any>;
 }
 
@@ -35,6 +37,8 @@ class ErrorLogger {
     type: ErrorLog['type'],
     message: string,
     error?: Error,
+    // Context can contain arbitrary error metadata
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     context?: Record<string, any>
   ): Promise<void> {
     const errorLog: ErrorLog = {

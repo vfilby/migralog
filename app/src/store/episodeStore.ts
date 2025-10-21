@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { logger } from '../utils/logger';
-import { Episode, IntensityReading, SymptomLog } from '../models/types';
+import { Episode, SymptomLog } from '../models/types';
 import { episodeRepository, intensityRepository, symptomLogRepository } from '../database/episodeRepository';
 import { dailyStatusRepository } from '../database/dailyStatusRepository';
 import { errorLogger } from '../services/errorLogger';

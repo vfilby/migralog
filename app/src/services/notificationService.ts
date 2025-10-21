@@ -1,6 +1,5 @@
 import * as Notifications from 'expo-notifications';
 import { logger } from '../utils/logger';
-import { Platform } from 'react-native';
 import { Medication, MedicationSchedule } from '../models/types';
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../database/medicationRepository';
 
@@ -222,7 +221,9 @@ class NotificationService {
           data: { medicationId, scheduleId },
           categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
         },
-        trigger: snoozeTime as any, // Type assertion for Date trigger
+        // Date trigger type is not exported by expo-notifications
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        trigger: snoozeTime as any,
       });
 
       logger.log('[Notification] Snoozed for', minutes, 'minutes');
@@ -319,7 +320,9 @@ class NotificationService {
           },
           categoryIdentifier: MULTIPLE_MEDICATION_REMINDER_CATEGORY,
         },
-        trigger: snoozeTime as any, // Type assertion for Date trigger
+        // Date trigger type is not exported by expo-notifications
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        trigger: snoozeTime as any,
       });
 
       logger.log('[Notification] Reminder snoozed for', minutes, 'minutes');
@@ -548,6 +551,8 @@ class NotificationService {
     try {
       const scheduled = await Notifications.getAllScheduledNotificationsAsync();
       const medicationNotifs = scheduled.filter(
+        // Notification data type is dynamic
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (n) => (n.content.data as any)?.medicationId === medicationId
       );
 

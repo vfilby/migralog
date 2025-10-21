@@ -162,8 +162,8 @@ describe('errorLogger', () => {
       await errorLogger.log('database', 'Test error');
 
       // Should not throw
-      expect(console.error).toHaveBeenCalledWith(
       // eslint-disable-next-line no-console
+      expect(console.error).toHaveBeenCalledWith(
         'Failed to persist error logs:',
         expect.any(Error)
       );
@@ -175,8 +175,8 @@ describe('errorLogger', () => {
 
       await errorLogger.log('database', 'Test message', error, context);
 
-      expect(console.error).toHaveBeenCalledWith(
       // eslint-disable-next-line no-console
+      expect(console.error).toHaveBeenCalledWith(
         '[database] Test message',
         error,
         context
@@ -235,8 +235,9 @@ describe('errorLogger', () => {
 
       await errorLogger.clearLogs();
 
-      expect(console.error).toHaveBeenCalledWith('Failed to clear error logs:', expect.any(Error));
       // eslint-disable-next-line no-console
+      expect(console.error).toHaveBeenCalledWith('Failed to clear error logs:', expect.any(Error));
+       
     });
   });
 
