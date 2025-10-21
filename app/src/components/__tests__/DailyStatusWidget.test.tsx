@@ -326,7 +326,7 @@ describe('DailyStatusWidget', () => {
 
       mockGetDayStatus.mockResolvedValue(statusData);
 
-      const { } = renderWithTheme(<DailyStatusWidget />);
+      renderWithTheme(<DailyStatusWidget />);
 
       await waitFor(() => {
         expect(screen.getByTestId('undo-status-button')).toBeTruthy();
