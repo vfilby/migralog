@@ -374,7 +374,7 @@ describe('DailyStatusWidget', () => {
       fireEvent.press(screen.getByTestId('widget-green-button'));
 
       await waitFor(() => {
-        // eslint-disable-next-line no-console
+         
         expect(console.error).toHaveBeenCalledWith('Failed to log status:', expect.any(Error));
       });
     });
@@ -402,7 +402,7 @@ describe('DailyStatusWidget', () => {
       fireEvent.press(screen.getByTestId('undo-status-button'));
 
       await waitFor(() => {
-        // eslint-disable-next-line no-console
+         
         expect(console.error).toHaveBeenCalledWith('Failed to undo status:', expect.any(Error));
       });
     });

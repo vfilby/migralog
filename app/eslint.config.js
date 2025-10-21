@@ -88,6 +88,8 @@ module.exports = [
     rules: {
       // Allow 'any' type in tests for mocking purposes
       '@typescript-eslint/no-explicit-any': 'off',
+      // Allow console statements in tests (for testing console output and debugging)
+      'no-console': 'off',
       // Allow unused variables in catch blocks (common in error assertions)
       '@typescript-eslint/no-unused-vars': ['warn', {
         argsIgnorePattern: '^_',

@@ -62,9 +62,7 @@ describe('migrationRunner', () => {
       await migrationRunner.runMigrations(createBackup);
 
       expect(createBackup).toHaveBeenCalledWith(mockDatabase);
-      // eslint-disable-next-line no-console
       expect(console.log).toHaveBeenCalledWith('Creating automatic backup before migration...');
-      // eslint-disable-next-line no-console
       expect(console.log).toHaveBeenCalledWith('Backup created successfully');
        
     });
@@ -77,7 +75,6 @@ describe('migrationRunner', () => {
       );
 
       expect(createBackup).toHaveBeenCalledWith(mockDatabase);
-      // eslint-disable-next-line no-console
       expect(console.error).toHaveBeenCalledWith(
         'Failed to create backup before migration:',
         expect.any(Error)
@@ -87,7 +84,6 @@ describe('migrationRunner', () => {
     it('should warn when no backup function provided', async () => {
       await migrationRunner.runMigrations();
 
-      // eslint-disable-next-line no-console
       expect(console.warn).toHaveBeenCalledWith(
         'No backup function provided, skipping automatic backup'
       );
@@ -155,7 +151,6 @@ describe('migrationRunner', () => {
 
       await migrationRunner.runMigrations();
 
-      // eslint-disable-next-line no-console
       expect(console.log).toHaveBeenCalledWith(
         'Database is up to date, no migrations needed'
       );

@@ -68,7 +68,7 @@ describe('errorLogger', () => {
       // Should not throw
       const logs = await testLogger.getLogs();
       expect(logs).toEqual([]);
-      // eslint-disable-next-line no-console
+       
       expect(console.error).toHaveBeenCalledWith('Failed to load error logs:', expect.any(Error));
     });
 
@@ -162,7 +162,6 @@ describe('errorLogger', () => {
       await errorLogger.log('database', 'Test error');
 
       // Should not throw
-      // eslint-disable-next-line no-console
       expect(console.error).toHaveBeenCalledWith(
         'Failed to persist error logs:',
         expect.any(Error)
@@ -175,7 +174,6 @@ describe('errorLogger', () => {
 
       await errorLogger.log('database', 'Test message', error, context);
 
-      // eslint-disable-next-line no-console
       expect(console.error).toHaveBeenCalledWith(
         '[database] Test message',
         error,
@@ -235,7 +233,6 @@ describe('errorLogger', () => {
 
       await errorLogger.clearLogs();
 
-      // eslint-disable-next-line no-console
       expect(console.error).toHaveBeenCalledWith('Failed to clear error logs:', expect.any(Error));
        
     });

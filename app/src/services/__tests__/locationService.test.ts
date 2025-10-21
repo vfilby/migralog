@@ -63,7 +63,6 @@ describe('locationService', () => {
       const result = await locationService.requestPermission();
 
       expect(result).toBe(false);
-      // eslint-disable-next-line no-console
       expect(console.error).toHaveBeenCalledWith(
         'Failed to request location permission:',
         expect.any(Error)
@@ -101,7 +100,6 @@ describe('locationService', () => {
       const result = await locationService.checkPermission();
 
       expect(result).toBe(false);
-      // eslint-disable-next-line no-console
       expect(console.error).toHaveBeenCalledWith(
         'Failed to check location permission:',
         expect.any(Error)
@@ -315,7 +313,6 @@ describe('locationService', () => {
       const result = await locationService.reverseGeocode(37.7749, -122.4194);
 
       expect(result).toBe(null);
-      // eslint-disable-next-line no-console
       expect(console.error).toHaveBeenCalledWith(
         'Failed to reverse geocode:',
         expect.any(Error)
