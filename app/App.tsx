@@ -1,50 +1,49 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import AppNavigator from './src/navigation/AppNavigator';
 import { ThemeProvider } from './src/theme';
 import { getDatabase } from './src/database/db';
-import { migrationRunner } from './src/database/migrations';
 import { notificationService } from './src/services/notificationService';
 import { logger } from './src/utils/logger';
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
+
+  const initialize = async () => {
+    try {
+      setError(null);
+      setIsRetrying(false);
+
+      // Initialize database (handles migrations automatically)
+      await getDatabase();
+
+      // Initialize notification service
+      await notificationService.initialize();
+      logger.log('Notification service initialized');
+
+      // Initialize test deep links (dev only)
+      if (__DEV__) {
+        const { initializeTestDeepLinks } = await import('./src/utils/testDeepLinks');
+        initializeTestDeepLinks();
+      }
+
+      setIsReady(true);
+    } catch (err) {
+      logger.error('App initialization error:', err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
+      setIsRetrying(false);
+    }
+  };
+
+  const handleRetry = () => {
+    setIsRetrying(true);
+    initialize();
+  };
 
   useEffect(() => {
-    async function initialize() {
-      try {
-        // Initialize database
-        const db = await getDatabase();
-
-        // Run migrations
-        await migrationRunner.initialize(db);
-        const needsMigration = await migrationRunner.needsMigration();
-
-        if (needsMigration) {
-          logger.log('Running database migrations...');
-          await migrationRunner.runMigrations();
-          logger.log('Migrations completed successfully');
-        }
-
-        // Initialize notification service
-        await notificationService.initialize();
-        logger.log('Notification service initialized');
-
-        // Initialize test deep links (dev only)
-        if (__DEV__) {
-          const { initializeTestDeepLinks } = await import('./src/utils/testDeepLinks');
-          initializeTestDeepLinks();
-        }
-
-        setIsReady(true);
-      } catch (err) {
-        logger.error('App initialization error:', err);
-        setError(err instanceof Error ? err.message : 'Unknown error');
-      }
-    }
-
     initialize();
   }, []);
 
@@ -53,6 +52,16 @@ export default function App() {
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>Initialization Error</Text>
         <Text style={styles.errorMessage}>{error}</Text>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={handleRetry}
+          disabled={isRetrying}
+          testID="retry-button"
+        >
+          <Text style={styles.retryButtonText}>
+            {isRetrying ? 'Retrying...' : 'Retry'}
+          </Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -101,5 +110,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#8E8E93',
     textAlign: 'center',
+    marginBottom: 24,
+  },
+  retryButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 8,
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '600',
   },
 });
