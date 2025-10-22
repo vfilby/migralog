@@ -269,3 +269,73 @@ export async function confirmAndResetDatabase(loadFixtures = false): Promise<boo
     );
   });
 }
+
+/**
+ * Load corrupted test data to trigger database errors
+ * This is used to test error toast notifications
+ */
+export async function loadCorruptedDatabase() {
+  logger.log('[TestHelpers] Loading corrupted database state...');
+
+  try {
+    const db = await getDatabase();
+
+    // First, clear existing data
+    await db.execAsync('DELETE FROM medication_doses');
+    await db.execAsync('DELETE FROM medications');
+
+    // Create a medication
+    const medicationId = `corrupt-med-${Date.now()}`;
+    await db.runAsync(
+      `INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, default_dosage, active, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        medicationId,
+        'Corrupted Test Med',
+        'rescue',
+        50,
+        'mg',
+        1,
+        1,
+        Date.now(),
+        Date.now()
+      ]
+    );
+
+    // Create a dose linked to the medication
+    const doseId = `corrupt-dose-${Date.now()}`;
+    await db.runAsync(
+      `INSERT INTO medication_doses (id, medication_id, timestamp, amount, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        doseId,
+        medicationId,
+        Date.now(),
+        1,
+        'taken',
+        Date.now()
+      ]
+    );
+
+    // Now corrupt the database by deleting the medication but leaving the dose
+    // This creates an orphaned foreign key reference
+    logger.log('[TestHelpers] Creating database corruption (orphaned foreign key)...');
+
+    // Temporarily disable foreign keys to allow orphaning
+    await db.execAsync('PRAGMA foreign_keys = OFF');
+
+    // Delete the medication, leaving dose orphaned
+    await db.runAsync('DELETE FROM medications WHERE id = ?', [medicationId]);
+
+    // Re-enable foreign keys
+    await db.execAsync('PRAGMA foreign_keys = ON');
+
+    logger.log('[TestHelpers] ✅ Corrupted database loaded successfully');
+    logger.log(`[TestHelpers] Orphaned dose ID: ${doseId} (references deleted medication ${medicationId})`);
+
+    return { success: true, doseId, medicationId };
+  } catch (error) {
+    logger.error('[TestHelpers] Failed to load corrupted database:', error);
+    return { success: false, message: `Corruption failed: ${error}` };
+  }
+}

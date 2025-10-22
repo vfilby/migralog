@@ -94,6 +94,7 @@ export function initializeTestDeepLinks() {
  * - migraine-tracker://test/reset?token=XXX&fixtures=true - Reset and load fixtures (requires token)
  * - migraine-tracker://test/state?token=XXX - Log current database state (requires token)
  * - migraine-tracker://test/home?token=XXX - Navigate to home/dashboard (requires token)
+ * - migraine-tracker://test/corrupt?token=XXX - Load corrupted database for error testing (requires token)
  */
 async function handleTestDeepLink(event: { url: string }) {
   const { url } = event;
@@ -206,6 +207,14 @@ async function handleTestDeepLink(event: { url: string }) {
           } else {
             logger.warn('[TestDeepLinks] Navigation ref not available');
           }
+        }
+        break;
+
+      case '/corrupt':
+        {
+          logger.log('[TestDeepLinks] ✅ Authorized: Loading corrupted database');
+          const result = await testHelpers.loadCorruptedDatabase();
+          logger.log('[TestDeepLinks] Corrupt database result:', result);
         }
         break;
 

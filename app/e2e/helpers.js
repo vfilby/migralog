@@ -259,6 +259,19 @@ async function enableAnimations() {
   }
 }
 
+/**
+ * Load corrupted database for error testing
+ * This creates a database with orphaned foreign keys to trigger database errors
+ */
+async function loadCorruptedDatabase() {
+  console.log('[E2E] Loading corrupted database via deep link...');
+  await device.openURL({ url: 'migraine-tracker://test/corrupt?token=detox' });
+  console.log('[E2E] Executing database corruption...');
+  // Wait for corruption to complete
+  await waitForAnimation(1000);
+  console.log('[E2E] ✅ Corrupted database loaded');
+}
+
 module.exports = {
   resetDatabase,
   scrollToElement,
@@ -266,4 +279,5 @@ module.exports = {
   waitForAnimation,
   disableAnimations,
   enableAnimations,
+  loadCorruptedDatabase,
 };
