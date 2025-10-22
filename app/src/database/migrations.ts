@@ -360,6 +360,90 @@ const migrations: Migration[] = [
       }
     },
   },
+  {
+    version: 9,
+    name: 'add_composite_indexes',
+    up: async (db: SQLite.SQLiteDatabase) => {
+      // Add composite indexes for common query patterns to improve performance
+
+      // Episode queries by date range (most common query pattern)
+      await db.execAsync(`
+        CREATE INDEX IF NOT EXISTS idx_episodes_date_range
+        ON episodes(start_time, end_time);
+      `);
+
+      // Active medications filter (frequently used on medications screen)
+      // Check if active column exists before creating index on it
+      const medicationColumns = await db.getAllAsync<{ name: string }>(
+        "PRAGMA table_info(medications)"
+      );
+      const hasActiveColumn = medicationColumns.some(col => col.name === 'active');
+
+      if (hasActiveColumn) {
+        await db.execAsync(`
+          CREATE INDEX IF NOT EXISTS idx_medications_active_type
+          ON medications(active, type) WHERE active = 1;
+        `);
+      }
+
+      // Medication doses by medication and timestamp (for dose history)
+      await db.execAsync(`
+        CREATE INDEX IF NOT EXISTS idx_medication_doses_med_time
+        ON medication_doses(medication_id, timestamp DESC);
+      `);
+
+      // Incomplete medication reminders (for notification queries)
+      // Check if completed column exists
+      const reminderColumns = await db.getAllAsync<{ name: string }>(
+        "PRAGMA table_info(medication_reminders)"
+      );
+      const hasCompletedColumn = reminderColumns.some(col => col.name === 'completed');
+
+      if (hasCompletedColumn) {
+        await db.execAsync(`
+          CREATE INDEX IF NOT EXISTS idx_reminders_incomplete
+          ON medication_reminders(medication_id, scheduled_time)
+          WHERE completed = 0;
+        `);
+      }
+
+      // Intensity readings by timestamp for episode timeline
+      await db.execAsync(`
+        CREATE INDEX IF NOT EXISTS idx_intensity_readings_time
+        ON intensity_readings(episode_id, timestamp);
+      `);
+
+      // Daily status by date and status for calendar views
+      // Check if daily_status_logs table exists
+      const tables = await db.getAllAsync<{ name: string }>(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='daily_status_logs'"
+      );
+
+      if (tables.length > 0) {
+        await db.execAsync(`
+          CREATE INDEX IF NOT EXISTS idx_daily_status_date_status
+          ON daily_status_logs(date, status);
+        `);
+      }
+
+      logger.log('Added composite indexes for improved query performance');
+    },
+    down: async (db: SQLite.SQLiteDatabase) => {
+      // Remove composite indexes in reverse order
+      try {
+        await db.execAsync('DROP INDEX IF EXISTS idx_daily_status_date_status;');
+        await db.execAsync('DROP INDEX IF EXISTS idx_intensity_readings_time;');
+        await db.execAsync('DROP INDEX IF EXISTS idx_reminders_incomplete;');
+        await db.execAsync('DROP INDEX IF EXISTS idx_medication_doses_med_time;');
+        await db.execAsync('DROP INDEX IF EXISTS idx_medications_active_type;');
+        await db.execAsync('DROP INDEX IF EXISTS idx_episodes_date_range;');
+
+        logger.log('Rolled back migration 9: Removed composite indexes');
+      } catch (error) {
+        throw new Error(`Rollback of migration 9 failed: ${(error as Error).message}`);
+      }
+    },
+  },
 ];
 
 class MigrationRunner {
