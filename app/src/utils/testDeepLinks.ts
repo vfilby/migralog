@@ -218,6 +218,25 @@ async function handleTestDeepLink(event: { url: string }) {
         }
         break;
 
+      case '/trigger-error':
+        {
+          logger.log('[TestDeepLinks] ✅ Authorized: Triggering test error');
+          // Import medication store to trigger an error
+          const { useMedicationStore } = await import('../store/medicationStore');
+          try {
+            // Try to log a dose with an invalid medication ID
+            // This will violate foreign key constraint and show error toast
+            await useMedicationStore.getState().logDose({
+              medicationId: 'non-existent-medication-id',
+              timestamp: Date.now(),
+              amount: 1,
+            });
+          } catch (error) {
+            logger.log('[TestDeepLinks] ✅ Error triggered successfully (expected):', error);
+          }
+        }
+        break;
+
       default:
         logger.warn('[TestDeepLinks] Unknown test path:', path);
     }

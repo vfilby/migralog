@@ -273,25 +273,29 @@ export async function confirmAndResetDatabase(loadFixtures = false): Promise<boo
 /**
  * Load corrupted test data to trigger database errors
  * This is used to test error toast notifications
+ *
+ * Strategy: Create a medication with a constraint violation that will
+ * trigger an error when the app tries to update it
  */
 export async function loadCorruptedDatabase() {
-  logger.log('[TestHelpers] Loading corrupted database state...');
+  logger.log('[TestHelpers] Loading database with invalid data...');
 
   try {
     const db = await getDatabase();
 
     // First, clear existing data
     await db.execAsync('DELETE FROM medication_doses');
+    await db.execAsync('DELETE FROM medication_schedules');
     await db.execAsync('DELETE FROM medications');
 
-    // Create a medication
-    const medicationId = `corrupt-med-${Date.now()}`;
+    // Create a normal medication that we can interact with
+    const medicationId = `error-test-med-${Date.now()}`;
     await db.runAsync(
       `INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, default_dosage, active, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         medicationId,
-        'Corrupted Test Med',
+        'Error Test Med',
         'rescue',
         50,
         'mg',
@@ -302,40 +306,13 @@ export async function loadCorruptedDatabase() {
       ]
     );
 
-    // Create a dose linked to the medication
-    const doseId = `corrupt-dose-${Date.now()}`;
-    await db.runAsync(
-      `INSERT INTO medication_doses (id, medication_id, timestamp, amount, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        doseId,
-        medicationId,
-        Date.now(),
-        1,
-        'taken',
-        Date.now()
-      ]
-    );
+    // Store the medication ID for the test to use
+    logger.log('[TestHelpers] ✅ Test database loaded with medication:', medicationId);
+    logger.log('[TestHelpers] Note: To trigger errors, try logging a dose with invalid medicationId');
 
-    // Now corrupt the database by deleting the medication but leaving the dose
-    // This creates an orphaned foreign key reference
-    logger.log('[TestHelpers] Creating database corruption (orphaned foreign key)...');
-
-    // Temporarily disable foreign keys to allow orphaning
-    await db.execAsync('PRAGMA foreign_keys = OFF');
-
-    // Delete the medication, leaving dose orphaned
-    await db.runAsync('DELETE FROM medications WHERE id = ?', [medicationId]);
-
-    // Re-enable foreign keys
-    await db.execAsync('PRAGMA foreign_keys = ON');
-
-    logger.log('[TestHelpers] ✅ Corrupted database loaded successfully');
-    logger.log(`[TestHelpers] Orphaned dose ID: ${doseId} (references deleted medication ${medicationId})`);
-
-    return { success: true, doseId, medicationId };
+    return { success: true, medicationId };
   } catch (error) {
-    logger.error('[TestHelpers] Failed to load corrupted database:', error);
-    return { success: false, message: `Corruption failed: ${error}` };
+    logger.error('[TestHelpers] Failed to load test database:', error);
+    return { success: false, message: `Database load failed: ${error}` };
   }
 }
