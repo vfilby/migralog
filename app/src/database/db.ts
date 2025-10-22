@@ -31,6 +31,23 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
       db = await SQLite.openDatabaseAsync('migralog.db');
       logger.log('[DB] Database opened successfully');
 
+    // Enable foreign key constraints (must be done before any other operations)
+    // SQLite has foreign keys disabled by default
+    try {
+      logger.log('[DB] Enabling foreign key constraints...');
+      await db.execAsync('PRAGMA foreign_keys = ON;');
+      logger.log('[DB] Foreign key constraints enabled');
+    } catch (error) {
+      logger.error('[DB] FAILED to enable foreign keys:', error);
+      await errorLogger.log(
+        'database',
+        'Failed to enable foreign key constraints',
+        error as Error,
+        { operation: 'enableForeignKeys' }
+      ).catch(e => logger.error('[DB] Failed to log error:', e));
+      throw error;
+    }
+
     // Initialize database schema (creates tables if they don't exist)
     try {
       logger.log('[DB] Creating tables...');

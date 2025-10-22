@@ -223,17 +223,17 @@ async function handleTestDeepLink(event: { url: string }) {
           logger.log('[TestDeepLinks] ✅ Authorized: Triggering test error');
           // Import medication store to trigger an error
           const { useMedicationStore } = await import('../store/medicationStore');
-          try {
-            // Try to log a dose with an invalid medication ID
-            // This will violate foreign key constraint and show error toast
-            await useMedicationStore.getState().logDose({
-              medicationId: 'non-existent-medication-id',
-              timestamp: Date.now(),
-              amount: 1,
-            });
-          } catch (error) {
-            logger.log('[TestDeepLinks] ✅ Error triggered successfully (expected):', error);
-          }
+
+          // Try to log a dose with an invalid medication ID
+          // This will violate foreign key constraint and show error toast
+          // Don't catch the error here - let it propagate so the toast shows
+          await useMedicationStore.getState().logDose({
+            medicationId: 'non-existent-medication-id',
+            timestamp: Date.now(),
+            amount: 1,
+          });
+
+          logger.log('[TestDeepLinks] Dose logged (this should not appear if error occurred)');
         }
         break;
 

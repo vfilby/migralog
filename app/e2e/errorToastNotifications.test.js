@@ -1,4 +1,4 @@
-const { resetDatabase, waitForAnimation, loadCorruptedDatabase } = require('./helpers');
+const { resetDatabase, waitForAnimation } = require('./helpers');
 
 /**
  * Error Toast Notifications E2E Test

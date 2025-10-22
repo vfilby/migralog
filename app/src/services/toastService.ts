@@ -9,6 +9,8 @@ export const toastService = {
    * Show an error toast notification
    */
   error(message: string, options?: { title?: string; duration?: number }) {
+    // eslint-disable-next-line no-console
+    console.log('[ToastService] Showing error toast:', message);
     Toast.show({
       type: 'error',
       text1: options?.title || 'Error',

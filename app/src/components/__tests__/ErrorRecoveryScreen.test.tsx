@@ -203,9 +203,9 @@ describe('ErrorRecoveryScreen', () => {
       const errorWithoutStack = new Error('Test error');
       delete errorWithoutStack.stack;
 
-      const { getByText, queryByText } = render(
+      const { getByText } = render(
         <ErrorRecoveryScreen error={errorWithoutStack} onReset={mockOnReset} />,
-        
+
       );
 
       expect(getByText('Error Details (Dev Mode):')).toBeTruthy();
