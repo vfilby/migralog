@@ -6,6 +6,17 @@ import { episodeRepository } from '../database/episodeRepository';
 import { errorLogger } from '../services/errorLogger';
 import { notificationService } from '../services/notificationService';
 import { toastService } from '../services/toastService';
+import { isToday, isBefore, addMinutes } from 'date-fns';
+
+export interface TodaysMedication {
+  medication: Medication;
+  schedule: MedicationSchedule;
+  doseTime: Date;
+  taken: boolean;
+  takenAt?: Date;
+  skipped: boolean;
+  doseId?: string; // ID of the dose record if it was logged
+}
 
 interface MedicationState {
   medications: Medication[];
@@ -28,6 +39,9 @@ interface MedicationState {
   logDose: (dose: Omit<MedicationDose, 'id' | 'createdAt'>) => Promise<MedicationDose>;
   updateDose: (id: string, updates: Partial<MedicationDose>) => Promise<void>;
   deleteDose: (id: string) => Promise<void>;
+
+  // Selectors (computed properties)
+  getTodaysMedications: () => TodaysMedication[];
 }
 
 export const useMedicationStore = create<MedicationState>((set, get) => ({
@@ -324,5 +338,62 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       set({ error: (error as Error).message });
       throw error;
     }
+  },
+
+  // Selectors (computed properties from current state)
+  getTodaysMedications: () => {
+    const { preventativeMedications, schedules, doses } = get();
+    const todayMeds: TodaysMedication[] = [];
+    const now = new Date();
+
+    for (const med of preventativeMedications) {
+      if (med.scheduleFrequency !== 'daily') {
+        continue;
+      }
+
+      // Get schedules for this medication
+      const medSchedules = schedules.filter(s => s.medicationId === med.id);
+      // Get doses for this medication
+      const medDoses = doses.filter(d => d.medicationId === med.id);
+
+      for (const schedule of medSchedules) {
+        // Parse schedule time (HH:mm format)
+        const [hours, minutes] = schedule.time.split(':').map(Number);
+        const doseTime = new Date();
+        doseTime.setHours(hours, minutes, 0, 0);
+
+        // Find the most recent dose logged today
+        const todaysDoses = medDoses.filter(dose => {
+          const doseDate = new Date(dose.timestamp);
+          return isToday(doseDate);
+        });
+
+        // Sort by timestamp descending and take the most recent one
+        const latestDose = todaysDoses.length > 0
+          ? todaysDoses.sort((a, b) => b.timestamp - a.timestamp)[0]
+          : undefined;
+
+        // Show if it's upcoming (within next 3 hours), missed (past), or taken/skipped
+        const threeHoursFromNow = addMinutes(now, 180);
+        const shouldShow = isBefore(doseTime, threeHoursFromNow) || latestDose;
+
+        if (shouldShow) {
+          todayMeds.push({
+            medication: med,
+            schedule,
+            doseTime,
+            taken: latestDose?.status === 'taken',
+            takenAt: latestDose?.status === 'taken' ? new Date(latestDose.timestamp) : undefined,
+            skipped: latestDose?.status === 'skipped',
+            doseId: latestDose?.id,
+          });
+        }
+      }
+    }
+
+    // Sort by time
+    todayMeds.sort((a, b) => a.doseTime.getTime() - b.doseTime.getTime());
+
+    return todayMeds;
   },
 }));

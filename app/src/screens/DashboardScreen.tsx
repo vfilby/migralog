@@ -1,17 +1,16 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { logger } from '../utils/logger';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useEpisodeStore } from '../store/episodeStore';
-import { useMedicationStore } from '../store/medicationStore';
-import { format, isToday, isBefore, addMinutes } from 'date-fns';
+import { useMedicationStore, TodaysMedication } from '../store/medicationStore';
+import { format } from 'date-fns';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import EpisodeCard from '../components/EpisodeCard';
 import DailyStatusWidget from '../components/DailyStatusWidget';
 import { useTheme, ThemeColors } from '../theme';
-import { Medication, MedicationSchedule } from '../models/types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -194,16 +193,6 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   },
 });
 
-interface TodaysMedication {
-  medication: Medication;
-  schedule: MedicationSchedule;
-  doseTime: Date;
-  taken: boolean;
-  takenAt?: Date;
-  skipped: boolean;
-  doseId?: string; // ID of the dose record if it was logged
-}
-
 export default function DashboardScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { theme } = useTheme();
@@ -214,74 +203,11 @@ export default function DashboardScreen() {
     loadSchedules,
     loadRecentDoses,
     logDose,
-    deleteDose
+    deleteDose,
   } = useMedicationStore();
-  const [todaysMedications, setTodaysMedications] = useState<TodaysMedication[]>([]);
 
-  const loadTodaysMedications = async () => {
-    try {
-      // Read directly from store to get latest values (not from component closure)
-      const storeState = useMedicationStore.getState();
-      const { preventativeMedications: prevMeds, schedules: storeSchedules, doses: storeDoses } = storeState;
-
-      const todayMeds: TodaysMedication[] = [];
-      const now = new Date();
-
-      for (const med of prevMeds) {
-        if (med.scheduleFrequency !== 'daily') {
-          continue;
-        }
-
-        // Get schedules from store state
-        const medSchedules = storeSchedules.filter(s => s.medicationId === med.id);
-        // Get doses from store state
-        const medDoses = storeDoses.filter(d => d.medicationId === med.id);
-
-        for (const schedule of medSchedules) {
-          // Parse schedule time (HH:mm format)
-          const [hours, minutes] = schedule.time.split(':').map(Number);
-          const doseTime = new Date();
-          doseTime.setHours(hours, minutes, 0, 0);
-
-          // Check if this dose was taken or skipped today
-          // Find the most recent dose logged today (regardless of time)
-          const todaysDoses = medDoses.filter(dose => {
-            const doseDate = new Date(dose.timestamp);
-            return isToday(doseDate);
-          });
-
-          // Sort by timestamp descending and take the most recent one
-          const latestDose = todaysDoses.length > 0
-            ? todaysDoses.sort((a, b) => b.timestamp - a.timestamp)[0]
-            : undefined;
-
-          // Show if it's upcoming (within next 3 hours), missed (past), or taken/skipped
-          const threeHoursFromNow = addMinutes(now, 180);
-          const shouldShow = isBefore(doseTime, threeHoursFromNow) || latestDose;
-
-          if (shouldShow) {
-            todayMeds.push({
-              medication: med,
-              schedule,
-              doseTime,
-              taken: latestDose?.status === 'taken',
-              takenAt: latestDose?.status === 'taken' ? new Date(latestDose.timestamp) : undefined,
-              skipped: latestDose?.status === 'skipped',
-              doseId: latestDose?.id,
-            });
-          }
-        }
-      }
-
-      // Sort by time
-      todayMeds.sort((a, b) => a.doseTime.getTime() - b.doseTime.getTime());
-
-      // Set today's medications (no need to preserve skipped state - it's now in DB)
-      setTodaysMedications(todayMeds);
-    } catch (error) {
-      logger.error('Failed to load todays medications:', error);
-    }
-  };
+  // Get today's medications from store using selector (computed from store state)
+  const todaysMedications = useMedicationStore(state => state.getTodaysMedications());
 
   // Load data when screen comes into focus (handles both tab navigation AND modal dismissal)
   useFocusEffect(
@@ -295,13 +221,11 @@ export default function DashboardScreen() {
         ]);
 
         // THEN load schedules and doses (they depend on medications being loaded)
+        // Today's medications are computed from store state, so no separate load needed
         await Promise.all([
           loadSchedules(),
           loadRecentDoses(1),
         ]);
-
-        // FINALLY calculate today's medications after all data is loaded
-        await loadTodaysMedications();
       };
       loadData();
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -312,22 +236,15 @@ export default function DashboardScreen() {
     try {
       const now = Date.now();
 
-      // Save to database first to get the ID
-      const dose = await logDose({
+      // Save to database - this will update the store's doses array
+      await logDose({
         medicationId: item.medication.id,
         timestamp: now,
         amount: item.schedule.dosage,
         episodeId: currentEpisode?.id,
       });
 
-      // Then update UI with the dose ID
-      setTodaysMedications(prev =>
-        prev.map(med =>
-          med.medication.id === item.medication.id && med.schedule.id === item.schedule.id
-            ? { ...med, taken: true, takenAt: new Date(now), doseId: dose.id }
-            : med
-        )
-      );
+      // UI will automatically update via the store selector
     } catch (error) {
       logger.error('Failed to log medication:', error);
       Alert.alert('Error', 'Failed to log medication');
@@ -339,7 +256,7 @@ export default function DashboardScreen() {
       const now = Date.now();
 
       // Save skip to database with status 'skipped' and amount 0
-      const dose = await logDose({
+      await logDose({
         medicationId: item.medication.id,
         timestamp: now,
         amount: 0, // 0 amount indicates skipped
@@ -347,14 +264,7 @@ export default function DashboardScreen() {
         episodeId: currentEpisode?.id,
       });
 
-      // Update UI with the dose ID
-      setTodaysMedications(prev =>
-        prev.map(med =>
-          med.medication.id === item.medication.id && med.schedule.id === item.schedule.id
-            ? { ...med, skipped: true, doseId: dose.id }
-            : med
-        )
-      );
+      // UI will automatically update via the store selector
     } catch (error) {
       logger.error('Failed to skip medication:', error);
       Alert.alert('Error', 'Failed to skip medication');
@@ -363,24 +273,15 @@ export default function DashboardScreen() {
 
   const handleUndoAction = async (item: TodaysMedication) => {
     try {
-      // Optimistically update UI immediately
-      setTodaysMedications(prev =>
-        prev.map(med =>
-          med.medication.id === item.medication.id && med.schedule.id === item.schedule.id
-            ? { ...med, taken: false, takenAt: undefined, skipped: false, doseId: undefined }
-            : med
-        )
-      );
-
-      // If it was taken, delete from database
+      // Delete from database - this will update the store's doses array
       if (item.doseId) {
         await deleteDose(item.doseId);
       }
+
+      // UI will automatically update via the store selector
     } catch (error) {
       logger.error('Failed to undo medication:', error);
       Alert.alert('Error', 'Failed to undo');
-      // Reload on error to sync with database
-      loadTodaysMedications();
     }
   };
 
