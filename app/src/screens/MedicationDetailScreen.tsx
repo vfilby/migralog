@@ -157,9 +157,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
         notes: editNotes.trim() || undefined,
         timestamp: editTimestamp,
       });
-      // Show toast notification (TODO: Use store.updateDose() instead)
-      const medicationName = medication?.name || 'Medication';
-      toastService.success(`${medicationName} logged successfully`);
+      // Success is evident from UI update (TODO: Use store.updateDose() instead)
       setEditModalVisible(false);
       await loadMedicationData(); // Reload to update the list
     } catch (error) {

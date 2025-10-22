@@ -77,9 +77,6 @@ export const useDailyStatusStore = create<DailyStatusState>((set, get) => ({
 
       set({ dailyStatuses: updatedStatuses, loading: false });
 
-      // Show success toast
-      toastService.success('Daily status logged');
-
       return newLog;
     } catch (error) {
       await errorLogger.log('database', 'Failed to log day status', error as Error, {

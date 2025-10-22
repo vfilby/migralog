@@ -75,9 +75,6 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
         loading: false
       });
 
-      // Show success toast
-      toastService.success('Episode started');
-
       return newEpisode;
     } catch (error) {
       await errorLogger.log('database', 'Failed to start episode', error as Error, {
@@ -135,9 +132,6 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
         episodes: updatedEpisodes,
         loading: false
       });
-
-      // Show success toast
-      toastService.success('Episode ended');
     } catch (error) {
       set({ error: (error as Error).message, loading: false });
 

@@ -80,9 +80,6 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
         loading: false
       });
 
-      // Show success toast
-      toastService.success(`${medication.name} added successfully`);
-
       return newMedication;
     } catch (error) {
       await errorLogger.log('database', 'Failed to add medication', error as Error, {
@@ -154,11 +151,6 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       const doses = [newDose, ...get().doses];
       set({ doses, loading: false });
 
-      // Show success toast
-      const medication = get().medications.find(m => m.id === dose.medicationId);
-      const medicationName = medication?.name || 'Medication';
-      toastService.success(`${medicationName} logged successfully`);
-
       return newDose;
     } catch (error) {
       await errorLogger.log('database', 'Failed to log medication dose', error as Error, {
@@ -191,9 +183,6 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       // Update doses in state
       const doses = get().doses.filter(d => d.id !== id);
       set({ doses });
-
-      // Show success toast
-      toastService.success('Medication dose deleted');
     } catch (error) {
       await errorLogger.log('database', 'Failed to delete medication dose', error as Error, {
         operation: 'deleteDose',
