@@ -1,6 +1,6 @@
 // Database schema and initialization
 
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 export const createTables = `
   -- Episodes table
@@ -133,4 +133,12 @@ export const createTables = `
   CREATE INDEX IF NOT EXISTS idx_medication_reminders_scheduled ON medication_reminders(scheduled_time);
   CREATE INDEX IF NOT EXISTS idx_daily_status_date ON daily_status_logs(date);
   CREATE INDEX IF NOT EXISTS idx_daily_status_status ON daily_status_logs(status);
+
+  -- Composite indexes for common query patterns (added in v9)
+  CREATE INDEX IF NOT EXISTS idx_episodes_date_range ON episodes(start_time, end_time);
+  CREATE INDEX IF NOT EXISTS idx_medications_active_type ON medications(active, type) WHERE active = 1;
+  CREATE INDEX IF NOT EXISTS idx_medication_doses_med_time ON medication_doses(medication_id, timestamp DESC);
+  CREATE INDEX IF NOT EXISTS idx_reminders_incomplete ON medication_reminders(medication_id, scheduled_time) WHERE completed = 0;
+  CREATE INDEX IF NOT EXISTS idx_intensity_readings_time ON intensity_readings(episode_id, timestamp);
+  CREATE INDEX IF NOT EXISTS idx_daily_status_date_status ON daily_status_logs(date, status);
 `;
