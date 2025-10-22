@@ -94,11 +94,11 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
         amount: medication.defaultDosage || 1,
         episodeId: currentEpisode?.id,
       });
-      Alert.alert('Success', 'Medication logged successfully');
+      // Toast notification shown by store
       await loadMedicationData(); // Reload to show in recent activity
     } catch (error) {
       logger.error('Failed to log medication:', error);
-      Alert.alert('Error', 'Failed to log medication');
+      // Error toast shown by store
     }
   };
 
@@ -156,7 +156,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
         notes: editNotes.trim() || undefined,
         timestamp: editTimestamp,
       });
-      Alert.alert('Success', 'Dose updated successfully');
+      // TODO: Use store.updateDose() to get toast notification
       setEditModalVisible(false);
       await loadMedicationData(); // Reload to update the list
     } catch (error) {
@@ -184,12 +184,11 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
           style: 'destructive',
           onPress: async () => {
             try {
-              await medicationDoseRepository.delete(dose.id);
-              Alert.alert('Success', 'Dose deleted successfully');
+              await deleteDose(dose.id); // Use store method which shows toast
               await loadMedicationData(); // Reload to update the list
             } catch (error) {
               logger.error('Failed to delete dose:', error);
-              Alert.alert('Error', 'Failed to delete dose');
+              // Error toast shown by store
             }
           },
         },

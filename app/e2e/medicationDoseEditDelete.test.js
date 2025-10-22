@@ -66,16 +66,15 @@ describe('Medication Dose Edit/Delete', () => {
     await element(by.text('Log Dose Now')).tap();
     await waitForAnimation(1000);
 
-    // Should see success alert
-    await waitFor(element(by.text('Success')))
+    // Should see success toast with medication name
+    await waitFor(element(by.text('Test Topiramate logged successfully')))
       .toBeVisible()
       .withTimeout(5000);
 
     console.log('Dose logged successfully');
 
-    // Dismiss alert
-    await element(by.text('OK')).tap();
-    await waitForAnimation(1000);
+    // Wait for toast to auto-dismiss
+    await waitForAnimation(5000);
 
     // ======================
     // Phase 3: Verify Dose Appears in Recent Activity
@@ -134,15 +133,14 @@ describe('Medication Dose Edit/Delete', () => {
     await element(by.text('Delete')).tap();
 
     // Should see success message
-    await waitFor(element(by.text('Success')))
+    await waitFor(element(by.text('Medication dose deleted')))
       .toBeVisible()
       .withTimeout(5000);
 
     console.log('✅ Dose deleted successfully');
 
-    // Dismiss success alert
-    await element(by.text('OK')).tap();
-    await waitForAnimation(1000);
+    // Wait for toast to auto-dismiss
+    await waitForAnimation(5000);
 
     // ======================
     // Phase 6: Verify Dose is Removed
@@ -186,12 +184,11 @@ describe('Medication Dose Edit/Delete', () => {
     await element(by.text('Log Dose Now')).tap();
     await waitForAnimation(1000);
 
-    // Dismiss success alert
-    await waitFor(element(by.text('Success')))
+    // Wait for success toast
+    await waitFor(element(by.text('Test Topiramate logged successfully')))
       .toBeVisible()
       .withTimeout(5000);
-    await element(by.text('OK')).tap();
-    await waitForAnimation(1000);
+    await waitForAnimation(5000);
 
     console.log('Dose logged - should show 1 × 50mg');
 
@@ -244,15 +241,14 @@ describe('Medication Dose Edit/Delete', () => {
     console.log('Saving changes');
     await element(by.text('Save')).tap();
 
-    // Should see success alert
-    await waitFor(element(by.text('Success')))
+    // Should see success toast with medication name
+    await waitFor(element(by.text('Test Topiramate logged successfully')))
       .toBeVisible()
       .withTimeout(5000);
 
     console.log('✅ Dose updated successfully');
 
-    await element(by.text('OK')).tap();
-    await waitForAnimation(1000);
+    await waitForAnimation(5000);
 
     // ======================
     // Phase 5: Verify Changes Persisted in UI
@@ -309,11 +305,10 @@ describe('Medication Dose Edit/Delete', () => {
     await element(by.text('Log Dose Now')).tap();
     await waitForAnimation(1000);
 
-    await waitFor(element(by.text('Success')))
+    await waitFor(element(by.text('Test Topiramate logged successfully')))
       .toBeVisible()
       .withTimeout(5000);
-    await element(by.text('OK')).tap();
-    await waitForAnimation(1000);
+    await waitForAnimation(5000);
 
     // ======================
     // Open Edit Modal
@@ -381,11 +376,10 @@ describe('Medication Dose Edit/Delete', () => {
     await element(by.text('Log Dose Now')).tap();
     await waitForAnimation(1000);
 
-    await waitFor(element(by.text('Success')))
+    await waitFor(element(by.text('Test Topiramate logged successfully')))
       .toBeVisible()
       .withTimeout(5000);
-    await element(by.text('OK')).tap();
-    await waitForAnimation(1000);
+    await waitForAnimation(5000);
 
     // ======================
     // Open Delete Confirmation
