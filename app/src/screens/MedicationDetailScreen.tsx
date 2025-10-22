@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { logger } from '../utils/logger';
+import { toastService } from '../services/toastService';
 import {
   View,
   Text,
@@ -28,7 +29,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'MedicationDetail'>;
 export default function MedicationDetailScreen({ route, navigation }: Props) {
   const { medicationId } = route.params;
   const { theme } = useTheme();
-  const { logDose } = useMedicationStore();
+  const { logDose, deleteDose } = useMedicationStore();
   const { currentEpisode } = useEpisodeStore();
   const [medication, setMedication] = useState<Medication | null>(null);
   const [schedules, setSchedules] = useState<MedicationSchedule[]>([]);
@@ -156,12 +157,14 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
         notes: editNotes.trim() || undefined,
         timestamp: editTimestamp,
       });
-      // TODO: Use store.updateDose() to get toast notification
+      // Show toast notification (TODO: Use store.updateDose() instead)
+      const medicationName = medication?.name || 'Medication';
+      toastService.success(`${medicationName} logged successfully`);
       setEditModalVisible(false);
       await loadMedicationData(); // Reload to update the list
     } catch (error) {
       logger.error('Failed to update dose:', error);
-      Alert.alert('Error', 'Failed to update dose');
+      toastService.error('Failed to update dose');
     }
   };
 
