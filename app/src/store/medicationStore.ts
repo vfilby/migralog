@@ -6,7 +6,7 @@ import { episodeRepository } from '../database/episodeRepository';
 import { errorLogger } from '../services/errorLogger';
 import { notificationService } from '../services/notificationService';
 import { toastService } from '../services/toastService';
-import { isToday, isBefore, addMinutes } from 'date-fns';
+import { isToday } from 'date-fns';
 
 export interface TodaysMedication {
   medication: Medication;
@@ -344,7 +344,6 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
   getTodaysMedications: () => {
     const { preventativeMedications, schedules, doses } = get();
     const todayMeds: TodaysMedication[] = [];
-    const now = new Date();
 
     for (const med of preventativeMedications) {
       if (med.scheduleFrequency !== 'daily') {
@@ -373,21 +372,16 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
           ? todaysDoses.sort((a, b) => b.timestamp - a.timestamp)[0]
           : undefined;
 
-        // Show if it's upcoming (within next 3 hours), missed (past), or taken/skipped
-        const threeHoursFromNow = addMinutes(now, 180);
-        const shouldShow = isBefore(doseTime, threeHoursFromNow) || latestDose;
-
-        if (shouldShow) {
-          todayMeds.push({
-            medication: med,
-            schedule,
-            doseTime,
-            taken: latestDose?.status === 'taken',
-            takenAt: latestDose?.status === 'taken' ? new Date(latestDose.timestamp) : undefined,
-            skipped: latestDose?.status === 'skipped',
-            doseId: latestDose?.id,
-          });
-        }
+        // Show all scheduled medications for today
+        todayMeds.push({
+          medication: med,
+          schedule,
+          doseTime,
+          taken: latestDose?.status === 'taken',
+          takenAt: latestDose?.status === 'taken' ? new Date(latestDose.timestamp) : undefined,
+          skipped: latestDose?.status === 'skipped',
+          doseId: latestDose?.id,
+        });
       }
     }
 
