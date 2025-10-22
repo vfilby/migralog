@@ -94,6 +94,7 @@ export function initializeTestDeepLinks() {
  * - migraine-tracker://test/reset?token=XXX&fixtures=true - Reset and load fixtures (requires token)
  * - migraine-tracker://test/state?token=XXX - Log current database state (requires token)
  * - migraine-tracker://test/home?token=XXX - Navigate to home/dashboard (requires token)
+ * - migraine-tracker://test/corrupt?token=XXX - Load corrupted database for error testing (requires token)
  */
 async function handleTestDeepLink(event: { url: string }) {
   const { url } = event;
@@ -206,6 +207,33 @@ async function handleTestDeepLink(event: { url: string }) {
           } else {
             logger.warn('[TestDeepLinks] Navigation ref not available');
           }
+        }
+        break;
+
+      case '/corrupt':
+        {
+          logger.log('[TestDeepLinks] ✅ Authorized: Loading corrupted database');
+          const result = await testHelpers.loadCorruptedDatabase();
+          logger.log('[TestDeepLinks] Corrupt database result:', result);
+        }
+        break;
+
+      case '/trigger-error':
+        {
+          logger.log('[TestDeepLinks] ✅ Authorized: Triggering test error');
+          // Import medication store to trigger an error
+          const { useMedicationStore } = await import('../store/medicationStore');
+
+          // Try to log a dose with an invalid medication ID
+          // This will violate foreign key constraint and show error toast
+          // Don't catch the error here - let it propagate so the toast shows
+          await useMedicationStore.getState().logDose({
+            medicationId: 'non-existent-medication-id',
+            timestamp: Date.now(),
+            amount: 1,
+          });
+
+          logger.log('[TestDeepLinks] Dose logged (this should not appear if error occurred)');
         }
         break;
 

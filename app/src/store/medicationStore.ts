@@ -5,6 +5,7 @@ import { medicationRepository, medicationDoseRepository, medicationScheduleRepos
 import { episodeRepository } from '../database/episodeRepository';
 import { errorLogger } from '../services/errorLogger';
 import { notificationService } from '../services/notificationService';
+import { toastService } from '../services/toastService';
 
 interface MedicationState {
   medications: Medication[];
@@ -87,6 +88,10 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
         medicationType: medication.type
       });
       set({ error: (error as Error).message, loading: false });
+
+      // Show error toast
+      toastService.error('Failed to add medication');
+
       throw error;
     }
   },
@@ -154,6 +159,10 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
         episodeId: dose.episodeId
       });
       set({ error: (error as Error).message, loading: false });
+
+      // Show error toast
+      toastService.error('Failed to log medication');
+
       throw error;
     }
   },
@@ -180,6 +189,10 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
         doseId: id
       });
       set({ error: (error as Error).message });
+
+      // Show error toast
+      toastService.error('Failed to delete dose');
+
       throw error;
     }
   },

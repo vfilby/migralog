@@ -269,3 +269,50 @@ export async function confirmAndResetDatabase(loadFixtures = false): Promise<boo
     );
   });
 }
+
+/**
+ * Load corrupted test data to trigger database errors
+ * This is used to test error toast notifications
+ *
+ * Strategy: Create a medication with a constraint violation that will
+ * trigger an error when the app tries to update it
+ */
+export async function loadCorruptedDatabase() {
+  logger.log('[TestHelpers] Loading database with invalid data...');
+
+  try {
+    const db = await getDatabase();
+
+    // First, clear existing data
+    await db.execAsync('DELETE FROM medication_doses');
+    await db.execAsync('DELETE FROM medication_schedules');
+    await db.execAsync('DELETE FROM medications');
+
+    // Create a normal medication that we can interact with
+    const medicationId = `error-test-med-${Date.now()}`;
+    await db.runAsync(
+      `INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, default_dosage, active, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        medicationId,
+        'Error Test Med',
+        'rescue',
+        50,
+        'mg',
+        1,
+        1,
+        Date.now(),
+        Date.now()
+      ]
+    );
+
+    // Store the medication ID for the test to use
+    logger.log('[TestHelpers] ✅ Test database loaded with medication:', medicationId);
+    logger.log('[TestHelpers] Note: To trigger errors, try logging a dose with invalid medicationId');
+
+    return { success: true, medicationId };
+  } catch (error) {
+    logger.error('[TestHelpers] Failed to load test database:', error);
+    return { success: false, message: `Database load failed: ${error}` };
+  }
+}

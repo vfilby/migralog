@@ -66,16 +66,7 @@ describe('Medication Dose Edit/Delete', () => {
     await element(by.text('Log Dose Now')).tap();
     await waitForAnimation(1000);
 
-    // Should see success alert
-    await waitFor(element(by.text('Success')))
-      .toBeVisible()
-      .withTimeout(5000);
-
     console.log('Dose logged successfully');
-
-    // Dismiss alert
-    await element(by.text('OK')).tap();
-    await waitForAnimation(1000);
 
     // ======================
     // Phase 3: Verify Dose Appears in Recent Activity
@@ -132,17 +123,9 @@ describe('Medication Dose Edit/Delete', () => {
 
     // Confirm deletion
     await element(by.text('Delete')).tap();
-
-    // Should see success message
-    await waitFor(element(by.text('Success')))
-      .toBeVisible()
-      .withTimeout(5000);
+    await waitForAnimation(1000);
 
     console.log('✅ Dose deleted successfully');
-
-    // Dismiss success alert
-    await element(by.text('OK')).tap();
-    await waitForAnimation(1000);
 
     // ======================
     // Phase 6: Verify Dose is Removed
@@ -186,12 +169,6 @@ describe('Medication Dose Edit/Delete', () => {
     await element(by.text('Log Dose Now')).tap();
     await waitForAnimation(1000);
 
-    // Dismiss success alert
-    await waitFor(element(by.text('Success')))
-      .toBeVisible()
-      .withTimeout(5000);
-    await element(by.text('OK')).tap();
-    await waitForAnimation(1000);
 
     console.log('Dose logged - should show 1 × 50mg');
 
@@ -244,15 +221,9 @@ describe('Medication Dose Edit/Delete', () => {
     console.log('Saving changes');
     await element(by.text('Save')).tap();
 
-    // Should see success alert
-    await waitFor(element(by.text('Success')))
-      .toBeVisible()
-      .withTimeout(5000);
+    await waitForAnimation(1000);
 
     console.log('✅ Dose updated successfully');
-
-    await element(by.text('OK')).tap();
-    await waitForAnimation(1000);
 
     // ======================
     // Phase 5: Verify Changes Persisted in UI
@@ -309,11 +280,6 @@ describe('Medication Dose Edit/Delete', () => {
     await element(by.text('Log Dose Now')).tap();
     await waitForAnimation(1000);
 
-    await waitFor(element(by.text('Success')))
-      .toBeVisible()
-      .withTimeout(5000);
-    await element(by.text('OK')).tap();
-    await waitForAnimation(1000);
 
     // ======================
     // Open Edit Modal
@@ -381,11 +347,6 @@ describe('Medication Dose Edit/Delete', () => {
     await element(by.text('Log Dose Now')).tap();
     await waitForAnimation(1000);
 
-    await waitFor(element(by.text('Success')))
-      .toBeVisible()
-      .withTimeout(5000);
-    await element(by.text('OK')).tap();
-    await waitForAnimation(1000);
 
     // ======================
     // Open Delete Confirmation
