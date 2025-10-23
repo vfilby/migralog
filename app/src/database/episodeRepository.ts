@@ -466,6 +466,31 @@ export const symptomLogRepository = {
       createdAt: row.created_at,
     }));
   },
+
+  async getById(id: string, db?: SQLite.SQLiteDatabase): Promise<SymptomLog | null> {
+    const database = db || await getDatabase();
+    const result = await database.getFirstAsync<SymptomLogRow>(
+      'SELECT * FROM symptom_logs WHERE id = ?',
+      [id]
+    );
+
+    if (!result) return null;
+
+    return {
+      id: result.id,
+      episodeId: result.episode_id,
+      symptom: result.symptom as import('../models/types').Symptom,
+      onsetTime: result.onset_time,
+      resolutionTime: result.resolution_time || undefined,
+      severity: result.severity || undefined,
+      createdAt: result.created_at,
+    };
+  },
+
+  async delete(id: string, db?: SQLite.SQLiteDatabase): Promise<void> {
+    const database = db || await getDatabase();
+    await database.runAsync('DELETE FROM symptom_logs WHERE id = ?', [id]);
+  },
 };
 
 export const painLocationLogRepository = {
@@ -535,6 +560,24 @@ export const painLocationLogRepository = {
       painLocations: safeJSONParse(row.pain_locations, [], isPainLocationArray),
       createdAt: row.created_at,
     }));
+  },
+
+  async getById(id: string, db?: SQLite.SQLiteDatabase): Promise<PainLocationLog | null> {
+    const database = db || await getDatabase();
+    const result = await database.getFirstAsync<PainLocationLogRow>(
+      'SELECT * FROM pain_location_logs WHERE id = ?',
+      [id]
+    );
+
+    if (!result) return null;
+
+    return {
+      id: result.id,
+      episodeId: result.episode_id,
+      timestamp: result.timestamp,
+      painLocations: safeJSONParse(result.pain_locations, [], isPainLocationArray),
+      createdAt: result.created_at,
+    };
   },
 
   async delete(id: string, db?: SQLite.SQLiteDatabase): Promise<void> {
