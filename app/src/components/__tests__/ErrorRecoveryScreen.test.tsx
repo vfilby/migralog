@@ -175,11 +175,27 @@ describe('ErrorRecoveryScreen', () => {
     it('renders correctly with theme integration', () => {
       const { getByText } = render(
         <ErrorRecoveryScreen error={mockError} onReset={mockOnReset} />,
-        
+
       );
 
       // Component should render without throwing
       expect(getByText('Something Went Wrong')).toBeTruthy();
+    });
+
+    it('falls back to system color scheme when theme context is unavailable', () => {
+      // Mock useTheme to throw (simulating ThemeProvider not being available)
+      const mockUseTheme = require('../../theme').useTheme;
+      mockUseTheme.mockImplementationOnce(() => {
+        throw new Error('Theme context unavailable');
+      });
+
+      // Should still render successfully using system color scheme fallback
+      const { getByText } = render(
+        <ErrorRecoveryScreen error={mockError} onReset={mockOnReset} />,
+      );
+
+      expect(getByText('Something Went Wrong')).toBeTruthy();
+      expect(getByText('Try Again')).toBeTruthy();
     });
   });
 

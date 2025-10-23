@@ -441,4 +441,313 @@ describe('DashboardScreen', () => {
       });
     });
   });
+
+  // Today's Medications Computation Tests
+  describe('Todays Medications Computation', () => {
+    const now = new Date();
+    const today = now.getTime();
+
+    beforeEach(() => {
+      // Set a fixed time for consistent testing
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2025-10-22T14:00:00'));
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should compute todays medications from preventative medications with daily schedules', async () => {
+      const testMedication = {
+        id: 'med-1',
+        name: 'Morning Med',
+        type: 'preventative' as const,
+        dosageAmount: 50,
+        dosageUnit: 'mg',
+        scheduleFrequency: 'daily' as const,
+        active: true,
+        createdAt: today - 86400000,
+        updatedAt: today - 86400000,
+      };
+
+      const testSchedule = {
+        id: 'schedule-1',
+        medicationId: 'med-1',
+        time: '09:00',
+        dosage: 1,
+        enabled: true,
+        createdAt: today - 86400000,
+        updatedAt: today - 86400000,
+      };
+
+      (useMedicationStore as unknown as jest.Mock).mockImplementation((selector?: any) => {
+        const state = {
+          preventativeMedications: [testMedication],
+          rescueMedications: [],
+          schedules: [testSchedule],
+          doses: [],
+          loading: false,
+          error: null,
+          loadMedications: mockLoadMedications,
+          loadSchedules: mockLoadSchedules,
+          loadRecentDoses: mockLoadRecentDoses,
+          logDose: mockLogDose,
+          deleteDose: mockDeleteDose,
+        };
+        return selector ? selector(state) : state;
+      });
+
+      renderWithProviders(<DashboardScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Morning Med')).toBeTruthy();
+        expect(screen.getByText('9:00 AM')).toBeTruthy();
+      });
+    });
+
+    it('should show medication as taken when dose is logged today', async () => {
+      const testMedication = {
+        id: 'med-1',
+        name: 'Morning Med',
+        type: 'preventative' as const,
+        dosageAmount: 50,
+        dosageUnit: 'mg',
+        scheduleFrequency: 'daily' as const,
+        active: true,
+        createdAt: today - 86400000,
+        updatedAt: today - 86400000,
+      };
+
+      const testSchedule = {
+        id: 'schedule-1',
+        medicationId: 'med-1',
+        time: '09:00',
+        dosage: 1,
+        enabled: true,
+        createdAt: today - 86400000,
+        updatedAt: today - 86400000,
+      };
+
+      const testDose = {
+        id: 'dose-1',
+        medicationId: 'med-1',
+        timestamp: new Date('2025-10-22T09:15:00').getTime(),
+        amount: 1,
+        status: 'taken' as const,
+        createdAt: new Date('2025-10-22T09:15:00').getTime(),
+      };
+
+      (useMedicationStore as unknown as jest.Mock).mockImplementation((selector?: any) => {
+        const state = {
+          preventativeMedications: [testMedication],
+          rescueMedications: [],
+          schedules: [testSchedule],
+          doses: [testDose],
+          loading: false,
+          error: null,
+          loadMedications: mockLoadMedications,
+          loadSchedules: mockLoadSchedules,
+          loadRecentDoses: mockLoadRecentDoses,
+          logDose: mockLogDose,
+          deleteDose: mockDeleteDose,
+        };
+        return selector ? selector(state) : state;
+      });
+
+      renderWithProviders(<DashboardScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Morning Med')).toBeTruthy();
+        expect(screen.getByText(/Taken at/)).toBeTruthy();
+      });
+    });
+
+    it('should show medication as skipped when marked skipped today', async () => {
+      const testMedication = {
+        id: 'med-1',
+        name: 'Morning Med',
+        type: 'preventative' as const,
+        dosageAmount: 50,
+        dosageUnit: 'mg',
+        scheduleFrequency: 'daily' as const,
+        active: true,
+        createdAt: today - 86400000,
+        updatedAt: today - 86400000,
+      };
+
+      const testSchedule = {
+        id: 'schedule-1',
+        medicationId: 'med-1',
+        time: '09:00',
+        dosage: 1,
+        enabled: true,
+        createdAt: today - 86400000,
+        updatedAt: today - 86400000,
+      };
+
+      const testDose = {
+        id: 'dose-1',
+        medicationId: 'med-1',
+        timestamp: new Date('2025-10-22T09:15:00').getTime(),
+        amount: 0,
+        status: 'skipped' as const,
+        createdAt: new Date('2025-10-22T09:15:00').getTime(),
+      };
+
+      (useMedicationStore as unknown as jest.Mock).mockImplementation((selector?: any) => {
+        const state = {
+          preventativeMedications: [testMedication],
+          rescueMedications: [],
+          schedules: [testSchedule],
+          doses: [testDose],
+          loading: false,
+          error: null,
+          loadMedications: mockLoadMedications,
+          loadSchedules: mockLoadSchedules,
+          loadRecentDoses: mockLoadRecentDoses,
+          logDose: mockLogDose,
+          deleteDose: mockDeleteDose,
+        };
+        return selector ? selector(state) : state;
+      });
+
+      renderWithProviders(<DashboardScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Morning Med')).toBeTruthy();
+        expect(screen.getByText('Skipped')).toBeTruthy();
+      });
+    });
+
+    it('should filter out non-daily medications from todays medications', async () => {
+      const dailyMed = {
+        id: 'med-1',
+        name: 'Daily Med',
+        type: 'preventative' as const,
+        dosageAmount: 50,
+        dosageUnit: 'mg',
+        scheduleFrequency: 'daily' as const,
+        active: true,
+        createdAt: today - 86400000,
+        updatedAt: today - 86400000,
+      };
+
+      const asNeededMed = {
+        id: 'med-2',
+        name: 'As Needed Med',
+        type: 'preventative' as const,
+        dosageAmount: 100,
+        dosageUnit: 'mg',
+        scheduleFrequency: 'as-needed' as const,
+        active: true,
+        createdAt: today - 86400000,
+        updatedAt: today - 86400000,
+      };
+
+      const dailySchedule = {
+        id: 'schedule-1',
+        medicationId: 'med-1',
+        time: '09:00',
+        dosage: 1,
+        enabled: true,
+        createdAt: today - 86400000,
+        updatedAt: today - 86400000,
+      };
+
+      (useMedicationStore as unknown as jest.Mock).mockImplementation((selector?: any) => {
+        const state = {
+          preventativeMedications: [dailyMed, asNeededMed],
+          rescueMedications: [],
+          schedules: [dailySchedule],
+          doses: [],
+          loading: false,
+          error: null,
+          loadMedications: mockLoadMedications,
+          loadSchedules: mockLoadSchedules,
+          loadRecentDoses: mockLoadRecentDoses,
+          logDose: mockLogDose,
+          deleteDose: mockDeleteDose,
+        };
+        return selector ? selector(state) : state;
+      });
+
+      renderWithProviders(<DashboardScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Daily Med')).toBeTruthy();
+        expect(screen.queryByText('As Needed Med')).toBeNull();
+      });
+    });
+
+    it('should sort medications by scheduled time', async () => {
+      const morningMed = {
+        id: 'med-1',
+        name: 'Morning Med',
+        type: 'preventative' as const,
+        dosageAmount: 50,
+        dosageUnit: 'mg',
+        scheduleFrequency: 'daily' as const,
+        active: true,
+        createdAt: today - 86400000,
+        updatedAt: today - 86400000,
+      };
+
+      const eveningMed = {
+        id: 'med-2',
+        name: 'Evening Med',
+        type: 'preventative' as const,
+        dosageAmount: 100,
+        dosageUnit: 'mg',
+        scheduleFrequency: 'daily' as const,
+        active: true,
+        createdAt: today - 86400000,
+        updatedAt: today - 86400000,
+      };
+
+      const morningSchedule = {
+        id: 'schedule-1',
+        medicationId: 'med-1',
+        time: '09:00',
+        dosage: 1,
+        enabled: true,
+        createdAt: today - 86400000,
+        updatedAt: today - 86400000,
+      };
+
+      const eveningSchedule = {
+        id: 'schedule-2',
+        medicationId: 'med-2',
+        time: '21:00',
+        dosage: 1,
+        enabled: true,
+        createdAt: today - 86400000,
+        updatedAt: today - 86400000,
+      };
+
+      (useMedicationStore as unknown as jest.Mock).mockImplementation((selector?: any) => {
+        const state = {
+          preventativeMedications: [eveningMed, morningMed], // Intentionally out of order
+          rescueMedications: [],
+          schedules: [eveningSchedule, morningSchedule], // Intentionally out of order
+          doses: [],
+          loading: false,
+          error: null,
+          loadMedications: mockLoadMedications,
+          loadSchedules: mockLoadSchedules,
+          loadRecentDoses: mockLoadRecentDoses,
+          logDose: mockLogDose,
+          deleteDose: mockDeleteDose,
+        };
+        return selector ? selector(state) : state;
+      });
+
+      renderWithProviders(<DashboardScreen />);
+
+      await waitFor(() => {
+        const medicationNames = screen.getAllByText(/Med$/).map(el => el.props.children);
+        // Morning should come before Evening (9:00 AM before 9:00 PM)
+        expect(medicationNames.indexOf('Morning Med')).toBeLessThan(medicationNames.indexOf('Evening Med'));
+      });
+    });
+  });
 });
