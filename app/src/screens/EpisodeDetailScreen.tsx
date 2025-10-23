@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { logger } from '../utils/logger';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert, Platform, ActionSheetIOS } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import MapView, { Marker } from 'react-native-maps';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -462,18 +462,6 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     fontWeight: '600',
     marginTop: 4,
   },
-  deleteEventButton: {
-    marginTop: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: 'transparent',
-    alignSelf: 'flex-start',
-  },
-  deleteEventButtonText: {
-    fontSize: 14,
-    color: theme.danger,
-    fontWeight: '500',
-  },
   noteInput: {
     backgroundColor: theme.borderLight,
     borderRadius: 8,
@@ -801,6 +789,110 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     );
   };
 
+  const handleIntensityLongPress = (reading: IntensityReading) => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Edit'],
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            navigation.navigate('EditIntensityReading', { readingId: reading.id });
+          }
+        }
+      );
+    } else {
+      Alert.alert(
+        'Intensity Actions',
+        `${format(new Date(reading.timestamp), 'MMM d, yyyy h:mm a')}`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Edit', onPress: () => navigation.navigate('EditIntensityReading', { readingId: reading.id }) },
+        ]
+      );
+    }
+  };
+
+  const handleNoteLongPress = (note: EpisodeNote) => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Edit', 'Delete'],
+          destructiveButtonIndex: 2,
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            navigation.navigate('EditEpisodeNote', { noteId: note.id });
+          } else if (buttonIndex === 2) {
+            handleDeleteNote(note.id);
+          }
+        }
+      );
+    } else {
+      Alert.alert(
+        'Note Actions',
+        `${format(new Date(note.timestamp), 'MMM d, yyyy h:mm a')}`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Edit', onPress: () => navigation.navigate('EditEpisodeNote', { noteId: note.id }) },
+          { text: 'Delete', style: 'destructive', onPress: () => handleDeleteNote(note.id) },
+        ]
+      );
+    }
+  };
+
+  const handlePainLocationLongPress = (painLoc: PainLocationLog) => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Edit'],
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            Alert.alert('Coming Soon', 'Edit pain location feature coming soon!');
+          }
+        }
+      );
+    } else {
+      Alert.alert(
+        'Pain Location Actions',
+        `${format(new Date(painLoc.timestamp), 'MMM d, yyyy h:mm a')}`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Edit', onPress: () => Alert.alert('Coming Soon', 'Edit pain location feature coming soon!') },
+        ]
+      );
+    }
+  };
+
+  const handleMedicationLongPress = (dose: MedicationDoseWithDetails) => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Edit'],
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            navigation.navigate('EditMedicationDose', { doseId: dose.id });
+          }
+        }
+      );
+    } else {
+      Alert.alert(
+        'Medication Actions',
+        `${format(new Date(dose.timestamp), 'MMM d, yyyy h:mm a')}`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Edit', onPress: () => navigation.navigate('EditMedicationDose', { doseId: dose.id }) },
+        ]
+      );
+    }
+  };
+
   const renderEventContent = (event: TimelineEvent) => {
     switch (event.type) {
       case 'intensity':
@@ -808,7 +900,13 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
         // Check if this is the initial intensity (same timestamp as episode start)
         const isInitialIntensity = episode && reading.timestamp === episode.startTime;
         return (
-          <View key={event.id} style={{ marginBottom: 12 }}>
+          <TouchableOpacity
+            key={event.id}
+            style={{ marginBottom: 12 }}
+            activeOpacity={isInitialIntensity ? 1 : 0.7}
+            onLongPress={!isInitialIntensity ? () => handleIntensityLongPress(reading) : undefined}
+            delayLongPress={500}
+          >
             {/* Only show "Intensity Update" label for non-initial readings */}
             {!isInitialIntensity && (
               <Text style={styles.timelineEventTitle}>Intensity Update</Text>
@@ -827,29 +925,26 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
             <Text style={[styles.timelineIntensityValue, { color: getPainColor(reading.intensity) }]}>
               {reading.intensity}/10 - {getPainLevel(reading.intensity).label}
             </Text>
-          </View>
+          </TouchableOpacity>
         );
 
       case 'note':
         const note = event.data as EpisodeNote;
         const isEpisodeSummary = note.id === 'episode-summary';
         return (
-          <View key={event.id} style={{ marginBottom: 12 }}>
+          <TouchableOpacity
+            key={event.id}
+            style={{ marginBottom: 12 }}
+            activeOpacity={isEpisodeSummary ? 1 : 0.7}
+            onLongPress={!isEpisodeSummary ? () => handleNoteLongPress(note) : undefined}
+            delayLongPress={500}
+          >
             {/* Only show "Note" title for user-added notes, not episode summary */}
             {!isEpisodeSummary && (
               <Text style={styles.timelineEventTitle}>Note</Text>
             )}
             <Text style={styles.timelineNoteText}>{note.note}</Text>
-            {/* Only show delete button for user-added notes, not the episode summary */}
-            {!isEpisodeSummary && (
-              <TouchableOpacity
-                style={styles.deleteEventButton}
-                onPress={() => handleDeleteNote(note.id)}
-              >
-                <Text style={styles.deleteEventButtonText}>Delete</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          </TouchableOpacity>
         );
 
       case 'symptom':
@@ -866,21 +961,33 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
           return `${sideLabel} ${location.label}`;
         }).join(', ');
         return (
-          <View key={event.id} style={{ marginBottom: 12 }}>
+          <TouchableOpacity
+            key={event.id}
+            style={{ marginBottom: 12 }}
+            activeOpacity={0.7}
+            onLongPress={() => handlePainLocationLongPress(painLoc)}
+            delayLongPress={500}
+          >
             <Text style={styles.timelineEventTitle}>Pain Location Changed</Text>
             <Text style={styles.timelineEventContent}>{locationLabels}</Text>
-          </View>
+          </TouchableOpacity>
         );
 
       case 'medication':
         const dose = event.data as MedicationDoseWithDetails;
         return (
-          <View key={event.id} style={{ marginBottom: 12 }}>
+          <TouchableOpacity
+            key={event.id}
+            style={{ marginBottom: 12 }}
+            activeOpacity={0.7}
+            onLongPress={() => handleMedicationLongPress(dose)}
+            delayLongPress={500}
+          >
             <Text style={styles.timelineEventTitle}>Medication Taken</Text>
             <Text style={styles.timelineEventContent}>
               {dose.medication?.name || 'Unknown Medication'} • {dose.amount} × {dose.medication?.dosageAmount}{dose.medication?.dosageUnit}
             </Text>
-          </View>
+          </TouchableOpacity>
         );
 
       case 'end':

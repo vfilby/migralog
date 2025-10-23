@@ -27,6 +27,12 @@ describe('Medication Dose Edit/Delete', () => {
     // Phase 1: Navigate to Medications Tab
     // ======================
     console.log('Navigating to Medications tab');
+
+    // Wait for tab bar to be ready before tapping
+    await waitFor(element(by.text('Meds')))
+      .toBeVisible()
+      .withTimeout(5000);
+
     await element(by.text('Meds')).tap();
     await waitForAnimation(1000);
 

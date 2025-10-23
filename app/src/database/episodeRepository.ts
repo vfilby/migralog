@@ -300,11 +300,35 @@ export const intensityRepository = {
     return newReading;
   },
 
-  async update(id: string, intensity: number, db?: SQLite.SQLiteDatabase): Promise<void> {
+  async update(id: string, updates: Partial<Pick<IntensityReading, 'intensity' | 'timestamp'>>, db?: SQLite.SQLiteDatabase): Promise<void> {
     const database = db || await getDatabase();
+
+    const fields: string[] = [];
+    const values: (number | string)[] = [];
+
+    if (updates.intensity !== undefined) {
+      // Validate intensity value
+      const intensityResult = IntensityValueSchema.safeParse(updates.intensity);
+      if (!intensityResult.success) {
+        const errorMessage = `Invalid intensity: ${intensityResult.error.errors.map(e => e.message).join(', ')}`;
+        logger.error('[IntensityRepository] Validation failed:', errorMessage);
+        throw new Error(errorMessage);
+      }
+      fields.push('intensity = ?');
+      values.push(updates.intensity);
+    }
+    if (updates.timestamp !== undefined) {
+      fields.push('timestamp = ?');
+      values.push(updates.timestamp);
+    }
+
+    if (fields.length === 0) return;
+
+    values.push(id);
+
     await database.runAsync(
-      'UPDATE intensity_readings SET intensity = ? WHERE id = ?',
-      [intensity, id]
+      `UPDATE intensity_readings SET ${fields.join(', ')} WHERE id = ?`,
+      values
     );
   },
 
@@ -340,6 +364,32 @@ export const intensityRepository = {
       createdAt: row.created_at,
     }));
   },
+
+  async getById(id: string, db?: SQLite.SQLiteDatabase): Promise<IntensityReading | null> {
+    const database = db || await getDatabase();
+    const result = await database.getFirstAsync<IntensityReadingRow>(
+      'SELECT * FROM intensity_readings WHERE id = ?',
+      [id]
+    );
+
+    if (!result) return null;
+
+    return {
+      id: result.id,
+      episodeId: result.episode_id,
+      timestamp: result.timestamp,
+      intensity: result.intensity,
+      createdAt: result.created_at,
+    };
+  },
+
+  async delete(id: string, db?: SQLite.SQLiteDatabase): Promise<void> {
+    const database = db || await getDatabase();
+    await database.runAsync(
+      'DELETE FROM intensity_readings WHERE id = ?',
+      [id]
+    );
+  },
 };
 
 export const symptomLogRepository = {
@@ -370,21 +420,33 @@ export const symptomLogRepository = {
     return newLog;
   },
 
-  async update(id: string, updates: Partial<SymptomLog>, db?: SQLite.SQLiteDatabase): Promise<void> {
+  async update(id: string, updates: Partial<Pick<SymptomLog, 'onsetTime' | 'resolutionTime' | 'severity'>>, db?: SQLite.SQLiteDatabase): Promise<void> {
     const database = db || await getDatabase();
 
+    const fields: string[] = [];
+    const values: (number | string | null)[] = [];
+
+    if (updates.onsetTime !== undefined) {
+      fields.push('onset_time = ?');
+      values.push(updates.onsetTime);
+    }
     if (updates.resolutionTime !== undefined) {
-      await database.runAsync(
-        'UPDATE symptom_logs SET resolution_time = ? WHERE id = ?',
-        [updates.resolutionTime, id]
-      );
+      fields.push('resolution_time = ?');
+      values.push(updates.resolutionTime);
     }
     if (updates.severity !== undefined) {
-      await database.runAsync(
-        'UPDATE symptom_logs SET severity = ? WHERE id = ?',
-        [updates.severity, id]
-      );
+      fields.push('severity = ?');
+      values.push(updates.severity);
     }
+
+    if (fields.length === 0) return;
+
+    values.push(id);
+
+    await database.runAsync(
+      `UPDATE symptom_logs SET ${fields.join(', ')} WHERE id = ?`,
+      values
+    );
   },
 
   async getByEpisodeId(episodeId: string, db?: SQLite.SQLiteDatabase): Promise<SymptomLog[]> {
@@ -403,6 +465,31 @@ export const symptomLogRepository = {
       severity: row.severity || undefined,
       createdAt: row.created_at,
     }));
+  },
+
+  async getById(id: string, db?: SQLite.SQLiteDatabase): Promise<SymptomLog | null> {
+    const database = db || await getDatabase();
+    const result = await database.getFirstAsync<SymptomLogRow>(
+      'SELECT * FROM symptom_logs WHERE id = ?',
+      [id]
+    );
+
+    if (!result) return null;
+
+    return {
+      id: result.id,
+      episodeId: result.episode_id,
+      symptom: result.symptom as import('../models/types').Symptom,
+      onsetTime: result.onset_time,
+      resolutionTime: result.resolution_time || undefined,
+      severity: result.severity || undefined,
+      createdAt: result.created_at,
+    };
+  },
+
+  async delete(id: string, db?: SQLite.SQLiteDatabase): Promise<void> {
+    const database = db || await getDatabase();
+    await database.runAsync('DELETE FROM symptom_logs WHERE id = ?', [id]);
   },
 };
 
@@ -434,6 +521,31 @@ export const painLocationLogRepository = {
     return newLog;
   },
 
+  async update(id: string, updates: Partial<Pick<PainLocationLog, 'timestamp' | 'painLocations'>>, db?: SQLite.SQLiteDatabase): Promise<void> {
+    const database = db || await getDatabase();
+
+    const fields: string[] = [];
+    const values: (string | number)[] = [];
+
+    if (updates.timestamp !== undefined) {
+      fields.push('timestamp = ?');
+      values.push(updates.timestamp);
+    }
+    if (updates.painLocations !== undefined) {
+      fields.push('pain_locations = ?');
+      values.push(JSON.stringify(updates.painLocations));
+    }
+
+    if (fields.length === 0) return;
+
+    values.push(id);
+
+    await database.runAsync(
+      `UPDATE pain_location_logs SET ${fields.join(', ')} WHERE id = ?`,
+      values
+    );
+  },
+
   async getByEpisodeId(episodeId: string, db?: SQLite.SQLiteDatabase): Promise<PainLocationLog[]> {
     const database = db || await getDatabase();
     const results = await database.getAllAsync<PainLocationLogRow>(
@@ -448,6 +560,24 @@ export const painLocationLogRepository = {
       painLocations: safeJSONParse(row.pain_locations, [], isPainLocationArray),
       createdAt: row.created_at,
     }));
+  },
+
+  async getById(id: string, db?: SQLite.SQLiteDatabase): Promise<PainLocationLog | null> {
+    const database = db || await getDatabase();
+    const result = await database.getFirstAsync<PainLocationLogRow>(
+      'SELECT * FROM pain_location_logs WHERE id = ?',
+      [id]
+    );
+
+    if (!result) return null;
+
+    return {
+      id: result.id,
+      episodeId: result.episode_id,
+      timestamp: result.timestamp,
+      painLocations: safeJSONParse(result.pain_locations, [], isPainLocationArray),
+      createdAt: result.created_at,
+    };
   },
 
   async delete(id: string, db?: SQLite.SQLiteDatabase): Promise<void> {
@@ -489,6 +619,31 @@ export const episodeNoteRepository = {
     return newNote;
   },
 
+  async update(id: string, updates: Partial<Pick<EpisodeNote, 'timestamp' | 'note'>>, db?: SQLite.SQLiteDatabase): Promise<void> {
+    const database = db || await getDatabase();
+
+    const fields: string[] = [];
+    const values: (string | number)[] = [];
+
+    if (updates.timestamp !== undefined) {
+      fields.push('timestamp = ?');
+      values.push(updates.timestamp);
+    }
+    if (updates.note !== undefined) {
+      fields.push('note = ?');
+      values.push(updates.note);
+    }
+
+    if (fields.length === 0) return;
+
+    values.push(id);
+
+    await database.runAsync(
+      `UPDATE episode_notes SET ${fields.join(', ')} WHERE id = ?`,
+      values
+    );
+  },
+
   async delete(id: string, db?: SQLite.SQLiteDatabase): Promise<void> {
     const database = db || await getDatabase();
     await database.runAsync('DELETE FROM episode_notes WHERE id = ?', [id]);
@@ -522,5 +677,23 @@ export const episodeNoteRepository = {
       note: row.note,
       createdAt: row.created_at,
     }));
+  },
+
+  async getById(id: string, db?: SQLite.SQLiteDatabase): Promise<EpisodeNote | null> {
+    const database = db || await getDatabase();
+    const result = await database.getFirstAsync<EpisodeNoteRow>(
+      'SELECT * FROM episode_notes WHERE id = ?',
+      [id]
+    );
+
+    if (!result) return null;
+
+    return {
+      id: result.id,
+      episodeId: result.episode_id,
+      timestamp: result.timestamp,
+      note: result.note,
+      createdAt: result.created_at,
+    };
   },
 };

@@ -428,7 +428,7 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
         if (initialReadingId && intensity !== initialIntensity) {
           logger.log('[NewEpisode] Updating intensity reading...');
           const { intensityRepository } = await import('../database/episodeRepository');
-          await intensityRepository.update(initialReadingId, intensity);
+          await intensityRepository.update(initialReadingId, { intensity });
 
           // Recalculate peak and average intensity
           const readings = await intensityRepository.getByEpisodeId(episodeId);

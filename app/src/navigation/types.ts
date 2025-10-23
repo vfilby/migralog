@@ -12,6 +12,10 @@ export type RootStackParamList = {
   LogMedication: { medicationId?: string; episodeId?: string };
   MedicationLog: undefined;
   EditMedicationDose: { doseId: string };
+  EditIntensityReading: { readingId: string };
+  EditSymptomLog: { symptomLogId: string };
+  EditPainLocationLog: { painLocationLogId: string };
+  EditEpisodeNote: { noteId: string };
   ArchivedMedications: undefined;
   Settings: undefined;
   BackupRecovery: undefined;
