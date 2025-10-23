@@ -483,6 +483,7 @@ describe('intensityRepository', () => {
 
     mockDatabase = {
       runAsync: jest.fn().mockResolvedValue(undefined),
+      getFirstAsync: jest.fn().mockResolvedValue(null),
       getAllAsync: jest.fn().mockResolvedValue([]),
     };
 
@@ -599,6 +600,50 @@ describe('intensityRepository', () => {
       expect(result).toEqual([]);
     });
   });
+
+  describe('getById', () => {
+    it('should return intensity reading when found', async () => {
+      const mockRow = {
+        id: 'reading-123',
+        episode_id: 'episode-123',
+        timestamp: 1000,
+        intensity: 7,
+        created_at: 900,
+      };
+
+      mockDatabase.getFirstAsync.mockResolvedValueOnce(mockRow);
+
+      const result = await intensityRepository.getById('reading-123');
+
+      expect(result).not.toBeNull();
+      expect(result?.id).toBe('reading-123');
+      expect(result?.intensity).toBe(7);
+      expect(result?.timestamp).toBe(1000);
+      expect(mockDatabase.getFirstAsync).toHaveBeenCalledWith(
+        'SELECT * FROM intensity_readings WHERE id = ?',
+        ['reading-123']
+      );
+    });
+
+    it('should return null when reading not found', async () => {
+      mockDatabase.getFirstAsync.mockResolvedValueOnce(null);
+
+      const result = await intensityRepository.getById('nonexistent');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('delete', () => {
+    it('should delete intensity reading by id', async () => {
+      await intensityRepository.delete('reading-123');
+
+      expect(mockDatabase.runAsync).toHaveBeenCalledWith(
+        'DELETE FROM intensity_readings WHERE id = ?',
+        ['reading-123']
+      );
+    });
+  });
 });
 
 describe('symptomLogRepository', () => {
@@ -609,6 +654,7 @@ describe('symptomLogRepository', () => {
 
     mockDatabase = {
       runAsync: jest.fn().mockResolvedValue(undefined),
+      getFirstAsync: jest.fn().mockResolvedValue(null),
       getAllAsync: jest.fn().mockResolvedValue([]),
     };
 
@@ -698,6 +744,52 @@ describe('symptomLogRepository', () => {
       );
     });
   });
+
+  describe('getById', () => {
+    it('should return symptom log when found', async () => {
+      const mockRow = {
+        id: 'symptom-123',
+        episode_id: 'episode-123',
+        symptom: 'nausea',
+        onset_time: 1000,
+        resolution_time: 2000,
+        severity: 7,
+        created_at: 900,
+      };
+
+      mockDatabase.getFirstAsync.mockResolvedValueOnce(mockRow);
+
+      const result = await symptomLogRepository.getById('symptom-123');
+
+      expect(result).not.toBeNull();
+      expect(result?.id).toBe('symptom-123');
+      expect(result?.symptom).toBe('nausea');
+      expect(result?.severity).toBe(7);
+      expect(mockDatabase.getFirstAsync).toHaveBeenCalledWith(
+        'SELECT * FROM symptom_logs WHERE id = ?',
+        ['symptom-123']
+      );
+    });
+
+    it('should return null when symptom log not found', async () => {
+      mockDatabase.getFirstAsync.mockResolvedValueOnce(null);
+
+      const result = await symptomLogRepository.getById('nonexistent');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('delete', () => {
+    it('should delete symptom log by id', async () => {
+      await symptomLogRepository.delete('symptom-123');
+
+      expect(mockDatabase.runAsync).toHaveBeenCalledWith(
+        'DELETE FROM symptom_logs WHERE id = ?',
+        ['symptom-123']
+      );
+    });
+  });
 });
 
 describe('episodeNoteRepository', () => {
@@ -708,6 +800,7 @@ describe('episodeNoteRepository', () => {
 
     mockDatabase = {
       runAsync: jest.fn().mockResolvedValue(undefined),
+      getFirstAsync: jest.fn().mockResolvedValue(null),
       getAllAsync: jest.fn().mockResolvedValue([]),
     };
 
@@ -816,6 +909,39 @@ describe('episodeNoteRepository', () => {
       const result = await episodeNoteRepository.getByEpisodeId('episode-123');
 
       expect(result).toEqual([]);
+    });
+  });
+
+  describe('getById', () => {
+    it('should return episode note when found', async () => {
+      const mockRow = {
+        id: 'note-123',
+        episode_id: 'episode-123',
+        timestamp: 1000,
+        note: 'Test note content',
+        created_at: 900,
+      };
+
+      mockDatabase.getFirstAsync.mockResolvedValueOnce(mockRow);
+
+      const result = await episodeNoteRepository.getById('note-123');
+
+      expect(result).not.toBeNull();
+      expect(result?.id).toBe('note-123');
+      expect(result?.note).toBe('Test note content');
+      expect(result?.timestamp).toBe(1000);
+      expect(mockDatabase.getFirstAsync).toHaveBeenCalledWith(
+        'SELECT * FROM episode_notes WHERE id = ?',
+        ['note-123']
+      );
+    });
+
+    it('should return null when note not found', async () => {
+      mockDatabase.getFirstAsync.mockResolvedValueOnce(null);
+
+      const result = await episodeNoteRepository.getById('nonexistent');
+
+      expect(result).toBeNull();
     });
   });
 
