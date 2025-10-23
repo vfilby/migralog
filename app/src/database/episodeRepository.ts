@@ -635,4 +635,22 @@ export const episodeNoteRepository = {
       createdAt: row.created_at,
     }));
   },
+
+  async getById(id: string, db?: SQLite.SQLiteDatabase): Promise<EpisodeNote | null> {
+    const database = db || await getDatabase();
+    const result = await database.getFirstAsync<EpisodeNoteRow>(
+      'SELECT * FROM episode_notes WHERE id = ?',
+      [id]
+    );
+
+    if (!result) return null;
+
+    return {
+      id: result.id,
+      episodeId: result.episode_id,
+      timestamp: result.timestamp,
+      note: result.note,
+      createdAt: result.created_at,
+    };
+  },
 };

@@ -22,6 +22,7 @@ import LogMedicationScreen from '../screens/LogMedicationScreen';
 import MedicationLogScreen from '../screens/MedicationLogScreen';
 import EditMedicationDoseScreen from '../screens/EditMedicationDoseScreen';
 import EditIntensityReadingScreen from '../screens/EditIntensityReadingScreen';
+import EditEpisodeNoteScreen from '../screens/EditEpisodeNoteScreen';
 import ArchivedMedicationsScreen from '../screens/ArchivedMedicationsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import BackupRecoveryScreen from '../screens/BackupRecoveryScreen';
@@ -194,7 +195,7 @@ export default function AppNavigator() {
         />
         <Stack.Screen
           name="EditEpisodeNote"
-          component={EditMedicationDoseScreen}
+          component={EditEpisodeNoteScreen}
           options={{ headerShown: false, presentation: 'modal' }}
         />
         <Stack.Screen

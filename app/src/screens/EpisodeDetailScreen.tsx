@@ -824,7 +824,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
         },
         (buttonIndex) => {
           if (buttonIndex === 1) {
-            Alert.alert('Coming Soon', 'Edit note feature coming soon!');
+            navigation.navigate('EditEpisodeNote', { noteId: note.id });
           } else if (buttonIndex === 2) {
             handleDeleteNote(note.id);
           }
@@ -836,7 +836,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
         `${format(new Date(note.timestamp), 'MMM d, yyyy h:mm a')}`,
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Edit', onPress: () => Alert.alert('Coming Soon', 'Edit note feature coming soon!') },
+          { text: 'Edit', onPress: () => navigation.navigate('EditEpisodeNote', { noteId: note.id }) },
           { text: 'Delete', style: 'destructive', onPress: () => handleDeleteNote(note.id) },
         ]
       );
