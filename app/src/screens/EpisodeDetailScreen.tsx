@@ -462,31 +462,6 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     fontWeight: '600',
     marginTop: 4,
   },
-  eventActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
-  },
-  editEventButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: 'transparent',
-  },
-  editEventButtonText: {
-    fontSize: 14,
-    color: theme.primary,
-    fontWeight: '500',
-  },
-  deleteEventButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: 'transparent',
-  },
-  deleteEventButtonText: {
-    fontSize: 14,
-    color: theme.danger,
-    fontWeight: '500',
-  },
   noteInput: {
     backgroundColor: theme.borderLight,
     borderRadius: 8,
@@ -814,6 +789,79 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     );
   };
 
+  const handleIntensityLongPress = (reading: IntensityReading) => {
+    Alert.alert(
+      'Edit Intensity',
+      'Choose an action',
+      [
+        {
+          text: 'Edit',
+          onPress: () => Alert.alert('Coming Soon', 'Edit intensity reading feature coming soon!'),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
+  const handleNoteLongPress = (note: EpisodeNote) => {
+    Alert.alert(
+      'Edit Note',
+      'Choose an action',
+      [
+        {
+          text: 'Edit',
+          onPress: () => Alert.alert('Coming Soon', 'Edit note feature coming soon!'),
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => handleDeleteNote(note.id),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
+  const handlePainLocationLongPress = (painLoc: PainLocationLog) => {
+    Alert.alert(
+      'Edit Pain Location',
+      'Choose an action',
+      [
+        {
+          text: 'Edit',
+          onPress: () => Alert.alert('Coming Soon', 'Edit pain location feature coming soon!'),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
+  const handleMedicationLongPress = (dose: MedicationDoseWithDetails) => {
+    Alert.alert(
+      'Edit Medication',
+      'Choose an action',
+      [
+        {
+          text: 'Edit',
+          onPress: () => navigation.navigate('EditMedicationDose', { doseId: dose.id }),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
   const renderEventContent = (event: TimelineEvent) => {
     switch (event.type) {
       case 'intensity':
@@ -821,7 +869,13 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
         // Check if this is the initial intensity (same timestamp as episode start)
         const isInitialIntensity = episode && reading.timestamp === episode.startTime;
         return (
-          <View key={event.id} style={{ marginBottom: 12 }}>
+          <TouchableOpacity
+            key={event.id}
+            style={{ marginBottom: 12 }}
+            activeOpacity={isInitialIntensity ? 1 : 0.7}
+            onLongPress={!isInitialIntensity ? () => handleIntensityLongPress(reading) : undefined}
+            delayLongPress={500}
+          >
             {/* Only show "Intensity Update" label for non-initial readings */}
             {!isInitialIntensity && (
               <Text style={styles.timelineEventTitle}>Intensity Update</Text>
@@ -840,45 +894,26 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
             <Text style={[styles.timelineIntensityValue, { color: getPainColor(reading.intensity) }]}>
               {reading.intensity}/10 - {getPainLevel(reading.intensity).label}
             </Text>
-            {!isInitialIntensity && (
-              <TouchableOpacity
-                style={styles.editEventButton}
-                onPress={() => Alert.alert('Coming Soon', 'Edit intensity reading feature coming soon!')}
-              >
-                <Text style={styles.editEventButtonText}>Edit</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          </TouchableOpacity>
         );
 
       case 'note':
         const note = event.data as EpisodeNote;
         const isEpisodeSummary = note.id === 'episode-summary';
         return (
-          <View key={event.id} style={{ marginBottom: 12 }}>
+          <TouchableOpacity
+            key={event.id}
+            style={{ marginBottom: 12 }}
+            activeOpacity={isEpisodeSummary ? 1 : 0.7}
+            onLongPress={!isEpisodeSummary ? () => handleNoteLongPress(note) : undefined}
+            delayLongPress={500}
+          >
             {/* Only show "Note" title for user-added notes, not episode summary */}
             {!isEpisodeSummary && (
               <Text style={styles.timelineEventTitle}>Note</Text>
             )}
             <Text style={styles.timelineNoteText}>{note.note}</Text>
-            {/* Only show edit/delete buttons for user-added notes, not the episode summary */}
-            {!isEpisodeSummary && (
-              <View style={styles.eventActions}>
-                <TouchableOpacity
-                  style={styles.editEventButton}
-                  onPress={() => Alert.alert('Coming Soon', 'Edit note feature coming soon!')}
-                >
-                  <Text style={styles.editEventButtonText}>Edit</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.deleteEventButton}
-                  onPress={() => handleDeleteNote(note.id)}
-                >
-                  <Text style={styles.deleteEventButtonText}>Delete</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
+          </TouchableOpacity>
         );
 
       case 'symptom':
@@ -895,33 +930,33 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
           return `${sideLabel} ${location.label}`;
         }).join(', ');
         return (
-          <View key={event.id} style={{ marginBottom: 12 }}>
+          <TouchableOpacity
+            key={event.id}
+            style={{ marginBottom: 12 }}
+            activeOpacity={0.7}
+            onLongPress={() => handlePainLocationLongPress(painLoc)}
+            delayLongPress={500}
+          >
             <Text style={styles.timelineEventTitle}>Pain Location Changed</Text>
             <Text style={styles.timelineEventContent}>{locationLabels}</Text>
-            <TouchableOpacity
-              style={styles.editEventButton}
-              onPress={() => Alert.alert('Coming Soon', 'Edit pain location feature coming soon!')}
-            >
-              <Text style={styles.editEventButtonText}>Edit</Text>
-            </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         );
 
       case 'medication':
         const dose = event.data as MedicationDoseWithDetails;
         return (
-          <View key={event.id} style={{ marginBottom: 12 }}>
+          <TouchableOpacity
+            key={event.id}
+            style={{ marginBottom: 12 }}
+            activeOpacity={0.7}
+            onLongPress={() => handleMedicationLongPress(dose)}
+            delayLongPress={500}
+          >
             <Text style={styles.timelineEventTitle}>Medication Taken</Text>
             <Text style={styles.timelineEventContent}>
               {dose.medication?.name || 'Unknown Medication'} • {dose.amount} × {dose.medication?.dosageAmount}{dose.medication?.dosageUnit}
             </Text>
-            <TouchableOpacity
-              style={styles.editEventButton}
-              onPress={() => navigation.navigate('EditMedicationDose', { doseId: dose.id })}
-            >
-              <Text style={styles.editEventButtonText}>Edit</Text>
-            </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         );
 
       case 'end':
