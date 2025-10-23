@@ -5,6 +5,7 @@ import {
 } from '../../database/medicationRepository';
 import { episodeRepository } from '../../database/episodeRepository';
 import { Medication } from '../../models/types';
+import { cacheManager } from '../../utils/cacheManager';
 
 // Mock dependencies
 jest.mock('../../database/medicationRepository');
@@ -14,6 +15,9 @@ jest.mock('../../services/errorLogger');
 describe('medicationStore', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Clear cache before each test
+    cacheManager.clear();
 
     // Reset store state
     useMedicationStore.setState({

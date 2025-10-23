@@ -6,6 +6,7 @@ import { episodeRepository } from '../database/episodeRepository';
 import { errorLogger } from '../services/errorLogger';
 import { notificationService } from '../services/notificationService';
 import { toastService } from '../services/toastService';
+import { cacheManager } from '../utils/cacheManager';
 
 export interface TodaysMedication {
   medication: Medication;
@@ -50,11 +51,27 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
   error: null,
 
   loadMedications: async () => {
+    // Check cache first (5 second TTL)
+    const cached = cacheManager.get<Medication[]>('medications');
+    if (cached) {
+      const preventativeMedications = cached.filter(m => m.type === 'preventative');
+      const rescueMedications = cached.filter(m => m.type === 'rescue');
+      set({
+        medications: cached,
+        preventativeMedications,
+        rescueMedications,
+        loading: false
+      });
+      return;
+    }
+
     set({ loading: true, error: null });
     try {
       const medications = await medicationRepository.getActive();
       const preventativeMedications = medications.filter(m => m.type === 'preventative');
       const rescueMedications = medications.filter(m => m.type === 'rescue');
+
+      cacheManager.set('medications', medications);
 
       set({
         medications,
@@ -72,6 +89,8 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
 
   addMedication: async (medication) => {
     set({ loading: true, error: null });
+      // Invalidate medication cache
+      cacheManager.invalidate("medications");
     try {
       const newMedication = await medicationRepository.create(medication);
 
@@ -109,6 +128,8 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
   updateMedication: async (id, updates) => {
     try {
       await medicationRepository.update(id, updates);
+      // Invalidate medication cache
+      cacheManager.invalidate("medications");
 
       // Reload medications to ensure proper categorization, especially if type changed
       await get().loadMedications();
@@ -121,6 +142,8 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
   deleteMedication: async (id) => {
     set({ loading: true, error: null });
     try {
+      // Invalidate medication cache
+      cacheManager.invalidate("medications");
       await medicationRepository.delete(id);
 
       const medications = get().medications.filter(m => m.id !== id);

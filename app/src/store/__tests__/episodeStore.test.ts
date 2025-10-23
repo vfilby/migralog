@@ -1,6 +1,7 @@
 import { useEpisodeStore } from '../episodeStore';
 import { episodeRepository, intensityRepository, symptomLogRepository } from '../../database/episodeRepository';
 import { Episode } from '../../models/types';
+import { cacheManager } from '../../utils/cacheManager';
 
 // Mock dependencies
 jest.mock('../../database/episodeRepository');
@@ -10,6 +11,9 @@ describe('episodeStore', () => {
   beforeEach(() => {
     // Clear all mocks before each test
     jest.clearAllMocks();
+
+    // Clear cache before each test
+    cacheManager.clear();
 
     // Reset the store state
     useEpisodeStore.setState({
