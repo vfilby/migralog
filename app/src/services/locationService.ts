@@ -73,7 +73,7 @@ class LocationService {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
         accuracy: location.coords.accuracy || undefined,
-        timestamp: location.timestamp,
+        timestamp: Math.floor(location.timestamp),
       };
 
       // Cache the location
