@@ -23,6 +23,7 @@ import { format, subDays, startOfDay, endOfDay } from 'date-fns';
 import { useTheme } from '../theme';
 import { useMedicationStore } from '../store/medicationStore';
 import { useEpisodeStore } from '../store/episodeStore';
+import { formatDosageWithUnit, formatMedicationDosage } from '../utils/medicationFormatting';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MedicationDetail'>;
 
@@ -273,7 +274,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
           <View style={styles.infoRow}>
             <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Dosage:</Text>
             <Text style={[styles.infoValue, { color: theme.text }]}>
-              {medication.dosageAmount}{medication.dosageUnit}
+              {formatDosageWithUnit(medication.dosageAmount, medication.dosageUnit)}
             </Text>
           </View>
 
@@ -379,7 +380,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
                     </View>
                     <View style={styles.logItemRight}>
                       <Text style={[styles.logAmount, { color: theme.text }]}>
-                        {dose.amount} × {medication.dosageAmount}{medication.dosageUnit}
+                        {formatMedicationDosage(dose.amount, medication.dosageAmount, medication.dosageUnit)}
                       </Text>
                       {dose.notes && (
                         <Text style={[styles.logNotes, { color: theme.textSecondary }]} numberOfLines={1}>{dose.notes}</Text>

@@ -23,7 +23,7 @@ import { notificationService } from '../services/notificationService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AddMedication'>;
 
-const DOSAGE_UNITS = ['mg', 'ml', 'tablets', 'capsules', 'drops', 'puffs', 'minutes', 'other'];
+const DOSAGE_UNITS = ['mg', 'ml', 'tablets', 'capsules', 'drops', 'puffs', 'minutes', 'sessions', 'other'];
 
 const createStyles = (theme: ThemeColors) => StyleSheet.create({
   container: {

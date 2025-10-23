@@ -45,6 +45,13 @@ npx tsc --noEmit         # Run TypeScript compiler in check mode
 - Run tests with `npm run test:e2e` or specific test files
 - Test files: `episodeLifecycle.test.js`, `medicationTracking.test.js`, `dailyStatusTracking.test.js`
 
+**E2E Test Troubleshooting:**
+If E2E tests are failing or hanging:
+1. Run `npm run test:e2e:rebuild` for a full clean rebuild
+2. Restart the Expo dev server
+3. Kill all iOS simulators and restart them
+4. Note: Sometimes the log box prevents proper app restart - close it before rerunning tests
+
 **Unit/Integration Testing:**
 - Jest configured for unit and integration tests
 - Place unit tests in `__tests__` directories alongside source files
