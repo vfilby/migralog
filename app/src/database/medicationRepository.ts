@@ -325,6 +325,18 @@ export const medicationDoseRepository = {
     return results.map(this.mapRowToDose);
   },
 
+  async getById(id: string, db?: SQLite.SQLiteDatabase): Promise<MedicationDose | null> {
+    const database = db || await getDatabase();
+    const result = await database.getFirstAsync<MedicationDoseRow>(
+      'SELECT * FROM medication_doses WHERE id = ?',
+      [id]
+    );
+
+    if (!result) return null;
+
+    return this.mapRowToDose(result);
+  },
+
   mapRowToDose(row: MedicationDoseRow): MedicationDose {
     return {
       id: row.id,

@@ -517,7 +517,7 @@ describe('intensityRepository', () => {
 
   describe('update', () => {
     it('should update intensity value', async () => {
-      await intensityRepository.update('reading-123', 8);
+      await intensityRepository.update('reading-123', { intensity: 8 });
 
       expect(mockDatabase.runAsync).toHaveBeenCalledWith(
         'UPDATE intensity_readings SET intensity = ? WHERE id = ?',
@@ -659,12 +659,16 @@ describe('symptomLogRepository', () => {
     });
 
     it('should handle multiple updates', async () => {
+      const now = Date.now();
       await symptomLogRepository.update('symptom-123', {
-        resolutionTime: Date.now(),
+        resolutionTime: now,
         severity: 9,
       });
 
-      expect(mockDatabase.runAsync).toHaveBeenCalledTimes(2);
+      expect(mockDatabase.runAsync).toHaveBeenCalledWith(
+        'UPDATE symptom_logs SET resolution_time = ?, severity = ? WHERE id = ?',
+        [now, 9, 'symptom-123']
+      );
     });
   });
 
