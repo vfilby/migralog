@@ -648,7 +648,6 @@ describe('medicationStore', () => {
 
     it('should return today\'s scheduled medications', () => {
       // Set up store state with preventative medication, schedule, and doses
-      const now = new Date();
       const todayScheduleTime = '09:00';
 
       useMedicationStore.setState({
@@ -679,8 +678,6 @@ describe('medicationStore', () => {
             dosage: 1,
             enabled: true,
             notificationId: undefined,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
           },
         ],
         doses: [],
@@ -727,8 +724,6 @@ describe('medicationStore', () => {
             dosage: 1,
             enabled: true,
             notificationId: undefined,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
           },
         ],
         doses: [
