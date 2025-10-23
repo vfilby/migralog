@@ -3,7 +3,7 @@ import { logger } from '../utils/logger';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useEpisodeStore } from '../store/episodeStore';
-import { useMedicationStore, useTodaysMedications, TodaysMedication } from '../store/medicationStore';
+import { useMedicationStore, TodaysMedication } from '../store/medicationStore';
 import { format } from 'date-fns';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -206,9 +206,8 @@ export default function DashboardScreen() {
     deleteDose,
   } = useMedicationStore();
 
-  // Get today's medications using custom hook that properly memoizes the result
-  // This prevents infinite re-renders by only recomputing when dependencies change
-  const todaysMedications = useTodaysMedications();
+  // Get today's medications from store using computed selector
+  const todaysMedications = useMedicationStore(state => state.getTodaysMedications());
 
   // Load data when screen comes into focus (handles both tab navigation AND modal dismissal)
   useFocusEffect(

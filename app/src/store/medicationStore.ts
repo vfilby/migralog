@@ -7,7 +7,6 @@ import { errorLogger } from '../services/errorLogger';
 import { notificationService } from '../services/notificationService';
 import { toastService } from '../services/toastService';
 import { isToday } from 'date-fns';
-import { useRef, useEffect, useState } from 'react';
 
 export interface TodaysMedication {
   medication: Medication;
@@ -40,6 +39,9 @@ interface MedicationState {
   logDose: (dose: Omit<MedicationDose, 'id' | 'createdAt'>) => Promise<MedicationDose>;
   updateDose: (id: string, updates: Partial<MedicationDose>) => Promise<void>;
   deleteDose: (id: string) => Promise<void>;
+
+  // Computed selectors
+  getTodaysMedications: () => TodaysMedication[];
 }
 
 export const useMedicationStore = create<MedicationState>((set, get) => ({
@@ -338,6 +340,11 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
     }
   },
 
+  // Computed selector that returns today's scheduled medications
+  getTodaysMedications: () => {
+    return selectTodaysMedications(get());
+  },
+
 }));
 
 // Selector function that can be used outside the store
@@ -390,44 +397,4 @@ export const selectTodaysMedications = (state: MedicationState): TodaysMedicatio
   todayMeds.sort((a, b) => a.doseTime.getTime() - b.doseTime.getTime());
 
   return todayMeds;
-};
-
-// Custom hook that properly memoizes today's medications to prevent infinite re-renders
-// This hooks subscribes to only the specific parts of state needed for the selector
-export const useTodaysMedications = (): TodaysMedication[] => {
-  const [todaysMeds, setTodaysMeds] = useState<TodaysMedication[]>([]);
-
-  // Subscribe to the specific slices of state that the selector depends on
-  const preventativeMedications = useMedicationStore(state => state.preventativeMedications);
-  const schedules = useMedicationStore(state => state.schedules);
-  const doses = useMedicationStore(state => state.doses);
-
-  useEffect(() => {
-    // Recompute only when dependencies change
-    const result = selectTodaysMedications({
-      preventativeMedications,
-      schedules,
-      doses,
-      medications: [],
-      rescueMedications: [],
-      loading: false,
-      error: null,
-      loadMedications: async () => {},
-      addMedication: async () => ({} as Medication),
-      updateMedication: async () => {},
-      archiveMedication: async () => {},
-      unarchiveMedication: async () => {},
-      loadSchedules: async () => {},
-      addSchedule: async () => ({} as MedicationSchedule),
-      updateSchedule: async () => {},
-      deleteSchedule: async () => {},
-      loadRecentDoses: async () => {},
-      logDose: async () => ({} as MedicationDose),
-      updateDose: async () => {},
-      deleteDose: async () => {},
-    });
-    setTodaysMeds(result);
-  }, [preventativeMedications, schedules, doses]);
-
-  return todaysMeds;
 };
