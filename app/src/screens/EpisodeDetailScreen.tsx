@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { logger } from '../utils/logger';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert, Platform, ActionSheetIOS } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import MapView, { Marker } from 'react-native-maps';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -790,76 +790,107 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   };
 
   const handleIntensityLongPress = (reading: IntensityReading) => {
-    Alert.alert(
-      'Edit Intensity',
-      'Choose an action',
-      [
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
         {
-          text: 'Edit',
-          onPress: () => Alert.alert('Coming Soon', 'Edit intensity reading feature coming soon!'),
+          options: ['Cancel', 'Edit'],
+          cancelButtonIndex: 0,
         },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ]
-    );
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            Alert.alert('Coming Soon', 'Edit intensity reading feature coming soon!');
+          }
+        }
+      );
+    } else {
+      Alert.alert(
+        'Intensity Actions',
+        `${format(new Date(reading.timestamp), 'MMM d, yyyy h:mm a')}`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Edit', onPress: () => Alert.alert('Coming Soon', 'Edit intensity reading feature coming soon!') },
+        ]
+      );
+    }
   };
 
   const handleNoteLongPress = (note: EpisodeNote) => {
-    Alert.alert(
-      'Edit Note',
-      'Choose an action',
-      [
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
         {
-          text: 'Edit',
-          onPress: () => Alert.alert('Coming Soon', 'Edit note feature coming soon!'),
+          options: ['Cancel', 'Edit', 'Delete'],
+          destructiveButtonIndex: 2,
+          cancelButtonIndex: 0,
         },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => handleDeleteNote(note.id),
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ]
-    );
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            Alert.alert('Coming Soon', 'Edit note feature coming soon!');
+          } else if (buttonIndex === 2) {
+            handleDeleteNote(note.id);
+          }
+        }
+      );
+    } else {
+      Alert.alert(
+        'Note Actions',
+        `${format(new Date(note.timestamp), 'MMM d, yyyy h:mm a')}`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Edit', onPress: () => Alert.alert('Coming Soon', 'Edit note feature coming soon!') },
+          { text: 'Delete', style: 'destructive', onPress: () => handleDeleteNote(note.id) },
+        ]
+      );
+    }
   };
 
   const handlePainLocationLongPress = (painLoc: PainLocationLog) => {
-    Alert.alert(
-      'Edit Pain Location',
-      'Choose an action',
-      [
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
         {
-          text: 'Edit',
-          onPress: () => Alert.alert('Coming Soon', 'Edit pain location feature coming soon!'),
+          options: ['Cancel', 'Edit'],
+          cancelButtonIndex: 0,
         },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ]
-    );
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            Alert.alert('Coming Soon', 'Edit pain location feature coming soon!');
+          }
+        }
+      );
+    } else {
+      Alert.alert(
+        'Pain Location Actions',
+        `${format(new Date(painLoc.timestamp), 'MMM d, yyyy h:mm a')}`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Edit', onPress: () => Alert.alert('Coming Soon', 'Edit pain location feature coming soon!') },
+        ]
+      );
+    }
   };
 
   const handleMedicationLongPress = (dose: MedicationDoseWithDetails) => {
-    Alert.alert(
-      'Edit Medication',
-      'Choose an action',
-      [
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
         {
-          text: 'Edit',
-          onPress: () => navigation.navigate('EditMedicationDose', { doseId: dose.id }),
+          options: ['Cancel', 'Edit'],
+          cancelButtonIndex: 0,
         },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ]
-    );
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            navigation.navigate('EditMedicationDose', { doseId: dose.id });
+          }
+        }
+      );
+    } else {
+      Alert.alert(
+        'Medication Actions',
+        `${format(new Date(dose.timestamp), 'MMM d, yyyy h:mm a')}`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Edit', onPress: () => navigation.navigate('EditMedicationDose', { doseId: dose.id }) },
+        ]
+      );
+    }
   };
 
   const renderEventContent = (event: TimelineEvent) => {
