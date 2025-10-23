@@ -6,6 +6,7 @@ import { dailyStatusRepository } from '../database/dailyStatusRepository';
 import { errorLogger } from '../services/errorLogger';
 import { toastService } from '../services/toastService';
 import { format, eachDayOfInterval } from 'date-fns';
+import { cacheManager } from '../utils/cacheManager';
 
 interface EpisodeState {
   currentEpisode: Episode | null;
@@ -31,9 +32,17 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
   error: null,
 
   loadEpisodes: async () => {
+    // Check cache first (5 second TTL)
+    const cached = cacheManager.get<Episode[]>('episodes');
+    if (cached) {
+      set({ episodes: cached, loading: false });
+      return;
+    }
+
     set({ loading: true, error: null });
     try {
       const episodes = await episodeRepository.getAll();
+      cacheManager.set('episodes', episodes);
       set({ episodes, loading: false });
     } catch (error) {
       set({ error: (error as Error).message, loading: false });
@@ -41,8 +50,16 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
   },
 
   loadCurrentEpisode: async () => {
+    // Check cache first (5 second TTL)
+    const cached = cacheManager.get<Episode | null>('currentEpisode');
+    if (cached !== undefined) {
+      set({ currentEpisode: cached });
+      return;
+    }
+
     try {
       const currentEpisode = await episodeRepository.getCurrentEpisode();
+      cacheManager.set('currentEpisode', currentEpisode);
       set({ currentEpisode });
     } catch (error) {
       set({ error: (error as Error).message });
@@ -68,6 +85,10 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
         logger.error('[EpisodeStore] Failed to create red day for episode:', error);
         // Don't fail the episode creation if red day creation fails
       }
+
+      // Invalidate cache when creating new episode
+      cacheManager.invalidate('episodes');
+      cacheManager.invalidate('currentEpisode');
 
       set({
         currentEpisode: newEpisode,
@@ -122,6 +143,10 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
         }
       }
 
+      // Invalidate cache when ending episode
+      cacheManager.invalidate('episodes');
+      cacheManager.invalidate('currentEpisode');
+
       // Update local state
       const updatedEpisodes = get().episodes.map(ep =>
         ep.id === episodeId ? { ...ep, endTime } : ep
@@ -145,6 +170,10 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
   updateEpisode: async (episodeId, updates) => {
     try {
       await episodeRepository.update(episodeId, updates);
+
+      // Invalidate cache when updating episode
+      cacheManager.invalidate('episodes');
+      cacheManager.invalidate('currentEpisode');
 
       // Update local state
       const updatedEpisodes = get().episodes.map(ep =>
@@ -203,6 +232,10 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       await episodeRepository.delete(episodeId);
+
+      // Invalidate cache when deleting episode
+      cacheManager.invalidate('episodes');
+      cacheManager.invalidate('currentEpisode');
 
       const updatedEpisodes = get().episodes.filter(ep => ep.id !== episodeId);
       const currentEpisode = get().currentEpisode?.id === episodeId ? null : get().currentEpisode;

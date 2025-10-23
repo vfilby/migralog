@@ -12,6 +12,7 @@ import { RootStackParamList } from '../navigation/types';
 import { medicationDoseRepository, medicationRepository } from '../database/medicationRepository';
 import { MedicationDose, Medication } from '../models/types';
 import { format } from 'date-fns';
+import { formatMedicationDosage, formatDosageWithUnit } from '../utils/medicationFormatting';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MedicationLog'>;
 
@@ -106,9 +107,15 @@ export default function MedicationLogScreen({ navigation }: Props) {
               </View>
               <View style={styles.doseDetails}>
                 <Text style={styles.doseAmount}>
-                  {dose.amount} × {dose.medication?.dosageAmount}{dose.medication?.dosageUnit}
-                  {' = '}
-                  {dose.amount * (dose.medication?.dosageAmount || 0)}{dose.medication?.dosageUnit}
+                  {dose.medication?.dosageAmount && dose.medication?.dosageUnit
+                    ? formatMedicationDosage(dose.amount, dose.medication.dosageAmount, dose.medication.dosageUnit)
+                    : `${dose.amount} doses`}
+                  {dose.medication?.dosageAmount && dose.medication?.dosageUnit && (
+                    <>
+                      {' = '}
+                      {formatDosageWithUnit(dose.amount * dose.medication.dosageAmount, dose.medication.dosageUnit)}
+                    </>
+                  )}
                 </Text>
                 {dose.notes && (
                   <Text style={styles.doseNotes}>{dose.notes}</Text>

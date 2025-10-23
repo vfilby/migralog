@@ -11,6 +11,7 @@ import { RootStackParamList } from '../navigation/types';
 import { Medication, MedicationSchedule } from '../models/types';
 import { useTheme, ThemeColors } from '../theme';
 import { format, isToday } from 'date-fns';
+import { formatMedicationDosage } from '../utils/medicationFormatting';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -437,7 +438,7 @@ export default function MedicationsScreen() {
                 </View>
                 <View style={styles.medicationDetails}>
                   <Text style={styles.dosageText}>
-                    {med.defaultDosage || 1} × {med.dosageAmount}{med.dosageUnit}
+                    {formatMedicationDosage(med.defaultDosage || 1, med.dosageAmount, med.dosageUnit)}
                   </Text>
                   {med.scheduleFrequency && (
                     <Text style={styles.frequencyText}>
@@ -556,7 +557,7 @@ export default function MedicationsScreen() {
                 </View>
                 <View style={styles.medicationDetails}>
                   <Text style={styles.dosageText}>
-                    {med.defaultDosage || 1} × {med.dosageAmount}{med.dosageUnit}
+                    {formatMedicationDosage(med.defaultDosage || 1, med.dosageAmount, med.dosageUnit)}
                   </Text>
                 </View>
                 {med.notes && (

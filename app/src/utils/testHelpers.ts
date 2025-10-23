@@ -71,6 +71,12 @@ export async function resetDatabaseForTesting(options: {
     useDailyStatusStore.getState().reset();
     // Note: medicationStore and episodeStore don't have reset methods,
     // but they will reload data when screens gain focus
+
+    // 4a. Clear cache manager to prevent stale data after reset
+    const { cacheManager } = await import('./cacheManager');
+    cacheManager.clear();
+    logger.log('[TestHelpers] Cache cleared');
+
     logger.log('[TestHelpers] Stores reset');
 
     // 5. Optionally load test fixtures
