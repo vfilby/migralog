@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { logger } from '../utils/logger';
 import {
   View,
@@ -223,11 +223,7 @@ export default function EditMedicationDoseScreen({ route, navigation }: Props) {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadDose();
-  }, [doseId]);
-
-  const loadDose = async () => {
+  const loadDose = useCallback(async () => {
     try {
       setLoading(true);
       const loadedDose = await medicationDoseRepository.getById(doseId);
@@ -258,7 +254,11 @@ export default function EditMedicationDoseScreen({ route, navigation }: Props) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [doseId, navigation]);
+
+  useEffect(() => {
+    loadDose();
+  }, [loadDose]);
 
   const handleSave = async () => {
     if (!dose || !medication || !timestamp) return;

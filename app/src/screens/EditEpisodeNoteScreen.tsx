@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { logger } from '../utils/logger';
 import {
   View,
@@ -139,11 +139,7 @@ export default function EditEpisodeNoteScreen({ route, navigation }: Props) {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadNote();
-  }, [noteId]);
-
-  const loadNote = async () => {
+  const loadNote = useCallback(async () => {
     try {
       setLoading(true);
       const loadedNote = await episodeNoteRepository.getById(noteId);
@@ -164,7 +160,11 @@ export default function EditEpisodeNoteScreen({ route, navigation }: Props) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [noteId, navigation]);
+
+  useEffect(() => {
+    loadNote();
+  }, [loadNote]);
 
   const handleSave = async () => {
     if (!note || !timestamp) return;

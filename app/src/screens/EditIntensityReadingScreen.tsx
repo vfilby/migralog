@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { logger } from '../utils/logger';
 import {
   View,
@@ -189,11 +189,7 @@ export default function EditIntensityReadingScreen({ route, navigation }: Props)
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadReading();
-  }, [readingId]);
-
-  const loadReading = async () => {
+  const loadReading = useCallback(async () => {
     try {
       setLoading(true);
       const loadedReading = await intensityRepository.getById(readingId);
@@ -214,7 +210,11 @@ export default function EditIntensityReadingScreen({ route, navigation }: Props)
     } finally {
       setLoading(false);
     }
-  };
+  }, [readingId, navigation]);
+
+  useEffect(() => {
+    loadReading();
+  }, [loadReading]);
 
   const handleSave = async () => {
     if (!reading || !timestamp) return;

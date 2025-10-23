@@ -61,7 +61,7 @@ export default function EditSymptomLogScreen({ navigation }: Props) {
       'Symptom editing feature is coming soon!',
       [{ text: 'OK', onPress: () => navigation.goBack() }]
     );
-  }, []);
+  }, [navigation]);
 
   return (
     <View style={styles.container}>
