@@ -364,6 +364,32 @@ export const intensityRepository = {
       createdAt: row.created_at,
     }));
   },
+
+  async getById(id: string, db?: SQLite.SQLiteDatabase): Promise<IntensityReading | null> {
+    const database = db || await getDatabase();
+    const result = await database.getFirstAsync<IntensityReadingRow>(
+      'SELECT * FROM intensity_readings WHERE id = ?',
+      [id]
+    );
+
+    if (!result) return null;
+
+    return {
+      id: result.id,
+      episodeId: result.episode_id,
+      timestamp: result.timestamp,
+      intensity: result.intensity,
+      createdAt: result.created_at,
+    };
+  },
+
+  async delete(id: string, db?: SQLite.SQLiteDatabase): Promise<void> {
+    const database = db || await getDatabase();
+    await database.runAsync(
+      'DELETE FROM intensity_readings WHERE id = ?',
+      [id]
+    );
+  },
 };
 
 export const symptomLogRepository = {

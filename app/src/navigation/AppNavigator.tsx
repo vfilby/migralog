@@ -21,6 +21,7 @@ import MedicationDetailScreen from '../screens/MedicationDetailScreen';
 import LogMedicationScreen from '../screens/LogMedicationScreen';
 import MedicationLogScreen from '../screens/MedicationLogScreen';
 import EditMedicationDoseScreen from '../screens/EditMedicationDoseScreen';
+import EditIntensityReadingScreen from '../screens/EditIntensityReadingScreen';
 import ArchivedMedicationsScreen from '../screens/ArchivedMedicationsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import BackupRecoveryScreen from '../screens/BackupRecoveryScreen';
@@ -173,6 +174,26 @@ export default function AppNavigator() {
         />
         <Stack.Screen
           name="EditMedicationDose"
+          component={EditMedicationDoseScreen}
+          options={{ headerShown: false, presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="EditIntensityReading"
+          component={EditIntensityReadingScreen}
+          options={{ headerShown: false, presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="EditSymptomLog"
+          component={EditMedicationDoseScreen}
+          options={{ headerShown: false, presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="EditPainLocationLog"
+          component={EditMedicationDoseScreen}
+          options={{ headerShown: false, presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="EditEpisodeNote"
           component={EditMedicationDoseScreen}
           options={{ headerShown: false, presentation: 'modal' }}
         />

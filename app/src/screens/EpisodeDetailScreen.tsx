@@ -798,7 +798,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
         },
         (buttonIndex) => {
           if (buttonIndex === 1) {
-            Alert.alert('Coming Soon', 'Edit intensity reading feature coming soon!');
+            navigation.navigate('EditIntensityReading', { readingId: reading.id });
           }
         }
       );
@@ -808,7 +808,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
         `${format(new Date(reading.timestamp), 'MMM d, yyyy h:mm a')}`,
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Edit', onPress: () => Alert.alert('Coming Soon', 'Edit intensity reading feature coming soon!') },
+          { text: 'Edit', onPress: () => navigation.navigate('EditIntensityReading', { readingId: reading.id }) },
         ]
       );
     }
