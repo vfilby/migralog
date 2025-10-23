@@ -29,8 +29,15 @@ export const episodeRepository = {
     const now = Date.now();
     const id = generateId();
 
+    // Normalize timestamps to integers (iOS 26 beta compatibility)
+    const normalizedLocation = episode.location ? {
+      ...episode.location,
+      timestamp: Math.floor(episode.location.timestamp),
+    } : undefined;
+
     const newEpisode: Episode = {
       ...episode,
+      location: normalizedLocation,
       id,
       createdAt: now,
       updatedAt: now,
