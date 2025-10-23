@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import { useEpisodeStore } from '../store/episodeStore';
 import { useMedicationStore, TodaysMedication } from '../store/medicationStore';
-import { format } from 'date-fns';
+import { format, isToday } from 'date-fns';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -206,8 +206,60 @@ export default function DashboardScreen() {
     deleteDose,
   } = useMedicationStore();
 
-  // Get today's medications from store using computed selector
-  const todaysMedications = useMedicationStore(state => state.getTodaysMedications());
+  // Get primitive values from store to compute today's medications
+  const preventativeMedications = useMedicationStore(state => state.preventativeMedications);
+  const schedules = useMedicationStore(state => state.schedules);
+  const doses = useMedicationStore(state => state.doses);
+
+  // Compute today's medications in the component
+  const todaysMedications = React.useMemo(() => {
+    const todayMeds: TodaysMedication[] = [];
+
+    for (const med of preventativeMedications) {
+      if (med.scheduleFrequency !== 'daily') {
+        continue;
+      }
+
+      // Get schedules for this medication
+      const medSchedules = schedules.filter(s => s.medicationId === med.id);
+      // Get doses for this medication
+      const medDoses = doses.filter(d => d.medicationId === med.id);
+
+      for (const schedule of medSchedules) {
+        // Parse schedule time (HH:mm format)
+        const [hours, minutes] = schedule.time.split(':').map(Number);
+        const doseTime = new Date();
+        doseTime.setHours(hours, minutes, 0, 0);
+
+        // Find the most recent dose logged today
+        const todaysDoses = medDoses.filter(dose => {
+          const doseDate = new Date(dose.timestamp);
+          return isToday(doseDate);
+        });
+
+        // Sort by timestamp descending and take the most recent one
+        const latestDose = todaysDoses.length > 0
+          ? todaysDoses.sort((a, b) => b.timestamp - a.timestamp)[0]
+          : undefined;
+
+        // Show all scheduled medications for today
+        todayMeds.push({
+          medication: med,
+          schedule,
+          doseTime,
+          taken: latestDose?.status === 'taken',
+          takenAt: latestDose?.status === 'taken' ? new Date(latestDose.timestamp) : undefined,
+          skipped: latestDose?.status === 'skipped',
+          doseId: latestDose?.id,
+        });
+      }
+    }
+
+    // Sort by time
+    todayMeds.sort((a, b) => a.doseTime.getTime() - b.doseTime.getTime());
+
+    return todayMeds;
+  }, [preventativeMedications, schedules, doses]);
 
   // Load data when screen comes into focus (handles both tab navigation AND modal dismissal)
   useFocusEffect(

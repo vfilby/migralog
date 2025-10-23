@@ -66,18 +66,21 @@ describe('DashboardScreen', () => {
       loadEpisodes: mockLoadEpisodes,
     });
 
-    (useMedicationStore as unknown as jest.Mock).mockReturnValue({
-      preventativeMedications: [],
-      rescueMedications: [],
-      schedules: [],
-      doses: [],
-      loading: false,
-      error: null,
-      loadMedications: mockLoadMedications,
-      loadSchedules: mockLoadSchedules,
-      loadRecentDoses: mockLoadRecentDoses,
-      logDose: mockLogDose,
-      deleteDose: mockDeleteDose,
+    (useMedicationStore as unknown as jest.Mock).mockImplementation((selector?: any) => {
+      const state = {
+        preventativeMedications: [],
+        rescueMedications: [],
+        schedules: [],
+        doses: [],
+        loading: false,
+        error: null,
+        loadMedications: mockLoadMedications,
+        loadSchedules: mockLoadSchedules,
+        loadRecentDoses: mockLoadRecentDoses,
+        logDose: mockLogDose,
+        deleteDose: mockDeleteDose,
+      };
+      return selector ? selector(state) : state;
     });
 
     (useDailyStatusStore as unknown as jest.Mock).mockReturnValue({
@@ -167,29 +170,32 @@ describe('DashboardScreen', () => {
   });
 
   it('should show Log Medication button when rescue medications exist', async () => {
-    (useMedicationStore as unknown as jest.Mock).mockReturnValue({
-      preventativeMedications: [],
-      rescueMedications: [
-        {
-          id: 'med-1',
-          name: 'Rescue Med',
-          type: 'rescue',
-          dosageAmount: 100,
-          dosageUnit: 'mg',
-          active: true,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        },
-      ],
-      schedules: [],
-      doses: [],
-      loading: false,
-      error: null,
-      loadMedications: mockLoadMedications,
-      loadSchedules: mockLoadSchedules,
-      loadRecentDoses: mockLoadRecentDoses,
-      logDose: mockLogDose,
-      deleteDose: mockDeleteDose,
+    (useMedicationStore as unknown as jest.Mock).mockImplementation((selector?: any) => {
+      const state = {
+        preventativeMedications: [],
+        rescueMedications: [
+          {
+            id: 'med-1',
+            name: 'Rescue Med',
+            type: 'rescue',
+            dosageAmount: 100,
+            dosageUnit: 'mg',
+            active: true,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          },
+        ],
+        schedules: [],
+        doses: [],
+        loading: false,
+        error: null,
+        loadMedications: mockLoadMedications,
+        loadSchedules: mockLoadSchedules,
+        loadRecentDoses: mockLoadRecentDoses,
+        logDose: mockLogDose,
+        deleteDose: mockDeleteDose,
+      };
+      return selector ? selector(state) : state;
     });
 
     renderWithProviders(<DashboardScreen />);
@@ -315,18 +321,21 @@ describe('DashboardScreen', () => {
         loadEpisodes: mockLoadEpisodes,
       });
 
-      (useMedicationStore as unknown as jest.Mock).mockReturnValue({
-        preventativeMedications: [],
-        rescueMedications: [{ id: 'med-1', name: 'Rescue', type: 'rescue', dosageAmount: 100, dosageUnit: 'mg', active: true, createdAt: Date.now(), updatedAt: Date.now() }],
-        schedules: [],
-        doses: [],
-        loading: false,
-        error: null,
-        loadMedications: mockLoadMedications,
-        loadSchedules: mockLoadSchedules,
-        loadRecentDoses: mockLoadRecentDoses,
-        logDose: mockLogDose,
-        deleteDose: mockDeleteDose,
+      (useMedicationStore as unknown as jest.Mock).mockImplementation((selector?: any) => {
+        const state = {
+          preventativeMedications: [],
+          rescueMedications: [{ id: 'med-1', name: 'Rescue', type: 'rescue', dosageAmount: 100, dosageUnit: 'mg', active: true, createdAt: Date.now(), updatedAt: Date.now() }],
+          schedules: [],
+          doses: [],
+          loading: false,
+          error: null,
+          loadMedications: mockLoadMedications,
+          loadSchedules: mockLoadSchedules,
+          loadRecentDoses: mockLoadRecentDoses,
+          logDose: mockLogDose,
+          deleteDose: mockDeleteDose,
+        };
+        return selector ? selector(state) : state;
       });
 
       renderWithProviders(<DashboardScreen />);

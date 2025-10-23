@@ -6,7 +6,6 @@ import { episodeRepository } from '../database/episodeRepository';
 import { errorLogger } from '../services/errorLogger';
 import { notificationService } from '../services/notificationService';
 import { toastService } from '../services/toastService';
-import { isToday } from 'date-fns';
 
 export interface TodaysMedication {
   medication: Medication;
@@ -39,9 +38,6 @@ interface MedicationState {
   logDose: (dose: Omit<MedicationDose, 'id' | 'createdAt'>) => Promise<MedicationDose>;
   updateDose: (id: string, updates: Partial<MedicationDose>) => Promise<void>;
   deleteDose: (id: string) => Promise<void>;
-
-  // Computed selectors
-  getTodaysMedications: () => TodaysMedication[];
 }
 
 export const useMedicationStore = create<MedicationState>((set, get) => ({
@@ -340,61 +336,4 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
     }
   },
 
-  // Computed selector that returns today's scheduled medications
-  getTodaysMedications: () => {
-    return selectTodaysMedications(get());
-  },
-
 }));
-
-// Selector function that can be used outside the store
-// This computes today's medications from the store state
-export const selectTodaysMedications = (state: MedicationState): TodaysMedication[] => {
-  const { preventativeMedications, schedules, doses } = state;
-  const todayMeds: TodaysMedication[] = [];
-
-  for (const med of preventativeMedications) {
-    if (med.scheduleFrequency !== 'daily') {
-      continue;
-    }
-
-    // Get schedules for this medication
-    const medSchedules = schedules.filter(s => s.medicationId === med.id);
-    // Get doses for this medication
-    const medDoses = doses.filter(d => d.medicationId === med.id);
-
-    for (const schedule of medSchedules) {
-      // Parse schedule time (HH:mm format)
-      const [hours, minutes] = schedule.time.split(':').map(Number);
-      const doseTime = new Date();
-      doseTime.setHours(hours, minutes, 0, 0);
-
-      // Find the most recent dose logged today
-      const todaysDoses = medDoses.filter(dose => {
-        const doseDate = new Date(dose.timestamp);
-        return isToday(doseDate);
-      });
-
-      // Sort by timestamp descending and take the most recent one
-      const latestDose = todaysDoses.length > 0
-        ? todaysDoses.sort((a, b) => b.timestamp - a.timestamp)[0]
-        : undefined;
-
-      // Show all scheduled medications for today
-      todayMeds.push({
-        medication: med,
-        schedule,
-        doseTime,
-        taken: latestDose?.status === 'taken',
-        takenAt: latestDose?.status === 'taken' ? new Date(latestDose.timestamp) : undefined,
-        skipped: latestDose?.status === 'skipped',
-        doseId: latestDose?.id,
-      });
-    }
-  }
-
-  // Sort by time
-  todayMeds.sort((a, b) => a.doseTime.getTime() - b.doseTime.getTime());
-
-  return todayMeds;
-};
