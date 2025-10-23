@@ -7,6 +7,16 @@ import { errorLogger } from '../services/errorLogger';
 import { notificationService } from '../services/notificationService';
 import { toastService } from '../services/toastService';
 
+export interface TodaysMedication {
+  medication: Medication;
+  schedule: MedicationSchedule;
+  doseTime: Date;
+  taken: boolean;
+  takenAt?: Date;
+  skipped: boolean;
+  doseId?: string; // ID of the dose record if it was logged
+}
+
 interface MedicationState {
   medications: Medication[];
   preventativeMedications: Medication[];
@@ -325,4 +335,5 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       throw error;
     }
   },
+
 }));

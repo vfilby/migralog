@@ -1,7 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useColorScheme } from 'react-native';
 import { useTheme } from '../theme';
-import { ThemeColors } from '../theme/colors';
+import { ThemeColors, lightColors, darkColors } from '../theme/colors';
 
 interface ErrorRecoveryScreenProps {
   error: Error;
@@ -11,9 +11,23 @@ interface ErrorRecoveryScreenProps {
 /**
  * ErrorRecoveryScreen - Displayed when Error Boundary catches an error
  * Provides user-friendly error message and recovery options
+ *
+ * Note: This component must work even if ThemeProvider is not available,
+ * as it's used by ErrorBoundary which may catch errors during app initialization.
  */
 const ErrorRecoveryScreen: React.FC<ErrorRecoveryScreenProps> = ({ error, onReset }) => {
-  const { theme } = useTheme();
+  const systemColorScheme = useColorScheme();
+
+  // Try to get theme from context, but fallback to system color scheme if not available
+  let theme: ThemeColors;
+  try {
+    const themeContext = useTheme();
+    theme = themeContext.theme;
+  } catch {
+    // ThemeProvider not available, use system color scheme
+    theme = systemColorScheme === 'dark' ? darkColors : lightColors;
+  }
+
   const styles = createStyles(theme);
 
   return (

@@ -639,4 +639,5 @@ describe('medicationStore', () => {
       expect(useMedicationStore.getState().error).toBe(null);
     });
   });
+
 });
