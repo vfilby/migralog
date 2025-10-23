@@ -7,6 +7,7 @@ import { errorLogger } from '../services/errorLogger';
 import { notificationService } from '../services/notificationService';
 import { toastService } from '../services/toastService';
 import { isToday } from 'date-fns';
+import { useRef, useEffect, useState } from 'react';
 
 export interface TodaysMedication {
   medication: Medication;
@@ -39,9 +40,6 @@ interface MedicationState {
   logDose: (dose: Omit<MedicationDose, 'id' | 'createdAt'>) => Promise<MedicationDose>;
   updateDose: (id: string, updates: Partial<MedicationDose>) => Promise<void>;
   deleteDose: (id: string) => Promise<void>;
-
-  // Selectors (computed properties)
-  getTodaysMedications: () => TodaysMedication[];
 }
 
 export const useMedicationStore = create<MedicationState>((set, get) => ({
@@ -340,54 +338,96 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
     }
   },
 
-  // Selectors (computed properties from current state)
-  getTodaysMedications: () => {
-    const { preventativeMedications, schedules, doses } = get();
-    const todayMeds: TodaysMedication[] = [];
+}));
 
-    for (const med of preventativeMedications) {
-      if (med.scheduleFrequency !== 'daily') {
-        continue;
-      }
+// Selector function that can be used outside the store
+// This computes today's medications from the store state
+export const selectTodaysMedications = (state: MedicationState): TodaysMedication[] => {
+  const { preventativeMedications, schedules, doses } = state;
+  const todayMeds: TodaysMedication[] = [];
 
-      // Get schedules for this medication
-      const medSchedules = schedules.filter(s => s.medicationId === med.id);
-      // Get doses for this medication
-      const medDoses = doses.filter(d => d.medicationId === med.id);
-
-      for (const schedule of medSchedules) {
-        // Parse schedule time (HH:mm format)
-        const [hours, minutes] = schedule.time.split(':').map(Number);
-        const doseTime = new Date();
-        doseTime.setHours(hours, minutes, 0, 0);
-
-        // Find the most recent dose logged today
-        const todaysDoses = medDoses.filter(dose => {
-          const doseDate = new Date(dose.timestamp);
-          return isToday(doseDate);
-        });
-
-        // Sort by timestamp descending and take the most recent one
-        const latestDose = todaysDoses.length > 0
-          ? todaysDoses.sort((a, b) => b.timestamp - a.timestamp)[0]
-          : undefined;
-
-        // Show all scheduled medications for today
-        todayMeds.push({
-          medication: med,
-          schedule,
-          doseTime,
-          taken: latestDose?.status === 'taken',
-          takenAt: latestDose?.status === 'taken' ? new Date(latestDose.timestamp) : undefined,
-          skipped: latestDose?.status === 'skipped',
-          doseId: latestDose?.id,
-        });
-      }
+  for (const med of preventativeMedications) {
+    if (med.scheduleFrequency !== 'daily') {
+      continue;
     }
 
-    // Sort by time
-    todayMeds.sort((a, b) => a.doseTime.getTime() - b.doseTime.getTime());
+    // Get schedules for this medication
+    const medSchedules = schedules.filter(s => s.medicationId === med.id);
+    // Get doses for this medication
+    const medDoses = doses.filter(d => d.medicationId === med.id);
 
-    return todayMeds;
-  },
-}));
+    for (const schedule of medSchedules) {
+      // Parse schedule time (HH:mm format)
+      const [hours, minutes] = schedule.time.split(':').map(Number);
+      const doseTime = new Date();
+      doseTime.setHours(hours, minutes, 0, 0);
+
+      // Find the most recent dose logged today
+      const todaysDoses = medDoses.filter(dose => {
+        const doseDate = new Date(dose.timestamp);
+        return isToday(doseDate);
+      });
+
+      // Sort by timestamp descending and take the most recent one
+      const latestDose = todaysDoses.length > 0
+        ? todaysDoses.sort((a, b) => b.timestamp - a.timestamp)[0]
+        : undefined;
+
+      // Show all scheduled medications for today
+      todayMeds.push({
+        medication: med,
+        schedule,
+        doseTime,
+        taken: latestDose?.status === 'taken',
+        takenAt: latestDose?.status === 'taken' ? new Date(latestDose.timestamp) : undefined,
+        skipped: latestDose?.status === 'skipped',
+        doseId: latestDose?.id,
+      });
+    }
+  }
+
+  // Sort by time
+  todayMeds.sort((a, b) => a.doseTime.getTime() - b.doseTime.getTime());
+
+  return todayMeds;
+};
+
+// Custom hook that properly memoizes today's medications to prevent infinite re-renders
+// This hooks subscribes to only the specific parts of state needed for the selector
+export const useTodaysMedications = (): TodaysMedication[] => {
+  const [todaysMeds, setTodaysMeds] = useState<TodaysMedication[]>([]);
+
+  // Subscribe to the specific slices of state that the selector depends on
+  const preventativeMedications = useMedicationStore(state => state.preventativeMedications);
+  const schedules = useMedicationStore(state => state.schedules);
+  const doses = useMedicationStore(state => state.doses);
+
+  useEffect(() => {
+    // Recompute only when dependencies change
+    const result = selectTodaysMedications({
+      preventativeMedications,
+      schedules,
+      doses,
+      medications: [],
+      rescueMedications: [],
+      loading: false,
+      error: null,
+      loadMedications: async () => {},
+      addMedication: async () => ({} as Medication),
+      updateMedication: async () => {},
+      archiveMedication: async () => {},
+      unarchiveMedication: async () => {},
+      loadSchedules: async () => {},
+      addSchedule: async () => ({} as MedicationSchedule),
+      updateSchedule: async () => {},
+      deleteSchedule: async () => {},
+      loadRecentDoses: async () => {},
+      logDose: async () => ({} as MedicationDose),
+      updateDose: async () => {},
+      deleteDose: async () => {},
+    });
+    setTodaysMeds(result);
+  }, [preventativeMedications, schedules, doses]);
+
+  return todaysMeds;
+};

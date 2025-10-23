@@ -9,6 +9,10 @@ import { notificationService } from './src/services/notificationService';
 import { logger } from './src/utils/logger';
 import ErrorBoundary from './src/components/ErrorBoundary';
 
+// Note: In development, LogBox may overlay our ErrorBoundary screen with a red error screen.
+// However, ErrorBoundary still works correctly - if you dismiss LogBox, you'll see ErrorRecoveryScreen.
+// In production builds, LogBox doesn't exist, so ErrorBoundary is the only error handler.
+
 export default function App() {
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
