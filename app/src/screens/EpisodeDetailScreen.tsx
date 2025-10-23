@@ -462,12 +462,25 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     fontWeight: '600',
     marginTop: 4,
   },
-  deleteEventButton: {
+  eventActions: {
+    flexDirection: 'row',
+    gap: 12,
     marginTop: 8,
+  },
+  editEventButton: {
     paddingVertical: 6,
     paddingHorizontal: 12,
     backgroundColor: 'transparent',
-    alignSelf: 'flex-start',
+  },
+  editEventButtonText: {
+    fontSize: 14,
+    color: theme.primary,
+    fontWeight: '500',
+  },
+  deleteEventButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: 'transparent',
   },
   deleteEventButtonText: {
     fontSize: 14,
@@ -827,6 +840,14 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
             <Text style={[styles.timelineIntensityValue, { color: getPainColor(reading.intensity) }]}>
               {reading.intensity}/10 - {getPainLevel(reading.intensity).label}
             </Text>
+            {!isInitialIntensity && (
+              <TouchableOpacity
+                style={styles.editEventButton}
+                onPress={() => Alert.alert('Coming Soon', 'Edit intensity reading feature coming soon!')}
+              >
+                <Text style={styles.editEventButtonText}>Edit</Text>
+              </TouchableOpacity>
+            )}
           </View>
         );
 
@@ -840,14 +861,22 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
               <Text style={styles.timelineEventTitle}>Note</Text>
             )}
             <Text style={styles.timelineNoteText}>{note.note}</Text>
-            {/* Only show delete button for user-added notes, not the episode summary */}
+            {/* Only show edit/delete buttons for user-added notes, not the episode summary */}
             {!isEpisodeSummary && (
-              <TouchableOpacity
-                style={styles.deleteEventButton}
-                onPress={() => handleDeleteNote(note.id)}
-              >
-                <Text style={styles.deleteEventButtonText}>Delete</Text>
-              </TouchableOpacity>
+              <View style={styles.eventActions}>
+                <TouchableOpacity
+                  style={styles.editEventButton}
+                  onPress={() => Alert.alert('Coming Soon', 'Edit note feature coming soon!')}
+                >
+                  <Text style={styles.editEventButtonText}>Edit</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.deleteEventButton}
+                  onPress={() => handleDeleteNote(note.id)}
+                >
+                  <Text style={styles.deleteEventButtonText}>Delete</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         );
@@ -869,6 +898,12 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
           <View key={event.id} style={{ marginBottom: 12 }}>
             <Text style={styles.timelineEventTitle}>Pain Location Changed</Text>
             <Text style={styles.timelineEventContent}>{locationLabels}</Text>
+            <TouchableOpacity
+              style={styles.editEventButton}
+              onPress={() => Alert.alert('Coming Soon', 'Edit pain location feature coming soon!')}
+            >
+              <Text style={styles.editEventButtonText}>Edit</Text>
+            </TouchableOpacity>
           </View>
         );
 
@@ -880,6 +915,12 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
             <Text style={styles.timelineEventContent}>
               {dose.medication?.name || 'Unknown Medication'} • {dose.amount} × {dose.medication?.dosageAmount}{dose.medication?.dosageUnit}
             </Text>
+            <TouchableOpacity
+              style={styles.editEventButton}
+              onPress={() => navigation.navigate('EditMedicationDose', { doseId: dose.id })}
+            >
+              <Text style={styles.editEventButtonText}>Edit</Text>
+            </TouchableOpacity>
           </View>
         );
 
