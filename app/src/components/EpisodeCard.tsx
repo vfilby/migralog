@@ -233,7 +233,7 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
       accessibilityLabel={`Episode from ${format(episode.startTime, 'EEEE, MMM d, yyyy')}`}
     >
       {/* Row 1: Date on left, Peak on right */}
-      <View style={styles.cardFirstRow}>
+      <View style={[styles.cardFirstRow, !locationAddress && { marginBottom: 4 }]}>
         <Text style={styles.cardDate}>
           {format(episode.startTime, 'EEE, MMM d · h:mm a')}
         </Text>
