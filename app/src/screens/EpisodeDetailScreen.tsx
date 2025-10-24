@@ -17,6 +17,7 @@ import { shouldShowMedicationInTimeline } from '../utils/timelineFilters';
 import { groupEventsByDay, groupEventsByTimestamp, DayGroup } from '../utils/timelineGrouping';
 import { locationService } from '../services/locationService';
 import { useTheme, ThemeColors } from '../theme';
+import IntensitySparkline from '../components/IntensitySparkline';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EpisodeDetail'>;
 
@@ -1155,10 +1156,19 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
 
           {episode.peakIntensity !== undefined && (
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Peak Intensity:</Text>
-              <Text style={[styles.detailValue, { color: getPainColor(episode.peakIntensity), fontWeight: '600' }]}>
-                {episode.peakIntensity}/10 - {getPainLevel(episode.peakIntensity).label}
-              </Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.detailLabel}>Peak Intensity:</Text>
+                <Text style={[styles.detailValue, { color: getPainColor(episode.peakIntensity), fontWeight: '600', fontSize: 18 }]}>
+                  {episode.peakIntensity}/10 - {getPainLevel(episode.peakIntensity).label}
+                </Text>
+              </View>
+              {intensityReadings.length > 0 && (
+                <IntensitySparkline
+                  intensities={intensityReadings.map(r => r.intensity)}
+                  width={120}
+                  height={40}
+                />
+              )}
             </View>
           )}
 
