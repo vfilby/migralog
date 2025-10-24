@@ -263,8 +263,10 @@ class NotificationService {
       const schedule = medication.schedule?.find(s => s.id === scheduleId);
       const dosage = schedule?.dosage ?? medication.defaultDosage ?? 1;
 
-      // Log the dose
-      await medicationDoseRepository.create({
+      // Use store's logDose to update both database and state
+      // Dynamic import to avoid circular dependency
+      const { useMedicationStore } = await import('../store/medicationStore');
+      await useMedicationStore.getState().logDose({
         medicationId,
         timestamp: Date.now(),
         amount: dosage,
@@ -323,6 +325,9 @@ class NotificationService {
     try {
       const results: string[] = [];
 
+      // Dynamic import to avoid circular dependency
+      const { useMedicationStore } = await import('../store/medicationStore');
+
       for (let i = 0; i < medicationIds.length; i++) {
         const medicationId = medicationIds[i];
         const scheduleId = scheduleIds[i];
@@ -337,8 +342,8 @@ class NotificationService {
         const schedule = medication.schedule?.find(s => s.id === scheduleId);
         const dosage = schedule?.dosage ?? medication.defaultDosage ?? 1;
 
-        // Log the dose
-        await medicationDoseRepository.create({
+        // Use store's logDose to update both database and state
+        await useMedicationStore.getState().logDose({
           medicationId,
           timestamp: Date.now(),
           amount: dosage,
