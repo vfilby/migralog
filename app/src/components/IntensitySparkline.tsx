@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import Svg, { Path, Circle } from 'react-native-svg';
-import { getPainColor } from '../utils/painScale';
+import Svg, { Path, Circle, Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
+import { getPainColor, PAIN_SCALE } from '../utils/painScale';
 
 interface IntensitySparklineProps {
   /**
@@ -103,6 +103,31 @@ const IntensitySparkline: React.FC<IntensitySparklineProps> = ({
   return (
     <View style={styles.container}>
       <Svg width={width} height={height}>
+        <Defs>
+          {/* Pain scale gradient - bottom (green) to top (purple) */}
+          <LinearGradient id="painGradient" x1="0" y1="1" x2="0" y2="0">
+            {/* Create gradient stops for each pain level */}
+            {PAIN_SCALE.map((level, index) => (
+              <Stop
+                key={level.value}
+                offset={`${(index / (PAIN_SCALE.length - 1)) * 100}%`}
+                stopColor={level.color}
+                stopOpacity="0.15"
+              />
+            ))}
+          </LinearGradient>
+        </Defs>
+
+        {/* Background gradient showing pain scale */}
+        <Rect
+          x={0}
+          y={0}
+          width={width}
+          height={height}
+          fill="url(#painGradient)"
+          rx={4}
+        />
+
         {/* Sparkline path */}
         <Path
           d={pathData}

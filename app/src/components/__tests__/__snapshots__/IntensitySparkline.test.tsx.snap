@@ -37,6 +37,61 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot with custom col
         }
       }
     >
+      <RNSVGDefs>
+        <RNSVGLinearGradient
+          gradient={
+            [
+              0,
+              640580914,
+              0.1,
+              643140399,
+              0.2,
+              644390712,
+              0.3,
+              653895717,
+              0.4,
+              654282496,
+              0.5,
+              653224960,
+              0.6,
+              652628224,
+              0.7,
+              651707157,
+              0.8,
+              650520616,
+              0.9,
+              653017210,
+              1,
+              648759228,
+            ]
+          }
+          gradientTransform={null}
+          gradientUnits={0}
+          name="painGradient"
+          x1="0"
+          x2="0"
+          y1="1"
+          y2="0"
+        />
+      </RNSVGDefs>
+      <RNSVGRect
+        fill={
+          {
+            "brushRef": "painGradient",
+            "type": 1,
+          }
+        }
+        height={40}
+        propList={
+          [
+            "fill",
+          ]
+        }
+        rx={4}
+        width={120}
+        x={0}
+        y={0}
+      />
       <RNSVGPath
         d="M 4,26.4 Q 32,26.4 60,21.6 Q 88,21.6 116,15.600000000000001"
         fill={null}
@@ -126,6 +181,61 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot with typical in
         }
       }
     >
+      <RNSVGDefs>
+        <RNSVGLinearGradient
+          gradient={
+            [
+              0,
+              640580914,
+              0.1,
+              643140399,
+              0.2,
+              644390712,
+              0.3,
+              653895717,
+              0.4,
+              654282496,
+              0.5,
+              653224960,
+              0.6,
+              652628224,
+              0.7,
+              651707157,
+              0.8,
+              650520616,
+              0.9,
+              653017210,
+              1,
+              648759228,
+            ]
+          }
+          gradientTransform={null}
+          gradientUnits={0}
+          name="painGradient"
+          x1="0"
+          x2="0"
+          y1="1"
+          y2="0"
+        />
+      </RNSVGDefs>
+      <RNSVGRect
+        fill={
+          {
+            "brushRef": "painGradient",
+            "type": 1,
+          }
+        }
+        height={40}
+        propList={
+          [
+            "fill",
+          ]
+        }
+        rx={4}
+        width={120}
+        x={0}
+        y={0}
+      />
       <RNSVGPath
         d="M 4,26.4 Q 13.333333333333334,26.4 22.666666666666668,21.6 Q 32,21.6 41.333333333333336,15.600000000000001 Q 50.66666666666667,15.600000000000001 60,9.3 Q 69.33333333333334,9.3 78.66666666666667,10.125 Q 88,10.125 97.33333333333334,15.131250000000001 Q 106.66666666666667,15.131250000000001 116,21.1828125"
         fill={null}
@@ -215,6 +325,61 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot without peak ma
         }
       }
     >
+      <RNSVGDefs>
+        <RNSVGLinearGradient
+          gradient={
+            [
+              0,
+              640580914,
+              0.1,
+              643140399,
+              0.2,
+              644390712,
+              0.3,
+              653895717,
+              0.4,
+              654282496,
+              0.5,
+              653224960,
+              0.6,
+              652628224,
+              0.7,
+              651707157,
+              0.8,
+              650520616,
+              0.9,
+              653017210,
+              1,
+              648759228,
+            ]
+          }
+          gradientTransform={null}
+          gradientUnits={0}
+          name="painGradient"
+          x1="0"
+          x2="0"
+          y1="1"
+          y2="0"
+        />
+      </RNSVGDefs>
+      <RNSVGRect
+        fill={
+          {
+            "brushRef": "painGradient",
+            "type": 1,
+          }
+        }
+        height={40}
+        propList={
+          [
+            "fill",
+          ]
+        }
+        rx={4}
+        width={120}
+        x={0}
+        y={0}
+      />
       <RNSVGPath
         d="M 4,26.4 Q 18,26.4 32,21.6 Q 46,21.6 60,15.600000000000001 Q 74,15.600000000000001 88,16.5 Q 102,16.5 116,21.525"
         fill={null}
