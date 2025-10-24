@@ -533,6 +533,12 @@ class NotificationService {
           },
           categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
           sound: true,
+          // Time-sensitive notification settings for Android and iOS
+          ...(Notifications.AndroidNotificationPriority && {
+            priority: Notifications.AndroidNotificationPriority.HIGH,
+          }),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...({ interruptionLevel: 'timeSensitive' } as any), // iOS: breaks through Focus modes
         },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DAILY,
@@ -578,6 +584,12 @@ class NotificationService {
           },
           categoryIdentifier: MULTIPLE_MEDICATION_REMINDER_CATEGORY,
           sound: true,
+          // Time-sensitive notification settings for Android and iOS
+          ...(Notifications.AndroidNotificationPriority && {
+            priority: Notifications.AndroidNotificationPriority.HIGH,
+          }),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...({ interruptionLevel: 'timeSensitive' } as any), // iOS: breaks through Focus modes
         },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DAILY,

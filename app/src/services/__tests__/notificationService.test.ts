@@ -11,6 +11,15 @@ jest.mock('expo-notifications');
 jest.mock('../../database/medicationRepository');
 jest.mock('../../services/errorLogger');
 
+// Add AndroidNotificationPriority enum to mocked Notifications
+(Notifications as any).AndroidNotificationPriority = {
+  MIN: -2,
+  LOW: -1,
+  DEFAULT: 0,
+  HIGH: 1,
+  MAX: 2,
+};
+
 describe('notificationService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
