@@ -55,14 +55,42 @@ const IntensitySparkline: React.FC<IntensitySparklineProps> = ({
   const chartHeight = height - (padding * 2);
   const xStep = chartWidth / (validIntensities.length - 1 || 1);
 
-  // Generate path coordinates
-  const pathData = validIntensities
+  // Apply Exponential Moving Average (EMA) for smoothing
+  const alpha = 0.3; // Smoothing factor (0 < alpha < 1, lower = smoother)
+  const smoothedIntensities = validIntensities.reduce<number[]>((acc, intensity, index) => {
+    if (index === 0) {
+      acc.push(intensity);
+    } else {
+      // EMA formula: EMA(t) = alpha * value(t) + (1 - alpha) * EMA(t-1)
+      const ema = alpha * intensity + (1 - alpha) * acc[index - 1];
+      acc.push(ema);
+    }
+    return acc;
+  }, []);
+
+  // Generate smooth path coordinates using quadratic curves
+  const pathData = smoothedIntensities
     .map((intensity, index) => {
       const x = padding + (index * xStep);
       const normalizedY = (intensity - minIntensity) / (maxIntensity - minIntensity);
       // Invert Y coordinate (SVG Y increases downward)
       const y = padding + chartHeight - (normalizedY * chartHeight);
-      return `${index === 0 ? 'M' : 'L'} ${x},${y}`;
+
+      if (index === 0) {
+        return `M ${x},${y}`;
+      } else {
+        // Use quadratic bezier curve for smooth interpolation
+        const prevX = padding + ((index - 1) * xStep);
+        const prevIntensity = smoothedIntensities[index - 1];
+        const prevNormalizedY = (prevIntensity - minIntensity) / (maxIntensity - minIntensity);
+        const prevY = padding + chartHeight - (prevNormalizedY * chartHeight);
+
+        // Control point is midway between points
+        const cpX = (prevX + x) / 2;
+        const cpY = (prevY + y) / 2;
+
+        return `Q ${cpX},${prevY} ${x},${y}`;
+      }
     })
     .join(' ');
 
