@@ -1172,15 +1172,6 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
             </View>
           )}
 
-          {episode.averageIntensity !== undefined && episode.averageIntensity !== null && (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Average Intensity:</Text>
-              <Text style={[styles.detailValue, { color: getPainColor(episode.averageIntensity), fontWeight: '600' }]}>
-                {episode.averageIntensity.toFixed(1)}/10 - {getPainLevel(episode.averageIntensity).label}
-              </Text>
-            </View>
-          )}
-
           {/* Location Link */}
           {episode.location && (
             <TouchableOpacity style={styles.detailRow} onPress={handleOpenMap}>
