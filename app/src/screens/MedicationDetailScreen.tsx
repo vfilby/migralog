@@ -254,7 +254,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} testID="medication-detail-scrollview">
         {/* Medication Info */}
         <View style={[styles.section, { backgroundColor: theme.card }]}>
           <View style={styles.medicationHeader}>

@@ -50,6 +50,10 @@ describe('Error Toast Notifications', () => {
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const expectedDatePattern = `${monthNames[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`;
 
+    // Scroll down to Recent Activity section to access the dose entry
+    await element(by.id('medication-detail-scrollview')).scrollTo('bottom');
+    await waitForAnimation(500);
+
     await waitFor(element(by.text(expectedDatePattern)))
       .toBeVisible()
       .withTimeout(5000);
@@ -130,6 +134,10 @@ describe('Error Toast Notifications', () => {
     const today = new Date();
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const expectedDatePattern = `${monthNames[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`;
+
+    // Scroll down to Recent Activity section to access the dose entry
+    await element(by.id('medication-detail-scrollview')).scrollTo('bottom');
+    await waitForAnimation(500);
 
     await waitFor(element(by.text(expectedDatePattern)))
       .toBeVisible()
