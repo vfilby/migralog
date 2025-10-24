@@ -42,19 +42,18 @@ describe('EpisodeCard', () => {
   });
 
   describe('Full Card Mode', () => {
-    it('should render episode date in full format', async () => {
+    it('should render episode date in condensed format', async () => {
       renderWithTheme(<EpisodeCard episode={baseEpisode} />);
 
       await waitFor(() => {
-        expect(screen.getByText(/Monday, Jan 15/)).toBeTruthy();
+        expect(screen.getByText(/Mon, Jan 15/)).toBeTruthy();
       });
     });
 
-    it('should display duration for completed episodes', async () => {
+    it('should display duration for completed episodes without label', async () => {
       renderWithTheme(<EpisodeCard episode={baseEpisode} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Duration:')).toBeTruthy();
         expect(screen.getByText('4 hours')).toBeTruthy();
       });
     });
@@ -72,30 +71,27 @@ describe('EpisodeCard', () => {
       });
     });
 
-    it('should display peak intensity with level label', async () => {
+    it('should display peak intensity with level label without key', async () => {
       renderWithTheme(<EpisodeCard episode={baseEpisode} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Peak Intensity:')).toBeTruthy();
-        expect(screen.getByText('7/10 - Severe')).toBeTruthy();
+        expect(screen.getByText('7/10 Severe')).toBeTruthy();
       });
     });
 
-    it('should display pain areas count', async () => {
+    it('should display pain areas count without label', async () => {
       renderWithTheme(<EpisodeCard episode={baseEpisode} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Pain Areas:')).toBeTruthy();
         expect(screen.getByText('2 areas')).toBeTruthy();
       });
     });
 
-    it('should display symptoms count', async () => {
+    it('should display symptoms count without label', async () => {
       renderWithTheme(<EpisodeCard episode={baseEpisode} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Symptoms:')).toBeTruthy();
-        expect(screen.getByText('2')).toBeTruthy();
+        expect(screen.getByText('2 symptoms')).toBeTruthy();
       });
     });
 
@@ -113,17 +109,20 @@ describe('EpisodeCard', () => {
       renderWithTheme(<EpisodeCard episode={ongoingEpisode} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Ongoing')).toBeTruthy();
+        const ongoingTexts = screen.getAllByText('Ongoing');
+        expect(ongoingTexts.length).toBeGreaterThanOrEqual(1);
       });
     });
 
-    it('should not display duration for ongoing episodes', async () => {
+    it('should display "Ongoing" for ongoing episodes', async () => {
       const ongoingEpisode = { ...baseEpisode, endTime: undefined };
 
       renderWithTheme(<EpisodeCard episode={ongoingEpisode} />);
 
       await waitFor(() => {
-        expect(screen.queryByText('Duration:')).toBeNull();
+        // Should show "Ongoing" text instead of duration
+        const ongoingTexts = screen.getAllByText('Ongoing');
+        expect(ongoingTexts.length).toBeGreaterThanOrEqual(1);
       });
     });
 
@@ -147,11 +146,11 @@ describe('EpisodeCard', () => {
       });
     });
 
-    it('should display geocoded location', async () => {
+    it('should display geocoded location on the right', async () => {
       const episodeWithLocation = {
         ...baseEpisode,
-        location: { 
-          latitude: 37.7749, 
+        location: {
+          latitude: 37.7749,
           longitude: -122.4194,
           timestamp: Date.now(),
         },
@@ -162,7 +161,6 @@ describe('EpisodeCard', () => {
       renderWithTheme(<EpisodeCard episode={episodeWithLocation} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Location:')).toBeTruthy();
         expect(screen.getByText('San Francisco, CA')).toBeTruthy();
       });
     });
@@ -170,8 +168,8 @@ describe('EpisodeCard', () => {
     it('should handle geocoding failure', async () => {
       const episodeWithLocation = {
         ...baseEpisode,
-        location: { 
-          latitude: 37.7749, 
+        location: {
+          latitude: 37.7749,
           longitude: -122.4194,
           timestamp: Date.now(),
         },
@@ -185,7 +183,8 @@ describe('EpisodeCard', () => {
         expect(locationService.reverseGeocode).toHaveBeenCalled();
       });
 
-      expect(screen.queryByText('Location:')).toBeNull();
+      // Location text should not be shown if geocoding fails
+      expect(screen.queryByText('San Francisco, CA')).toBeNull();
     });
 
     it('should not display optional fields when absent', async () => {
@@ -203,12 +202,12 @@ describe('EpisodeCard', () => {
       renderWithTheme(<EpisodeCard episode={minimalEpisode} />);
 
       await waitFor(() => {
-        expect(screen.getByText(/Monday, Jan 15/)).toBeTruthy();
+        expect(screen.getByText(/Mon, Jan 15/)).toBeTruthy();
       });
 
-      expect(screen.queryByText('Peak Intensity:')).toBeNull();
-      expect(screen.queryByText('Pain Areas:')).toBeNull();
-      expect(screen.queryByText('Symptoms:')).toBeNull();
+      expect(screen.queryByText(/\/10/)).toBeNull(); // No peak intensity
+      expect(screen.queryByText(/areas?/)).toBeNull(); // No pain areas
+      expect(screen.queryByText(/symptoms?/)).toBeNull(); // No symptoms
     });
   });
 
@@ -221,12 +220,11 @@ describe('EpisodeCard', () => {
       });
     });
 
-    it('should display duration in hours', async () => {
+    it('should display duration without label', async () => {
       renderWithTheme(<EpisodeCard episode={baseEpisode} compact />);
 
       await waitFor(() => {
-        expect(screen.getByText('Duration:')).toBeTruthy();
-        expect(screen.getByText('4h')).toBeTruthy();
+        expect(screen.getByText('4 hours')).toBeTruthy();
       });
     });
 
@@ -241,20 +239,19 @@ describe('EpisodeCard', () => {
       });
     });
 
-    it('should display peak intensity', async () => {
+    it('should display peak intensity without label', async () => {
       renderWithTheme(<EpisodeCard episode={baseEpisode} compact />);
 
       await waitFor(() => {
-        expect(screen.getByText('Peak:')).toBeTruthy();
         expect(screen.getByText('7/10')).toBeTruthy();
       });
     });
 
-    it('should display geocoded location', async () => {
+    it('should display geocoded location on the right', async () => {
       const episodeWithLocation = {
         ...baseEpisode,
-        location: { 
-          latitude: 37.7749, 
+        location: {
+          latitude: 37.7749,
           longitude: -122.4194,
           timestamp: Date.now(),
         },
@@ -265,7 +262,6 @@ describe('EpisodeCard', () => {
       renderWithTheme(<EpisodeCard episode={episodeWithLocation} compact />);
 
       await waitFor(() => {
-        expect(screen.getByText('Location:')).toBeTruthy();
         expect(screen.getByText('San Francisco, CA')).toBeTruthy();
       });
     });
@@ -310,7 +306,7 @@ describe('EpisodeCard', () => {
         expect(screen.getByText('Jan 15, 10:30 AM')).toBeTruthy();
       });
 
-      expect(screen.queryByText('Peak:')).toBeNull();
+      expect(screen.queryByText(/\/10/)).toBeNull();
     });
   });
 
