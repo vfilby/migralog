@@ -271,15 +271,6 @@ class NotificationService {
         notes: 'Logged from notification',
       });
 
-      // Show success notification
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Medication Logged',
-          body: `${medication.name} - ${dosage} dose(s)`,
-        },
-        trigger: null, // Show immediately
-      });
-
       logger.log('[Notification] Medication logged:', {
         medicationId,
         dosage,
@@ -361,16 +352,7 @@ class NotificationService {
         });
       }
 
-      // Show success notification
-      if (results.length > 0) {
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: 'Medications Logged',
-            body: results.join('\n'),
-          },
-          trigger: null, // Show immediately
-        });
-      }
+      logger.log('[Notification] All medications logged:', results);
     } catch (error) {
       logger.error('[Notification] Error logging medications:', error);
     }
