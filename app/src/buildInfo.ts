@@ -1,8 +1,8 @@
 // Auto-generated file - do not edit manually
-// Generated at: 2025-10-23T15:46:24.829Z
+// Generated at: 2025-10-24T03:34:24.578Z
 
 export const buildInfo = {
-  "commitHash": "35b9490",
-  "branch": "feature/timeline-item-editing",
-  "buildTime": "2025-10-23T15:46:24.829Z"
+  "commitHash": "8972511",
+  "branch": "feature/episode-sparkline-preview",
+  "buildTime": "2025-10-24T03:34:24.578Z"
 };
