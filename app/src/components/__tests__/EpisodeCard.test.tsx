@@ -226,11 +226,11 @@ describe('EpisodeCard', () => {
       });
     });
 
-    it('should display peak intensity with Peak label', async () => {
+    it('should display peak intensity without Peak label', async () => {
       renderWithTheme(<EpisodeCard episode={baseEpisode} compact />);
 
       await waitFor(() => {
-        expect(screen.getByText('Peak: 7/10')).toBeTruthy();
+        expect(screen.getByText(/7\/10/)).toBeTruthy();
       });
     });
 

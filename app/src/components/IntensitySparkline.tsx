@@ -87,7 +87,6 @@ const IntensitySparkline: React.FC<IntensitySparklineProps> = ({
 
         // Control point is midway between points
         const cpX = (prevX + x) / 2;
-        const cpY = (prevY + y) / 2;
 
         return `Q ${cpX},${prevY} ${x},${y}`;
       }

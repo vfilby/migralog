@@ -128,7 +128,7 @@ describe('IntensitySparkline', () => {
     });
 
     it('should handle large number of intensity readings', () => {
-      const intensities = Array.from({ length: 100 }, (_, i) =>
+      const intensities = Array.from({ length: 100 }, () =>
         Math.floor(Math.random() * 11)
       );
       const { toJSON } = render(

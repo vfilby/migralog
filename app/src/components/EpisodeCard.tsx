@@ -72,6 +72,11 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  compactPeakGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   compactPeakText: {
     fontSize: 14,
     fontWeight: '600',
@@ -115,6 +120,11 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   cardDuration: {
     fontSize: 15,
     color: theme.textSecondary,
+  },
+  cardPeakGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   cardPeakText: {
     fontSize: 16,
@@ -189,29 +199,27 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
           )}
         </View>
 
-        {/* Row 2: Duration on left, Sparkline on right */}
+        {/* Row 2: Duration on left, Peak + Sparkline on right */}
         <View style={styles.compactSecondRow}>
           <Text style={styles.compactDuration}>
             {formatDuration(durationHours)}
             {!episode.endTime && ' (ongoing)'}
           </Text>
-          {intensityReadings.length > 0 && (
-            <IntensitySparkline
-              intensities={intensityReadings.map(r => r.intensity)}
-              width={80}
-              height={24}
-            />
+          {episode.peakIntensity && (
+            <View style={styles.compactPeakGroup}>
+              <Text style={[styles.compactPeakText, { color: getPainColor(episode.peakIntensity) }]}>
+                {episode.peakIntensity}/10
+              </Text>
+              {intensityReadings.length > 0 && (
+                <IntensitySparkline
+                  intensities={intensityReadings.map(r => r.intensity)}
+                  width={80}
+                  height={24}
+                />
+              )}
+            </View>
           )}
         </View>
-
-        {/* Row 3: Peak intensity */}
-        {episode.peakIntensity && (
-          <View style={styles.compactThirdRow}>
-            <Text style={[styles.compactPeakText, { color: getPainColor(episode.peakIntensity) }]}>
-              Peak: {episode.peakIntensity}/10
-            </Text>
-          </View>
-        )}
       </TouchableOpacity>
     );
   }
@@ -237,26 +245,27 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
         )}
       </View>
 
-      {/* Row 2: Duration on left, Sparkline on right */}
+      {/* Row 2: Duration on left, Peak + Sparkline on right */}
       <View style={styles.cardSecondRow}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.cardDuration}>
-            {formatDuration(durationHours)}
-            {!episode.endTime && ' (ongoing)'}
-          </Text>
-          {/* Row 3: Peak intensity */}
-          {episode.peakIntensity && (
-            <Text style={[styles.cardPeakText, { color: getPainColor(episode.peakIntensity), marginTop: 4 }]}>
-              Peak: {episode.peakIntensity}/10 {getPainLevel(episode.peakIntensity).label}
-            </Text>
-          )}
-        </View>
-        {intensityReadings.length > 0 && (
-          <IntensitySparkline
-            intensities={intensityReadings.map(r => r.intensity)}
-            width={120}
-            height={40}
-          />
+        <Text style={styles.cardDuration}>
+          {formatDuration(durationHours)}
+          {!episode.endTime && ' (ongoing)'}
+        </Text>
+        {episode.peakIntensity && (
+          <View style={styles.cardPeakGroup}>
+            <View>
+              <Text style={[styles.cardPeakText, { color: getPainColor(episode.peakIntensity) }]}>
+                Peak: {episode.peakIntensity}/10 {getPainLevel(episode.peakIntensity).label}
+              </Text>
+            </View>
+            {intensityReadings.length > 0 && (
+              <IntensitySparkline
+                intensities={intensityReadings.map(r => r.intensity)}
+                width={120}
+                height={40}
+              />
+            )}
+          </View>
         )}
       </View>
 
