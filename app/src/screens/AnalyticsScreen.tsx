@@ -181,7 +181,7 @@ export default function AnalyticsScreen() {
 
             <View style={styles.statCard}>
               <Text style={styles.statValue}>
-                {stats.averageIntensity.toFixed(1)}/10
+                {stats.averageIntensity.toFixed(1)}
               </Text>
               <Text style={styles.statLabel}>Avg Intensity</Text>
             </View>

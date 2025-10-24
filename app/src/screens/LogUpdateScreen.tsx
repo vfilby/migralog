@@ -449,7 +449,7 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
           <Text style={styles.sectionTitle}>Pain Intensity</Text>
           <View style={styles.sliderHeader}>
             <Text style={[styles.intensityValue, { color: getPainLevel(currentIntensity).color }]}>
-              {currentIntensity}/10
+              {currentIntensity}
             </Text>
             <Text style={styles.intensityLabel}>
               {getPainLevel(currentIntensity).label}

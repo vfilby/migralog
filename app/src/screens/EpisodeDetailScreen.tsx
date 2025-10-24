@@ -924,7 +924,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
               />
             </View>
             <Text style={[styles.timelineIntensityValue, { color: getPainColor(reading.intensity) }]}>
-              {reading.intensity}/10 - {getPainLevel(reading.intensity).label}
+              {reading.intensity} - {getPainLevel(reading.intensity).label}
             </Text>
           </TouchableOpacity>
         );
@@ -1159,7 +1159,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
               <View style={{ flex: 1 }}>
                 <Text style={styles.detailLabel}>Peak Intensity:</Text>
                 <Text style={[styles.detailValue, { color: getPainColor(episode.peakIntensity), fontWeight: '600', fontSize: 18 }]}>
-                  {episode.peakIntensity}/10 - {getPainLevel(episode.peakIntensity).label}
+                  {episode.peakIntensity} - {getPainLevel(episode.peakIntensity).label}
                 </Text>
               </View>
               {intensityReadings.length > 0 && (
