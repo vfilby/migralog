@@ -75,7 +75,7 @@ describe('EpisodeCard', () => {
       renderWithTheme(<EpisodeCard episode={baseEpisode} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Peak: 7/10 Severe')).toBeTruthy();
+        expect(screen.getByText('Peak: 7 Severe')).toBeTruthy();
       });
     });
 
@@ -193,7 +193,7 @@ describe('EpisodeCard', () => {
         expect(screen.getByText(/Mon, Jan 15/)).toBeTruthy();
       });
 
-      expect(screen.queryByText(/\/10/)).toBeNull(); // No peak intensity
+      expect(screen.queryByText(/Peak:/)).toBeNull(); // No peak intensity
       expect(screen.queryByText(/areas?/)).toBeNull(); // No pain areas
       expect(screen.queryByText(/symptoms?/)).toBeNull(); // No symptoms
     });
@@ -230,7 +230,7 @@ describe('EpisodeCard', () => {
       renderWithTheme(<EpisodeCard episode={baseEpisode} compact />);
 
       await waitFor(() => {
-        expect(screen.getByText(/7\/10/)).toBeTruthy();
+        expect(screen.getByText('7')).toBeTruthy();
       });
     });
 
@@ -293,7 +293,7 @@ describe('EpisodeCard', () => {
         expect(screen.getByText('Jan 15, 10:30 AM')).toBeTruthy();
       });
 
-      expect(screen.queryByText(/\/10/)).toBeNull();
+      expect(screen.queryByText(/Peak:/)).toBeNull();
     });
   });
 

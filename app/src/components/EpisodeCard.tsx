@@ -212,7 +212,7 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
           {episode.peakIntensity && (
             <View style={styles.compactPeakGroup}>
               <Text style={[styles.compactPeakText, { color: getPainColor(episode.peakIntensity) }]}>
-                {episode.peakIntensity}/10
+                {episode.peakIntensity}
               </Text>
               {intensityReadings.length > 0 && (
                 <IntensitySparkline
@@ -258,7 +258,7 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
         {episode.peakIntensity && (
           <View style={styles.cardPeakGroup}>
             <Text style={[styles.cardPeakText, { color: getPainColor(episode.peakIntensity) }]}>
-              Peak: {episode.peakIntensity}/10 {getPainLevel(episode.peakIntensity).label}
+              Peak: {episode.peakIntensity} {getPainLevel(episode.peakIntensity).label}
             </Text>
             {intensityReadings.length > 0 && (
               <IntensitySparkline
