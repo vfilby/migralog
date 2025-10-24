@@ -1,0 +1,243 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`IntensitySparkline Snapshot Tests should match snapshot with custom color 1`] = `
+<View
+  style={
+    {
+      "alignItems": "center",
+      "justifyContent": "center",
+    }
+  }
+>
+  <RNSVGSvgView
+    bbHeight={40}
+    bbWidth={120}
+    focusable={false}
+    height={40}
+    style={
+      [
+        {
+          "backgroundColor": "transparent",
+          "borderWidth": 0,
+        },
+        {
+          "flex": 0,
+          "height": 40,
+          "width": 120,
+        },
+      ]
+    }
+    width={120}
+  >
+    <RNSVGGroup
+      fill={
+        {
+          "payload": 4278190080,
+          "type": 0,
+        }
+      }
+    >
+      <RNSVGPath
+        d="M 4,26.4 L 60,20 L 116,13.600000000000001"
+        fill={null}
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+            "strokeLinecap",
+            "strokeLinejoin",
+          ]
+        }
+        stroke={
+          {
+            "payload": 4294929259,
+            "type": 0,
+          }
+        }
+        strokeLinecap={1}
+        strokeLinejoin={1}
+        strokeWidth={2}
+      />
+      <RNSVGCircle
+        cx={116}
+        cy={13.600000000000001}
+        fill={
+          {
+            "payload": 4294929259,
+            "type": 0,
+          }
+        }
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+          ]
+        }
+        r={3}
+        stroke={
+          {
+            "payload": 4294967295,
+            "type": 0,
+          }
+        }
+        strokeWidth={1.5}
+      />
+    </RNSVGGroup>
+  </RNSVGSvgView>
+</View>
+`;
+
+exports[`IntensitySparkline Snapshot Tests should match snapshot with typical intensity pattern 1`] = `
+<View
+  style={
+    {
+      "alignItems": "center",
+      "justifyContent": "center",
+    }
+  }
+>
+  <RNSVGSvgView
+    bbHeight={40}
+    bbWidth={120}
+    focusable={false}
+    height={40}
+    style={
+      [
+        {
+          "backgroundColor": "transparent",
+          "borderWidth": 0,
+        },
+        {
+          "flex": 0,
+          "height": 40,
+          "width": 120,
+        },
+      ]
+    }
+    width={120}
+  >
+    <RNSVGGroup
+      fill={
+        {
+          "payload": 4278190080,
+          "type": 0,
+        }
+      }
+    >
+      <RNSVGPath
+        d="M 4,26.4 L 22.666666666666668,20 L 41.333333333333336,13.600000000000001 L 60,7.199999999999999 L 78.66666666666667,10.399999999999999 L 97.33333333333334,16.8 L 116,23.2"
+        fill={null}
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+            "strokeLinecap",
+            "strokeLinejoin",
+          ]
+        }
+        stroke={
+          {
+            "payload": 4293673082,
+            "type": 0,
+          }
+        }
+        strokeLinecap={1}
+        strokeLinejoin={1}
+        strokeWidth={2}
+      />
+      <RNSVGCircle
+        cx={60}
+        cy={7.199999999999999}
+        fill={
+          {
+            "payload": 4293673082,
+            "type": 0,
+          }
+        }
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+          ]
+        }
+        r={3}
+        stroke={
+          {
+            "payload": 4294967295,
+            "type": 0,
+          }
+        }
+        strokeWidth={1.5}
+      />
+    </RNSVGGroup>
+  </RNSVGSvgView>
+</View>
+`;
+
+exports[`IntensitySparkline Snapshot Tests should match snapshot without peak marker 1`] = `
+<View
+  style={
+    {
+      "alignItems": "center",
+      "justifyContent": "center",
+    }
+  }
+>
+  <RNSVGSvgView
+    bbHeight={40}
+    bbWidth={120}
+    focusable={false}
+    height={40}
+    style={
+      [
+        {
+          "backgroundColor": "transparent",
+          "borderWidth": 0,
+        },
+        {
+          "flex": 0,
+          "height": 40,
+          "width": 120,
+        },
+      ]
+    }
+    width={120}
+  >
+    <RNSVGGroup
+      fill={
+        {
+          "payload": 4278190080,
+          "type": 0,
+        }
+      }
+    >
+      <RNSVGPath
+        d="M 4,26.4 L 32,20 L 60,13.600000000000001 L 88,16.8 L 116,23.2"
+        fill={null}
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+            "strokeLinecap",
+            "strokeLinejoin",
+          ]
+        }
+        stroke={
+          {
+            "payload": 4292363029,
+            "type": 0,
+          }
+        }
+        strokeLinecap={1}
+        strokeLinejoin={1}
+        strokeWidth={2}
+      />
+    </RNSVGGroup>
+  </RNSVGSvgView>
+</View>
+`;

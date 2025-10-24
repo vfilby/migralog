@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { format } from 'date-fns';
-import { Episode } from '../models/types';
+import { Episode, IntensityReading } from '../models/types';
 import { getPainColor, getPainLevel } from '../utils/painScale';
 import { locationService } from '../services/locationService';
 import { useTheme, ThemeColors } from '../theme';
+import { intensityRepository } from '../database/episodeRepository';
+import IntensitySparkline from './IntensitySparkline';
 
 interface EpisodeCardProps {
   episode: Episode;
@@ -132,6 +134,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
 const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = false, testID }: EpisodeCardProps) => {
   const { theme } = useTheme();
   const [locationAddress, setLocationAddress] = useState<string | null>(null);
+  const [intensityReadings, setIntensityReadings] = useState<IntensityReading[]>([]);
 
   const duration = episode.endTime
     ? Math.round((episode.endTime - episode.startTime) / 3600000)
@@ -146,6 +149,14 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
         .catch(() => setLocationAddress(null));
     }
   }, [episode.location]);
+
+  useEffect(() => {
+    // Load intensity readings for the episode
+    intensityRepository
+      .getByEpisodeId(episode.id)
+      .then(readings => setIntensityReadings(readings))
+      .catch(() => setIntensityReadings([]));
+  }, [episode.id]);
 
   const styles = createStyles(theme);
 
@@ -189,10 +200,17 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
           </View>
           {episode.peakIntensity && (
             <View style={styles.compactRow}>
-              <Text style={styles.compactLabel}>Peak:</Text>
-              <Text style={[styles.compactValue, styles.peakIntensity, { color: getPainColor(episode.peakIntensity) }]}>
+              <Text style={[styles.compactLabel, { flex: 0 }]}>Peak:</Text>
+              <Text style={[styles.compactValue, styles.peakIntensity, { color: getPainColor(episode.peakIntensity), flex: 0, marginRight: 8 }]}>
                 {episode.peakIntensity}/10
               </Text>
+              {intensityReadings.length > 0 && (
+                <IntensitySparkline
+                  intensities={intensityReadings.map(r => r.intensity)}
+                  width={80}
+                  height={24}
+                />
+              )}
             </View>
           )}
         </View>
@@ -233,14 +251,23 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
 
         {episode.peakIntensity && (
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Peak Intensity:</Text>
-            <Text style={[
-              styles.detailValue,
-              styles.intensityValue,
-              { color: getPainColor(episode.peakIntensity) }
-            ]}>
-              {episode.peakIntensity}/10 - {getPainLevel(episode.peakIntensity).label}
-            </Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.detailLabel}>Peak Intensity:</Text>
+              <Text style={[
+                styles.detailValue,
+                styles.intensityValue,
+                { color: getPainColor(episode.peakIntensity), fontSize: 18 }
+              ]}>
+                {episode.peakIntensity}/10 - {getPainLevel(episode.peakIntensity).label}
+              </Text>
+            </View>
+            {intensityReadings.length > 0 && (
+              <IntensitySparkline
+                intensities={intensityReadings.map(r => r.intensity)}
+                width={120}
+                height={40}
+              />
+            )}
           </View>
         )}
 
