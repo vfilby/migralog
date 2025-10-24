@@ -477,10 +477,12 @@ export default function DashboardScreen() {
           <Text style={styles.emptyText}>No closed episodes yet</Text>
         ) : (
           <View>
-            {episodes.filter(ep => ep.endTime).slice(0, 3).map((episode) => (
+            {episodes.filter(ep => ep.endTime).slice(0, 3).map((episode, index, arr) => (
               <EpisodeCard
                 key={episode.id}
                 episode={episode}
+                compact
+                isLast={index === arr.length - 1}
                 onPress={() => navigation.navigate('EpisodeDetail', { episodeId: episode.id })}
               />
             ))}

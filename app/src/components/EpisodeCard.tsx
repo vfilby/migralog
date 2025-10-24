@@ -34,53 +34,15 @@ const formatDuration = (hours: number): string => {
 };
 
 const createStyles = (theme: ThemeColors) => StyleSheet.create({
-  // Compact styles (for Dashboard)
+  // Compact styles (for Dashboard Recent Episodes)
   episodeItemCompact: {
     paddingVertical: 12,
+    paddingHorizontal: 0,
     borderBottomWidth: 1,
     borderBottomColor: theme.border,
   },
-  compactFirstRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  compactDate: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.text,
-    flex: 1,
-  },
-  compactLocation: {
-    fontSize: 14,
-    color: theme.textSecondary,
-    marginLeft: 8,
-  },
-  compactSecondRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  compactLeftColumn: {
-    flex: 1,
-    gap: 4,
-  },
-  compactDuration: {
-    fontSize: 14,
-    color: theme.textSecondary,
-  },
-  compactPeakText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  compactSparklineContainer: {
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-  },
 
-  // Full card styles (for Episodes list)
+  // Full card styles (for Episodes list and Episode Detail)
   episodeCard: {
     backgroundColor: theme.card,
     borderRadius: 12,
@@ -174,58 +136,12 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
 
   const styles = createStyles(theme);
 
-  if (compact) {
-    return (
-      <TouchableOpacity
-        style={[styles.episodeItemCompact, isLast && { borderBottomWidth: 0 }]}
-        onPress={onPress}
-        disabled={!onPress}
-        testID={testID}
-        accessibilityRole="button"
-        accessibilityLabel={`Episode from ${format(episode.startTime, 'MMM d, yyyy')}`}
-      >
-        {/* Row 1: Date on left, Location on right */}
-        <View style={styles.compactFirstRow}>
-          <Text style={styles.compactDate}>
-            {format(episode.startTime, 'MMM d, h:mm a')}
-          </Text>
-          {locationAddress && (
-            <Text style={styles.compactLocation} numberOfLines={1}>
-              {locationAddress}
-            </Text>
-          )}
-        </View>
-
-        {/* Row 2: Duration and Peak severity aligned on left */}
-        <View style={styles.compactSecondRow}>
-          <View style={styles.compactLeftColumn}>
-            <Text style={styles.compactDuration}>
-              {formatDuration(durationHours)}
-              {!episode.endTime && ' (ongoing)'}
-            </Text>
-            {episode.peakIntensity && (
-              <Text style={[styles.compactPeakText, { color: getPainColor(episode.peakIntensity) }]}>
-                {episode.peakIntensity} {getPainLevel(episode.peakIntensity).label}
-              </Text>
-            )}
-          </View>
-          {episode.peakIntensity && intensityReadings.length > 0 && (
-            <View style={styles.compactSparklineContainer}>
-              <IntensitySparkline
-                intensities={intensityReadings.map(r => r.intensity)}
-                width={100}
-                height={40}
-              />
-            </View>
-          )}
-        </View>
-      </TouchableOpacity>
-    );
-  }
-
   return (
     <TouchableOpacity
-      style={styles.episodeCard}
+      style={[
+        compact ? styles.episodeItemCompact : styles.episodeCard,
+        compact && isLast && { borderBottomWidth: 0 }
+      ]}
       onPress={onPress}
       disabled={!onPress}
       testID={testID}
@@ -268,8 +184,8 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
         )}
       </View>
 
-      {/* Row 4: Metadata (pain areas, symptoms) */}
-      {(episode.locations.length > 0 || episode.symptoms.length > 0) && (
+      {/* Row 4: Metadata (pain areas, symptoms) - hidden in compact mode */}
+      {!compact && (episode.locations.length > 0 || episode.symptoms.length > 0) && (
         <View style={styles.cardMetaRow}>
           {episode.locations.length > 0 && (
             <Text style={styles.cardMetaItem}>
@@ -278,14 +194,14 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
           )}
           {episode.symptoms.length > 0 && (
             <Text style={styles.cardMetaItem}>
-              {episode.symptoms.length} symptom{episode.symptoms.length === 1 ? '' : 's'}
+              {episode.symptoms.length === 1 ? '1 symptom' : `${episode.symptoms.length} symptoms`}
             </Text>
           )}
         </View>
       )}
 
-      {/* Notes */}
-      {episode.notes && (
+      {/* Notes - hidden in compact mode */}
+      {!compact && episode.notes && (
         <Text style={styles.notes} numberOfLines={2}>
           {episode.notes}
         </Text>

@@ -200,11 +200,11 @@ describe('EpisodeCard', () => {
   });
 
   describe('Compact Mode', () => {
-    it('should render date in compact format', async () => {
+    it('should render date in same format as full card', async () => {
       renderWithTheme(<EpisodeCard episode={baseEpisode} compact />);
 
       await waitFor(() => {
-        expect(screen.getByText('Jan 15, 10:30 AM')).toBeTruthy();
+        expect(screen.getByText(/Mon, Jan 15/)).toBeTruthy();
       });
     });
 
@@ -290,7 +290,7 @@ describe('EpisodeCard', () => {
       renderWithTheme(<EpisodeCard episode={episodeNoPeak} compact />);
 
       await waitFor(() => {
-        expect(screen.getByText('Jan 15, 10:30 AM')).toBeTruthy();
+        expect(screen.getByText(/Mon, Jan 15/)).toBeTruthy();
       });
 
       expect(screen.queryByText(/Peak:/)).toBeNull();
