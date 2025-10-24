@@ -61,27 +61,23 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 6,
+    gap: 12,
+  },
+  compactLeftColumn: {
+    flex: 1,
+    gap: 4,
   },
   compactDuration: {
     fontSize: 14,
     color: theme.textSecondary,
-    flex: 1,
-  },
-  compactThirdRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  compactPeakGroup: {
-    flexDirection: 'column',
-    alignItems: 'flex-end',
-    gap: 4,
-    flexShrink: 0,
   },
   compactPeakText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  compactSparklineContainer: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
   },
 
   // Full card styles (for Episodes list)
@@ -203,24 +199,26 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
           )}
         </View>
 
-        {/* Row 2: Duration on left, Peak + Sparkline on right */}
+        {/* Row 2: Duration and Peak severity aligned on left */}
         <View style={styles.compactSecondRow}>
-          <Text style={styles.compactDuration}>
-            {formatDuration(durationHours)}
-            {!episode.endTime && ' (ongoing)'}
-          </Text>
-          {episode.peakIntensity && (
-            <View style={styles.compactPeakGroup}>
+          <View style={styles.compactLeftColumn}>
+            <Text style={styles.compactDuration}>
+              {formatDuration(durationHours)}
+              {!episode.endTime && ' (ongoing)'}
+            </Text>
+            {episode.peakIntensity && (
               <Text style={[styles.compactPeakText, { color: getPainColor(episode.peakIntensity) }]}>
-                {episode.peakIntensity}
+                {episode.peakIntensity} {getPainLevel(episode.peakIntensity).label}
               </Text>
-              {intensityReadings.length > 0 && (
-                <IntensitySparkline
-                  intensities={intensityReadings.map(r => r.intensity)}
-                  width={100}
-                  height={24}
-                />
-              )}
+            )}
+          </View>
+          {episode.peakIntensity && intensityReadings.length > 0 && (
+            <View style={styles.compactSparklineContainer}>
+              <IntensitySparkline
+                intensities={intensityReadings.map(r => r.intensity)}
+                width={100}
+                height={40}
+              />
             </View>
           )}
         </View>

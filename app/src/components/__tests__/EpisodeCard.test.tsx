@@ -230,7 +230,7 @@ describe('EpisodeCard', () => {
       renderWithTheme(<EpisodeCard episode={baseEpisode} compact />);
 
       await waitFor(() => {
-        expect(screen.getByText('7')).toBeTruthy();
+        expect(screen.getByText('7 Severe')).toBeTruthy();
       });
     });
 
