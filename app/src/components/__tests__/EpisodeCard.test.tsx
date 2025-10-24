@@ -75,7 +75,7 @@ describe('EpisodeCard', () => {
       renderWithTheme(<EpisodeCard episode={baseEpisode} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Peak: 7 Severe')).toBeTruthy();
+        expect(screen.getByText('7 Severe')).toBeTruthy();
       });
     });
 

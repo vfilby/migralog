@@ -114,21 +114,23 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 8,
+    gap: 16,
+  },
+  cardLeftColumn: {
+    flex: 1,
+    gap: 6,
   },
   cardDuration: {
     fontSize: 15,
     color: theme.textSecondary,
-    flex: 1,
-  },
-  cardPeakGroup: {
-    flexDirection: 'column',
-    alignItems: 'flex-end',
-    gap: 4,
-    flexShrink: 0,
   },
   cardPeakText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  cardSparklineContainer: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
   },
   cardMetaRow: {
     flexDirection: 'row',
@@ -247,24 +249,26 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
         )}
       </View>
 
-      {/* Row 2: Duration on left, Peak + Sparkline on right */}
+      {/* Row 2: Duration and Peak severity aligned on left */}
       <View style={styles.cardSecondRow}>
-        <Text style={styles.cardDuration}>
-          {formatDuration(durationHours)}
-          {!episode.endTime && ' (ongoing)'}
-        </Text>
-        {episode.peakIntensity && (
-          <View style={styles.cardPeakGroup}>
+        <View style={styles.cardLeftColumn}>
+          <Text style={styles.cardDuration}>
+            {formatDuration(durationHours)}
+            {!episode.endTime && ' (ongoing)'}
+          </Text>
+          {episode.peakIntensity && (
             <Text style={[styles.cardPeakText, { color: getPainColor(episode.peakIntensity) }]}>
-              Peak: {episode.peakIntensity} {getPainLevel(episode.peakIntensity).label}
+              {episode.peakIntensity} {getPainLevel(episode.peakIntensity).label}
             </Text>
-            {intensityReadings.length > 0 && (
-              <IntensitySparkline
-                intensities={intensityReadings.map(r => r.intensity)}
-                width={120}
-                height={40}
-              />
-            )}
+          )}
+        </View>
+        {episode.peakIntensity && intensityReadings.length > 0 && (
+          <View style={styles.cardSparklineContainer}>
+            <IntensitySparkline
+              intensities={intensityReadings.map(r => r.intensity)}
+              width={120}
+              height={50}
+            />
           </View>
         )}
       </View>
