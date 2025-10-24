@@ -24,6 +24,7 @@ import { useTheme } from '../theme';
 import { useMedicationStore } from '../store/medicationStore';
 import { useEpisodeStore } from '../store/episodeStore';
 import { formatDosageWithUnit, formatMedicationDosage } from '../utils/medicationFormatting';
+import NotificationSettings from '../components/NotificationSettings';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MedicationDetail'>;
 
@@ -351,6 +352,15 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
           </View>
         )}
 
+        {/* Notification Settings - Only for preventative medications with schedules */}
+        {medication.type === 'preventative' && schedules.length > 0 && (
+          <View style={[styles.section, { backgroundColor: theme.card }]}>
+            <View style={styles.settingsContainer}>
+              <NotificationSettings medicationId={medicationId} showTitle={true} />
+            </View>
+          </View>
+        )}
+
         {/* 30-Day Log */}
         <View style={[styles.section, { backgroundColor: theme.card }]}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Recent Activity (30 days)</Text>
@@ -540,6 +550,9 @@ const styles = StyleSheet.create({
     marginTop: 20,
     paddingHorizontal: 20,
     paddingVertical: 16,
+  },
+  settingsContainer: {
+    paddingVertical: 4,
   },
   medicationHeader: {
     flexDirection: 'row',

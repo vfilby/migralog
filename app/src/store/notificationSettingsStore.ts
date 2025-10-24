@@ -105,6 +105,7 @@ export const useNotificationSettingsStore = create<NotificationSettingsState>((s
   removeMedicationSettings: async (medicationId) => {
     try {
       const currentSettings = get().settings;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { [medicationId]: _removed, ...remainingOverrides } = currentSettings.medicationOverrides;
 
       const newSettings: NotificationSettings = {

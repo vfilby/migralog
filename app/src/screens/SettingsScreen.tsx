@@ -18,6 +18,7 @@ import { notificationService, NotificationPermissions } from '../services/notifi
 import { locationService } from '../services/locationService';
 import { backupService } from '../services/backupService';
 import * as SQLite from 'expo-sqlite';
+import NotificationSettings from '../components/NotificationSettings';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
@@ -474,6 +475,12 @@ export default function SettingsScreen({ navigation }: Props) {
               </>
             )}
           </View>
+
+          {notificationPermissions?.granted && (
+            <View style={styles.settingsSection}>
+              <NotificationSettings showTitle={false} />
+            </View>
+          )}
         </View>
 
         {/* Location Section */}
@@ -847,6 +854,9 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   },
   developerActions: {
     gap: 12,
+  },
+  settingsSection: {
+    marginTop: 16,
   },
   developerButton: {
     backgroundColor: theme.card,
