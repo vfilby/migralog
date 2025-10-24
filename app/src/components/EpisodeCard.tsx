@@ -60,12 +60,13 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   compactSecondRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 6,
   },
   compactDuration: {
     fontSize: 14,
     color: theme.textSecondary,
+    flex: 1,
   },
   compactThirdRow: {
     flexDirection: 'row',
@@ -73,9 +74,10 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     gap: 8,
   },
   compactPeakGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: 4,
+    flexShrink: 0,
   },
   compactPeakText: {
     fontSize: 14,
@@ -120,11 +122,13 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   cardDuration: {
     fontSize: 15,
     color: theme.textSecondary,
+    flex: 1,
   },
   cardPeakGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: 4,
+    flexShrink: 0,
   },
   cardPeakText: {
     fontSize: 16,
@@ -213,7 +217,7 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
               {intensityReadings.length > 0 && (
                 <IntensitySparkline
                   intensities={intensityReadings.map(r => r.intensity)}
-                  width={80}
+                  width={100}
                   height={24}
                 />
               )}
@@ -253,11 +257,9 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
         </Text>
         {episode.peakIntensity && (
           <View style={styles.cardPeakGroup}>
-            <View>
-              <Text style={[styles.cardPeakText, { color: getPainColor(episode.peakIntensity) }]}>
-                Peak: {episode.peakIntensity}/10 {getPainLevel(episode.peakIntensity).label}
-              </Text>
-            </View>
+            <Text style={[styles.cardPeakText, { color: getPainColor(episode.peakIntensity) }]}>
+              Peak: {episode.peakIntensity}/10 {getPainLevel(episode.peakIntensity).label}
+            </Text>
             {intensityReadings.length > 0 && (
               <IntensitySparkline
                 intensities={intensityReadings.map(r => r.intensity)}
