@@ -144,7 +144,7 @@ describe('AnalyticsScreen', () => {
       await waitFor(() => {
         const ones = getAllByText('1');
         expect(ones.length).toBeGreaterThan(0);
-        expect(getByText('8.0/10')).toBeTruthy();
+        expect(getByText('8.0')).toBeTruthy();
       });
     });
   });

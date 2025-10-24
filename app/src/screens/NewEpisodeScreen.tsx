@@ -560,7 +560,7 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
           <View style={styles.sliderContainer}>
             <View style={styles.sliderHeader}>
               <Text style={[styles.intensityValue, { color: getPainLevel(intensity).color }]}>
-                {intensity}/10
+                {intensity}
               </Text>
               <Text style={styles.intensityLabel}>
                 {getPainLevel(intensity).label}
