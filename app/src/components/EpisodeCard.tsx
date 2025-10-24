@@ -61,22 +61,11 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   compactDuration: {
     fontSize: 14,
     color: theme.textSecondary,
-  },
-  compactOngoingBadge: {
-    backgroundColor: theme.ongoing,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  compactOngoingText: {
-    color: theme.ongoingText,
-    fontSize: 11,
-    fontWeight: '600',
   },
   compactThirdRow: {
     flexDirection: 'row',
@@ -120,29 +109,12 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   cardSecondRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 8,
   },
   cardDuration: {
     fontSize: 15,
     color: theme.textSecondary,
-  },
-  cardOngoingBadge: {
-    backgroundColor: theme.ongoing,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  cardOngoingText: {
-    color: theme.ongoingText,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  cardThirdRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 8,
   },
   cardPeakText: {
     fontSize: 16,
@@ -170,9 +142,10 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
   const [locationAddress, setLocationAddress] = useState<string | null>(null);
   const [intensityReadings, setIntensityReadings] = useState<IntensityReading[]>([]);
 
-  const duration = episode.endTime
+  // Calculate duration - either completed duration or elapsed time for ongoing
+  const durationHours = episode.endTime
     ? Math.round((episode.endTime - episode.startTime) / 3600000)
-    : null;
+    : Math.round((Date.now() - episode.startTime) / 3600000);
 
   useEffect(() => {
     // Load geocoded location if available
@@ -216,33 +189,27 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
           )}
         </View>
 
-        {/* Row 2: Duration on left, Ongoing badge on right */}
+        {/* Row 2: Duration on left, Sparkline on right */}
         <View style={styles.compactSecondRow}>
           <Text style={styles.compactDuration}>
-            {episode.endTime
-              ? formatDuration(Math.round((episode.endTime - episode.startTime) / 3600000))
-              : 'Ongoing'}
+            {formatDuration(durationHours)}
+            {!episode.endTime && ' (ongoing)'}
           </Text>
-          {!episode.endTime && (
-            <View style={styles.compactOngoingBadge}>
-              <Text style={styles.compactOngoingText}>Ongoing</Text>
-            </View>
+          {intensityReadings.length > 0 && (
+            <IntensitySparkline
+              intensities={intensityReadings.map(r => r.intensity)}
+              width={80}
+              height={24}
+            />
           )}
         </View>
 
-        {/* Row 3: Peak intensity and sparkline together */}
+        {/* Row 3: Peak intensity */}
         {episode.peakIntensity && (
           <View style={styles.compactThirdRow}>
             <Text style={[styles.compactPeakText, { color: getPainColor(episode.peakIntensity) }]}>
-              {episode.peakIntensity}/10
+              Peak: {episode.peakIntensity}/10
             </Text>
-            {intensityReadings.length > 0 && (
-              <IntensitySparkline
-                intensities={intensityReadings.map(r => r.intensity)}
-                width={80}
-                height={24}
-              />
-            )}
           </View>
         )}
       </TouchableOpacity>
@@ -270,35 +237,28 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
         )}
       </View>
 
-      {/* Row 2: Duration on left, Ongoing badge on right */}
+      {/* Row 2: Duration on left, Sparkline on right */}
       <View style={styles.cardSecondRow}>
-        <Text style={styles.cardDuration}>
-          {episode.endTime
-            ? formatDuration(Math.round((episode.endTime - episode.startTime) / 3600000))
-            : 'Ongoing'}
-        </Text>
-        {!episode.endTime && (
-          <View style={styles.cardOngoingBadge}>
-            <Text style={styles.cardOngoingText}>Ongoing</Text>
-          </View>
-        )}
-      </View>
-
-      {/* Row 3: Peak intensity and sparkline together */}
-      {episode.peakIntensity && (
-        <View style={styles.cardThirdRow}>
-          <Text style={[styles.cardPeakText, { color: getPainColor(episode.peakIntensity) }]}>
-            {episode.peakIntensity}/10 {getPainLevel(episode.peakIntensity).label}
+        <View style={{ flex: 1 }}>
+          <Text style={styles.cardDuration}>
+            {formatDuration(durationHours)}
+            {!episode.endTime && ' (ongoing)'}
           </Text>
-          {intensityReadings.length > 0 && (
-            <IntensitySparkline
-              intensities={intensityReadings.map(r => r.intensity)}
-              width={120}
-              height={40}
-            />
+          {/* Row 3: Peak intensity */}
+          {episode.peakIntensity && (
+            <Text style={[styles.cardPeakText, { color: getPainColor(episode.peakIntensity), marginTop: 4 }]}>
+              Peak: {episode.peakIntensity}/10 {getPainLevel(episode.peakIntensity).label}
+            </Text>
           )}
         </View>
-      )}
+        {intensityReadings.length > 0 && (
+          <IntensitySparkline
+            intensities={intensityReadings.map(r => r.intensity)}
+            width={120}
+            height={40}
+          />
+        )}
+      </View>
 
       {/* Row 4: Metadata (pain areas, symptoms) */}
       {(episode.locations.length > 0 || episode.symptoms.length > 0) && (

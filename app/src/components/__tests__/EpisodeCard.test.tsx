@@ -71,11 +71,11 @@ describe('EpisodeCard', () => {
       });
     });
 
-    it('should display peak intensity with level label without key', async () => {
+    it('should display peak intensity with Peak label and level', async () => {
       renderWithTheme(<EpisodeCard episode={baseEpisode} />);
 
       await waitFor(() => {
-        expect(screen.getByText('7/10 Severe')).toBeTruthy();
+        expect(screen.getByText('Peak: 7/10 Severe')).toBeTruthy();
       });
     });
 
@@ -103,26 +103,14 @@ describe('EpisodeCard', () => {
       });
     });
 
-    it('should show ongoing badge when no end time', async () => {
+    it('should show elapsed time with (ongoing) suffix when no end time', async () => {
       const ongoingEpisode = { ...baseEpisode, endTime: undefined };
 
       renderWithTheme(<EpisodeCard episode={ongoingEpisode} />);
 
       await waitFor(() => {
-        const ongoingTexts = screen.getAllByText('Ongoing');
-        expect(ongoingTexts.length).toBeGreaterThanOrEqual(1);
-      });
-    });
-
-    it('should display "Ongoing" for ongoing episodes', async () => {
-      const ongoingEpisode = { ...baseEpisode, endTime: undefined };
-
-      renderWithTheme(<EpisodeCard episode={ongoingEpisode} />);
-
-      await waitFor(() => {
-        // Should show "Ongoing" text instead of duration
-        const ongoingTexts = screen.getAllByText('Ongoing');
-        expect(ongoingTexts.length).toBeGreaterThanOrEqual(1);
+        // Should show elapsed time with "(ongoing)" suffix
+        expect(screen.getByText(/(ongoing)/)).toBeTruthy();
       });
     });
 
@@ -228,22 +216,21 @@ describe('EpisodeCard', () => {
       });
     });
 
-    it('should show ongoing status', async () => {
+    it('should show elapsed time with (ongoing) suffix', async () => {
       const ongoingEpisode = { ...baseEpisode, endTime: undefined };
 
       renderWithTheme(<EpisodeCard episode={ongoingEpisode} compact />);
 
       await waitFor(() => {
-        const ongoingTexts = screen.getAllByText('Ongoing');
-        expect(ongoingTexts.length).toBeGreaterThanOrEqual(1);
+        expect(screen.getByText(/(ongoing)/)).toBeTruthy();
       });
     });
 
-    it('should display peak intensity without label', async () => {
+    it('should display peak intensity with Peak label', async () => {
       renderWithTheme(<EpisodeCard episode={baseEpisode} compact />);
 
       await waitFor(() => {
-        expect(screen.getByText('7/10')).toBeTruthy();
+        expect(screen.getByText('Peak: 7/10')).toBeTruthy();
       });
     });
 
