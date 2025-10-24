@@ -104,21 +104,11 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     color: theme.text,
     flex: 1,
   },
-  cardLocation: {
-    fontSize: 15,
-    color: theme.textSecondary,
-    marginLeft: 12,
-  },
   cardSecondRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-    gap: 16,
-  },
-  cardLeftColumn: {
-    flex: 1,
-    gap: 6,
+    alignItems: 'center',
+    marginBottom: 4,
   },
   cardDuration: {
     fontSize: 15,
@@ -131,6 +121,11 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   cardSparklineContainer: {
     alignItems: 'flex-end',
     justifyContent: 'center',
+  },
+  cardLocation: {
+    fontSize: 14,
+    color: theme.textSecondary,
+    marginBottom: 8,
   },
   cardMetaRow: {
     flexDirection: 'row',
@@ -237,31 +232,31 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
       accessibilityRole="button"
       accessibilityLabel={`Episode from ${format(episode.startTime, 'EEEE, MMM d, yyyy')}`}
     >
-      {/* Row 1: Date on left, Location on right */}
+      {/* Row 1: Date on left, Peak on right */}
       <View style={styles.cardFirstRow}>
         <Text style={styles.cardDate}>
           {format(episode.startTime, 'EEE, MMM d · h:mm a')}
         </Text>
-        {locationAddress && (
-          <Text style={styles.cardLocation} numberOfLines={1}>
-            {locationAddress}
+        {episode.peakIntensity && (
+          <Text style={[styles.cardPeakText, { color: getPainColor(episode.peakIntensity) }]}>
+            {episode.peakIntensity} {getPainLevel(episode.peakIntensity).label}
           </Text>
         )}
       </View>
 
-      {/* Row 2: Duration and Peak severity aligned on left */}
+      {/* Row 2: Location if available */}
+      {locationAddress && (
+        <Text style={styles.cardLocation} numberOfLines={1}>
+          {locationAddress}
+        </Text>
+      )}
+
+      {/* Row 3: Duration on left, Sparkline on right */}
       <View style={styles.cardSecondRow}>
-        <View style={styles.cardLeftColumn}>
-          <Text style={styles.cardDuration}>
-            {formatDuration(durationHours)}
-            {!episode.endTime && ' (ongoing)'}
-          </Text>
-          {episode.peakIntensity && (
-            <Text style={[styles.cardPeakText, { color: getPainColor(episode.peakIntensity) }]}>
-              {episode.peakIntensity} {getPainLevel(episode.peakIntensity).label}
-            </Text>
-          )}
-        </View>
+        <Text style={styles.cardDuration}>
+          {formatDuration(durationHours)}
+          {!episode.endTime && ' (ongoing)'}
+        </Text>
         {episode.peakIntensity && intensityReadings.length > 0 && (
           <View style={styles.cardSparklineContainer}>
             <IntensitySparkline
