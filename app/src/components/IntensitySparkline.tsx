@@ -56,7 +56,7 @@ const IntensitySparkline: React.FC<IntensitySparklineProps> = ({
   const xStep = chartWidth / (validIntensities.length - 1 || 1);
 
   // Apply Exponential Moving Average (EMA) for smoothing
-  const alpha = 0.6; // Smoothing factor (0 < alpha < 1, lower = smoother, higher = more responsive)
+  const alpha = 0.75; // Smoothing factor (0 < alpha < 1, lower = smoother, higher = more responsive)
   const smoothedIntensities = validIntensities.reduce<number[]>((acc, intensity, index) => {
     if (index === 0) {
       acc.push(intensity);
