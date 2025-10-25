@@ -19,9 +19,12 @@ import { notificationService, NotificationPermissions } from '../services/notifi
 import { locationService } from '../services/locationService';
 import { backupService } from '../services/backupService';
 import * as SQLite from 'expo-sqlite';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import NotificationSettings from '../components/NotificationSettings';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
+
+const DEVELOPER_MODE_KEY = '@settings_developer_mode';
 
 export default function SettingsScreen({ navigation }: Props) {
   const { theme, themeMode, setThemeMode } = useTheme();
@@ -30,11 +33,51 @@ export default function SettingsScreen({ navigation }: Props) {
   const [dbStatus, setDbStatus] = useState<'checking' | 'healthy' | 'error'>('checking');
   const [notificationPermissions, setNotificationPermissions] = useState<NotificationPermissions | null>(null);
   const [locationPermission, setLocationPermission] = useState<boolean | null>(null);
+  const [developerMode, setDeveloperMode] = useState(false);
+  const [versionTapCount, setVersionTapCount] = useState(0);
 
   useEffect(() => {
     loadDiagnostics();
+    loadDeveloperMode();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadDeveloperMode = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(DEVELOPER_MODE_KEY);
+      if (stored !== null) {
+        setDeveloperMode(stored === 'true');
+      }
+    } catch (error) {
+      logger.error('Failed to load developer mode setting:', error);
+    }
+  };
+
+  const toggleDeveloperMode = async (enabled: boolean) => {
+    try {
+      await AsyncStorage.setItem(DEVELOPER_MODE_KEY, enabled.toString());
+      setDeveloperMode(enabled);
+    } catch (error) {
+      logger.error('Failed to save developer mode setting:', error);
+    }
+  };
+
+  const handleVersionTap = () => {
+    const newCount = versionTapCount + 1;
+    setVersionTapCount(newCount);
+
+    if (newCount === 7) {
+      const newMode = !developerMode;
+      toggleDeveloperMode(newMode);
+      setVersionTapCount(0);
+      Alert.alert(
+        newMode ? 'Developer Mode Enabled' : 'Developer Mode Disabled',
+        newMode
+          ? 'Developer tools are now visible in Settings.'
+          : 'Developer tools have been hidden.'
+      );
+    }
+  };
 
   const loadDiagnostics = async () => {
     try {
@@ -333,10 +376,19 @@ export default function SettingsScreen({ navigation }: Props) {
               <Text style={styles.aboutValue}>1.0.0</Text>
             </View>
             <View style={styles.divider} />
-            <View style={styles.aboutRow}>
+            <TouchableOpacity
+              style={styles.aboutRow}
+              onPress={handleVersionTap}
+              activeOpacity={0.6}
+            >
               <Text style={styles.aboutLabel}>Build</Text>
-              <Text style={styles.aboutValue}>{buildInfo.commitHash}</Text>
-            </View>
+              <View style={styles.buildValueContainer}>
+                <Text style={styles.aboutValue}>{buildInfo.commitHash}</Text>
+                {developerMode && (
+                  <Ionicons name="code-slash" size={16} color={theme.primary} style={{ marginLeft: 6 }} />
+                )}
+              </View>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -465,7 +517,7 @@ export default function SettingsScreen({ navigation }: Props) {
               </TouchableOpacity>
             )}
 
-            {notificationPermissions?.granted && (
+            {notificationPermissions?.granted && developerMode && (
               <>
                 <TouchableOpacity
                   style={styles.developerButton}
@@ -591,11 +643,12 @@ export default function SettingsScreen({ navigation }: Props) {
         </View>
 
         {/* Developer Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Developer</Text>
-          <Text style={styles.sectionDescription}>
-            Diagnostic tools for troubleshooting issues
-          </Text>
+        {developerMode && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Developer</Text>
+            <Text style={styles.sectionDescription}>
+              Diagnostic tools for troubleshooting issues
+            </Text>
 
           {/* Database Status */}
           <View style={styles.diagnosticCard}>
@@ -700,7 +753,8 @@ export default function SettingsScreen({ navigation }: Props) {
               </>
             )}
           </View>
-        </View>
+          </View>
+        )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -773,6 +827,10 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     fontSize: 16,
     color: theme.textSecondary,
     fontWeight: '500',
+  },
+  buildValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   divider: {
     height: 1,
