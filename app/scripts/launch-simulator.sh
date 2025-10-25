@@ -57,14 +57,14 @@ echo ""
 echo "✅ Selected: $SELECTED_NAME"
 echo ""
 
-# Check if app is installed
+# Check if app binary exists
 BUNDLE_ID="com.eff3.app.headache-tracker"
-APP_INSTALLED=$(xcrun simctl listapps "$SELECTED_UDID" | grep -c "$BUNDLE_ID" || true)
+APP_BINARY="ios/build/Build/Products/Debug-iphonesimulator/MigraLog.app"
 
-if [ "$APP_INSTALLED" -eq 0 ]; then
-  echo "⚠️  App not installed on this simulator"
+if [ ! -d "$APP_BINARY" ]; then
+  echo "⚠️  App binary not found at $APP_BINARY"
   echo ""
-  echo -n "Would you like to build and install the app? (y/n): "
+  echo -n "Would you like to build the app? (y/n): "
   read BUILD_CHOICE
 
   if [[ "$BUILD_CHOICE" =~ ^[Yy]$ ]]; then
@@ -81,19 +81,27 @@ if [ "$APP_INSTALLED" -eq 0 ]; then
     echo "✅ Build complete!"
   else
     echo ""
-    echo "❌ App not installed. Run 'npm run test:e2e:build' to build and install it."
+    echo "❌ App not built. Run 'npm run test:e2e:build' to build it."
     exit 1
   fi
 fi
 
-echo "🚀 Opening app on simulator..."
+echo "📲 Installing app on simulator..."
+xcrun simctl install "$SELECTED_UDID" "$APP_BINARY"
+
+if [ $? -ne 0 ]; then
+  echo "❌ Failed to install app"
+  exit 1
+fi
+
+echo "🚀 Launching app..."
 echo ""
 
 # Launch the app using bundle ID - it will auto-connect to dev server on 8081
 xcrun simctl launch "$SELECTED_UDID" "$BUNDLE_ID"
 
 if [ $? -eq 0 ]; then
-  echo "✓ App opened on $SELECTED_NAME"
+  echo "✓ App launched on $SELECTED_NAME"
   echo ""
   echo "The app should automatically connect to the Expo dev server on port 8081"
 else
