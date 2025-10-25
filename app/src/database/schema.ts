@@ -1,6 +1,6 @@
 // Database schema and initialization
 
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 10;
 
 export const createTables = `
   -- Episodes table
@@ -85,6 +85,8 @@ export const createTables = `
     medication_id TEXT NOT NULL,
     timestamp INTEGER NOT NULL CHECK(timestamp > 0),
     amount REAL NOT NULL CHECK(amount >= 0),
+    dosage_amount REAL,
+    dosage_unit TEXT,
     status TEXT NOT NULL DEFAULT 'taken' CHECK(status IN ('taken', 'skipped')),
     episode_id TEXT,
     effectiveness_rating REAL CHECK(effectiveness_rating IS NULL OR (effectiveness_rating >= 0 AND effectiveness_rating <= 10)),

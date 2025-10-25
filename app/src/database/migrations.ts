@@ -444,6 +444,58 @@ const migrations: Migration[] = [
       }
     },
   },
+  {
+    version: 10,
+    name: 'add_dosage_snapshot_to_doses',
+    up: async (db: SQLite.SQLiteDatabase) => {
+      // Add dosage_amount and dosage_unit columns to medication_doses table
+      // These columns snapshot the medication's dosage at the time of logging
+      // to preserve historical accuracy when medication dosages are changed
+
+      const tableInfo = await db.getAllAsync<{ name: string }>(
+        "PRAGMA table_info(medication_doses)"
+      );
+      const columnNames = tableInfo.map(col => col.name);
+
+      // Add dosage_amount column if it doesn't exist
+      if (!columnNames.includes('dosage_amount')) {
+        await db.execAsync('ALTER TABLE medication_doses ADD COLUMN dosage_amount REAL;');
+        logger.log('Added dosage_amount column to medication_doses');
+      }
+
+      // Add dosage_unit column if it doesn't exist
+      if (!columnNames.includes('dosage_unit')) {
+        await db.execAsync('ALTER TABLE medication_doses ADD COLUMN dosage_unit TEXT;');
+        logger.log('Added dosage_unit column to medication_doses');
+      }
+
+      // Populate existing doses with dosage snapshot from their medications
+      // This backfills historical data so old doses show correct amounts
+      await db.execAsync(`
+        UPDATE medication_doses
+        SET
+          dosage_amount = (
+            SELECT medications.dosage_amount
+            FROM medications
+            WHERE medications.id = medication_doses.medication_id
+          ),
+          dosage_unit = (
+            SELECT medications.dosage_unit
+            FROM medications
+            WHERE medications.id = medication_doses.medication_id
+          )
+        WHERE dosage_amount IS NULL OR dosage_unit IS NULL;
+      `);
+
+      logger.log('Migration 10: Added dosage snapshot fields to medication_doses');
+    },
+    down: async (db: SQLite.SQLiteDatabase) => {
+      // SQLite doesn't support DROP COLUMN
+      // Would need to recreate table without these columns
+      // Since this is new functionality, down migration not critical
+      logger.warn('Rollback of migration 10 not implemented (SQLite limitation)');
+    },
+  },
 ];
 
 class MigrationRunner {
