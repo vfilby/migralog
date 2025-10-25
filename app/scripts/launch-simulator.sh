@@ -89,14 +89,22 @@ fi
 echo "🚀 Opening app on simulator..."
 echo ""
 
-# Use the custom app scheme for development builds
-# This assumes Expo is running on the default port 8081
-xcrun simctl openurl "$SELECTED_UDID" "migraine-tracker://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8081"
+# Launch the app using bundle ID - it will auto-connect to dev server on 8081
+xcrun simctl launch "$SELECTED_UDID" "$BUNDLE_ID"
 
-echo "✓ App opened on $SELECTED_NAME"
+if [ $? -eq 0 ]; then
+  echo "✓ App opened on $SELECTED_NAME"
+  echo ""
+  echo "The app should automatically connect to the Expo dev server on port 8081"
+else
+  echo "❌ Failed to launch app"
+  exit 1
+fi
+
 echo ""
-echo "If the app doesn't open:"
+echo "If the app doesn't connect:"
 echo "  • Make sure Expo is running (npm start)"
 echo "  • The dev server should be on port 8081"
+echo "  • Shake the device and select 'Configure Metro' if needed"
 echo ""
 echo "Simulator UDID: $SELECTED_UDID"
