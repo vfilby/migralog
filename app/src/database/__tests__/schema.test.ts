@@ -31,8 +31,8 @@ describe('Database Schema', () => {
     tables = parseTableDefinitions(createTables);
   });
   describe('Schema Version', () => {
-    it('should be at version 9', () => {
-      expect(SCHEMA_VERSION).toBe(9);
+    it('should be at version 10', () => {
+      expect(SCHEMA_VERSION).toBe(10);
     });
   });
 

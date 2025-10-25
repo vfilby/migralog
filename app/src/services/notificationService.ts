@@ -329,6 +329,8 @@ class NotificationService {
         medicationId,
         timestamp: Date.now(),
         amount: dosage,
+        dosageAmount: medication.dosageAmount,
+        dosageUnit: medication.dosageUnit,
         notes: 'Logged from notification',
       });
 
@@ -423,6 +425,8 @@ class NotificationService {
           medicationId,
           timestamp: Date.now(),
           amount: dosage,
+          dosageAmount: medication.dosageAmount,
+          dosageUnit: medication.dosageUnit,
           notes: 'Logged from notification',
         });
 

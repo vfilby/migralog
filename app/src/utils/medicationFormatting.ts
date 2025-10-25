@@ -3,6 +3,8 @@
  * Helper functions for displaying medication information
  */
 
+import { MedicationDose, Medication } from '../models/types';
+
 /**
  * Pluralization rules for medication units
  * Maps plural forms to their singular equivalents
@@ -66,4 +68,24 @@ export function formatMedicationDosage(
 ): string {
   const dosageStr = formatDosageWithUnit(amount, unit);
   return `${quantity} × ${dosageStr}`;
+}
+
+/**
+ * Format dose display using historical snapshot or current medication dosage
+ * This ensures correct dosage display even when medication dosages change over time.
+ *
+ * @param dose - Medication dose record
+ * @param medication - Current medication record (used as fallback if no snapshot)
+ * @returns Formatted string like "2 × 200mg" or "1 × 10 minutes"
+ */
+export function formatDoseWithSnapshot(
+  dose: MedicationDose,
+  medication: Medication
+): string {
+  // Use snapshot dosage if available (for historical accuracy)
+  // Otherwise fallback to current medication dosage
+  const dosageAmount = dose.dosageAmount ?? medication.dosageAmount;
+  const dosageUnit = dose.dosageUnit ?? medication.dosageUnit;
+
+  return formatMedicationDosage(dose.amount, dosageAmount, dosageUnit);
 }

@@ -35,6 +35,16 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     fontWeight: 'bold',
     color: theme.text,
   },
+  archivedLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  archivedLinkText: {
+    fontSize: 16,
+    color: theme.primary,
+    fontWeight: '500',
+  },
   content: {
     flex: 1,
   },
@@ -349,11 +359,19 @@ export default function MedicationsScreen() {
     try {
       const now = Date.now();
 
+      // Find the medication to get its dosage info
+      const medication = preventativeMedications.find(m => m.id === medicationId);
+      if (!medication) {
+        throw new Error('Medication not found');
+      }
+
       // Log to database first to get the ID
       const dose = await logDose({
         medicationId,
         timestamp: now,
         amount: dosage,
+        dosageAmount: medication.dosageAmount,
+        dosageUnit: medication.dosageUnit,
         episodeId: currentEpisode?.id,
       });
 
@@ -395,10 +413,18 @@ export default function MedicationsScreen() {
 
   const handleRescueQuickLog = async (medicationId: string, dosage: number) => {
     try {
+      // Find the medication to get its dosage info
+      const medication = rescueMedications.find(m => m.id === medicationId);
+      if (!medication) {
+        throw new Error('Medication not found');
+      }
+
       await logDose({
         medicationId,
         timestamp: Date.now(),
         amount: dosage,
+        dosageAmount: medication.dosageAmount,
+        dosageUnit: medication.dosageUnit,
         episodeId: currentEpisode?.id,
       });
       Alert.alert('Success', 'Medication logged successfully');
@@ -413,6 +439,15 @@ export default function MedicationsScreen() {
     <View style={styles.container} testID="medications-screen">
       <View style={styles.header}>
         <Text style={styles.title}>Medications</Text>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('ArchivedMedications')}
+          testID="archived-medications-link"
+        >
+          <View style={styles.archivedLink}>
+            <Ionicons name="archive-outline" size={20} color={theme.primary} />
+            <Text style={styles.archivedLinkText}>Archived</Text>
+          </View>
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content}>

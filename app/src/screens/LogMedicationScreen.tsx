@@ -307,6 +307,8 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
         medicationId: med.id,
         timestamp: Date.now(),
         amount: med.defaultDosage || 1,
+        dosageAmount: med.dosageAmount,
+        dosageUnit: med.dosageUnit,
         // episodeId determined automatically by timestamp
       });
 
@@ -331,6 +333,8 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
         medicationId: medication.id,
         timestamp: timestamp.getTime(),
         amount: parseFloat(amount),
+        dosageAmount: medication.dosageAmount,
+        dosageUnit: medication.dosageUnit,
         // episodeId determined automatically by timestamp
         notes: notes.trim() || undefined,
       });

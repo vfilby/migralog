@@ -223,14 +223,16 @@ export const medicationDoseRepository = {
 
     await database.runAsync(
       `INSERT INTO medication_doses (
-        id, medication_id, timestamp, amount, status, episode_id, effectiveness_rating,
+        id, medication_id, timestamp, amount, dosage_amount, dosage_unit, status, episode_id, effectiveness_rating,
         time_to_relief, side_effects, notes, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         newDose.id,
         newDose.medicationId,
         newDose.timestamp,
         newDose.amount,
+        newDose.dosageAmount || null,
+        newDose.dosageUnit || null,
         newDose.status || 'taken', // Ensure it's never undefined
         newDose.episodeId || null,
         newDose.effectivenessRating || null,
@@ -343,6 +345,8 @@ export const medicationDoseRepository = {
       medicationId: row.medication_id,
       timestamp: row.timestamp,
       amount: row.amount,
+      dosageAmount: row.dosage_amount || undefined,
+      dosageUnit: row.dosage_unit || undefined,
       status: (row.status as import('../models/types').DoseStatus) || 'taken', // Type assertion with default
       episodeId: row.episode_id || undefined,
       effectivenessRating: row.effectiveness_rating || undefined,

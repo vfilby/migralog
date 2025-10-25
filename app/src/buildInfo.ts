@@ -1,8 +1,8 @@
 // Auto-generated file - do not edit manually
-// Generated at: 2025-10-25T14:58:55.449Z
+// Generated at: 2025-10-25T17:52:44.844Z
 
 export const buildInfo = {
-  "commitHash": "505e748",
-  "branch": "fix/respect-time-sensitive-setting",
-  "buildTime": "2025-10-25T14:58:55.449Z"
+  "commitHash": "d93c727",
+  "branch": "feature/medication-archiving",
+  "buildTime": "2025-10-25T17:52:44.844Z"
 };

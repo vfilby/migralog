@@ -52,6 +52,7 @@
     "react-native-svg": "^15.14.0",
     "react-native-toast-message": "^2.3.3",
     "react-native-web": "^0.21.1",
+    "sqlite3": "^5.1.7",
     "ulidx": "^2.4.1",
     "whatwg-url-without-unicode": "^8.0.0-3",
     "zod": "^3.25.76",
