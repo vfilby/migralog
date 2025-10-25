@@ -844,6 +844,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 12,
   },
   navigationItemContent: {
     flexDirection: 'row',
