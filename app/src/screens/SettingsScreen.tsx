@@ -151,9 +151,8 @@ export default function SettingsScreen({ navigation }: Props) {
       const permissions = await notificationService.requestPermissions();
       setNotificationPermissions(permissions);
 
-      if (permissions.granted) {
-        Alert.alert('Success', 'Notification permissions granted');
-      } else if (!permissions.canAskAgain) {
+      // Only show alert if permission was denied and can't ask again (need to go to Settings)
+      if (!permissions.granted && !permissions.canAskAgain) {
         Alert.alert(
           'Permission Denied',
           'Please enable notifications in Settings to receive medication reminders.',
@@ -161,9 +160,8 @@ export default function SettingsScreen({ navigation }: Props) {
             { text: 'OK', style: 'cancel' },
           ]
         );
-      } else {
-        Alert.alert('Permission Denied', 'Notifications will not be sent');
       }
+      // UI already shows permission status, no need for success alert
     } catch (error) {
       logger.error('Failed to request notification permissions:', error);
       Alert.alert('Error', 'Failed to request notification permissions');

@@ -260,7 +260,8 @@ describe('SettingsScreen', () => {
 
       await waitFor(() => {
         expect(notificationService.requestPermissions).toHaveBeenCalled();
-        expect(Alert.alert).toHaveBeenCalledWith('Success', 'Notification permissions granted');
+        // No alert shown on success - UI already reflects the change
+        expect(Alert.alert).not.toHaveBeenCalled();
       });
     });
 
