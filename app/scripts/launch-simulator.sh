@@ -55,17 +55,64 @@ SELECTED_UDID="${SIM_UDIDS[$SELECTED_INDEX]}"
 
 echo ""
 echo "✅ Selected: $SELECTED_NAME"
-echo "🚀 Opening app on simulator..."
 echo ""
 
-# Use the standard Expo dev server URL
-# This assumes Expo is running on the default port 8081
-xcrun simctl openurl "$SELECTED_UDID" "exp://127.0.0.1:8081"
+# Check if app binary exists
+BUNDLE_ID="com.eff3.app.headache-tracker"
+APP_BINARY="ios/build/Build/Products/Debug-iphonesimulator/MigraLog.app"
 
-echo "✓ App opened on $SELECTED_NAME"
+if [ ! -d "$APP_BINARY" ]; then
+  echo "⚠️  App binary not found at $APP_BINARY"
+  echo ""
+  echo -n "Would you like to build the app? (y/n): "
+  read BUILD_CHOICE
+
+  if [[ "$BUILD_CHOICE" =~ ^[Yy]$ ]]; then
+    echo ""
+    echo "📦 Building development app (this may take a few minutes)..."
+    npm run test:e2e:build
+
+    if [ $? -ne 0 ]; then
+      echo "❌ Build failed"
+      exit 1
+    fi
+
+    echo ""
+    echo "✅ Build complete!"
+  else
+    echo ""
+    echo "❌ App not built. Run 'npm run test:e2e:build' to build it."
+    exit 1
+  fi
+fi
+
+echo "📲 Installing app on simulator..."
+xcrun simctl install "$SELECTED_UDID" "$APP_BINARY"
+
+if [ $? -ne 0 ]; then
+  echo "❌ Failed to install app"
+  exit 1
+fi
+
+echo "🚀 Launching app..."
 echo ""
-echo "If the app doesn't open:"
+
+# Launch the app using bundle ID - it will auto-connect to dev server on 8081
+xcrun simctl launch "$SELECTED_UDID" "$BUNDLE_ID"
+
+if [ $? -eq 0 ]; then
+  echo "✓ App launched on $SELECTED_NAME"
+  echo ""
+  echo "The app should automatically connect to the Expo dev server on port 8081"
+else
+  echo "❌ Failed to launch app"
+  exit 1
+fi
+
+echo ""
+echo "If the app doesn't connect:"
 echo "  • Make sure Expo is running (npm start)"
 echo "  • The dev server should be on port 8081"
+echo "  • Shake the device and select 'Configure Metro' if needed"
 echo ""
 echo "Simulator UDID: $SELECTED_UDID"

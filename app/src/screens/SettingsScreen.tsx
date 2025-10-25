@@ -151,9 +151,8 @@ export default function SettingsScreen({ navigation }: Props) {
       const permissions = await notificationService.requestPermissions();
       setNotificationPermissions(permissions);
 
-      if (permissions.granted) {
-        Alert.alert('Success', 'Notification permissions granted');
-      } else if (!permissions.canAskAgain) {
+      // Only show alert if permission was denied and can't ask again (need to go to Settings)
+      if (!permissions.granted && !permissions.canAskAgain) {
         Alert.alert(
           'Permission Denied',
           'Please enable notifications in Settings to receive medication reminders.',
@@ -161,9 +160,8 @@ export default function SettingsScreen({ navigation }: Props) {
             { text: 'OK', style: 'cancel' },
           ]
         );
-      } else {
-        Alert.alert('Permission Denied', 'Notifications will not be sent');
       }
+      // UI already shows permission status, no need for success alert
     } catch (error) {
       logger.error('Failed to request notification permissions:', error);
       Alert.alert('Error', 'Failed to request notification permissions');
@@ -217,7 +215,7 @@ export default function SettingsScreen({ navigation }: Props) {
     }
   };
 
-  const handleTestNotification = async () => {
+  const handleTestNotification = async (timeSensitive: boolean) => {
     try {
       const permissions = await notificationService.getPermissions();
 
@@ -225,6 +223,13 @@ export default function SettingsScreen({ navigation }: Props) {
         Alert.alert('Permission Required', 'Please enable notifications first');
         return;
       }
+
+      // Temporarily override the time-sensitive setting for this test
+      const { useNotificationSettingsStore } = await import('../store/notificationSettingsStore');
+      const originalSettings = useNotificationSettingsStore.getState().settings;
+      await useNotificationSettingsStore.getState().updateGlobalSettings({
+        timeSensitiveEnabled: timeSensitive,
+      });
 
       // Schedule a test notification for 5 seconds from now
       const testTime = new Date(Date.now() + 5000);
@@ -249,9 +254,14 @@ export default function SettingsScreen({ navigation }: Props) {
         }
       );
 
+      // Restore original settings
+      await useNotificationSettingsStore.getState().updateGlobalSettings({
+        timeSensitiveEnabled: originalSettings.timeSensitiveEnabled,
+      });
+
       Alert.alert(
         'Test Scheduled',
-        'A test notification will appear in ~5 seconds. Make sure your device is not in silent mode and the app is in the background or closed.'
+        `A ${timeSensitive ? 'time-sensitive' : 'regular'} notification will appear in ~5 seconds. ${timeSensitive ? 'It should break through Focus mode.' : 'It should respect Focus mode.'}`
       );
     } catch (error) {
       logger.error('Failed to schedule test notification:', error);
@@ -521,10 +531,18 @@ export default function SettingsScreen({ navigation }: Props) {
               <>
                 <TouchableOpacity
                   style={styles.developerButton}
-                  onPress={handleTestNotification}
+                  onPress={() => handleTestNotification(false)}
                 >
                   <Ionicons name="flask-outline" size={20} color={theme.primary} />
-                  <Text style={styles.developerButtonText}>Send Test Notification (5s)</Text>
+                  <Text style={styles.developerButtonText}>Test Regular Notification (5s)</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.developerButton}
+                  onPress={() => handleTestNotification(true)}
+                >
+                  <Ionicons name="flash-outline" size={20} color={theme.primary} />
+                  <Text style={styles.developerButtonText}>Test Time-Sensitive (5s)</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity

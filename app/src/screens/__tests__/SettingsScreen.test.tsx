@@ -260,7 +260,8 @@ describe('SettingsScreen', () => {
 
       await waitFor(() => {
         expect(notificationService.requestPermissions).toHaveBeenCalled();
-        expect(Alert.alert).toHaveBeenCalledWith('Success', 'Notification permissions granted');
+        // No alert shown on success - UI already reflects the change
+        expect(Alert.alert).not.toHaveBeenCalled();
       });
     });
 
@@ -302,16 +303,16 @@ describe('SettingsScreen', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Send Test Notification (5s)')).toBeTruthy();
+        expect(screen.getByText('Test Regular Notification (5s)')).toBeTruthy();
       });
 
-      fireEvent.press(screen.getByText('Send Test Notification (5s)'));
+      fireEvent.press(screen.getByText('Test Regular Notification (5s)'));
 
       await waitFor(() => {
         expect(notificationService.scheduleNotification).toHaveBeenCalled();
         expect(Alert.alert).toHaveBeenCalledWith(
           'Test Scheduled',
-          expect.stringContaining('test notification will appear')
+          expect.stringContaining('regular notification will appear')
         );
       });
     });
@@ -332,7 +333,7 @@ describe('SettingsScreen', () => {
 
       // Test notification button only appears when notifications are enabled
       // So this test verifies that Enable Notifications button is shown when disabled
-      expect(screen.queryByText('Send Test Notification (5s)')).toBeNull();
+      expect(screen.queryByText('Test Regular Notification (5s)')).toBeNull();
     });
   });
 
@@ -588,10 +589,10 @@ describe('SettingsScreen', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Send Test Notification (5s)')).toBeTruthy();
+        expect(screen.getByText('Test Regular Notification (5s)')).toBeTruthy();
       });
 
-      fireEvent.press(screen.getByText('Send Test Notification (5s)'));
+      fireEvent.press(screen.getByText('Test Regular Notification (5s)'));
 
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalledWith('Error', expect.stringContaining('Failed to schedule test'));

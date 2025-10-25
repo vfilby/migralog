@@ -11,7 +11,7 @@ echo "Building iOS app for Detox testing (Configuration: $CONFIGURATION)..."
 
 # Step 1: Run prebuild to create native ios directory
 echo "Running expo prebuild..."
-npx expo prebuild --platform ios --clean
+npx expo prebuild --platform ios
 
 # Step 2: Install CocoaPods dependencies
 echo "Installing CocoaPods dependencies..."
