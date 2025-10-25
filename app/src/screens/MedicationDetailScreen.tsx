@@ -25,6 +25,7 @@ import { useMedicationStore } from '../store/medicationStore';
 import { useEpisodeStore } from '../store/episodeStore';
 import { formatDosageWithUnit, formatMedicationDosage } from '../utils/medicationFormatting';
 import NotificationSettings from '../components/NotificationSettings';
+import { Ionicons } from '@expo/vector-icons';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MedicationDetail'>;
 
@@ -43,6 +44,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
   const [editNotes, setEditNotes] = useState('');
   const [editTimestamp, setEditTimestamp] = useState<number>(Date.now());
   const [showDateTimePicker, setShowDateTimePicker] = useState(false);
+  const [notificationSettingsExpanded, setNotificationSettingsExpanded] = useState(false);
 
   useEffect(() => {
     loadMedicationData();
@@ -354,10 +356,24 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
 
         {/* Notification Settings - Only for preventative medications with schedules */}
         {medication.type === 'preventative' && schedules.length > 0 && (
-          <View style={[styles.section, { backgroundColor: theme.card }]}>
-            <View style={styles.settingsContainer}>
-              <NotificationSettings medicationId={medicationId} showTitle={true} />
-            </View>
+          <View style={[styles.notificationSection, { backgroundColor: theme.card }]}>
+            <TouchableOpacity
+              style={styles.collapsibleHeader}
+              onPress={() => setNotificationSettingsExpanded(!notificationSettingsExpanded)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Notification Overrides</Text>
+              <Ionicons
+                name={notificationSettingsExpanded ? 'chevron-up' : 'chevron-down'}
+                size={22}
+                color={theme.textSecondary}
+              />
+            </TouchableOpacity>
+            {notificationSettingsExpanded && (
+              <View style={styles.settingsContainer}>
+                <NotificationSettings medicationId={medicationId} showTitle={false} />
+              </View>
+            )}
           </View>
         )}
 
@@ -553,6 +569,19 @@ const styles = StyleSheet.create({
   },
   settingsContainer: {
     paddingVertical: 4,
+  },
+  notificationSection: {
+    marginTop: 20,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 16,
+    borderRadius: 12,
+  },
+  collapsibleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 0,
   },
   medicationHeader: {
     flexDirection: 'row',

@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Linking,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -123,6 +124,15 @@ export default function SettingsScreen({ navigation }: Props) {
     } catch (error) {
       logger.error('Failed to request notification permissions:', error);
       Alert.alert('Error', 'Failed to request notification permissions');
+    }
+  };
+
+  const handleOpenSystemSettings = async () => {
+    try {
+      await Linking.openSettings();
+    } catch (error) {
+      logger.error('Failed to open system settings:', error);
+      Alert.alert('Error', 'Failed to open Settings');
     }
   };
 
@@ -476,9 +486,22 @@ export default function SettingsScreen({ navigation }: Props) {
             )}
           </View>
 
-          {notificationPermissions?.granted && (
+          {notificationPermissions?.granted ? (
             <View style={styles.settingsSection}>
               <NotificationSettings showTitle={false} />
+            </View>
+          ) : (
+            <View style={styles.disabledNotificationsCard}>
+              <Text style={styles.disabledNotificationsText}>
+                Notifications are currently disabled. Enable notifications in Settings to customize notification behavior.
+              </Text>
+              <TouchableOpacity
+                style={styles.settingsLinkButton}
+                onPress={handleOpenSystemSettings}
+              >
+                <Text style={styles.settingsLinkButtonText}>Open Settings</Text>
+                <Ionicons name="chevron-forward" size={18} color={theme.primary} />
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -857,6 +880,32 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   },
   settingsSection: {
     marginTop: 16,
+  },
+  disabledNotificationsCard: {
+    backgroundColor: theme.card,
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 16,
+    gap: 12,
+  },
+  disabledNotificationsText: {
+    fontSize: 15,
+    color: theme.textSecondary,
+    lineHeight: 22,
+  },
+  settingsLinkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.primary + '15',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  settingsLinkButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.primary,
   },
   developerButton: {
     backgroundColor: theme.card,

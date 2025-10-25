@@ -134,7 +134,7 @@ describe('Notification Settings UI', () => {
     await waitForAnimation(500);
 
     // ======================
-    // Verify Notification Overrides Section
+    // Verify Notification Overrides Section (Collapsed by Default)
     // ======================
     await waitFor(element(by.text('Notification Overrides')))
       .toBeVisible()
@@ -142,13 +142,60 @@ describe('Notification Settings UI', () => {
 
     console.log('✅ Notification Overrides section is visible');
 
-    // Verify description
-    await waitFor(element(by.text('Customize notification behavior for this medication. Leave unchanged to use global defaults.')))
+    // Tap to expand the section
+    await element(by.text('Notification Overrides')).tap();
+    await waitForAnimation(500);
+
+    console.log('✅ Tapped to expand Notification Overrides section');
+
+    // ======================
+    // Check if notifications are disabled and skip detailed checks if so
+    // ======================
+    try {
+      // Check if "Open Settings" button appears (notifications disabled)
+      await waitFor(element(by.text('Open Settings')))
+        .toBeVisible()
+        .withTimeout(2000);
+
+      console.log('⚠️ Notifications disabled - verifying disabled UI works correctly');
+      console.log('✅ "Open Settings" button is visible when notifications are disabled');
+
+      // Verify the disabled message is shown
+      await waitFor(element(by.text('Notifications are currently disabled. Enable notifications in Settings to customize notification behavior.')))
+        .toBeVisible()
+        .withTimeout(2000);
+
+      console.log('✅ Disabled notification message is displayed correctly');
+      console.log('✅ Per-medication notification section shows disabled state when permissions not granted');
+
+      // Skip the rest of the test since we can't grant permissions in E2E
+      // Note: To test the enabled state, manually grant notification permissions before running tests
+      return;
+    } catch (e) {
+      console.log('✅ Notifications already enabled, verifying enabled UI...');
+    }
+
+    // ======================
+    // Verify notification settings are visible (permissions granted)
+    // ======================
+    await waitFor(element(by.text('Time-Sensitive')))
+      .toBeVisible()
+      .withTimeout(5000);
+
+    console.log('✅ Time-Sensitive setting is visible after expanding');
+
+    await waitFor(element(by.text('Follow-up Reminder')))
       .toBeVisible()
       .withTimeout(3000);
 
-    console.log('✅ Description text is visible');
-    console.log('✅ Per-medication notification settings section works correctly');
+    console.log('✅ Follow-up Reminder setting is visible after expanding');
+
+    await waitFor(element(by.text('Critical Alerts')))
+      .toBeVisible()
+      .withTimeout(3000);
+
+    console.log('✅ Critical Alerts setting is visible after expanding');
+    console.log('✅ Per-medication notification settings section works correctly with permissions granted');
   });
 
 });

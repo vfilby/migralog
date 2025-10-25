@@ -11,7 +11,6 @@ export interface NotificationSettings {
   timeSensitiveEnabled: boolean;
   followUpDelay: FollowUpDelay;
   criticalAlertsEnabled: boolean;
-  confirmationNotificationsEnabled: boolean;
 
   // Per-medication overrides (medication ID -> settings)
   medicationOverrides: Record<string, MedicationNotificationSettings>;
@@ -21,14 +20,12 @@ export interface MedicationNotificationSettings {
   timeSensitiveEnabled?: boolean;
   followUpDelay?: FollowUpDelay;
   criticalAlertsEnabled?: boolean;
-  confirmationNotificationsEnabled?: boolean;
 }
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   timeSensitiveEnabled: true,
   followUpDelay: 30,
   criticalAlertsEnabled: true,
-  confirmationNotificationsEnabled: false,
   medicationOverrides: {},
 };
 
@@ -140,7 +137,6 @@ export const useNotificationSettingsStore = create<NotificationSettingsState>((s
       timeSensitiveEnabled: override.timeSensitiveEnabled ?? settings.timeSensitiveEnabled,
       followUpDelay: override.followUpDelay ?? settings.followUpDelay,
       criticalAlertsEnabled: override.criticalAlertsEnabled ?? settings.criticalAlertsEnabled,
-      confirmationNotificationsEnabled: override.confirmationNotificationsEnabled ?? settings.confirmationNotificationsEnabled,
       isOverridden: true,
     };
   },

@@ -1,9 +1,10 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Switch, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, Switch, TouchableOpacity, Alert, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, ThemeColors } from '../theme';
 import { useNotificationSettingsStore, FollowUpDelay } from '../store/notificationSettingsStore';
 import { logger } from '../utils/logger';
+import * as Notifications from 'expo-notifications';
 
 const FOLLOW_UP_DELAY_OPTIONS: { value: FollowUpDelay; label: string }[] = [
   { value: 'off', label: 'Off' },
@@ -18,9 +19,11 @@ interface NotificationSettingsProps {
   medicationId?: string;
   /** Show section title and description */
   showTitle?: boolean;
+  /** Notification permissions - if not provided, will check internally */
+  notificationPermissions?: Notifications.NotificationPermissionsStatus | null;
 }
 
-const NotificationSettings = React.memo(({ medicationId, showTitle = true }: NotificationSettingsProps) => {
+const NotificationSettings = React.memo(({ medicationId, showTitle = true, notificationPermissions }: NotificationSettingsProps) => {
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const {
@@ -32,12 +35,24 @@ const NotificationSettings = React.memo(({ medicationId, showTitle = true }: Not
     removeMedicationSettings,
     getEffectiveSettings,
   } = useNotificationSettingsStore();
+  const [internalPermissions, setInternalPermissions] = React.useState<Notifications.NotificationPermissionsStatus | null>(null);
+
+  // Use provided permissions or check internally
+  const permissions = notificationPermissions !== undefined ? notificationPermissions : internalPermissions;
+  const permissionsGranted = permissions?.granted ?? false;
 
   useEffect(() => {
     if (!isLoaded) {
       loadSettings();
     }
   }, [isLoaded, loadSettings]);
+
+  useEffect(() => {
+    // Only check permissions if not provided as prop
+    if (notificationPermissions === undefined) {
+      Notifications.getPermissionsAsync().then(setInternalPermissions);
+    }
+  }, [notificationPermissions]);
 
   const effectiveSettings = getEffectiveSettings(medicationId);
   const isOverridden = medicationId ? effectiveSettings.isOverridden : false;
@@ -117,10 +132,39 @@ const NotificationSettings = React.memo(({ medicationId, showTitle = true }: Not
     );
   };
 
-  if (!isLoaded) {
+  const handleOpenSystemSettings = async () => {
+    try {
+      await Linking.openSettings();
+    } catch (error) {
+      logger.error('[NotificationSettings] Failed to open system settings:', error);
+      Alert.alert('Error', 'Failed to open Settings');
+    }
+  };
+
+  if (!isLoaded || (notificationPermissions === undefined && !internalPermissions)) {
     return (
       <View style={styles.container}>
         <Text style={styles.loadingText}>Loading settings...</Text>
+      </View>
+    );
+  }
+
+  // Show disabled message if permissions not granted
+  if (!permissionsGranted) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.disabledCard}>
+          <Text style={styles.disabledText}>
+            Notifications are currently disabled. Enable notifications in Settings to customize notification behavior.
+          </Text>
+          <TouchableOpacity
+            style={styles.settingsLinkButton}
+            onPress={handleOpenSystemSettings}
+          >
+            <Text style={styles.settingsLinkButtonText}>Open Settings</Text>
+            <Ionicons name="chevron-forward" size={18} color={theme.primary} />
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -203,34 +247,13 @@ const NotificationSettings = React.memo(({ medicationId, showTitle = true }: Not
             <View style={styles.settingText}>
               <Text style={styles.settingLabel}>Critical Alerts</Text>
               <Text style={styles.settingDescription}>
-                Play sound even when device is silenced
+                Play sound on follow-up reminders even when device is silenced
               </Text>
             </View>
           </View>
           <Switch
             value={effectiveSettings.criticalAlertsEnabled}
             onValueChange={(value) => handleToggle('criticalAlertsEnabled', value)}
-            trackColor={{ false: theme.border, true: theme.primary }}
-            ios_backgroundColor={theme.border}
-          />
-        </View>
-
-        <View style={styles.divider} />
-
-        {/* Confirmation Notifications */}
-        <View style={styles.settingRow}>
-          <View style={styles.settingLeft}>
-            <Ionicons name="checkmark-circle-outline" size={20} color={theme.textSecondary} />
-            <View style={styles.settingText}>
-              <Text style={styles.settingLabel}>Confirmation Notifications</Text>
-              <Text style={styles.settingDescription}>
-                Show notification after taking medication
-              </Text>
-            </View>
-          </View>
-          <Switch
-            value={effectiveSettings.confirmationNotificationsEnabled}
-            onValueChange={(value) => handleToggle('confirmationNotificationsEnabled', value)}
             trackColor={{ false: theme.border, true: theme.primary }}
             ios_backgroundColor={theme.border}
           />
@@ -308,6 +331,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     gap: 12,
+    paddingRight: 16,
   },
   settingText: {
     flex: 1,
@@ -326,7 +350,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   settingRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 12,
   },
   settingValue: {
     fontSize: 15,
@@ -353,5 +377,30 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: theme.error,
+  },
+  disabledCard: {
+    backgroundColor: theme.card,
+    padding: 16,
+    borderRadius: 12,
+    gap: 12,
+  },
+  disabledText: {
+    fontSize: 15,
+    color: theme.textSecondary,
+    lineHeight: 22,
+  },
+  settingsLinkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.primary + '15',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  settingsLinkButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.primary,
   },
 });
