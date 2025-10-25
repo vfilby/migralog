@@ -580,9 +580,9 @@ describe('Migration Integration Tests (Real Database)', () => {
       // Run migrations
       await migrationRunner.runMigrations();
 
-      // Should be at latest version (9)
+      // Should be at latest version (10)
       version = await adapter.getAllAsync<{ version: number }>('SELECT version FROM schema_version');
-      expect(version[0].version).toBe(9);
+      expect(version[0].version).toBe(10);
     });
 
     it('should track version during rollback', async () => {
