@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react-native';
-import { Alert, Linking } from 'react-native';
+import { Linking } from 'react-native';
 import NotificationSettings from '../NotificationSettings';
 import { useNotificationSettingsStore } from '../../store/notificationSettingsStore';
 import { ThemeProvider } from '../../theme/ThemeContext';
@@ -10,11 +10,8 @@ jest.mock('../../store/notificationSettingsStore');
 jest.mock('expo-notifications');
 jest.mock('../../services/errorLogger');
 
-// Mock Alert
-const mockAlert = jest.spyOn(Alert, 'alert');
-
 // Mock Linking
-jest.spyOn(Linking, 'openSettings').mockResolvedValue(true);
+jest.spyOn(Linking, 'openSettings').mockResolvedValue(undefined);
 
 const renderWithTheme = (component: React.ReactElement) => {
   return render(
@@ -63,7 +60,10 @@ describe('NotificationSettings', () => {
 
   describe('Permission Handling', () => {
     it('should show disabled state when permissions not granted', async () => {
-      const mockPermissions = { granted: false, canAskAgain: true, status: 'undetermined' as const };
+      const mockPermissions = {
+        granted: false,
+        canAskAgain: true,
+      } as Notifications.NotificationPermissionsStatus;
 
       renderWithTheme(<NotificationSettings notificationPermissions={mockPermissions} />);
 
@@ -74,7 +74,10 @@ describe('NotificationSettings', () => {
     });
 
     it('should open system settings when "Open Settings" button pressed', async () => {
-      const mockPermissions = { granted: false, canAskAgain: true, status: 'undetermined' as const };
+      const mockPermissions = {
+        granted: false,
+        canAskAgain: true,
+      } as Notifications.NotificationPermissionsStatus;
 
       renderWithTheme(<NotificationSettings notificationPermissions={mockPermissions} />);
 
@@ -88,7 +91,10 @@ describe('NotificationSettings', () => {
     });
 
     it('should check permissions internally when not provided as prop', async () => {
-      const mockPermissions = { granted: true, canAskAgain: true, status: 'granted' as const };
+      const mockPermissions = {
+        granted: true,
+        canAskAgain: true,
+      } as Notifications.NotificationPermissionsStatus;
       (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue(mockPermissions);
 
       renderWithTheme(<NotificationSettings />);
