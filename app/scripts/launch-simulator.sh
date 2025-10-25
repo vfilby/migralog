@@ -55,6 +55,37 @@ SELECTED_UDID="${SIM_UDIDS[$SELECTED_INDEX]}"
 
 echo ""
 echo "✅ Selected: $SELECTED_NAME"
+echo ""
+
+# Check if app is installed
+BUNDLE_ID="com.eff3.app.headache-tracker"
+APP_INSTALLED=$(xcrun simctl listapps "$SELECTED_UDID" | grep -c "$BUNDLE_ID" || true)
+
+if [ "$APP_INSTALLED" -eq 0 ]; then
+  echo "⚠️  App not installed on this simulator"
+  echo ""
+  echo -n "Would you like to build and install the app? (y/n): "
+  read BUILD_CHOICE
+
+  if [[ "$BUILD_CHOICE" =~ ^[Yy]$ ]]; then
+    echo ""
+    echo "📦 Building development app (this may take a few minutes)..."
+    npm run test:e2e:build
+
+    if [ $? -ne 0 ]; then
+      echo "❌ Build failed"
+      exit 1
+    fi
+
+    echo ""
+    echo "✅ Build complete!"
+  else
+    echo ""
+    echo "❌ App not installed. Run 'npm run test:e2e:build' to build and install it."
+    exit 1
+  fi
+fi
+
 echo "🚀 Opening app on simulator..."
 echo ""
 
@@ -66,7 +97,6 @@ echo "✓ App opened on $SELECTED_NAME"
 echo ""
 echo "If the app doesn't open:"
 echo "  • Make sure Expo is running (npm start)"
-echo "  • Make sure you have a development build installed"
 echo "  • The dev server should be on port 8081"
 echo ""
 echo "Simulator UDID: $SELECTED_UDID"
