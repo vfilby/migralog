@@ -1,20 +1,23 @@
 #!/bin/bash
 
-# Get list of all available simulators
-ALL_SIMS=$(xcrun simctl list devices available | grep "iPhone" | sed 's/^ *//')
+# Get list of booted simulators only
+BOOTED_SIMS=$(xcrun simctl list devices | grep "iPhone" | grep "Booted" | sed 's/^ *//')
 
-# Count available simulators
-SIM_COUNT=$(echo "$ALL_SIMS" | wc -l | xargs)
+# Count booted simulators
+SIM_COUNT=$(echo "$BOOTED_SIMS" | grep -c "Booted" || true)
 
 if [ "$SIM_COUNT" -eq 0 ]; then
-  echo "❌ No iPhone simulators found."
+  echo "❌ No iPhone simulators are currently running."
   echo ""
-  echo "Please install iOS simulators via Xcode."
+  echo "Please start a simulator first using one of these methods:"
+  echo "  1. Open Xcode → Window → Devices and Simulators → Select a device → Click 'Open'"
+  echo "  2. Run: open -a Simulator"
+  echo "  3. Run: xcrun simctl boot '<device-name>'"
   exit 1
 fi
 
-# Show list of simulators
-echo "Available iPhone simulators:"
+# Show list of running simulators
+echo "Running iPhone simulators:"
 echo ""
 
 # Create array of simulator info
@@ -24,21 +27,16 @@ declare -a SIM_UDIDS
 
 while IFS= read -r line; do
   if [ -n "$line" ]; then
-    NAME=$(echo "$line" | sed -E 's/(.+) \([A-F0-9-]+\) \(.*/\1/')
-    UDID=$(echo "$line" | sed -E 's/.+\(([A-F0-9-]+)\).*/\1/')
-    STATUS=$(echo "$line" | grep -o "(Booted)" || echo "(Shutdown)")
+    NAME=$(echo "$line" | sed -E 's/(.+) \([A-F0-9-]+\) \(Booted\).*/\1/')
+    UDID=$(echo "$line" | sed -E 's/.+\(([A-F0-9-]+)\) \(Booted\).*/\1/')
 
     SIM_NAMES+=("$NAME")
     SIM_UDIDS+=("$UDID")
 
-    if [[ "$STATUS" == "(Booted)" ]]; then
-      echo "  [$INDEX] $NAME ✓ (Running)"
-    else
-      echo "  [$INDEX] $NAME"
-    fi
+    echo "  [$INDEX] $NAME"
     INDEX=$((INDEX + 1))
   fi
-done <<< "$ALL_SIMS"
+done <<< "$BOOTED_SIMS"
 
 echo ""
 echo -n "Select simulator (1-$SIM_COUNT): "
@@ -57,20 +55,17 @@ SELECTED_UDID="${SIM_UDIDS[$SELECTED_INDEX]}"
 
 echo ""
 echo "✅ Selected: $SELECTED_NAME"
+echo "🚀 Opening app on simulator..."
+echo ""
 
-# Check if simulator is already booted
-if xcrun simctl list devices | grep "$SELECTED_UDID" | grep -q "Booted"; then
-  echo "✓ Simulator already running"
-else
-  echo "🚀 Booting simulator..."
-  xcrun simctl boot "$SELECTED_UDID"
-  open -a Simulator
-  echo "✓ Simulator booted"
-fi
+# Use the standard Expo dev server URL
+# This assumes Expo is running on the default port 8081
+xcrun simctl openurl "$SELECTED_UDID" "exp://127.0.0.1:8081"
 
+echo "✓ App opened on $SELECTED_NAME"
+echo ""
+echo "If the app doesn't open:"
+echo "  • Make sure Expo is running (npm start)"
+echo "  • The dev server should be on port 8081"
 echo ""
 echo "Simulator UDID: $SELECTED_UDID"
-echo ""
-echo "To launch the app, run in a separate terminal:"
-echo "  export EXPO_IOS_SIMULATOR_DEVICE_UDID=$SELECTED_UDID"
-echo "  npm start"
