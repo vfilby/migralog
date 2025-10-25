@@ -81,6 +81,9 @@ describe('Medication Archiving', () => {
 
     console.log('✅ Archive button visible');
 
+    // Disable synchronization to allow alert to show
+    await device.disableSynchronization();
+
     // Tap archive button
     await element(by.id('archive-medication-button')).tap();
 
@@ -90,19 +93,20 @@ describe('Medication Archiving', () => {
     // Phase 4: Confirm Archive Action
     // ======================
 
-    // Wait longer for iOS Alert to appear
-    await waitForAnimation(1500);
+    // Wait a bit for iOS Alert to appear (reduce wait time since alert appears quickly)
+    await waitForAnimation(500);
 
-    // For iOS native alerts, use atIndex(0) to get the first "Archive" button (the one in the alert, not the screen title)
-    await waitFor(element(by.text('Archive')).atIndex(1))
-      .toBeVisible()
-      .withTimeout(5000);
+    // iOS system alert should now be visible - tap the Archive button
+    // The alert has two buttons: "Cancel" and "Archive"
+    // We want to tap "Archive" (the destructive action button)
+    console.log('Tapping Archive in confirmation dialog');
+    await element(by.text('Archive')).tap();
 
-    console.log('✅ Archive confirmation dialog visible');
+    // Wait longer for alert to fully dismiss and navigation to complete
+    await waitForAnimation(1000);
 
-    // Tap Archive button in dialog (the second "Archive" - index 1)
-    await element(by.text('Archive')).atIndex(1).tap();
-    await waitForAnimation(1500);
+    // Re-enable synchronization
+    await device.enableSynchronization();
 
     console.log('Confirmed archive - should navigate back to Medications screen');
 
@@ -178,21 +182,29 @@ describe('Medication Archiving', () => {
     // ======================
 
     console.log('Tapping Restore button');
+
+    // Disable synchronization for alert
+    await device.disableSynchronization();
+
     await element(by.id('restore-medication-Test Topiramate')).tap();
 
     // Wait for iOS Alert to appear
-    await waitForAnimation(1500);
+    await waitForAnimation(500);
 
-    // iOS native alerts - look for the Restore button
-    await waitFor(element(by.text('Restore')))
-      .toBeVisible()
-      .withTimeout(5000);
+    // Tap Restore in the confirmation dialog
+    // iOS alert buttons have the 'button' trait - combine label + traits to target specifically the alert button
+    console.log('Tapping Restore in confirmation dialog');
+    await element(by.label('Restore').and(by.traits(['button']))).tap();
 
-    console.log('✅ Restore confirmation dialog visible');
+    // Wait significantly longer for alert to fully dismiss and restore operation to complete
+    // The alert animation + database operation + list refresh takes time
+    await waitForAnimation(2000);
 
-    // Confirm restore
-    await element(by.text('Restore')).tap();
-    await waitForAnimation(1500);
+    // Re-enable synchronization
+    await device.enableSynchronization();
+
+    // Wait for synchronization to fully stabilize and ensure alert is completely gone
+    await waitForAnimation(1000);
 
     console.log('Confirmed restore');
 
@@ -214,7 +226,7 @@ describe('Medication Archiving', () => {
     // ======================
 
     console.log('Going back to Medications screen');
-    await element(by.text('← Back')).tap();
+    await element(by.text('Back')).tap();
     await waitForAnimation(1000);
 
     // Should be back on Medications screen
@@ -278,6 +290,9 @@ describe('Medication Archiving', () => {
     }
 
     console.log('✅ ALL TESTS PASSED: Medication archiving workflow is working correctly!');
+
+    // Ensure any lingering UI elements are fully settled before next test
+    await waitForAnimation(1000);
   });
 
   it('should handle archiving medication with active reminders', async () => {
@@ -320,18 +335,23 @@ describe('Medication Archiving', () => {
       .toBeVisible()
       .withTimeout(5000);
 
+    // Disable synchronization for alert
+    await device.disableSynchronization();
+
     // Archive the medication
     await element(by.id('archive-medication-button')).tap();
 
     // Wait for iOS Alert to appear
-    await waitForAnimation(1500);
+    await waitForAnimation(500);
 
-    await waitFor(element(by.text('Archive')).atIndex(1))
-      .toBeVisible()
-      .withTimeout(5000);
+    // Tap Archive in confirmation dialog
+    await element(by.text('Archive')).tap();
 
-    await element(by.text('Archive')).atIndex(1).tap();
-    await waitForAnimation(1500);
+    // Wait for alert to dismiss and navigation
+    await waitForAnimation(1000);
+
+    // Re-enable synchronization
+    await device.enableSynchronization();
 
     console.log('✅ Medication with schedule archived');
 
@@ -376,22 +396,30 @@ describe('Medication Archiving', () => {
       .toBeVisible()
       .withTimeout(5000);
 
+    // Disable synchronization for alert
+    await device.disableSynchronization();
+
     await element(by.id('restore-medication-Test Topiramate')).tap();
 
     // Wait for iOS Alert to appear
-    await waitForAnimation(1500);
+    await waitForAnimation(500);
 
-    await waitFor(element(by.text('Restore')))
-      .toBeVisible()
-      .withTimeout(5000);
+    // Tap Restore in confirmation dialog
+    await element(by.label('Restore').and(by.traits(['button']))).tap();
 
-    await element(by.text('Restore')).tap();
-    await waitForAnimation(1500);
+    // Wait significantly longer for alert to fully dismiss and restore operation to complete
+    await waitForAnimation(2000);
+
+    // Re-enable synchronization
+    await device.enableSynchronization();
+
+    // Wait for synchronization to fully stabilize
+    await waitForAnimation(1000);
 
     console.log('✅ Medication restored');
 
     // Go back to Dashboard
-    await element(by.text('← Back')).tap();
+    await element(by.text('Back')).tap();
     await waitForAnimation(500);
     await element(by.text('Home')).tap();
     await waitForAnimation(1000);

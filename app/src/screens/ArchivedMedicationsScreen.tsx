@@ -92,6 +92,7 @@ export default function ArchivedMedicationsScreen({ navigation }: Props) {
                 <TouchableOpacity
                   style={styles.restoreButton}
                   onPress={() => handleUnarchive(med.id, med.name)}
+                  testID={`restore-medication-${med.name}`}
                 >
                   <Text style={styles.restoreButtonText}>Restore</Text>
                 </TouchableOpacity>
