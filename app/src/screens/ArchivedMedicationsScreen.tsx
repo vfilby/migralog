@@ -49,7 +49,6 @@ export default function ArchivedMedicationsScreen({ navigation }: Props) {
             try {
               await unarchiveMedication(medicationId);
               await loadArchivedMedications(); // Refresh list
-              Alert.alert('Success', 'Medication restored to active list');
             } catch (error) {
               logger.error('Failed to unarchive medication:', error);
               Alert.alert('Error', 'Failed to restore medication');
