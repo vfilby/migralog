@@ -6,6 +6,7 @@
     "start": "npm run generate-build-info && expo start --dev-client",
     "android": "npm run generate-build-info && expo start --android",
     "ios": "npm run generate-build-info && expo start --ios",
+    "ios:sim": "bash scripts/launch-simulator.sh",
     "web": "npm run generate-build-info && expo start --web",
     "generate-build-info": "node scripts/generate-build-info.js",
     "build:ios": "eas build --platform ios --non-interactive --auto-submit",
