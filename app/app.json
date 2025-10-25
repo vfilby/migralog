@@ -18,11 +18,7 @@
       "bundleIdentifier": "com.eff3.app.headache-tracker",
       "buildNumber": "1",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false,
-        "com.apple.developer.usernotifications.critical-alerts": 1
-      },
-      "entitlements": {
-        "com.apple.developer.usernotifications.critical-alerts": true
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
