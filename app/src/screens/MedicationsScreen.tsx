@@ -35,6 +35,16 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     fontWeight: 'bold',
     color: theme.text,
   },
+  archivedLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  archivedLinkText: {
+    fontSize: 16,
+    color: theme.primary,
+    fontWeight: '500',
+  },
   content: {
     flex: 1,
   },
@@ -413,6 +423,15 @@ export default function MedicationsScreen() {
     <View style={styles.container} testID="medications-screen">
       <View style={styles.header}>
         <Text style={styles.title}>Medications</Text>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('ArchivedMedications')}
+          testID="archived-medications-link"
+        >
+          <View style={styles.archivedLink}>
+            <Ionicons name="archive-outline" size={20} color={theme.primary} />
+            <Text style={styles.archivedLinkText}>Archived</Text>
+          </View>
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content}>

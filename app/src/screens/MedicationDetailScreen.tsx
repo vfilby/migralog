@@ -32,7 +32,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'MedicationDetail'>;
 export default function MedicationDetailScreen({ route, navigation }: Props) {
   const { medicationId } = route.params;
   const { theme } = useTheme();
-  const { logDose, deleteDose } = useMedicationStore();
+  const { logDose, deleteDose, archiveMedication } = useMedicationStore();
   const { currentEpisode } = useEpisodeStore();
   const [medication, setMedication] = useState<Medication | null>(null);
   const [schedules, setSchedules] = useState<MedicationSchedule[]>([]);
@@ -194,6 +194,32 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
             } catch (error) {
               logger.error('Failed to delete dose:', error);
               // Error toast shown by store
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleArchive = () => {
+    if (!medication) return;
+
+    Alert.alert(
+      'Archive Medication',
+      `Are you sure you want to archive ${medication.name}? It will be hidden from your active medications but you can restore it later.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Archive',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await archiveMedication(medicationId);
+              toastService.success('Medication archived');
+              navigation.goBack();
+            } catch (error) {
+              logger.error('Failed to archive medication:', error);
+              toastService.error('Failed to archive medication');
             }
           },
         },
@@ -430,6 +456,23 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
               )}
             </>
           )}
+        </View>
+
+        {/* Archive Section */}
+        <View style={[styles.section, { backgroundColor: theme.card }]}>
+          <TouchableOpacity
+            style={styles.archiveButton}
+            onPress={handleArchive}
+            testID="archive-medication-button"
+          >
+            <Ionicons name="archive-outline" size={20} color={theme.danger} />
+            <Text style={[styles.archiveButtonText, { color: theme.danger }]}>
+              Archive Medication
+            </Text>
+          </TouchableOpacity>
+          <Text style={[styles.archiveHint, { color: theme.textTertiary }]}>
+            Archived medications can be restored later
+          </Text>
         </View>
 
         <View style={{ height: 40 }} />
@@ -801,5 +844,21 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     minHeight: 100,
+  },
+  archiveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 8,
+  },
+  archiveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  archiveHint: {
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 4,
   },
 });
