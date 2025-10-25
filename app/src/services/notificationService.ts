@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { logger } from '../utils/logger';
 import { Medication, MedicationSchedule } from '../models/types';
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../database/medicationRepository';
+import { useNotificationSettingsStore } from '../store/notificationSettingsStore';
 
 /**
  * Handle incoming notifications and decide whether to show them
@@ -352,6 +353,9 @@ class NotificationService {
       const medication = await medicationRepository.getById(medicationId);
       if (!medication) return;
 
+      // Get effective notification settings for this medication
+      const effectiveSettings = useNotificationSettingsStore.getState().getEffectiveSettings(medicationId);
+
       // Schedule a new notification in X minutes
       const snoozeTime = new Date(Date.now() + minutes * 60 * 1000);
 
@@ -361,6 +365,14 @@ class NotificationService {
           body: `Time to take your medication (snoozed)`,
           data: { medicationId, scheduleId },
           categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
+          sound: true,
+          // Time-sensitive notification settings for Android and iOS
+          ...(Notifications.AndroidNotificationPriority && {
+            priority: Notifications.AndroidNotificationPriority.HIGH,
+          }),
+          // Only set time-sensitive interruption level if enabled in settings
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...(effectiveSettings.timeSensitiveEnabled && { interruptionLevel: 'timeSensitive' } as any),
         },
         // Date trigger type is not exported by expo-notifications
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -444,6 +456,14 @@ class NotificationService {
       const validMedications = medications.filter(m => m !== null) as Medication[];
       if (validMedications.length === 0) return;
 
+      // Get effective notification settings
+      // For grouped notifications, use time-sensitive if ANY medication has it enabled
+      const settingsStore = useNotificationSettingsStore.getState();
+      const anyTimeSensitive = validMedications.some((medication) => {
+        const settings = settingsStore.getEffectiveSettings(medication.id);
+        return settings.timeSensitiveEnabled;
+      });
+
       // Schedule a new notification in X minutes
       const snoozeTime = new Date(Date.now() + minutes * 60 * 1000);
 
@@ -460,6 +480,14 @@ class NotificationService {
             time: originalTime,
           },
           categoryIdentifier: MULTIPLE_MEDICATION_REMINDER_CATEGORY,
+          sound: true,
+          // Time-sensitive notification settings for Android and iOS
+          ...(Notifications.AndroidNotificationPriority && {
+            priority: Notifications.AndroidNotificationPriority.HIGH,
+          }),
+          // Only set time-sensitive interruption level if enabled for any medication in the group
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...(anyTimeSensitive && { interruptionLevel: 'timeSensitive' } as any),
         },
         // Date trigger type is not exported by expo-notifications
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -585,7 +613,12 @@ class NotificationService {
       // Parse the time (HH:mm format)
       const [hours, minutes] = schedule.time.split(':').map(Number);
 
-      logger.log('[Notification] Scheduling single medication for', hours, ':', minutes);
+      // Get effective notification settings for this medication
+      const effectiveSettings = useNotificationSettingsStore.getState().getEffectiveSettings(medication.id);
+
+      logger.log('[Notification] Scheduling single medication for', hours, ':', minutes, {
+        timeSensitive: effectiveSettings.timeSensitiveEnabled,
+      });
 
       const notificationId = await Notifications.scheduleNotificationAsync({
         content: {
@@ -601,8 +634,9 @@ class NotificationService {
           ...(Notifications.AndroidNotificationPriority && {
             priority: Notifications.AndroidNotificationPriority.HIGH,
           }),
+          // Only set time-sensitive interruption level if enabled in settings
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ...({ interruptionLevel: 'timeSensitive' } as any), // iOS: breaks through Focus modes
+          ...(effectiveSettings.timeSensitiveEnabled && { interruptionLevel: 'timeSensitive' } as any), // iOS: breaks through Focus modes
         },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DAILY,
@@ -635,7 +669,17 @@ class NotificationService {
       const medicationIds = items.map(({ medication }) => medication.id);
       const scheduleIds = items.map(({ schedule }) => schedule.id);
 
-      logger.log('[Notification] Scheduling combined notification for', medicationCount, 'medications at', time);
+      // Get effective notification settings
+      // For grouped notifications, use time-sensitive if ANY medication has it enabled
+      const settingsStore = useNotificationSettingsStore.getState();
+      const anyTimeSensitive = items.some(({ medication }) => {
+        const settings = settingsStore.getEffectiveSettings(medication.id);
+        return settings.timeSensitiveEnabled;
+      });
+
+      logger.log('[Notification] Scheduling combined notification for', medicationCount, 'medications at', time, {
+        timeSensitive: anyTimeSensitive,
+      });
 
       const notificationId = await Notifications.scheduleNotificationAsync({
         content: {
@@ -652,8 +696,9 @@ class NotificationService {
           ...(Notifications.AndroidNotificationPriority && {
             priority: Notifications.AndroidNotificationPriority.HIGH,
           }),
+          // Only set time-sensitive interruption level if enabled for any medication in the group
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ...({ interruptionLevel: 'timeSensitive' } as any), // iOS: breaks through Focus modes
+          ...(anyTimeSensitive && { interruptionLevel: 'timeSensitive' } as any), // iOS: breaks through Focus modes
         },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DAILY,
