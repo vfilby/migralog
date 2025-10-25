@@ -657,12 +657,34 @@ const migrations: Migration[] = [
       }
 
       // Add updated_at column to intensity_readings if it doesn't exist
+      // Note: SQLite doesn't support non-constant defaults in ALTER TABLE ADD COLUMN
+      // So we use a two-step approach: add column with DEFAULT 0, then UPDATE to set proper values
       if (intensityTableExists && !intensityHasUpdatedAt) {
         await db.execAsync(`
           ALTER TABLE intensity_readings
-          ADD COLUMN updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
-          CHECK(updated_at > 0);
+          ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0;
         `);
+
+        // Check if created_at column exists before using it
+        const intensityColumns = await db.getAllAsync<{ name: string }>(
+          "PRAGMA table_info(intensity_readings)"
+        );
+        const hasCreatedAt = intensityColumns.some(col => col.name === 'created_at');
+
+        if (hasCreatedAt) {
+          await db.execAsync(`
+            UPDATE intensity_readings
+            SET updated_at = created_at
+            WHERE updated_at = 0;
+          `);
+        } else {
+          // If no created_at, use timestamp as fallback
+          await db.execAsync(`
+            UPDATE intensity_readings
+            SET updated_at = timestamp
+            WHERE updated_at = 0;
+          `);
+        }
         logger.log('Added updated_at to intensity_readings');
       }
 
@@ -670,9 +692,29 @@ const migrations: Migration[] = [
       if (painLocationTableExists && !painLocationHasUpdatedAt) {
         await db.execAsync(`
           ALTER TABLE pain_location_logs
-          ADD COLUMN updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
-          CHECK(updated_at > 0);
+          ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0;
         `);
+
+        // Check if created_at column exists before using it
+        const painLocationColumns = await db.getAllAsync<{ name: string }>(
+          "PRAGMA table_info(pain_location_logs)"
+        );
+        const hasCreatedAt = painLocationColumns.some(col => col.name === 'created_at');
+
+        if (hasCreatedAt) {
+          await db.execAsync(`
+            UPDATE pain_location_logs
+            SET updated_at = created_at
+            WHERE updated_at = 0;
+          `);
+        } else {
+          // If no created_at, use timestamp as fallback
+          await db.execAsync(`
+            UPDATE pain_location_logs
+            SET updated_at = timestamp
+            WHERE updated_at = 0;
+          `);
+        }
         logger.log('Added updated_at to pain_location_logs');
       }
 
@@ -680,9 +722,29 @@ const migrations: Migration[] = [
       if (doseTableExists && !doseHasUpdatedAt) {
         await db.execAsync(`
           ALTER TABLE medication_doses
-          ADD COLUMN updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
-          CHECK(updated_at > 0);
+          ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0;
         `);
+
+        // Check if created_at column exists before using it
+        const doseColumns = await db.getAllAsync<{ name: string }>(
+          "PRAGMA table_info(medication_doses)"
+        );
+        const hasCreatedAt = doseColumns.some(col => col.name === 'created_at');
+
+        if (hasCreatedAt) {
+          await db.execAsync(`
+            UPDATE medication_doses
+            SET updated_at = created_at
+            WHERE updated_at = 0;
+          `);
+        } else {
+          // If no created_at, use timestamp as fallback
+          await db.execAsync(`
+            UPDATE medication_doses
+            SET updated_at = timestamp
+            WHERE updated_at = 0;
+          `);
+        }
         logger.log('Added updated_at to medication_doses');
       }
 
