@@ -36,8 +36,6 @@ describe('medicationRepository', () => {
         scheduleFrequency: undefined,
         photoUri: undefined,
         schedule: [],
-        startDate: Date.now(),
-        endDate: undefined,
         active: true,
         notes: 'Take with food',
       };
@@ -65,8 +63,6 @@ describe('medicationRepository', () => {
         scheduleFrequency: undefined,
         photoUri: undefined,
         schedule: [],
-        startDate: undefined,
-        endDate: undefined,
         active: true,
         notes: undefined,
       };
@@ -88,8 +84,6 @@ describe('medicationRepository', () => {
         scheduleFrequency: 'daily' as const,
         photoUri: undefined,
         schedule: [],
-        startDate: Date.now(),
-        endDate: undefined,
         active: true,
         notes: undefined,
       };
@@ -143,8 +137,6 @@ describe('medicationRepository', () => {
         default_dosage: 2,
         schedule_frequency: undefined,
         photo_uri: undefined,
-        start_date: undefined,
-        end_date: undefined,
         active: 1,
         notes: 'Take with food',
         created_at: Date.now(),
@@ -186,8 +178,6 @@ describe('medicationRepository', () => {
           default_dosage: null,
           schedule_frequency: undefined,
           photo_uri: undefined,
-          start_date: undefined,
-          end_date: undefined,
           active: 1,
           notes: undefined,
           created_at: Date.now(),
@@ -202,8 +192,6 @@ describe('medicationRepository', () => {
           default_dosage: null,
           schedule_frequency: undefined,
           photo_uri: undefined,
-          start_date: undefined,
-          end_date: undefined,
           active: 1,
           notes: undefined,
           created_at: Date.now(),
@@ -244,8 +232,6 @@ describe('medicationRepository', () => {
           default_dosage: null,
           schedule_frequency: undefined,
           photo_uri: undefined,
-          start_date: undefined,
-          end_date: undefined,
           active: 1,
           notes: undefined,
           created_at: Date.now(),
@@ -277,8 +263,6 @@ describe('medicationRepository', () => {
           default_dosage: null,
           schedule_frequency: undefined,
           photo_uri: undefined,
-          start_date: undefined,
-          end_date: undefined,
           active: 1,
           notes: undefined,
           created_at: Date.now(),
@@ -373,8 +357,6 @@ describe('medicationRepository', () => {
         default_dosage: 2,
         schedule_frequency: 'daily',
         photo_uri: 'file://test.jpg',
-        start_date: 1000,
-        end_date: 2000,
         active: 1,
         notes: 'Test notes',
         created_at: 900,
@@ -391,8 +373,6 @@ describe('medicationRepository', () => {
       expect(medication.defaultDosage).toBe(2);
       expect(medication.scheduleFrequency).toBe('daily');
       expect(medication.photoUri).toBe('file://test.jpg');
-      expect(medication.startDate).toBe(1000);
-      expect(medication.endDate).toBe(2000);
       expect(medication.active).toBe(true);
       expect(medication.notes).toBe('Test notes');
       expect(medication.schedule).toEqual([]);
@@ -410,8 +390,6 @@ describe('medicationRepository', () => {
         default_dosage: null,
         schedule_frequency: null,
         photo_uri: null,
-        start_date: null,
-        end_date: null,
         active: 0,
         notes: null,
         created_at: Date.now(),
@@ -591,20 +569,6 @@ describe('medicationDoseRepository', () => {
         };
 
         await expect(medicationRepository.create(invalidMed)).rejects.toThrow('Preventative medications must have a schedule frequency');
-      });
-
-      it('should throw error for medication with endDate before startDate', async () => {
-        const invalidMed: any = {
-          name: 'Test Med',
-          type: 'rescue',
-          dosageAmount: 50,
-          dosageUnit: 'mg',
-          active: true,
-          startDate: 2000,
-          endDate: 1000,
-        };
-
-        await expect(medicationRepository.create(invalidMed)).rejects.toThrow('End date must be after start date');
       });
 
       it('should throw error for negative dosage amount', async () => {

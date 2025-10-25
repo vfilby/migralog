@@ -99,8 +99,6 @@ export interface MedicationRow {
   default_dosage: number | null;
   schedule_frequency: string | null;
   photo_uri: string | null;
-  start_date: number | null;
-  end_date: number | null;
   active: number; // 0 or 1
   notes: string | null;
   created_at: number;

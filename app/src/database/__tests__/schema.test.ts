@@ -179,16 +179,6 @@ describe('Database Schema', () => {
         expect(table).toContain('CHECK(photo_uri IS NULL OR length(photo_uri) <= 500)');
       });
 
-      it('should enforce start_date > 0 when not null', () => {
-        const table = tables.get('medications');
-        expect(table).toContain('CHECK(start_date IS NULL OR start_date > 0)');
-      });
-
-      it('should enforce end_date > start_date', () => {
-        const table = tables.get('medications');
-        expect(table).toContain('CHECK(end_date IS NULL OR (start_date IS NULL OR end_date > start_date))');
-      });
-
       it('should enforce active IN (0, 1)', () => {
         const table = tables.get('medications');
         expect(table).toContain('CHECK(active IN (0, 1))');

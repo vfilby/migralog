@@ -113,8 +113,6 @@ export interface Medication {
   scheduleFrequency?: ScheduleFrequency; // For preventative: 'daily', 'monthly', 'quarterly'
   photoUri?: string;
   schedule?: MedicationSchedule[];
-  startDate?: number;
-  endDate?: number;
   active: boolean;
   notes?: string;
   createdAt: number;

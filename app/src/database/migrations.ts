@@ -496,6 +496,115 @@ const migrations: Migration[] = [
       logger.warn('Rollback of migration 10 not implemented (SQLite limitation)');
     },
   },
+  {
+    version: 11,
+    name: 'remove_medication_date_columns',
+    up: async (db: SQLite.SQLiteDatabase) => {
+      // Remove start_date and end_date columns from medications table
+      // These fields are not exposed in the UI and medication usage history
+      // can be derived from medication_doses table
+      //
+      // SQLite doesn't support DROP COLUMN, so we need to:
+      // 1. Check which columns exist in current table
+      // 2. Create new table without start_date and end_date
+      // 3. Copy data from old table (only existing columns)
+      // 4. Drop old table
+      // 5. Rename new table
+
+      // Get existing columns from medications table
+      const columns = await db.getAllAsync<{ name: string }>(
+        "PRAGMA table_info(medications)"
+      );
+      const columnNames = columns.map(col => col.name);
+
+      // Build SELECT and INSERT clauses dynamically based on existing columns
+      const insertColumns: string[] = ['id', 'name', 'type', 'dosage_amount', 'dosage_unit'];
+      const selectExpressions: string[] = ['id', 'name', 'type', 'dosage_amount', 'dosage_unit'];
+
+      // Add optional columns only if they exist in the source table
+      if (columnNames.includes('default_dosage')) {
+        insertColumns.push('default_dosage');
+        selectExpressions.push('default_dosage');
+      }
+      if (columnNames.includes('schedule_frequency')) {
+        insertColumns.push('schedule_frequency');
+        selectExpressions.push('schedule_frequency');
+      }
+      if (columnNames.includes('photo_uri')) {
+        insertColumns.push('photo_uri');
+        selectExpressions.push('photo_uri');
+      }
+      if (columnNames.includes('active')) {
+        insertColumns.push('active');
+        selectExpressions.push('active');
+      }
+      if (columnNames.includes('notes')) {
+        insertColumns.push('notes');
+        selectExpressions.push('notes');
+      }
+      if (columnNames.includes('created_at')) {
+        insertColumns.push('created_at');
+        selectExpressions.push('created_at');
+      }
+      if (columnNames.includes('updated_at')) {
+        insertColumns.push('updated_at');
+        selectExpressions.push('updated_at');
+      } else if (columnNames.includes('created_at')) {
+        // If updated_at doesn't exist but created_at does, use created_at for updated_at
+        insertColumns.push('updated_at');
+        selectExpressions.push('created_at as updated_at');
+      }
+
+      // Build final clauses
+      const insertClause = insertColumns.join(', ');
+      const selectClause = selectExpressions.join(', ');
+
+      await db.execAsync(`
+        -- Disable foreign keys temporarily to prevent cascade deletes during table recreation
+        PRAGMA foreign_keys = OFF;
+
+        BEGIN TRANSACTION;
+
+        -- Create new medications table without start_date and end_date
+        CREATE TABLE medications_new (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL CHECK(length(name) > 0 AND length(name) <= 200),
+          type TEXT NOT NULL CHECK(type IN ('preventative', 'rescue')),
+          dosage_amount REAL NOT NULL CHECK(dosage_amount > 0),
+          dosage_unit TEXT NOT NULL CHECK(length(dosage_unit) > 0 AND length(dosage_unit) <= 50),
+          default_dosage REAL CHECK(default_dosage IS NULL OR default_dosage > 0),
+          schedule_frequency TEXT CHECK(schedule_frequency IS NULL OR schedule_frequency IN ('daily', 'monthly', 'quarterly')),
+          photo_uri TEXT CHECK(photo_uri IS NULL OR length(photo_uri) <= 500),
+          active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0, 1)),
+          notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
+          created_at INTEGER NOT NULL CHECK(created_at > 0),
+          updated_at INTEGER NOT NULL CHECK(updated_at > 0)
+        );
+
+        -- Copy all data except start_date and end_date
+        INSERT INTO medications_new (${insertClause})
+        SELECT ${selectClause}
+        FROM medications;
+
+        -- Drop old table
+        DROP TABLE medications;
+
+        -- Rename new table to medications
+        ALTER TABLE medications_new RENAME TO medications;
+
+        COMMIT;
+
+        -- Re-enable foreign keys
+        PRAGMA foreign_keys = ON;
+      `);
+
+      logger.log('Migration 11: Removed start_date and end_date from medications');
+    },
+    down: async (_db: SQLite.SQLiteDatabase) => {
+      // Cannot easily restore removed columns without backup
+      logger.warn('Rollback of migration 11 not implemented - would need backup to restore start_date/end_date');
+    },
+  },
 ];
 
 class MigrationRunner {

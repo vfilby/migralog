@@ -294,7 +294,7 @@ describe('Migration Integration Tests (Real Database)', () => {
         db.prepare(`
           INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, created_at)
           VALUES (?, ?, ?, ?, ?, ?)
-        `).run(medicationId, 'Aspirin', 'pain_reliever', 500, 'mg', Date.now());
+        `).run(medicationId, 'Aspirin', 'rescue', 500, 'mg', Date.now());
 
         // Create episode
         db.prepare(`
@@ -336,11 +336,11 @@ describe('Migration Integration Tests (Real Database)', () => {
         const medicationId = 'med-test-2';
         const doseId = 'dose-test-2';
 
-        // Create medication and dose
+        // Create medication and dose (after v11 migration, need to add updated_at)
         db.prepare(`
-          INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, created_at)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `).run(medicationId, 'Ibuprofen', 'pain_reliever', 200, 'mg', Date.now());
+          INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(medicationId, 'Ibuprofen', 'rescue', 200, 'mg', Date.now(), Date.now());
 
         db.prepare(`
           INSERT INTO medication_doses (id, medication_id, timestamp, amount, status, created_at)

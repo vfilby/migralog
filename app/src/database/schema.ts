@@ -61,8 +61,6 @@ export const createTables = `
     default_dosage REAL CHECK(default_dosage IS NULL OR default_dosage > 0),
     schedule_frequency TEXT CHECK(schedule_frequency IS NULL OR schedule_frequency IN ('daily', 'monthly', 'quarterly')),
     photo_uri TEXT CHECK(photo_uri IS NULL OR length(photo_uri) <= 500),
-    start_date INTEGER CHECK(start_date IS NULL OR start_date > 0),
-    end_date INTEGER CHECK(end_date IS NULL OR (start_date IS NULL OR end_date > start_date)),
     active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0, 1)),
     notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
     created_at INTEGER NOT NULL CHECK(created_at > 0),

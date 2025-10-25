@@ -10,7 +10,6 @@ import { TimestampSchema, NotesSchema } from './common.schema';
  * - Time format validation (HH:mm)
  * - Effectiveness ratings within 0-10 range
  * - String length limits
- * - Date range validations (startDate < endDate)
  */
 
 // Medication type enum
@@ -60,25 +59,11 @@ export const MedicationSchema = z.object({
   photoUri: z.string()
     .max(500, 'Photo URI must be <= 500 characters')
     .optional(),
-  startDate: TimestampSchema.optional(),
-  endDate: TimestampSchema.optional(),
   active: z.boolean(),
   notes: NotesSchema,
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema,
 }).refine(
-  (data) => {
-    // Validate that endDate is after startDate if both are present
-    if (data.endDate && data.startDate) {
-      return data.endDate > data.startDate;
-    }
-    return true;
-  },
-  {
-    message: 'End date must be after start date',
-    path: ['endDate'],
-  }
-).refine(
   (data) => {
     // Preventative medications should have a schedule frequency
     if (data.type === 'preventative' && !data.scheduleFrequency) {

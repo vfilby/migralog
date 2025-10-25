@@ -149,15 +149,6 @@ describe('Medication Validation Schemas', () => {
       expect(result.success).toBe(false);
     });
 
-    it('should reject medication with endDate before startDate', () => {
-      const med = { ...validMedication, startDate: 2000, endDate: 1000 };
-      const result = MedicationSchema.safeParse(med);
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.errors[0].message).toBe('End date must be after start date');
-      }
-    });
-
     it('should reject medication with notes > 5000 characters', () => {
       const med = { ...validMedication, notes: 'x'.repeat(5001) };
       const result = MedicationSchema.safeParse(med);
