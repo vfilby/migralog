@@ -489,7 +489,7 @@ const migrations: Migration[] = [
 
       logger.log('Migration 10: Added dosage snapshot fields to medication_doses');
     },
-    down: async (db: SQLite.SQLiteDatabase) => {
+    down: async (_db: SQLite.SQLiteDatabase) => {
       // SQLite doesn't support DROP COLUMN
       // Would need to recreate table without these columns
       // Since this is new functionality, down migration not critical

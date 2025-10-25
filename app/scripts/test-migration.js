@@ -8,7 +8,6 @@
  */
 
 const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
 
 // Get database path from command line
 const dbPath = process.argv[2];
