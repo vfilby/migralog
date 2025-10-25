@@ -293,6 +293,8 @@ export default function DashboardScreen() {
         medicationId: item.medication.id,
         timestamp: now,
         amount: item.schedule.dosage,
+        dosageAmount: item.medication.dosageAmount,
+        dosageUnit: item.medication.dosageUnit,
         episodeId: currentEpisode?.id,
       });
 
@@ -312,6 +314,8 @@ export default function DashboardScreen() {
         medicationId: item.medication.id,
         timestamp: now,
         amount: 0, // 0 amount indicates skipped
+        dosageAmount: item.medication.dosageAmount,
+        dosageUnit: item.medication.dosageUnit,
         status: 'skipped',
         episodeId: currentEpisode?.id,
       });

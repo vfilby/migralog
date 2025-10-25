@@ -23,7 +23,7 @@ import { format, subDays, startOfDay, endOfDay } from 'date-fns';
 import { useTheme } from '../theme';
 import { useMedicationStore } from '../store/medicationStore';
 import { useEpisodeStore } from '../store/episodeStore';
-import { formatDosageWithUnit, formatMedicationDosage } from '../utils/medicationFormatting';
+import { formatDosageWithUnit, formatDoseWithSnapshot } from '../utils/medicationFormatting';
 import NotificationSettings from '../components/NotificationSettings';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -97,6 +97,8 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
         medicationId: medication.id,
         timestamp: Date.now(),
         amount: medication.defaultDosage || 1,
+        dosageAmount: medication.dosageAmount,
+        dosageUnit: medication.dosageUnit,
         episodeId: currentEpisode?.id,
       });
       // Toast notification shown by store
@@ -431,7 +433,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
                     </View>
                     <View style={styles.logItemRight}>
                       <Text style={[styles.logAmount, { color: theme.text }]}>
-                        {formatMedicationDosage(dose.amount, medication.dosageAmount, medication.dosageUnit)}
+                        {formatDoseWithSnapshot(dose, medication)}
                       </Text>
                       {dose.notes && (
                         <Text style={[styles.logNotes, { color: theme.textSecondary }]} numberOfLines={1}>{dose.notes}</Text>

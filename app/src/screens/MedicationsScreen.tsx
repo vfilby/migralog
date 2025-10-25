@@ -359,11 +359,19 @@ export default function MedicationsScreen() {
     try {
       const now = Date.now();
 
+      // Find the medication to get its dosage info
+      const medication = preventativeMedications.find(m => m.id === medicationId);
+      if (!medication) {
+        throw new Error('Medication not found');
+      }
+
       // Log to database first to get the ID
       const dose = await logDose({
         medicationId,
         timestamp: now,
         amount: dosage,
+        dosageAmount: medication.dosageAmount,
+        dosageUnit: medication.dosageUnit,
         episodeId: currentEpisode?.id,
       });
 
@@ -405,10 +413,18 @@ export default function MedicationsScreen() {
 
   const handleRescueQuickLog = async (medicationId: string, dosage: number) => {
     try {
+      // Find the medication to get its dosage info
+      const medication = rescueMedications.find(m => m.id === medicationId);
+      if (!medication) {
+        throw new Error('Medication not found');
+      }
+
       await logDose({
         medicationId,
         timestamp: Date.now(),
         amount: dosage,
+        dosageAmount: medication.dosageAmount,
+        dosageUnit: medication.dosageUnit,
         episodeId: currentEpisode?.id,
       });
       Alert.alert('Success', 'Medication logged successfully');
