@@ -1,6 +1,6 @@
 // Database schema and initialization
 
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 13;
 
 export const createTables = `
   -- Episodes table
@@ -13,8 +13,10 @@ export const createTables = `
     symptoms TEXT NOT NULL,
     triggers TEXT NOT NULL,
     notes TEXT CHECK(length(notes) <= 5000),
-    peak_intensity REAL CHECK(peak_intensity IS NULL OR (peak_intensity >= 0 AND peak_intensity <= 10)),
-    average_intensity REAL CHECK(average_intensity IS NULL OR (average_intensity >= 0 AND average_intensity <= 10 AND (peak_intensity IS NULL OR average_intensity <= peak_intensity))),
+    latitude REAL CHECK(latitude IS NULL OR (latitude >= -90 AND latitude <= 90)),
+    longitude REAL CHECK(longitude IS NULL OR (longitude >= -180 AND longitude <= 180)),
+    location_accuracy REAL CHECK(location_accuracy IS NULL OR location_accuracy >= 0),
+    location_timestamp INTEGER CHECK(location_timestamp IS NULL OR location_timestamp > 0),
     created_at INTEGER NOT NULL CHECK(created_at > 0),
     updated_at INTEGER NOT NULL CHECK(updated_at > 0)
   );

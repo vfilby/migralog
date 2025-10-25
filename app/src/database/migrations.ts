@@ -54,29 +54,47 @@ const migrations: Migration[] = [
         await db.execAsync('BEGIN TRANSACTION;');
 
         // Step 1: Create temporary table with original schema (without location columns)
+        // Check which columns exist in current episodes table
+        const columns = await db.getAllAsync<{ name: string }>(
+          "PRAGMA table_info(episodes)"
+        );
+        const columnNames = columns.map(col => col.name);
+        const hasPeakIntensity = columnNames.includes('peak_intensity');
+        const hasAverageIntensity = columnNames.includes('average_intensity');
+
+        // Build CREATE TABLE statement based on which columns exist
+        const backupColumns = [
+          'id TEXT PRIMARY KEY',
+          'start_time INTEGER NOT NULL',
+          'end_time INTEGER',
+          'locations TEXT NOT NULL',
+          'qualities TEXT NOT NULL',
+          'symptoms TEXT NOT NULL',
+          'triggers TEXT NOT NULL',
+          'notes TEXT'
+        ];
+        if (hasPeakIntensity) backupColumns.push('peak_intensity REAL');
+        if (hasAverageIntensity) backupColumns.push('average_intensity REAL');
+        backupColumns.push('created_at INTEGER NOT NULL', 'updated_at INTEGER NOT NULL');
+
         await db.execAsync(`
           CREATE TABLE episodes_backup (
-            id TEXT PRIMARY KEY,
-            start_time INTEGER NOT NULL,
-            end_time INTEGER,
-            locations TEXT NOT NULL,
-            qualities TEXT NOT NULL,
-            symptoms TEXT NOT NULL,
-            triggers TEXT NOT NULL,
-            notes TEXT,
-            peak_intensity REAL,
-            average_intensity REAL,
-            created_at INTEGER NOT NULL,
-            updated_at INTEGER NOT NULL
+            ${backupColumns.join(',\n            ')}
           );
         `);
 
         // Step 2: Copy data from current table (excluding location columns)
+        const columnsToSelect = [
+          'id', 'start_time', 'end_time', 'locations', 'qualities', 'symptoms',
+          'triggers', 'notes'
+        ];
+        if (hasPeakIntensity) columnsToSelect.push('peak_intensity');
+        if (hasAverageIntensity) columnsToSelect.push('average_intensity');
+        columnsToSelect.push('created_at', 'updated_at');
+
         await db.execAsync(`
           INSERT INTO episodes_backup
-          SELECT id, start_time, end_time, locations, qualities, symptoms,
-                 triggers, notes, peak_intensity, average_intensity,
-                 created_at, updated_at
+          SELECT ${columnsToSelect.join(', ')}
           FROM episodes;
         `);
 
@@ -753,6 +771,86 @@ const migrations: Migration[] = [
     down: async (db: SQLite.SQLiteDatabase) => {
       // SQLite doesn't support DROP COLUMN easily, would need table recreation
       logger.warn('Rollback of migration 12 not implemented (would require table recreation)');
+    },
+  },
+  {
+    version: 13,
+    name: 'remove_episode_intensity_columns',
+    up: async (db: SQLite.SQLiteDatabase) => {
+      // Remove peak_intensity and average_intensity from episodes table
+      // These columns are redundant - intensity data is tracked in intensity_readings table
+      // Use table recreation pattern since SQLite doesn't support DROP COLUMN
+
+      // Get existing columns from episodes table
+      const columns = await db.getAllAsync<{ name: string }>(
+        "PRAGMA table_info(episodes)"
+      );
+      const columnNames = columns.map(col => col.name);
+
+      // Build SELECT and INSERT clauses dynamically, excluding peak_intensity and average_intensity
+      const columnsToKeep = [
+        'id', 'start_time', 'end_time', 'locations', 'qualities', 'symptoms',
+        'triggers', 'notes', 'created_at', 'updated_at'
+      ];
+
+      // Add location columns if they exist (added in migration 2)
+      if (columnNames.includes('latitude')) {
+        columnsToKeep.push('latitude', 'longitude', 'location_accuracy', 'location_timestamp');
+      }
+
+      const insertClause = columnsToKeep.join(', ');
+      const selectClause = columnsToKeep.join(', ');
+
+      await db.execAsync(`
+        -- Disable foreign keys temporarily to prevent cascade deletes
+        PRAGMA foreign_keys = OFF;
+
+        BEGIN TRANSACTION;
+
+        -- Create new episodes table without peak_intensity and average_intensity
+        CREATE TABLE episodes_new (
+          id TEXT PRIMARY KEY,
+          start_time INTEGER NOT NULL CHECK(start_time > 0),
+          end_time INTEGER CHECK(end_time IS NULL OR end_time > start_time),
+          locations TEXT NOT NULL,
+          qualities TEXT NOT NULL,
+          symptoms TEXT NOT NULL,
+          triggers TEXT NOT NULL,
+          notes TEXT CHECK(length(notes) <= 5000),
+          latitude REAL CHECK(latitude IS NULL OR (latitude >= -90 AND latitude <= 90)),
+          longitude REAL CHECK(longitude IS NULL OR (longitude >= -180 AND longitude <= 180)),
+          location_accuracy REAL CHECK(location_accuracy IS NULL OR location_accuracy >= 0),
+          location_timestamp INTEGER CHECK(location_timestamp IS NULL OR location_timestamp > 0),
+          created_at INTEGER NOT NULL CHECK(created_at > 0),
+          updated_at INTEGER NOT NULL CHECK(updated_at > 0)
+        );
+
+        -- Copy all data except peak_intensity and average_intensity
+        INSERT INTO episodes_new (${insertClause})
+        SELECT ${selectClause}
+        FROM episodes;
+
+        -- Drop old table
+        DROP TABLE episodes;
+
+        -- Rename new table to episodes
+        ALTER TABLE episodes_new RENAME TO episodes;
+
+        -- Recreate indexes
+        CREATE INDEX IF NOT EXISTS idx_episodes_start_time ON episodes(start_time);
+        CREATE INDEX IF NOT EXISTS idx_episodes_date_range ON episodes(start_time, end_time);
+
+        COMMIT;
+
+        -- Re-enable foreign keys
+        PRAGMA foreign_keys = ON;
+      `);
+
+      logger.log('Migration 13: Removed peak_intensity and average_intensity from episodes');
+    },
+    down: async (db: SQLite.SQLiteDatabase) => {
+      // Cannot safely restore removed columns with data
+      logger.warn('Rollback of migration 13 not implemented (data would be lost)');
     },
   },
 ];

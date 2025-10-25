@@ -62,8 +62,6 @@ export interface Episode {
   symptoms: Symptom[];
   triggers: Trigger[];
   notes?: string;
-  peakIntensity?: number; // 0-10
-  averageIntensity?: number; // 0-10
   location?: EpisodeLocation; // GPS location when episode started
   createdAt: number;
   updatedAt: number;

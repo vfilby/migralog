@@ -26,8 +26,6 @@ export interface EpisodeRow {
   symptoms: string; // JSON array of string
   triggers: string; // JSON array of string
   notes: string | null;
-  peak_intensity: number | null;
-  average_intensity: number | null;
   latitude: number | null;
   longitude: number | null;
   location_accuracy: number | null;

@@ -222,13 +222,16 @@ describe('Migration Integration Tests (Real Database)', () => {
         expect(episodes[0].start_time).toBe(testEpisode.start_time);
         expect(episodes[0].locations).toBe(testEpisode.locations);
         expect(episodes[0].notes).toBe(testEpisode.notes);
-        expect(episodes[0].peak_intensity).toBe(testEpisode.peak_intensity);
 
-        // Verify new columns exist and are null
+        // Verify location columns exist and are null (added in migration 2)
         expect(episodes[0]).toHaveProperty('latitude');
         expect(episodes[0]).toHaveProperty('longitude');
         expect(episodes[0].latitude).toBeNull();
         expect(episodes[0].longitude).toBeNull();
+
+        // Verify peak_intensity and average_intensity do NOT exist (removed in migration 13)
+        expect(episodes[0]).not.toHaveProperty('peak_intensity');
+        expect(episodes[0]).not.toHaveProperty('average_intensity');
       });
 
       it('should preserve episode data during rollback from v2 to v1', async () => {
@@ -580,9 +583,9 @@ describe('Migration Integration Tests (Real Database)', () => {
       // Run migrations
       await migrationRunner.runMigrations();
 
-      // Should be at latest version (12)
+      // Should be at latest version (13)
       version = await adapter.getAllAsync<{ version: number }>('SELECT version FROM schema_version');
-      expect(version[0].version).toBe(12);
+      expect(version[0].version).toBe(13);
     });
 
     it('should track version during rollback', async () => {

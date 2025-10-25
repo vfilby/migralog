@@ -54,10 +54,10 @@ export const episodeRepository = {
     await database.runAsync(
       `INSERT INTO episodes (
         id, start_time, end_time, locations, qualities, symptoms, triggers,
-        notes, peak_intensity, average_intensity,
+        notes,
         latitude, longitude, location_accuracy, location_timestamp,
         created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         newEpisode.id,
         newEpisode.startTime,
@@ -67,8 +67,6 @@ export const episodeRepository = {
         JSON.stringify(newEpisode.symptoms),
         JSON.stringify(newEpisode.triggers),
         newEpisode.notes || null,
-        newEpisode.peakIntensity || null,
-        newEpisode.averageIntensity || null,
         newEpisode.location?.latitude || null,
         newEpisode.location?.longitude || null,
         newEpisode.location?.accuracy || null,
@@ -90,24 +88,6 @@ export const episodeRepository = {
       // Validate that endTime > startTime if both are being updated
       if (updates.endTime <= updates.startTime) {
         const errorMessage = 'End time must be after start time';
-        logger.error('[EpisodeRepository] Validation failed:', errorMessage);
-        throw new Error(errorMessage);
-      }
-    }
-
-    if (updates.peakIntensity !== undefined) {
-      const intensityResult = IntensityValueSchema.safeParse(updates.peakIntensity);
-      if (!intensityResult.success) {
-        const errorMessage = `Invalid peak intensity: ${intensityResult.error.errors.map(e => e.message).join(', ')}`;
-        logger.error('[EpisodeRepository] Validation failed:', errorMessage);
-        throw new Error(errorMessage);
-      }
-    }
-
-    if (updates.averageIntensity !== undefined) {
-      const intensityResult = IntensityValueSchema.safeParse(updates.averageIntensity);
-      if (!intensityResult.success) {
-        const errorMessage = `Invalid average intensity: ${intensityResult.error.errors.map(e => e.message).join(', ')}`;
         logger.error('[EpisodeRepository] Validation failed:', errorMessage);
         throw new Error(errorMessage);
       }
@@ -149,14 +129,6 @@ export const episodeRepository = {
     if (updates.notes !== undefined) {
       fields.push('notes = ?');
       values.push(updates.notes);
-    }
-    if (updates.peakIntensity !== undefined) {
-      fields.push('peak_intensity = ?');
-      values.push(updates.peakIntensity);
-    }
-    if (updates.averageIntensity !== undefined) {
-      fields.push('average_intensity = ?');
-      values.push(updates.averageIntensity);
     }
 
     fields.push('updated_at = ?');
@@ -263,8 +235,6 @@ export const episodeRepository = {
       symptoms: safeJSONParse(row.symptoms, [], isSymptomArray),
       triggers: safeJSONParse(row.triggers, [], isTriggerArray),
       notes: row.notes || undefined,
-      peakIntensity: row.peak_intensity || undefined,
-      averageIntensity: row.average_intensity || undefined,
       location,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
