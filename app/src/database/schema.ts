@@ -26,6 +26,7 @@ export const createTables = `
     timestamp INTEGER NOT NULL CHECK(timestamp > 0),
     intensity REAL NOT NULL CHECK(intensity >= 0 AND intensity <= 10),
     created_at INTEGER NOT NULL CHECK(created_at > 0),
+    updated_at INTEGER NOT NULL CHECK(updated_at > 0),
     FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE CASCADE
   );
 
@@ -48,6 +49,7 @@ export const createTables = `
     timestamp INTEGER NOT NULL CHECK(timestamp > 0),
     pain_locations TEXT NOT NULL,  -- JSON array of PainLocation[] (e.g., ['left_temple', 'right_eye'])
     created_at INTEGER NOT NULL CHECK(created_at > 0),
+    updated_at INTEGER NOT NULL CHECK(updated_at > 0),
     FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE CASCADE
   );
 
@@ -92,6 +94,7 @@ export const createTables = `
     side_effects TEXT,
     notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
     created_at INTEGER NOT NULL CHECK(created_at > 0),
+    updated_at INTEGER NOT NULL CHECK(updated_at > 0),
     FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE,
     FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE SET NULL,
     CHECK(status != 'taken' OR amount > 0)

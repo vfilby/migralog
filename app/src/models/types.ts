@@ -75,6 +75,7 @@ export interface IntensityReading {
   timestamp: number;
   intensity: number; // 0-10 scale
   createdAt: number;
+  updatedAt: number;
 }
 
 export interface EpisodeNote {
@@ -101,6 +102,7 @@ export interface PainLocationLog {
   timestamp: number;
   painLocations: PainLocation[];  // Pain location areas (e.g., 'left_temple', 'right_eye')
   createdAt: number;
+  updatedAt: number;
 }
 
 export interface Medication {
@@ -145,6 +147,7 @@ export interface MedicationDose {
   sideEffects?: string[];
   notes?: string;
   createdAt: number;
+  updatedAt: number;
 }
 
 export interface MedicationReminder {

@@ -46,6 +46,7 @@ export interface IntensityReadingRow {
   timestamp: number;
   intensity: number;
   created_at: number;
+  updated_at: number;
 }
 
 /**
@@ -72,6 +73,7 @@ export interface PainLocationLogRow {
   timestamp: number;
   pain_locations: string; // JSON array of PainLocation (e.g., ['left_temple', 'right_eye'])
   created_at: number;
+  updated_at: number;
 }
 
 /**
@@ -137,6 +139,7 @@ export interface MedicationDoseRow {
   side_effects: string | null; // JSON array of string
   notes: string | null;
   created_at: number;
+  updated_at: number;
 }
 
 /**

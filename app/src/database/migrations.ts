@@ -605,6 +605,94 @@ const migrations: Migration[] = [
       logger.warn('Rollback of migration 11 not implemented - would need backup to restore start_date/end_date');
     },
   },
+  {
+    version: 12,
+    name: 'add_updated_at_to_event_tables',
+    up: async (db: SQLite.SQLiteDatabase) => {
+      // Add updated_at column to tables that are missing it
+      // This creates a consistent pattern across all tables:
+      // - timestamp/start_time/etc: when the event occurred
+      // - created_at: when the record was first saved to DB
+      // - updated_at: when the record was last modified
+      //
+      // Tables being updated:
+      // - intensity_readings: has timestamp + created_at, adding updated_at
+      // - pain_location_logs: has timestamp + created_at, adding updated_at
+      // - medication_doses: has timestamp + created_at, adding updated_at
+
+      // Check if tables exist first
+      const tables = await db.getAllAsync<{ name: string }>(
+        "SELECT name FROM sqlite_master WHERE type='table'"
+      );
+      const tableNames = tables.map(t => t.name);
+
+      const intensityTableExists = tableNames.includes('intensity_readings');
+      const painLocationTableExists = tableNames.includes('pain_location_logs');
+      const doseTableExists = tableNames.includes('medication_doses');
+
+      // Check if columns already exist before adding them
+      let intensityHasUpdatedAt = false;
+      let painLocationHasUpdatedAt = false;
+      let doseHasUpdatedAt = false;
+
+      if (intensityTableExists) {
+        const intensityColumns = await db.getAllAsync<{ name: string }>(
+          "PRAGMA table_info(intensity_readings)"
+        );
+        intensityHasUpdatedAt = intensityColumns.some(col => col.name === 'updated_at');
+      }
+
+      if (painLocationTableExists) {
+        const painLocationColumns = await db.getAllAsync<{ name: string }>(
+          "PRAGMA table_info(pain_location_logs)"
+        );
+        painLocationHasUpdatedAt = painLocationColumns.some(col => col.name === 'updated_at');
+      }
+
+      if (doseTableExists) {
+        const doseColumns = await db.getAllAsync<{ name: string }>(
+          "PRAGMA table_info(medication_doses)"
+        );
+        doseHasUpdatedAt = doseColumns.some(col => col.name === 'updated_at');
+      }
+
+      // Add updated_at column to intensity_readings if it doesn't exist
+      if (intensityTableExists && !intensityHasUpdatedAt) {
+        await db.execAsync(`
+          ALTER TABLE intensity_readings
+          ADD COLUMN updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
+          CHECK(updated_at > 0);
+        `);
+        logger.log('Added updated_at to intensity_readings');
+      }
+
+      // Add updated_at column to pain_location_logs if it doesn't exist
+      if (painLocationTableExists && !painLocationHasUpdatedAt) {
+        await db.execAsync(`
+          ALTER TABLE pain_location_logs
+          ADD COLUMN updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
+          CHECK(updated_at > 0);
+        `);
+        logger.log('Added updated_at to pain_location_logs');
+      }
+
+      // Add updated_at column to medication_doses if it doesn't exist
+      if (doseTableExists && !doseHasUpdatedAt) {
+        await db.execAsync(`
+          ALTER TABLE medication_doses
+          ADD COLUMN updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
+          CHECK(updated_at > 0);
+        `);
+        logger.log('Added updated_at to medication_doses');
+      }
+
+      logger.log('Migration 12: Added updated_at columns for consistency');
+    },
+    down: async (db: SQLite.SQLiteDatabase) => {
+      // SQLite doesn't support DROP COLUMN easily, would need table recreation
+      logger.warn('Rollback of migration 12 not implemented (would require table recreation)');
+    },
+  },
 ];
 
 class MigrationRunner {
