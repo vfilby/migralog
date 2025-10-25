@@ -7,11 +7,13 @@ import { errorLogger } from '../../services/errorLogger';
 import { notificationService } from '../../services/notificationService';
 import { locationService } from '../../services/locationService';
 import * as SQLite from 'expo-sqlite';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 jest.mock('../../services/errorLogger');
 jest.mock('../../services/notificationService');
 jest.mock('../../services/locationService');
 jest.mock('expo-sqlite');
+jest.mock('@react-native-async-storage/async-storage');
 
 const mockNavigation = {
   navigate: jest.fn(),
@@ -27,10 +29,15 @@ const mockRoute = {
 
 jest.spyOn(Alert, 'alert');
 
+// Helper to enable developer mode for tests
+const enableDeveloperMode = () => {
+  (AsyncStorage.getItem as jest.Mock).mockResolvedValue('true');
+};
+
 describe('SettingsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     (errorLogger.getRecentLogs as jest.Mock).mockResolvedValue([]);
     (notificationService.getPermissions as jest.Mock).mockResolvedValue({
       granted: false,
@@ -40,9 +47,11 @@ describe('SettingsScreen', () => {
     (SQLite.openDatabaseAsync as jest.Mock).mockResolvedValue({
       execAsync: jest.fn().mockResolvedValue(undefined),
     });
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+    (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
   });
 
-  it('should render settings screen with all sections', async () => {
+  it('should render settings screen with all sections (except hidden developer)', async () => {
     renderWithProviders(
       <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
     );
@@ -54,7 +63,8 @@ describe('SettingsScreen', () => {
       expect(screen.getByText('Notifications')).toBeTruthy();
       expect(screen.getByText('Location')).toBeTruthy();
       expect(screen.getByText('Data')).toBeTruthy();
-      expect(screen.getByText('Developer')).toBeTruthy();
+      // Developer section should be hidden by default
+      expect(screen.queryByText('Developer')).toBeNull();
     });
   });
 
@@ -128,6 +138,7 @@ describe('SettingsScreen', () => {
   });
 
   it('should navigate to ErrorLogs screen when View Error Logs tapped', async () => {
+    enableDeveloperMode();
     renderWithProviders(
       <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
     );
@@ -142,6 +153,7 @@ describe('SettingsScreen', () => {
   });
 
   it('should display database health status', async () => {
+    enableDeveloperMode();
     renderWithProviders(
       <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
     );
@@ -153,6 +165,7 @@ describe('SettingsScreen', () => {
   });
 
   it('should display error log count', async () => {
+    enableDeveloperMode();
     (errorLogger.getRecentLogs as jest.Mock).mockResolvedValue([
       { id: '1', category: 'test', message: 'Test error', timestamp: Date.now() },
       { id: '2', category: 'test', message: 'Test error 2', timestamp: Date.now() },
@@ -277,6 +290,7 @@ describe('SettingsScreen', () => {
     });
 
     it('should show test notification alert when Test Notification is pressed', async () => {
+      enableDeveloperMode();
       (notificationService.getPermissions as jest.Mock).mockResolvedValue({
         granted: true,
         canAskAgain: true,
@@ -324,8 +338,9 @@ describe('SettingsScreen', () => {
 
   describe('Developer Tools', () => {
     it('should clear error logs when confirmed', async () => {
+      enableDeveloperMode();
       (errorLogger.clearLogs as jest.Mock).mockResolvedValue(undefined);
-      
+
       renderWithProviders(
         <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
       );
@@ -349,6 +364,7 @@ describe('SettingsScreen', () => {
     });
 
     it('should log test error when Test Error Logging is pressed', async () => {
+      enableDeveloperMode();
       (errorLogger.log as jest.Mock).mockResolvedValue(undefined);
       (errorLogger.getRecentLogs as jest.Mock).mockResolvedValue([
         { id: '1', category: 'general', message: 'Test error log', timestamp: Date.now() }
@@ -420,6 +436,7 @@ describe('SettingsScreen', () => {
 
   describe('Scheduled Notifications', () => {
     it('should show no notifications message when none scheduled', async () => {
+      enableDeveloperMode();
       (notificationService.getPermissions as jest.Mock).mockResolvedValue({
         granted: true,
         canAskAgain: true,
@@ -442,6 +459,7 @@ describe('SettingsScreen', () => {
     });
 
     it('should display scheduled notifications list', async () => {
+      enableDeveloperMode();
       (notificationService.getPermissions as jest.Mock).mockResolvedValue({
         granted: true,
         canAskAgain: true,
@@ -482,6 +500,7 @@ describe('SettingsScreen', () => {
 
   describe('Database Management', () => {
     it('should show confirmation before resetting database', async () => {
+      enableDeveloperMode();
       renderWithProviders(
         <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
       );
@@ -505,6 +524,7 @@ describe('SettingsScreen', () => {
     });
 
     it('should show confirmation before resetting with test data', async () => {
+      enableDeveloperMode();
       renderWithProviders(
         <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
       );
@@ -554,6 +574,7 @@ describe('SettingsScreen', () => {
     });
 
     it('should handle test notification error', async () => {
+      enableDeveloperMode();
       (notificationService.getPermissions as jest.Mock).mockResolvedValue({
         granted: true,
         canAskAgain: true,
@@ -598,6 +619,7 @@ describe('SettingsScreen', () => {
     });
 
     it('should handle view scheduled notifications error', async () => {
+      enableDeveloperMode();
       (notificationService.getPermissions as jest.Mock).mockResolvedValue({
         granted: true,
         canAskAgain: true,
@@ -618,6 +640,45 @@ describe('SettingsScreen', () => {
 
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to get scheduled notifications');
+      });
+    });
+  });
+
+  describe('Developer Mode Toggle', () => {
+    it('should enable developer mode after tapping build 7 times', async () => {
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      // Developer section should not be visible initially
+      await waitFor(() => {
+        expect(screen.queryByText('Developer')).toBeNull();
+      });
+
+      // Tap build info 7 times
+      const buildValue = screen.getByText(/[a-f0-9]{7}/i); // Match commit hash
+      for (let i = 0; i < 7; i++) {
+        fireEvent.press(buildValue);
+      }
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Developer Mode Enabled',
+          'Developer tools are now visible in Settings.'
+        );
+        expect(AsyncStorage.setItem).toHaveBeenCalledWith('@settings_developer_mode', 'true');
+      });
+    });
+
+    it('should show developer icon when developer mode is enabled', async () => {
+      enableDeveloperMode();
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        // Developer section should be visible
+        expect(screen.getByText('Developer')).toBeTruthy();
       });
     });
   });
