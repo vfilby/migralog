@@ -77,7 +77,10 @@ describe('Medication Dose Edit/Delete', () => {
     // ======================
     // Phase 3: Verify Dose Appears in Recent Activity
     // ======================
-    // Scroll to Recent Activity section if needed
+    // Scroll down to Recent Activity section (it's below Notification Settings for preventative meds)
+    await element(by.id('medication-detail-scrollview')).scrollTo('bottom');
+    await waitForAnimation(500);
+
     await waitFor(element(by.text('Recent Activity (30 days)')))
       .toBeVisible()
       .withTimeout(5000);
@@ -178,6 +181,10 @@ describe('Medication Dose Edit/Delete', () => {
 
     console.log('Dose logged - should show 1 × 50mg');
 
+    // Scroll down to see dose amount (it's below Notification Settings)
+    await element(by.id('medication-detail-scrollview')).scrollTo('bottom');
+    await waitForAnimation(500);
+
     // Verify initial dose amount (1 × 50mg)
     await waitFor(element(by.text('1 × 50mg')))
       .toBeVisible()
@@ -193,6 +200,10 @@ describe('Medication Dose Edit/Delete', () => {
     const expectedDatePattern = `${monthNames[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`;
 
     console.log('Long-pressing on dose entry to edit');
+    // Scroll down to Recent Activity section to access the dose entry
+    await element(by.id('medication-detail-scrollview')).scrollTo('bottom');
+    await waitForAnimation(500);
+
     await element(by.text(expectedDatePattern)).longPress();
     await waitForAnimation(1000);
 
@@ -256,6 +267,10 @@ describe('Medication Dose Edit/Delete', () => {
     await element(by.text('Test Topiramate')).tap();
     await waitForAnimation(1000);
 
+    // Scroll down to see dose amount (it's below Notification Settings)
+    await element(by.id('medication-detail-scrollview')).scrollTo('bottom');
+    await waitForAnimation(500);
+
     // Should still see the updated dose amount
     await waitFor(element(by.text('4 × 50mg')))
       .toBeVisible()
@@ -294,6 +309,10 @@ describe('Medication Dose Edit/Delete', () => {
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const expectedDatePattern = `${monthNames[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`;
 
+    // Scroll down to Recent Activity section to access the dose entry
+    await element(by.id('medication-detail-scrollview')).scrollTo('bottom');
+    await waitForAnimation(500);
+
     await element(by.text(expectedDatePattern)).longPress();
     await waitForAnimation(1000);
 
@@ -323,6 +342,10 @@ describe('Medication Dose Edit/Delete', () => {
     await waitFor(element(by.text('Medication Details')))
       .toBeVisible()
       .withTimeout(5000);
+
+    // Scroll down to see dose amount (it's below Notification Settings)
+    await element(by.id('medication-detail-scrollview')).scrollTo('bottom');
+    await waitForAnimation(500);
 
     // Original dose amount should still be visible (1 × 50mg)
     await waitFor(element(by.text('1 × 50mg')))
@@ -360,6 +383,10 @@ describe('Medication Dose Edit/Delete', () => {
     const today = new Date();
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const expectedDatePattern = `${monthNames[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`;
+
+    // Scroll down to Recent Activity section to access the dose entry
+    await element(by.id('medication-detail-scrollview')).scrollTo('bottom');
+    await waitForAnimation(500);
 
     await element(by.text(expectedDatePattern)).longPress();
     await waitForAnimation(1000);

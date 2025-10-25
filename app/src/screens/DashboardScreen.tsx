@@ -369,10 +369,13 @@ export default function DashboardScreen() {
             >
               {item.taken ? (
                 <View style={styles.compactRow}>
-                  <View style={styles.compactLeft}>
+                  <TouchableOpacity
+                    style={styles.compactLeft}
+                    onPress={() => navigation.navigate('MedicationDetail', { medicationId: item.medication.id })}
+                  >
                     <Text style={styles.compactName}>{item.medication.name}</Text>
                     <Text style={styles.compactTime}>{format(item.doseTime, 'h:mm a')}</Text>
-                  </View>
+                  </TouchableOpacity>
                   <View style={styles.compactStatus}>
                     <Ionicons name="checkmark-circle" size={16} color={theme.success} />
                     <Text style={styles.compactStatusText}>
@@ -388,10 +391,13 @@ export default function DashboardScreen() {
                 </View>
               ) : item.skipped ? (
                 <View style={styles.compactRow}>
-                  <View style={styles.compactLeft}>
+                  <TouchableOpacity
+                    style={styles.compactLeft}
+                    onPress={() => navigation.navigate('MedicationDetail', { medicationId: item.medication.id })}
+                  >
                     <Text style={styles.compactName}>{item.medication.name}</Text>
                     <Text style={styles.compactTime}>{format(item.doseTime, 'h:mm a')}</Text>
-                  </View>
+                  </TouchableOpacity>
                   <View style={styles.compactStatus}>
                     <Ionicons name="close-circle" size={16} color={theme.textSecondary} />
                     <Text style={styles.compactSkippedText}>Skipped</Text>
@@ -405,10 +411,13 @@ export default function DashboardScreen() {
                 </View>
               ) : (
                 <View style={styles.compactRow}>
-                  <View style={styles.compactLeft}>
+                  <TouchableOpacity
+                    style={styles.compactLeft}
+                    onPress={() => navigation.navigate('MedicationDetail', { medicationId: item.medication.id })}
+                  >
                     <Text style={styles.compactName}>{item.medication.name}</Text>
                     <Text style={styles.compactTime}>{format(item.doseTime, 'h:mm a')}</Text>
-                  </View>
+                  </TouchableOpacity>
                   <View style={styles.compactButtons}>
                     <TouchableOpacity
                       style={styles.compactLogButton}

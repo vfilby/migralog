@@ -120,6 +120,8 @@ export interface NotificationPermissions {
 
 class NotificationService {
   private initialized = false;
+  // Map to track follow-up notification IDs: key = "medicationId:scheduleId" or "multi:time"
+  private followUpNotifications = new Map<string, string>();
 
   /**
    * Initialize the notification service and register categories
@@ -218,16 +220,20 @@ class NotificationService {
           break;
         case 'SNOOZE_10':
           if (data.medicationId && data.scheduleId) {
+            // Cancel follow-up reminder since user snoozed
+            await this.cancelFollowUpReminder(`${data.medicationId}:${data.scheduleId}`);
             await this.handleSnooze(data.medicationId, data.scheduleId, 10);
           }
           break;
         case 'TAKE_ALL_NOW':
           if (data.medicationIds && data.scheduleIds) {
-            await this.handleTakeAllNow(data.medicationIds, data.scheduleIds);
+            await this.handleTakeAllNow(data.medicationIds, data.scheduleIds, data.time);
           }
           break;
         case 'REMIND_LATER':
           if (data.medicationIds && data.scheduleIds && data.time) {
+            // Cancel follow-up reminder since user chose to snooze
+            await this.cancelFollowUpReminder(`multi:${data.time}`);
             await this.handleRemindLater(data.medicationIds, data.scheduleIds, data.time, 10);
           }
           break;
@@ -236,15 +242,64 @@ class NotificationService {
           logger.log('[Notification] View details tapped, opening app');
           break;
         default:
-          // User tapped notification - let app navigation handle it
+          // User tapped notification - cancel follow-up reminder
+          if (data.medicationId && data.scheduleId) {
+            await this.cancelFollowUpReminder(`${data.medicationId}:${data.scheduleId}`);
+          } else if (data.medicationIds && data.time) {
+            await this.cancelFollowUpReminder(`multi:${data.time}`);
+          }
           logger.log('[Notification] Notification tapped, opening app');
           break;
       }
     });
 
     // Handle notifications received while app is in foreground
-    Notifications.addNotificationReceivedListener((notification) => {
+    Notifications.addNotificationReceivedListener(async (notification) => {
       logger.log('[Notification] Received in foreground:', notification);
+
+      // Schedule follow-up reminder if this is not already a follow-up
+      const data = notification.request.content.data as {
+        medicationId?: string;
+        medicationIds?: string[];
+        scheduleId?: string;
+        scheduleIds?: string[];
+        time?: string;
+        isFollowUp?: boolean;
+      };
+
+      // Don't schedule follow-up for follow-up notifications
+      if (data.isFollowUp) {
+        return;
+      }
+
+      // Schedule follow-up for single medication
+      if (data.medicationId && data.scheduleId) {
+        const medication = await medicationRepository.getById(data.medicationId);
+        if (medication) {
+          await this.scheduleFollowUpReminder(
+            data.medicationId,
+            data.scheduleId,
+            medication.name
+          );
+        }
+      }
+
+      // Schedule follow-up for multiple medications
+      if (data.medicationIds && data.scheduleIds && data.time) {
+        const medications = await Promise.all(
+          data.medicationIds.map(id => medicationRepository.getById(id))
+        );
+        const validMedications = medications.filter(m => m !== null) as Medication[];
+        if (validMedications.length > 0) {
+          const medicationNames = validMedications.map(m => m.name).join(', ');
+          await this.scheduleFollowUpReminder(
+            data.medicationIds,
+            data.scheduleIds,
+            medicationNames,
+            data.time
+          );
+        }
+      }
     });
   }
 
@@ -259,25 +314,21 @@ class NotificationService {
         return;
       }
 
+      // Cancel follow-up reminder since user took action
+      await this.cancelFollowUpReminder(`${medicationId}:${scheduleId}`);
+
       // Find the schedule to get the dosage
       const schedule = medication.schedule?.find(s => s.id === scheduleId);
       const dosage = schedule?.dosage ?? medication.defaultDosage ?? 1;
 
-      // Log the dose
-      await medicationDoseRepository.create({
+      // Use store's logDose to update both database and state
+      // Dynamic import to avoid circular dependency
+      const { useMedicationStore } = await import('../store/medicationStore');
+      await useMedicationStore.getState().logDose({
         medicationId,
         timestamp: Date.now(),
         amount: dosage,
         notes: 'Logged from notification',
-      });
-
-      // Show success notification
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Medication Logged',
-          body: `${medication.name} - ${dosage} dose(s)`,
-        },
-        trigger: null, // Show immediately
       });
 
       logger.log('[Notification] Medication logged:', {
@@ -327,10 +378,19 @@ class NotificationService {
    */
   private async handleTakeAllNow(
     medicationIds: string[],
-    scheduleIds: string[]
+    scheduleIds: string[],
+    time?: string
   ): Promise<void> {
     try {
+      // Cancel follow-up reminder since user took action
+      if (time) {
+        await this.cancelFollowUpReminder(`multi:${time}`);
+      }
+
       const results: string[] = [];
+
+      // Dynamic import to avoid circular dependency
+      const { useMedicationStore } = await import('../store/medicationStore');
 
       for (let i = 0; i < medicationIds.length; i++) {
         const medicationId = medicationIds[i];
@@ -346,8 +406,8 @@ class NotificationService {
         const schedule = medication.schedule?.find(s => s.id === scheduleId);
         const dosage = schedule?.dosage ?? medication.defaultDosage ?? 1;
 
-        // Log the dose
-        await medicationDoseRepository.create({
+        // Use store's logDose to update both database and state
+        await useMedicationStore.getState().logDose({
           medicationId,
           timestamp: Date.now(),
           amount: dosage,
@@ -361,16 +421,7 @@ class NotificationService {
         });
       }
 
-      // Show success notification
-      if (results.length > 0) {
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: 'Medications Logged',
-            body: results.join('\n'),
-          },
-          trigger: null, // Show immediately
-        });
-      }
+      logger.log('[Notification] All medications logged:', results);
     } catch (error) {
       logger.error('[Notification] Error logging medications:', error);
     }
@@ -546,6 +597,12 @@ class NotificationService {
           },
           categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
           sound: true,
+          // Time-sensitive notification settings for Android and iOS
+          ...(Notifications.AndroidNotificationPriority && {
+            priority: Notifications.AndroidNotificationPriority.HIGH,
+          }),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...({ interruptionLevel: 'timeSensitive' } as any), // iOS: breaks through Focus modes
         },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DAILY,
@@ -591,6 +648,12 @@ class NotificationService {
           },
           categoryIdentifier: MULTIPLE_MEDICATION_REMINDER_CATEGORY,
           sound: true,
+          // Time-sensitive notification settings for Android and iOS
+          ...(Notifications.AndroidNotificationPriority && {
+            priority: Notifications.AndroidNotificationPriority.HIGH,
+          }),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...({ interruptionLevel: 'timeSensitive' } as any), // iOS: breaks through Focus modes
         },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DAILY,
@@ -604,6 +667,83 @@ class NotificationService {
     } catch (error) {
       logger.error('[Notification] Error scheduling combined notification:', error);
       return null;
+    }
+  }
+
+  /**
+   * Schedule a follow-up reminder 30 minutes after the initial notification
+   * Uses critical alert to ensure it plays even when phone is silenced
+   *
+   * Note: Critical alerts require special entitlement from Apple
+   * Request at: https://developer.apple.com/contact/request/notifications-critical-alerts-entitlement/
+   */
+  private async scheduleFollowUpReminder(
+    medicationId: string | string[],
+    scheduleId: string | string[],
+    medicationName: string,
+    time?: string
+  ): Promise<void> {
+    try {
+      // Schedule follow-up notification 30 minutes from now
+      const followUpTime = new Date(Date.now() + 30 * 60 * 1000);
+
+      const isSingle = typeof medicationId === 'string';
+      const key = isSingle
+        ? `${medicationId}:${scheduleId}`
+        : `multi:${time}`;
+
+      const title = isSingle
+        ? `Reminder: ${medicationName}`
+        : `Reminder: ${medicationName} (${Array.isArray(medicationId) ? medicationId.length : 1} medications)`;
+
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title,
+          body: 'Did you take your medication?',
+          data: isSingle
+            ? { medicationId, scheduleId, isFollowUp: true }
+            : { medicationIds: medicationId, scheduleIds: scheduleId, time, isFollowUp: true },
+          categoryIdentifier: isSingle
+            ? MEDICATION_REMINDER_CATEGORY
+            : MULTIPLE_MEDICATION_REMINDER_CATEGORY,
+          sound: true,
+          // Critical alert properties (requires entitlement)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...({ critical: true } as any), // iOS: plays even when phone is silenced
+          // Time-sensitive notification settings
+          ...(Notifications.AndroidNotificationPriority && {
+            priority: Notifications.AndroidNotificationPriority.MAX,
+          }),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...({ interruptionLevel: 'critical' } as any), // iOS: critical interruption level
+        },
+        // Date trigger type is not exported by expo-notifications
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        trigger: followUpTime as any,
+      });
+
+      // Store the follow-up notification ID for later cancellation
+      this.followUpNotifications.set(key, notificationId);
+
+      logger.log('[Notification] Scheduled follow-up reminder for', medicationName, 'at', followUpTime.toLocaleTimeString());
+    } catch (error) {
+      logger.error('[Notification] Error scheduling follow-up reminder:', error);
+    }
+  }
+
+  /**
+   * Cancel a follow-up reminder if it exists
+   */
+  private async cancelFollowUpReminder(key: string): Promise<void> {
+    const followUpId = this.followUpNotifications.get(key);
+    if (followUpId) {
+      try {
+        await Notifications.cancelScheduledNotificationAsync(followUpId);
+        this.followUpNotifications.delete(key);
+        logger.log('[Notification] Cancelled follow-up reminder:', key);
+      } catch (error) {
+        logger.error('[Notification] Error cancelling follow-up reminder:', error);
+      }
     }
   }
 
