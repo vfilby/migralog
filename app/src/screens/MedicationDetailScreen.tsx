@@ -215,7 +215,6 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
           onPress: async () => {
             try {
               await archiveMedication(medicationId);
-              toastService.success('Medication archived');
               navigation.goBack();
             } catch (error) {
               logger.error('Failed to archive medication:', error);
