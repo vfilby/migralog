@@ -19,6 +19,7 @@ import { notificationService, NotificationPermissions } from '../services/notifi
 import { locationService } from '../services/locationService';
 import { backupService } from '../services/backupService';
 import * as SQLite from 'expo-sqlite';
+import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NotificationSettings from '../components/NotificationSettings';
 
@@ -224,39 +225,27 @@ export default function SettingsScreen({ navigation }: Props) {
         return;
       }
 
-      // Temporarily override the time-sensitive setting for this test
-      const { useNotificationSettingsStore } = await import('../store/notificationSettingsStore');
-      const originalSettings = useNotificationSettingsStore.getState().settings;
-      await useNotificationSettingsStore.getState().updateGlobalSettings({
-        timeSensitiveEnabled: timeSensitive,
-      });
+      // Ensure notification service is initialized
+      await notificationService.initialize();
 
       // Schedule a test notification for 5 seconds from now
       const testTime = new Date(Date.now() + 5000);
 
-      await notificationService.scheduleNotification(
-        {
-          id: 'test-med',
-          name: 'Test Medication',
-          type: 'preventative',
-          dosageAmount: 100,
-          dosageUnit: 'mg',
-          active: true,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `Test Notification${timeSensitive ? ' (Time-Sensitive)' : ''}`,
+          body: 'This is a test notification from MigraLog',
+          sound: true,
+          ...(Notifications.AndroidNotificationPriority && {
+            priority: Notifications.AndroidNotificationPriority.HIGH,
+          }),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...(timeSensitive && { interruptionLevel: 'timeSensitive' } as any),
         },
-        {
-          id: 'test-schedule',
-          medicationId: 'test-med',
-          time: `${testTime.getHours()}:${testTime.getMinutes()}`,
-          dosage: 1,
-          enabled: true,
-        }
-      );
-
-      // Restore original settings
-      await useNotificationSettingsStore.getState().updateGlobalSettings({
-        timeSensitiveEnabled: originalSettings.timeSensitiveEnabled,
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: testTime,
+        },
       });
 
       Alert.alert(
