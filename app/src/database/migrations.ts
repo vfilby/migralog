@@ -853,6 +853,95 @@ const migrations: Migration[] = [
       logger.warn('Rollback of migration 13 not implemented (data would be lost)');
     },
   },
+  {
+    version: 14,
+    name: 'rename_default_dosage_to_default_quantity',
+    up: async (db: SQLite.SQLiteDatabase) => {
+      // Rename default_dosage to default_quantity for consistency
+      // "quantity" is clearer: it's the number of units (e.g., 2 tablets)
+      // "dosage" is the amount per unit (e.g., 50mg per tablet)
+      // Use table recreation pattern since SQLite doesn't support RENAME COLUMN
+
+      // Get existing columns from medications table
+      const columns = await db.getAllAsync<{ name: string }>(
+        "PRAGMA table_info(medications)"
+      );
+      const columnNames = columns.map(col => col.name);
+
+      // Build SELECT and INSERT clauses
+      const columnsToKeep = ['id', 'name', 'type', 'dosage_amount', 'dosage_unit'];
+
+      // Handle default_dosage -> default_quantity rename
+      const selectExpressions = [...columnsToKeep];
+      if (columnNames.includes('default_dosage')) {
+        columnsToKeep.push('default_quantity');
+        selectExpressions.push('default_dosage as default_quantity');
+      } else if (columnNames.includes('default_quantity')) {
+        columnsToKeep.push('default_quantity');
+        selectExpressions.push('default_quantity');
+      }
+
+      // Add remaining optional columns
+      const optionalColumns = ['schedule_frequency', 'photo_uri', 'active', 'notes', 'created_at', 'updated_at'];
+      for (const col of optionalColumns) {
+        if (columnNames.includes(col)) {
+          columnsToKeep.push(col);
+          selectExpressions.push(col);
+        }
+      }
+
+      const insertClause = columnsToKeep.join(', ');
+      const selectClause = selectExpressions.join(', ');
+
+      await db.execAsync(`
+        -- Disable foreign keys temporarily to prevent cascade deletes
+        PRAGMA foreign_keys = OFF;
+
+        BEGIN TRANSACTION;
+
+        -- Create new medications table with default_quantity
+        CREATE TABLE medications_new (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL CHECK(length(name) > 0 AND length(name) <= 200),
+          type TEXT NOT NULL CHECK(type IN ('preventative', 'rescue')),
+          dosage_amount REAL NOT NULL CHECK(dosage_amount > 0),
+          dosage_unit TEXT NOT NULL CHECK(length(dosage_unit) > 0 AND length(dosage_unit) <= 50),
+          default_quantity REAL CHECK(default_quantity IS NULL OR default_quantity > 0),
+          schedule_frequency TEXT CHECK(schedule_frequency IS NULL OR schedule_frequency IN ('daily', 'monthly', 'quarterly')),
+          photo_uri TEXT CHECK(photo_uri IS NULL OR length(photo_uri) <= 500),
+          active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0, 1)),
+          notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
+          created_at INTEGER NOT NULL CHECK(created_at > 0),
+          updated_at INTEGER NOT NULL CHECK(updated_at > 0)
+        );
+
+        -- Copy all data, renaming default_dosage to default_quantity
+        INSERT INTO medications_new (${insertClause})
+        SELECT ${selectClause}
+        FROM medications;
+
+        -- Drop old table
+        DROP TABLE medications;
+
+        -- Rename new table to medications
+        ALTER TABLE medications_new RENAME TO medications;
+
+        -- Recreate indexes
+        CREATE INDEX IF NOT EXISTS idx_medications_active_type ON medications(active, type) WHERE active = 1;
+
+        COMMIT;
+
+        -- Re-enable foreign keys
+        PRAGMA foreign_keys = ON;
+      `);
+
+      logger.log('Migration 14: Renamed default_dosage to default_quantity in medications');
+    },
+    down: async (db: SQLite.SQLiteDatabase) => {
+      // Could recreate with old column name, but would lose semantic clarity
+      logger.warn('Rollback of migration 14 not implemented (would require table recreation)');
+    },
+  },
 ];
 
 class MigrationRunner {

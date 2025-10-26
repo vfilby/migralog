@@ -96,7 +96,7 @@ export interface MedicationRow {
   type: string; // 'preventative' | 'rescue'
   dosage_amount: number;
   dosage_unit: string;
-  default_dosage: number | null;
+  default_quantity: number | null;
   schedule_frequency: string | null;
   photo_uri: string | null;
   active: number; // 0 or 1

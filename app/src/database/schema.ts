@@ -1,6 +1,6 @@
 // Database schema and initialization
 
-export const SCHEMA_VERSION = 13;
+export const SCHEMA_VERSION = 14;
 
 export const createTables = `
   -- Episodes table
@@ -62,7 +62,7 @@ export const createTables = `
     type TEXT NOT NULL CHECK(type IN ('preventative', 'rescue')),
     dosage_amount REAL NOT NULL CHECK(dosage_amount > 0),
     dosage_unit TEXT NOT NULL CHECK(length(dosage_unit) > 0 AND length(dosage_unit) <= 50),
-    default_dosage REAL CHECK(default_dosage IS NULL OR default_dosage > 0),
+    default_quantity REAL CHECK(default_quantity IS NULL OR default_quantity > 0),
     schedule_frequency TEXT CHECK(schedule_frequency IS NULL OR schedule_frequency IN ('daily', 'monthly', 'quarterly')),
     photo_uri TEXT CHECK(photo_uri IS NULL OR length(photo_uri) <= 500),
     active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0, 1)),

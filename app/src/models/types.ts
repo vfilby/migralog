@@ -109,7 +109,7 @@ export interface Medication {
   type: MedicationType;
   dosageAmount: number;
   dosageUnit: string; // 'mg', 'ml', 'tablets', etc.
-  defaultDosage?: number; // Number of units (e.g., 3 tablets)
+  defaultQuantity?: number; // Number of units (e.g., 3 tablets)
   scheduleFrequency?: ScheduleFrequency; // For preventative: 'daily', 'monthly', 'quarterly'
   photoUri?: string;
   schedule?: MedicationSchedule[];
