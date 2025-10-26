@@ -242,9 +242,10 @@ export default function SettingsScreen({ navigation }: Props) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ...(timeSensitive && { interruptionLevel: 'timeSensitive' } as any),
         },
-        // Date trigger type is not exported by expo-notifications
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        trigger: testTime as any,
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: testTime,
+        },
       });
 
       Alert.alert(
