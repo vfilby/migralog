@@ -1,8 +1,10 @@
 // Auto-generated file - do not edit manually
-// Generated at: 2025-10-25T23:32:17.745Z
+// Generated at: 2025-10-26T20:11:44.169Z
 
 export const buildInfo = {
-  "commitHash": "b6643d1",
-  "branch": "feature/data-model-cleanup",
-  "buildTime": "2025-10-25T23:32:17.745Z"
+  "version": "1.0.0",
+  "buildNumber": "dev",
+  "commitHash": "95694d5",
+  "branch": "feature/version-management",
+  "buildTime": "2025-10-26T20:11:44.169Z"
 };

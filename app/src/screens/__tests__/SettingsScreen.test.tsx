@@ -80,7 +80,8 @@ describe('SettingsScreen', () => {
 
     await waitFor(() => {
       expect(screen.getByText('MigraLog')).toBeTruthy();
-      expect(screen.getByText('1.0.0')).toBeTruthy();
+      // Version now includes build number and commit hash
+      expect(screen.getByText(/1\.0\.0 \(.+:.+\)/)).toBeTruthy();
     });
   });
 

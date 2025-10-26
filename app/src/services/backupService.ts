@@ -10,6 +10,7 @@ import { medicationRepository, medicationDoseRepository, medicationScheduleRepos
 import { dailyStatusRepository } from '../database/dailyStatusRepository';
 import { migrationRunner } from '../database/migrations';
 import { Episode, Medication, MedicationDose, MedicationSchedule, EpisodeNote, IntensityReading, DailyStatusLog } from '../models/types';
+import { buildInfo } from '../buildInfo';
 
 export interface BackupMetadata {
   id: string;
@@ -39,7 +40,6 @@ const BACKUP_DIR = `${FileSystem.documentDirectory}backups/`;
 const DB_PATH = `${FileSystem.documentDirectory}SQLite/migralog.db`;
 const MAX_AUTO_BACKUPS = 7; // Keep last 7 automatic backups (weekly backups for ~2 months)
 const WEEKLY_BACKUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
-const APP_VERSION = '1.0.0'; // TODO: Get from app.json
 const LAST_WEEKLY_BACKUP_KEY = '@MigraLog:lastWeeklyBackup';
 
 class BackupService {
@@ -104,7 +104,7 @@ class BackupService {
       const metadata: BackupMetadata = {
         id: backupId,
         timestamp: Date.now(),
-        version: APP_VERSION,
+        version: buildInfo.version,
         schemaVersion,
         episodeCount,
         medicationCount,
@@ -204,7 +204,7 @@ class BackupService {
         metadata: {
           id: backupId,
           timestamp: Date.now(),
-          version: APP_VERSION,
+          version: buildInfo.version,
           schemaVersion,
           episodeCount: episodes.length,
           medicationCount: medications.length,
@@ -294,7 +294,7 @@ class BackupService {
               backups.push({
                 id: backupId,
                 timestamp: 0, // Unknown
-                version: APP_VERSION,
+                version: buildInfo.version,
                 schemaVersion: 0, // Unknown
                 episodeCount: 0,
                 medicationCount: 0,
@@ -718,7 +718,7 @@ class BackupService {
         metadata: {
           id: `export_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           timestamp: Date.now(),
-          version: APP_VERSION,
+          version: buildInfo.version,
           schemaVersion,
           episodeCount: episodes.length,
           medicationCount: medications.length,
