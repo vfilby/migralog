@@ -404,7 +404,7 @@ export default function SettingsScreen({ navigation }: Props) {
             <View style={styles.divider} />
             <View style={styles.aboutRow}>
               <Text style={styles.aboutLabel}>Version</Text>
-              <Text style={styles.aboutValue}>1.0.0</Text>
+              <Text style={styles.aboutValue}>{buildInfo.version}</Text>
             </View>
             <View style={styles.divider} />
             <TouchableOpacity
@@ -414,7 +414,9 @@ export default function SettingsScreen({ navigation }: Props) {
             >
               <Text style={styles.aboutLabel}>Build</Text>
               <View style={styles.buildValueContainer}>
-                <Text style={styles.aboutValue}>{buildInfo.commitHash}</Text>
+                <Text style={styles.aboutValue}>
+                  {buildInfo.buildNumber} ({buildInfo.commitHash})
+                </Text>
                 {developerMode && (
                   <Ionicons name="code-slash" size={16} color={theme.primary} style={{ marginLeft: 6 }} />
                 )}
