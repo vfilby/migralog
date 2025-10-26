@@ -303,13 +303,15 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
 
   const handleQuickLog = async (med: Medication) => {
     try {
+      const now = Date.now();
       await logDose({
         medicationId: med.id,
-        timestamp: Date.now(),
-        amount: med.defaultQuantity || 1,
+        timestamp: now,
+        quantity: med.defaultQuantity || 1,
         dosageAmount: med.dosageAmount,
         dosageUnit: med.dosageUnit,
         // episodeId determined automatically by timestamp
+        updatedAt: now,
       });
 
       navigation.goBack();
@@ -329,14 +331,16 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
 
     setSaving(true);
     try {
+      const ts = timestamp.getTime();
       await logDose({
         medicationId: medication.id,
-        timestamp: timestamp.getTime(),
-        amount: parseFloat(amount),
+        timestamp: ts,
+        quantity: parseFloat(amount),
         dosageAmount: medication.dosageAmount,
         dosageUnit: medication.dosageUnit,
         // episodeId determined automatically by timestamp
         notes: notes.trim() || undefined,
+        updatedAt: ts,
       });
 
       navigation.goBack();

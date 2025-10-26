@@ -292,10 +292,11 @@ export default function DashboardScreen() {
       await logDose({
         medicationId: item.medication.id,
         timestamp: now,
-        amount: item.schedule.dosage,
+        quantity: item.schedule.dosage,
         dosageAmount: item.medication.dosageAmount,
         dosageUnit: item.medication.dosageUnit,
         episodeId: currentEpisode?.id,
+        updatedAt: now,
       });
 
       // UI will automatically update via the store selector
@@ -309,15 +310,16 @@ export default function DashboardScreen() {
     try {
       const now = Date.now();
 
-      // Save skip to database with status 'skipped' and amount 0
+      // Save skip to database with status 'skipped' and quantity 0
       await logDose({
         medicationId: item.medication.id,
         timestamp: now,
-        amount: 0, // 0 amount indicates skipped
+        quantity: 0, // 0 quantity indicates skipped
         dosageAmount: item.medication.dosageAmount,
         dosageUnit: item.medication.dosageUnit,
         status: 'skipped',
         episodeId: currentEpisode?.id,
+        updatedAt: now,
       });
 
       // UI will automatically update via the store selector

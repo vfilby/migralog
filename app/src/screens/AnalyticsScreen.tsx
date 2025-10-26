@@ -103,7 +103,6 @@ export default function AnalyticsScreen() {
   const [stats, setStats] = useState({
     totalEpisodes: 0,
     averageDuration: 0,
-    averageIntensity: 0,
     episodesThisMonth: 0,
   });
 
@@ -128,17 +127,10 @@ export default function AnalyticsScreen() {
       return sum + (ep.endTime! - ep.startTime);
     }, 0);
 
-    const totalIntensity = episodes.reduce((sum, ep) => {
-      return sum + (ep.peakIntensity || 0);
-    }, 0);
-
     setStats({
       totalEpisodes: episodes.length,
       averageDuration: completedEpisodes.length > 0
         ? totalDuration / completedEpisodes.length / 3600000 // Convert to hours
-        : 0,
-      averageIntensity: episodes.length > 0
-        ? totalIntensity / episodes.length
         : 0,
       episodesThisMonth: episodesThisMonth.length,
     });
@@ -177,13 +169,6 @@ export default function AnalyticsScreen() {
                 {stats.averageDuration.toFixed(1)}h
               </Text>
               <Text style={styles.statLabel}>Avg Duration</Text>
-            </View>
-
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>
-                {stats.averageIntensity.toFixed(1)}
-              </Text>
-              <Text style={styles.statLabel}>Avg Intensity</Text>
             </View>
           </View>
         </View>

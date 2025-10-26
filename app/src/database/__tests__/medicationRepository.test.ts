@@ -134,7 +134,7 @@ describe('medicationRepository', () => {
         type: 'rescue',
         dosage_amount: 200,
         dosage_unit: 'mg',
-        default_dosage: 2,
+        default_quantity: 2,
         schedule_frequency: undefined,
         photo_uri: undefined,
         active: 1,
@@ -175,7 +175,7 @@ describe('medicationRepository', () => {
           type: 'rescue',
           dosage_amount: 325,
           dosage_unit: 'mg',
-          default_dosage: null,
+          default_quantity: null,
           schedule_frequency: undefined,
           photo_uri: undefined,
           active: 1,
@@ -189,7 +189,7 @@ describe('medicationRepository', () => {
           type: 'rescue',
           dosage_amount: 200,
           dosage_unit: 'mg',
-          default_dosage: null,
+          default_quantity: null,
           schedule_frequency: undefined,
           photo_uri: undefined,
           active: 1,
@@ -229,7 +229,7 @@ describe('medicationRepository', () => {
           type: 'rescue',
           dosage_amount: 100,
           dosage_unit: 'mg',
-          default_dosage: null,
+          default_quantity: null,
           schedule_frequency: undefined,
           photo_uri: undefined,
           active: 1,
@@ -260,7 +260,7 @@ describe('medicationRepository', () => {
           type: 'rescue',
           dosage_amount: 100,
           dosage_unit: 'mg',
-          default_dosage: null,
+          default_quantity: null,
           schedule_frequency: undefined,
           photo_uri: undefined,
           active: 1,
@@ -303,7 +303,7 @@ describe('medicationRepository', () => {
           type: 'rescue',
           dosage_amount: 100,
           dosage_unit: 'mg',
-          default_dosage: null,
+          default_quantity: null,
           schedule_frequency: undefined,
           photo_uri: undefined,
           start_date: undefined,
@@ -354,7 +354,7 @@ describe('medicationRepository', () => {
         type: 'rescue',
         dosage_amount: 100,
         dosage_unit: 'mg',
-        default_dosage: 2,
+        default_quantity: 2,
         schedule_frequency: 'daily',
         photo_uri: 'file://test.jpg',
         active: 1,
@@ -387,7 +387,7 @@ describe('medicationRepository', () => {
         type: 'rescue',
         dosage_amount: 100,
         dosage_unit: 'mg',
-        default_dosage: null,
+        default_quantity: null,
         schedule_frequency: null,
         photo_uri: null,
         active: 0,
@@ -423,18 +423,19 @@ describe('medicationDoseRepository', () => {
       const newDose = {
         medicationId: 'med-123',
         timestamp: Date.now(),
-        amount: 2,
+        quantity: 2,
         episodeId: 'ep-123',
         effectivenessRating: 8,
         timeToRelief: 30,
         sideEffects: ['Drowsiness'],
         notes: 'Took with food',
+        updatedAt: Date.now(),
       };
 
       const result = await medicationDoseRepository.create(newDose);
 
       expect(result.id).toBe('dose-123');
-      expect(result.amount).toBe(2);
+      expect(result.quantity).toBe(2);
       expect(result.createdAt).toBeDefined();
       expect(mockDatabase.runAsync).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO medication_doses'),
@@ -446,12 +447,13 @@ describe('medicationDoseRepository', () => {
       const minimal = {
         medicationId: 'med-123',
         timestamp: Date.now(),
-        amount: 1,
+        quantity: 1,
         episodeId: undefined,
         effectivenessRating: undefined,
         timeToRelief: undefined,
         sideEffects: undefined,
         notes: undefined,
+        updatedAt: Date.now(),
       };
 
       const result = await medicationDoseRepository.create(minimal);
@@ -605,7 +607,7 @@ describe('medicationDoseRepository', () => {
         };
 
         const result = await medicationDoseRepository.create(validDose);
-        expect(result.amount).toBe(0);
+        expect(result.quantity).toBe(0);
         expect(result.status).toBe('skipped');
       });
 
@@ -797,7 +799,7 @@ describe('medicationDoseRepository', () => {
     describe('dose amount immutability', () => {
       it('should store dose amount in medication_doses table, not reference medications table', () => {
         // This test verifies the schema design
-        // medication_doses.amount is a separate column (REAL NOT NULL)
+        // medication_doses.quantity is a separate column (REAL NOT NULL)
         // This means changing medications.dosage_amount does NOT affect past doses
         expect(true).toBe(true); // Schema verification passed
       });
@@ -835,9 +837,9 @@ describe('medicationDoseRepository', () => {
         const doseAfterUpdate = await medicationDoseRepository.getById('dose-1');
 
         // Verify dose amount hasn't changed
-        expect(dose?.amount).toBe(doseAmount);
-        expect(doseAfterUpdate?.amount).toBe(doseAmount);
-        expect(doseAfterUpdate?.amount).toBe(dose?.amount);
+        expect(dose?.quantity).toBe(doseAmount);
+        expect(doseAfterUpdate?.quantity).toBe(doseAmount);
+        expect(doseAfterUpdate?.quantity).toBe(dose?.quantity);
       });
     });
 
@@ -873,7 +875,7 @@ describe('medicationDoseRepository', () => {
 
         // Verify doses are still accessible and unchanged
         expect(dosesAfter.length).toBe(dosesBefore.length);
-        expect(dosesAfter[0].amount).toBe(dosesBefore[0].amount);
+        expect(dosesAfter[0].quantity).toBe(dosesBefore[0].quantity);
         expect(dosesAfter[0].medicationId).toBe(medicationId);
       });
     });
@@ -922,7 +924,7 @@ describe('medicationDoseRepository', () => {
         // Fetch doses after archiving (doses should still exist)
         const dosesAfterArchive = await medicationDoseRepository.getByMedicationId(medicationId);
         expect(dosesAfterArchive.length).toBe(2);
-        expect(dosesAfterArchive[0].amount).toBe(50);
+        expect(dosesAfterArchive[0].quantity).toBe(50);
         expect(dosesAfterArchive[0].effectivenessRating).toBe(8);
         expect(dosesAfterArchive[0].notes).toBe('Worked well');
 

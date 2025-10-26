@@ -363,6 +363,7 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
           episodeId,
           timestamp,
           intensity: currentIntensity,
+          updatedAt: timestamp,
         });
       }
 
@@ -385,6 +386,7 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
           episodeId,
           timestamp,
           painLocations: currentPainLocations,
+          updatedAt: timestamp,
         });
       }
 

@@ -245,7 +245,7 @@ export default function EditMedicationDoseScreen({ route, navigation }: Props) {
       setDose(loadedDose);
       setMedication(loadedMedication);
       setTimestamp(new Date(loadedDose.timestamp));
-      setAmount(loadedDose.amount.toString());
+      setAmount(loadedDose.quantity.toString());
       setNotes(loadedDose.notes || '');
     } catch (error) {
       logger.error('Failed to load medication dose:', error);
@@ -272,7 +272,7 @@ export default function EditMedicationDoseScreen({ route, navigation }: Props) {
     try {
       await medicationDoseRepository.update(dose.id, {
         timestamp: timestamp.getTime(),
-        amount: parseFloat(amount),
+        quantity: parseFloat(amount),
         notes: notes.trim() || undefined,
       });
 

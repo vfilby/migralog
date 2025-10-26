@@ -890,9 +890,8 @@ class BackupService {
     await db.runAsync(
       `INSERT INTO episodes (
         id, start_time, end_time, locations, qualities, symptoms, triggers, notes,
-        peak_intensity, average_intensity, latitude, longitude,
-        location_accuracy, location_timestamp, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        latitude, longitude, location_accuracy, location_timestamp, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         episode.id,
         episode.startTime,
@@ -902,8 +901,6 @@ class BackupService {
         JSON.stringify(episode.symptoms),
         JSON.stringify(episode.triggers),
         episode.notes || null,
-        episode.peakIntensity || null,
-        episode.averageIntensity || null,
         episode.location?.latitude || null,
         episode.location?.longitude || null,
         episode.location?.accuracy || null,
@@ -961,8 +958,6 @@ class BackupService {
         medication.defaultQuantity || null,
         medication.scheduleFrequency || null,
         medication.photoUri || null,
-        medication.startDate || null,
-        medication.endDate || null,
         medication.active ? 1 : 0,
         medication.notes || null,
         medication.createdAt,
@@ -974,14 +969,14 @@ class BackupService {
   private async insertMedicationDoseWithId(dose: MedicationDose, db: SQLite.SQLiteDatabase): Promise<void> {
     await db.runAsync(
       `INSERT INTO medication_doses (
-        id, medication_id, timestamp, amount, status, episode_id, effectiveness_rating,
-        time_to_relief, side_effects, notes, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        id, medication_id, timestamp, quantity, status, episode_id, effectiveness_rating,
+        time_to_relief, side_effects, notes, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         dose.id,
         dose.medicationId,
         dose.timestamp,
-        dose.amount,
+        dose.quantity,
         dose.status || 'taken',
         dose.episodeId || null,
         dose.effectivenessRating || null,
@@ -989,6 +984,7 @@ class BackupService {
         dose.sideEffects ? JSON.stringify(dose.sideEffects) : null,
         dose.notes || null,
         dose.createdAt,
+        dose.updatedAt,
       ]
     );
   }

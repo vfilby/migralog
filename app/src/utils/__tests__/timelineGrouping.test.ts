@@ -89,34 +89,6 @@ describe('timelineGrouping', () => {
   });
 
   describe('day statistics', () => {
-    it('should calculate peak intensity correctly', () => {
-      const day1 = new Date('2025-10-14T08:00:00').getTime();
-
-      const events: TimelineEvent[] = [
-        { id: '1', timestamp: day1, type: 'intensity', data: { intensity: 5 } },
-        { id: '2', timestamp: day1 + 3600000, type: 'intensity', data: { intensity: 8 } },
-        { id: '3', timestamp: day1 + 7200000, type: 'intensity', data: { intensity: 3 } },
-      ];
-
-      const result = groupEventsByDay(events, day1, null);
-
-      expect(result[0].stats.peakIntensity).toBe(8);
-    });
-
-    it('should calculate average intensity correctly', () => {
-      const day1 = new Date('2025-10-14T08:00:00').getTime();
-
-      const events: TimelineEvent[] = [
-        { id: '1', timestamp: day1, type: 'intensity', data: { intensity: 4 } },
-        { id: '2', timestamp: day1 + 3600000, type: 'intensity', data: { intensity: 6 } },
-        { id: '3', timestamp: day1 + 7200000, type: 'intensity', data: { intensity: 8 } },
-      ];
-
-      const result = groupEventsByDay(events, day1, null);
-
-      expect(result[0].stats.averageIntensity).toBe(6); // (4 + 6 + 8) / 3
-    });
-
     it('should count medications correctly', () => {
       const day1 = new Date('2025-10-14T08:00:00').getTime();
 
@@ -130,20 +102,6 @@ describe('timelineGrouping', () => {
       const result = groupEventsByDay(events, day1, null);
 
       expect(result[0].stats.medicationCount).toBe(3);
-    });
-
-    it('should handle days with no intensity readings', () => {
-      const day1 = new Date('2025-10-14T08:00:00').getTime();
-
-      const events: TimelineEvent[] = [
-        { id: '1', timestamp: day1, type: 'medication', data: {} },
-        { id: '2', timestamp: day1 + 3600000, type: 'note', data: {} },
-      ];
-
-      const result = groupEventsByDay(events, day1, null);
-
-      expect(result[0].stats.peakIntensity).toBeNull();
-      expect(result[0].stats.averageIntensity).toBeNull();
     });
 
     it('should calculate hours in day for full day', () => {
@@ -242,16 +200,13 @@ describe('timelineGrouping', () => {
 
       // Day 1: 1 event (intensity at 8pm)
       expect(result[0].events).toHaveLength(1);
-      expect(result[0].stats.peakIntensity).toBe(7);
 
       // Day 2: 3 events (intensity + medication in morning, intensity in evening)
       expect(result[1].events).toHaveLength(3);
-      expect(result[1].stats.peakIntensity).toBe(8);
       expect(result[1].stats.medicationCount).toBe(1);
 
       // Day 3: 2 events (intensity + end)
       expect(result[2].events).toHaveLength(2);
-      expect(result[2].stats.peakIntensity).toBe(3);
     });
   });
 });

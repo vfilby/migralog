@@ -36,8 +36,6 @@ describe('episodeStore', () => {
           symptoms: [],
           triggers: [],
           notes: undefined,
-          peakIntensity: 7,
-          averageIntensity: 5,
           createdAt: Date.now() - 10000,
           updatedAt: Date.now(),
         },
@@ -93,8 +91,6 @@ describe('episodeStore', () => {
         symptoms: [],
         triggers: [],
         notes: undefined,
-        peakIntensity: undefined,
-        averageIntensity: undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -138,8 +134,6 @@ describe('episodeStore', () => {
         symptoms: [],
         triggers: [],
         notes: undefined,
-        peakIntensity: undefined,
-        averageIntensity: undefined,
       };
 
       const createdEpisode: Episode = {
@@ -171,8 +165,6 @@ describe('episodeStore', () => {
         symptoms: [],
         triggers: [],
         notes: undefined,
-        peakIntensity: undefined,
-        averageIntensity: undefined,
         createdAt: Date.now() - 20000,
         updatedAt: Date.now() - 10000,
       };
@@ -187,8 +179,6 @@ describe('episodeStore', () => {
         symptoms: [],
         triggers: [],
         notes: undefined,
-        peakIntensity: undefined,
-        averageIntensity: undefined,
       };
 
       const createdEpisode: Episode = {
@@ -220,8 +210,6 @@ describe('episodeStore', () => {
         symptoms: [],
         triggers: [],
         notes: undefined,
-        peakIntensity: undefined,
-        averageIntensity: undefined,
       };
 
       await expect(
@@ -246,8 +234,6 @@ describe('episodeStore', () => {
         symptoms: [],
         triggers: [],
         notes: undefined,
-        peakIntensity: 6,
-        averageIntensity: 5,
         createdAt: Date.now() - 10000,
         updatedAt: Date.now() - 10000,
       };
@@ -294,8 +280,6 @@ describe('episodeStore', () => {
         symptoms: [],
         triggers: [],
         notes: undefined,
-        peakIntensity: 5,
-        averageIntensity: 4,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -307,13 +291,12 @@ describe('episodeStore', () => {
 
       (episodeRepository.update as jest.Mock).mockResolvedValue(undefined);
 
-      const updates = { peakIntensity: 8, averageIntensity: 6 };
+      const updates = { notes: 'Updated notes' };
       await useEpisodeStore.getState().updateEpisode('ep-123', updates);
 
       const state = useEpisodeStore.getState();
-      expect(state.currentEpisode?.peakIntensity).toBe(8);
-      expect(state.currentEpisode?.averageIntensity).toBe(6);
-      expect(state.episodes[0].peakIntensity).toBe(8);
+      expect(state.currentEpisode?.notes).toBe('Updated notes');
+      expect(state.episodes[0].notes).toBe('Updated notes');
       expect(episodeRepository.update).toHaveBeenCalledWith('ep-123', updates);
     });
 
@@ -327,8 +310,6 @@ describe('episodeStore', () => {
         symptoms: [],
         triggers: [],
         notes: undefined,
-        peakIntensity: undefined,
-        averageIntensity: undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -342,8 +323,6 @@ describe('episodeStore', () => {
         symptoms: [],
         triggers: [],
         notes: undefined,
-        peakIntensity: 5,
-        averageIntensity: 4,
         createdAt: Date.now() - 20000,
         updatedAt: Date.now() - 10000,
       };
@@ -355,10 +334,10 @@ describe('episodeStore', () => {
 
       (episodeRepository.update as jest.Mock).mockResolvedValue(undefined);
 
-      await useEpisodeStore.getState().updateEpisode('other-ep', { peakIntensity: 7 });
+      await useEpisodeStore.getState().updateEpisode('other-ep', { notes: 'Updated' });
 
       const state = useEpisodeStore.getState();
-      expect(state.episodes[1].peakIntensity).toBe(7);
+      expect(state.episodes[1].notes).toBe('Updated');
       expect(state.currentEpisode).toEqual(currentEpisode); // Unchanged
     });
 
@@ -375,14 +354,8 @@ describe('episodeStore', () => {
   });
 
   describe('addIntensityReading', () => {
-    it('should add intensity reading and update peak/average', async () => {
+    it('should add intensity reading successfully', async () => {
       (intensityRepository.create as jest.Mock).mockResolvedValue({ id: 'reading-1' });
-      (intensityRepository.getByEpisodeId as jest.Mock).mockResolvedValue([
-        { intensity: 5 },
-        { intensity: 7 },
-        { intensity: 6 },
-      ]);
-      (episodeRepository.update as jest.Mock).mockResolvedValue(undefined);
 
       const episode: Episode = {
         id: 'ep-123',
@@ -393,8 +366,6 @@ describe('episodeStore', () => {
         symptoms: [],
         triggers: [],
         notes: undefined,
-        peakIntensity: undefined,
-        averageIntensity: undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -407,15 +378,6 @@ describe('episodeStore', () => {
       await useEpisodeStore.getState().addIntensityReading('ep-123', 7);
 
       expect(intensityRepository.create).toHaveBeenCalled();
-      expect(intensityRepository.getByEpisodeId).toHaveBeenCalledWith('ep-123');
-      expect(episodeRepository.update).toHaveBeenCalledWith('ep-123', {
-        peakIntensity: 7,
-        averageIntensity: 6,
-      });
-
-      const state = useEpisodeStore.getState();
-      expect(state.currentEpisode?.peakIntensity).toBe(7);
-      expect(state.currentEpisode?.averageIntensity).toBe(6);
     });
 
     it('should handle errors when adding intensity reading', async () => {
@@ -479,8 +441,6 @@ describe('episodeStore', () => {
         symptoms: [],
         triggers: [],
         notes: undefined,
-        peakIntensity: undefined,
-        averageIntensity: undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -494,8 +454,6 @@ describe('episodeStore', () => {
         symptoms: [],
         triggers: [],
         notes: undefined,
-        peakIntensity: undefined,
-        averageIntensity: undefined,
         createdAt: Date.now() - 10000,
         updatedAt: Date.now(),
       };
@@ -523,8 +481,6 @@ describe('episodeStore', () => {
         symptoms: [],
         triggers: [],
         notes: undefined,
-        peakIntensity: undefined,
-        averageIntensity: undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -583,8 +539,6 @@ describe('episodeStore', () => {
         symptoms: [],
         triggers: [],
         notes: undefined,
-        peakIntensity: undefined,
-        averageIntensity: undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };

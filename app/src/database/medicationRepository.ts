@@ -103,10 +103,6 @@ export const medicationRepository = {
       fields.push('notes = ?');
       values.push(updates.notes);
     }
-    if (updates.endDate !== undefined) {
-      fields.push('end_date = ?');
-      values.push(updates.endDate);
-    }
 
     fields.push('updated_at = ?');
     values.push(now);
@@ -356,6 +352,7 @@ export const medicationDoseRepository = {
       sideEffects: safeJSONParse(row.side_effects, undefined, isStringArray),
       notes: row.notes || undefined,
       createdAt: row.created_at,
+      updatedAt: row.updated_at,
     };
   },
 

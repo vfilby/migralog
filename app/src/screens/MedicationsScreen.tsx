@@ -369,10 +369,11 @@ export default function MedicationsScreen() {
       const dose = await logDose({
         medicationId,
         timestamp: now,
-        amount: dosage,
+        quantity: dosage,
         dosageAmount: medication.dosageAmount,
         dosageUnit: medication.dosageUnit,
         episodeId: currentEpisode?.id,
+        updatedAt: now,
       });
 
       // Update UI with optimistic state
@@ -419,13 +420,15 @@ export default function MedicationsScreen() {
         throw new Error('Medication not found');
       }
 
+      const timestamp = Date.now();
       await logDose({
         medicationId,
-        timestamp: Date.now(),
-        amount: dosage,
+        timestamp,
+        quantity: dosage,
         dosageAmount: medication.dosageAmount,
         dosageUnit: medication.dosageUnit,
         episodeId: currentEpisode?.id,
+        updatedAt: timestamp,
       });
       Alert.alert('Success', 'Medication logged successfully');
     } catch (error) {

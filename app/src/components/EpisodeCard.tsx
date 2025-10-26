@@ -76,10 +76,6 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     fontSize: 15,
     color: theme.textSecondary,
   },
-  cardPeakText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
   cardSparklineContainer: {
     alignItems: 'flex-end',
     justifyContent: 'center',
@@ -148,16 +144,11 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
       accessibilityRole="button"
       accessibilityLabel={`Episode from ${format(episode.startTime, 'EEEE, MMM d, yyyy')}`}
     >
-      {/* Row 1: Date on left, Peak on right */}
+      {/* Row 1: Date */}
       <View style={[styles.cardFirstRow, !locationAddress && { marginBottom: 4 }]}>
         <Text style={styles.cardDate}>
           {format(episode.startTime, 'EEE, MMM d · h:mm a')}
         </Text>
-        {episode.peakIntensity && (
-          <Text style={[styles.cardPeakText, { color: getPainColor(episode.peakIntensity) }]}>
-            {episode.peakIntensity} {getPainLevel(episode.peakIntensity).label}
-          </Text>
-        )}
       </View>
 
       {/* Row 2: Location if available */}
@@ -173,7 +164,7 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
           {formatDuration(durationHours)}
           {!episode.endTime && ' (ongoing)'}
         </Text>
-        {episode.peakIntensity && intensityReadings.length > 0 && (
+        {intensityReadings.length > 0 && (
           <View style={styles.cardSparklineContainer}>
             <IntensitySparkline
               intensities={intensityReadings.map(r => r.intensity)}

@@ -986,7 +986,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
           >
             <Text style={styles.timelineEventTitle}>Medication Taken</Text>
             <Text style={styles.timelineEventContent}>
-              {dose.medication?.name || 'Unknown Medication'} • {dose.amount} × {dose.medication?.dosageAmount}{dose.medication?.dosageUnit}
+              {dose.medication?.name || 'Unknown Medication'} • {dose.quantity} × {dose.medication?.dosageAmount}{dose.medication?.dosageUnit}
             </Text>
           </TouchableOpacity>
         );
@@ -1154,23 +1154,6 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
             </Text>
           </View>
 
-          {episode.peakIntensity !== undefined && (
-            <View style={styles.detailRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.detailLabel}>Peak Intensity:</Text>
-                <Text style={[styles.detailValue, { color: getPainColor(episode.peakIntensity), fontWeight: '600', fontSize: 18 }]}>
-                  {episode.peakIntensity} - {getPainLevel(episode.peakIntensity).label}
-                </Text>
-              </View>
-              {intensityReadings.length > 0 && (
-                <IntensitySparkline
-                  intensities={intensityReadings.map(r => r.intensity)}
-                  width={120}
-                  height={40}
-                />
-              )}
-            </View>
-          )}
 
           {/* Location Link */}
           {episode.location && (

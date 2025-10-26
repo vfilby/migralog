@@ -40,8 +40,6 @@ export const mockEpisodeData = {
       id: 'test-episode-1',
       startTime: Date.now() - 24 * 60 * 60 * 1000,
       endTime: Date.now() - 20 * 60 * 60 * 1000,
-      peakIntensity: 7,
-      averageIntensity: 5,
       locations: ['front'],
       qualities: ['throbbing'],
       symptoms: ['nausea'],

@@ -332,6 +332,7 @@ export const intensityRepository = {
       timestamp: row.timestamp,
       intensity: row.intensity,
       createdAt: row.created_at,
+      updatedAt: row.updated_at,
     }));
   },
 
@@ -350,6 +351,7 @@ export const intensityRepository = {
       timestamp: result.timestamp,
       intensity: result.intensity,
       createdAt: result.created_at,
+      updatedAt: result.updated_at,
     };
   },
 
@@ -529,6 +531,7 @@ export const painLocationLogRepository = {
       timestamp: row.timestamp,
       painLocations: safeJSONParse(row.pain_locations, [], isPainLocationArray),
       createdAt: row.created_at,
+      updatedAt: row.updated_at,
     }));
   },
 
@@ -547,6 +550,7 @@ export const painLocationLogRepository = {
       timestamp: result.timestamp,
       painLocations: safeJSONParse(result.pain_locations, [], isPainLocationArray),
       createdAt: result.created_at,
+      updatedAt: result.updated_at,
     };
   },
 

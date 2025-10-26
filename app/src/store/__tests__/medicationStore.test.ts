@@ -42,8 +42,6 @@ describe('medicationStore', () => {
           scheduleFrequency: 'daily',
           photoUri: undefined,
           schedule: [],
-          startDate: undefined,
-          endDate: undefined,
           active: true,
           notes: undefined,
           createdAt: Date.now(),
@@ -59,8 +57,6 @@ describe('medicationStore', () => {
           scheduleFrequency: undefined,
           photoUri: undefined,
           schedule: [],
-          startDate: undefined,
-          endDate: undefined,
           active: true,
           notes: undefined,
           createdAt: Date.now(),
@@ -119,8 +115,6 @@ describe('medicationStore', () => {
         scheduleFrequency: undefined,
         photoUri: undefined,
         schedule: [],
-        startDate: undefined,
-        endDate: undefined,
         active: true,
         notes: undefined,
       };
@@ -152,8 +146,6 @@ describe('medicationStore', () => {
         scheduleFrequency: 'daily' as const,
         photoUri: undefined,
         schedule: [],
-        startDate: undefined,
-        endDate: undefined,
         active: true,
         notes: undefined,
       };
@@ -184,8 +176,6 @@ describe('medicationStore', () => {
         scheduleFrequency: undefined,
         photoUri: undefined,
         schedule: [],
-        startDate: undefined,
-        endDate: undefined,
         active: true,
         notes: undefined,
       };
@@ -219,8 +209,6 @@ describe('medicationStore', () => {
         scheduleFrequency: undefined,
         photoUri: undefined,
         schedule: [],
-        startDate: undefined,
-        endDate: undefined,
         active: true,
         notes: undefined,
       };
@@ -270,8 +258,6 @@ describe('medicationStore', () => {
         scheduleFrequency: undefined,
         photoUri: undefined,
         schedule: [],
-        startDate: undefined,
-        endDate: undefined,
         active: true,
         notes: undefined,
         createdAt: Date.now(),
@@ -288,8 +274,6 @@ describe('medicationStore', () => {
         scheduleFrequency: undefined,
         photoUri: undefined,
         schedule: [],
-        startDate: undefined,
-        endDate: undefined,
         active: true,
         notes: undefined,
         createdAt: Date.now(),
@@ -338,8 +322,6 @@ describe('medicationStore', () => {
         scheduleFrequency: 'daily',
         photoUri: undefined,
         schedule: [],
-        startDate: undefined,
-        endDate: undefined,
         active: true,
         notes: undefined,
         createdAt: Date.now(),
@@ -386,8 +368,6 @@ describe('medicationStore', () => {
         scheduleFrequency: undefined,
         photoUri: undefined,
         schedule: [],
-        startDate: undefined,
-        endDate: undefined,
         active: false,
         notes: undefined,
         createdAt: Date.now(),
@@ -426,8 +406,9 @@ describe('medicationStore', () => {
       const dose = {
         medicationId: 'med-123',
         timestamp: Date.now(),
-        amount: 2,
+        quantity: 2,
         episodeId: 'ep-123', // This will be overridden by findEpisodeByTimestamp
+        updatedAt: Date.now(),
       };
 
       // Mock findEpisodeByTimestamp to return an episode
@@ -449,6 +430,7 @@ describe('medicationStore', () => {
         episodeId: 'ep-456', // Should use the timestamp-based episode
         id: 'dose-123',
         createdAt: Date.now(),
+        updatedAt: Date.now(),
         effectivenessRating: undefined,
         timeToRelief: undefined,
         sideEffects: undefined,
@@ -473,8 +455,9 @@ describe('medicationStore', () => {
       const dose = {
         medicationId: 'med-123',
         timestamp: Date.now(),
-        amount: 1,
+        quantity: 1,
         episodeId: undefined,
+        updatedAt: Date.now(),
       };
 
       // Mock findEpisodeByTimestamp to return null (no episode found)
@@ -485,6 +468,7 @@ describe('medicationStore', () => {
         episodeId: undefined, // No episode found
         id: 'dose-124',
         createdAt: Date.now(),
+        updatedAt: Date.now(),
         effectivenessRating: undefined,
         timeToRelief: undefined,
         sideEffects: undefined,
@@ -508,8 +492,9 @@ describe('medicationStore', () => {
       const dose = {
         medicationId: 'med-123',
         timestamp: Date.now(),
-        amount: 1.5,
+        quantity: 1.5,
         episodeId: 'ep-999', // This stale/invalid episodeId should be ignored
+        updatedAt: Date.now(),
       };
 
       // Mock findEpisodeByTimestamp to return null (no episode found for this timestamp)
@@ -520,6 +505,7 @@ describe('medicationStore', () => {
         episodeId: undefined, // Should override passed episodeId with undefined
         id: 'dose-125',
         createdAt: Date.now(),
+        updatedAt: Date.now(),
         effectivenessRating: undefined,
         timeToRelief: undefined,
         sideEffects: undefined,
@@ -547,8 +533,9 @@ describe('medicationStore', () => {
       const dose = {
         medicationId: 'med-123',
         timestamp: Date.now(),
-        amount: 1,
+        quantity: 1,
         episodeId: undefined,
+        updatedAt: Date.now(),
       };
 
       await expect(
@@ -627,8 +614,6 @@ describe('medicationStore', () => {
           scheduleFrequency: undefined,
           photoUri: undefined,
           schedule: [],
-          startDate: undefined,
-          endDate: undefined,
           active: true,
           notes: undefined,
           createdAt: Date.now(),
