@@ -1,0 +1,27 @@
+# Beads issue tracking (local development state)
+.beads/
+
+# Node modules (installed by EAS)
+node_modules/
+
+# Expo
+.expo/
+
+# Git
+.git/
+
+# Test artifacts
+e2e/artifacts/
+coverage/
+
+# Build artifacts
+ios/build/
+android/build/
+android/.gradle/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
