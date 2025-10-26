@@ -129,25 +129,27 @@ async function loadTestFixtures() {
 
   // Add intensity readings to the test episode
   await db.runAsync(
-    `INSERT INTO intensity_readings (id, episode_id, timestamp, intensity, created_at)
-     VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO intensity_readings (id, episode_id, timestamp, intensity, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
     [
       `test-reading-1-${Date.now()}`,
       testEpisodeId,
       oneDayAgo + 1000,
       5,
+      oneDayAgo + 1000,
       oneDayAgo + 1000
     ]
   );
 
   await db.runAsync(
-    `INSERT INTO intensity_readings (id, episode_id, timestamp, intensity, created_at)
-     VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO intensity_readings (id, episode_id, timestamp, intensity, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
     [
       `test-reading-2-${Date.now()}`,
       testEpisodeId,
       oneDayAgo + 2 * 60 * 60 * 1000, // 2 hours later
       7,
+      oneDayAgo + 2 * 60 * 60 * 1000,
       oneDayAgo + 2 * 60 * 60 * 1000
     ]
   );
