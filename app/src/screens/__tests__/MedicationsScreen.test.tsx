@@ -353,10 +353,11 @@ describe('MedicationsScreen', () => {
         expect(mockLogDose).toHaveBeenCalledWith({
           medicationId: 'rescue-1',
           timestamp: expect.any(Number),
-          amount: 2,
+          quantity: 2,
           dosageAmount: 100,
           dosageUnit: 'mg',
           episodeId: undefined,
+          updatedAt: expect.any(Number),
         });
         expect(Alert.alert).toHaveBeenCalledWith('Success', 'Medication logged successfully');
       });

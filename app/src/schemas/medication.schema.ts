@@ -102,9 +102,16 @@ export const MedicationDoseSchema = z.object({
   id: z.string().min(1, 'ID is required'),
   medicationId: z.string().min(1, 'Medication ID is required'),
   timestamp: TimestampSchema,
-  amount: z.number()
-    .nonnegative('Amount must be non-negative') // Allow 0 for skipped doses
-    .finite('Amount must be a finite number'),
+  quantity: z.number()
+    .nonnegative('Quantity must be non-negative') // Allow 0 for skipped doses
+    .finite('Quantity must be a finite number'),
+  dosageAmount: z.number()
+    .positive('Dosage amount must be positive')
+    .finite('Dosage amount must be a finite number')
+    .optional(),
+  dosageUnit: z.string()
+    .max(50, 'Dosage unit must be <= 50 characters')
+    .optional(),
   status: DoseStatusSchema.optional(),
   episodeId: z.string()
     .min(1, 'Episode ID cannot be empty when provided')
@@ -119,18 +126,19 @@ export const MedicationDoseSchema = z.object({
     .optional(),
   notes: NotesSchema,
   createdAt: TimestampSchema,
+  updatedAt: TimestampSchema,
 }).refine(
   (data) => {
-    // Skipped doses can have amount 0, but taken doses must have positive amount
+    // Skipped doses can have quantity 0, but taken doses must have positive quantity
     if (data.status === 'skipped') {
-      return true; // Allow any amount for skipped doses
+      return true; // Allow any quantity for skipped doses
     }
-    // For taken doses (or no status specified), amount must be positive
-    return data.amount > 0;
+    // For taken doses (or no status specified), quantity must be positive
+    return data.quantity > 0;
   },
   {
-    message: 'Amount must be positive for taken doses',
-    path: ['amount'],
+    message: 'Quantity must be positive for taken doses',
+    path: ['quantity'],
   }
 );
 

@@ -147,11 +147,10 @@ describe('Migration SQL Verification', () => {
 
         expect(insertSQL).toBeDefined();
 
-        // Should include all v1 columns
+        // Should include all v1 columns (peak_intensity and average_intensity were removed in Migration 13)
         expect(insertSQL).toContain('start_time');
         expect(insertSQL).toContain('end_time');
         expect(insertSQL).toContain('locations');
-        expect(insertSQL).toContain('peak_intensity');
         expect(insertSQL).toContain('created_at');
         expect(insertSQL).toContain('updated_at');
 

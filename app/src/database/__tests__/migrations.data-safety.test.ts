@@ -32,8 +32,6 @@ const SCHEMA_V1 = `
     symptoms TEXT NOT NULL,
     triggers TEXT NOT NULL,
     notes TEXT,
-    peak_intensity REAL,
-    average_intensity REAL,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
   );
@@ -88,13 +86,15 @@ const SCHEMA_V1 = `
     id TEXT PRIMARY KEY,
     medication_id TEXT NOT NULL,
     timestamp INTEGER NOT NULL,
-    amount REAL NOT NULL,
+    quantity REAL NOT NULL,
+    status TEXT NOT NULL DEFAULT 'taken',
     episode_id TEXT,
     effectiveness_rating REAL,
     time_to_relief INTEGER,
     side_effects TEXT,
     notes TEXT,
     created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
     FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE,
     FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE SET NULL
   );
@@ -277,14 +277,14 @@ describe('Migration Data Safety Tests', () => {
       db.prepare(`
         INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(medId, 'Aspirin', 'test', 100, 'mg', now, now);
+      `).run(medId, 'Aspirin', 'rescue', 100, 'mg', now, now);
 
       // Insert 50 doses
       for (let i = 0; i < 50; i++) {
         db.prepare(`
-          INSERT INTO medication_doses (id, medication_id, timestamp, amount, status, created_at)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `).run(`dose-${i}`, medId, Date.now() + i, 1, 'taken', Date.now());
+          INSERT INTO medication_doses (id, medication_id, timestamp, quantity, status, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(`dose-${i}`, medId, Date.now() + i, 1, 'taken', Date.now(), Date.now());
       }
 
       // Create failing adapter that fails during INSERT of backup
@@ -338,7 +338,6 @@ describe('Migration Data Safety Tests', () => {
           symptoms: JSON.stringify(['Nausea', 'Light sensitivity'][i % 2]),
           triggers: JSON.stringify(['Stress', 'Food', 'Sleep'][i % 3]),
           notes: `Episode ${i} notes with special chars: 日本語 émojis 🤕`,
-          peak_intensity: (i % 10) + 1,
           created_at: Date.now(),
           updated_at: Date.now()
         };
@@ -346,11 +345,11 @@ describe('Migration Data Safety Tests', () => {
 
         db.prepare(`
           INSERT INTO episodes (id, start_time, locations, qualities, symptoms, triggers,
-                               notes, peak_intensity, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                               notes, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
           episode.id, episode.start_time, episode.locations, episode.qualities,
-          episode.symptoms, episode.triggers, episode.notes, episode.peak_intensity,
+          episode.symptoms, episode.triggers, episode.notes,
           episode.created_at, episode.updated_at
         );
       }
@@ -371,7 +370,6 @@ describe('Migration Data Safety Tests', () => {
         expect(result).toHaveLength(1);
         expect(result[0].id).toBe(`ep-${i}`);
         expect(result[0].notes).toContain(`Episode ${i}`);
-        expect(result[0].peak_intensity).toBe((i % 10) + 1);
 
         // Verify JSON columns parseable
         expect(() => JSON.parse(result[0].locations)).not.toThrow();

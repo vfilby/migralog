@@ -420,16 +420,17 @@ describe('medicationDoseRepository', () => {
 
   describe('create', () => {
     it('should create a new medication dose', async () => {
+      const now = Date.now();
       const newDose = {
         medicationId: 'med-123',
-        timestamp: Date.now(),
+        timestamp: now,
         quantity: 2,
         episodeId: 'ep-123',
         effectivenessRating: 8,
         timeToRelief: 30,
         sideEffects: ['Drowsiness'],
         notes: 'Took with food',
-        updatedAt: Date.now(),
+        updatedAt: now,
       };
 
       const result = await medicationDoseRepository.create(newDose);
@@ -437,6 +438,7 @@ describe('medicationDoseRepository', () => {
       expect(result.id).toBe('dose-123');
       expect(result.quantity).toBe(2);
       expect(result.createdAt).toBeDefined();
+      expect(result.updatedAt).toBe(now);
       expect(mockDatabase.runAsync).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO medication_doses'),
         expect.arrayContaining(['dose-123', 'med-123', newDose.timestamp, 2, 'ep-123'])
@@ -444,22 +446,24 @@ describe('medicationDoseRepository', () => {
     });
 
     it('should handle minimal dose data', async () => {
+      const now = Date.now();
       const minimal = {
         medicationId: 'med-123',
-        timestamp: Date.now(),
+        timestamp: now,
         quantity: 1,
         episodeId: undefined,
         effectivenessRating: undefined,
         timeToRelief: undefined,
         sideEffects: undefined,
         notes: undefined,
-        updatedAt: Date.now(),
+        updatedAt: now,
       };
 
       const result = await medicationDoseRepository.create(minimal);
 
       expect(result.id).toBe('dose-123');
       expect(result.effectivenessRating).toBeUndefined();
+      expect(result.updatedAt).toBe(now);
     });
   });
 
@@ -468,8 +472,8 @@ describe('medicationDoseRepository', () => {
       await medicationDoseRepository.update('dose-123', { effectivenessRating: 9 });
 
       expect(mockDatabase.runAsync).toHaveBeenCalledWith(
-        'UPDATE medication_doses SET effectiveness_rating = ? WHERE id = ?',
-        [9, 'dose-123']
+        'UPDATE medication_doses SET effectiveness_rating = ?, updated_at = ? WHERE id = ?',
+        [9, expect.any(Number), 'dose-123']
       );
     });
 
@@ -497,18 +501,23 @@ describe('medicationDoseRepository', () => {
 
   describe('getAll', () => {
     it('should return all doses with default limit', async () => {
+      const now = Date.now();
       const mockRows = [
         {
           id: 'dose-1',
           medication_id: 'med-123',
-          timestamp: Date.now(),
-          amount: 1,
-          episode_id: undefined,
-          effectiveness_rating: undefined,
-          time_to_relief: undefined,
-          side_effects: undefined,
-          notes: undefined,
-          created_at: Date.now(),
+          timestamp: now,
+          quantity: 1,
+          dosage_amount: null,
+          dosage_unit: null,
+          status: 'taken',
+          episode_id: null,
+          effectiveness_rating: null,
+          time_to_relief: null,
+          side_effects: null,
+          notes: null,
+          created_at: now,
+          updated_at: now,
         },
       ];
 
@@ -587,23 +596,25 @@ describe('medicationDoseRepository', () => {
     });
 
     describe('medicationDoseRepository.create validation', () => {
-      it('should throw error for taken dose with amount 0', async () => {
+      it('should throw error for taken dose with quantity 0', async () => {
         const invalidDose: any = {
           medicationId: 'med-123',
           timestamp: 1000,
-          amount: 0,
+          quantity: 0,
           status: 'taken',
+          updatedAt: 1000,
         };
 
-        await expect(medicationDoseRepository.create(invalidDose)).rejects.toThrow('Amount must be positive for taken doses');
+        await expect(medicationDoseRepository.create(invalidDose)).rejects.toThrow('Quantity must be positive for taken doses');
       });
 
-      it('should allow skipped dose with amount 0', async () => {
+      it('should allow skipped dose with quantity 0', async () => {
         const validDose: any = {
           medicationId: 'med-123',
           timestamp: 1000,
-          amount: 0,
+          quantity: 0,
           status: 'skipped',
+          updatedAt: 1000,
         };
 
         const result = await medicationDoseRepository.create(validDose);
@@ -615,8 +626,9 @@ describe('medicationDoseRepository', () => {
         const invalidDose: any = {
           medicationId: 'med-123',
           timestamp: 1000,
-          amount: 50,
+          quantity: 50,
           effectivenessRating: 11,
+          updatedAt: 1000,
         };
 
         await expect(medicationDoseRepository.create(invalidDose)).rejects.toThrow('Effectiveness rating must be <= 10');
@@ -626,8 +638,9 @@ describe('medicationDoseRepository', () => {
         const invalidDose: any = {
           medicationId: 'med-123',
           timestamp: 1000,
-          amount: 50,
+          quantity: 50,
           timeToRelief: 1441,
+          updatedAt: 1000,
         };
 
         await expect(medicationDoseRepository.create(invalidDose)).rejects.toThrow('Time to relief must be <= 1440 minutes');
@@ -686,9 +699,17 @@ describe('medicationDoseRepository', () => {
           id: 'dose-1',
           medication_id: medicationId,
           timestamp: ninepm.getTime(),
-          amount: 1,
+          quantity: 1,
+          dosage_amount: null,
+          dosage_unit: null,
           status: 'taken',
+          episode_id: null,
+          effectiveness_rating: null,
+          time_to_relief: null,
+          side_effects: null,
+          notes: null,
           created_at: ninepm.getTime(),
+          updated_at: ninepm.getTime(),
         },
       ];
 
@@ -808,21 +829,25 @@ describe('medicationDoseRepository', () => {
         const medicationId = 'med-123';
         const originalDosage = 50;
         const newDosage = 100;
-        const doseAmount = 2 * originalDosage; // User took 2 doses of 50mg = 100mg
+        const doseQuantity = 2; // User took 2 pills
+        const now = Date.now();
 
         // Setup mock for this test
         mockDatabase.getFirstAsync = jest.fn().mockResolvedValue({
           id: 'dose-1',
           medication_id: medicationId,
-          timestamp: Date.now(),
-          amount: doseAmount, // Stored as 100mg
+          timestamp: now,
+          quantity: doseQuantity, // Stored as 2 pills
+          dosage_amount: originalDosage, // 50mg per pill at time of logging
+          dosage_unit: 'mg',
           status: 'taken',
           episode_id: null,
           effectiveness_rating: null,
           time_to_relief: null,
           side_effects: null,
           notes: null,
-          created_at: Date.now(),
+          created_at: now,
+          updated_at: now,
         });
 
         // Fetch the dose
@@ -836,9 +861,9 @@ describe('medicationDoseRepository', () => {
         // Fetch the dose again
         const doseAfterUpdate = await medicationDoseRepository.getById('dose-1');
 
-        // Verify dose amount hasn't changed
-        expect(dose?.quantity).toBe(doseAmount);
-        expect(doseAfterUpdate?.quantity).toBe(doseAmount);
+        // Verify dose amount hasn't changed (still 2 pills of 50mg each)
+        expect(dose?.quantity).toBe(doseQuantity);
+        expect(doseAfterUpdate?.quantity).toBe(doseQuantity);
         expect(doseAfterUpdate?.quantity).toBe(dose?.quantity);
       });
     });
@@ -846,20 +871,24 @@ describe('medicationDoseRepository', () => {
     describe('medication name changes', () => {
       it('should preserve dose history when medication name is changed', async () => {
         const medicationId = 'med-123';
+        const now = Date.now();
 
         // Setup mock for this test
         mockDatabase.getAllAsync = jest.fn().mockResolvedValue([{
           id: 'dose-1',
           medication_id: medicationId,
-          timestamp: Date.now(),
-          amount: 100,
+          timestamp: now,
+          quantity: 2,
+          dosage_amount: 50,
+          dosage_unit: 'mg',
           status: 'taken',
           episode_id: null,
           effectiveness_rating: null,
           time_to_relief: null,
           side_effects: null,
           notes: null,
-          created_at: Date.now(),
+          created_at: now,
+          updated_at: now,
         }]);
 
         // Fetch doses before name change
@@ -883,34 +912,42 @@ describe('medicationDoseRepository', () => {
     describe('archiving and restoring', () => {
       it('should preserve all dose history when medication is archived', async () => {
         const medicationId = 'med-123';
+        const now = Date.now();
+        const yesterday = now - 86400000;
 
         // Setup mock for this test
         mockDatabase.getAllAsync = jest.fn().mockResolvedValue([
           {
             id: 'dose-1',
             medication_id: medicationId,
-            timestamp: Date.now() - 86400000, // Yesterday
-            amount: 50,
+            timestamp: yesterday,
+            quantity: 2,
+            dosage_amount: 25,
+            dosage_unit: 'mg',
             status: 'taken',
             episode_id: null,
             effectiveness_rating: 8,
             time_to_relief: 30,
             side_effects: null,
             notes: 'Worked well',
-            created_at: Date.now() - 86400000,
+            created_at: yesterday,
+            updated_at: yesterday,
           },
           {
             id: 'dose-2',
             medication_id: medicationId,
-            timestamp: Date.now(),
-            amount: 50,
+            timestamp: now,
+            quantity: 2,
+            dosage_amount: 25,
+            dosage_unit: 'mg',
             status: 'taken',
             episode_id: null,
             effectiveness_rating: null,
             time_to_relief: null,
             side_effects: null,
             notes: null,
-            created_at: Date.now(),
+            created_at: now,
+            updated_at: now,
           },
         ]);
 
@@ -924,7 +961,7 @@ describe('medicationDoseRepository', () => {
         // Fetch doses after archiving (doses should still exist)
         const dosesAfterArchive = await medicationDoseRepository.getByMedicationId(medicationId);
         expect(dosesAfterArchive.length).toBe(2);
-        expect(dosesAfterArchive[0].quantity).toBe(50);
+        expect(dosesAfterArchive[0].quantity).toBe(2);
         expect(dosesAfterArchive[0].effectivenessRating).toBe(8);
         expect(dosesAfterArchive[0].notes).toBe('Worked well');
 
@@ -942,10 +979,21 @@ describe('medicationDoseRepository', () => {
       it('should cascade delete doses when medication is deleted', async () => {
         // This verifies the ON DELETE CASCADE constraint works
         const medicationId = 'med-123';
+        const now = Date.now();
 
         // Setup mock for this test
         mockDatabase.getAllAsync = jest.fn().mockResolvedValue([
-          { id: 'dose-1', medication_id: medicationId, amount: 50 },
+          {
+            id: 'dose-1',
+            medication_id: medicationId,
+            quantity: 2,
+            dosage_amount: 25,
+            dosage_unit: 'mg',
+            timestamp: now,
+            status: 'taken',
+            created_at: now,
+            updated_at: now
+          },
         ]);
 
         // Delete medication
