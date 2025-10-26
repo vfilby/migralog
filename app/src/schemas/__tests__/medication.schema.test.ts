@@ -101,7 +101,7 @@ describe('Medication Validation Schemas', () => {
       type: 'rescue' as const,
       dosageAmount: 50,
       dosageUnit: 'mg',
-      defaultDosage: 1,
+      defaultQuantity: 1,
       active: true,
       createdAt: 1000,
       updatedAt: 1000,
@@ -149,15 +149,6 @@ describe('Medication Validation Schemas', () => {
       expect(result.success).toBe(false);
     });
 
-    it('should reject medication with endDate before startDate', () => {
-      const med = { ...validMedication, startDate: 2000, endDate: 1000 };
-      const result = MedicationSchema.safeParse(med);
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.errors[0].message).toBe('End date must be after start date');
-      }
-    });
-
     it('should reject medication with notes > 5000 characters', () => {
       const med = { ...validMedication, notes: 'x'.repeat(5001) };
       const result = MedicationSchema.safeParse(med);
@@ -203,9 +194,10 @@ describe('Medication Validation Schemas', () => {
       id: 'dose-123',
       medicationId: 'med-123',
       timestamp: 1000,
-      amount: 50,
+      quantity: 50,
       status: 'taken' as const,
       createdAt: 1000,
+      updatedAt: 1000,
     };
 
     it('should accept valid medication dose', () => {
@@ -213,23 +205,23 @@ describe('Medication Validation Schemas', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should accept skipped dose with amount 0', () => {
-      const dose = { ...validDose, amount: 0, status: 'skipped' as const };
+    it('should accept skipped dose with quantity 0', () => {
+      const dose = { ...validDose, quantity: 0, status: 'skipped' as const };
       const result = MedicationDoseSchema.safeParse(dose);
       expect(result.success).toBe(true);
     });
 
-    it('should reject taken dose with amount 0', () => {
-      const dose = { ...validDose, amount: 0, status: 'taken' as const };
+    it('should reject taken dose with quantity 0', () => {
+      const dose = { ...validDose, quantity: 0, status: 'taken' as const };
       const result = MedicationDoseSchema.safeParse(dose);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toBe('Amount must be positive for taken doses');
+        expect(result.error.errors[0].message).toBe('Quantity must be positive for taken doses');
       }
     });
 
-    it('should reject dose with negative amount', () => {
-      const dose = { ...validDose, amount: -1 };
+    it('should reject dose with negative quantity', () => {
+      const dose = { ...validDose, quantity: -1 };
       const result = MedicationDoseSchema.safeParse(dose);
       expect(result.success).toBe(false);
     });

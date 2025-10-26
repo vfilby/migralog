@@ -12,7 +12,7 @@ let initializationPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
   // If already initialized, return immediately
   if (db && isInitialized) {
-    logger.log('[DB] Returning existing database instance');
+    // Don't log - this happens on every database access and creates noise
     return db;
   }
 

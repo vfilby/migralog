@@ -222,13 +222,16 @@ describe('Migration Integration Tests (Real Database)', () => {
         expect(episodes[0].start_time).toBe(testEpisode.start_time);
         expect(episodes[0].locations).toBe(testEpisode.locations);
         expect(episodes[0].notes).toBe(testEpisode.notes);
-        expect(episodes[0].peak_intensity).toBe(testEpisode.peak_intensity);
 
-        // Verify new columns exist and are null
+        // Verify location columns exist and are null (added in migration 2)
         expect(episodes[0]).toHaveProperty('latitude');
         expect(episodes[0]).toHaveProperty('longitude');
         expect(episodes[0].latitude).toBeNull();
         expect(episodes[0].longitude).toBeNull();
+
+        // Verify peak_intensity and average_intensity do NOT exist (removed in migration 13)
+        expect(episodes[0]).not.toHaveProperty('peak_intensity');
+        expect(episodes[0]).not.toHaveProperty('average_intensity');
       });
 
       it('should preserve episode data during rollback from v2 to v1', async () => {
@@ -294,7 +297,7 @@ describe('Migration Integration Tests (Real Database)', () => {
         db.prepare(`
           INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, created_at)
           VALUES (?, ?, ?, ?, ?, ?)
-        `).run(medicationId, 'Aspirin', 'pain_reliever', 500, 'mg', Date.now());
+        `).run(medicationId, 'Aspirin', 'rescue', 500, 'mg', Date.now());
 
         // Create episode
         db.prepare(`
@@ -303,7 +306,7 @@ describe('Migration Integration Tests (Real Database)', () => {
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `).run(episodeId, Date.now(), '[]', '[]', '[]', '[]', Date.now(), Date.now());
 
-        // Create dose linked to both
+        // Create dose linked to both (use 'amount' since we start with SCHEMA_V1 before migrations)
         db.prepare(`
           INSERT INTO medication_doses (id, medication_id, timestamp, amount, episode_id, created_at)
           VALUES (?, ?, ?, ?, ?, ?)
@@ -314,13 +317,13 @@ describe('Migration Integration Tests (Real Database)', () => {
         await migrationRunner.initialize(adapter as any);
         await migrationRunner.runMigrations();
 
-        // Verify: Dose data and relationships preserved
+        // Verify: Dose data and relationships preserved (using 'quantity' after Migration 15)
         const doses = await adapter.getAllAsync<any>('SELECT * FROM medication_doses');
         expect(doses).toHaveLength(1);
         expect(doses[0].id).toBe(doseId);
         expect(doses[0].medication_id).toBe(medicationId);
         expect(doses[0].episode_id).toBe(episodeId);
-        expect(doses[0].amount).toBe(2);
+        expect(doses[0].quantity).toBe(2);
 
         // New status column should exist with default value
         expect(doses[0].status).toBe('taken');
@@ -336,16 +339,16 @@ describe('Migration Integration Tests (Real Database)', () => {
         const medicationId = 'med-test-2';
         const doseId = 'dose-test-2';
 
-        // Create medication and dose
+        // Create medication and dose (after v11 migration, need to add updated_at)
         db.prepare(`
-          INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, created_at)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `).run(medicationId, 'Ibuprofen', 'pain_reliever', 200, 'mg', Date.now());
+          INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(medicationId, 'Ibuprofen', 'rescue', 200, 'mg', Date.now(), Date.now());
 
         db.prepare(`
-          INSERT INTO medication_doses (id, medication_id, timestamp, amount, status, created_at)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `).run(doseId, medicationId, Date.now(), 1, 'skipped', Date.now());
+          INSERT INTO medication_doses (id, medication_id, timestamp, quantity, status, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(doseId, medicationId, Date.now(), 1, 'skipped', Date.now(), Date.now());
 
         // Execute: Rollback to v5
         await migrationRunner.rollback(5);
@@ -488,7 +491,7 @@ describe('Migration Integration Tests (Real Database)', () => {
       db.prepare(`
         INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, created_at)
         VALUES (?, ?, ?, ?, ?, ?)
-      `).run(medicationId, 'Test Med', 'test', 100, 'mg', Date.now());
+      `).run(medicationId, 'Test Med', 'rescue', 100, 'mg', Date.now());
 
       db.prepare(`
         INSERT INTO episodes (id, start_time, locations, qualities, symptoms, triggers,
@@ -580,9 +583,9 @@ describe('Migration Integration Tests (Real Database)', () => {
       // Run migrations
       await migrationRunner.runMigrations();
 
-      // Should be at latest version (10)
+      // Should be at latest version (15)
       version = await adapter.getAllAsync<{ version: number }>('SELECT version FROM schema_version');
-      expect(version[0].version).toBe(10);
+      expect(version[0].version).toBe(15);
     });
 
     it('should track version during rollback', async () => {

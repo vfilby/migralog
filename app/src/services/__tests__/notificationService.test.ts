@@ -114,12 +114,10 @@ describe('notificationService', () => {
       type: 'preventative',
       dosageAmount: 100,
       dosageUnit: 'mg',
-      defaultDosage: 1,
+      defaultQuantity: 1,
       scheduleFrequency: 'daily',
       photoUri: undefined,
       schedule: [],
-      startDate: undefined,
-      endDate: undefined,
       active: true,
       notes: undefined,
       createdAt: Date.now(),
@@ -309,12 +307,10 @@ describe('notificationService', () => {
       type: 'preventative',
       dosageAmount: 100,
       dosageUnit: 'mg',
-      defaultDosage: 1,
+      defaultQuantity: 1,
       scheduleFrequency: 'daily',
       photoUri: undefined,
       schedule: [],
-      startDate: undefined,
-      endDate: undefined,
       active: true,
       notes: undefined,
       createdAt: Date.now(),
@@ -458,14 +454,14 @@ describe('notificationService', () => {
         id: 'med-1',
         name: 'Med A',
         schedule: [{ id: 'sched-1', dosage: 2 }],
-        defaultDosage: 1,
+        defaultQuantity: 1,
       };
 
       const mockMedication2 = {
         id: 'med-2',
         name: 'Med B',
         schedule: [{ id: 'sched-2', dosage: 1 }],
-        defaultDosage: 1,
+        defaultQuantity: 1,
       };
 
       (medicationRepository.getById as jest.Mock)

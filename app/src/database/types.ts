@@ -26,8 +26,6 @@ export interface EpisodeRow {
   symptoms: string; // JSON array of string
   triggers: string; // JSON array of string
   notes: string | null;
-  peak_intensity: number | null;
-  average_intensity: number | null;
   latitude: number | null;
   longitude: number | null;
   location_accuracy: number | null;
@@ -46,6 +44,7 @@ export interface IntensityReadingRow {
   timestamp: number;
   intensity: number;
   created_at: number;
+  updated_at: number;
 }
 
 /**
@@ -72,6 +71,7 @@ export interface PainLocationLogRow {
   timestamp: number;
   pain_locations: string; // JSON array of PainLocation (e.g., ['left_temple', 'right_eye'])
   created_at: number;
+  updated_at: number;
 }
 
 /**
@@ -96,11 +96,9 @@ export interface MedicationRow {
   type: string; // 'preventative' | 'rescue'
   dosage_amount: number;
   dosage_unit: string;
-  default_dosage: number | null;
+  default_quantity: number | null;
   schedule_frequency: string | null;
   photo_uri: string | null;
-  start_date: number | null;
-  end_date: number | null;
   active: number; // 0 or 1
   notes: string | null;
   created_at: number;
@@ -129,7 +127,7 @@ export interface MedicationDoseRow {
   id: string;
   medication_id: string;
   timestamp: number;
-  amount: number;
+  quantity: number;
   dosage_amount: number | null; // Snapshot of medication dosage at time of logging
   dosage_unit: string | null; // Snapshot of medication unit at time of logging
   status: string; // 'taken' | 'skipped' | 'missed'
@@ -139,6 +137,7 @@ export interface MedicationDoseRow {
   side_effects: string | null; // JSON array of string
   notes: string | null;
   created_at: number;
+  updated_at: number;
 }
 
 /**

@@ -1,6 +1,6 @@
 // Database schema and initialization
 
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 15;
 
 export const createTables = `
   -- Episodes table
@@ -13,8 +13,10 @@ export const createTables = `
     symptoms TEXT NOT NULL,
     triggers TEXT NOT NULL,
     notes TEXT CHECK(length(notes) <= 5000),
-    peak_intensity REAL CHECK(peak_intensity IS NULL OR (peak_intensity >= 0 AND peak_intensity <= 10)),
-    average_intensity REAL CHECK(average_intensity IS NULL OR (average_intensity >= 0 AND average_intensity <= 10 AND (peak_intensity IS NULL OR average_intensity <= peak_intensity))),
+    latitude REAL CHECK(latitude IS NULL OR (latitude >= -90 AND latitude <= 90)),
+    longitude REAL CHECK(longitude IS NULL OR (longitude >= -180 AND longitude <= 180)),
+    location_accuracy REAL CHECK(location_accuracy IS NULL OR location_accuracy >= 0),
+    location_timestamp INTEGER CHECK(location_timestamp IS NULL OR location_timestamp > 0),
     created_at INTEGER NOT NULL CHECK(created_at > 0),
     updated_at INTEGER NOT NULL CHECK(updated_at > 0)
   );
@@ -26,6 +28,7 @@ export const createTables = `
     timestamp INTEGER NOT NULL CHECK(timestamp > 0),
     intensity REAL NOT NULL CHECK(intensity >= 0 AND intensity <= 10),
     created_at INTEGER NOT NULL CHECK(created_at > 0),
+    updated_at INTEGER NOT NULL CHECK(updated_at > 0),
     FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE CASCADE
   );
 
@@ -48,6 +51,7 @@ export const createTables = `
     timestamp INTEGER NOT NULL CHECK(timestamp > 0),
     pain_locations TEXT NOT NULL,  -- JSON array of PainLocation[] (e.g., ['left_temple', 'right_eye'])
     created_at INTEGER NOT NULL CHECK(created_at > 0),
+    updated_at INTEGER NOT NULL CHECK(updated_at > 0),
     FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE CASCADE
   );
 
@@ -58,11 +62,9 @@ export const createTables = `
     type TEXT NOT NULL CHECK(type IN ('preventative', 'rescue')),
     dosage_amount REAL NOT NULL CHECK(dosage_amount > 0),
     dosage_unit TEXT NOT NULL CHECK(length(dosage_unit) > 0 AND length(dosage_unit) <= 50),
-    default_dosage REAL CHECK(default_dosage IS NULL OR default_dosage > 0),
+    default_quantity REAL CHECK(default_quantity IS NULL OR default_quantity > 0),
     schedule_frequency TEXT CHECK(schedule_frequency IS NULL OR schedule_frequency IN ('daily', 'monthly', 'quarterly')),
     photo_uri TEXT CHECK(photo_uri IS NULL OR length(photo_uri) <= 500),
-    start_date INTEGER CHECK(start_date IS NULL OR start_date > 0),
-    end_date INTEGER CHECK(end_date IS NULL OR (start_date IS NULL OR end_date > start_date)),
     active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0, 1)),
     notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
     created_at INTEGER NOT NULL CHECK(created_at > 0),
@@ -84,7 +86,7 @@ export const createTables = `
     id TEXT PRIMARY KEY,
     medication_id TEXT NOT NULL,
     timestamp INTEGER NOT NULL CHECK(timestamp > 0),
-    amount REAL NOT NULL CHECK(amount >= 0),
+    quantity REAL NOT NULL CHECK(quantity >= 0),
     dosage_amount REAL,
     dosage_unit TEXT,
     status TEXT NOT NULL DEFAULT 'taken' CHECK(status IN ('taken', 'skipped')),
@@ -94,9 +96,10 @@ export const createTables = `
     side_effects TEXT,
     notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
     created_at INTEGER NOT NULL CHECK(created_at > 0),
+    updated_at INTEGER NOT NULL CHECK(updated_at > 0),
     FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE,
     FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE SET NULL,
-    CHECK(status != 'taken' OR amount > 0)
+    CHECK(status != 'taken' OR quantity > 0)
   );
 
   -- Medication reminders table

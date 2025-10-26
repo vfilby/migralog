@@ -25,8 +25,6 @@ describe('EpisodeCard', () => {
     id: 'episode-1',
     startTime: new Date('2024-01-15T10:30:00').getTime(),
     endTime: new Date('2024-01-15T14:30:00').getTime(),
-    peakIntensity: 7,
-    averageIntensity: 5,
     locations: ['left_temple', 'left_eye'],
     qualities: ['throbbing'],
     symptoms: ['nausea', 'light_sensitivity'],
@@ -71,13 +69,6 @@ describe('EpisodeCard', () => {
       });
     });
 
-    it('should display peak intensity with Peak label and level', async () => {
-      renderWithTheme(<EpisodeCard episode={baseEpisode} />);
-
-      await waitFor(() => {
-        expect(screen.getByText('7 Severe')).toBeTruthy();
-      });
-    });
 
     it('should display pain areas count without label', async () => {
       renderWithTheme(<EpisodeCard episode={baseEpisode} />);
@@ -193,7 +184,6 @@ describe('EpisodeCard', () => {
         expect(screen.getByText(/Mon, Jan 15/)).toBeTruthy();
       });
 
-      expect(screen.queryByText(/Peak:/)).toBeNull(); // No peak intensity
       expect(screen.queryByText(/areas?/)).toBeNull(); // No pain areas
       expect(screen.queryByText(/symptoms?/)).toBeNull(); // No symptoms
     });
@@ -226,13 +216,6 @@ describe('EpisodeCard', () => {
       });
     });
 
-    it('should display peak intensity without Peak label', async () => {
-      renderWithTheme(<EpisodeCard episode={baseEpisode} compact />);
-
-      await waitFor(() => {
-        expect(screen.getByText('7 Severe')).toBeTruthy();
-      });
-    });
 
     it('should display geocoded location on the right', async () => {
       const episodeWithLocation = {
@@ -284,17 +267,6 @@ describe('EpisodeCard', () => {
       });
     });
 
-    it('should not display peak when absent', async () => {
-      const episodeNoPeak = { ...baseEpisode, peakIntensity: undefined };
-
-      renderWithTheme(<EpisodeCard episode={episodeNoPeak} compact />);
-
-      await waitFor(() => {
-        expect(screen.getByText(/Mon, Jan 15/)).toBeTruthy();
-      });
-
-      expect(screen.queryByText(/Peak:/)).toBeNull();
-    });
   });
 
   describe('Theme Support', () => {

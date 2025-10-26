@@ -24,10 +24,11 @@ describe('shouldShowMedicationInTimeline', () => {
       id: 'dose-1',
       medicationId: medication.id,
       timestamp: Date.now(),
-      amount: 1,
+      quantity: 1,
       status,
       medication,
       createdAt: Date.now(),
+      updatedAt: Date.now(),
     };
   };
 
@@ -71,8 +72,9 @@ describe('shouldShowMedicationInTimeline', () => {
         id: 'dose-1',
         medicationId: 'med-1',
         timestamp: Date.now(),
-        amount: 1,
+        quantity: 1,
         createdAt: Date.now(),
+        updatedAt: Date.now(),
         // No medication object attached
       };
       expect(shouldShowMedicationInTimeline(dose)).toBe(false);
@@ -83,9 +85,10 @@ describe('shouldShowMedicationInTimeline', () => {
         id: 'dose-1',
         medicationId: 'med-1',
         timestamp: Date.now(),
-        amount: 1,
+        quantity: 1,
         status: 'skipped',
         createdAt: Date.now(),
+        updatedAt: Date.now(),
         // No medication object attached
       };
       expect(shouldShowMedicationInTimeline(dose)).toBe(true);

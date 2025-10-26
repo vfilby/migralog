@@ -120,8 +120,6 @@ describe('AnalyticsScreen', () => {
           id: 'episode-1',
           startTime: Date.now() - 24 * 60 * 60 * 1000,
           endTime: Date.now() - 20 * 60 * 60 * 1000,
-          peakIntensity: 8,
-          averageIntensity: 6,
           locations: ['front'],
           qualities: ['throbbing'],
           symptoms: ['nausea'],
@@ -139,12 +137,11 @@ describe('AnalyticsScreen', () => {
         loadEpisodes: jest.fn(),
       });
 
-      const { getAllByText, getByText } = render(<AnalyticsScreen />, { wrapper: TestWrapper });
+      const { getAllByText } = render(<AnalyticsScreen />, { wrapper: TestWrapper });
       
       await waitFor(() => {
         const ones = getAllByText('1');
         expect(ones.length).toBeGreaterThan(0);
-        expect(getByText('8.0')).toBeTruthy();
       });
     });
   });
@@ -159,12 +156,11 @@ describe('AnalyticsScreen', () => {
 
     it('provides accessible labels for stats', async () => {
       const { getByText } = render(<AnalyticsScreen />, { wrapper: TestWrapper });
-      
+
       await waitFor(() => {
         expect(getByText('Episodes')).toBeTruthy();
         expect(getByText('Total Episodes')).toBeTruthy();
         expect(getByText('Avg Duration')).toBeTruthy();
-        expect(getByText('Avg Intensity')).toBeTruthy();
       });
     });
   });

@@ -109,12 +109,12 @@ export default function MedicationLogScreen({ navigation }: Props) {
                 <Text style={styles.doseAmount}>
                   {dose.medication
                     ? formatDoseWithSnapshot(dose, dose.medication)
-                    : `${dose.amount} doses`}
+                    : `${dose.quantity} doses`}
                   {dose.medication && (
                     <>
                       {' = '}
                       {formatDosageWithUnit(
-                        dose.amount * (dose.dosageAmount ?? dose.medication.dosageAmount),
+                        dose.quantity * (dose.dosageAmount ?? dose.medication.dosageAmount),
                         dose.dosageUnit ?? dose.medication.dosageUnit
                       )}
                     </>

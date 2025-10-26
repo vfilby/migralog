@@ -87,5 +87,5 @@ export function formatDoseWithSnapshot(
   const dosageAmount = dose.dosageAmount ?? medication.dosageAmount;
   const dosageUnit = dose.dosageUnit ?? medication.dosageUnit;
 
-  return formatMedicationDosage(dose.amount, dosageAmount, dosageUnit);
+  return formatMedicationDosage(dose.quantity, dosageAmount, dosageUnit);
 }

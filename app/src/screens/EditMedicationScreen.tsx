@@ -246,7 +246,7 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
   const [type, setType] = useState<MedicationType>('rescue');
   const [dosageAmount, setDosageAmount] = useState('');
   const [dosageUnit, setDosageUnit] = useState('mg');
-  const [defaultDosage, setDefaultDosage] = useState('1');
+  const [defaultQuantity, setDefaultDosage] = useState('1');
   const [scheduleFrequency, setScheduleFrequency] = useState<ScheduleFrequency>('daily');
   const [schedules, setSchedules] = useState<Omit<MedicationSchedule, 'id' | 'medicationId'>[]>([]);
   const [existingScheduleIds, setExistingScheduleIds] = useState<string[]>([]);
@@ -263,7 +263,7 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
         setType(med.type);
         setDosageAmount(med.dosageAmount.toString());
         setDosageUnit(med.dosageUnit);
-        setDefaultDosage(med.defaultDosage?.toString() || '1');
+        setDefaultDosage(med.defaultQuantity?.toString() || '1');
         setScheduleFrequency(med.scheduleFrequency || 'daily');
         setNotes(med.notes || '');
         setPhotoUri(med.photoUri);
@@ -347,7 +347,7 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
         type,
         dosageAmount: parseFloat(dosageAmount),
         dosageUnit,
-        defaultDosage: defaultDosage ? parseFloat(defaultDosage) : undefined,
+        defaultQuantity: defaultQuantity ? parseFloat(defaultQuantity) : undefined,
         scheduleFrequency: type === 'preventative' ? scheduleFrequency : undefined,
         photoUri,
         notes: notes.trim() || undefined,
@@ -542,7 +542,7 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
             style={styles.input}
             placeholder="e.g., 2 (for 2 tablets)"
             placeholderTextColor={theme.textTertiary}
-            value={defaultDosage}
+            value={defaultQuantity}
             onChangeText={setDefaultDosage}
             keyboardType="decimal-pad"
           />

@@ -320,18 +320,20 @@ class NotificationService {
 
       // Find the schedule to get the dosage
       const schedule = medication.schedule?.find(s => s.id === scheduleId);
-      const dosage = schedule?.dosage ?? medication.defaultDosage ?? 1;
+      const dosage = schedule?.dosage ?? medication.defaultQuantity ?? 1;
 
       // Use store's logDose to update both database and state
       // Dynamic import to avoid circular dependency
       const { useMedicationStore } = await import('../store/medicationStore');
+      const timestamp = Date.now();
       await useMedicationStore.getState().logDose({
         medicationId,
-        timestamp: Date.now(),
-        amount: dosage,
+        timestamp,
+        quantity: dosage,
         dosageAmount: medication.dosageAmount,
         dosageUnit: medication.dosageUnit,
         notes: 'Logged from notification',
+        updatedAt: timestamp,
       });
 
       logger.log('[Notification] Medication logged:', {
@@ -418,16 +420,18 @@ class NotificationService {
 
         // Find the schedule to get the dosage
         const schedule = medication.schedule?.find(s => s.id === scheduleId);
-        const dosage = schedule?.dosage ?? medication.defaultDosage ?? 1;
+        const dosage = schedule?.dosage ?? medication.defaultQuantity ?? 1;
 
         // Use store's logDose to update both database and state
+        const timestamp = Date.now();
         await useMedicationStore.getState().logDose({
           medicationId,
-          timestamp: Date.now(),
-          amount: dosage,
+          timestamp,
+          quantity: dosage,
           dosageAmount: medication.dosageAmount,
           dosageUnit: medication.dosageUnit,
           notes: 'Logged from notification',
+          updatedAt: timestamp,
         });
 
         results.push(`${medication.name} - ${dosage} dose(s)`);

@@ -36,8 +36,6 @@ describe('episodeRepository', () => {
         symptoms: ['nausea'],
         triggers: ['stress'],
         notes: 'Test episode',
-        peakIntensity: 8,
-        averageIntensity: 6,
         location: {
           latitude: 37.7749,
           longitude: -122.4194,
@@ -65,8 +63,6 @@ describe('episodeRepository', () => {
           JSON.stringify(newEpisode.symptoms),
           JSON.stringify(newEpisode.triggers),
           newEpisode.notes,
-          newEpisode.peakIntensity,
-          newEpisode.averageIntensity,
           newEpisode.location?.latitude,
           newEpisode.location?.longitude,
           newEpisode.location?.accuracy,
@@ -84,8 +80,6 @@ describe('episodeRepository', () => {
         symptoms: [],
         triggers: [],
         notes: undefined,
-        peakIntensity: undefined,
-        averageIntensity: undefined,
       };
 
       const result = await episodeRepository.create(minimalEpisode);
@@ -106,8 +100,6 @@ describe('episodeRepository', () => {
         symptoms: [],
         triggers: [],
         notes: undefined,
-        peakIntensity: undefined,
-        averageIntensity: undefined,
       };
 
       await episodeRepository.create(episode, customDb as any);
@@ -147,8 +139,6 @@ describe('episodeRepository', () => {
       const updates = {
         endTime: Date.now(),
         notes: 'Updated notes',
-        peakIntensity: 9,
-        averageIntensity: 7,
         locations: ['left_head', 'left_neck'],
         qualities: ['throbbing', 'sharp'],
         symptoms: ['nausea', 'light_sensitivity'],
@@ -162,8 +152,6 @@ describe('episodeRepository', () => {
       expect(call[0]).toContain('UPDATE episodes SET');
       expect(call[0]).toContain('end_time = ?');
       expect(call[0]).toContain('notes = ?');
-      expect(call[0]).toContain('peak_intensity = ?');
-      expect(call[0]).toContain('average_intensity = ?');
       expect(call[0]).toContain('updated_at = ?');
       expect(call[1]).toContain('episode-123');
     });
@@ -209,8 +197,6 @@ describe('episodeRepository', () => {
         symptoms: JSON.stringify(['nausea']),
         triggers: JSON.stringify(['stress']),
         notes: 'Test notes',
-        peak_intensity: 8,
-        average_intensity: 6,
         latitude: 37.7749,
         longitude: -122.4194,
         location_accuracy: 5,
@@ -282,8 +268,6 @@ describe('episodeRepository', () => {
           symptoms: JSON.stringify([]),
           triggers: JSON.stringify([]),
           notes: undefined,
-          peak_intensity: undefined,
-          average_intensity: undefined,
           latitude: undefined,
           longitude: undefined,
           location_accuracy: undefined,
@@ -352,8 +336,6 @@ describe('episodeRepository', () => {
         symptoms: JSON.stringify([]),
         triggers: JSON.stringify([]),
         notes: undefined,
-        peak_intensity: undefined,
-        average_intensity: undefined,
         latitude: undefined,
         longitude: undefined,
         location_accuracy: undefined,
@@ -416,8 +398,6 @@ describe('episodeRepository', () => {
         symptoms: JSON.stringify(['nausea']),
         triggers: JSON.stringify(['stress']),
         notes: 'Test',
-        peak_intensity: 8,
-        average_intensity: 6,
         latitude: 37.7749,
         longitude: -122.4194,
         location_accuracy: 5,
@@ -436,8 +416,6 @@ describe('episodeRepository', () => {
       expect(episode.symptoms).toEqual(['nausea']);
       expect(episode.triggers).toEqual(['stress']);
       expect(episode.notes).toBe('Test');
-      expect(episode.peakIntensity).toBe(8);
-      expect(episode.averageIntensity).toBe(6);
       expect(episode.location).toEqual({
         latitude: 37.7749,
         longitude: -122.4194,
@@ -458,8 +436,6 @@ describe('episodeRepository', () => {
         symptoms: JSON.stringify([]),
         triggers: JSON.stringify([]),
         notes: null,
-        peak_intensity: null,
-        average_intensity: null,
         latitude: null,
         longitude: null,
         location_accuracy: null,
@@ -497,6 +473,7 @@ describe('intensityRepository', () => {
         episodeId: 'episode-123',
         timestamp: Date.now(),
         intensity: 7,
+        updatedAt: Date.now(),
       };
 
       const result = await intensityRepository.create(reading);
@@ -504,8 +481,9 @@ describe('intensityRepository', () => {
       expect(result.id).toBe('reading-id-123');
       expect(result.intensity).toBe(7);
       expect(result.createdAt).toBeDefined();
+      expect(result.updatedAt).toBeDefined();
       expect(mockDatabase.runAsync).toHaveBeenCalledWith(
-        'INSERT INTO intensity_readings (id, episode_id, timestamp, intensity, created_at) VALUES (?, ?, ?, ?, ?)',
+        'INSERT INTO intensity_readings (id, episode_id, timestamp, intensity, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
         expect.arrayContaining([
           'reading-id-123',
           'episode-123',
@@ -960,32 +938,6 @@ describe('episodeNoteRepository', () => {
         await expect(episodeRepository.create(invalidEpisode)).rejects.toThrow('End time must be after start time');
       });
 
-      it('should throw error when average intensity > peak intensity', async () => {
-        const invalidEpisode: Omit<Episode, 'id' | 'createdAt' | 'updatedAt'> = {
-          startTime: 1000,
-          locations: [],
-          qualities: [],
-          symptoms: [],
-          triggers: [],
-          peakIntensity: 5,
-          averageIntensity: 7,
-        };
-
-        await expect(episodeRepository.create(invalidEpisode)).rejects.toThrow('Average intensity cannot be greater than peak intensity');
-      });
-
-      it('should throw error for invalid peak intensity', async () => {
-        const invalidEpisode: Omit<Episode, 'id' | 'createdAt' | 'updatedAt'> = {
-          startTime: 1000,
-          locations: [],
-          qualities: [],
-          symptoms: [],
-          triggers: [],
-          peakIntensity: 11,
-        };
-
-        await expect(episodeRepository.create(invalidEpisode)).rejects.toThrow('Invalid episode data');
-      });
     });
 
     describe('episodeRepository.update validation', () => {
@@ -996,22 +948,6 @@ describe('episodeNoteRepository', () => {
         };
 
         await expect(episodeRepository.update('episode-123', updates)).rejects.toThrow('End time must be after start time');
-      });
-
-      it('should throw error for invalid peak intensity in update', async () => {
-        const updates = {
-          peakIntensity: 11,
-        };
-
-        await expect(episodeRepository.update('episode-123', updates)).rejects.toThrow('Invalid peak intensity');
-      });
-
-      it('should throw error for invalid average intensity in update', async () => {
-        const updates = {
-          averageIntensity: -1,
-        };
-
-        await expect(episodeRepository.update('episode-123', updates)).rejects.toThrow('Invalid average intensity');
       });
 
       it('should throw error for notes > 5000 characters in update', async () => {
@@ -1029,6 +965,7 @@ describe('episodeNoteRepository', () => {
           episodeId: 'episode-123',
           timestamp: 1000,
           intensity: 11,
+          updatedAt: Date.now(),
         };
 
         await expect(intensityRepository.create(invalidReading)).rejects.toThrow('Invalid intensity reading');
@@ -1038,6 +975,7 @@ describe('episodeNoteRepository', () => {
         const invalidReading: Omit<IntensityReading, 'id' | 'createdAt'> = {
           episodeId: 'episode-123',
           timestamp: 1000,
+          updatedAt: Date.now(),
           intensity: -1,
         };
 

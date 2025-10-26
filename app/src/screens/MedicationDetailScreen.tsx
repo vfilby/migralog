@@ -93,13 +93,15 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
     if (!medication) return;
 
     try {
+      const timestamp = Date.now();
       await logDose({
         medicationId: medication.id,
-        timestamp: Date.now(),
-        amount: medication.defaultDosage || 1,
+        timestamp,
+        quantity: medication.defaultQuantity || 1,
         dosageAmount: medication.dosageAmount,
         dosageUnit: medication.dosageUnit,
         episodeId: currentEpisode?.id,
+        updatedAt: timestamp,
       });
       // Toast notification shown by store
       await loadMedicationData(); // Reload to show in recent activity
@@ -141,7 +143,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
 
   const handleEditDose = (dose: MedicationDose) => {
     setEditingDose(dose);
-    setEditAmount(dose.amount.toString());
+    setEditAmount(dose.quantity.toString());
     setEditNotes(dose.notes || '');
     setEditTimestamp(dose.timestamp);
     setEditModalVisible(true);
@@ -158,8 +160,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
 
     try {
       await medicationDoseRepository.update(editingDose.id, {
-        ...editingDose,
-        amount,
+        quantity: amount,
         notes: editNotes.trim() || undefined,
         timestamp: editTimestamp,
       });
@@ -308,10 +309,10 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
             </Text>
           </View>
 
-          {medication.defaultDosage && (
+          {medication.defaultQuantity && (
             <View style={styles.infoRow}>
               <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Default Doses:</Text>
-              <Text style={[styles.infoValue, { color: theme.text }]}>{medication.defaultDosage}</Text>
+              <Text style={[styles.infoValue, { color: theme.text }]}>{medication.defaultQuantity}</Text>
             </View>
           )}
 

@@ -69,8 +69,6 @@ export async function resetDatabaseForTesting(options: {
     // 4. Reset Zustand stores to clear in-memory state
     logger.log('[TestHelpers] Resetting stores...');
     useDailyStatusStore.getState().reset();
-    // Note: medicationStore and episodeStore don't have reset methods,
-    // but they will reload data when screens gain focus
 
     // 4a. Clear cache manager to prevent stale data after reset
     const { cacheManager } = await import('./cacheManager');
@@ -83,6 +81,14 @@ export async function resetDatabaseForTesting(options: {
     if (loadFixtures) {
       logger.log('[TestHelpers] Loading test fixtures...');
       await loadTestFixtures();
+
+      // 5a. Reload stores with new fixture data
+      logger.log('[TestHelpers] Reloading stores with fixture data...');
+      const { useMedicationStore } = await import('../store/medicationStore');
+      const { useEpisodeStore } = await import('../store/episodeStore');
+      await useMedicationStore.getState().loadMedications();
+      await useEpisodeStore.getState().loadEpisodes();
+      logger.log('[TestHelpers] Stores reloaded with fixture data');
     }
 
     logger.log('[TestHelpers] Database reset complete');
@@ -105,14 +111,12 @@ async function loadTestFixtures() {
   const twentyHoursAgo = Date.now() - 20 * 60 * 60 * 1000;
 
   await db.runAsync(
-    `INSERT INTO episodes (id, start_time, end_time, peak_intensity, average_intensity, locations, qualities, symptoms, triggers, notes, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO episodes (id, start_time, end_time, locations, qualities, symptoms, triggers, notes, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       testEpisodeId,
       oneDayAgo,
       twentyHoursAgo,
-      7,
-      6,
       JSON.stringify(['front']),
       JSON.stringify(['throbbing']),
       JSON.stringify(['nausea']),
@@ -125,25 +129,27 @@ async function loadTestFixtures() {
 
   // Add intensity readings to the test episode
   await db.runAsync(
-    `INSERT INTO intensity_readings (id, episode_id, timestamp, intensity, created_at)
-     VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO intensity_readings (id, episode_id, timestamp, intensity, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
     [
       `test-reading-1-${Date.now()}`,
       testEpisodeId,
       oneDayAgo + 1000,
       5,
+      oneDayAgo + 1000,
       oneDayAgo + 1000
     ]
   );
 
   await db.runAsync(
-    `INSERT INTO intensity_readings (id, episode_id, timestamp, intensity, created_at)
-     VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO intensity_readings (id, episode_id, timestamp, intensity, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
     [
       `test-reading-2-${Date.now()}`,
       testEpisodeId,
       oneDayAgo + 2 * 60 * 60 * 1000, // 2 hours later
       7,
+      oneDayAgo + 2 * 60 * 60 * 1000,
       oneDayAgo + 2 * 60 * 60 * 1000
     ]
   );
@@ -153,7 +159,7 @@ async function loadTestFixtures() {
   // 1. Preventative medication with daily schedule
   const preventativeMedId = `test-preventative-${Date.now()}`;
   await db.runAsync(
-    `INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, default_dosage, schedule_frequency, active, created_at, updated_at)
+    `INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, default_quantity, schedule_frequency, active, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       preventativeMedId,
@@ -190,7 +196,7 @@ async function loadTestFixtures() {
   // 2. Rescue medication
   const rescueMedId = `test-rescue-${Date.now()}`;
   await db.runAsync(
-    `INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, default_dosage, active, created_at, updated_at)
+    `INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, default_quantity, active, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       rescueMedId,
@@ -297,7 +303,7 @@ export async function loadCorruptedDatabase() {
     // Create a normal medication that we can interact with
     const medicationId = `error-test-med-${Date.now()}`;
     await db.runAsync(
-      `INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, default_dosage, active, created_at, updated_at)
+      `INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, default_quantity, active, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         medicationId,

@@ -40,8 +40,6 @@ describe('EpisodeDetailScreen', () => {
       id: 'episode-123',
       startTime: Date.now(),
       endTime: null,
-      peakIntensity: 7,
-      averageIntensity: 5,
       locations: [],
       qualities: [],
       symptoms: [],

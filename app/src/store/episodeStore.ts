@@ -197,22 +197,12 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
 
   addIntensityReading: async (episodeId, intensity) => {
     try {
+      const timestamp = Date.now();
       await intensityRepository.create({
         episodeId,
-        timestamp: Date.now(),
+        timestamp,
         intensity,
       });
-
-      // Update peak and average intensity
-      const readings = await intensityRepository.getByEpisodeId(episodeId);
-      const intensities = readings.map(r => r.intensity);
-      const peakIntensity = Math.max(...intensities);
-      const averageIntensity = intensities.reduce((a, b) => a + b, 0) / intensities.length;
-
-      await episodeRepository.update(episodeId, { peakIntensity, averageIntensity });
-
-      // Update local state
-      get().updateEpisode(episodeId, { peakIntensity, averageIntensity });
     } catch (error) {
       set({ error: (error as Error).message });
       throw error;

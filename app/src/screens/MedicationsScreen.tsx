@@ -369,10 +369,11 @@ export default function MedicationsScreen() {
       const dose = await logDose({
         medicationId,
         timestamp: now,
-        amount: dosage,
+        quantity: dosage,
         dosageAmount: medication.dosageAmount,
         dosageUnit: medication.dosageUnit,
         episodeId: currentEpisode?.id,
+        updatedAt: now,
       });
 
       // Update UI with optimistic state
@@ -419,13 +420,15 @@ export default function MedicationsScreen() {
         throw new Error('Medication not found');
       }
 
+      const timestamp = Date.now();
       await logDose({
         medicationId,
-        timestamp: Date.now(),
-        amount: dosage,
+        timestamp,
+        quantity: dosage,
         dosageAmount: medication.dosageAmount,
         dosageUnit: medication.dosageUnit,
         episodeId: currentEpisode?.id,
+        updatedAt: timestamp,
       });
       Alert.alert('Success', 'Medication logged successfully');
     } catch (error) {
@@ -473,7 +476,7 @@ export default function MedicationsScreen() {
                 </View>
                 <View style={styles.medicationDetails}>
                   <Text style={styles.dosageText}>
-                    {formatMedicationDosage(med.defaultDosage || 1, med.dosageAmount, med.dosageUnit)}
+                    {formatMedicationDosage(med.defaultQuantity || 1, med.dosageAmount, med.dosageUnit)}
                   </Text>
                   {med.scheduleFrequency && (
                     <Text style={styles.frequencyText}>
@@ -592,7 +595,7 @@ export default function MedicationsScreen() {
                 </View>
                 <View style={styles.medicationDetails}>
                   <Text style={styles.dosageText}>
-                    {formatMedicationDosage(med.defaultDosage || 1, med.dosageAmount, med.dosageUnit)}
+                    {formatMedicationDosage(med.defaultQuantity || 1, med.dosageAmount, med.dosageUnit)}
                   </Text>
                 </View>
                 {med.notes && (
@@ -603,7 +606,7 @@ export default function MedicationsScreen() {
                     style={styles.quickLogButton}
                     onPress={(e) => {
                       e.stopPropagation();
-                      handleRescueQuickLog(med.id, med.defaultDosage || 1);
+                      handleRescueQuickLog(med.id, med.defaultQuantity || 1);
                     }}
                   >
                     <Text style={styles.quickLogButtonText}>Quick Log</Text>

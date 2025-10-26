@@ -94,8 +94,6 @@ describe('Episode Validation Schemas', () => {
       symptoms: ['nausea'] as const,
       triggers: ['stress'] as const,
       notes: 'Test episode',
-      peakIntensity: 7,
-      averageIntensity: 5,
       createdAt: 1000,
       updatedAt: 2000,
     };
@@ -121,15 +119,6 @@ describe('Episode Validation Schemas', () => {
       }
     });
 
-    it('should reject episode with average intensity > peak intensity', () => {
-      const episode = { ...validEpisode, peakIntensity: 5, averageIntensity: 7 };
-      const result = EpisodeSchema.safeParse(episode);
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.errors[0].message).toBe('Average intensity cannot be greater than peak intensity');
-      }
-    });
-
     it('should reject episode with notes > 5000 characters', () => {
       const episode = { ...validEpisode, notes: 'x'.repeat(5001) };
       const result = EpisodeSchema.safeParse(episode);
@@ -137,12 +126,6 @@ describe('Episode Validation Schemas', () => {
       if (!result.success) {
         expect(result.error.errors[0].message).toContain('5000 characters');
       }
-    });
-
-    it('should reject episode with invalid peak intensity', () => {
-      const episode = { ...validEpisode, peakIntensity: 11 };
-      const result = EpisodeSchema.safeParse(episode);
-      expect(result.success).toBe(false);
     });
 
     it('should reject episode with negative startTime', () => {
@@ -159,6 +142,7 @@ describe('Episode Validation Schemas', () => {
       timestamp: 1000,
       intensity: 7,
       createdAt: 1000,
+      updatedAt: 1000,
     };
 
     it('should accept valid intensity reading', () => {

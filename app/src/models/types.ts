@@ -62,8 +62,6 @@ export interface Episode {
   symptoms: Symptom[];
   triggers: Trigger[];
   notes?: string;
-  peakIntensity?: number; // 0-10
-  averageIntensity?: number; // 0-10
   location?: EpisodeLocation; // GPS location when episode started
   createdAt: number;
   updatedAt: number;
@@ -75,6 +73,7 @@ export interface IntensityReading {
   timestamp: number;
   intensity: number; // 0-10 scale
   createdAt: number;
+  updatedAt: number;
 }
 
 export interface EpisodeNote {
@@ -101,6 +100,7 @@ export interface PainLocationLog {
   timestamp: number;
   painLocations: PainLocation[];  // Pain location areas (e.g., 'left_temple', 'right_eye')
   createdAt: number;
+  updatedAt: number;
 }
 
 export interface Medication {
@@ -109,12 +109,10 @@ export interface Medication {
   type: MedicationType;
   dosageAmount: number;
   dosageUnit: string; // 'mg', 'ml', 'tablets', etc.
-  defaultDosage?: number; // Number of units (e.g., 3 tablets)
+  defaultQuantity?: number; // Number of units (e.g., 3 tablets)
   scheduleFrequency?: ScheduleFrequency; // For preventative: 'daily', 'monthly', 'quarterly'
   photoUri?: string;
   schedule?: MedicationSchedule[];
-  startDate?: number;
-  endDate?: number;
   active: boolean;
   notes?: string;
   createdAt: number;
@@ -137,7 +135,7 @@ export interface MedicationDose {
   id: string;
   medicationId: string;
   timestamp: number;
-  amount: number; // Number of dosage units taken (e.g., 2 pills)
+  quantity: number; // Number of dosage units taken (e.g., 2 pills)
   dosageAmount?: number; // Dosage per unit at time of logging (e.g., 50mg per pill) - snapshot for historical accuracy
   dosageUnit?: string; // Unit of dosage at time of logging (e.g., 'mg', 'ml') - snapshot for historical accuracy
   status?: DoseStatus; // Whether dose was taken or skipped (defaults to 'taken')
@@ -147,6 +145,7 @@ export interface MedicationDose {
   sideEffects?: string[];
   notes?: string;
   createdAt: number;
+  updatedAt: number;
 }
 
 export interface MedicationReminder {

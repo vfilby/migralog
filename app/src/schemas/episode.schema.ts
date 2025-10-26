@@ -96,8 +96,6 @@ export const EpisodeSchema = z.object({
   triggers: z.array(TriggerSchema)
     .default([]),
   notes: NotesSchema,
-  peakIntensity: IntensityValueSchema.optional(),
-  averageIntensity: IntensityValueSchema.optional(),
   location: EpisodeLocationSchema.optional(),
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema,
@@ -113,18 +111,6 @@ export const EpisodeSchema = z.object({
     message: 'End time must be after start time',
     path: ['endTime'],
   }
-).refine(
-  (data) => {
-    // Validate that if averageIntensity is present, it's <= peakIntensity
-    if (data.averageIntensity !== undefined && data.peakIntensity !== undefined) {
-      return data.averageIntensity <= data.peakIntensity;
-    }
-    return true;
-  },
-  {
-    message: 'Average intensity cannot be greater than peak intensity',
-    path: ['averageIntensity'],
-  }
 );
 
 // Intensity reading schema
@@ -134,6 +120,7 @@ export const IntensityReadingSchema = z.object({
   timestamp: TimestampSchema,
   intensity: IntensityValueSchema,
   createdAt: TimestampSchema,
+  updatedAt: TimestampSchema,
 });
 
 // Episode note schema

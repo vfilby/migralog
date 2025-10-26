@@ -297,19 +297,21 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
     const med = await medicationRepository.getById(medId);
     if (med) {
       setMedication(med);
-      setAmount(med.defaultDosage?.toString() || '1');
+      setAmount(med.defaultQuantity?.toString() || '1');
     }
   };
 
   const handleQuickLog = async (med: Medication) => {
     try {
+      const now = Date.now();
       await logDose({
         medicationId: med.id,
-        timestamp: Date.now(),
-        amount: med.defaultDosage || 1,
+        timestamp: now,
+        quantity: med.defaultQuantity || 1,
         dosageAmount: med.dosageAmount,
         dosageUnit: med.dosageUnit,
         // episodeId determined automatically by timestamp
+        updatedAt: now,
       });
 
       navigation.goBack();
@@ -329,14 +331,16 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
 
     setSaving(true);
     try {
+      const ts = timestamp.getTime();
       await logDose({
         medicationId: medication.id,
-        timestamp: timestamp.getTime(),
-        amount: parseFloat(amount),
+        timestamp: ts,
+        quantity: parseFloat(amount),
         dosageAmount: medication.dosageAmount,
         dosageUnit: medication.dosageUnit,
         // episodeId determined automatically by timestamp
         notes: notes.trim() || undefined,
+        updatedAt: ts,
       });
 
       navigation.goBack();
@@ -376,7 +380,7 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
                       onPress={() => handleQuickLog(med)}
                     >
                       <Text style={styles.quickLogButtonText}>
-                        Log {med.defaultDosage || 1} × {med.dosageAmount}{med.dosageUnit}
+                        Log {med.defaultQuantity || 1} × {med.dosageAmount}{med.dosageUnit}
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity

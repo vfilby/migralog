@@ -430,13 +430,6 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
           const { intensityRepository } = await import('../database/episodeRepository');
           await intensityRepository.update(initialReadingId, { intensity });
 
-          // Recalculate peak and average intensity
-          const readings = await intensityRepository.getByEpisodeId(episodeId);
-          const intensities = readings.map(r => r.intensity);
-          const peakIntensity = Math.max(...intensities);
-          const averageIntensity = intensities.reduce((a, b) => a + b, 0) / intensities.length;
-
-          await updateEpisode(episodeId, { peakIntensity, averageIntensity });
           logger.log('[NewEpisode] Intensity updated');
         }
 
@@ -465,12 +458,6 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
             episodeId: episode.id,
             timestamp: episode.startTime, // Use episode start time for initial reading
             intensity,
-          });
-
-          // Update peak and average intensity (should be same as initial for new episode)
-          await updateEpisode(episode.id, {
-            peakIntensity: intensity,
-            averageIntensity: intensity
           });
           logger.log('[NewEpisode] Intensity reading added');
         }

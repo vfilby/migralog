@@ -42,7 +42,7 @@ jobs:
         run: npm run test:ci
 
       - name: Run ESLint (errors only)
-        run: npm run lint:ci
+        run: npm run test:lint:ci
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4
@@ -174,7 +174,7 @@ jobs:
         run: sleep 30
 
       - name: Run Detox E2E tests (with 2 workers for 44% faster execution)
-        run: npx detox test --configuration ios.sim.debug --maxWorkers 2
+        run: npm run test:ui
         env:
           CI: true
 

@@ -32,7 +32,7 @@ describe('Database Schema', () => {
   });
   describe('Schema Version', () => {
     it('should be at version 10', () => {
-      expect(SCHEMA_VERSION).toBe(10);
+      expect(SCHEMA_VERSION).toBe(15);
     });
   });
 
@@ -66,15 +66,7 @@ describe('Database Schema', () => {
         expect(episodesTable).toContain('CHECK(end_time IS NULL OR end_time > start_time)');
       });
 
-      it('should enforce peak_intensity between 0 and 10', () => {
-        const episodesTable = tables.get('episodes');
-        expect(episodesTable).toMatch(/CHECK\(peak_intensity IS NULL OR \(peak_intensity >= 0 AND peak_intensity <= 10\)\)/);
-      });
 
-      it('should enforce average_intensity between 0 and 10 and <= peak_intensity', () => {
-        const episodesTable = tables.get('episodes');
-        expect(episodesTable).toMatch(/average_intensity IS NULL OR \(average_intensity >= 0 AND average_intensity <= 10 AND \(peak_intensity IS NULL OR average_intensity <= peak_intensity\)\)/);
-      });
 
       it('should enforce notes length <= 5000', () => {
         const episodesTable = tables.get('episodes');
@@ -164,9 +156,9 @@ describe('Database Schema', () => {
         expect(table).toContain('CHECK(length(dosage_unit) > 0 AND length(dosage_unit) <= 50)');
       });
 
-      it('should enforce default_dosage > 0 when not null', () => {
+      it('should enforce default_quantity > 0 when not null', () => {
         const table = tables.get('medications');
-        expect(table).toContain('CHECK(default_dosage IS NULL OR default_dosage > 0)');
+        expect(table).toContain('CHECK(default_quantity IS NULL OR default_quantity > 0)');
       });
 
       it('should enforce schedule_frequency IN (daily, monthly, quarterly)', () => {
@@ -177,16 +169,6 @@ describe('Database Schema', () => {
       it('should enforce photo_uri length <= 500', () => {
         const table = tables.get('medications');
         expect(table).toContain('CHECK(photo_uri IS NULL OR length(photo_uri) <= 500)');
-      });
-
-      it('should enforce start_date > 0 when not null', () => {
-        const table = tables.get('medications');
-        expect(table).toContain('CHECK(start_date IS NULL OR start_date > 0)');
-      });
-
-      it('should enforce end_date > start_date', () => {
-        const table = tables.get('medications');
-        expect(table).toContain('CHECK(end_date IS NULL OR (start_date IS NULL OR end_date > start_date))');
       });
 
       it('should enforce active IN (0, 1)', () => {
@@ -235,7 +217,7 @@ describe('Database Schema', () => {
 
       it('should enforce amount >= 0', () => {
         const table = tables.get('medication_doses');
-        expect(table).toContain('CHECK(amount >= 0)');
+        expect(table).toContain('CHECK(quantity >= 0)');
       });
 
       it('should enforce status IN (taken, skipped)', () => {
@@ -245,7 +227,7 @@ describe('Database Schema', () => {
 
       it('should enforce amount > 0 when status is taken', () => {
         const table = tables.get('medication_doses');
-        expect(table).toContain("CHECK(status != 'taken' OR amount > 0)");
+        expect(table).toContain("CHECK(status != 'taken' OR quantity > 0)");
       });
 
       it('should enforce effectiveness_rating between 0 and 10', () => {
