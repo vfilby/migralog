@@ -120,6 +120,7 @@ export const IntensityReadingSchema = z.object({
   timestamp: TimestampSchema,
   intensity: IntensityValueSchema,
   createdAt: TimestampSchema,
+  updatedAt: TimestampSchema,
 });
 
 // Episode note schema

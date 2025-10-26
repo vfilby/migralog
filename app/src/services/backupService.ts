@@ -946,9 +946,9 @@ class BackupService {
   private async insertMedicationWithId(medication: Medication, db: SQLite.SQLiteDatabase): Promise<void> {
     await db.runAsync(
       `INSERT INTO medications (
-        id, name, type, dosage_amount, dosage_unit, default_dosage, schedule_frequency,
-        photo_uri, start_date, end_date, active, notes, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        id, name, type, dosage_amount, dosage_unit, default_quantity, schedule_frequency,
+        photo_uri, active, notes, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         medication.id,
         medication.name,

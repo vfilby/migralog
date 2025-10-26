@@ -142,6 +142,7 @@ describe('Episode Validation Schemas', () => {
       timestamp: 1000,
       intensity: 7,
       createdAt: 1000,
+      updatedAt: 1000,
     };
 
     it('should accept valid intensity reading', () => {
