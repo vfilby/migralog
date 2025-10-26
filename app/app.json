@@ -27,12 +27,12 @@
           "health-records"
         ],
         "com.apple.developer.icloud-container-identifiers": [
-          "iCloud.$(CFBundleIdentifier)"
+          "iCloud.com.eff3.app.headache-tracker"
         ],
         "com.apple.developer.ubiquity-container-identifiers": [
-          "iCloud.$(CFBundleIdentifier)"
+          "iCloud.com.eff3.app.headache-tracker"
         ],
-        "com.apple.developer.ubiquity-kvstore-identifier": "$(TeamIdentifierPrefix)$(CFBundleIdentifier)",
+        "com.apple.developer.ubiquity-kvstore-identifier": "$(TeamIdentifierPrefix)com.eff3.app.headache-tracker",
         "com.apple.developer.weatherkit": true
       }
     },
