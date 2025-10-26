@@ -18,7 +18,9 @@
       "bundleIdentifier": "com.eff3.app.headache-tracker",
       "buildNumber": "1",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSHealthShareUsageDescription": "MigraLog needs access to your health data to correlate potential triggers with migraine episodes.",
+        "NSHealthUpdateUsageDescription": "MigraLog may write related health metrics to HealthKit for a comprehensive view of your health data."
       },
       "entitlements": {
         "com.apple.developer.usernotifications.time-sensitive": true,
