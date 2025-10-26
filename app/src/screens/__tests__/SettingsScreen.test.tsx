@@ -7,12 +7,14 @@ import { errorLogger } from '../../services/errorLogger';
 import { notificationService } from '../../services/notificationService';
 import { locationService } from '../../services/locationService';
 import * as SQLite from 'expo-sqlite';
+import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 jest.mock('../../services/errorLogger');
 jest.mock('../../services/notificationService');
 jest.mock('../../services/locationService');
 jest.mock('expo-sqlite');
+jest.mock('expo-notifications');
 jest.mock('@react-native-async-storage/async-storage');
 
 const mockNavigation = {
@@ -43,12 +45,15 @@ describe('SettingsScreen', () => {
       granted: false,
       canAskAgain: true,
     });
+    (notificationService.initialize as jest.Mock).mockResolvedValue(undefined);
     (locationService.checkPermission as jest.Mock).mockResolvedValue(false);
     (SQLite.openDatabaseAsync as jest.Mock).mockResolvedValue({
       execAsync: jest.fn().mockResolvedValue(undefined),
     });
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
     (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
+    (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('test-notification-id');
+    (Notifications.AndroidNotificationPriority as any) = { HIGH: 'HIGH' };
   });
 
   it('should render settings screen with all sections (except hidden developer)', async () => {
@@ -309,7 +314,7 @@ describe('SettingsScreen', () => {
       fireEvent.press(screen.getByText('Test Regular Notification (5s)'));
 
       await waitFor(() => {
-        expect(notificationService.scheduleNotification).toHaveBeenCalled();
+        expect(Notifications.scheduleNotificationAsync).toHaveBeenCalled();
         expect(Alert.alert).toHaveBeenCalledWith(
           'Test Scheduled',
           expect.stringContaining('regular notification will appear')
@@ -580,7 +585,7 @@ describe('SettingsScreen', () => {
         granted: true,
         canAskAgain: true,
       });
-      (notificationService.scheduleNotification as jest.Mock).mockRejectedValue(
+      (Notifications.scheduleNotificationAsync as jest.Mock).mockRejectedValue(
         new Error('Scheduling failed')
       );
 
