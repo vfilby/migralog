@@ -69,8 +69,6 @@ export async function resetDatabaseForTesting(options: {
     // 4. Reset Zustand stores to clear in-memory state
     logger.log('[TestHelpers] Resetting stores...');
     useDailyStatusStore.getState().reset();
-    // Note: medicationStore and episodeStore don't have reset methods,
-    // but they will reload data when screens gain focus
 
     // 4a. Clear cache manager to prevent stale data after reset
     const { cacheManager } = await import('./cacheManager');
@@ -83,6 +81,14 @@ export async function resetDatabaseForTesting(options: {
     if (loadFixtures) {
       logger.log('[TestHelpers] Loading test fixtures...');
       await loadTestFixtures();
+
+      // 5a. Reload stores with new fixture data
+      logger.log('[TestHelpers] Reloading stores with fixture data...');
+      const { useMedicationStore } = await import('../store/medicationStore');
+      const { useEpisodeStore } = await import('../store/episodeStore');
+      await useMedicationStore.getState().loadMedications();
+      await useEpisodeStore.getState().loadEpisodes();
+      logger.log('[TestHelpers] Stores reloaded with fixture data');
     }
 
     logger.log('[TestHelpers] Database reset complete');
