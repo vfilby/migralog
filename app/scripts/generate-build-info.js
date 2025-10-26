@@ -48,11 +48,20 @@ export const buildInfo = ${JSON.stringify(buildInfo, null, 2)};
   console.error('⚠️  Warning: Could not generate build info:', error.message);
 
   // Create a fallback file
+  // Try to at least get version from package.json even if git commands failed
+  let fallbackVersion = '1.0.0';
+  try {
+    const packageJson = require('../package.json');
+    fallbackVersion = packageJson.version;
+  } catch (pkgError) {
+    console.error('⚠️  Could not read package.json, using hardcoded version');
+  }
+
   const fallbackContent = `// Auto-generated file - do not edit manually
 // Build info could not be generated
 
 export const buildInfo = {
-  version: '1.0.0',
+  version: '${fallbackVersion}',
   buildNumber: 'unknown',
   commitHash: 'unknown',
   branch: 'unknown',
