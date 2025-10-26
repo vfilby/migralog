@@ -920,8 +920,8 @@ class BackupService {
 
   private async insertIntensityReadingWithId(reading: IntensityReading, db: SQLite.SQLiteDatabase): Promise<void> {
     await db.runAsync(
-      `INSERT INTO intensity_readings (id, episode_id, timestamp, intensity, created_at) VALUES (?, ?, ?, ?, ?)`,
-      [reading.id, reading.episodeId, reading.timestamp, reading.intensity, reading.createdAt]
+      `INSERT INTO intensity_readings (id, episode_id, timestamp, intensity, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+      [reading.id, reading.episodeId, reading.timestamp, reading.intensity, reading.createdAt, reading.updatedAt]
     );
   }
 

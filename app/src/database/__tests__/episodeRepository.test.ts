@@ -481,8 +481,9 @@ describe('intensityRepository', () => {
       expect(result.id).toBe('reading-id-123');
       expect(result.intensity).toBe(7);
       expect(result.createdAt).toBeDefined();
+      expect(result.updatedAt).toBeDefined();
       expect(mockDatabase.runAsync).toHaveBeenCalledWith(
-        'INSERT INTO intensity_readings (id, episode_id, timestamp, intensity, created_at) VALUES (?, ?, ?, ?, ?)',
+        'INSERT INTO intensity_readings (id, episode_id, timestamp, intensity, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
         expect.arrayContaining([
           'reading-id-123',
           'episode-123',

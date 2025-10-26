@@ -458,7 +458,6 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
             episodeId: episode.id,
             timestamp: episode.startTime, // Use episode start time for initial reading
             intensity,
-            updatedAt: episode.startTime,
           });
           logger.log('[NewEpisode] Intensity reading added');
         }

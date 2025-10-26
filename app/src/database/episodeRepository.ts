@@ -243,7 +243,7 @@ export const episodeRepository = {
 };
 
 export const intensityRepository = {
-  async create(reading: Omit<IntensityReading, 'id' | 'createdAt'>, db?: SQLite.SQLiteDatabase): Promise<IntensityReading> {
+  async create(reading: Omit<IntensityReading, 'id' | 'createdAt' | 'updatedAt'>, db?: SQLite.SQLiteDatabase): Promise<IntensityReading> {
     const database = db || await getDatabase();
     const now = Date.now();
     const id = generateId();
@@ -252,6 +252,7 @@ export const intensityRepository = {
       ...reading,
       id,
       createdAt: now,
+      updatedAt: now,
     };
 
     // Validate intensity reading data
@@ -263,8 +264,8 @@ export const intensityRepository = {
     }
 
     await database.runAsync(
-      'INSERT INTO intensity_readings (id, episode_id, timestamp, intensity, created_at) VALUES (?, ?, ?, ?, ?)',
-      [newReading.id, newReading.episodeId, newReading.timestamp, newReading.intensity, newReading.createdAt]
+      'INSERT INTO intensity_readings (id, episode_id, timestamp, intensity, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      [newReading.id, newReading.episodeId, newReading.timestamp, newReading.intensity, newReading.createdAt, newReading.updatedAt]
     );
 
     return newReading;

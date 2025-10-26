@@ -202,7 +202,6 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
         episodeId,
         timestamp,
         intensity,
-        updatedAt: timestamp,
       });
     } catch (error) {
       set({ error: (error as Error).message });
