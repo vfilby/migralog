@@ -320,7 +320,7 @@ class NotificationService {
 
       // Find the schedule to get the dosage
       const schedule = medication.schedule?.find(s => s.id === scheduleId);
-      const dosage = schedule?.dosage ?? medication.defaultDosage ?? 1;
+      const dosage = schedule?.dosage ?? medication.defaultQuantity ?? 1;
 
       // Use store's logDose to update both database and state
       // Dynamic import to avoid circular dependency
@@ -418,7 +418,7 @@ class NotificationService {
 
         // Find the schedule to get the dosage
         const schedule = medication.schedule?.find(s => s.id === scheduleId);
-        const dosage = schedule?.dosage ?? medication.defaultDosage ?? 1;
+        const dosage = schedule?.dosage ?? medication.defaultQuantity ?? 1;
 
         // Use store's logDose to update both database and state
         await useMedicationStore.getState().logDose({

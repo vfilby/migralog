@@ -473,7 +473,7 @@ export default function MedicationsScreen() {
                 </View>
                 <View style={styles.medicationDetails}>
                   <Text style={styles.dosageText}>
-                    {formatMedicationDosage(med.defaultDosage || 1, med.dosageAmount, med.dosageUnit)}
+                    {formatMedicationDosage(med.defaultQuantity || 1, med.dosageAmount, med.dosageUnit)}
                   </Text>
                   {med.scheduleFrequency && (
                     <Text style={styles.frequencyText}>
@@ -592,7 +592,7 @@ export default function MedicationsScreen() {
                 </View>
                 <View style={styles.medicationDetails}>
                   <Text style={styles.dosageText}>
-                    {formatMedicationDosage(med.defaultDosage || 1, med.dosageAmount, med.dosageUnit)}
+                    {formatMedicationDosage(med.defaultQuantity || 1, med.dosageAmount, med.dosageUnit)}
                   </Text>
                 </View>
                 {med.notes && (
@@ -603,7 +603,7 @@ export default function MedicationsScreen() {
                     style={styles.quickLogButton}
                     onPress={(e) => {
                       e.stopPropagation();
-                      handleRescueQuickLog(med.id, med.defaultDosage || 1);
+                      handleRescueQuickLog(med.id, med.defaultQuantity || 1);
                     }}
                   >
                     <Text style={styles.quickLogButtonText}>Quick Log</Text>

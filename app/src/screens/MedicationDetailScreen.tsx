@@ -96,7 +96,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
       await logDose({
         medicationId: medication.id,
         timestamp: Date.now(),
-        amount: medication.defaultDosage || 1,
+        amount: medication.defaultQuantity || 1,
         dosageAmount: medication.dosageAmount,
         dosageUnit: medication.dosageUnit,
         episodeId: currentEpisode?.id,
@@ -308,10 +308,10 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
             </Text>
           </View>
 
-          {medication.defaultDosage && (
+          {medication.defaultQuantity && (
             <View style={styles.infoRow}>
               <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Default Doses:</Text>
-              <Text style={[styles.infoValue, { color: theme.text }]}>{medication.defaultDosage}</Text>
+              <Text style={[styles.infoValue, { color: theme.text }]}>{medication.defaultQuantity}</Text>
             </View>
           )}
 

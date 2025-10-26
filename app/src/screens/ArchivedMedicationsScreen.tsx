@@ -99,7 +99,7 @@ export default function ArchivedMedicationsScreen({ navigation }: Props) {
               </View>
               <View style={styles.medicationDetails}>
                 <Text style={styles.dosageText}>
-                  {med.defaultDosage || 1} × {med.dosageAmount}{med.dosageUnit}
+                  {med.defaultQuantity || 1} × {med.dosageAmount}{med.dosageUnit}
                 </Text>
                 {med.scheduleFrequency && (
                   <Text style={styles.frequencyText}>{med.scheduleFrequency}</Text>

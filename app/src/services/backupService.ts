@@ -958,7 +958,7 @@ class BackupService {
         medication.type,
         medication.dosageAmount,
         medication.dosageUnit,
-        medication.defaultDosage || null,
+        medication.defaultQuantity || null,
         medication.scheduleFrequency || null,
         medication.photoUri || null,
         medication.startDate || null,

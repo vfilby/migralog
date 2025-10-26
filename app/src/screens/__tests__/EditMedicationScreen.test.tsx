@@ -58,7 +58,7 @@ describe('EditMedicationScreen', () => {
       type: 'preventative',
       dosageAmount: 100,
       dosageUnit: 'mg',
-      defaultDosage: 1,
+      defaultQuantity: 1,
       active: true,
       createdAt: Date.now(),
       updatedAt: Date.now(),

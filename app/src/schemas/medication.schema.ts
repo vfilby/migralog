@@ -51,7 +51,7 @@ export const MedicationSchema = z.object({
     .min(1, 'Dosage unit is required')
     .max(50, 'Dosage unit must be <= 50 characters')
     .trim(),
-  defaultDosage: z.number()
+  defaultQuantity: z.number()
     .positive('Default dosage must be positive')
     .finite('Default dosage must be a finite number')
     .optional(),

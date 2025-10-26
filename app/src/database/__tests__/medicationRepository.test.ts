@@ -32,7 +32,7 @@ describe('medicationRepository', () => {
         type: 'rescue' as const,
         dosageAmount: 200,
         dosageUnit: 'mg',
-        defaultDosage: 2,
+        defaultQuantity: 2,
         scheduleFrequency: undefined,
         photoUri: undefined,
         schedule: [],
@@ -59,7 +59,7 @@ describe('medicationRepository', () => {
         type: 'rescue' as const,
         dosageAmount: 325,
         dosageUnit: 'mg',
-        defaultDosage: undefined,
+        defaultQuantity: undefined,
         scheduleFrequency: undefined,
         photoUri: undefined,
         schedule: [],
@@ -70,7 +70,7 @@ describe('medicationRepository', () => {
       const result = await medicationRepository.create(minimalMedication);
 
       expect(result.id).toBe('test-med-123');
-      expect(result.defaultDosage).toBeUndefined();
+      expect(result.defaultQuantity).toBeUndefined();
       expect(result.notes).toBeUndefined();
     });
 
@@ -80,7 +80,7 @@ describe('medicationRepository', () => {
         type: 'preventative' as const,
         dosageAmount: 500,
         dosageUnit: 'mg',
-        defaultDosage: 1,
+        defaultQuantity: 1,
         scheduleFrequency: 'daily' as const,
         photoUri: undefined,
         schedule: [],
@@ -370,7 +370,7 @@ describe('medicationRepository', () => {
       expect(medication.type).toBe('rescue');
       expect(medication.dosageAmount).toBe(100);
       expect(medication.dosageUnit).toBe('mg');
-      expect(medication.defaultDosage).toBe(2);
+      expect(medication.defaultQuantity).toBe(2);
       expect(medication.scheduleFrequency).toBe('daily');
       expect(medication.photoUri).toBe('file://test.jpg');
       expect(medication.active).toBe(true);

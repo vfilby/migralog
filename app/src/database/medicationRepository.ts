@@ -38,7 +38,7 @@ export const medicationRepository = {
 
     await database.runAsync(
       `INSERT INTO medications (
-        id, name, type, dosage_amount, dosage_unit, default_dosage, schedule_frequency,
+        id, name, type, dosage_amount, dosage_unit, default_quantity, schedule_frequency,
         photo_uri, active, notes, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
@@ -47,7 +47,7 @@ export const medicationRepository = {
         newMedication.type,
         newMedication.dosageAmount,
         newMedication.dosageUnit,
-        newMedication.defaultDosage || null,
+        newMedication.defaultQuantity || null,
         newMedication.scheduleFrequency || null,
         newMedication.photoUri || null,
         newMedication.active ? 1 : 0,
@@ -83,9 +83,9 @@ export const medicationRepository = {
       fields.push('dosage_unit = ?');
       values.push(updates.dosageUnit);
     }
-    if (updates.defaultDosage !== undefined) {
-      fields.push('default_dosage = ?');
-      values.push(updates.defaultDosage);
+    if (updates.defaultQuantity !== undefined) {
+      fields.push('default_quantity = ?');
+      values.push(updates.defaultQuantity);
     }
     if (updates.scheduleFrequency !== undefined) {
       fields.push('schedule_frequency = ?');
@@ -184,7 +184,7 @@ export const medicationRepository = {
       type: row.type as import('../models/types').MedicationType, // Type assertion for union type
       dosageAmount: row.dosage_amount,
       dosageUnit: row.dosage_unit,
-      defaultDosage: row.default_dosage || undefined,
+      defaultQuantity: row.default_quantity || undefined,
       scheduleFrequency: (row.schedule_frequency as import('../models/types').ScheduleFrequency) || undefined, // Type assertion for union type
       photoUri: row.photo_uri || undefined,
       schedule: [], // Will be loaded separately
@@ -219,14 +219,14 @@ export const medicationDoseRepository = {
 
     await database.runAsync(
       `INSERT INTO medication_doses (
-        id, medication_id, timestamp, amount, dosage_amount, dosage_unit, status, episode_id, effectiveness_rating,
-        time_to_relief, side_effects, notes, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        id, medication_id, timestamp, quantity, dosage_amount, dosage_unit, status, episode_id, effectiveness_rating,
+        time_to_relief, side_effects, notes, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         newDose.id,
         newDose.medicationId,
         newDose.timestamp,
-        newDose.amount,
+        newDose.quantity,
         newDose.dosageAmount || null,
         newDose.dosageUnit || null,
         newDose.status || 'taken', // Ensure it's never undefined
@@ -236,6 +236,7 @@ export const medicationDoseRepository = {
         newDose.sideEffects ? JSON.stringify(newDose.sideEffects) : null,
         newDose.notes || null,
         newDose.createdAt,
+        newDose.updatedAt,
       ]
     );
 
@@ -244,13 +245,14 @@ export const medicationDoseRepository = {
 
   async update(id: string, updates: Partial<MedicationDose>, db?: SQLite.SQLiteDatabase): Promise<void> {
     const database = db || await getDatabase();
+    const now = Date.now();
 
     const fields: string[] = [];
     const values: (string | number | null)[] = [];
 
-    if (updates.amount !== undefined) {
-      fields.push('amount = ?');
-      values.push(updates.amount);
+    if (updates.quantity !== undefined) {
+      fields.push('quantity = ?');
+      values.push(updates.quantity);
     }
     if (updates.timestamp !== undefined) {
       fields.push('timestamp = ?');
@@ -274,6 +276,10 @@ export const medicationDoseRepository = {
     }
 
     if (fields.length === 0) return;
+
+    // Always set updated_at
+    fields.push('updated_at = ?');
+    values.push(now);
 
     values.push(id);
 
@@ -340,7 +346,7 @@ export const medicationDoseRepository = {
       id: row.id,
       medicationId: row.medication_id,
       timestamp: row.timestamp,
-      amount: row.amount,
+      quantity: row.quantity,
       dosageAmount: row.dosage_amount || undefined,
       dosageUnit: row.dosage_unit || undefined,
       status: (row.status as import('../models/types').DoseStatus) || 'taken', // Type assertion with default

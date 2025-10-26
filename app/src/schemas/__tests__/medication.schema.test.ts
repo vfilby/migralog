@@ -101,7 +101,7 @@ describe('Medication Validation Schemas', () => {
       type: 'rescue' as const,
       dosageAmount: 50,
       dosageUnit: 'mg',
-      defaultDosage: 1,
+      defaultQuantity: 1,
       active: true,
       createdAt: 1000,
       updatedAt: 1000,
