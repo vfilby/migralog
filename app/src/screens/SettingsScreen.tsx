@@ -402,20 +402,15 @@ export default function SettingsScreen({ navigation }: Props) {
               <Text style={styles.aboutValue}>MigraLog</Text>
             </View>
             <View style={styles.divider} />
-            <View style={styles.aboutRow}>
-              <Text style={styles.aboutLabel}>Version</Text>
-              <Text style={styles.aboutValue}>{buildInfo.version}</Text>
-            </View>
-            <View style={styles.divider} />
             <TouchableOpacity
               style={styles.aboutRow}
               onPress={handleVersionTap}
               activeOpacity={0.6}
             >
-              <Text style={styles.aboutLabel}>Build</Text>
+              <Text style={styles.aboutLabel}>Version</Text>
               <View style={styles.buildValueContainer}>
                 <Text style={styles.aboutValue}>
-                  {buildInfo.buildNumber} ({buildInfo.commitHash})
+                  {buildInfo.version} ({buildInfo.buildNumber}: {buildInfo.commitHash})
                 </Text>
                 {developerMode && (
                   <Ionicons name="code-slash" size={16} color={theme.primary} style={{ marginLeft: 6 }} />
