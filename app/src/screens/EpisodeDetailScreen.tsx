@@ -17,7 +17,7 @@ import { shouldShowMedicationInTimeline } from '../utils/timelineFilters';
 import { groupEventsByDay, groupEventsByTimestamp, DayGroup } from '../utils/timelineGrouping';
 import { locationService } from '../services/locationService';
 import { useTheme, ThemeColors } from '../theme';
-import IntensitySparkline from '../components/IntensitySparkline';
+// Removed unused import: IntensitySparkline (peak intensity feature removed)
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EpisodeDetail'>;
 

@@ -137,7 +137,7 @@ describe('AnalyticsScreen', () => {
         loadEpisodes: jest.fn(),
       });
 
-      const { getAllByText, getByText } = render(<AnalyticsScreen />, { wrapper: TestWrapper });
+      const { getAllByText } = render(<AnalyticsScreen />, { wrapper: TestWrapper });
       
       await waitFor(() => {
         const ones = getAllByText('1');

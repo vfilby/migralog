@@ -105,14 +105,12 @@ async function loadTestFixtures() {
   const twentyHoursAgo = Date.now() - 20 * 60 * 60 * 1000;
 
   await db.runAsync(
-    `INSERT INTO episodes (id, start_time, end_time, peak_intensity, average_intensity, locations, qualities, symptoms, triggers, notes, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO episodes (id, start_time, end_time, locations, qualities, symptoms, triggers, notes, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       testEpisodeId,
       oneDayAgo,
       twentyHoursAgo,
-      7,
-      6,
       JSON.stringify(['front']),
       JSON.stringify(['throbbing']),
       JSON.stringify(['nausea']),
@@ -153,7 +151,7 @@ async function loadTestFixtures() {
   // 1. Preventative medication with daily schedule
   const preventativeMedId = `test-preventative-${Date.now()}`;
   await db.runAsync(
-    `INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, default_dosage, schedule_frequency, active, created_at, updated_at)
+    `INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, default_quantity, schedule_frequency, active, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       preventativeMedId,
@@ -190,7 +188,7 @@ async function loadTestFixtures() {
   // 2. Rescue medication
   const rescueMedId = `test-rescue-${Date.now()}`;
   await db.runAsync(
-    `INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, default_dosage, active, created_at, updated_at)
+    `INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, default_quantity, active, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       rescueMedId,
@@ -297,7 +295,7 @@ export async function loadCorruptedDatabase() {
     // Create a normal medication that we can interact with
     const medicationId = `error-test-med-${Date.now()}`;
     await db.runAsync(
-      `INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, default_dosage, active, created_at, updated_at)
+      `INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, default_quantity, active, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         medicationId,

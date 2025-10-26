@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { format } from 'date-fns';
 import { Episode, IntensityReading } from '../models/types';
-import { getPainColor, getPainLevel } from '../utils/painScale';
+// Removed unused imports: getPainColor, getPainLevel (peak intensity feature removed)
 import { locationService } from '../services/locationService';
 import { useTheme, ThemeColors } from '../theme';
 import { intensityRepository } from '../database/episodeRepository';

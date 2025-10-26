@@ -778,7 +778,7 @@ const migrations: Migration[] = [
 
       logger.log('Migration 12: Added updated_at columns for consistency');
     },
-    down: async (db: SQLite.SQLiteDatabase) => {
+    down: async (_db: SQLite.SQLiteDatabase) => {
       // SQLite doesn't support DROP COLUMN easily, would need table recreation
       logger.warn('Rollback of migration 12 not implemented (would require table recreation)');
     },
@@ -858,7 +858,7 @@ const migrations: Migration[] = [
 
       logger.log('Migration 13: Removed peak_intensity and average_intensity from episodes');
     },
-    down: async (db: SQLite.SQLiteDatabase) => {
+    down: async (_db: SQLite.SQLiteDatabase) => {
       // Cannot safely restore removed columns with data
       logger.warn('Rollback of migration 13 not implemented (data would be lost)');
     },
@@ -947,7 +947,7 @@ const migrations: Migration[] = [
 
       logger.log('Migration 14: Renamed default_dosage to default_quantity in medications');
     },
-    down: async (db: SQLite.SQLiteDatabase) => {
+    down: async (_db: SQLite.SQLiteDatabase) => {
       // Could recreate with old column name, but would lose semantic clarity
       logger.warn('Rollback of migration 14 not implemented (would require table recreation)');
     },
@@ -1047,7 +1047,7 @@ const migrations: Migration[] = [
 
       logger.log('Migration 15: Renamed amount to quantity in medication_doses');
     },
-    down: async (db: SQLite.SQLiteDatabase) => {
+    down: async (_db: SQLite.SQLiteDatabase) => {
       // Could recreate with old column name, but would lose semantic clarity
       logger.warn('Rollback of migration 15 not implemented (would require table recreation)');
     },
