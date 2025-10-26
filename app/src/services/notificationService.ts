@@ -1,8 +1,12 @@
 import * as Notifications from 'expo-notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from '../utils/logger';
 import { Medication, MedicationSchedule } from '../models/types';
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../database/medicationRepository';
 import { useNotificationSettingsStore } from '../store/notificationSettingsStore';
+
+// AsyncStorage key for global notification toggle
+const NOTIFICATIONS_ENABLED_KEY = '@notifications_enabled';
 
 /**
  * Handle incoming notifications and decide whether to show them
@@ -566,6 +570,13 @@ class NotificationService {
     const notificationIds = new Map<string, string>();
 
     try {
+      // Check if notifications are globally enabled
+      const globallyEnabled = await this.areNotificationsGloballyEnabled();
+      if (!globallyEnabled) {
+        logger.log('[Notification] Notifications globally disabled, skipping scheduling');
+        return notificationIds;
+      }
+
       // Group by time
       const grouped = new Map<string, Array<{ medication: Medication; schedule: MedicationSchedule }>>();
 
@@ -854,6 +865,45 @@ class NotificationService {
    */
   async getAllScheduledNotifications(): Promise<Notifications.NotificationRequest[]> {
     return await Notifications.getAllScheduledNotificationsAsync();
+  }
+
+  /**
+   * Check if notifications are globally enabled
+   */
+  async areNotificationsGloballyEnabled(): Promise<boolean> {
+    try {
+      const value = await AsyncStorage.getItem(NOTIFICATIONS_ENABLED_KEY);
+      // Default to true if not set (for existing users)
+      return value === null ? true : JSON.parse(value);
+    } catch (error) {
+      logger.error('[Notification] Error reading global toggle state:', error);
+      return true; // Default to enabled on error
+    }
+  }
+
+  /**
+   * Set global notification toggle state
+   * When disabled: cancels all scheduled notifications
+   * When enabled: reschedules all medication reminders
+   */
+  async setGlobalNotificationsEnabled(enabled: boolean): Promise<void> {
+    try {
+      await AsyncStorage.setItem(NOTIFICATIONS_ENABLED_KEY, JSON.stringify(enabled));
+      logger.log('[Notification] Global toggle set to:', enabled);
+
+      if (!enabled) {
+        // Disable: Cancel all notifications
+        await this.cancelAllNotifications();
+        logger.log('[Notification] All notifications cancelled (global toggle disabled)');
+      } else {
+        // Enable: Reschedule all medication reminders
+        await this.rescheduleAllMedicationNotifications();
+        logger.log('[Notification] All notifications rescheduled (global toggle enabled)');
+      }
+    } catch (error) {
+      logger.error('[Notification] Error setting global toggle:', error);
+      throw error;
+    }
   }
 
   /**

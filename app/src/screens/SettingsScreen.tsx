@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Alert,
   Linking,
+  Switch,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -36,10 +37,13 @@ export default function SettingsScreen({ navigation }: Props) {
   const [locationPermission, setLocationPermission] = useState<boolean | null>(null);
   const [developerMode, setDeveloperMode] = useState(false);
   const [versionTapCount, setVersionTapCount] = useState(0);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [isTogglingNotifications, setIsTogglingNotifications] = useState(false);
 
   useEffect(() => {
     loadDiagnostics();
     loadDeveloperMode();
+    loadNotificationsEnabled();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -60,6 +64,34 @@ export default function SettingsScreen({ navigation }: Props) {
       setDeveloperMode(enabled);
     } catch (error) {
       logger.error('Failed to save developer mode setting:', error);
+    }
+  };
+
+  const loadNotificationsEnabled = async () => {
+    try {
+      const enabled = await notificationService.areNotificationsGloballyEnabled();
+      setNotificationsEnabled(enabled);
+    } catch (error) {
+      logger.error('Failed to load notifications enabled setting:', error);
+    }
+  };
+
+  const handleToggleNotifications = async (enabled: boolean) => {
+    try {
+      setIsTogglingNotifications(true);
+      await notificationService.setGlobalNotificationsEnabled(enabled);
+      setNotificationsEnabled(enabled);
+
+      const message = enabled
+        ? 'All medication reminders have been enabled'
+        : 'All medication reminders have been disabled. Your schedules are preserved.';
+
+      Alert.alert('Success', message);
+    } catch (error) {
+      logger.error('Failed to toggle notifications:', error);
+      Alert.alert('Error', 'Failed to update notification settings');
+    } finally {
+      setIsTogglingNotifications(false);
     }
   };
 
@@ -546,9 +578,35 @@ export default function SettingsScreen({ navigation }: Props) {
           </View>
 
           {notificationPermissions?.granted ? (
-            <View style={styles.settingsSection}>
-              <NotificationSettings showTitle={false} />
-            </View>
+            <>
+              {/* Global Notification Toggle */}
+              <View style={[styles.settingsSection, styles.notificationToggleSection]}>
+                <View style={styles.settingRow}>
+                  <View style={styles.settingInfo}>
+                    <Text style={styles.settingLabel}>Enable Medication Reminders</Text>
+                    <Text style={styles.settingDescription}>
+                      {notificationsEnabled
+                        ? 'Notifications are enabled'
+                        : 'All reminders disabled. Schedules are preserved.'}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={notificationsEnabled}
+                    onValueChange={handleToggleNotifications}
+                    disabled={isTogglingNotifications}
+                    trackColor={{ false: theme.borderLight, true: theme.primary }}
+                    thumbColor={theme.card}
+                  />
+                </View>
+              </View>
+
+              {/* Per-Medication Settings */}
+              {notificationsEnabled && (
+                <View style={styles.settingsSection}>
+                  <NotificationSettings showTitle={false} />
+                </View>
+              )}
+            </>
           ) : (
             <View style={styles.disabledNotificationsCard}>
               <Text style={styles.disabledNotificationsText}>
@@ -994,5 +1052,29 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   },
   developerButtonTextDanger: {
     color: theme.error,
+  },
+  notificationToggleSection: {
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    padding: 16,
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  settingInfo: {
+    flex: 1,
+  },
+  settingLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.text,
+    marginBottom: 4,
+  },
+  settingDescription: {
+    fontSize: 14,
+    color: theme.textSecondary,
   },
 });

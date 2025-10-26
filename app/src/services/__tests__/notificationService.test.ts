@@ -1,8 +1,10 @@
 import { notificationService, handleIncomingNotification } from '../notificationService';
 import * as Notifications from 'expo-notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   medicationRepository,
   medicationDoseRepository,
+  medicationScheduleRepository,
 } from '../../database/medicationRepository';
 import { Medication, MedicationSchedule } from '../../models/types';
 
@@ -10,6 +12,7 @@ import { Medication, MedicationSchedule } from '../../models/types';
 jest.mock('expo-notifications');
 jest.mock('../../database/medicationRepository');
 jest.mock('../../services/errorLogger');
+jest.mock('@react-native-async-storage/async-storage');
 
 // Add AndroidNotificationPriority enum to mocked Notifications
 (Notifications as any).AndroidNotificationPriority = {
@@ -757,6 +760,153 @@ describe('notificationService', () => {
           shouldShowBanner: true,
           shouldShowList: true,
         });
+      });
+    });
+  });
+
+  describe('Global Notification Toggle', () => {
+    describe('areNotificationsGloballyEnabled', () => {
+      it('should return true by default when not set', async () => {
+        (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+
+        const result = await notificationService.areNotificationsGloballyEnabled();
+
+        expect(result).toBe(true);
+        expect(AsyncStorage.getItem).toHaveBeenCalledWith('@notifications_enabled');
+      });
+
+      it('should return stored value when set', async () => {
+        (AsyncStorage.getItem as jest.Mock).mockResolvedValue('false');
+
+        const result = await notificationService.areNotificationsGloballyEnabled();
+
+        expect(result).toBe(false);
+      });
+
+      it('should return true on error', async () => {
+        (AsyncStorage.getItem as jest.Mock).mockRejectedValue(new Error('Storage error'));
+
+        const result = await notificationService.areNotificationsGloballyEnabled();
+
+        expect(result).toBe(true);
+      });
+    });
+
+    describe('setGlobalNotificationsEnabled', () => {
+      it('should disable notifications and cancel all schedules', async () => {
+        await notificationService.setGlobalNotificationsEnabled(false);
+
+        expect(AsyncStorage.setItem).toHaveBeenCalledWith('@notifications_enabled', 'false');
+        expect(Notifications.cancelAllScheduledNotificationsAsync).toHaveBeenCalled();
+      });
+
+      it('should enable notifications and reschedule all medication reminders', async () => {
+        const mockMedication = {
+          id: 'med1',
+          name: 'Test Med',
+          type: 'preventative',
+          scheduleFrequency: 'daily',
+          dosageAmount: '10',
+          dosageUnit: 'mg',
+          archived: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        const mockSchedule = {
+          id: 'sched1',
+          medicationId: 'med1',
+          time: '09:00',
+          dosage: 1,
+          enabled: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        (medicationRepository.getActive as jest.Mock).mockResolvedValue([mockMedication]);
+        (medicationScheduleRepository.getByMedicationId as jest.Mock).mockResolvedValue([mockSchedule]);
+        (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('notif-id');
+
+        await notificationService.setGlobalNotificationsEnabled(true);
+
+        expect(AsyncStorage.setItem).toHaveBeenCalledWith('@notifications_enabled', 'true');
+        expect(Notifications.cancelAllScheduledNotificationsAsync).toHaveBeenCalled();
+        expect(Notifications.scheduleNotificationAsync).toHaveBeenCalled();
+      });
+
+      it('should throw error on storage failure', async () => {
+        (AsyncStorage.setItem as jest.Mock).mockRejectedValue(new Error('Storage error'));
+
+        await expect(notificationService.setGlobalNotificationsEnabled(true)).rejects.toThrow('Storage error');
+      });
+    });
+
+    describe('scheduleGroupedNotifications', () => {
+      it('should skip scheduling when globally disabled', async () => {
+        (AsyncStorage.getItem as jest.Mock).mockResolvedValue('false');
+
+        const mockMedication = {
+          id: 'med1',
+          name: 'Test Med',
+          type: 'preventative',
+          scheduleFrequency: 'daily',
+          dosageAmount: '10',
+          dosageUnit: 'mg',
+          archived: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        const mockSchedule = {
+          id: 'sched1',
+          medicationId: 'med1',
+          time: '09:00',
+          dosage: 1,
+          enabled: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        const result = await notificationService.scheduleGroupedNotifications([
+          { medication: mockMedication, schedule: mockSchedule },
+        ]);
+
+        expect(result.size).toBe(0);
+        expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+      });
+
+      it('should schedule notifications when globally enabled', async () => {
+        (AsyncStorage.getItem as jest.Mock).mockResolvedValue('true');
+        (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('notif-id');
+
+        const mockMedication = {
+          id: 'med1',
+          name: 'Test Med',
+          type: 'preventative',
+          scheduleFrequency: 'daily',
+          dosageAmount: '10',
+          dosageUnit: 'mg',
+          archived: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        const mockSchedule = {
+          id: 'sched1',
+          medicationId: 'med1',
+          time: '09:00',
+          dosage: 1,
+          enabled: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        const result = await notificationService.scheduleGroupedNotifications([
+          { medication: mockMedication, schedule: mockSchedule },
+        ]);
+
+        expect(result.size).toBe(1);
+        expect(Notifications.scheduleNotificationAsync).toHaveBeenCalled();
       });
     });
   });
