@@ -801,16 +801,16 @@ describe('notificationService', () => {
       });
 
       it('should enable notifications and reschedule all medication reminders', async () => {
-        const mockMedication = {
+        const mockMedication: Medication = {
           id: 'med1',
           name: 'Test Med',
-          type: 'preventative',
-          scheduleFrequency: 'daily',
-          dosageAmount: '10',
+          type: 'preventative' as const,
+          scheduleFrequency: 'daily' as const,
+          dosageAmount: 10,
           dosageUnit: 'mg',
-          archived: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          active: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
         };
 
         const mockSchedule = {
@@ -819,8 +819,8 @@ describe('notificationService', () => {
           time: '09:00',
           dosage: 1,
           enabled: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
         };
 
         (medicationRepository.getActive as jest.Mock).mockResolvedValue([mockMedication]);
@@ -845,16 +845,16 @@ describe('notificationService', () => {
       it('should skip scheduling when globally disabled', async () => {
         (AsyncStorage.getItem as jest.Mock).mockResolvedValue('false');
 
-        const mockMedication = {
+        const mockMedication: Medication = {
           id: 'med1',
           name: 'Test Med',
-          type: 'preventative',
-          scheduleFrequency: 'daily',
-          dosageAmount: '10',
+          type: 'preventative' as const,
+          scheduleFrequency: 'daily' as const,
+          dosageAmount: 10,
           dosageUnit: 'mg',
-          archived: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          active: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
         };
 
         const mockSchedule = {
@@ -863,8 +863,8 @@ describe('notificationService', () => {
           time: '09:00',
           dosage: 1,
           enabled: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
         };
 
         const result = await notificationService.scheduleGroupedNotifications([
@@ -879,16 +879,16 @@ describe('notificationService', () => {
         (AsyncStorage.getItem as jest.Mock).mockResolvedValue('true');
         (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('notif-id');
 
-        const mockMedication = {
+        const mockMedication: Medication = {
           id: 'med1',
           name: 'Test Med',
-          type: 'preventative',
-          scheduleFrequency: 'daily',
-          dosageAmount: '10',
+          type: 'preventative' as const,
+          scheduleFrequency: 'daily' as const,
+          dosageAmount: 10,
           dosageUnit: 'mg',
-          archived: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          active: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
         };
 
         const mockSchedule = {
@@ -897,8 +897,8 @@ describe('notificationService', () => {
           time: '09:00',
           dosage: 1,
           enabled: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
         };
 
         const result = await notificationService.scheduleGroupedNotifications([
