@@ -306,7 +306,7 @@ describe('Migration Integration Tests (Real Database)', () => {
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `).run(episodeId, Date.now(), '[]', '[]', '[]', '[]', Date.now(), Date.now());
 
-        // Create dose linked to both
+        // Create dose linked to both (use 'amount' since we start with SCHEMA_V1 before migrations)
         db.prepare(`
           INSERT INTO medication_doses (id, medication_id, timestamp, amount, episode_id, created_at)
           VALUES (?, ?, ?, ?, ?, ?)
@@ -317,13 +317,13 @@ describe('Migration Integration Tests (Real Database)', () => {
         await migrationRunner.initialize(adapter as any);
         await migrationRunner.runMigrations();
 
-        // Verify: Dose data and relationships preserved
+        // Verify: Dose data and relationships preserved (using 'quantity' after Migration 15)
         const doses = await adapter.getAllAsync<any>('SELECT * FROM medication_doses');
         expect(doses).toHaveLength(1);
         expect(doses[0].id).toBe(doseId);
         expect(doses[0].medication_id).toBe(medicationId);
         expect(doses[0].episode_id).toBe(episodeId);
-        expect(doses[0].amount).toBe(2);
+        expect(doses[0].quantity).toBe(2);
 
         // New status column should exist with default value
         expect(doses[0].status).toBe('taken');
@@ -346,9 +346,9 @@ describe('Migration Integration Tests (Real Database)', () => {
         `).run(medicationId, 'Ibuprofen', 'rescue', 200, 'mg', Date.now(), Date.now());
 
         db.prepare(`
-          INSERT INTO medication_doses (id, medication_id, timestamp, amount, status, created_at)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `).run(doseId, medicationId, Date.now(), 1, 'skipped', Date.now());
+          INSERT INTO medication_doses (id, medication_id, timestamp, quantity, status, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(doseId, medicationId, Date.now(), 1, 'skipped', Date.now(), Date.now());
 
         // Execute: Rollback to v5
         await migrationRunner.rollback(5);
@@ -583,9 +583,9 @@ describe('Migration Integration Tests (Real Database)', () => {
       // Run migrations
       await migrationRunner.runMigrations();
 
-      // Should be at latest version (14)
+      // Should be at latest version (15)
       version = await adapter.getAllAsync<{ version: number }>('SELECT version FROM schema_version');
-      expect(version[0].version).toBe(14);
+      expect(version[0].version).toBe(15);
     });
 
     it('should track version during rollback', async () => {

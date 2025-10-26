@@ -127,7 +127,7 @@ export interface MedicationDoseRow {
   id: string;
   medication_id: string;
   timestamp: number;
-  amount: number;
+  quantity: number;
   dosage_amount: number | null; // Snapshot of medication dosage at time of logging
   dosage_unit: string | null; // Snapshot of medication unit at time of logging
   status: string; // 'taken' | 'skipped' | 'missed'

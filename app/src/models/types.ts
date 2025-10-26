@@ -135,7 +135,7 @@ export interface MedicationDose {
   id: string;
   medicationId: string;
   timestamp: number;
-  amount: number; // Number of dosage units taken (e.g., 2 pills)
+  quantity: number; // Number of dosage units taken (e.g., 2 pills)
   dosageAmount?: number; // Dosage per unit at time of logging (e.g., 50mg per pill) - snapshot for historical accuracy
   dosageUnit?: string; // Unit of dosage at time of logging (e.g., 'mg', 'ml') - snapshot for historical accuracy
   status?: DoseStatus; // Whether dose was taken or skipped (defaults to 'taken')

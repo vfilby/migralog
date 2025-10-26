@@ -314,6 +314,15 @@ const migrations: Migration[] = [
       try {
         await db.execAsync('BEGIN TRANSACTION;');
 
+        // Check which columns exist in current medication_doses table
+        const columns = await db.getAllAsync<{ name: string }>(
+          "PRAGMA table_info(medication_doses)"
+        );
+        const columnNames = columns.map(col => col.name);
+
+        // Determine if we have 'amount' or 'quantity' (Migration 15 renamed amount to quantity)
+        const quantityColumn = columnNames.includes('quantity') ? 'quantity' : 'amount';
+
         // Step 1: Create temporary table with original schema (without status column)
         await db.execAsync(`
           CREATE TABLE medication_doses_backup (
@@ -333,9 +342,10 @@ const migrations: Migration[] = [
         `);
 
         // Step 2: Copy data from current table (excluding status column)
+        // Map quantity back to amount if that's what we have
         await db.execAsync(`
           INSERT INTO medication_doses_backup
-          SELECT id, medication_id, timestamp, amount, episode_id,
+          SELECT id, medication_id, timestamp, ${quantityColumn} as amount, episode_id,
                  effectiveness_rating, time_to_relief, side_effects, notes, created_at
           FROM medication_doses;
         `);
@@ -940,6 +950,106 @@ const migrations: Migration[] = [
     down: async (db: SQLite.SQLiteDatabase) => {
       // Could recreate with old column name, but would lose semantic clarity
       logger.warn('Rollback of migration 14 not implemented (would require table recreation)');
+    },
+  },
+  {
+    version: 15,
+    name: 'rename_dose_amount_to_quantity',
+    up: async (db: SQLite.SQLiteDatabase) => {
+      // Rename amount to quantity in medication_doses for consistency with medication.default_quantity
+      // "quantity" is clearer: it's the number of units taken (e.g., 2 tablets)
+      // Use table recreation pattern since SQLite doesn't support RENAME COLUMN
+
+      // Get existing columns from medication_doses table
+      const columns = await db.getAllAsync<{ name: string }>(
+        "PRAGMA table_info(medication_doses)"
+      );
+      const columnNames = columns.map(col => col.name);
+
+      // Build SELECT and INSERT clauses
+      const columnsToKeep = ['id', 'medication_id', 'timestamp'];
+
+      // Handle amount -> quantity rename
+      const selectExpressions = [...columnsToKeep];
+      if (columnNames.includes('amount')) {
+        columnsToKeep.push('quantity');
+        selectExpressions.push('amount as quantity');
+      } else if (columnNames.includes('quantity')) {
+        columnsToKeep.push('quantity');
+        selectExpressions.push('quantity');
+      }
+
+      // Add remaining columns
+      const remainingColumns = [
+        'dosage_amount', 'dosage_unit', 'status', 'episode_id',
+        'effectiveness_rating', 'time_to_relief', 'side_effects', 'notes',
+        'created_at', 'updated_at'
+      ];
+      for (const col of remainingColumns) {
+        if (columnNames.includes(col)) {
+          columnsToKeep.push(col);
+          selectExpressions.push(col);
+        }
+      }
+
+      const insertClause = columnsToKeep.join(', ');
+      const selectClause = selectExpressions.join(', ');
+
+      await db.execAsync(`
+        -- Disable foreign keys temporarily to prevent cascade deletes
+        PRAGMA foreign_keys = OFF;
+
+        BEGIN TRANSACTION;
+
+        -- Create new medication_doses table with quantity
+        CREATE TABLE medication_doses_new (
+          id TEXT PRIMARY KEY,
+          medication_id TEXT NOT NULL,
+          timestamp INTEGER NOT NULL CHECK(timestamp > 0),
+          quantity REAL NOT NULL CHECK(quantity >= 0),
+          dosage_amount REAL,
+          dosage_unit TEXT,
+          status TEXT NOT NULL DEFAULT 'taken' CHECK(status IN ('taken', 'skipped')),
+          episode_id TEXT,
+          effectiveness_rating REAL CHECK(effectiveness_rating IS NULL OR (effectiveness_rating >= 0 AND effectiveness_rating <= 10)),
+          time_to_relief INTEGER CHECK(time_to_relief IS NULL OR (time_to_relief > 0 AND time_to_relief <= 1440)),
+          side_effects TEXT,
+          notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
+          created_at INTEGER NOT NULL CHECK(created_at > 0),
+          updated_at INTEGER NOT NULL CHECK(updated_at > 0),
+          FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE,
+          FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE SET NULL,
+          CHECK(status != 'taken' OR quantity > 0)
+        );
+
+        -- Copy all data, renaming amount to quantity
+        INSERT INTO medication_doses_new (${insertClause})
+        SELECT ${selectClause}
+        FROM medication_doses;
+
+        -- Drop old table
+        DROP TABLE medication_doses;
+
+        -- Rename new table to medication_doses
+        ALTER TABLE medication_doses_new RENAME TO medication_doses;
+
+        -- Recreate indexes
+        CREATE INDEX IF NOT EXISTS idx_medication_doses_medication ON medication_doses(medication_id);
+        CREATE INDEX IF NOT EXISTS idx_medication_doses_episode ON medication_doses(episode_id);
+        CREATE INDEX IF NOT EXISTS idx_medication_doses_timestamp ON medication_doses(timestamp);
+        CREATE INDEX IF NOT EXISTS idx_medication_doses_med_time ON medication_doses(medication_id, timestamp DESC);
+
+        COMMIT;
+
+        -- Re-enable foreign keys
+        PRAGMA foreign_keys = ON;
+      `);
+
+      logger.log('Migration 15: Renamed amount to quantity in medication_doses');
+    },
+    down: async (db: SQLite.SQLiteDatabase) => {
+      // Could recreate with old column name, but would lose semantic clarity
+      logger.warn('Rollback of migration 15 not implemented (would require table recreation)');
     },
   },
 ];

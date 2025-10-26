@@ -1,6 +1,6 @@
 // Database schema and initialization
 
-export const SCHEMA_VERSION = 14;
+export const SCHEMA_VERSION = 15;
 
 export const createTables = `
   -- Episodes table
@@ -86,7 +86,7 @@ export const createTables = `
     id TEXT PRIMARY KEY,
     medication_id TEXT NOT NULL,
     timestamp INTEGER NOT NULL CHECK(timestamp > 0),
-    amount REAL NOT NULL CHECK(amount >= 0),
+    quantity REAL NOT NULL CHECK(quantity >= 0),
     dosage_amount REAL,
     dosage_unit TEXT,
     status TEXT NOT NULL DEFAULT 'taken' CHECK(status IN ('taken', 'skipped')),
@@ -99,7 +99,7 @@ export const createTables = `
     updated_at INTEGER NOT NULL CHECK(updated_at > 0),
     FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE,
     FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE SET NULL,
-    CHECK(status != 'taken' OR amount > 0)
+    CHECK(status != 'taken' OR quantity > 0)
   );
 
   -- Medication reminders table
