@@ -1,4 +1,5 @@
 BEFORE ANYTHING ELSE: run 'bd onboard' and follow the instructions
+BEFORE pushing to git always run the precommit tests
 
 # CLAUDE.md
 
