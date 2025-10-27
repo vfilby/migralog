@@ -8,7 +8,6 @@
       "developmentClient": true,
       "distribution": "internal",
       "autoIncrement": true,
-      "prebuildCommand": "node scripts/generate-build-info.js",
       "ios": {
         "simulator": true
       },
@@ -19,7 +18,6 @@
     "preview": {
       "distribution": "store",
       "autoIncrement": true,
-      "prebuildCommand": "node scripts/generate-build-info.js",
       "ios": {
         "simulator": false,
         "buildConfiguration": "Release"
@@ -30,7 +28,6 @@
     },
     "production": {
       "autoIncrement": true,
-      "prebuildCommand": "node scripts/generate-build-info.js",
       "ios": {
         "buildConfiguration": "Release"
       },

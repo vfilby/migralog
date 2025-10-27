@@ -18,7 +18,8 @@
     "test:ui": "npx detox test --configuration ios.sim.debug --maxWorkers 2",
     "test:ui:build": "npm run generate-build-info && npx detox build -c ios.sim.debug",
     "sim:ios:load-db": "bash scripts/load-test-db.sh",
-    "sim:ios:app": "bash scripts/launch-simulator.sh"
+    "sim:ios:app": "bash scripts/launch-simulator.sh",
+    "eas-build-post-install": "node scripts/generate-build-info.js"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
