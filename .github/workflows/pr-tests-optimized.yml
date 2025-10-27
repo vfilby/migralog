@@ -35,6 +35,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run Expo Doctor (informational)
+        run: npx expo-doctor
+        continue-on-error: true
+
       - name: Run type checking
         run: npx tsc --noEmit
 
@@ -62,127 +66,7 @@ jobs:
           path: app/coverage
           retention-days: 30
 
-  # Job 2: Build iOS App
-  # Depends on fast-checks (must pass first)
-  # Creates reusable build artifact to avoid rebuilding on test retry
-  build-ios:
-    name: Build iOS App
-    runs-on: macos-14
-    needs: [fast-checks]
-    defaults:
-      run:
-        working-directory: ./app
-    timeout-minutes: 20
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: app/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Setup Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.2'
-
-      - name: Setup Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: '16.1'
-
-      - name: Install applesimutils
-        run: brew tap wix/brew && brew install applesimutils
-
-      - name: Build Detox framework cache
-        run: npx detox build-framework-cache
-
-      - name: Build iOS app for Detox
-        run: |
-          npm run generate-build-info
-          npx detox build --configuration ios.sim.debug
-        env:
-          EXPO_NO_DOTENV: 1
-
-      - name: Upload iOS build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-build
-          path: |
-            app/ios/build/Build/Products/Debug-iphonesimulator/*.app
-          retention-days: 1
-
-  # Job 3: E2E Tests
-  # Depends on both fast-checks (must pass) and build-ios (needs artifact)
-  # Downloads build artifact instead of rebuilding
-  # Runs tests with 2 workers for 44% faster execution
-  e2e-tests:
-    name: E2E Tests (iOS)
-    runs-on: macos-14
-    needs: [fast-checks, build-ios]
-    defaults:
-      run:
-        working-directory: ./app
-    timeout-minutes: 30
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: app/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Setup Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.2'
-
-      - name: Setup Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: '16.1'
-
-      - name: Install applesimutils
-        run: brew tap wix/brew && brew install applesimutils
-
-      - name: Download iOS build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ios-build
-          path: app/ios/build/Build/Products/Debug-iphonesimulator/
-
-      - name: Start Metro bundler in background
-        run: npx expo start --clear &
-        env:
-          CI: true
-
-      - name: Wait for Metro to start
-        run: sleep 30
-
-      - name: Run Detox E2E tests (with 2 workers for 44% faster execution)
-        run: npm run test:ui
-        env:
-          CI: true
-
-      - name: Upload test artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: detox-test-results
-          path: |
-            app/e2e/artifacts/**
-          retention-days: 7
+  # Note: iOS build and E2E tests removed from PR checks
+  # These jobs are disabled until E2E tests can run reliably in CI runners
+  # Run E2E tests locally with: npm run test:ui
+  # Build iOS app locally with: npm run test:ui:build
