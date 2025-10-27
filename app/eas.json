@@ -8,6 +8,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "autoIncrement": true,
+      "prebuildCommand": "npm run generate-build-info",
       "ios": {
         "simulator": true
       },
@@ -18,6 +19,7 @@
     "preview": {
       "distribution": "store",
       "autoIncrement": true,
+      "prebuildCommand": "npm run generate-build-info",
       "ios": {
         "simulator": false,
         "buildConfiguration": "Release"
@@ -28,6 +30,7 @@
     },
     "production": {
       "autoIncrement": true,
+      "prebuildCommand": "npm run generate-build-info",
       "ios": {
         "buildConfiguration": "Release"
       },
