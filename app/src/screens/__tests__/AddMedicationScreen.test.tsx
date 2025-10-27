@@ -99,7 +99,7 @@ describe('AddMedicationScreen', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText('e.g., Advil, Sumatriptan')).toBeTruthy();
+      expect(screen.getByPlaceholderText('Start typing (e.g., Advil, Sumatriptan)')).toBeTruthy();
     });
   });
 

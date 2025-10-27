@@ -16,10 +16,12 @@ import { RootStackParamList } from '../navigation/types';
 import { useMedicationStore } from '../store/medicationStore';
 import { MedicationType, ScheduleFrequency, MedicationSchedule } from '../models/types';
 import MedicationScheduleManager from '../components/MedicationScheduleManager';
+import MedicationAutocomplete from '../components/MedicationAutocomplete';
 import { medicationScheduleRepository } from '../database/medicationRepository';
 import { useTheme, ThemeColors } from '../theme';
 import { errorLogger } from '../services/errorLogger';
 import { notificationService } from '../services/notificationService';
+import { PresetMedication } from '../utils/presetMedications';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AddMedication'>;
 
@@ -247,6 +249,19 @@ export default function AddMedicationScreen({ navigation }: Props) {
   const [photoUri, setPhotoUri] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
 
+  const handleSelectPreset = (medication: PresetMedication) => {
+    // Auto-fill dosage and unit from preset
+    setDosageAmount(medication.dosageAmount);
+    setDosageUnit(medication.dosageUnit);
+
+    // Set type based on category
+    if (medication.category === 'preventive') {
+      setType('preventative');
+    } else {
+      setType('rescue');
+    }
+  };
+
   const pickImage = async (useCamera: boolean) => {
     const permissionResult = useCamera
       ? await ImagePicker.requestCameraPermissionsAsync()
@@ -424,13 +439,11 @@ export default function AddMedicationScreen({ navigation }: Props) {
         {/* Medication Name */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Medication Name *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g., Advil, Sumatriptan"
-            placeholderTextColor={theme.textTertiary}
+          <MedicationAutocomplete
             value={name}
             onChangeText={setName}
-            autoCapitalize="words"
+            onSelectPreset={handleSelectPreset}
+            placeholder="Start typing (e.g., Advil, Sumatriptan)"
           />
         </View>
 
