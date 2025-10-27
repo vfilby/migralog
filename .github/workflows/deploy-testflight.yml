@@ -12,7 +12,7 @@ on:
       build_profile:
         description: 'EAS build profile to use'
         required: false
-        default: 'production'
+        default: 'preview'
         type: choice
         options:
           - preview
@@ -53,10 +53,10 @@ jobs:
 
       - name: Build and Submit to TestFlight
         run: |
-          # Use the build profile from workflow_dispatch input, or default to 'production'
-          BUILD_PROFILE="${{ github.event.inputs.build_profile || 'production' }}"
+          # Use the build profile from workflow_dispatch input, or default to 'preview' for TestFlight
+          BUILD_PROFILE="${{ github.event.inputs.build_profile || 'preview' }}"
 
-          echo "Building iOS app with profile: $BUILD_PROFILE"
+          echo "Building iOS app for TestFlight with profile: $BUILD_PROFILE"
           eas build --platform ios --profile $BUILD_PROFILE --non-interactive --auto-submit
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
