@@ -91,9 +91,9 @@ Build info is regenerated:
 - Before starting dev server (`npm start`)
 - Before running iOS/Android (`npm run ios`, `npm run android`)
 - During E2E test builds (`npm run test:ui:build`)
-- During EAS builds (via `prebuildCommand` in `eas.json`)
+- During EAS builds (via `eas-build-post-install` npm hook)
 
-**Important**: The `prebuildCommand: "npm run generate-build-info"` in `eas.json` ensures the script runs during EAS builds with the actual `EAS_BUILD_NUMBER` environment variable. Without this hook, builds would show "dev" instead of the real build number.
+**Important**: The `eas-build-post-install` script in `package.json` ensures the build info is generated during EAS builds with the actual `EAS_BUILD_NUMBER` environment variable. This hook runs after `npm install` and `expo prebuild` complete, capturing the correct build number. Without this hook, builds would show "dev" instead of the real build number.
 
 ### Viewing Build Info
 
