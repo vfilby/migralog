@@ -22,6 +22,7 @@ interface MedicationState {
   medications: Medication[];
   preventativeMedications: Medication[];
   rescueMedications: Medication[];
+  otherMedications: Medication[];
   schedules: MedicationSchedule[]; // All schedules for active medications
   doses: MedicationDose[]; // Recent doses (last 7 days)
   loading: boolean;
@@ -45,6 +46,7 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
   medications: [],
   preventativeMedications: [],
   rescueMedications: [],
+  otherMedications: [],
   schedules: [],
   doses: [],
   loading: false,
@@ -56,10 +58,12 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
     if (cached) {
       const preventativeMedications = cached.filter(m => m.type === 'preventative');
       const rescueMedications = cached.filter(m => m.type === 'rescue');
+      const otherMedications = cached.filter(m => m.type === 'other');
       set({
         medications: cached,
         preventativeMedications,
         rescueMedications,
+        otherMedications,
         loading: false
       });
       return;
@@ -70,6 +74,7 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       const medications = await medicationRepository.getActive();
       const preventativeMedications = medications.filter(m => m.type === 'preventative');
       const rescueMedications = medications.filter(m => m.type === 'rescue');
+      const otherMedications = medications.filter(m => m.type === 'other');
 
       cacheManager.set('medications', medications);
 
@@ -77,6 +82,7 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
         medications,
         preventativeMedications,
         rescueMedications,
+        otherMedications,
         loading: false
       });
     } catch (error) {
@@ -101,11 +107,15 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       const rescueMedications = medication.type === 'rescue'
         ? [...get().rescueMedications, newMedication]
         : get().rescueMedications;
+      const otherMedications = medication.type === 'other'
+        ? [...get().otherMedications, newMedication]
+        : get().otherMedications;
 
       set({
         medications,
         preventativeMedications,
         rescueMedications,
+        otherMedications,
         loading: false
       });
 
@@ -149,11 +159,13 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       const medications = get().medications.filter(m => m.id !== id);
       const preventativeMedications = get().preventativeMedications.filter(m => m.id !== id);
       const rescueMedications = get().rescueMedications.filter(m => m.id !== id);
+      const otherMedications = get().otherMedications.filter(m => m.id !== id);
 
       set({
         medications,
         preventativeMedications,
         rescueMedications,
+        otherMedications,
         loading: false
       });
     } catch (error) {
@@ -306,11 +318,13 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       );
       const preventativeMedications = get().preventativeMedications.filter(m => m.id !== id);
       const rescueMedications = get().rescueMedications.filter(m => m.id !== id);
+      const otherMedications = get().otherMedications.filter(m => m.id !== id);
 
       set({
         medications,
         preventativeMedications,
-        rescueMedications
+        rescueMedications,
+        otherMedications
       });
     } catch (error) {
       set({ error: (error as Error).message });

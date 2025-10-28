@@ -101,6 +101,7 @@ export interface MedicationRow {
   photo_uri: string | null;
   active: number; // 0 or 1
   notes: string | null;
+  category: string | null; // 'otc' | 'nsaid' | 'triptan' | 'cgrp' | 'preventive' | 'supplement' | 'other'
   created_at: number;
   updated_at: number;
 }

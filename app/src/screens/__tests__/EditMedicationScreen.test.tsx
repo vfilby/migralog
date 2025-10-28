@@ -232,14 +232,23 @@ describe('EditMedicationScreen', () => {
   });
 
   describe('Schedules', () => {
-    it('should display schedule manager component', async () => {
+    it('should display schedule manager component when Scheduled is selected', async () => {
       const mockRoute = { params: { medicationId: 'med-123' } };
-      const { getByTestId } = renderWithProviders(
+      renderWithProviders(
         <EditMedicationScreen navigation={mockNavigation as any} route={mockRoute as any} />
       );
 
+      // Wait for the screen to load
       await waitFor(() => {
-        expect(getByTestId('medication-schedule-manager')).toBeTruthy();
+        expect(screen.getByText('Edit Medication')).toBeTruthy();
+      });
+
+      // Click the Scheduled button to show the schedule manager
+      fireEvent.press(screen.getByText('Scheduled'));
+
+      // Now the schedule manager should be visible
+      await waitFor(() => {
+        expect(screen.getByTestId('medication-schedule-manager')).toBeTruthy();
       });
     });
   });

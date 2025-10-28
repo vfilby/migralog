@@ -24,6 +24,7 @@ import { useTheme } from '../theme';
 import { useMedicationStore } from '../store/medicationStore';
 import { useEpisodeStore } from '../store/episodeStore';
 import { formatDosageWithUnit, formatDoseWithSnapshot } from '../utils/medicationFormatting';
+import { getCategoryName } from '../utils/presetMedications';
 import NotificationSettings from '../components/NotificationSettings';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -70,11 +71,9 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
 
       setMedication(med);
 
-      // Load schedules for preventative medications
-      if (med.type === 'preventative') {
-        const scheds = await medicationScheduleRepository.getByMedicationId(medicationId);
-        setSchedules(scheds);
-      }
+      // Load schedules for all medication types (schedules are optional for any type)
+      const scheds = await medicationScheduleRepository.getByMedicationId(medicationId);
+      setSchedules(scheds);
 
       // Load last 30 days of doses
       const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
@@ -265,7 +264,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
     return null;
   }
 
-  const last7Days = medication.type === 'preventative' && medication.scheduleFrequency === 'daily'
+  const last7Days = medication.scheduleFrequency === 'daily'
     ? getLast7DaysTimeline()
     : [];
 
@@ -289,16 +288,35 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
         <View style={[styles.section, { backgroundColor: theme.card }]}>
           <View style={styles.medicationHeader}>
             <Text style={[styles.medicationName, { color: theme.text }]}>{medication.name}</Text>
-            <View style={[styles.typeBadge, {
-              backgroundColor: medication.type === 'preventative'
-                ? theme.success + '20'
-                : theme.primary + '20'
-            }]}>
-              <Text style={[styles.typeBadgeText, {
-                color: medication.type === 'preventative' ? theme.success : theme.primary
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <View style={[styles.typeBadge, {
+                backgroundColor: medication.type === 'preventative'
+                  ? theme.success + '20'
+                  : medication.type === 'rescue'
+                  ? theme.primary + '20'
+                  : theme.textSecondary + '20'
               }]}>
-                {medication.type === 'preventative' ? 'Preventative' : 'Rescue'}
-              </Text>
+                <Text style={[styles.typeBadgeText, {
+                  color: medication.type === 'preventative'
+                    ? theme.success
+                    : medication.type === 'rescue'
+                    ? theme.primary
+                    : theme.textSecondary
+                }]}>
+                  {medication.type === 'preventative' ? 'Preventative' : medication.type === 'rescue' ? 'Rescue' : 'Other'}
+                </Text>
+              </View>
+              {medication.category && (
+                <View style={[styles.typeBadge, {
+                  backgroundColor: theme.textSecondary + '20'
+                }]}>
+                  <Text style={[styles.typeBadgeText, {
+                    color: theme.textSecondary
+                  }]}>
+                    {getCategoryName(medication.category)}
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
 
@@ -341,8 +359,8 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
           </View>
         </View>
 
-        {/* Schedules (Preventative only) */}
-        {medication.type === 'preventative' && schedules.length > 0 && (
+        {/* Schedules (any type can have schedules) */}
+        {schedules.length > 0 && (
           <View style={[styles.section, { backgroundColor: theme.card }]}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Schedule</Text>
             {schedules.map((schedule, index) => (
@@ -382,8 +400,8 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
           </View>
         )}
 
-        {/* Notification Settings - Only for preventative medications with schedules */}
-        {medication.type === 'preventative' && schedules.length > 0 && (
+        {/* Notification Settings - For any medication with schedules */}
+        {schedules.length > 0 && (
           <View style={[styles.notificationSection, { backgroundColor: theme.card }]}>
             <TouchableOpacity
               style={styles.collapsibleHeader}

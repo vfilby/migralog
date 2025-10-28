@@ -1,5 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 import { logger } from '../utils/logger';
+import { getMedicationByName, formatIngredientsAsNotes } from '../utils/presetMedications';
 
 const SCHEMA_VERSION_TABLE = `
   CREATE TABLE IF NOT EXISTS schema_version (
@@ -1050,6 +1051,183 @@ const migrations: Migration[] = [
     down: async (_db: SQLite.SQLiteDatabase) => {
       // Could recreate with old column name, but would lose semantic clarity
       logger.warn('Rollback of migration 15 not implemented (would require table recreation)');
+    },
+  },
+  {
+    version: 16,
+    name: 'add_category_to_medications',
+    up: async (db: SQLite.SQLiteDatabase) => {
+      // Add category column to medications table and populate from preset medications
+      // Category helps track medication overuse (e.g., NSAIDs) and filter medications
+
+      // Check if column already exists before adding it
+      const tableInfo = await db.getAllAsync<{ name: string }>(
+        "PRAGMA table_info(medications)"
+      );
+      const columnNames = tableInfo.map(col => col.name);
+
+      // Add category column if it doesn't exist
+      if (!columnNames.includes('category')) {
+        await db.execAsync('ALTER TABLE medications ADD COLUMN category TEXT CHECK(category IS NULL OR category IN (\'otc\', \'nsaid\', \'triptan\', \'cgrp\', \'preventive\', \'supplement\', \'other\'));');
+        logger.log('Added category column to medications table');
+      }
+
+      // Import preset medications to match against
+      const { getMedicationByName } = await import('../utils/presetMedications');
+
+      // Get all medications
+      const medications = await db.getAllAsync<{ id: string; name: string }>(
+        'SELECT id, name FROM medications'
+      );
+
+      // Match and update categories for existing medications
+      let matchedCount = 0;
+      for (const medication of medications) {
+        const preset = getMedicationByName(medication.name);
+        if (preset) {
+          await db.runAsync(
+            'UPDATE medications SET category = ? WHERE id = ?',
+            [preset.category, medication.id]
+          );
+          matchedCount++;
+        }
+      }
+
+      logger.log(`Migration 16: Added category column and matched ${matchedCount}/${medications.length} medications`);
+    },
+    down: async (_db: SQLite.SQLiteDatabase) => {
+      // SQLite doesn't support DROP COLUMN easily, would need table recreation
+      logger.warn('Rollback of migration 16 not implemented (would require table recreation)');
+    },
+  },
+  {
+    version: 17,
+    name: 'add_other_medication_type',
+    up: async (db: SQLite.SQLiteDatabase) => {
+      // Add 'other' to medication type constraint
+      // SQLite doesn't support modifying CHECK constraints, so recreate table
+
+      // Get existing columns to build the new table
+      const columns = await db.getAllAsync<{ name: string }>(
+        "PRAGMA table_info(medications)"
+      );
+      const columnNames = columns.map(col => col.name);
+
+      // Build column list for copying data
+      const columnsToKeep = [
+        'id', 'name', 'type', 'dosage_amount', 'dosage_unit',
+        'default_quantity', 'schedule_frequency', 'photo_uri',
+        'active', 'notes', 'created_at', 'updated_at'
+      ];
+
+      // Add category if it exists (from migration 16)
+      if (columnNames.includes('category')) {
+        columnsToKeep.push('category');
+      }
+
+      const insertClause = columnsToKeep.join(', ');
+      const selectClause = columnsToKeep.join(', ');
+
+      await db.execAsync(`
+        -- Disable foreign keys temporarily
+        PRAGMA foreign_keys = OFF;
+
+        BEGIN TRANSACTION;
+
+        -- Create new medications table with updated CHECK constraint
+        CREATE TABLE medications_new (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL CHECK(length(name) > 0 AND length(name) <= 200),
+          type TEXT NOT NULL CHECK(type IN ('preventative', 'rescue', 'other')),
+          dosage_amount REAL NOT NULL CHECK(dosage_amount > 0),
+          dosage_unit TEXT NOT NULL CHECK(length(dosage_unit) > 0 AND length(dosage_unit) <= 50),
+          default_quantity REAL CHECK(default_quantity IS NULL OR default_quantity > 0),
+          schedule_frequency TEXT CHECK(schedule_frequency IS NULL OR schedule_frequency IN ('daily', 'monthly', 'quarterly')),
+          photo_uri TEXT CHECK(photo_uri IS NULL OR length(photo_uri) <= 500),
+          active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0, 1)),
+          notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
+          category TEXT CHECK(category IS NULL OR category IN ('otc', 'nsaid', 'triptan', 'cgrp', 'preventive', 'supplement', 'other')),
+          created_at INTEGER NOT NULL CHECK(created_at > 0),
+          updated_at INTEGER NOT NULL CHECK(updated_at > 0)
+        );
+
+        -- Copy all data
+        INSERT INTO medications_new (${insertClause})
+        SELECT ${selectClause}
+        FROM medications;
+
+        -- Drop old table
+        DROP TABLE medications;
+
+        -- Rename new table
+        ALTER TABLE medications_new RENAME TO medications;
+
+        -- Recreate index
+        CREATE INDEX IF NOT EXISTS idx_medications_active_type ON medications(active, type) WHERE active = 1;
+
+        COMMIT;
+
+        -- Re-enable foreign keys
+        PRAGMA foreign_keys = ON;
+      `);
+
+      logger.log('Migration 17: Added "other" medication type');
+    },
+    down: async (_db: SQLite.SQLiteDatabase) => {
+      logger.warn('Rollback of migration 17 not implemented');
+    },
+  },
+  {
+    version: 18,
+    name: 'append_ingredients_to_combo_medications',
+    up: async (db: SQLite.SQLiteDatabase) => {
+      // Append ingredients to notes for existing combo medications
+      // List of combo medication names that have ingredients
+      const comboMedicationNames = [
+        'Excedrin Migraine',
+        'Beam',
+        'Cove',
+        'Cove Beam',
+        'MigreLief',
+        'Migraine MD',
+        'Dolovent',
+        'Migravent',
+      ];
+
+      for (const medName of comboMedicationNames) {
+        const preset = getMedicationByName(medName);
+        if (!preset || !preset.ingredients) {
+          continue;
+        }
+
+        const ingredientsText = formatIngredientsAsNotes(preset);
+        if (!ingredientsText) {
+          continue;
+        }
+
+        // Get existing medications with this name
+        const rows = await db.getAllAsync<{ id: string; name: string; notes: string | null }>(
+          'SELECT id, name, notes FROM medications WHERE name = ?',
+          [medName]
+        );
+
+        for (const row of rows) {
+          // Append ingredients to existing notes if any, or set as notes
+          const updatedNotes = row.notes
+            ? `${row.notes}\n\n${ingredientsText}`
+            : ingredientsText;
+
+          await db.runAsync(
+            'UPDATE medications SET notes = ?, updated_at = ? WHERE id = ?',
+            [updatedNotes, Date.now(), row.id]
+          );
+        }
+      }
+
+      logger.log('Migration 18: Appended ingredients to combo medication notes');
+    },
+    down: async (_db: SQLite.SQLiteDatabase) => {
+      logger.warn('Rollback of migration 18 not implemented');
     },
   },
 ];

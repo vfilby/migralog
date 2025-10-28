@@ -73,11 +73,13 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   },
   typeContainer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
   },
   typeButton: {
-    flex: 1,
-    padding: 16,
+    minWidth: '30%',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderRadius: 12,
     backgroundColor: theme.card,
     borderWidth: 2,
@@ -247,6 +249,7 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
   const [dosageAmount, setDosageAmount] = useState('');
   const [dosageUnit, setDosageUnit] = useState('mg');
   const [defaultQuantity, setDefaultDosage] = useState('1');
+  const [schedulingMode, setSchedulingMode] = useState<'as-needed' | 'scheduled'>('as-needed');
   const [scheduleFrequency, setScheduleFrequency] = useState<ScheduleFrequency>('daily');
   const [schedules, setSchedules] = useState<Omit<MedicationSchedule, 'id' | 'medicationId'>[]>([]);
   const [existingScheduleIds, setExistingScheduleIds] = useState<string[]>([]);
@@ -276,6 +279,9 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
           dosage: s.dosage,
           enabled: s.enabled,
         })));
+
+        // Set scheduling mode based on whether schedules exist
+        setSchedulingMode(existingSchedules.length > 0 ? 'scheduled' : 'as-needed');
       }
     } catch (error) {
       logger.error('Failed to load medication:', error);
@@ -348,13 +354,13 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
         dosageAmount: parseFloat(dosageAmount),
         dosageUnit,
         defaultQuantity: defaultQuantity ? parseFloat(defaultQuantity) : undefined,
-        scheduleFrequency: type === 'preventative' ? scheduleFrequency : undefined,
+        scheduleFrequency: schedules.length > 0 ? scheduleFrequency : undefined,
         photoUri,
         notes: notes.trim() || undefined,
       });
 
-      // Update schedules if preventative medication
-      if (type === 'preventative') {
+      // Update schedules for any medication type with schedules
+      if (schedules.length > 0) {
         // Delete all existing schedules
         await Promise.all(
           existingScheduleIds.map(id => medicationScheduleRepository.delete(id))
@@ -457,6 +463,22 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
                 Preventative
               </Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.typeButton,
+                type === 'other' && styles.typeButtonActive,
+              ]}
+              onPress={() => setType('other')}
+            >
+              <Text
+                style={[
+                  styles.typeButtonText,
+                  type === 'other' && styles.typeButtonTextActive,
+                ]}
+              >
+                Other
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -551,8 +573,50 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
           </Text>
         </View>
 
-        {/* Schedule Frequency (for preventative) */}
-        {type === 'preventative' && (
+        {/* Scheduling Mode */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Scheduling</Text>
+          <View style={styles.typeContainer}>
+            <TouchableOpacity
+              style={[
+                styles.typeButton,
+                schedulingMode === 'as-needed' && styles.typeButtonActive,
+              ]}
+              onPress={() => {
+                setSchedulingMode('as-needed');
+                setSchedules([]);  // Clear schedules when switching to as-needed
+              }}
+            >
+              <Text
+                style={[
+                  styles.typeButtonText,
+                  schedulingMode === 'as-needed' && styles.typeButtonTextActive,
+                ]}
+              >
+                As Needed
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.typeButton,
+                schedulingMode === 'scheduled' && styles.typeButtonActive,
+              ]}
+              onPress={() => setSchedulingMode('scheduled')}
+            >
+              <Text
+                style={[
+                  styles.typeButtonText,
+                  schedulingMode === 'scheduled' && styles.typeButtonTextActive,
+                ]}
+              >
+                Scheduled
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Schedule Frequency (only when scheduled mode is selected) */}
+        {schedulingMode === 'scheduled' && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Schedule Frequency</Text>
             <View style={styles.frequencyContainer}>
@@ -608,8 +672,8 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
           </View>
         )}
 
-        {/* Schedule Manager (for preventative) */}
-        {type === 'preventative' && (
+        {/* Schedule Manager (only when scheduled mode is selected) */}
+        {schedulingMode === 'scheduled' && (
           <View style={styles.section}>
             <MedicationScheduleManager
               scheduleFrequency={scheduleFrequency}

@@ -208,21 +208,21 @@ export const PRESET_MEDICATIONS: PresetMedication[] = [
     genericName: 'Topiramate',
     dosageAmount: '50',
     dosageUnit: 'mg',
-    category: 'preventive',
+    category: 'other',
     commonDoses: ['25', '50', '100', '200'],
   },
   {
     name: 'Propranolol',
     dosageAmount: '40',
     dosageUnit: 'mg',
-    category: 'preventive',
+    category: 'other',
     commonDoses: ['20', '40', '80'],
   },
   {
     name: 'Amitriptyline',
     dosageAmount: '25',
     dosageUnit: 'mg',
-    category: 'preventive',
+    category: 'other',
     commonDoses: ['10', '25', '50', '75'],
   },
   {
@@ -230,7 +230,7 @@ export const PRESET_MEDICATIONS: PresetMedication[] = [
     genericName: 'Valproic Acid',
     dosageAmount: '500',
     dosageUnit: 'mg',
-    category: 'preventive',
+    category: 'other',
     commonDoses: ['250', '500', '1000'],
   },
   {
@@ -238,20 +238,20 @@ export const PRESET_MEDICATIONS: PresetMedication[] = [
     genericName: 'OnabotulinumtoxinA',
     dosageAmount: '155',
     dosageUnit: 'units',
-    category: 'preventive',
+    category: 'other',
   },
   {
     name: 'Verapamil',
     dosageAmount: '80',
     dosageUnit: 'mg',
-    category: 'preventive',
+    category: 'other',
     commonDoses: ['80', '120', '240'],
   },
   {
     name: 'Memantine',
     dosageAmount: '10',
     dosageUnit: 'mg',
-    category: 'preventive',
+    category: 'other',
     commonDoses: ['5', '10', '20'],
   },
   {
@@ -259,7 +259,7 @@ export const PRESET_MEDICATIONS: PresetMedication[] = [
     genericName: 'Cymbalta',
     dosageAmount: '60',
     dosageUnit: 'mg',
-    category: 'preventive',
+    category: 'other',
     commonDoses: ['30', '60', '90', '120'],
   },
 
@@ -446,4 +446,17 @@ export function getCategoryName(category: PresetMedication['category']): string 
     other: 'Other',
   };
   return names[category];
+}
+
+// Format ingredients as notes text
+export function formatIngredientsAsNotes(medication: PresetMedication): string | undefined {
+  if (!medication.ingredients || medication.ingredients.length === 0) {
+    return undefined;
+  }
+
+  const ingredientsList = medication.ingredients
+    .map(ing => `${ing.name}: ${ing.amount}${ing.unit}`)
+    .join('\n');
+
+  return `Ingredients:\n${ingredientsList}`;
 }

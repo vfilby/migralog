@@ -60,7 +60,7 @@ describe('presetMedications', () => {
     });
 
     it('should include preventive medications', () => {
-      const preventive = PRESET_MEDICATIONS.filter((med) => med.category === 'preventive');
+      const preventive = PRESET_MEDICATIONS.filter((med) => med.category === 'other');
       const names = preventive.map((med) => med.name);
 
       expect(names).toContain('Topamax');
