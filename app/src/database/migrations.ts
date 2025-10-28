@@ -1212,6 +1212,11 @@ const migrations: Migration[] = [
         );
 
         for (const row of rows) {
+          // Skip if notes already contain ingredients to prevent duplicates
+          if (row.notes && row.notes.includes('Ingredients:')) {
+            continue;
+          }
+
           // Append ingredients to existing notes if any, or set as notes
           const updatedNotes = row.notes
             ? `${row.notes}\n\n${ingredientsText}`
