@@ -399,11 +399,9 @@ export const PRESET_MEDICATIONS: PresetMedication[] = [
     dosageUnit: 'softgels',
     category: 'supplement',
     ingredients: [
-      { name: 'Magnesium (Oxide & Citrate)', amount: '57', unit: 'mg' },
       { name: 'Riboflavin (Vitamin B2)', amount: '133', unit: 'mg' },
-      { name: 'Butterbur (PA-free)', amount: '50', unit: 'mg' },
-      { name: 'CoQ10', amount: '50', unit: 'mg' },
-      { name: 'BioPerine', amount: '5', unit: 'mg' },
+      { name: 'Magnesium (Oxide & Citrate)', amount: '57', unit: 'mg' },
+      { name: 'Proprietary Blend (Butterbur Extract, CoQ10, BioPerine)', amount: '101', unit: 'mg' },
     ],
   },
 ];
