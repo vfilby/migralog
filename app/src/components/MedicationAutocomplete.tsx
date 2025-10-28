@@ -4,7 +4,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  FlatList,
+  ScrollView,
   StyleSheet,
   Keyboard,
 } from 'react-native';
@@ -182,13 +182,12 @@ export default function MedicationAutocomplete({
       {showSuggestions && value.trim().length > 0 && (
         <View style={styles.suggestionsContainer}>
           {hasMatches ? (
-            <FlatList
-              data={suggestions}
-              keyExtractor={(item, index) => `${item.name}-${index}`}
-              renderItem={renderSuggestion}
+            <ScrollView
               keyboardShouldPersistTaps="handled"
-              nestedScrollEnabled
-            />
+              nestedScrollEnabled={false}
+            >
+              {suggestions.map((item, index) => renderSuggestion({ item, index }))}
+            </ScrollView>
           ) : (
             <View style={styles.emptyState}>
               <Text style={styles.emptyText}>
