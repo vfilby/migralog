@@ -400,7 +400,7 @@ export const PRESET_MEDICATIONS: PresetMedication[] = [
     category: 'supplement',
     ingredients: [
       { name: 'Riboflavin (Vitamin B2)', amount: '133', unit: 'mg' },
-      { name: 'Magnesium (Oxide & Citrate)', amount: '57', unit: 'mg' },
+      { name: 'Magnesium (Citrate & Oxide)', amount: '109', unit: 'mg' },
       { name: 'Proprietary Blend (Butterbur Extract, CoQ10, BioPerine)', amount: '101', unit: 'mg' },
     ],
   },
