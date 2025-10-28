@@ -10,6 +10,7 @@ export interface IngredientInfo {
 export interface PresetMedication {
   name: string;
   genericName?: string;
+  alternateNames?: string[]; // Alternative brand names or aliases
   dosageAmount: string;
   dosageUnit: string;
   category: 'otc' | 'nsaid' | 'triptan' | 'cgrp' | 'preventive' | 'supplement' | 'other';
@@ -346,6 +347,7 @@ export const PRESET_MEDICATIONS: PresetMedication[] = [
   // Supplements - Combination Formulas
   {
     name: 'Beam',
+    alternateNames: ['Cove', 'Cove Beam'],
     dosageAmount: '1',
     dosageUnit: 'dose',
     category: 'supplement',
@@ -353,6 +355,7 @@ export const PRESET_MEDICATIONS: PresetMedication[] = [
       { name: 'Magnesium (Bisglycinate Chelate)', amount: '400', unit: 'mg' },
       { name: 'Riboflavin (Vitamin B2)', amount: '400', unit: 'mg' },
       { name: 'CoQ10', amount: '150', unit: 'mg' },
+      { name: 'Iron', amount: '2.4', unit: 'mg' },
     ],
   },
   {
@@ -403,17 +406,6 @@ export const PRESET_MEDICATIONS: PresetMedication[] = [
       { name: 'BioPerine', amount: '5', unit: 'mg' },
     ],
   },
-  {
-    name: 'Cove',
-    dosageAmount: '1',
-    dosageUnit: 'dose',
-    category: 'supplement',
-    ingredients: [
-      { name: 'Magnesium (Bisglycinate Chelate)', amount: '400', unit: 'mg' },
-      { name: 'Riboflavin (Vitamin B2)', amount: '400', unit: 'mg' },
-      { name: 'CoQ10', amount: '150', unit: 'mg' },
-    ],
-  },
 ];
 
 // Helper function to search medications
@@ -425,7 +417,8 @@ export function searchMedications(query: string): PresetMedication[] {
   const lowerQuery = query.toLowerCase();
   return PRESET_MEDICATIONS.filter(med =>
     med.name.toLowerCase().includes(lowerQuery) ||
-    (med.genericName && med.genericName.toLowerCase().includes(lowerQuery))
+    (med.genericName && med.genericName.toLowerCase().includes(lowerQuery)) ||
+    (med.alternateNames && med.alternateNames.some(alt => alt.toLowerCase().includes(lowerQuery)))
   );
 }
 
@@ -433,7 +426,8 @@ export function searchMedications(query: string): PresetMedication[] {
 export function getMedicationByName(name: string): PresetMedication | undefined {
   return PRESET_MEDICATIONS.find(med =>
     med.name.toLowerCase() === name.toLowerCase() ||
-    (med.genericName && med.genericName.toLowerCase() === name.toLowerCase())
+    (med.genericName && med.genericName.toLowerCase() === name.toLowerCase()) ||
+    (med.alternateNames && med.alternateNames.some(alt => alt.toLowerCase() === name.toLowerCase()))
   );
 }
 

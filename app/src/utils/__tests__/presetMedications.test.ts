@@ -146,6 +146,18 @@ describe('presetMedications', () => {
       expect(results.length).toBeGreaterThan(0);
       expect(results[0].category).toBe('cgrp');
     });
+
+    it('should search by alternate name', () => {
+      const results = searchMedications('Cove');
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].name).toBe('Beam');
+    });
+
+    it('should search by partial alternate name', () => {
+      const results = searchMedications('Cov');
+      expect(results.length).toBeGreaterThan(0);
+      expect(results.some((med) => med.name === 'Beam')).toBe(true);
+    });
   });
 
   describe('getMedicationByName', () => {
@@ -187,6 +199,18 @@ describe('presetMedications', () => {
       const result = getMedicationByName('Excedrin Migraine');
       expect(result).toBeDefined();
       expect(result?.name).toBe('Excedrin Migraine');
+    });
+
+    it('should find medication by exact alternate name', () => {
+      const result = getMedicationByName('Cove');
+      expect(result).toBeDefined();
+      expect(result?.name).toBe('Beam');
+    });
+
+    it('should find medication by alternate name case-insensitively', () => {
+      const result = getMedicationByName('cove beam');
+      expect(result).toBeDefined();
+      expect(result?.name).toBe('Beam');
     });
   });
 
