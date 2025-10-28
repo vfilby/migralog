@@ -43,8 +43,9 @@ export type Trigger =
   | 'hormonal'
   | 'exercise';
 
-export type MedicationType = 'preventative' | 'rescue';
+export type MedicationType = 'preventative' | 'rescue' | 'other';
 export type ScheduleFrequency = 'daily' | 'monthly' | 'quarterly';
+export type MedicationCategory = 'otc' | 'nsaid' | 'triptan' | 'cgrp' | 'preventive' | 'supplement' | 'other';
 
 export interface EpisodeLocation {
   latitude: number;
@@ -115,6 +116,7 @@ export interface Medication {
   schedule?: MedicationSchedule[];
   active: boolean;
   notes?: string;
+  category?: MedicationCategory; // Medication category for tracking and filtering
   createdAt: number;
   updatedAt: number;
 }

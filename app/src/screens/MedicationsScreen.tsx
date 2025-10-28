@@ -12,6 +12,7 @@ import { Medication, MedicationSchedule } from '../models/types';
 import { useTheme, ThemeColors } from '../theme';
 import { format, isToday } from 'date-fns';
 import { formatMedicationDosage } from '../utils/medicationFormatting';
+import { getCategoryName } from '../utils/presetMedications';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -106,6 +107,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   notes: {
     marginTop: 8,
     fontSize: 14,
+    lineHeight: 20,
     color: theme.textSecondary,
     fontStyle: 'italic',
   },
@@ -249,7 +251,7 @@ export default function MedicationsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const { preventativeMedications, rescueMedications, loadMedications, logDose, deleteDose } = useMedicationStore();
+  const { preventativeMedications, rescueMedications, otherMedications, loadMedications, logDose, deleteDose } = useMedicationStore();
   const { currentEpisode, loadCurrentEpisode } = useEpisodeStore();
   const [medicationSchedules, setMedicationSchedules] = useState<Record<string, MedicationSchedule[]>>({});
   const [scheduleLogStates, setScheduleLogStates] = useState<Record<string, ScheduleLogState>>({});
@@ -470,8 +472,17 @@ export default function MedicationsScreen() {
               >
                 <View style={styles.medicationHeader}>
                   <Text style={styles.medicationName}>{med.name}</Text>
-                  <View style={[styles.typeBadge, { backgroundColor: theme.success + '20' }]}>
-                    <Text style={[styles.typeBadgeText, { color: theme.success }]}>Preventative</Text>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <View style={[styles.typeBadge, { backgroundColor: theme.success + '20' }]}>
+                      <Text style={[styles.typeBadgeText, { color: theme.success }]}>Preventative</Text>
+                    </View>
+                    {med.category && (
+                      <View style={[styles.typeBadge, { backgroundColor: theme.textSecondary + '20' }]}>
+                        <Text style={[styles.typeBadgeText, { color: theme.textSecondary }]}>
+                          {getCategoryName(med.category)}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </View>
                 <View style={styles.medicationDetails}>
@@ -486,7 +497,9 @@ export default function MedicationsScreen() {
                   )}
                 </View>
                 {med.notes && (
-                  <Text style={styles.notes} numberOfLines={2}>{med.notes}</Text>
+                  <View style={{ width: '100%' }}>
+                    <Text style={styles.notes} numberOfLines={2} ellipsizeMode="tail">{med.notes}</Text>
+                  </View>
                 )}
                 {med.scheduleFrequency === 'daily' && medicationSchedules[med.id]?.length > 0 && (
                   <View>
@@ -589,8 +602,17 @@ export default function MedicationsScreen() {
               >
                 <View style={styles.medicationHeader}>
                   <Text style={styles.medicationName}>{med.name}</Text>
-                  <View style={[styles.typeBadge, { backgroundColor: theme.primary + '20' }]}>
-                    <Text style={[styles.typeBadgeText, { color: theme.primary }]}>Rescue</Text>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <View style={[styles.typeBadge, { backgroundColor: theme.primary + '20' }]}>
+                      <Text style={[styles.typeBadgeText, { color: theme.primary }]}>Rescue</Text>
+                    </View>
+                    {med.category && (
+                      <View style={[styles.typeBadge, { backgroundColor: theme.textSecondary + '20' }]}>
+                        <Text style={[styles.typeBadgeText, { color: theme.textSecondary }]}>
+                          {getCategoryName(med.category)}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </View>
                 <View style={styles.medicationDetails}>
@@ -599,7 +621,9 @@ export default function MedicationsScreen() {
                   </Text>
                 </View>
                 {med.notes && (
-                  <Text style={styles.notes} numberOfLines={2}>{med.notes}</Text>
+                  <View style={{ width: '100%' }}>
+                    <Text style={styles.notes} numberOfLines={2} ellipsizeMode="tail">{med.notes}</Text>
+                  </View>
                 )}
                 <View style={styles.medicationActions}>
                   <TouchableOpacity
@@ -626,6 +650,49 @@ export default function MedicationsScreen() {
           )}
         </View>
 
+        {/* Other Medications Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Other</Text>
+          {otherMedications.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyText}>No other medications</Text>
+            </View>
+          ) : (
+            otherMedications.map((med) => (
+              <TouchableOpacity
+                key={med.id}
+                style={styles.medicationCard}
+                onPress={() => navigation.navigate('MedicationDetail', { medicationId: med.id })}
+              >
+                <View style={styles.medicationHeader}>
+                  <Text style={styles.medicationName}>{med.name}</Text>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <View style={[styles.typeBadge, { backgroundColor: theme.textSecondary + '20' }]}>
+                      <Text style={[styles.typeBadgeText, { color: theme.textSecondary }]}>Other</Text>
+                    </View>
+                    {med.category && (
+                      <View style={[styles.typeBadge, { backgroundColor: theme.textSecondary + '20' }]}>
+                        <Text style={[styles.typeBadgeText, { color: theme.textSecondary }]}>
+                          {getCategoryName(med.category)}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+                <View style={styles.medicationDetails}>
+                  <Text style={styles.dosageText}>
+                    {formatMedicationDosage(med.defaultQuantity || 1, med.dosageAmount, med.dosageUnit)}
+                  </Text>
+                </View>
+                {med.notes && (
+                  <View style={{ width: '100%' }}>
+                    <Text style={styles.notes} numberOfLines={2} ellipsizeMode="tail">{med.notes}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))
+          )}
+        </View>
 
         <TouchableOpacity
           style={styles.addButton}

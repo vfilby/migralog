@@ -39,8 +39,8 @@ export const medicationRepository = {
     await database.runAsync(
       `INSERT INTO medications (
         id, name, type, dosage_amount, dosage_unit, default_quantity, schedule_frequency,
-        photo_uri, active, notes, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        photo_uri, active, notes, category, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         newMedication.id,
         newMedication.name,
@@ -52,6 +52,7 @@ export const medicationRepository = {
         newMedication.photoUri || null,
         newMedication.active ? 1 : 0,
         newMedication.notes || null,
+        newMedication.category || null,
         newMedication.createdAt,
         newMedication.updatedAt,
       ]
@@ -102,6 +103,10 @@ export const medicationRepository = {
     if (updates.notes !== undefined) {
       fields.push('notes = ?');
       values.push(updates.notes);
+    }
+    if (updates.category !== undefined) {
+      fields.push('category = ?');
+      values.push(updates.category);
     }
 
     fields.push('updated_at = ?');
@@ -186,6 +191,7 @@ export const medicationRepository = {
       schedule: [], // Will be loaded separately
       active: row.active === 1,
       notes: row.notes || undefined,
+      category: (row.category as import('../models/types').MedicationCategory) || undefined, // Type assertion for union type
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

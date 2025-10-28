@@ -13,7 +13,7 @@ import { TimestampSchema, NotesSchema } from './common.schema';
  */
 
 // Medication type enum
-export const MedicationTypeSchema = z.enum(['preventative', 'rescue']);
+export const MedicationTypeSchema = z.enum(['preventative', 'rescue', 'other']);
 
 // Schedule frequency enum
 export const ScheduleFrequencySchema = z.enum(['daily', 'monthly', 'quarterly']);
@@ -63,19 +63,7 @@ export const MedicationSchema = z.object({
   notes: NotesSchema,
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema,
-}).refine(
-  (data) => {
-    // Preventative medications should have a schedule frequency
-    if (data.type === 'preventative' && !data.scheduleFrequency) {
-      return false;
-    }
-    return true;
-  },
-  {
-    message: 'Preventative medications must have a schedule frequency',
-    path: ['scheduleFrequency'],
-  }
-);
+});
 
 // Medication schedule schema
 export const MedicationScheduleSchema = z.object({

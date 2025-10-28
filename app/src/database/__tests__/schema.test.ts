@@ -31,8 +31,8 @@ describe('Database Schema', () => {
     tables = parseTableDefinitions(createTables);
   });
   describe('Schema Version', () => {
-    it('should be at version 10', () => {
-      expect(SCHEMA_VERSION).toBe(15);
+    it('should be at version 18', () => {
+      expect(SCHEMA_VERSION).toBe(18);
     });
   });
 
@@ -141,9 +141,9 @@ describe('Database Schema', () => {
         expect(table).toContain('CHECK(length(name) > 0 AND length(name) <= 200)');
       });
 
-      it('should enforce type IN (preventative, rescue)', () => {
+      it('should enforce type IN (preventative, rescue, other)', () => {
         const table = tables.get('medications');
-        expect(table).toContain("CHECK(type IN ('preventative', 'rescue'))");
+        expect(table).toContain("CHECK(type IN ('preventative', 'rescue', 'other'))");
       });
 
       it('should enforce dosage_amount > 0', () => {

@@ -359,6 +359,7 @@ describe('medicationRepository', () => {
         photo_uri: 'file://test.jpg',
         active: 1,
         notes: 'Test notes',
+        category: null,
         created_at: 900,
         updated_at: 1100,
       };
@@ -392,6 +393,7 @@ describe('medicationRepository', () => {
         photo_uri: null,
         active: 0,
         notes: null,
+        category: null,
         created_at: Date.now(),
         updated_at: Date.now(),
       };
@@ -570,8 +572,8 @@ describe('medicationDoseRepository', () => {
 
   describe('Validation Error Handling', () => {
     describe('medicationRepository.create validation', () => {
-      it('should throw error for preventative medication without schedule frequency', async () => {
-        const invalidMed: any = {
+      it('should allow preventative medication without schedule frequency', async () => {
+        const validMed: any = {
           name: 'Test Med',
           type: 'preventative',
           dosageAmount: 50,
@@ -579,7 +581,9 @@ describe('medicationDoseRepository', () => {
           active: true,
         };
 
-        await expect(medicationRepository.create(invalidMed)).rejects.toThrow('Preventative medications must have a schedule frequency');
+        const result = await medicationRepository.create(validMed);
+        expect(result).toBeDefined();
+        expect(result.type).toBe('preventative');
       });
 
       it('should throw error for negative dosage amount', async () => {

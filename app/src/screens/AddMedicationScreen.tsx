@@ -14,12 +14,14 @@ import * as ImagePicker from 'expo-image-picker';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { useMedicationStore } from '../store/medicationStore';
-import { MedicationType, ScheduleFrequency, MedicationSchedule } from '../models/types';
+import { MedicationType, ScheduleFrequency, MedicationSchedule, MedicationCategory } from '../models/types';
 import MedicationScheduleManager from '../components/MedicationScheduleManager';
+import MedicationAutocomplete from '../components/MedicationAutocomplete';
 import { medicationScheduleRepository } from '../database/medicationRepository';
 import { useTheme, ThemeColors } from '../theme';
 import { errorLogger } from '../services/errorLogger';
 import { notificationService } from '../services/notificationService';
+import { PresetMedication, formatIngredientsAsNotes } from '../utils/presetMedications';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AddMedication'>;
 
@@ -68,11 +70,13 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   },
   typeContainer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
   },
   typeButton: {
-    flex: 1,
-    padding: 16,
+    minWidth: '30%',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderRadius: 12,
     backgroundColor: theme.card,
     borderWidth: 2,
@@ -241,11 +245,35 @@ export default function AddMedicationScreen({ navigation }: Props) {
   const [dosageAmount, setDosageAmount] = useState('');
   const [dosageUnit, setDosageUnit] = useState('mg');
   const [defaultQuantity, setDefaultDosage] = useState('1');
+  const [schedulingMode, setSchedulingMode] = useState<'as-needed' | 'scheduled'>('as-needed');
   const [scheduleFrequency, setScheduleFrequency] = useState<ScheduleFrequency>('daily');
   const [schedules, setSchedules] = useState<Omit<MedicationSchedule, 'id' | 'medicationId'>[]>([]);
   const [notes, setNotes] = useState('');
   const [photoUri, setPhotoUri] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
+  const [category, setCategory] = useState<MedicationCategory | undefined>();
+
+  const handleSelectPreset = (medication: PresetMedication) => {
+    // Auto-fill dosage and unit from preset
+    setDosageAmount(medication.dosageAmount);
+    setDosageUnit(medication.dosageUnit);
+
+    // Set category from preset
+    setCategory(medication.category);
+
+    // Set type based on category
+    if (medication.category === 'preventive') {
+      setType('preventative');
+    } else {
+      setType('rescue');
+    }
+
+    // Populate notes with ingredients if it's a combo medication
+    const ingredientsNotes = formatIngredientsAsNotes(medication);
+    if (ingredientsNotes) {
+      setNotes(ingredientsNotes);
+    }
+  };
 
   const pickImage = async (useCamera: boolean) => {
     const permissionResult = useCamera
@@ -311,15 +339,16 @@ export default function AddMedicationScreen({ navigation }: Props) {
         dosageAmount: parseFloat(dosageAmount),
         dosageUnit,
         defaultQuantity: defaultQuantity ? parseFloat(defaultQuantity) : undefined,
-        scheduleFrequency: type === 'preventative' ? scheduleFrequency : undefined,
+        scheduleFrequency: schedules.length > 0 ? scheduleFrequency : undefined,
         photoUri,
         active: true,
         notes: notes.trim() || undefined,
+        category,
       });
       logger.log('[AddMedication] Medication created:', newMedication.id);
 
-      // Save schedules if preventative medication
-      if (type === 'preventative' && schedules.length > 0) {
+      // Save schedules for any medication type with schedules
+      if (schedules.length > 0) {
         logger.log('[AddMedication] Saving schedules...');
 
         for (const schedule of schedules) {
@@ -418,19 +447,33 @@ export default function AddMedicationScreen({ navigation }: Props) {
                 Preventative
               </Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.typeButton,
+                type === 'other' && styles.typeButtonActive,
+              ]}
+              onPress={() => setType('other')}
+            >
+              <Text
+                style={[
+                  styles.typeButtonText,
+                  type === 'other' && styles.typeButtonTextActive,
+                ]}
+              >
+                Other
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 
         {/* Medication Name */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Medication Name *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g., Advil, Sumatriptan"
-            placeholderTextColor={theme.textTertiary}
+          <MedicationAutocomplete
             value={name}
             onChangeText={setName}
-            autoCapitalize="words"
+            onSelectPreset={handleSelectPreset}
+            placeholder="Start typing (e.g., Advil, Sumatriptan)"
           />
         </View>
 
@@ -512,8 +555,50 @@ export default function AddMedicationScreen({ navigation }: Props) {
           </Text>
         </View>
 
-        {/* Schedule Frequency (for preventative) */}
-        {type === 'preventative' && (
+        {/* Scheduling Mode */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Scheduling</Text>
+          <View style={styles.typeContainer}>
+            <TouchableOpacity
+              style={[
+                styles.typeButton,
+                schedulingMode === 'as-needed' && styles.typeButtonActive,
+              ]}
+              onPress={() => {
+                setSchedulingMode('as-needed');
+                setSchedules([]);  // Clear schedules when switching to as-needed
+              }}
+            >
+              <Text
+                style={[
+                  styles.typeButtonText,
+                  schedulingMode === 'as-needed' && styles.typeButtonTextActive,
+                ]}
+              >
+                As Needed
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.typeButton,
+                schedulingMode === 'scheduled' && styles.typeButtonActive,
+              ]}
+              onPress={() => setSchedulingMode('scheduled')}
+            >
+              <Text
+                style={[
+                  styles.typeButtonText,
+                  schedulingMode === 'scheduled' && styles.typeButtonTextActive,
+                ]}
+              >
+                Scheduled
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Schedule Frequency (only when scheduled mode is selected) */}
+        {schedulingMode === 'scheduled' && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Schedule Frequency</Text>
             <View style={styles.frequencyContainer}>
@@ -569,8 +654,8 @@ export default function AddMedicationScreen({ navigation }: Props) {
           </View>
         )}
 
-        {/* Schedule Manager (for preventative) */}
-        {type === 'preventative' && (
+        {/* Schedule Manager (only when scheduled mode is selected) */}
+        {schedulingMode === 'scheduled' && (
           <View style={styles.section}>
             <MedicationScheduleManager
               scheduleFrequency={scheduleFrequency}

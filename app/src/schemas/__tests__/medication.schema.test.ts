@@ -122,13 +122,10 @@ describe('Medication Validation Schemas', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should reject preventative medication without schedule frequency', () => {
+    it('should allow preventative medication without schedule frequency', () => {
       const med = { ...validMedication, type: 'preventative' as const };
       const result = MedicationSchema.safeParse(med);
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.errors[0].message).toBe('Preventative medications must have a schedule frequency');
-      }
+      expect(result.success).toBe(true);
     });
 
     it('should reject medication with empty name', () => {
