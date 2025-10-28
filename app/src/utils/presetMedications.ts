@@ -372,10 +372,11 @@ export const PRESET_MEDICATIONS: PresetMedication[] = [
     dosageUnit: 'capsules',
     category: 'supplement',
     ingredients: [
-      { name: 'Magnesium', amount: '400', unit: 'mg' },
+      { name: 'Magnesium (Glycinate)', amount: '600', unit: 'mg' },
       { name: 'Riboflavin (Vitamin B2)', amount: '400', unit: 'mg' },
-      { name: 'CoQ10', amount: '150', unit: 'mg' },
-      { name: 'Feverfew', amount: '100', unit: 'mg' },
+      { name: 'CoQ10', amount: '300', unit: 'mg' },
+      { name: 'Melatonin', amount: '3', unit: 'mg' },
+      { name: 'Vitamin D3', amount: '4000', unit: 'IU' },
     ],
   },
   {
