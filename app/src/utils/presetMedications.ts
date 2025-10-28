@@ -6,12 +6,12 @@ export interface PresetMedication {
   genericName?: string;
   dosageAmount: string;
   dosageUnit: string;
-  category: 'otc' | 'triptan' | 'cgrp' | 'preventive' | 'other';
+  category: 'otc' | 'nsaid' | 'triptan' | 'cgrp' | 'preventive' | 'supplement' | 'other';
   commonDoses?: string[]; // Alternative common doses
 }
 
 export const PRESET_MEDICATIONS: PresetMedication[] = [
-  // Over-the-Counter (OTC)
+  // Over-the-Counter (OTC) - Non-NSAID
   {
     name: 'Tylenol',
     genericName: 'Acetaminophen',
@@ -21,11 +21,19 @@ export const PRESET_MEDICATIONS: PresetMedication[] = [
     commonDoses: ['325', '500', '650'],
   },
   {
+    name: 'Excedrin Migraine',
+    dosageAmount: '2',
+    dosageUnit: 'tablets',
+    category: 'otc',
+  },
+
+  // NSAIDs (Non-Steroidal Anti-Inflammatory Drugs)
+  {
     name: 'Advil',
     genericName: 'Ibuprofen',
     dosageAmount: '200',
     dosageUnit: 'mg',
-    category: 'otc',
+    category: 'nsaid',
     commonDoses: ['200', '400', '600', '800'],
   },
   {
@@ -33,21 +41,39 @@ export const PRESET_MEDICATIONS: PresetMedication[] = [
     genericName: 'Naproxen',
     dosageAmount: '220',
     dosageUnit: 'mg',
-    category: 'otc',
+    category: 'nsaid',
     commonDoses: ['220', '500'],
-  },
-  {
-    name: 'Excedrin Migraine',
-    dosageAmount: '2',
-    dosageUnit: 'tablets',
-    category: 'otc',
   },
   {
     name: 'Aspirin',
     dosageAmount: '325',
     dosageUnit: 'mg',
-    category: 'otc',
+    category: 'nsaid',
     commonDoses: ['81', '325', '500'],
+  },
+  {
+    name: 'Motrin',
+    genericName: 'Ibuprofen',
+    dosageAmount: '200',
+    dosageUnit: 'mg',
+    category: 'nsaid',
+    commonDoses: ['200', '400', '600', '800'],
+  },
+  {
+    name: 'Cambia',
+    genericName: 'Diclofenac Potassium',
+    dosageAmount: '50',
+    dosageUnit: 'mg',
+    category: 'nsaid',
+    commonDoses: ['50', '100'],
+  },
+  {
+    name: 'Indocin',
+    genericName: 'Indomethacin',
+    dosageAmount: '25',
+    dosageUnit: 'mg',
+    category: 'nsaid',
+    commonDoses: ['25', '50', '75'],
   },
 
   // Triptans
@@ -201,6 +227,28 @@ export const PRESET_MEDICATIONS: PresetMedication[] = [
     dosageUnit: 'units',
     category: 'preventive',
   },
+  {
+    name: 'Verapamil',
+    dosageAmount: '80',
+    dosageUnit: 'mg',
+    category: 'preventive',
+    commonDoses: ['80', '120', '240'],
+  },
+  {
+    name: 'Memantine',
+    dosageAmount: '10',
+    dosageUnit: 'mg',
+    category: 'preventive',
+    commonDoses: ['5', '10', '20'],
+  },
+  {
+    name: 'Duloxetine',
+    genericName: 'Cymbalta',
+    dosageAmount: '60',
+    dosageUnit: 'mg',
+    category: 'preventive',
+    commonDoses: ['30', '60', '90', '120'],
+  },
 
   // Anti-nausea
   {
@@ -226,6 +274,104 @@ export const PRESET_MEDICATIONS: PresetMedication[] = [
     dosageUnit: 'mg',
     category: 'other',
     commonDoses: ['12.5', '25', '50'],
+  },
+
+  // Supplements - Individual
+  {
+    name: 'Magnesium',
+    dosageAmount: '400',
+    dosageUnit: 'mg',
+    category: 'supplement',
+    commonDoses: ['200', '400', '500', '600'],
+  },
+  {
+    name: 'Riboflavin',
+    genericName: 'Vitamin B2',
+    dosageAmount: '400',
+    dosageUnit: 'mg',
+    category: 'supplement',
+    commonDoses: ['100', '200', '400'],
+  },
+  {
+    name: 'CoQ10',
+    genericName: 'Coenzyme Q10',
+    dosageAmount: '100',
+    dosageUnit: 'mg',
+    category: 'supplement',
+    commonDoses: ['100', '200', '300'],
+  },
+  {
+    name: 'Feverfew',
+    dosageAmount: '100',
+    dosageUnit: 'mg',
+    category: 'supplement',
+    commonDoses: ['50', '100', '150'],
+  },
+  {
+    name: 'Butterbur',
+    dosageAmount: '75',
+    dosageUnit: 'mg',
+    category: 'supplement',
+    commonDoses: ['50', '75', '150'],
+  },
+  {
+    name: 'Ginger',
+    dosageAmount: '500',
+    dosageUnit: 'mg',
+    category: 'supplement',
+    commonDoses: ['250', '500', '1000'],
+  },
+  {
+    name: 'Vitamin D',
+    dosageAmount: '2000',
+    dosageUnit: 'IU',
+    category: 'supplement',
+    commonDoses: ['1000', '2000', '5000'],
+  },
+  {
+    name: 'Melatonin',
+    dosageAmount: '3',
+    dosageUnit: 'mg',
+    category: 'supplement',
+    commonDoses: ['1', '3', '5', '10'],
+  },
+
+  // Supplements - Combination Formulas
+  {
+    name: 'Beam',
+    dosageAmount: '1',
+    dosageUnit: 'dose',
+    category: 'supplement',
+  },
+  {
+    name: 'MigreLief',
+    dosageAmount: '2',
+    dosageUnit: 'capsules',
+    category: 'supplement',
+  },
+  {
+    name: 'Migraine MD',
+    dosageAmount: '2',
+    dosageUnit: 'capsules',
+    category: 'supplement',
+  },
+  {
+    name: 'Dolovent',
+    dosageAmount: '2',
+    dosageUnit: 'capsules',
+    category: 'supplement',
+  },
+  {
+    name: 'Migravent',
+    dosageAmount: '2',
+    dosageUnit: 'softgels',
+    category: 'supplement',
+  },
+  {
+    name: 'Cove',
+    dosageAmount: '1',
+    dosageUnit: 'dose',
+    category: 'supplement',
   },
 ];
 
@@ -254,9 +400,11 @@ export function getMedicationByName(name: string): PresetMedication | undefined 
 export function getCategoryName(category: PresetMedication['category']): string {
   const names = {
     otc: 'Over-the-Counter',
+    nsaid: 'NSAIDs',
     triptan: 'Triptans',
     cgrp: 'CGRP Antagonists',
     preventive: 'Preventive',
+    supplement: 'Supplements',
     other: 'Other',
   };
   return names[category];

@@ -19,7 +19,7 @@ describe('presetMedications', () => {
         expect(med.dosageAmount).toBeDefined();
         expect(med.dosageUnit).toBeDefined();
         expect(med.category).toBeDefined();
-        expect(['otc', 'triptan', 'cgrp', 'preventive', 'other']).toContain(med.category);
+        expect(['otc', 'nsaid', 'triptan', 'cgrp', 'preventive', 'supplement', 'other']).toContain(med.category);
       });
     });
 
@@ -28,8 +28,18 @@ describe('presetMedications', () => {
       const names = otcMeds.map((med) => med.name);
 
       expect(names).toContain('Tylenol');
+      expect(names).toContain('Excedrin Migraine');
+    });
+
+    it('should include NSAIDs', () => {
+      const nsaids = PRESET_MEDICATIONS.filter((med) => med.category === 'nsaid');
+      const names = nsaids.map((med) => med.name);
+
       expect(names).toContain('Advil');
       expect(names).toContain('Aleve');
+      expect(names).toContain('Aspirin');
+      expect(names).toContain('Motrin');
+      expect(names).toContain('Cambia');
     });
 
     it('should include triptans', () => {
@@ -56,6 +66,21 @@ describe('presetMedications', () => {
       expect(names).toContain('Topamax');
       expect(names).toContain('Propranolol');
       expect(names).toContain('Botox');
+      expect(names).toContain('Verapamil');
+      expect(names).toContain('Memantine');
+      expect(names).toContain('Duloxetine');
+    });
+
+    it('should include supplements', () => {
+      const supplements = PRESET_MEDICATIONS.filter((med) => med.category === 'supplement');
+      const names = supplements.map((med) => med.name);
+
+      expect(names).toContain('Magnesium');
+      expect(names).toContain('Riboflavin');
+      expect(names).toContain('CoQ10');
+      expect(names).toContain('Beam');
+      expect(names).toContain('MigreLief');
+      expect(names).toContain('Migraine MD');
     });
   });
 
@@ -170,6 +195,10 @@ describe('presetMedications', () => {
       expect(getCategoryName('otc')).toBe('Over-the-Counter');
     });
 
+    it('should return display name for nsaid', () => {
+      expect(getCategoryName('nsaid')).toBe('NSAIDs');
+    });
+
     it('should return display name for triptan', () => {
       expect(getCategoryName('triptan')).toBe('Triptans');
     });
@@ -180,6 +209,10 @@ describe('presetMedications', () => {
 
     it('should return display name for preventive', () => {
       expect(getCategoryName('preventive')).toBe('Preventive');
+    });
+
+    it('should return display name for supplement', () => {
+      expect(getCategoryName('supplement')).toBe('Supplements');
     });
 
     it('should return display name for other', () => {
