@@ -186,7 +186,11 @@ export default function MedicationAutocomplete({
               keyboardShouldPersistTaps="handled"
               nestedScrollEnabled={false}
             >
-              {suggestions.map((item, index) => renderSuggestion({ item, index }))}
+              {suggestions.map((item, index) => (
+                <View key={`${item.name}-${index}`}>
+                  {renderSuggestion({ item, index })}
+                </View>
+              ))}
             </ScrollView>
           ) : (
             <View style={styles.emptyState}>
