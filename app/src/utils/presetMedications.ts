@@ -1,6 +1,12 @@
 // Preset medications database for quick medication entry
 // Organized by category for easy browsing
 
+export interface IngredientInfo {
+  name: string;
+  amount: string;
+  unit: string;
+}
+
 export interface PresetMedication {
   name: string;
   genericName?: string;
@@ -8,7 +14,7 @@ export interface PresetMedication {
   dosageUnit: string;
   category: 'otc' | 'nsaid' | 'triptan' | 'cgrp' | 'preventive' | 'supplement' | 'other';
   commonDoses?: string[]; // Alternative common doses
-  ingredients?: string; // Constituent ingredients for combination formulas
+  ingredients?: IngredientInfo[]; // Constituent ingredients for combination formulas
 }
 
 export const PRESET_MEDICATIONS: PresetMedication[] = [
@@ -343,42 +349,69 @@ export const PRESET_MEDICATIONS: PresetMedication[] = [
     dosageAmount: '1',
     dosageUnit: 'dose',
     category: 'supplement',
-    ingredients: 'Magnesium (as Magnesium Bisglycinate Chelate), Riboflavin (Vitamin B2), CoQ10',
+    ingredients: [
+      { name: 'Magnesium (Bisglycinate Chelate)', amount: '400', unit: 'mg' },
+      { name: 'Riboflavin (Vitamin B2)', amount: '400', unit: 'mg' },
+      { name: 'CoQ10', amount: '150', unit: 'mg' },
+    ],
   },
   {
     name: 'MigreLief',
     dosageAmount: '2',
     dosageUnit: 'capsules',
     category: 'supplement',
-    ingredients: 'Magnesium (citrate & oxide) 360mg, Riboflavin (Vitamin B2) 400mg, Puracol Feverfew (whole leaf & extract) 100mg',
+    ingredients: [
+      { name: 'Magnesium (citrate & oxide)', amount: '360', unit: 'mg' },
+      { name: 'Riboflavin (Vitamin B2)', amount: '400', unit: 'mg' },
+      { name: 'Feverfew (Puracol)', amount: '100', unit: 'mg' },
+    ],
   },
   {
     name: 'Migraine MD',
     dosageAmount: '2',
     dosageUnit: 'capsules',
     category: 'supplement',
-    ingredients: 'Magnesium, Riboflavin (Vitamin B2), CoQ10, Feverfew (product details vary by manufacturer)',
+    ingredients: [
+      { name: 'Magnesium', amount: '400', unit: 'mg' },
+      { name: 'Riboflavin (Vitamin B2)', amount: '400', unit: 'mg' },
+      { name: 'CoQ10', amount: '150', unit: 'mg' },
+      { name: 'Feverfew', amount: '100', unit: 'mg' },
+    ],
   },
   {
     name: 'Dolovent',
     dosageAmount: '2',
     dosageUnit: 'capsules',
     category: 'supplement',
-    ingredients: 'Magnesium (as Magnesium Oxide) 600mg, Riboflavin (Vitamin B2) 400mg, CoQ10 150mg',
+    ingredients: [
+      { name: 'Magnesium (Oxide)', amount: '600', unit: 'mg' },
+      { name: 'Riboflavin (Vitamin B2)', amount: '400', unit: 'mg' },
+      { name: 'CoQ10', amount: '150', unit: 'mg' },
+    ],
   },
   {
     name: 'Migravent',
     dosageAmount: '2',
     dosageUnit: 'softgels',
     category: 'supplement',
-    ingredients: 'Magnesium 57mg (as Magnesium Oxide & Citrate), Riboflavin (Vitamin B2) 133mg, PA-free Butterbur Extract, CoQ10, BioPerine',
+    ingredients: [
+      { name: 'Magnesium (Oxide & Citrate)', amount: '57', unit: 'mg' },
+      { name: 'Riboflavin (Vitamin B2)', amount: '133', unit: 'mg' },
+      { name: 'Butterbur (PA-free)', amount: '50', unit: 'mg' },
+      { name: 'CoQ10', amount: '50', unit: 'mg' },
+      { name: 'BioPerine', amount: '5', unit: 'mg' },
+    ],
   },
   {
     name: 'Cove',
     dosageAmount: '1',
     dosageUnit: 'dose',
     category: 'supplement',
-    ingredients: 'Magnesium (as Magnesium Bisglycinate Chelate), Riboflavin (Vitamin B2), CoQ10',
+    ingredients: [
+      { name: 'Magnesium (Bisglycinate Chelate)', amount: '400', unit: 'mg' },
+      { name: 'Riboflavin (Vitamin B2)', amount: '400', unit: 'mg' },
+      { name: 'CoQ10', amount: '150', unit: 'mg' },
+    ],
   },
 ];
 
