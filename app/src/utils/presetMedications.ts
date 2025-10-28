@@ -33,6 +33,11 @@ export const PRESET_MEDICATIONS: PresetMedication[] = [
     dosageAmount: '2',
     dosageUnit: 'tablets',
     category: 'otc',
+    ingredients: [
+      { name: 'Acetaminophen', amount: '250', unit: 'mg' },
+      { name: 'Aspirin (NSAID)', amount: '250', unit: 'mg' },
+      { name: 'Caffeine', amount: '65', unit: 'mg' },
+    ],
   },
 
   // NSAIDs (Non-Steroidal Anti-Inflammatory Drugs)
