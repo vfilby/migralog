@@ -1,0 +1,65 @@
+version: 2
+updates:
+  # Enable version updates for npm in the app directory
+  - package-ecosystem: "npm"
+    directory: "/app"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    # Group minor and patch updates together
+    groups:
+      dependencies-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    # Allow up to 5 open pull requests
+    open-pull-requests-limit: 5
+    # Add reviewers (optional - remove or modify as needed)
+    # reviewers:
+    #   - "vfilby"
+    # Prefix all PR titles
+    commit-message:
+      prefix: "chore(deps)"
+    # Labels for PRs
+    labels:
+      - "dependencies"
+      - "automated"
+    # Ignore major version updates for these packages (can be updated manually)
+    ignore:
+      # Major React Native updates require careful testing
+      - dependency-name: "react-native"
+        update-types: ["version-update:semver-major"]
+      # Major React updates require careful testing
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-test-renderer"
+        update-types: ["version-update:semver-major"]
+      # Major Expo updates require careful testing
+      - dependency-name: "expo"
+        update-types: ["version-update:semver-major"]
+      # Major Jest updates require migration
+      - dependency-name: "jest"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/jest"
+        update-types: ["version-update:semver-major"]
+      # Major Zod updates may have breaking changes
+      - dependency-name: "zod"
+        update-types: ["version-update:semver-major"]
+
+  # Enable GitHub Actions updates
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    commit-message:
+      prefix: "chore(ci)"
+    labels:
+      - "ci"
+      - "automated"
