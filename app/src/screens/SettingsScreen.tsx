@@ -149,6 +149,10 @@ export default function SettingsScreen({ navigation }: Props) {
     navigation.navigate('ErrorLogs');
   };
 
+  const viewPerformance = () => {
+    navigation.navigate('Performance');
+  };
+
   const clearAllLogs = async () => {
     Alert.alert(
       'Clear Error Logs',
@@ -770,6 +774,17 @@ export default function SettingsScreen({ navigation }: Props) {
               <Ionicons name="list-outline" size={20} color={theme.primary} />
               <Text style={styles.developerButtonText}>View Error Logs</Text>
             </TouchableOpacity>
+
+            {__DEV__ && (
+              <TouchableOpacity
+                style={styles.developerButton}
+                onPress={viewPerformance}
+                testID="view-performance-button"
+              >
+                <Ionicons name="speedometer-outline" size={20} color={theme.primary} />
+                <Text style={styles.developerButtonText}>Performance</Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               style={styles.developerButton}

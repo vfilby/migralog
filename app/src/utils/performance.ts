@@ -47,6 +47,94 @@ interface TimerOptions {
   silent?: boolean;
 }
 
+/** Performance metric entry */
+interface PerformanceMetric {
+  label: string;
+  duration: number;
+  timestamp: number;
+  isSlow: boolean;
+  threshold?: number;
+}
+
+/** Performance statistics */
+interface PerformanceStats {
+  totalOperations: number;
+  averageDuration: number;
+  slowOperations: number;
+  metrics: PerformanceMetric[];
+  startupTime?: number;
+  appStartTime: number;
+}
+
+/** In-memory performance metrics store (dev only) */
+class PerformanceMetricsStore {
+  private metrics: PerformanceMetric[] = [];
+  private startupTime?: number;
+  private readonly appStartTime: number = Date.now();
+  private readonly maxMetrics = 100; // Keep last 100 metrics
+
+  recordMetric(
+    label: string,
+    duration: number,
+    slowThreshold?: number
+  ): void {
+    if (!__DEV__) return;
+
+    const metric: PerformanceMetric = {
+      label,
+      duration,
+      timestamp: Date.now(),
+      isSlow: slowThreshold ? duration > slowThreshold : false,
+      threshold: slowThreshold,
+    };
+
+    this.metrics.push(metric);
+
+    // Keep only last maxMetrics entries
+    if (this.metrics.length > this.maxMetrics) {
+      this.metrics.shift();
+    }
+
+    // Record app startup time
+    if (label === 'app-startup') {
+      this.startupTime = duration;
+    }
+  }
+
+  getStats(): PerformanceStats {
+    if (!__DEV__) {
+      return {
+        totalOperations: 0,
+        averageDuration: 0,
+        slowOperations: 0,
+        metrics: [],
+        appStartTime: this.appStartTime,
+      };
+    }
+
+    const totalDuration = this.metrics.reduce((sum, m) => sum + m.duration, 0);
+    const slowCount = this.metrics.filter((m) => m.isSlow).length;
+
+    return {
+      totalOperations: this.metrics.length,
+      averageDuration:
+        this.metrics.length > 0 ? totalDuration / this.metrics.length : 0,
+      slowOperations: slowCount,
+      metrics: [...this.metrics].reverse(), // Most recent first
+      startupTime: this.startupTime,
+      appStartTime: this.appStartTime,
+    };
+  }
+
+  clear(): void {
+    if (!__DEV__) return;
+    this.metrics = [];
+    this.startupTime = undefined;
+  }
+}
+
+const metricsStore = new PerformanceMetricsStore();
+
 /**
  * Performance monitoring utilities
  * Only active in development mode (__DEV__)
@@ -82,6 +170,9 @@ export const performanceMonitor = {
       end: (): number => {
         const duration = performance.now() - startTime;
         const durationMs = Math.round(duration * 100) / 100; // Round to 2 decimal places
+
+        // Record metric in store
+        metricsStore.recordMetric(label, durationMs, slowThreshold);
 
         if (!silent) {
           if (slowThreshold && duration > slowThreshold) {
@@ -316,3 +407,30 @@ export function withRenderTiming<T>(label: string, render: () => T): T {
     slowThreshold: 16, // 16ms for 60fps
   });
 }
+
+/**
+ * Get current performance statistics
+ * Returns metrics collected during this app session
+ *
+ * @example
+ * const stats = getPerformanceStats();
+ * console.log(`Total operations: ${stats.totalOperations}`);
+ * console.log(`Startup time: ${stats.startupTime}ms`);
+ */
+export function getPerformanceStats(): PerformanceStats {
+  return metricsStore.getStats();
+}
+
+/**
+ * Clear all collected performance metrics
+ * Useful for resetting stats during development
+ *
+ * @example
+ * clearPerformanceStats();
+ */
+export function clearPerformanceStats(): void {
+  metricsStore.clear();
+}
+
+// Export types for use in components
+export type { PerformanceStats, PerformanceMetric };
