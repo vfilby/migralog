@@ -20,6 +20,7 @@ export type RootStackParamList = {
   Settings: undefined;
   BackupRecovery: undefined;
   ErrorLogs: undefined;
+  Performance: undefined;
   DailyStatusPrompt: { date?: string };
 };
 

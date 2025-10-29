@@ -4,6 +4,7 @@ import { createTables } from './schema';
 import { migrationRunner } from './migrations';
 import { errorLogger } from '../services/errorLogger';
 import { logger } from '../utils/logger';
+import { performanceMonitor } from '../utils/performance';
 
 let db: SQLite.SQLiteDatabase | null = null;
 let isInitialized = false;
@@ -26,6 +27,7 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
 
   // Create and store initialization promise BEFORE starting async work
   const doInitialization = async (): Promise<SQLite.SQLiteDatabase> => {
+    const initTimer = performanceMonitor.startTimer('database-initialization');
     try {
       logger.log('[DB] Opening database...');
       db = await SQLite.openDatabaseAsync('migralog.db');
@@ -35,7 +37,9 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
     // SQLite has foreign keys disabled by default
     try {
       logger.log('[DB] Enabling foreign key constraints...');
-      await db.execAsync('PRAGMA foreign_keys = ON;');
+      await performanceMonitor.measure('enable-foreign-keys', async () => {
+        await db!.execAsync('PRAGMA foreign_keys = ON;');
+      });
       logger.log('[DB] Foreign key constraints enabled');
     } catch (error) {
       logger.error('[DB] FAILED to enable foreign keys:', error);
@@ -51,7 +55,9 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
     // Initialize database schema (creates tables if they don't exist)
     try {
       logger.log('[DB] Creating tables...');
-      await db.execAsync(createTables);
+      await performanceMonitor.measure('create-tables', async () => {
+        await db!.execAsync(createTables);
+      });
       logger.log('[DB] Tables created successfully');
     } catch (error) {
       logger.error('[DB] FAILED to create tables:', error);
@@ -99,7 +105,9 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
           }
         };
 
-        await migrationRunner.runMigrations(createBackup);
+        await performanceMonitor.measure('run-migrations', async () => {
+          await migrationRunner.runMigrations(createBackup);
+        }, { slowThreshold: 1000 }); // Migrations can be slower, use 1s threshold
         logger.log('[DB] Database migrations completed successfully');
       } catch (error) {
         logger.error('[DB] FAILED database migration:', error);
@@ -126,6 +134,7 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
     }
 
       isInitialized = true;
+      initTimer.end();
       logger.log('[DB] Database initialization complete');
       return db;
     } catch (error) {

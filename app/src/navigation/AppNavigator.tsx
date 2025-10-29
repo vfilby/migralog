@@ -29,6 +29,7 @@ import ArchivedMedicationsScreen from '../screens/ArchivedMedicationsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import BackupRecoveryScreen from '../screens/BackupRecoveryScreen';
 import ErrorLogsScreen from '../screens/ErrorLogsScreen';
+import PerformanceScreen from '../screens/PerformanceScreen';
 import DailyStatusPromptScreen from '../screens/DailyStatusPromptScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -218,6 +219,11 @@ export default function AppNavigator() {
         <Stack.Screen
           name="ErrorLogs"
           component={ErrorLogsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Performance"
+          component={PerformanceScreen}
           options={{ headerShown: false }}
         />
         <Stack.Screen

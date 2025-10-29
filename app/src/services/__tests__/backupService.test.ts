@@ -935,8 +935,9 @@ describe('backupService', () => {
 
     describe('Retention Policy (7 backups)', () => {
       it('should keep only 7 most recent automatic backups', async () => {
-        // Mock 8 existing snapshot backups (more than MAX_AUTO_BACKUPS = 7)
-        const mockBackups = Array.from({ length: 8 }, (_, i) => ({
+        // Mock 9 existing snapshot backups (more than MAX_AUTO_BACKUPS = 7)
+        // This ensures cleanup is triggered even if the new backup isn't immediately visible
+        const mockBackups = Array.from({ length: 9 }, (_, i) => ({
           id: `backup_${Date.now() - i * 1000}_${i}`,
           timestamp: Date.now() - (i * 24 * 60 * 60 * 1000), // i days old
           version: '1.0.0',

@@ -7,6 +7,7 @@ import { ThemeProvider } from './src/theme';
 import { getDatabase } from './src/database/db';
 import { notificationService } from './src/services/notificationService';
 import { logger } from './src/utils/logger';
+import { performanceMonitor } from './src/utils/performance';
 import ErrorBoundary from './src/components/ErrorBoundary';
 
 // Note: In development, LogBox may overlay our ErrorBoundary screen with a red error screen.
@@ -19,15 +20,22 @@ export default function App() {
   const [isRetrying, setIsRetrying] = useState(false);
 
   const initialize = async () => {
+    const startupTimer = performanceMonitor.startTimer('app-startup', {
+      slowThreshold: 2000, // Warn if app takes more than 2s to start
+    });
+
     try {
       setError(null);
       setIsRetrying(false);
 
       // Initialize database (handles migrations automatically)
+      performanceMonitor.mark('app-start');
       await getDatabase();
+      performanceMonitor.mark('database-ready');
 
       // Initialize notification service
       await notificationService.initialize();
+      performanceMonitor.mark('notifications-ready');
       logger.log('Notification service initialized');
 
       // Initialize test deep links (dev only)
@@ -36,7 +44,22 @@ export default function App() {
         initializeTestDeepLinks();
       }
 
+      performanceMonitor.mark('app-ready');
+
+      // Log phase durations
+      performanceMonitor.measureBetweenMarks(
+        'database-initialization-phase',
+        'app-start',
+        'database-ready'
+      );
+      performanceMonitor.measureBetweenMarks(
+        'notification-initialization-phase',
+        'database-ready',
+        'notifications-ready'
+      );
+
       setIsReady(true);
+      startupTimer.end();
     } catch (err) {
       logger.error('App initialization error:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
