@@ -10,6 +10,29 @@
  * - Automatic slow operation detection
  * - Integration with development logger
  *
+ * Performance Budgets:
+ * These thresholds are based on industry best practices and user perception research:
+ *
+ * - **16ms (60fps renders)**: Target for UI renders to maintain 60fps
+ *   - Why: 1000ms / 60fps = 16.67ms per frame
+ *   - Exceeding this causes dropped frames and janky UI
+ *   - Used by: React Native render operations, animations
+ *
+ * - **100ms (database queries)**: Maximum acceptable time for local database operations
+ *   - Why: Research shows users perceive <100ms as "instant"
+ *   - Beyond 100ms, users notice the delay and it feels sluggish
+ *   - Used by: SQLite queries, data access operations
+ *
+ * - **1000ms (network requests)**: Target for API calls and network operations
+ *   - Why: Users expect network operations to take time, but >1s feels slow
+ *   - Provides feedback before users become impatient
+ *   - Used by: External API calls, data synchronization
+ *
+ * - **2000ms (app startup)**: Maximum acceptable cold start time
+ *   - Why: 1s feels fast, 2s feels moderate, >2s feels slow
+ *   - Critical for first impression and user retention
+ *   - Used by: Application initialization, splash screen duration
+ *
  * Usage:
  *   import { performanceMonitor } from '../utils/performance';
  *
@@ -18,15 +41,15 @@
  *   await someOperation();
  *   timer.end(); // Logs: "⏱️ database-query: 45ms"
  *
- *   // With slow threshold
+ *   // With slow threshold (automatic warning if exceeded)
  *   const timer = performanceMonitor.startTimer('render', { slowThreshold: 16 });
  *   render();
- *   timer.end(); // Warns if > 16ms
+ *   timer.end(); // Warns if > 16ms: "⚠️ SLOW: render took 25ms (threshold: 16ms)"
  *
  *   // Measure function execution
  *   const result = await performanceMonitor.measure('fetch-data', async () => {
  *     return await fetchData();
- *   });
+ *   }, { slowThreshold: 1000 });
  */
 
 import { logger } from './logger';

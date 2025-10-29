@@ -32,7 +32,7 @@ export default function PerformanceScreen({ navigation }: Props) {
     if (autoRefresh) {
       const interval = setInterval(() => {
         setStats(getPerformanceStats());
-      }, 1000); // Refresh every second
+      }, 2000); // Refresh every 2 seconds for better performance
 
       return () => clearInterval(interval);
     }

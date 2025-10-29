@@ -203,7 +203,7 @@ describe('PerformanceScreen', () => {
       jest.useRealTimers();
     });
 
-    it('should auto-refresh stats every second when enabled', () => {
+    it('should auto-refresh stats every 2 seconds when enabled', () => {
       render(
         <PerformanceScreen navigation={mockNavigation as any} route={{} as any} />
       );
@@ -211,13 +211,13 @@ describe('PerformanceScreen', () => {
       expect(mockGetPerformanceStats).toHaveBeenCalledTimes(1);
 
       act(() => {
-        jest.advanceTimersByTime(1000);
+        jest.advanceTimersByTime(2000);
       });
 
       expect(mockGetPerformanceStats).toHaveBeenCalledTimes(2);
 
       act(() => {
-        jest.advanceTimersByTime(1000);
+        jest.advanceTimersByTime(2000);
       });
 
       expect(mockGetPerformanceStats).toHaveBeenCalledTimes(3);
@@ -236,13 +236,13 @@ describe('PerformanceScreen', () => {
 
       // Clear any pending timers from before toggle
       act(() => {
-        jest.advanceTimersByTime(1000);
+        jest.advanceTimersByTime(2000);
       });
 
       const callCountAfterToggle = mockGetPerformanceStats.mock.calls.length;
 
       act(() => {
-        jest.advanceTimersByTime(2000);
+        jest.advanceTimersByTime(4000);
       });
 
       // Should not call getPerformanceStats again after toggle off
@@ -263,7 +263,7 @@ describe('PerformanceScreen', () => {
 
       // Clear pending timer
       act(() => {
-        jest.advanceTimersByTime(1000);
+        jest.advanceTimersByTime(2000);
       });
 
       const callCountBeforeResume = mockGetPerformanceStats.mock.calls.length;
@@ -274,7 +274,7 @@ describe('PerformanceScreen', () => {
       });
 
       act(() => {
-        jest.advanceTimersByTime(1000);
+        jest.advanceTimersByTime(2000);
       });
 
       // Should have called at least once more after resuming
