@@ -203,58 +203,72 @@ class NotificationService {
   private setupNotificationHandlers(): void {
     // Handle notification response (tap or action button)
     Notifications.addNotificationResponseReceivedListener(async (response) => {
-      const { actionIdentifier, notification } = response;
-      const data = notification.request.content.data as {
-        medicationId?: string;
-        medicationIds?: string[];
-        scheduleId?: string;
-        scheduleIds?: string[];
-        time?: string;
-      };
+      try {
+        const { actionIdentifier, notification } = response;
+        const data = notification.request.content.data as {
+          medicationId?: string;
+          medicationIds?: string[];
+          scheduleId?: string;
+          scheduleIds?: string[];
+          time?: string;
+        };
 
-      logger.log('[Notification] Response received:', {
-        actionIdentifier,
-        data,
-      });
+        logger.log('[Notification] Response received:', {
+          actionIdentifier,
+          data,
+        });
 
-      switch (actionIdentifier) {
-        case 'TAKE_NOW':
-          if (data.medicationId && data.scheduleId) {
-            await this.handleTakeNow(data.medicationId, data.scheduleId);
-          }
-          break;
-        case 'SNOOZE_10':
-          if (data.medicationId && data.scheduleId) {
-            // Cancel follow-up reminder since user snoozed
-            await this.cancelFollowUpReminder(`${data.medicationId}:${data.scheduleId}`);
-            await this.handleSnooze(data.medicationId, data.scheduleId, 10);
-          }
-          break;
-        case 'TAKE_ALL_NOW':
-          if (data.medicationIds && data.scheduleIds) {
-            await this.handleTakeAllNow(data.medicationIds, data.scheduleIds, data.time);
-          }
-          break;
-        case 'REMIND_LATER':
-          if (data.medicationIds && data.scheduleIds && data.time) {
-            // Cancel follow-up reminder since user chose to snooze
-            await this.cancelFollowUpReminder(`multi:${data.time}`);
-            await this.handleRemindLater(data.medicationIds, data.scheduleIds, data.time, 10);
-          }
-          break;
-        case 'VIEW_DETAILS':
-          // This will be handled by navigation in the app
-          logger.log('[Notification] View details tapped, opening app');
-          break;
-        default:
-          // User tapped notification - cancel follow-up reminder
-          if (data.medicationId && data.scheduleId) {
-            await this.cancelFollowUpReminder(`${data.medicationId}:${data.scheduleId}`);
-          } else if (data.medicationIds && data.time) {
-            await this.cancelFollowUpReminder(`multi:${data.time}`);
-          }
-          logger.log('[Notification] Notification tapped, opening app');
-          break;
+        switch (actionIdentifier) {
+          case 'TAKE_NOW':
+            if (data.medicationId && data.scheduleId) {
+              await this.handleTakeNow(data.medicationId, data.scheduleId);
+            }
+            break;
+          case 'SNOOZE_10':
+            if (data.medicationId && data.scheduleId) {
+              // Cancel follow-up reminder since user snoozed
+              await this.cancelFollowUpReminder(`${data.medicationId}:${data.scheduleId}`);
+              await this.handleSnooze(data.medicationId, data.scheduleId, 10);
+            }
+            break;
+          case 'TAKE_ALL_NOW':
+            if (data.medicationIds && data.scheduleIds) {
+              await this.handleTakeAllNow(data.medicationIds, data.scheduleIds, data.time);
+            }
+            break;
+          case 'REMIND_LATER':
+            if (data.medicationIds && data.scheduleIds && data.time) {
+              // Cancel follow-up reminder since user chose to snooze
+              await this.cancelFollowUpReminder(`multi:${data.time}`);
+              await this.handleRemindLater(data.medicationIds, data.scheduleIds, data.time, 10);
+            }
+            break;
+          case 'VIEW_DETAILS':
+            // This will be handled by navigation in the app
+            logger.log('[Notification] View details tapped, opening app');
+            break;
+          default:
+            // User tapped notification - cancel follow-up reminder
+            if (data.medicationId && data.scheduleId) {
+              await this.cancelFollowUpReminder(`${data.medicationId}:${data.scheduleId}`);
+            } else if (data.medicationIds && data.time) {
+              await this.cancelFollowUpReminder(`multi:${data.time}`);
+            }
+            logger.log('[Notification] Notification tapped, opening app');
+            break;
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error('[Notification] Error handling notification response:', {
+          error: errorMessage,
+          errorStack: error instanceof Error ? error.stack : undefined,
+        });
+        // Log to error logger so we can track these failures
+        const { errorLogger } = await import('./errorLogger');
+        errorLogger.log('[Notification] Unhandled error in notification response listener', {
+          error: errorMessage,
+          context: 'notification_response_handling',
+        });
       }
     });
 
@@ -330,6 +344,14 @@ class NotificationService {
       // Dynamic import to avoid circular dependency
       const { useMedicationStore } = await import('../store/medicationStore');
       const timestamp = Date.now();
+
+      // Validate dose object before passing to store
+      if (!medication.dosageAmount || !medication.dosageUnit) {
+        throw new Error(
+          `Invalid medication configuration: dosageAmount=${medication.dosageAmount}, dosageUnit=${medication.dosageUnit}`
+        );
+      }
+
       await useMedicationStore.getState().logDose({
         medicationId,
         timestamp,
@@ -340,12 +362,21 @@ class NotificationService {
         updatedAt: timestamp,
       });
 
-      logger.log('[Notification] Medication logged:', {
+      logger.log('[Notification] Medication logged successfully:', {
         medicationId,
+        medicationName: medication.name,
+        scheduleId,
         dosage,
       });
     } catch (error) {
-      logger.error('[Notification] Error logging medication:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('[Notification] Failed to log medication from notification:', {
+        medicationId,
+        scheduleId,
+        error: errorMessage,
+      });
+      // Re-throw so caller knows this failed
+      throw error;
     }
   }
 
@@ -416,38 +447,68 @@ class NotificationService {
         const medicationId = medicationIds[i];
         const scheduleId = scheduleIds[i];
 
-        const medication = await medicationRepository.getById(medicationId);
-        if (!medication) {
-          logger.error('[Notification] Medication not found:', medicationId);
+        try {
+          const medication = await medicationRepository.getById(medicationId);
+          if (!medication) {
+            logger.error('[Notification] Medication not found:', medicationId);
+            continue;
+          }
+
+          // Find the schedule to get the dosage
+          const schedule = medication.schedule?.find(s => s.id === scheduleId);
+          const dosage = schedule?.dosage ?? medication.defaultQuantity ?? 1;
+
+          // Validate dose object before passing to store
+          if (!medication.dosageAmount || !medication.dosageUnit) {
+            throw new Error(
+              `Invalid medication configuration for ${medication.name}: dosageAmount=${medication.dosageAmount}, dosageUnit=${medication.dosageUnit}`
+            );
+          }
+
+          // Use store's logDose to update both database and state
+          const timestamp = Date.now();
+          await useMedicationStore.getState().logDose({
+            medicationId,
+            timestamp,
+            quantity: dosage,
+            dosageAmount: medication.dosageAmount,
+            dosageUnit: medication.dosageUnit,
+            notes: 'Logged from notification',
+            updatedAt: timestamp,
+          });
+
+          results.push(`${medication.name} - ${dosage} dose(s)`);
+          logger.log('[Notification] Medication logged successfully:', {
+            medicationId,
+            medicationName: medication.name,
+            scheduleId,
+            dosage,
+          });
+        } catch (itemError) {
+          const errorMessage = itemError instanceof Error ? itemError.message : String(itemError);
+          logger.error('[Notification] Failed to log medication from notification:', {
+            medicationId: medicationIds[i],
+            scheduleId: scheduleIds[i],
+            error: errorMessage,
+          });
+          // Continue trying other medications even if one fails
           continue;
         }
-
-        // Find the schedule to get the dosage
-        const schedule = medication.schedule?.find(s => s.id === scheduleId);
-        const dosage = schedule?.dosage ?? medication.defaultQuantity ?? 1;
-
-        // Use store's logDose to update both database and state
-        const timestamp = Date.now();
-        await useMedicationStore.getState().logDose({
-          medicationId,
-          timestamp,
-          quantity: dosage,
-          dosageAmount: medication.dosageAmount,
-          dosageUnit: medication.dosageUnit,
-          notes: 'Logged from notification',
-          updatedAt: timestamp,
-        });
-
-        results.push(`${medication.name} - ${dosage} dose(s)`);
-        logger.log('[Notification] Medication logged:', {
-          medicationId,
-          dosage,
-        });
       }
 
-      logger.log('[Notification] All medications logged:', results);
+      if (results.length > 0) {
+        logger.log('[Notification] All medications logged successfully:', results);
+      } else {
+        logger.error('[Notification] Failed to log any medications');
+      }
     } catch (error) {
-      logger.error('[Notification] Error logging medications:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('[Notification] Error processing multiple medication logging:', {
+        medicationCount: medicationIds.length,
+        error: errorMessage,
+      });
+      // Re-throw so caller knows this failed
+      throw error;
     }
   }
 
