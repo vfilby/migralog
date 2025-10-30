@@ -15,6 +15,28 @@ import type { EventHint } from '@sentry/core';
  * - Any personally identifiable information
  */
 
+/**
+ * Helper function to report scrubbing failures to Sentry.
+ * Uses lazy import to avoid module resolution issues in test environments.
+ */
+function reportScrubbingFailure(message: string, tags: Record<string, string>, error: unknown) {
+  try {
+    // Lazy import to avoid requiring Sentry at module load time (helps with tests)
+    // Using dynamic require to lazy-load Sentry only when needed
+    const Sentry = require('@sentry/react-native') as typeof import('@sentry/react-native');
+    if (Sentry && Sentry.captureMessage) {
+      Sentry.captureMessage(message, {
+        level: 'warning',
+        tags,
+        extra: { error: String(error) },
+      });
+    }
+  } catch {
+    // If Sentry is not available or an error occurs, silently fail
+    // The event will still be sent, just without the monitoring
+  }
+}
+
 const SENSITIVE_KEYS = [
   // Medication fields
   'medication',
@@ -163,6 +185,11 @@ export function beforeSend(event: ErrorEvent, _hint: EventHint): ErrorEvent | nu
       } catch (err) {
         // eslint-disable-next-line no-console
         console.warn('Failed to scrub request data, sending without scrubbing:', err);
+        // Monitor scrubbing failures for privacy compliance tracking
+        reportScrubbingFailure('Sentry privacy scrubbing failed: request data', {
+          component: 'sentryPrivacy',
+          operation: 'scrub_request',
+        }, err);
       }
     }
 
@@ -173,6 +200,11 @@ export function beforeSend(event: ErrorEvent, _hint: EventHint): ErrorEvent | nu
       } catch (err) {
         // eslint-disable-next-line no-console
         console.warn('Failed to scrub breadcrumbs, sending without scrubbing:', err);
+        // Monitor scrubbing failures for privacy compliance tracking
+        reportScrubbingFailure('Sentry privacy scrubbing failed: breadcrumbs', {
+          component: 'sentryPrivacy',
+          operation: 'scrub_breadcrumbs',
+        }, err);
       }
     }
 
@@ -183,6 +215,11 @@ export function beforeSend(event: ErrorEvent, _hint: EventHint): ErrorEvent | nu
       } catch (err) {
         // eslint-disable-next-line no-console
         console.warn('Failed to scrub contexts, sending without scrubbing:', err);
+        // Monitor scrubbing failures for privacy compliance tracking
+        reportScrubbingFailure('Sentry privacy scrubbing failed: contexts', {
+          component: 'sentryPrivacy',
+          operation: 'scrub_contexts',
+        }, err);
       }
     }
 
@@ -193,6 +230,11 @@ export function beforeSend(event: ErrorEvent, _hint: EventHint): ErrorEvent | nu
       } catch (err) {
         // eslint-disable-next-line no-console
         console.warn('Failed to scrub extra data, sending without scrubbing:', err);
+        // Monitor scrubbing failures for privacy compliance tracking
+        reportScrubbingFailure('Sentry privacy scrubbing failed: extra data', {
+          component: 'sentryPrivacy',
+          operation: 'scrub_extra',
+        }, err);
       }
     }
 
@@ -209,6 +251,11 @@ export function beforeSend(event: ErrorEvent, _hint: EventHint): ErrorEvent | nu
       } catch (err) {
         // eslint-disable-next-line no-console
         console.warn('Failed to scrub user data, sending without scrubbing:', err);
+        // Monitor scrubbing failures for privacy compliance tracking
+        reportScrubbingFailure('Sentry privacy scrubbing failed: user data', {
+          component: 'sentryPrivacy',
+          operation: 'scrub_user',
+        }, err);
       }
     }
 
@@ -223,6 +270,11 @@ export function beforeSend(event: ErrorEvent, _hint: EventHint): ErrorEvent | nu
       } catch (err) {
         // eslint-disable-next-line no-console
         console.warn('Failed to scrub exception values, sending without scrubbing:', err);
+        // Monitor scrubbing failures for privacy compliance tracking
+        reportScrubbingFailure('Sentry privacy scrubbing failed: exception values', {
+          component: 'sentryPrivacy',
+          operation: 'scrub_exceptions',
+        }, err);
       }
     }
 
@@ -232,6 +284,11 @@ export function beforeSend(event: ErrorEvent, _hint: EventHint): ErrorEvent | nu
     // (better to send unscrubbed than to lose error data entirely)
     // eslint-disable-next-line no-console
     console.error('Unexpected error in Sentry beforeSend, sending event as-is:', error);
+    // Log the catastrophic failure separately to Sentry itself for monitoring
+    reportScrubbingFailure('Sentry privacy scrubbing encountered catastrophic error in beforeSend', {
+      component: 'sentryPrivacy',
+      operation: 'beforeSend_fatal',
+    }, error);
     return event;
   }
 }
@@ -249,6 +306,11 @@ export function beforeSendTransaction(event: TransactionEvent, _hint: EventHint)
       } catch (err) {
         // eslint-disable-next-line no-console
         console.warn('Failed to scrub breadcrumbs in transaction, sending without scrubbing:', err);
+        // Monitor scrubbing failures for privacy compliance tracking
+        reportScrubbingFailure('Sentry privacy scrubbing failed: transaction breadcrumbs', {
+          component: 'sentryPrivacy',
+          operation: 'scrub_transaction_breadcrumbs',
+        }, err);
       }
     }
 
@@ -259,6 +321,11 @@ export function beforeSendTransaction(event: TransactionEvent, _hint: EventHint)
       } catch (err) {
         // eslint-disable-next-line no-console
         console.warn('Failed to scrub contexts in transaction, sending without scrubbing:', err);
+        // Monitor scrubbing failures for privacy compliance tracking
+        reportScrubbingFailure('Sentry privacy scrubbing failed: transaction contexts', {
+          component: 'sentryPrivacy',
+          operation: 'scrub_transaction_contexts',
+        }, err);
       }
     }
 
@@ -269,6 +336,11 @@ export function beforeSendTransaction(event: TransactionEvent, _hint: EventHint)
       } catch (err) {
         // eslint-disable-next-line no-console
         console.warn('Failed to scrub extra data in transaction, sending without scrubbing:', err);
+        // Monitor scrubbing failures for privacy compliance tracking
+        reportScrubbingFailure('Sentry privacy scrubbing failed: transaction extra data', {
+          component: 'sentryPrivacy',
+          operation: 'scrub_transaction_extra',
+        }, err);
       }
     }
 
@@ -278,6 +350,11 @@ export function beforeSendTransaction(event: TransactionEvent, _hint: EventHint)
     // (better to send unscrubbed than to lose performance data entirely)
     // eslint-disable-next-line no-console
     console.error('Unexpected error in Sentry beforeSendTransaction, sending event as-is:', error);
+    // Log the catastrophic failure separately to Sentry itself for monitoring
+    reportScrubbingFailure('Sentry privacy scrubbing encountered catastrophic error in beforeSendTransaction', {
+      component: 'sentryPrivacy',
+      operation: 'beforeSendTransaction_fatal',
+    }, error);
     return event;
   }
 }
