@@ -198,4 +198,5 @@ const styles = StyleSheet.create({
 });
 
 // Wrap the App component with Sentry's error boundary for automatic error capture
-export default Sentry.wrap(App);
+// Only wrap if Sentry was actually initialized (DSN is configured)
+export default SENTRY_DSN ? Sentry.wrap(App) : App;
