@@ -265,10 +265,12 @@ class NotificationService {
         });
         // Log to error logger so we can track these failures
         const { errorLogger } = await import('./errorLogger');
-        errorLogger.log('[Notification] Unhandled error in notification response listener', {
-          error: errorMessage,
-          context: 'notification_response_handling',
-        });
+        errorLogger.log(
+          'general',
+          '[Notification] Unhandled error in notification response listener',
+          error instanceof Error ? error : undefined,
+          { context: 'notification_response_handling' }
+        );
       }
     });
 
