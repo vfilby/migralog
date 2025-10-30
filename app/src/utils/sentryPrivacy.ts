@@ -1,5 +1,6 @@
 import type { ErrorEvent, TransactionEvent, Breadcrumb } from '@sentry/react-native';
 import type { EventHint } from '@sentry/core';
+import { logger } from './logger';
 
 /**
  * Scrubs sensitive health data from Sentry events before sending.
@@ -183,8 +184,7 @@ export function beforeSend(event: ErrorEvent, _hint: EventHint): ErrorEvent | nu
           event.request.headers = scrubObject(event.request.headers) as typeof event.request.headers;
         }
       } catch (err) {
-        // eslint-disable-next-line no-console
-        console.warn('Failed to scrub request data, sending without scrubbing:', err);
+        logger.warn('Failed to scrub request data, sending without scrubbing:', err);
         // Monitor scrubbing failures for privacy compliance tracking
         reportScrubbingFailure('Sentry privacy scrubbing failed: request data', {
           component: 'sentryPrivacy',
@@ -198,8 +198,7 @@ export function beforeSend(event: ErrorEvent, _hint: EventHint): ErrorEvent | nu
       try {
         event.breadcrumbs = event.breadcrumbs.map(scrubBreadcrumb);
       } catch (err) {
-        // eslint-disable-next-line no-console
-        console.warn('Failed to scrub breadcrumbs, sending without scrubbing:', err);
+        logger.warn('Failed to scrub breadcrumbs, sending without scrubbing:', err);
         // Monitor scrubbing failures for privacy compliance tracking
         reportScrubbingFailure('Sentry privacy scrubbing failed: breadcrumbs', {
           component: 'sentryPrivacy',
@@ -213,8 +212,7 @@ export function beforeSend(event: ErrorEvent, _hint: EventHint): ErrorEvent | nu
       try {
         event.contexts = scrubObject(event.contexts) as typeof event.contexts;
       } catch (err) {
-        // eslint-disable-next-line no-console
-        console.warn('Failed to scrub contexts, sending without scrubbing:', err);
+        logger.warn('Failed to scrub contexts, sending without scrubbing:', err);
         // Monitor scrubbing failures for privacy compliance tracking
         reportScrubbingFailure('Sentry privacy scrubbing failed: contexts', {
           component: 'sentryPrivacy',
@@ -228,8 +226,7 @@ export function beforeSend(event: ErrorEvent, _hint: EventHint): ErrorEvent | nu
       try {
         event.extra = scrubObject(event.extra) as typeof event.extra;
       } catch (err) {
-        // eslint-disable-next-line no-console
-        console.warn('Failed to scrub extra data, sending without scrubbing:', err);
+        logger.warn('Failed to scrub extra data, sending without scrubbing:', err);
         // Monitor scrubbing failures for privacy compliance tracking
         reportScrubbingFailure('Sentry privacy scrubbing failed: extra data', {
           component: 'sentryPrivacy',
@@ -249,8 +246,7 @@ export function beforeSend(event: ErrorEvent, _hint: EventHint): ErrorEvent | nu
           username: undefined,
         };
       } catch (err) {
-        // eslint-disable-next-line no-console
-        console.warn('Failed to scrub user data, sending without scrubbing:', err);
+        logger.warn('Failed to scrub user data, sending without scrubbing:', err);
         // Monitor scrubbing failures for privacy compliance tracking
         reportScrubbingFailure('Sentry privacy scrubbing failed: user data', {
           component: 'sentryPrivacy',
@@ -268,8 +264,7 @@ export function beforeSend(event: ErrorEvent, _hint: EventHint): ErrorEvent | nu
           stacktrace: exception.stacktrace, // Keep stack traces for debugging
         }));
       } catch (err) {
-        // eslint-disable-next-line no-console
-        console.warn('Failed to scrub exception values, sending without scrubbing:', err);
+        logger.warn('Failed to scrub exception values, sending without scrubbing:', err);
         // Monitor scrubbing failures for privacy compliance tracking
         reportScrubbingFailure('Sentry privacy scrubbing failed: exception values', {
           component: 'sentryPrivacy',
@@ -282,8 +277,7 @@ export function beforeSend(event: ErrorEvent, _hint: EventHint): ErrorEvent | nu
   } catch (error) {
     // Final safeguard: if something catastrophic happens, still send the event
     // (better to send unscrubbed than to lose error data entirely)
-    // eslint-disable-next-line no-console
-    console.error('Unexpected error in Sentry beforeSend, sending event as-is:', error);
+    logger.error('Unexpected error in Sentry beforeSend, sending event as-is:', error);
     // Log the catastrophic failure separately to Sentry itself for monitoring
     reportScrubbingFailure('Sentry privacy scrubbing encountered catastrophic error in beforeSend', {
       component: 'sentryPrivacy',
@@ -304,8 +298,7 @@ export function beforeSendTransaction(event: TransactionEvent, _hint: EventHint)
       try {
         event.breadcrumbs = event.breadcrumbs.map(scrubBreadcrumb);
       } catch (err) {
-        // eslint-disable-next-line no-console
-        console.warn('Failed to scrub breadcrumbs in transaction, sending without scrubbing:', err);
+        logger.warn('Failed to scrub breadcrumbs in transaction, sending without scrubbing:', err);
         // Monitor scrubbing failures for privacy compliance tracking
         reportScrubbingFailure('Sentry privacy scrubbing failed: transaction breadcrumbs', {
           component: 'sentryPrivacy',
@@ -319,8 +312,7 @@ export function beforeSendTransaction(event: TransactionEvent, _hint: EventHint)
       try {
         event.contexts = scrubObject(event.contexts) as typeof event.contexts;
       } catch (err) {
-        // eslint-disable-next-line no-console
-        console.warn('Failed to scrub contexts in transaction, sending without scrubbing:', err);
+        logger.warn('Failed to scrub contexts in transaction, sending without scrubbing:', err);
         // Monitor scrubbing failures for privacy compliance tracking
         reportScrubbingFailure('Sentry privacy scrubbing failed: transaction contexts', {
           component: 'sentryPrivacy',
@@ -334,8 +326,7 @@ export function beforeSendTransaction(event: TransactionEvent, _hint: EventHint)
       try {
         event.extra = scrubObject(event.extra) as typeof event.extra;
       } catch (err) {
-        // eslint-disable-next-line no-console
-        console.warn('Failed to scrub extra data in transaction, sending without scrubbing:', err);
+        logger.warn('Failed to scrub extra data in transaction, sending without scrubbing:', err);
         // Monitor scrubbing failures for privacy compliance tracking
         reportScrubbingFailure('Sentry privacy scrubbing failed: transaction extra data', {
           component: 'sentryPrivacy',
@@ -348,8 +339,7 @@ export function beforeSendTransaction(event: TransactionEvent, _hint: EventHint)
   } catch (error) {
     // Final safeguard: if something catastrophic happens, still send the event
     // (better to send unscrubbed than to lose performance data entirely)
-    // eslint-disable-next-line no-console
-    console.error('Unexpected error in Sentry beforeSendTransaction, sending event as-is:', error);
+    logger.error('Unexpected error in Sentry beforeSendTransaction, sending event as-is:', error);
     // Log the catastrophic failure separately to Sentry itself for monitoring
     reportScrubbingFailure('Sentry privacy scrubbing encountered catastrophic error in beforeSendTransaction', {
       component: 'sentryPrivacy',
