@@ -45,7 +45,8 @@ if (SENTRY_DSN) {
 
   logger.log('Sentry initialized with DSN');
 } else {
-  logger.warn('Sentry DSN not configured - error tracking disabled');
+  // Not a warning - it's normal to run without Sentry in development
+  logger.log('Sentry DSN not configured - running without error tracking');
 }
 
 // Note: In development, LogBox may overlay our ErrorBoundary screen with a red error screen.
