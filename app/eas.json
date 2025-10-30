@@ -32,7 +32,9 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "SENTRY_AUTH_TOKEN": "eas_secret:SENTRY_AUTH_TOKEN"
+        "SENTRY_AUTH_TOKEN": "eas_secret:SENTRY_AUTH_TOKEN",
+        "SENTRY_ORG": "eas_secret:SENTRY_ORG",
+        "SENTRY_PROJECT": "eas_secret:SENTRY_PROJECT"
       },
       "ios": {
         "buildConfiguration": "Release"
