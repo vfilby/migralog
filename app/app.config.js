@@ -75,7 +75,9 @@ module.exports = {
       eas: {
         projectId: "88f6f366-51eb-49d6-8908-ed0f317363dd"
       },
-      enableTestDeepLinks: true
+      enableTestDeepLinks: true,
+      // Sentry DSN - safe to check in (public identifier, not a secret)
+      sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN || "https://15bd8c3b6589a60a5e10f2703923db39@o4510275950608384.ingest.us.sentry.io/4510275952312320"
     }
   }
 };

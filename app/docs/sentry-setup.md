@@ -42,13 +42,12 @@ The `src/utils/sentryPrivacy.ts` module scrubs:
 
 ### 2. Set Environment Variables
 
-Copy `.env.example` to `.env` and fill in your Sentry credentials:
+**Important:** The DSN is safe to check in to version control - it's a public identifier that's already exposed in your frontend JavaScript bundle. However, the `SENTRY_AUTH_TOKEN` should NEVER be checked in.
+
+The DSN is already configured in `app.config.js`. For source map uploads during builds, you'll need to set the auth token:
 
 ```bash
-# Required for runtime error tracking
-EXPO_PUBLIC_SENTRY_DSN=https://your-key@your-org.ingest.sentry.io/your-project-id
-
-# Required for build-time source map uploads
+# Required for build-time source map uploads (DO NOT CHECK IN!)
 SENTRY_ORG=your-organization-slug
 SENTRY_PROJECT=your-project-slug
 SENTRY_AUTH_TOKEN=your-auth-token
