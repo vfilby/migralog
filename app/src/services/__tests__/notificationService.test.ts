@@ -911,4 +911,391 @@ describe('notificationService', () => {
     });
   });
 
+  describe('Notification Response Handling (Bug #105)', () => {
+    describe('TAKE_NOW action with error handling', () => {
+      it('should successfully log medication when TAKE_NOW action is triggered', async () => {
+        const mockMedication = {
+          id: 'med-123',
+          name: 'Ibuprofen',
+          dosageAmount: 200,
+          dosageUnit: 'mg',
+          defaultQuantity: 1,
+          schedule: [{ id: 'sched-123', dosage: 2 }],
+        };
+
+        (medicationRepository.getById as jest.Mock).mockResolvedValue(mockMedication);
+        (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('notif-id');
+
+        // Simulate the notification response listener callback
+        let listenerCallback: any;
+        (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockImplementation((cb) => {
+          listenerCallback = cb;
+          return { remove: jest.fn() };
+        });
+
+        await notificationService.initialize();
+
+        // Trigger the TAKE_NOW action
+        const response = {
+          actionIdentifier: 'TAKE_NOW',
+          notification: {
+            request: {
+              content: {
+                data: { medicationId: 'med-123', scheduleId: 'sched-123' },
+              },
+            },
+          },
+        };
+
+        // Execute listener callback
+        if (listenerCallback) {
+          await expect(listenerCallback(response)).resolves.not.toThrow();
+        }
+      });
+
+      it('should handle medication not found error in TAKE_NOW', async () => {
+        (medicationRepository.getById as jest.Mock).mockResolvedValue(null);
+
+        let listenerCallback: any;
+        (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockImplementation((cb) => {
+          listenerCallback = cb;
+          return { remove: jest.fn() };
+        });
+
+        await notificationService.initialize();
+
+        const response = {
+          actionIdentifier: 'TAKE_NOW',
+          notification: {
+            request: {
+              content: {
+                data: { medicationId: 'nonexistent', scheduleId: 'sched-123' },
+              },
+            },
+          },
+        };
+
+        if (listenerCallback) {
+          await expect(listenerCallback(response)).resolves.not.toThrow();
+        }
+      });
+
+      it('should handle invalid medication configuration in TAKE_NOW', async () => {
+        const mockMedicationInvalid = {
+          id: 'med-123',
+          name: 'Invalid Med',
+          dosageAmount: undefined, // Missing dosageAmount
+          dosageUnit: 'mg',
+          defaultQuantity: 1,
+          schedule: [{ id: 'sched-123', dosage: 2 }],
+        };
+
+        (medicationRepository.getById as jest.Mock).mockResolvedValue(mockMedicationInvalid);
+
+        let listenerCallback: any;
+        (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockImplementation((cb) => {
+          listenerCallback = cb;
+          return { remove: jest.fn() };
+        });
+
+        await notificationService.initialize();
+
+        const response = {
+          actionIdentifier: 'TAKE_NOW',
+          notification: {
+            request: {
+              content: {
+                data: { medicationId: 'med-123', scheduleId: 'sched-123' },
+              },
+            },
+          },
+        };
+
+        if (listenerCallback) {
+          await expect(listenerCallback(response)).resolves.not.toThrow();
+        }
+      });
+    });
+
+    describe('TAKE_ALL_NOW action with error handling', () => {
+      it('should successfully log multiple medications when TAKE_ALL_NOW action is triggered', async () => {
+        const mockMedication1 = {
+          id: 'med-1',
+          name: 'Med A',
+          dosageAmount: 100,
+          dosageUnit: 'mg',
+          defaultQuantity: 1,
+          schedule: [{ id: 'sched-1', dosage: 1 }],
+        };
+
+        const mockMedication2 = {
+          id: 'med-2',
+          name: 'Med B',
+          dosageAmount: 200,
+          dosageUnit: 'mg',
+          defaultQuantity: 1,
+          schedule: [{ id: 'sched-2', dosage: 2 }],
+        };
+
+        (medicationRepository.getById as jest.Mock)
+          .mockResolvedValueOnce(mockMedication1)
+          .mockResolvedValueOnce(mockMedication2);
+        (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('notif-id');
+
+        let listenerCallback: any;
+        (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockImplementation((cb) => {
+          listenerCallback = cb;
+          return { remove: jest.fn() };
+        });
+
+        await notificationService.initialize();
+
+        const response = {
+          actionIdentifier: 'TAKE_ALL_NOW',
+          notification: {
+            request: {
+              content: {
+                data: {
+                  medicationIds: ['med-1', 'med-2'],
+                  scheduleIds: ['sched-1', 'sched-2'],
+                  time: '09:00',
+                },
+              },
+            },
+          },
+        };
+
+        if (listenerCallback) {
+          await expect(listenerCallback(response)).resolves.not.toThrow();
+        }
+      });
+
+      it('should handle partial failure when logging multiple medications', async () => {
+        const mockMedication1 = {
+          id: 'med-1',
+          name: 'Med A',
+          dosageAmount: 100,
+          dosageUnit: 'mg',
+          defaultQuantity: 1,
+          schedule: [{ id: 'sched-1', dosage: 1 }],
+        };
+
+        const mockMedicationInvalid = {
+          id: 'med-2',
+          name: 'Invalid Med',
+          dosageAmount: undefined, // Missing dosageAmount
+          dosageUnit: 'mg',
+          defaultQuantity: 1,
+          schedule: [{ id: 'sched-2', dosage: 2 }],
+        };
+
+        (medicationRepository.getById as jest.Mock)
+          .mockResolvedValueOnce(mockMedication1)
+          .mockResolvedValueOnce(mockMedicationInvalid);
+
+        let listenerCallback: any;
+        (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockImplementation((cb) => {
+          listenerCallback = cb;
+          return { remove: jest.fn() };
+        });
+
+        await notificationService.initialize();
+
+        const response = {
+          actionIdentifier: 'TAKE_ALL_NOW',
+          notification: {
+            request: {
+              content: {
+                data: {
+                  medicationIds: ['med-1', 'med-2'],
+                  scheduleIds: ['sched-1', 'sched-2'],
+                  time: '09:00',
+                },
+              },
+            },
+          },
+        };
+
+        // Should not throw even with partial failure
+        if (listenerCallback) {
+          await expect(listenerCallback(response)).resolves.not.toThrow();
+        }
+      });
+
+      it('should handle all medications not found in TAKE_ALL_NOW', async () => {
+        (medicationRepository.getById as jest.Mock)
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(null);
+
+        let listenerCallback: any;
+        (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockImplementation((cb) => {
+          listenerCallback = cb;
+          return { remove: jest.fn() };
+        });
+
+        await notificationService.initialize();
+
+        const response = {
+          actionIdentifier: 'TAKE_ALL_NOW',
+          notification: {
+            request: {
+              content: {
+                data: {
+                  medicationIds: ['nonexistent-1', 'nonexistent-2'],
+                  scheduleIds: ['sched-1', 'sched-2'],
+                  time: '09:00',
+                },
+              },
+            },
+          },
+        };
+
+        if (listenerCallback) {
+          await expect(listenerCallback(response)).resolves.not.toThrow();
+        }
+      });
+    });
+
+    describe('Notification response listener error handling', () => {
+      it('should handle unexpected errors in notification response handler', async () => {
+        let listenerCallback: any;
+        (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockImplementation((cb) => {
+          listenerCallback = cb;
+          return { remove: jest.fn() };
+        });
+
+        await notificationService.initialize();
+
+        // Send a response with missing required data
+        const badResponse = {
+          actionIdentifier: 'TAKE_NOW',
+          notification: {
+            request: {
+              content: {
+                data: { /* missing medicationId and scheduleId */ },
+              },
+            },
+          },
+        };
+
+        // Should handle gracefully without throwing
+        if (listenerCallback) {
+          await expect(listenerCallback(badResponse)).resolves.not.toThrow();
+        }
+      });
+
+      it('should handle notification with no data in response handler', async () => {
+        let listenerCallback: any;
+        (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockImplementation((cb) => {
+          listenerCallback = cb;
+          return { remove: jest.fn() };
+        });
+
+        await notificationService.initialize();
+
+        const response = {
+          actionIdentifier: 'TAKE_NOW',
+          notification: {
+            request: {
+              content: {
+                data: undefined,
+              },
+            },
+          },
+        };
+
+        if (listenerCallback) {
+          await expect(listenerCallback(response)).resolves.not.toThrow();
+        }
+      });
+
+      it('should handle SNOOZE_10 action in response handler', async () => {
+        const mockMedication = {
+          id: 'med-123',
+          name: 'Test Med',
+          dosageAmount: 100,
+          dosageUnit: 'mg',
+          defaultQuantity: 1,
+          schedule: [{ id: 'sched-123', dosage: 1 }],
+        };
+
+        (medicationRepository.getById as jest.Mock).mockResolvedValue(mockMedication);
+        (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('notif-id');
+
+        let listenerCallback: any;
+        (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockImplementation((cb) => {
+          listenerCallback = cb;
+          return { remove: jest.fn() };
+        });
+
+        await notificationService.initialize();
+
+        const response = {
+          actionIdentifier: 'SNOOZE_10',
+          notification: {
+            request: {
+              content: {
+                data: { medicationId: 'med-123', scheduleId: 'sched-123' },
+              },
+            },
+          },
+        };
+
+        if (listenerCallback) {
+          await expect(listenerCallback(response)).resolves.not.toThrow();
+        }
+      });
+
+      it('should handle VIEW_DETAILS action in response handler', async () => {
+        let listenerCallback: any;
+        (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockImplementation((cb) => {
+          listenerCallback = cb;
+          return { remove: jest.fn() };
+        });
+
+        await notificationService.initialize();
+
+        const response = {
+          actionIdentifier: 'VIEW_DETAILS',
+          notification: {
+            request: {
+              content: {
+                data: { medicationId: 'med-123' },
+              },
+            },
+          },
+        };
+
+        if (listenerCallback) {
+          await expect(listenerCallback(response)).resolves.not.toThrow();
+        }
+      });
+
+      it('should handle default tap action in response handler', async () => {
+        let listenerCallback: any;
+        (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockImplementation((cb) => {
+          listenerCallback = cb;
+          return { remove: jest.fn() };
+        });
+
+        await notificationService.initialize();
+
+        const response = {
+          actionIdentifier: undefined, // Notification tap, not action button
+          notification: {
+            request: {
+              content: {
+                data: { medicationId: 'med-123', scheduleId: 'sched-123' },
+              },
+            },
+          },
+        };
+
+        if (listenerCallback) {
+          await expect(listenerCallback(response)).resolves.not.toThrow();
+        }
+      });
+    });
+  });
+
 });

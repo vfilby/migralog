@@ -209,6 +209,7 @@ export const medicationDoseRepository = {
       id,
       status: dose.status || 'taken', // Default to 'taken' if not provided
       createdAt: now,
+      updatedAt: dose.updatedAt || now, // Ensure updatedAt is always set
     };
 
     // Validate medication dose data
