@@ -18,6 +18,9 @@
     "preview": {
       "distribution": "store",
       "autoIncrement": true,
+      "env": {
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+      },
       "ios": {
         "simulator": false,
         "buildConfiguration": "Release"
@@ -28,6 +31,9 @@
     },
     "production": {
       "autoIncrement": true,
+      "env": {
+        "SENTRY_AUTH_TOKEN": "eas_secret:SENTRY_AUTH_TOKEN"
+      },
       "ios": {
         "buildConfiguration": "Release"
       },
