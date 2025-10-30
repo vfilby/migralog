@@ -143,64 +143,96 @@ function scrubBreadcrumb(breadcrumb: Breadcrumb): Breadcrumb {
  * Main function to scrub Sentry error events before sending
  */
 export function beforeSend(event: ErrorEvent, _hint: EventHint): ErrorEvent | null {
+  // Wrap each scrubbing operation individually to prevent one failure from blocking the event
   try {
     // Scrub request data
     if (event.request) {
-      if (event.request.url) {
-        event.request.url = scrubUrl(event.request.url);
-      }
-      if (event.request.query_string) {
-        event.request.query_string = '[Redacted]';
-      }
-      if (event.request.data) {
-        event.request.data = scrubObject(event.request.data);
-      }
-      if (event.request.headers) {
-        event.request.headers = scrubObject(event.request.headers) as typeof event.request.headers;
+      try {
+        if (event.request.url) {
+          event.request.url = scrubUrl(event.request.url);
+        }
+        if (event.request.query_string) {
+          event.request.query_string = '[Redacted]';
+        }
+        if (event.request.data) {
+          event.request.data = scrubObject(event.request.data);
+        }
+        if (event.request.headers) {
+          event.request.headers = scrubObject(event.request.headers) as typeof event.request.headers;
+        }
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn('Failed to scrub request data, sending without scrubbing:', err);
       }
     }
 
     // Scrub breadcrumbs
     if (event.breadcrumbs) {
-      event.breadcrumbs = event.breadcrumbs.map(scrubBreadcrumb);
+      try {
+        event.breadcrumbs = event.breadcrumbs.map(scrubBreadcrumb);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn('Failed to scrub breadcrumbs, sending without scrubbing:', err);
+      }
     }
 
     // Scrub contexts
     if (event.contexts) {
-      event.contexts = scrubObject(event.contexts) as typeof event.contexts;
+      try {
+        event.contexts = scrubObject(event.contexts) as typeof event.contexts;
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn('Failed to scrub contexts, sending without scrubbing:', err);
+      }
     }
 
     // Scrub extra data
     if (event.extra) {
-      event.extra = scrubObject(event.extra) as typeof event.extra;
+      try {
+        event.extra = scrubObject(event.extra) as typeof event.extra;
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn('Failed to scrub extra data, sending without scrubbing:', err);
+      }
     }
 
     // Scrub user data
     if (event.user) {
-      // Keep device-level data but remove anything personal
-      event.user = {
-        id: event.user.id ? '[User ID Redacted]' : undefined,
-        ip_address: undefined,
-        email: undefined,
-        username: undefined,
-      };
+      try {
+        // Keep device-level data but remove anything personal
+        event.user = {
+          id: event.user.id ? '[User ID Redacted]' : undefined,
+          ip_address: undefined,
+          email: undefined,
+          username: undefined,
+        };
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn('Failed to scrub user data, sending without scrubbing:', err);
+      }
     }
 
     // Scrub exception values
     if (event.exception?.values) {
-      event.exception.values = event.exception.values.map(exception => ({
-        ...exception,
-        value: exception.value, // Keep error messages as they're usually not sensitive
-        stacktrace: exception.stacktrace, // Keep stack traces for debugging
-      }));
+      try {
+        event.exception.values = event.exception.values.map(exception => ({
+          ...exception,
+          value: exception.value, // Keep error messages as they're usually not sensitive
+          stacktrace: exception.stacktrace, // Keep stack traces for debugging
+        }));
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn('Failed to scrub exception values, sending without scrubbing:', err);
+      }
     }
 
     return event;
   } catch (error) {
-    // If scrubbing fails, don't send the event to be safe
+    // Final safeguard: if something catastrophic happens, still send the event
+    // (better to send unscrubbed than to lose error data entirely)
     // eslint-disable-next-line no-console
-    console.error('Error scrubbing Sentry event:', error);
-    return null;
+    console.error('Unexpected error in Sentry beforeSend, sending event as-is:', error);
+    return event;
   }
 }
 
@@ -208,26 +240,44 @@ export function beforeSend(event: ErrorEvent, _hint: EventHint): ErrorEvent | nu
  * Scrub transaction events before sending
  */
 export function beforeSendTransaction(event: TransactionEvent, _hint: EventHint): TransactionEvent | null {
+  // Wrap each scrubbing operation individually to prevent one failure from blocking the event
   try {
     // Scrub breadcrumbs
     if (event.breadcrumbs) {
-      event.breadcrumbs = event.breadcrumbs.map(scrubBreadcrumb);
+      try {
+        event.breadcrumbs = event.breadcrumbs.map(scrubBreadcrumb);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn('Failed to scrub breadcrumbs in transaction, sending without scrubbing:', err);
+      }
     }
 
     // Scrub contexts
     if (event.contexts) {
-      event.contexts = scrubObject(event.contexts) as typeof event.contexts;
+      try {
+        event.contexts = scrubObject(event.contexts) as typeof event.contexts;
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn('Failed to scrub contexts in transaction, sending without scrubbing:', err);
+      }
     }
 
     // Scrub extra data
     if (event.extra) {
-      event.extra = scrubObject(event.extra) as typeof event.extra;
+      try {
+        event.extra = scrubObject(event.extra) as typeof event.extra;
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn('Failed to scrub extra data in transaction, sending without scrubbing:', err);
+      }
     }
 
     return event;
   } catch (error) {
+    // Final safeguard: if something catastrophic happens, still send the event
+    // (better to send unscrubbed than to lose performance data entirely)
     // eslint-disable-next-line no-console
-    console.error('Error scrubbing Sentry transaction:', error);
-    return null;
+    console.error('Unexpected error in Sentry beforeSendTransaction, sending event as-is:', error);
+    return event;
   }
 }

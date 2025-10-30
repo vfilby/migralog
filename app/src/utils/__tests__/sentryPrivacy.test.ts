@@ -230,7 +230,7 @@ describe('sentryPrivacy', () => {
       expect(result?.exception?.values?.[0]?.value).toBe('Something went wrong');
     });
 
-    it('should return null if scrubbing throws an error', () => {
+    it('should return the event even if scrubbing throws an error (graceful degradation)', () => {
       const event: any = {
         get extra() {
           throw new Error('Object is sealed');
@@ -239,7 +239,9 @@ describe('sentryPrivacy', () => {
 
       const result = beforeSend(event, mockHint);
 
-      expect(result).toBeNull();
+      // With graceful degradation, we send the event as-is instead of dropping it
+      expect(result).toBeDefined();
+      expect(result).not.toBeNull();
     });
 
     it('should handle null and undefined gracefully', () => {
@@ -339,7 +341,7 @@ describe('sentryPrivacy', () => {
       expect((result?.extra?.api_response as any)?.medication).toBe('[Redacted]');
     });
 
-    it('should return null if transaction scrubbing throws an error', () => {
+    it('should return the event even if transaction scrubbing throws an error (graceful degradation)', () => {
       const event: any = {
         get breadcrumbs() {
           throw new Error('Array is immutable');
@@ -348,7 +350,9 @@ describe('sentryPrivacy', () => {
 
       const result = beforeSendTransaction(event, mockHint);
 
-      expect(result).toBeNull();
+      // With graceful degradation, we send the event as-is instead of dropping it
+      expect(result).toBeDefined();
+      expect(result).not.toBeNull();
     });
   });
 
