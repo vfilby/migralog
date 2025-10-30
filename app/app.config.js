@@ -66,8 +66,8 @@ module.exports = {
         "@sentry/react-native/expo",
         {
           url: "https://sentry.io/",
-          organization: process.env.SENTRY_ORG || "your-sentry-org",
-          project: process.env.SENTRY_PROJECT || "your-sentry-project"
+          organization: process.env.SENTRY_ORG || "eff3",
+          project: process.env.SENTRY_PROJECT || "migralog"
         }
       ]
     ],
