@@ -61,6 +61,10 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          # Allow Sentry sourcemap upload to fail without blocking the build
+          SENTRY_ALLOW_FAILURE: true
 
       - name: Get build URL
         if: success()
