@@ -21,6 +21,7 @@ import { locationService } from '../services/locationService';
 import { backupService } from '../services/backupService';
 import * as SQLite from 'expo-sqlite';
 import * as Notifications from 'expo-notifications';
+import * as Sentry from '@sentry/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NotificationSettings from '../components/NotificationSettings';
 
@@ -181,6 +182,43 @@ export default function SettingsScreen({ navigation }: Props) {
     );
     await loadDiagnostics();
     Alert.alert('Success', 'Test error logged');
+  };
+
+  const testSentry = () => {
+    Alert.alert(
+      'Test Sentry Integration',
+      'This will send test events to Sentry to verify the integration is working. Check your Sentry dashboard after sending.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Send Test Events',
+          onPress: () => {
+            try {
+              // Send a test exception
+              Sentry.captureException(new Error('TestFlight Sentry Integration Test'));
+
+              // Send a test message
+              Sentry.captureMessage('Sentry integration test from Settings screen', 'info');
+
+              // Add a breadcrumb to show user action
+              Sentry.addBreadcrumb({
+                category: 'test',
+                message: 'User triggered Sentry test from Settings',
+                level: 'info',
+              });
+
+              Alert.alert(
+                'Test Sent',
+                'Test events sent to Sentry! Check your Sentry dashboard in a few moments to verify they appear.\n\nLook for:\n• Error: "TestFlight Sentry Integration Test"\n• Message: "Sentry integration test..."'
+              );
+            } catch (error) {
+              logger.error('Failed to send Sentry test:', error);
+              Alert.alert('Error', 'Failed to send test events. Sentry may not be configured.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleRequestNotifications = async () => {
@@ -792,6 +830,15 @@ export default function SettingsScreen({ navigation }: Props) {
             >
               <Ionicons name="flask-outline" size={20} color={theme.primary} />
               <Text style={styles.developerButtonText}>Test Error Logging</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.developerButton}
+              onPress={testSentry}
+              testID="test-sentry-button"
+            >
+              <Ionicons name="bug-outline" size={20} color={theme.primary} />
+              <Text style={styles.developerButtonText}>Test Sentry Integration</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
