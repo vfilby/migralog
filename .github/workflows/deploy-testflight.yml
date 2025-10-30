@@ -60,6 +60,7 @@ jobs:
           eas build --platform ios --profile $BUILD_PROFILE --non-interactive --auto-submit
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
       - name: Get build URL
         if: success()
