@@ -16,6 +16,11 @@ jest.mock('../../services/locationService');
 jest.mock('expo-sqlite');
 jest.mock('expo-notifications');
 jest.mock('@react-native-async-storage/async-storage');
+jest.mock('@sentry/react-native', () => ({
+  captureException: jest.fn(),
+  captureMessage: jest.fn(),
+  addBreadcrumb: jest.fn(),
+}));
 
 const mockNavigation = {
   navigate: jest.fn(),

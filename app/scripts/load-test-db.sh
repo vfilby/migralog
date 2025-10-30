@@ -33,17 +33,66 @@ echo -e "Source: ${GREEN}$DB_FILE${NC}"
 # Get the app's bundle identifier
 BUNDLE_ID="com.eff3.app.headache-tracker"
 
-# Get booted simulator UUID
-echo -e "${BLUE}Finding booted simulator...${NC}"
-SIMULATOR_UUID=$(xcrun simctl list devices booted | grep "iPhone" | head -1 | sed -E 's/.*\(([A-F0-9-]+)\).*/\1/')
+# Get list of booted simulators only
+echo -e "${BLUE}Finding booted simulators...${NC}"
+BOOTED_SIMS=$(xcrun simctl list devices | grep "iPhone" | grep "Booted" | sed 's/^ *//')
 
-if [ -z "$SIMULATOR_UUID" ]; then
+# Count booted simulators
+SIM_COUNT=$(echo "$BOOTED_SIMS" | grep -c "Booted" || true)
+
+if [ "$SIM_COUNT" -eq 0 ]; then
     echo -e "${RED}Error: No booted simulator found${NC}"
     echo "Please start the iOS simulator first with: npm run ios"
     exit 1
 fi
 
-echo -e "${GREEN}Found simulator: $SIMULATOR_UUID${NC}"
+# If only one simulator, use it automatically
+if [ "$SIM_COUNT" -eq 1 ]; then
+    SIMULATOR_UUID=$(echo "$BOOTED_SIMS" | sed -E 's/.+\(([A-F0-9-]+)\) \(Booted\).*/\1/')
+    SIMULATOR_NAME=$(echo "$BOOTED_SIMS" | sed -E 's/(.+) \([A-F0-9-]+\) \(Booted\).*/\1/')
+    echo -e "${GREEN}Using simulator: $SIMULATOR_NAME${NC}"
+else
+    # Show list of running simulators
+    echo ""
+    echo "Running iPhone simulators:"
+    echo ""
+
+    # Create array of simulator info
+    INDEX=1
+    declare -a SIM_NAMES
+    declare -a SIM_UDIDS
+
+    while IFS= read -r line; do
+        if [ -n "$line" ]; then
+            NAME=$(echo "$line" | sed -E 's/(.+) \([A-F0-9-]+\) \(Booted\).*/\1/')
+            UDID=$(echo "$line" | sed -E 's/.+\(([A-F0-9-]+)\) \(Booted\).*/\1/')
+
+            SIM_NAMES+=("$NAME")
+            SIM_UDIDS+=("$UDID")
+
+            echo "  [$INDEX] $NAME"
+            INDEX=$((INDEX + 1))
+        fi
+    done <<< "$BOOTED_SIMS"
+
+    echo ""
+    echo -n "Select simulator (1-$SIM_COUNT): "
+    read SELECTION
+
+    # Validate selection
+    if ! [[ "$SELECTION" =~ ^[0-9]+$ ]] || [ "$SELECTION" -lt 1 ] || [ "$SELECTION" -gt "$SIM_COUNT" ]; then
+        echo -e "${RED}Error: Invalid selection. Please enter a number between 1 and $SIM_COUNT${NC}"
+        exit 1
+    fi
+
+    # Get selected simulator (arrays are 0-indexed)
+    SELECTED_INDEX=$((SELECTION - 1))
+    SIMULATOR_NAME="${SIM_NAMES[$SELECTED_INDEX]}"
+    SIMULATOR_UUID="${SIM_UDIDS[$SELECTED_INDEX]}"
+
+    echo ""
+    echo -e "${GREEN}Selected: $SIMULATOR_NAME${NC}"
+fi
 
 # Find the app's data directory
 echo -e "${BLUE}Finding app data directory...${NC}"
