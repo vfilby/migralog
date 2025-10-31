@@ -22,6 +22,7 @@ import { backupService } from '../services/backupService';
 import * as SQLite from 'expo-sqlite';
 import * as Notifications from 'expo-notifications';
 import * as Sentry from '@sentry/react-native';
+import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NotificationSettings from '../components/NotificationSettings';
 
@@ -45,6 +46,11 @@ export default function SettingsScreen({ navigation }: Props) {
     isEnabled: boolean;
     environment: string;
     reason?: string;
+    dsn?: string;
+    org?: string;
+    project?: string;
+    slug?: string;
+    bundleId?: string;
   } | null>(null);
 
   useEffect(() => {
@@ -151,6 +157,11 @@ export default function SettingsScreen({ navigation }: Props) {
       const environment = client?.getOptions().environment ?? 'unknown';
       const isConfigured = !!dsn && enabled;
 
+      // Get configuration values from Constants and environment
+      const expoConfig = Constants.expoConfig || {};
+      const slug = (expoConfig as Record<string, unknown>)?.slug;
+      const bundleId = ((expoConfig as Record<string, unknown>)?.ios as Record<string, unknown>)?.bundleIdentifier;
+
       let reason: string | undefined;
       if (!isConfigured) {
         if (!dsn) {
@@ -165,13 +176,12 @@ export default function SettingsScreen({ navigation }: Props) {
         isEnabled: enabled,
         environment,
         reason,
+        dsn: dsn || 'not configured',
+        org: process.env.SENTRY_ORG || 'eff3',
+        project: process.env.SENTRY_PROJECT || 'migralog',
+        slug: typeof slug === 'string' ? slug : undefined,
+        bundleId: typeof bundleId === 'string' ? bundleId : undefined,
       });
-
-      // Log error if Sentry is not properly configured
-      // This will appear in the red error overlay on device during development
-      if (!isConfigured && reason) {
-        logger.error(`Sentry Configuration Error: ${reason.replace('\n\n', ' - ')}`);
-      }
     } catch (error) {
       logger.error('Failed to check Sentry configuration:', error);
     }
@@ -917,6 +927,70 @@ export default function SettingsScreen({ navigation }: Props) {
                     <Text style={{ fontSize: 13, color: theme.text, lineHeight: 20 }}>
                       {sentryStatus.reason}
                     </Text>
+                  </View>
+                )}
+
+                {sentryStatus && (
+                  <View
+                    style={{
+                      backgroundColor: theme.card,
+                      borderRadius: 8,
+                      padding: 12,
+                      marginHorizontal: 16,
+                      marginTop: 8,
+                      marginBottom: 12,
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: theme.textSecondary, marginBottom: 8 }}>
+                      Configuration
+                    </Text>
+
+                    {sentryStatus.org && (
+                      <View style={{ marginBottom: 6 }}>
+                        <Text style={{ fontSize: 11, color: theme.textTertiary }}>Org</Text>
+                        <Text style={{ fontSize: 13, color: theme.text, fontFamily: 'Menlo' }}>
+                          {sentryStatus.org}
+                        </Text>
+                      </View>
+                    )}
+
+                    {sentryStatus.project && (
+                      <View style={{ marginBottom: 6 }}>
+                        <Text style={{ fontSize: 11, color: theme.textTertiary }}>Project</Text>
+                        <Text style={{ fontSize: 13, color: theme.text, fontFamily: 'Menlo' }}>
+                          {sentryStatus.project}
+                        </Text>
+                      </View>
+                    )}
+
+                    {sentryStatus.slug && (
+                      <View style={{ marginBottom: 6 }}>
+                        <Text style={{ fontSize: 11, color: theme.textTertiary }}>Slug</Text>
+                        <Text style={{ fontSize: 13, color: theme.text, fontFamily: 'Menlo' }}>
+                          {sentryStatus.slug}
+                        </Text>
+                      </View>
+                    )}
+
+                    {sentryStatus.bundleId && (
+                      <View style={{ marginBottom: 6 }}>
+                        <Text style={{ fontSize: 11, color: theme.textTertiary }}>Bundle ID</Text>
+                        <Text style={{ fontSize: 13, color: theme.text, fontFamily: 'Menlo' }}>
+                          {sentryStatus.bundleId}
+                        </Text>
+                      </View>
+                    )}
+
+                    {sentryStatus.dsn && (
+                      <View>
+                        <Text style={{ fontSize: 11, color: theme.textTertiary }}>DSN</Text>
+                        <Text style={{ fontSize: 11, color: theme.text, fontFamily: 'Menlo' }}>
+                          {sentryStatus.dsn === 'not configured'
+                            ? 'not configured'
+                            : `${sentryStatus.dsn.substring(0, 20)}...`}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 )}
               </View>

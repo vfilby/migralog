@@ -16,10 +16,27 @@ jest.mock('../../services/locationService');
 jest.mock('expo-sqlite');
 jest.mock('expo-notifications');
 jest.mock('@react-native-async-storage/async-storage');
+jest.mock('expo-constants', () => ({
+  default: {
+    expoConfig: {
+      slug: 'migraine-tracker',
+      ios: {
+        bundleIdentifier: 'com.eff3.app.headache-tracker',
+      },
+    },
+  },
+}));
 jest.mock('@sentry/react-native', () => ({
   captureException: jest.fn(),
   captureMessage: jest.fn(),
   addBreadcrumb: jest.fn(),
+  getClient: jest.fn(() => ({
+    getOptions: jest.fn(() => ({
+      dsn: 'https://example@sentry.io/123',
+      enabled: true,
+      environment: 'test',
+    })),
+  })),
 }));
 
 const mockNavigation = {
