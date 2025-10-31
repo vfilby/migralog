@@ -44,6 +44,7 @@ export default function SettingsScreen({ navigation }: Props) {
     isConfigured: boolean;
     isEnabled: boolean;
     environment: string;
+    reason?: string;
   } | null>(null);
 
   useEffect(() => {
@@ -150,20 +151,26 @@ export default function SettingsScreen({ navigation }: Props) {
       const environment = client?.getOptions().environment ?? 'unknown';
       const isConfigured = !!dsn && enabled;
 
+      let reason: string | undefined;
+      if (!isConfigured) {
+        if (!dsn) {
+          reason = 'DSN not configured\n\nCheck EXPO_PUBLIC_SENTRY_DSN environment variable in GitHub Actions secrets';
+        } else if (!enabled) {
+          reason = 'Sentry is disabled\n\nCheck EXPO_PUBLIC_SENTRY_ENABLED environment variable in GitHub Actions secrets';
+        }
+      }
+
       setSentryStatus({
         isConfigured,
         isEnabled: enabled,
         environment,
+        reason,
       });
 
       // Log error if Sentry is not properly configured
       // This will appear in the red error overlay on device during development
-      if (!isConfigured) {
-        const errorMessage = !dsn
-          ? 'Sentry DSN not configured - check EXPO_PUBLIC_SENTRY_DSN environment variable'
-          : 'Sentry is disabled - check EXPO_PUBLIC_SENTRY_ENABLED environment variable';
-
-        logger.error(`Sentry Configuration Error: ${errorMessage}`);
+      if (!isConfigured && reason) {
+        logger.error(`Sentry Configuration Error: ${reason.replace('\n\n', ' - ')}`);
       }
     } catch (error) {
       logger.error('Failed to check Sentry configuration:', error);
@@ -870,27 +877,48 @@ export default function SettingsScreen({ navigation }: Props) {
             </TouchableOpacity>
 
             {sentryStatus && (
-              <View
-                style={[
-                  styles.developerButton,
-                  sentryStatus.isConfigured
-                    ? { backgroundColor: theme.background }
-                    : { backgroundColor: theme.background, borderColor: theme.danger, borderWidth: 1 },
-                ]}
-              >
-                <Ionicons
-                  name={sentryStatus.isConfigured ? 'checkmark-circle' : 'alert-circle'}
-                  size={20}
-                  color={sentryStatus.isConfigured ? '#34C759' : theme.danger}
-                />
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={styles.developerButtonText}>
-                    Sentry: {sentryStatus.isConfigured ? '✅ Active' : '❌ Not Configured'}
-                  </Text>
-                  <Text style={{ fontSize: 12, color: theme.textTertiary, marginTop: 4 }}>
-                    {sentryStatus.environment}
-                  </Text>
+              <View>
+                <View
+                  style={[
+                    styles.developerButton,
+                    sentryStatus.isConfigured
+                      ? { backgroundColor: theme.background }
+                      : { backgroundColor: theme.background, borderColor: theme.danger, borderWidth: 1 },
+                  ]}
+                >
+                  <Ionicons
+                    name={sentryStatus.isConfigured ? 'checkmark-circle' : 'alert-circle'}
+                    size={20}
+                    color={sentryStatus.isConfigured ? '#34C759' : theme.danger}
+                  />
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={styles.developerButtonText}>
+                      Sentry: {sentryStatus.isConfigured ? '✅ Active' : '❌ Not Configured'}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: theme.textTertiary, marginTop: 4 }}>
+                      {sentryStatus.environment}
+                    </Text>
+                  </View>
                 </View>
+
+                {!sentryStatus.isConfigured && sentryStatus.reason && (
+                  <View
+                    style={{
+                      backgroundColor: theme.card,
+                      borderRadius: 8,
+                      padding: 12,
+                      marginHorizontal: 16,
+                      marginTop: 8,
+                      marginBottom: 12,
+                      borderLeftWidth: 4,
+                      borderLeftColor: theme.danger,
+                    }}
+                  >
+                    <Text style={{ fontSize: 13, color: theme.text, lineHeight: 20 }}>
+                      {sentryStatus.reason}
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
 
