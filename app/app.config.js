@@ -3,13 +3,13 @@ const pkg = require('./package.json');
 module.exports = {
   expo: {
     name: "MigraLog",
-    slug: "migralog",
+    slug: "migraine-tracker",
     version: pkg.version,
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
-    scheme: "migralog",
+    scheme: "migraine-tracker",
     splash: {
       image: "./assets/splash-icon.png",
       resizeMode: "contain",
