@@ -20,11 +20,11 @@
       "autoIncrement": true,
       "env": {
         "SENTRY_DISABLE_AUTO_UPLOAD": "true",
-        "SENTRY_AUTH_TOKEN": "eas_secret:SENTRY_AUTH_TOKEN",
-        "SENTRY_ORG": "eas_secret:SENTRY_ORG",
-        "SENTRY_PROJECT": "eas_secret:SENTRY_PROJECT",
-        "EXPO_PUBLIC_SENTRY_DSN": "eas_secret:EXPO_PUBLIC_SENTRY_DSN",
-        "EXPO_PUBLIC_SENTRY_ENABLED": "true"
+        "SENTRY_AUTH_TOKEN": "$SENTRY_AUTH_TOKEN",
+        "SENTRY_ORG": "$SENTRY_ORG",
+        "SENTRY_PROJECT": "$SENTRY_PROJECT",
+        "EXPO_PUBLIC_SENTRY_DSN": "$EXPO_PUBLIC_SENTRY_DSN",
+        "EXPO_PUBLIC_SENTRY_ENABLED": "$EXPO_PUBLIC_SENTRY_ENABLED"
       },
       "ios": {
         "simulator": false,
@@ -37,11 +37,11 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "SENTRY_AUTH_TOKEN": "eas_secret:SENTRY_AUTH_TOKEN",
-        "SENTRY_ORG": "eas_secret:SENTRY_ORG",
-        "SENTRY_PROJECT": "eas_secret:SENTRY_PROJECT",
-        "EXPO_PUBLIC_SENTRY_DSN": "eas_secret:EXPO_PUBLIC_SENTRY_DSN",
-        "EXPO_PUBLIC_SENTRY_ENABLED": "true"
+        "SENTRY_AUTH_TOKEN": "$SENTRY_AUTH_TOKEN",
+        "SENTRY_ORG": "$SENTRY_ORG",
+        "SENTRY_PROJECT": "$SENTRY_PROJECT",
+        "EXPO_PUBLIC_SENTRY_DSN": "$EXPO_PUBLIC_SENTRY_DSN",
+        "EXPO_PUBLIC_SENTRY_ENABLED": "$EXPO_PUBLIC_SENTRY_ENABLED"
       },
       "ios": {
         "buildConfiguration": "Release"
