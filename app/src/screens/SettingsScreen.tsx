@@ -22,6 +22,7 @@ import { backupService } from '../services/backupService';
 import * as SQLite from 'expo-sqlite';
 import * as Notifications from 'expo-notifications';
 import * as Sentry from '@sentry/react-native';
+import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NotificationSettings from '../components/NotificationSettings';
 
@@ -40,6 +41,17 @@ export default function SettingsScreen({ navigation }: Props) {
   const [versionTapCount, setVersionTapCount] = useState(0);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [isTogglingNotifications, setIsTogglingNotifications] = useState(false);
+  const [sentryStatus, setSentryStatus] = useState<{
+    isConfigured: boolean;
+    isEnabled: boolean;
+    environment: string;
+    reason?: string;
+    dsn?: string;
+    org?: string;
+    project?: string;
+    slug?: string;
+    bundleId?: string;
+  } | null>(null);
 
   useEffect(() => {
     loadDiagnostics();
@@ -122,6 +134,9 @@ export default function SettingsScreen({ navigation }: Props) {
       // Check database health
       await checkDatabaseHealth();
 
+      // Check Sentry configuration
+      checkSentryConfiguration();
+
       // Load notification permissions
       const permissions = await notificationService.getPermissions();
       setNotificationPermissions(permissions);
@@ -131,6 +146,44 @@ export default function SettingsScreen({ navigation }: Props) {
       setLocationPermission(hasLocationPermission);
     } catch (error) {
       logger.error('Failed to load diagnostics:', error);
+    }
+  };
+
+  const checkSentryConfiguration = () => {
+    try {
+      const client = Sentry.getClient();
+      const dsn = client?.getOptions().dsn;
+      const enabled = client?.getOptions().enabled ?? false;
+      const environment = client?.getOptions().environment ?? 'unknown';
+      const isConfigured = !!dsn && enabled;
+
+      // Get configuration values from Constants and environment
+      const expoConfig = Constants.expoConfig || {};
+      const slug = (expoConfig as Record<string, unknown>)?.slug;
+      const bundleId = ((expoConfig as Record<string, unknown>)?.ios as Record<string, unknown>)?.bundleIdentifier;
+
+      let reason: string | undefined;
+      if (!isConfigured) {
+        if (!dsn) {
+          reason = 'DSN not configured\n\nCheck EXPO_PUBLIC_SENTRY_DSN environment variable in GitHub Actions secrets';
+        } else if (!enabled) {
+          reason = 'Sentry is disabled\n\nCheck EXPO_PUBLIC_SENTRY_ENABLED environment variable in GitHub Actions secrets';
+        }
+      }
+
+      setSentryStatus({
+        isConfigured,
+        isEnabled: enabled,
+        environment,
+        reason,
+        dsn: dsn || 'not configured',
+        org: process.env.SENTRY_ORG || 'eff3',
+        project: process.env.SENTRY_PROJECT || 'migralog',
+        slug: typeof slug === 'string' ? slug : undefined,
+        bundleId: typeof bundleId === 'string' ? bundleId : undefined,
+      });
+    } catch (error) {
+      logger.error('Failed to check Sentry configuration:', error);
     }
   };
 
@@ -220,6 +273,7 @@ export default function SettingsScreen({ navigation }: Props) {
       ]
     );
   };
+
 
   const handleRequestNotifications = async () => {
     try {
@@ -831,6 +885,116 @@ export default function SettingsScreen({ navigation }: Props) {
               <Ionicons name="flask-outline" size={20} color={theme.primary} />
               <Text style={styles.developerButtonText}>Test Error Logging</Text>
             </TouchableOpacity>
+
+            {sentryStatus && (
+              <View>
+                <View
+                  style={[
+                    styles.developerButton,
+                    sentryStatus.isConfigured
+                      ? { backgroundColor: theme.background }
+                      : { backgroundColor: theme.background, borderColor: theme.danger, borderWidth: 1 },
+                  ]}
+                >
+                  <Ionicons
+                    name={sentryStatus.isConfigured ? 'checkmark-circle' : 'alert-circle'}
+                    size={20}
+                    color={sentryStatus.isConfigured ? '#34C759' : theme.danger}
+                  />
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={styles.developerButtonText}>
+                      Sentry: {sentryStatus.isConfigured ? '✅ Active' : '❌ Not Configured'}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: theme.textTertiary, marginTop: 4 }}>
+                      {sentryStatus.environment}
+                    </Text>
+                  </View>
+                </View>
+
+                {!sentryStatus.isConfigured && sentryStatus.reason && (
+                  <View
+                    style={{
+                      backgroundColor: theme.card,
+                      borderRadius: 8,
+                      padding: 12,
+                      marginHorizontal: 16,
+                      marginTop: 8,
+                      marginBottom: 12,
+                      borderLeftWidth: 4,
+                      borderLeftColor: theme.danger,
+                    }}
+                  >
+                    <Text style={{ fontSize: 13, color: theme.text, lineHeight: 20 }}>
+                      {sentryStatus.reason}
+                    </Text>
+                  </View>
+                )}
+
+                {sentryStatus && (
+                  <View
+                    style={{
+                      backgroundColor: theme.card,
+                      borderRadius: 8,
+                      padding: 12,
+                      marginHorizontal: 16,
+                      marginTop: 8,
+                      marginBottom: 12,
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: theme.textSecondary, marginBottom: 8 }}>
+                      Configuration
+                    </Text>
+
+                    {sentryStatus.org && (
+                      <View style={{ marginBottom: 6 }}>
+                        <Text style={{ fontSize: 11, color: theme.textTertiary }}>Org</Text>
+                        <Text style={{ fontSize: 13, color: theme.text, fontFamily: 'Menlo' }}>
+                          {sentryStatus.org}
+                        </Text>
+                      </View>
+                    )}
+
+                    {sentryStatus.project && (
+                      <View style={{ marginBottom: 6 }}>
+                        <Text style={{ fontSize: 11, color: theme.textTertiary }}>Project</Text>
+                        <Text style={{ fontSize: 13, color: theme.text, fontFamily: 'Menlo' }}>
+                          {sentryStatus.project}
+                        </Text>
+                      </View>
+                    )}
+
+                    {sentryStatus.slug && (
+                      <View style={{ marginBottom: 6 }}>
+                        <Text style={{ fontSize: 11, color: theme.textTertiary }}>Slug</Text>
+                        <Text style={{ fontSize: 13, color: theme.text, fontFamily: 'Menlo' }}>
+                          {sentryStatus.slug}
+                        </Text>
+                      </View>
+                    )}
+
+                    {sentryStatus.bundleId && (
+                      <View style={{ marginBottom: 6 }}>
+                        <Text style={{ fontSize: 11, color: theme.textTertiary }}>Bundle ID</Text>
+                        <Text style={{ fontSize: 13, color: theme.text, fontFamily: 'Menlo' }}>
+                          {sentryStatus.bundleId}
+                        </Text>
+                      </View>
+                    )}
+
+                    {sentryStatus.dsn && (
+                      <View>
+                        <Text style={{ fontSize: 11, color: theme.textTertiary }}>DSN</Text>
+                        <Text style={{ fontSize: 11, color: theme.text, fontFamily: 'Menlo' }}>
+                          {sentryStatus.dsn === 'not configured'
+                            ? 'not configured'
+                            : `${sentryStatus.dsn.substring(0, 20)}...`}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
+            )}
 
             <TouchableOpacity
               style={styles.developerButton}
