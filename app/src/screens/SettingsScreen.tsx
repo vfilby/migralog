@@ -40,6 +40,11 @@ export default function SettingsScreen({ navigation }: Props) {
   const [versionTapCount, setVersionTapCount] = useState(0);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [isTogglingNotifications, setIsTogglingNotifications] = useState(false);
+  const [sentryStatus, setSentryStatus] = useState<{
+    isConfigured: boolean;
+    isEnabled: boolean;
+    environment: string;
+  } | null>(null);
 
   useEffect(() => {
     loadDiagnostics();
@@ -122,6 +127,9 @@ export default function SettingsScreen({ navigation }: Props) {
       // Check database health
       await checkDatabaseHealth();
 
+      // Check Sentry configuration
+      checkSentryConfiguration();
+
       // Load notification permissions
       const permissions = await notificationService.getPermissions();
       setNotificationPermissions(permissions);
@@ -131,6 +139,34 @@ export default function SettingsScreen({ navigation }: Props) {
       setLocationPermission(hasLocationPermission);
     } catch (error) {
       logger.error('Failed to load diagnostics:', error);
+    }
+  };
+
+  const checkSentryConfiguration = () => {
+    try {
+      const client = Sentry.getClient();
+      const dsn = client?.getOptions().dsn;
+      const enabled = client?.getOptions().enabled ?? false;
+      const environment = client?.getOptions().environment ?? 'unknown';
+      const isConfigured = !!dsn && enabled;
+
+      setSentryStatus({
+        isConfigured,
+        isEnabled: enabled,
+        environment,
+      });
+
+      // Log error if Sentry is not properly configured
+      // This will appear in the red error overlay on device during development
+      if (!isConfigured) {
+        const errorMessage = !dsn
+          ? 'Sentry DSN not configured - check EXPO_PUBLIC_SENTRY_DSN environment variable'
+          : 'Sentry is disabled - check EXPO_PUBLIC_SENTRY_ENABLED environment variable';
+
+        logger.error(`Sentry Configuration Error: ${errorMessage}`);
+      }
+    } catch (error) {
+      logger.error('Failed to check Sentry configuration:', error);
     }
   };
 
@@ -220,6 +256,7 @@ export default function SettingsScreen({ navigation }: Props) {
       ]
     );
   };
+
 
   const handleRequestNotifications = async () => {
     try {
@@ -831,6 +868,31 @@ export default function SettingsScreen({ navigation }: Props) {
               <Ionicons name="flask-outline" size={20} color={theme.primary} />
               <Text style={styles.developerButtonText}>Test Error Logging</Text>
             </TouchableOpacity>
+
+            {sentryStatus && (
+              <View
+                style={[
+                  styles.developerButton,
+                  sentryStatus.isConfigured
+                    ? { backgroundColor: theme.background }
+                    : { backgroundColor: theme.background, borderColor: theme.danger, borderWidth: 1 },
+                ]}
+              >
+                <Ionicons
+                  name={sentryStatus.isConfigured ? 'checkmark-circle' : 'alert-circle'}
+                  size={20}
+                  color={sentryStatus.isConfigured ? '#34C759' : theme.danger}
+                />
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={styles.developerButtonText}>
+                    Sentry: {sentryStatus.isConfigured ? '✅ Active' : '❌ Not Configured'}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: theme.textTertiary, marginTop: 4 }}>
+                    {sentryStatus.environment}
+                  </Text>
+                </View>
+              </View>
+            )}
 
             <TouchableOpacity
               style={styles.developerButton}
