@@ -165,9 +165,9 @@ export default function SettingsScreen({ navigation }: Props) {
       let reason: string | undefined;
       if (!isConfigured) {
         if (!dsn) {
-          reason = 'DSN not configured\n\nSet EXPO_PUBLIC_SENTRY_DSN in GitHub Actions environment variables';
+          reason = 'DSN not configured\n\nCheck EXPO_PUBLIC_SENTRY_DSN environment variable in GitHub Actions secrets';
         } else if (!enabled) {
-          reason = 'Sentry is disabled\n\nSet EXPO_PUBLIC_SENTRY_ENABLED to "true" in GitHub Actions environment variables';
+          reason = 'Sentry is disabled\n\nCheck EXPO_PUBLIC_SENTRY_ENABLED environment variable in GitHub Actions secrets';
         }
       }
 
