@@ -122,8 +122,8 @@ export default function MedicationAutocomplete({
 
   const handleBlur = () => {
     setIsFocused(false);
-    // Delay hiding suggestions to allow tap to register
-    setTimeout(() => setShowSuggestions(false), 200);
+    // Delay hiding suggestions to allow tap to register on physical devices
+    setTimeout(() => setShowSuggestions(false), 300);
   };
 
   const handleSelectSuggestion = (medication: PresetMedication) => {
@@ -183,8 +183,8 @@ export default function MedicationAutocomplete({
         <View style={styles.suggestionsContainer}>
           {hasMatches ? (
             <ScrollView
-              keyboardShouldPersistTaps="handled"
-              nestedScrollEnabled={false}
+              keyboardShouldPersistTaps="always"
+              nestedScrollEnabled={true}
             >
               {suggestions.map((item, index) => (
                 <View key={`${item.name}-${index}`}>
