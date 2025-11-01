@@ -122,21 +122,29 @@ export default function MedicationAutocomplete({
 
   const handleBlur = () => {
     setIsFocused(false);
-    // Delay hiding suggestions to allow tap to register on physical devices
-    setTimeout(() => setShowSuggestions(false), 300);
+    // Don't hide suggestions on blur - let user tap them with on-screen keyboard
   };
 
   const handleSelectSuggestion = (medication: PresetMedication) => {
-    onChangeText(medication.name);
-    onSelectPreset(medication);
+    // Hide suggestions first to prevent re-showing
     setShowSuggestions(false);
+    // Update the text input
+    onChangeText(medication.name);
+    // Dismiss keyboard before calling preset handler to avoid state conflicts
     Keyboard.dismiss();
+    // Use setTimeout to ensure state updates complete before calling preset
+    setTimeout(() => {
+      onSelectPreset(medication);
+    }, 0);
   };
 
   const handleTextChange = (text: string) => {
     onChangeText(text);
     if (text.trim()) {
       setShowSuggestions(true);
+    } else {
+      // Hide suggestions when input is cleared
+      setShowSuggestions(false);
     }
   };
 
