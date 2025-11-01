@@ -20,7 +20,13 @@
     "test:ui:build": "npm run generate-build-info && npx detox build -c ios.sim.debug",
     "sim:ios:load-db": "bash scripts/load-test-db.sh",
     "sim:ios:app": "bash scripts/launch-simulator.sh",
-    "eas-build-post-install": "node scripts/generate-build-info.js"
+    "eas-build-post-install": "node scripts/generate-build-info.js",
+    "release:alpha": "node scripts/tag-release.js alpha",
+    "release:beta": "node scripts/tag-release.js beta",
+    "release:production": "node scripts/tag-release.js production",
+    "version:patch": "npm version patch",
+    "version:minor": "npm version minor",
+    "version:major": "npm version major"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
