@@ -1,27 +1,2 @@
-# Beads issue tracking (local development state)
+# Exclude beads directory (contains socket files)
 .beads/
-
-# Node modules (installed by EAS)
-node_modules/
-
-# Expo
-.expo/
-
-# Git
-.git/
-
-# Test artifacts
-e2e/artifacts/
-coverage/
-
-# Build artifacts
-ios/build/
-android/build/
-android/.gradle/
-
-# IDE
-.vscode/
-.idea/
-
-# OS
-.DS_Store
