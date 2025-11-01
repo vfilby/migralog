@@ -48,3 +48,5 @@ coverage/
 artifacts/
 
 .env.local
+
+.env.local

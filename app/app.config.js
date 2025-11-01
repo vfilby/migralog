@@ -61,6 +61,14 @@ module.exports = {
         {
           mode: "production"
         }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "migralog",
+          "organization": "eff3"
+        }
       ]
     ],
     extra: {
