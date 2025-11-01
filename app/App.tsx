@@ -11,24 +11,30 @@ import { performanceMonitor } from './src/utils/performance';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import * as Sentry from '@sentry/react-native';
 
-Sentry.init({
-  dsn: 'https://15bd8c3b6589a60a5e10f2703923db39@o4510275950608384.ingest.us.sentry.io/4510275952312320',
+// Only initialize Sentry if explicitly enabled or in production
+// This prevents quota usage during development and testing
+const shouldInitSentry = !__DEV__ || process.env.EXPO_PUBLIC_SENTRY_ENABLED === 'true';
 
-  // Adds more context data to events (IP address, cookies, user, etc.)
-  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
-  sendDefaultPii: true,
+if (shouldInitSentry) {
+  Sentry.init({
+    dsn: 'https://15bd8c3b6589a60a5e10f2703923db39@o4510275950608384.ingest.us.sentry.io/4510275952312320',
 
-  // Enable Logs
-  enableLogs: true,
+    // Adds more context data to events (IP address, cookies, user, etc.)
+    // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
+    sendDefaultPii: true,
 
-  // Configure Session Replay
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1,
-  integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
+    // Enable Logs
+    enableLogs: true,
 
-  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
-  // spotlight: __DEV__,
-});
+    // Configure Session Replay
+    replaysSessionSampleRate: 0.1,
+    replaysOnErrorSampleRate: 1,
+    integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
+
+    // uncomment the line below to enable Spotlight (https://spotlightjs.com)
+    // spotlight: __DEV__,
+  });
+}
 
 // Note: In development, LogBox may overlay our ErrorBoundary screen with a red error screen.
 // However, ErrorBoundary still works correctly - if you dismiss LogBox, you'll see ErrorRecoveryScreen.
@@ -179,4 +185,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Sentry.wrap(App);
+export default shouldInitSentry ? Sentry.wrap(App) : App;
