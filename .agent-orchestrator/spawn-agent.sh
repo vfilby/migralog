@@ -76,25 +76,54 @@ METRO_PORT=$((19000 + AGENT_NUM))
 
 echo "📝 Creating agent metadata..."
 # Create agent metadata with task prompt if provided
-TASK_JSON=""
+# Use jq to properly construct JSON to avoid escaping issues
 if [ -n "$TASK_PROMPT" ]; then
-    TASK_JSON=",\n  \"task_prompt\": $(echo "$TASK_PROMPT" | jq -R .),\n  \"auto_start\": true,\n  \"permissions_granted\": true"
+    jq -n \
+        --arg id "$AGENT_ID" \
+        --arg branch "$BRANCH_NAME" \
+        --arg created "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        --argjson use_docker "$USE_DOCKER" \
+        --arg workspace "$WORKSPACE_DIR" \
+        --argjson expo_port "$EXPO_PORT" \
+        --argjson metro_port "$METRO_PORT" \
+        --arg task "$TASK_PROMPT" \
+        '{
+            "id": $id,
+            "branch": $branch,
+            "created_at": $created,
+            "use_docker": $use_docker,
+            "status": "active",
+            "ports": {
+                "expo": $expo_port,
+                "metro": $metro_port
+            },
+            "workspace_dir": $workspace,
+            "task_prompt": $task,
+            "auto_start": true,
+            "permissions_granted": true
+        }' > "$WORKSPACE_DIR/metadata.json"
+else
+    jq -n \
+        --arg id "$AGENT_ID" \
+        --arg branch "$BRANCH_NAME" \
+        --arg created "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        --argjson use_docker "$USE_DOCKER" \
+        --arg workspace "$WORKSPACE_DIR" \
+        --argjson expo_port "$EXPO_PORT" \
+        --argjson metro_port "$METRO_PORT" \
+        '{
+            "id": $id,
+            "branch": $branch,
+            "created_at": $created,
+            "use_docker": $use_docker,
+            "status": "active",
+            "ports": {
+                "expo": $expo_port,
+                "metro": $metro_port
+            },
+            "workspace_dir": $workspace
+        }' > "$WORKSPACE_DIR/metadata.json"
 fi
-
-cat > "$WORKSPACE_DIR/metadata.json" <<EOF
-{
-  "id": "$AGENT_ID",
-  "branch": "$BRANCH_NAME",
-  "created_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "use_docker": $USE_DOCKER,
-  "status": "active",
-  "ports": {
-    "expo": $EXPO_PORT,
-    "metro": $METRO_PORT
-  },
-  "workspace_dir": "$WORKSPACE_DIR"$TASK_JSON
-}
-EOF
 
 # Setup Docker if requested
 if [ "$USE_DOCKER" = "true" ]; then
