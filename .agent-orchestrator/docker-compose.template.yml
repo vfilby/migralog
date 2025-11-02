@@ -7,27 +7,16 @@ services:
       # Mount parent repo as read-only for cloning
       - "${PROJECT_ROOT}:/host-repo:ro"
 
-      # Persistent workspace (will contain git clone)
-      - "agent-${AGENT_ID}-workspace:/workspace"
-      - "agent-${AGENT_ID}-node-modules:/workspace/app/node_modules"
-      - "agent-${AGENT_ID}-cache:/home/agent/.cache"
-
       # Docker access for nested containers
       - "/var/run/docker.sock:/var/run/docker.sock"
-      
-      # Host tool access (for full autonomy)
+
+      # Host tool access (for full autonomy) - read-only
       - "${HOME}/.npmrc:/home/agent/.npmrc:ro"
       - "${HOME}/.gitconfig:/home/agent/.gitconfig:ro"
 
-      # SSH keys for git push/pull authentication
+      # SSH keys for git push/pull authentication - read-only
       - "${HOME}/.ssh:/home/agent/.ssh:ro"
-      
-      # OpenCode configuration sharing
-      - "agent-${AGENT_ID}-opencode-config:/home/agent/.config"
-      
-      # Persistent agent data
-      - "agent-${AGENT_ID}-data:/home/agent/data"
-      
+
     environment:
       - NODE_ENV=development
       - AGENT_ID=${AGENT_ID}
@@ -76,33 +65,7 @@ services:
         reservations:
           cpus: '0.5'
           memory: 1G
-      
-volumes:
-  "agent-${AGENT_ID}-workspace":
-    driver: local
-    labels:
-      - "agent.id=${AGENT_ID}"
 
-  "agent-${AGENT_ID}-node-modules":
-    driver: local
-    labels:
-      - "agent.id=${AGENT_ID}"
-
-  "agent-${AGENT_ID}-cache":
-    driver: local
-    labels:
-      - "agent.id=${AGENT_ID}"
-
-  "agent-${AGENT_ID}-opencode-config":
-    driver: local
-    labels:
-      - "agent.id=${AGENT_ID}"
-
-  "agent-${AGENT_ID}-data":
-    driver: local
-    labels:
-      - "agent.id=${AGENT_ID}"
-    
 networks:
   agent-network:
     driver: bridge
