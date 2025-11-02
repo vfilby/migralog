@@ -36,3 +36,7 @@ yarn-error.log*
 
 # Playwright MCP
 .playwright-mcp/
+
+# Agent Orchestrator workspaces
+.agent-workspaces/
+!.agent-workspaces/.gitkeep
