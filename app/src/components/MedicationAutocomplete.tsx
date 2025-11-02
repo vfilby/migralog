@@ -1,13 +1,13 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   ScrollView,
   StyleSheet,
   Keyboard,
 } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useTheme, ThemeColors } from '../theme';
 import { PresetMedication, searchMedications, getCategoryName } from '../utils/presetMedications';
 
@@ -111,55 +111,98 @@ export default function MedicationAutocomplete({
   const [isFocused, setIsFocused] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef<TextInput>(null);
+  const suggestionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const justSelectedRef = useRef(false);
 
   const suggestions = value.trim() ? searchMedications(value) : [];
   const hasMatches = suggestions.length > 0;
 
+  // Delay showing suggestions to let iOS keyboard settle
+  useEffect(() => {
+    if (suggestionTimerRef.current) {
+      clearTimeout(suggestionTimerRef.current);
+    }
+
+    // Don't show suggestions if we just made a selection
+    if (justSelectedRef.current) {
+      setShowSuggestions(false);
+      return;
+    }
+
+    if (value.trim()) {
+      suggestionTimerRef.current = setTimeout(() => {
+        setShowSuggestions(true);
+      }, 300);
+    } else {
+      setShowSuggestions(false);
+    }
+
+    return () => {
+      if (suggestionTimerRef.current) {
+        clearTimeout(suggestionTimerRef.current);
+      }
+    };
+  }, [value]);
+
   const handleFocus = () => {
     setIsFocused(true);
-    setShowSuggestions(true);
   };
 
   const handleBlur = () => {
     setIsFocused(false);
-    // Delay hiding suggestions to allow tap to register
-    setTimeout(() => setShowSuggestions(false), 200);
+    // Don't hide suggestions on blur - let user tap them with on-screen keyboard
   };
 
   const handleSelectSuggestion = (medication: PresetMedication) => {
-    onChangeText(medication.name);
-    onSelectPreset(medication);
+    // Mark that we just made a selection to prevent suggestions from re-appearing
+    justSelectedRef.current = true;
+
+    // Hide suggestions and dismiss keyboard immediately
     setShowSuggestions(false);
     Keyboard.dismiss();
+
+    // Populate all fields via the preset handler (including name)
+    onSelectPreset(medication);
   };
 
   const handleTextChange = (text: string) => {
+    // Reset the selection flag when user starts typing again
+    justSelectedRef.current = false;
     onChangeText(text);
-    if (text.trim()) {
-      setShowSuggestions(true);
-    }
+    // Suggestion visibility is now managed by useEffect with delay
   };
 
   const renderSuggestion = ({ item, index }: { item: PresetMedication; index: number }) => {
     const isLast = index === suggestions.length - 1;
 
+    // Use Gesture Handler to bypass React Native's touch system
+    const tapGesture = Gesture.Tap().onStart(() => {
+      handleSelectSuggestion(item);
+    });
+
     return (
-      <TouchableOpacity
-        style={[styles.suggestionItem, isLast && styles.suggestionItemLast]}
-        onPress={() => handleSelectSuggestion(item)}
-        activeOpacity={0.7}
-      >
-        <Text style={styles.suggestionName}>{item.name}</Text>
-        {item.genericName && (
-          <Text style={styles.suggestionGeneric}>{item.genericName}</Text>
-        )}
-        <View style={styles.suggestionDetails}>
-          <Text style={styles.suggestionDosage}>
-            {item.dosageAmount} {item.dosageUnit}
-          </Text>
-          <Text style={styles.suggestionCategory}>{getCategoryName(item.category)}</Text>
+      <GestureDetector gesture={tapGesture}>
+        <View
+          style={[
+            styles.suggestionItem,
+            isLast && styles.suggestionItemLast,
+          ]}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel={`Select ${item.name}, ${item.dosageAmount} ${item.dosageUnit}`}
+        >
+          <Text style={styles.suggestionName}>{item.name}</Text>
+          {item.genericName && (
+            <Text style={styles.suggestionGeneric}>{item.genericName}</Text>
+          )}
+          <View style={styles.suggestionDetails}>
+            <Text style={styles.suggestionDosage}>
+              {item.dosageAmount} {item.dosageUnit}
+            </Text>
+            <Text style={styles.suggestionCategory}>{getCategoryName(item.category)}</Text>
+          </View>
         </View>
-      </TouchableOpacity>
+      </GestureDetector>
     );
   };
 
@@ -178,13 +221,20 @@ export default function MedicationAutocomplete({
         autoCapitalize="words"
         autoCorrect={false}
         testID="medication-name-input"
+        accessible={true}
+        accessibilityLabel="Medication name input"
+        accessibilityHint="Type to search for preset medications or enter a custom name"
       />
       {showSuggestions && value.trim().length > 0 && (
-        <View style={styles.suggestionsContainer}>
+        <View
+          style={styles.suggestionsContainer}
+          pointerEvents="box-none"
+        >
           {hasMatches ? (
             <ScrollView
-              keyboardShouldPersistTaps="handled"
-              nestedScrollEnabled={false}
+              keyboardShouldPersistTaps="always"
+              nestedScrollEnabled={true}
+              pointerEvents="auto"
             >
               {suggestions.map((item, index) => (
                 <View key={`${item.name}-${index}`}>

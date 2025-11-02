@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Toast from 'react-native-toast-message';
 import AppNavigator from './src/navigation/AppNavigator';
 import { ThemeProvider } from './src/theme';
@@ -130,13 +131,15 @@ function App() {
   }
 
   return (
-    <ErrorBoundary>
-      <ThemeProvider>
-        <AppNavigator />
-        <StatusBar style="auto" />
-        <Toast />
-      </ThemeProvider>
-    </ErrorBoundary>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ErrorBoundary>
+        <ThemeProvider>
+          <AppNavigator />
+          <StatusBar style="auto" />
+          <Toast />
+        </ThemeProvider>
+      </ErrorBoundary>
+    </GestureHandlerRootView>
   );
 }
 

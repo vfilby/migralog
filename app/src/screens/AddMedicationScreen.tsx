@@ -254,6 +254,9 @@ export default function AddMedicationScreen({ navigation }: Props) {
   const [category, setCategory] = useState<MedicationCategory | undefined>();
 
   const handleSelectPreset = (medication: PresetMedication) => {
+    // Set the medication name
+    setName(medication.name);
+
     // Auto-fill dosage and unit from preset
     setDosageAmount(medication.dosageAmount);
     setDosageUnit(medication.dosageUnit);

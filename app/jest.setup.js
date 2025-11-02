@@ -195,3 +195,65 @@ jest.mock('@react-native-community/datetimepicker', () => {
     default: View,
   };
 });
+
+// Mock react-native-gesture-handler
+jest.mock('react-native-gesture-handler', () => {
+  const React = require('react');
+  const View = require('react-native/Libraries/Components/View/View');
+
+  return {
+    Swipeable: View,
+    DrawerLayout: View,
+    State: {},
+    // Don't mock these - let React Native's versions be used
+    // ScrollView: View,
+    // Slider: View,
+    // Switch: View,
+    // TextInput: View,
+    ToolbarAndroid: View,
+    ViewPagerAndroid: View,
+    DrawerLayoutAndroid: View,
+    WebView: View,
+    NativeViewGestureHandler: View,
+    TapGestureHandler: View,
+    FlingGestureHandler: View,
+    ForceTouchGestureHandler: View,
+    LongPressGestureHandler: View,
+    PanGestureHandler: View,
+    PinchGestureHandler: View,
+    RotationGestureHandler: View,
+    RawButton: View,
+    BaseButton: View,
+    RectButton: View,
+    BorderlessButton: View,
+    // Don't mock FlatList - let React Native's version be used
+    // FlatList: View,
+    gestureHandlerRootHOC: jest.fn(),
+    Directions: {},
+    // GestureDetector should accept gesture prop and render children with press event wired up
+    GestureDetector: ({ children, gesture }) => {
+      const Touchable = require('react-native').TouchableOpacity;
+      const onPress = gesture?._onStartCallback || (() => {});
+      return React.createElement(Touchable, { onPress, activeOpacity: 1 }, children);
+    },
+    Gesture: {
+      Tap: jest.fn(() => ({
+        onStart: jest.fn(function(callback) {
+          this._onStartCallback = callback;
+          return this;
+        }),
+        onEnd: jest.fn().mockReturnThis(),
+        enabled: jest.fn().mockReturnThis(),
+      })),
+      Pan: jest.fn(() => ({
+        onStart: jest.fn(function(callback) {
+          this._onStartCallback = callback;
+          return this;
+        }),
+        onEnd: jest.fn().mockReturnThis(),
+        enabled: jest.fn().mockReturnThis(),
+      })),
+    },
+    GestureHandlerRootView: View,
+  };
+});
