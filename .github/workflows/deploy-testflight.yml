@@ -1,12 +1,11 @@
 name: Deploy to TestFlight
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types:
-      - completed
-    branches:
-      - main
+  push:
+    tags:
+      - 'alpha-v*'
+      - 'beta-v*'
+      - 'v*'
   workflow_dispatch:
     inputs:
       build_profile:
@@ -22,8 +21,6 @@ jobs:
   deploy:
     name: Build and Deploy to TestFlight
     runs-on: ubuntu-latest
-    # Only run if CI workflow succeeded
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     defaults:
       run:
         working-directory: ./app
@@ -31,6 +28,30 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+
+      - name: Determine build profile from tag
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          echo "Tag: $TAG_NAME"
+
+          if [[ "$TAG_NAME" == alpha-v* ]]; then
+            echo "BUILD_PROFILE=preview" >> $GITHUB_ENV
+            echo "RELEASE_TYPE=alpha" >> $GITHUB_ENV
+            echo "📱 Building Alpha release with preview profile"
+          elif [[ "$TAG_NAME" == beta-v* ]]; then
+            echo "BUILD_PROFILE=preview" >> $GITHUB_ENV
+            echo "RELEASE_TYPE=beta" >> $GITHUB_ENV
+            echo "📱 Building Beta release with preview profile"
+          elif [[ "$TAG_NAME" == v* ]]; then
+            echo "BUILD_PROFILE=production" >> $GITHUB_ENV
+            echo "RELEASE_TYPE=production" >> $GITHUB_ENV
+            echo "📱 Building Production release with production profile"
+          else
+            # Manual workflow_dispatch trigger
+            echo "BUILD_PROFILE=${{ github.event.inputs.build_profile || 'preview' }}" >> $GITHUB_ENV
+            echo "RELEASE_TYPE=manual" >> $GITHUB_ENV
+            echo "📱 Building manual release"
+          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -53,10 +74,9 @@ jobs:
 
       - name: Build and Submit to TestFlight
         run: |
-          # Use the build profile from workflow_dispatch input, or default to 'preview' for TestFlight
-          BUILD_PROFILE="${{ github.event.inputs.build_profile || 'preview' }}"
-
-          echo "Building iOS app for TestFlight with profile: $BUILD_PROFILE"
+          echo "Building iOS app for TestFlight"
+          echo "Release type: $RELEASE_TYPE"
+          echo "Build profile: $BUILD_PROFILE"
           eas build --platform ios --profile $BUILD_PROFILE --non-interactive --auto-submit
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}

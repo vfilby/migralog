@@ -171,6 +171,19 @@ global.console = {
   warn: jest.fn(),
 };
 
+// Mock Sentry to prevent calls during tests
+jest.mock('@sentry/react-native', () => ({
+  init: jest.fn(),
+  wrap: jest.fn((component) => component),
+  captureException: jest.fn(),
+  captureMessage: jest.fn(),
+  setContext: jest.fn(),
+  setUser: jest.fn(),
+  addBreadcrumb: jest.fn(),
+  mobileReplayIntegration: jest.fn(() => ({})),
+  feedbackIntegration: jest.fn(() => ({})),
+}));
+
 // Extend Jest matchers for React Native Testing Library
 import '@testing-library/jest-native/extend-expect';
 

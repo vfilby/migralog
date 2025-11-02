@@ -77,13 +77,13 @@ describe('Daily Status Tracking', () => {
     // Phase 2: Manually Log a Green Day
     // ======================
 
-    // Tap on any day in the calendar (e.g., the 5th of PREVIOUS month)
+    // Tap on any day in the calendar (e.g., the 5th of previous month)
     // The calendar uses testID format: calendar-day-YYYY-MM-DD
     const today = new Date();
-    // Calculate previous month
-    const prevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-    const year = prevMonth.getFullYear();
-    const month = String(prevMonth.getMonth() + 1).padStart(2, '0');
+    const previousMonth = new Date(today);
+    previousMonth.setMonth(previousMonth.getMonth() - 1);
+    const year = previousMonth.getFullYear();
+    const month = String(previousMonth.getMonth() + 1).padStart(2, '0');
     const testDay = '05'; // 5th day of month
     const testDateGreen = `${year}-${month}-${testDay}`;
 
@@ -369,12 +369,13 @@ describe('Daily Status Tracking', () => {
     await element(by.text('Trends')).tap();
     await waitForAnimation(1000);
 
-    // Calendar state is preserved from previous tests - already on previous month
+    // Calendar state persists from first test - already on previous month
     // Tap on a day (e.g., the 15th of previous month)
     const today = new Date();
-    const prevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-    const year = prevMonth.getFullYear();
-    const month = String(prevMonth.getMonth() + 1).padStart(2, '0');
+    const previousMonth = new Date(today);
+    previousMonth.setMonth(previousMonth.getMonth() - 1);
+    const year = previousMonth.getFullYear();
+    const month = String(previousMonth.getMonth() + 1).padStart(2, '0');
     const testDay = '15';
     const testDate = `${year}-${month}-${testDay}`;
 
@@ -440,12 +441,13 @@ describe('Daily Status Tracking', () => {
     await element(by.text('Trends')).tap();
     await waitForAnimation(1000);
 
-    // Calendar state is preserved from previous tests - already on previous month
-    // Tap on a day
+    // Calendar state persists from first test - already on previous month
+    // Tap on a day from previous month
     const today = new Date();
-    const prevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-    const year = prevMonth.getFullYear();
-    const month = String(prevMonth.getMonth() + 1).padStart(2, '0');
+    const previousMonth = new Date(today);
+    previousMonth.setMonth(previousMonth.getMonth() - 1);
+    const year = previousMonth.getFullYear();
+    const month = String(previousMonth.getMonth() + 1).padStart(2, '0');
     const testDay = '07';
     const testDate = `${year}-${month}-${testDay}`;
 
@@ -515,6 +517,7 @@ describe('Daily Status Tracking', () => {
     await waitForAnimation(1000);
 
     // Calculate yesterday's date
+    const today = new Date();
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const year = yesterday.getFullYear();
@@ -523,6 +526,15 @@ describe('Daily Status Tracking', () => {
     const yesterdayDate = `${year}-${month}-${day}`;
 
     console.log(`Logging status for yesterday: ${yesterdayDate}`);
+
+    // Calendar state persists from first test (on previous month)
+    // If yesterday is in current month (mid-month), navigate forward to current month
+    // If yesterday is in previous month (1st of month), stay on previous month
+    if (yesterday.getMonth() === today.getMonth()) {
+      await element(by.id('next-month-button')).tap();
+      await waitForAnimation(1000);
+      console.log('Navigated forward to current month (yesterday is in current month)');
+    }
 
     // Tap on yesterday in the calendar
     await waitFor(element(by.id(`calendar-day-${yesterdayDate}`)))
@@ -598,6 +610,7 @@ describe('Daily Status Tracking', () => {
     await waitForAnimation(1000);
 
     // Calculate yesterday's date
+    const today = new Date();
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const year = yesterday.getFullYear();
@@ -606,6 +619,15 @@ describe('Daily Status Tracking', () => {
     const yesterdayDate = `${year}-${month}-${day}`;
 
     console.log(`Logging status for yesterday: ${yesterdayDate}`);
+
+    // Calendar state persists from first test (on previous month)
+    // If yesterday is in current month (mid-month), navigate forward to current month
+    // If yesterday is in previous month (1st of month), stay on previous month
+    if (yesterday.getMonth() === today.getMonth()) {
+      await element(by.id('next-month-button')).tap();
+      await waitForAnimation(1000);
+      console.log('Navigated forward to current month (yesterday is in current month)');
+    }
 
     // Tap on yesterday in the calendar
     await waitFor(element(by.id(`calendar-day-${yesterdayDate}`)))
