@@ -28,8 +28,11 @@ bd ready --json | jq '.[] | {id: .id, title: .title}'
 # Tier 2 (With Docker isolation)
 ./.agent-orchestrator/agent-cli.sh create agent-2 bd-20 true
 
-# Auto-start with task (Docker only, all permissions granted)
+# Auto-start with task (Docker only, interactive)
 ./.agent-orchestrator/spawn-agent.sh agent-3 true fix/bug-123 "Fix the login authentication bug"
+
+# Just a clean shell (Docker only, no task, no specific branch)
+./.agent-orchestrator/spawn-agent.sh agent-sandbox true
 ```
 
 ### 3. Start Working
@@ -308,6 +311,35 @@ gh pr create --base main --head agent/agent-1/bd-14
 # User responds via bd issue or terminal prompt
 # Agent continues with guidance
 ```
+
+#### Clean Sandbox Environment
+
+```bash
+# Launch isolated environment with no specific branch or task
+# Perfect for ad-hoc testing, experimentation, or manual work
+./.agent-orchestrator/spawn-agent.sh agent-sandbox true
+
+# You'll get a shell in /workspace/app with:
+# ✅ Full Docker isolation
+# ✅ Node.js 20 environment
+# ✅ All project dependencies
+# ✅ OpenCode, bd, and dev tools available
+# ✅ Auto-generated branch (agent/agent-sandbox/dev-YYYYMMDD-HHMMSS)
+# ✅ Can manually run opencode, npm test, etc.
+
+# Custom branch name (optional)
+./.agent-orchestrator/spawn-agent.sh agent-sandbox true feature/my-experiment
+
+# When done
+./.agent-orchestrator/agent-cli.sh cleanup agent-sandbox
+```
+
+**Use Cases:**
+- Testing a quick fix without a formal task
+- Experimenting with dependencies or tools
+- Debugging environment-specific issues
+- Manual code exploration
+- Learning/practicing with isolated environment
 
 ## Tier Comparison
 
