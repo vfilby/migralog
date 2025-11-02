@@ -1,7 +1,7 @@
 # Agent Workspace Dockerfile
 # Optimized for autonomous React Native/Expo development with OpenCode
 
-FROM node:20-bullseye
+FROM node:25-bullseye
 
 # Set default shell to bash
 SHELL ["/bin/bash", "-c"]
