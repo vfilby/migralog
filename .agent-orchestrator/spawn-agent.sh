@@ -193,7 +193,8 @@ if [ "$USE_DOCKER" = "true" ]; then
         echo ""
         cd "$WORKSPACE_DIR"
         # Execute OpenCode interactively with task in the container
-        exec docker compose exec agent-workspace bash -c "cd /workspace && opencode '$TASK_PROMPT'"
+        # Export PATH to include OpenCode and bd
+        exec docker compose exec agent-workspace bash -c "export PATH=\"\$HOME/.opencode/bin:\$HOME/go/bin:\$PATH\" && cd /workspace && opencode '$TASK_PROMPT'"
     else
         echo "🐚 Launching container shell..."
         echo ""
