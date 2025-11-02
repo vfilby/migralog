@@ -137,6 +137,24 @@ if [ ! -d /workspace/.git ]; then
 
         echo "✅ Repository cloned and ready"
         echo "📌 You can push to remote with: git push origin \$AGENT_BRANCH"
+
+        # Install dependencies if package.json exists
+        if [ -f /workspace/app/package.json ]; then
+            echo "📦 Installing dependencies with npm 11.6.2..."
+            cd /workspace/app
+            if npm install 2>&1 | tee /tmp/npm-install.log; then
+                echo "✅ Dependencies installed"
+                # Verify critical packages
+                if [ -d node_modules/react-native ]; then
+                    echo "✅ react-native installed"
+                else
+                    echo "⚠️  react-native not found in node_modules"
+                fi
+            else
+                echo "❌ npm install failed. Check /tmp/npm-install.log for details"
+                cat /tmp/npm-install.log
+            fi
+        fi
     else
         echo "❌ Failed to clone repository"
     fi
