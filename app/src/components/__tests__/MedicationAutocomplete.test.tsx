@@ -153,7 +153,7 @@ describe('MedicationAutocomplete', () => {
   it('should call onSelectPreset when suggestion is tapped', async () => {
     (presetMedicationsModule.searchMedications as jest.Mock).mockReturnValue(mockMedications);
 
-    const { getByText, rerender } = renderWithTheme(
+    const { getByText } = renderWithTheme(
       <MedicationAutocomplete
         value="Asp"
         onChangeText={mockOnChangeText}
@@ -246,7 +246,7 @@ describe('MedicationAutocomplete', () => {
   it('should display generic name when available', async () => {
     (presetMedicationsModule.searchMedications as jest.Mock).mockReturnValue(mockMedications);
 
-    const { getByText, rerender } = renderWithTheme(
+    const { getByText } = renderWithTheme(
       <MedicationAutocomplete
         value="Asp"
         onChangeText={mockOnChangeText}
@@ -264,7 +264,7 @@ describe('MedicationAutocomplete', () => {
   it('should display dosage information', async () => {
     (presetMedicationsModule.searchMedications as jest.Mock).mockReturnValue(mockMedications);
 
-    const { getByText, rerender } = renderWithTheme(
+    const { getByText } = renderWithTheme(
       <MedicationAutocomplete
         value="Asp"
         onChangeText={mockOnChangeText}
@@ -283,7 +283,7 @@ describe('MedicationAutocomplete', () => {
   it('should display category information', async () => {
     (presetMedicationsModule.searchMedications as jest.Mock).mockReturnValue(mockMedications);
 
-    const { getAllByText, rerender } = renderWithTheme(
+    const { getAllByText } = renderWithTheme(
       <MedicationAutocomplete
         value="Asp"
         onChangeText={mockOnChangeText}
