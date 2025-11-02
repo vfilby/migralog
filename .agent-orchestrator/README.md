@@ -231,6 +231,28 @@ gh pr create --base main
 - Requires `ANTHROPIC_API_KEY` environment variable
 - OpenCode must be installed in the Docker image
 
+**Crafting Effective Task Prompts:**
+
+For best results, your task prompt should explicitly include all completion requirements:
+
+```bash
+./.agent-orchestrator/spawn-agent.sh agent-1 true feature/my-feature "
+Implement [feature description].
+
+Requirements:
+- Add comprehensive test coverage
+- Ensure ALL tests pass (npm run precommit must succeed)
+- Push branch to remote: git push origin feature/my-feature
+- Create PR: gh pr create --base main --title 'feat: [description]' --body 'Closes #[issue]'
+- Verify PR created successfully and all CI checks pass
+"
+```
+
+**Common Pitfalls:**
+- ⚠️ Not explicitly requiring tests to pass - agent may skip failing tests
+- ⚠️ Not requiring push/PR - code stays local in container
+- ⚠️ Vague acceptance criteria - agent may consider incomplete work "done"
+
 #### Single Agent Workflow (Manual Start)
 
 ```bash
