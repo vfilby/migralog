@@ -187,6 +187,9 @@ export default function MedicationAutocomplete({
             styles.suggestionItem,
             isLast && styles.suggestionItemLast,
           ]}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel={`Select ${item.name}, ${item.dosageAmount} ${item.dosageUnit}`}
         >
           <Text style={styles.suggestionName}>{item.name}</Text>
           {item.genericName && (
@@ -218,6 +221,9 @@ export default function MedicationAutocomplete({
         autoCapitalize="words"
         autoCorrect={false}
         testID="medication-name-input"
+        accessible={true}
+        accessibilityLabel="Medication name input"
+        accessibilityHint="Type to search for preset medications or enter a custom name"
       />
       {showSuggestions && value.trim().length > 0 && (
         <View

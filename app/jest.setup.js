@@ -198,15 +198,18 @@ jest.mock('@react-native-community/datetimepicker', () => {
 
 // Mock react-native-gesture-handler
 jest.mock('react-native-gesture-handler', () => {
+  const React = require('react');
   const View = require('react-native/Libraries/Components/View/View');
+
   return {
     Swipeable: View,
     DrawerLayout: View,
     State: {},
-    ScrollView: View,
-    Slider: View,
-    Switch: View,
-    TextInput: View,
+    // Don't mock these - let React Native's versions be used
+    // ScrollView: View,
+    // Slider: View,
+    // Switch: View,
+    // TextInput: View,
     ToolbarAndroid: View,
     ViewPagerAndroid: View,
     DrawerLayoutAndroid: View,
@@ -223,18 +226,30 @@ jest.mock('react-native-gesture-handler', () => {
     BaseButton: View,
     RectButton: View,
     BorderlessButton: View,
-    FlatList: View,
+    // Don't mock FlatList - let React Native's version be used
+    // FlatList: View,
     gestureHandlerRootHOC: jest.fn(),
     Directions: {},
-    GestureDetector: View,
+    // GestureDetector should accept gesture prop and render children with press event wired up
+    GestureDetector: ({ children, gesture }) => {
+      const Touchable = require('react-native').TouchableOpacity;
+      const onPress = gesture?._onStartCallback || (() => {});
+      return React.createElement(Touchable, { onPress, activeOpacity: 1 }, children);
+    },
     Gesture: {
       Tap: jest.fn(() => ({
-        onStart: jest.fn().mockReturnThis(),
+        onStart: jest.fn(function(callback) {
+          this._onStartCallback = callback;
+          return this;
+        }),
         onEnd: jest.fn().mockReturnThis(),
         enabled: jest.fn().mockReturnThis(),
       })),
       Pan: jest.fn(() => ({
-        onStart: jest.fn().mockReturnThis(),
+        onStart: jest.fn(function(callback) {
+          this._onStartCallback = callback;
+          return this;
+        }),
         onEnd: jest.fn().mockReturnThis(),
         enabled: jest.fn().mockReturnThis(),
       })),
