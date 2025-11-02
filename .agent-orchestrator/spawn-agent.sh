@@ -193,11 +193,13 @@ if [ "$USE_DOCKER" = "true" ]; then
         echo ""
         cd "$WORKSPACE_DIR"
         # Execute OpenCode interactively with task in the container
-        # Write prompt to a temp file to avoid shell quoting issues
-        echo "$TASK_PROMPT" > "$WORKSPACE_DIR/task-prompt.txt"
+        # Write prompt to a temp file inside the container to avoid shell quoting issues
+        docker compose exec -T agent-workspace bash -c "cat > /tmp/task-prompt.txt" <<EOF
+$TASK_PROMPT
+EOF
         # Export PATH to include OpenCode and bd
         # Use 'opencode run' command with message from file
-        exec docker compose exec agent-workspace bash -c "export PATH=\"\$HOME/.opencode/bin:\$HOME/go/bin:\$PATH\" && cd /workspace/app && opencode run \"\$(cat /workspace/task-prompt.txt)\""
+        exec docker compose exec agent-workspace bash -c "export PATH=\"\$HOME/.opencode/bin:\$HOME/go/bin:\$PATH\" && cd /workspace/app && opencode run \"\$(cat /tmp/task-prompt.txt)\""
     else
         echo "🐚 Launching container shell..."
         echo ""
