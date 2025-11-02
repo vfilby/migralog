@@ -188,12 +188,12 @@ echo ""
 # For Docker agents, either auto-start with task or launch shell
 if [ "$USE_DOCKER" = "true" ]; then
     if [ -n "$TASK_PROMPT" ]; then
-        echo "🤖 Auto-starting OpenCode with task..."
+        echo "🤖 Starting interactive OpenCode with task..."
+        echo "   Task: $TASK_PROMPT"
         echo ""
         cd "$WORKSPACE_DIR"
-        # Execute OpenCode with task in the container
-        # Use --permissions-granted flag to auto-approve all permissions
-        exec docker compose exec agent-workspace bash -c "cd /workspace && opencode --permissions-granted '$TASK_PROMPT'"
+        # Execute OpenCode interactively with task in the container
+        exec docker compose exec agent-workspace bash -c "cd /workspace && opencode '$TASK_PROMPT'"
     else
         echo "🐚 Launching container shell..."
         echo ""
