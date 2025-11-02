@@ -27,6 +27,9 @@ bd ready --json | jq '.[] | {id: .id, title: .title}'
 
 # Tier 2 (With Docker isolation)
 ./.agent-orchestrator/agent-cli.sh create agent-2 bd-20 true
+
+# Auto-start with task (Docker only, all permissions granted)
+./.agent-orchestrator/spawn-agent.sh agent-3 true fix/bug-123 "Fix the login authentication bug"
 ```
 
 ### 3. Start Working
@@ -189,7 +192,46 @@ Removes all idle agent workspaces.
 
 ### Workflow Examples
 
-#### Single Agent Workflow
+#### Auto-Start Agent with Task (Recommended)
+
+```bash
+# Launch agent with task and auto-start OpenCode (all permissions granted)
+./.agent-orchestrator/spawn-agent.sh agent-1 true fix/login-bug "Fix the authentication timeout issue in the login flow"
+
+# OpenCode will start automatically with the task
+# All permissions are pre-granted, no manual approval needed
+# Agent works autonomously on the specified task
+
+# When done, check the work
+cd .agent-workspaces/agent-1
+git status
+
+# Run tests
+./.agent-orchestrator/agent-cli.sh test agent-1
+
+# Commit and push
+git commit -m "fix: resolve authentication timeout in login flow"
+git push origin fix/login-bug
+
+# Create PR
+gh pr create --base main
+
+# Cleanup
+./.agent-orchestrator/agent-cli.sh cleanup agent-1
+```
+
+**Benefits:**
+- ✅ No manual permission approval needed
+- ✅ Agent starts working immediately
+- ✅ Perfect for autonomous task execution
+- ✅ Full Docker isolation for safety
+
+**Requirements:**
+- Must use Docker mode (`use-docker=true`)
+- Requires `ANTHROPIC_API_KEY` environment variable
+- OpenCode must be installed in the Docker image
+
+#### Single Agent Workflow (Manual Start)
 
 ```bash
 # 1. Create agent for issue

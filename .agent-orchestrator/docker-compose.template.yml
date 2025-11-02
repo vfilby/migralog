@@ -39,6 +39,7 @@ services:
       # Grant full tool access
       - DEBIAN_FRONTEND=noninteractive
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - TASK_PROMPT=${TASK_PROMPT}
       
     ports:
       - "${EXPO_PORT}:${EXPO_PORT}"   # Expo dev server

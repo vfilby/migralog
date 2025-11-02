@@ -1,6 +1,6 @@
 #!/bin/bash
 # spawn-agent.sh - Creates isolated workspace for an agent
-# Usage: spawn-agent.sh <agent-id> [use-docker] [branch-name]
+# Usage: spawn-agent.sh <agent-id> [use-docker] [branch-name] [task-prompt]
 
 set -e
 
@@ -14,13 +14,15 @@ command -v jq >/dev/null 2>&1 || { echo "Error: jq is required but not installed
 AGENT_ID="$1"
 USE_DOCKER="${2:-false}"
 CUSTOM_BRANCH="$3"
+TASK_PROMPT="$4"
 
 if [ -z "$AGENT_ID" ]; then
-    echo "Usage: spawn-agent.sh <agent-id> [use-docker] [branch-name]"
+    echo "Usage: spawn-agent.sh <agent-id> [use-docker] [branch-name] [task-prompt]"
     echo "Examples:"
-    echo "  spawn-agent.sh agent-1                                # Auto-generated branch"
-    echo "  spawn-agent.sh agent-1 true                           # With Docker"
-    echo "  spawn-agent.sh agent-1 true fix/custom-branch         # Custom branch"
+    echo "  spawn-agent.sh agent-1                                     # Auto-generated branch"
+    echo "  spawn-agent.sh agent-1 true                                # With Docker"
+    echo "  spawn-agent.sh agent-1 true fix/custom-branch              # Custom branch"
+    echo "  spawn-agent.sh agent-1 true fix/bug \"Fix the login bug\"   # With task prompt"
     exit 1
 fi
 
@@ -40,6 +42,10 @@ fi
 echo "🚀 Creating agent workspace for $AGENT_ID..."
 echo "   Branch: $BRANCH_NAME"
 echo "   Docker: $USE_DOCKER"
+if [ -n "$TASK_PROMPT" ]; then
+    echo "   Task: $TASK_PROMPT"
+    echo "   Auto-start: Enabled (with all permissions)"
+fi
 
 # Check resource limits
 MAX_AGENTS=3
@@ -69,7 +75,12 @@ METRO_PORT=$((19000 + AGENT_NUM))
 # This keeps the workspace isolated and simplifies cleanup
 
 echo "📝 Creating agent metadata..."
-# Create agent metadata
+# Create agent metadata with task prompt if provided
+TASK_JSON=""
+if [ -n "$TASK_PROMPT" ]; then
+    TASK_JSON=",\n  \"task_prompt\": $(echo "$TASK_PROMPT" | jq -R .),\n  \"auto_start\": true,\n  \"permissions_granted\": true"
+fi
+
 cat > "$WORKSPACE_DIR/metadata.json" <<EOF
 {
   "id": "$AGENT_ID",
@@ -81,7 +92,7 @@ cat > "$WORKSPACE_DIR/metadata.json" <<EOF
     "expo": $EXPO_PORT,
     "metro": $METRO_PORT
   },
-  "workspace_dir": "$WORKSPACE_DIR"
+  "workspace_dir": "$WORKSPACE_DIR"$TASK_JSON
 }
 EOF
 
@@ -127,6 +138,7 @@ if [ "$USE_DOCKER" = "true" ]; then
     export EXPO_PORT="$EXPO_PORT"
     export METRO_PORT="$METRO_PORT"
     export ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
+    export TASK_PROMPT="${TASK_PROMPT:-}"
 
     envsubst < "$SCRIPT_DIR/docker-compose.template.yml" > "$WORKSPACE_DIR/docker-compose.yml"
 
@@ -173,13 +185,26 @@ if [ "$USE_DOCKER" = "true" ]; then
 fi
 echo ""
 
-# For Docker agents, launch shell immediately
+# For Docker agents, either auto-start with task or launch shell
 if [ "$USE_DOCKER" = "true" ]; then
-    echo "🐚 Launching container shell..."
-    echo ""
-    cd "$WORKSPACE_DIR"
-    exec docker compose exec agent-workspace /home/agent/shell-access.sh
+    if [ -n "$TASK_PROMPT" ]; then
+        echo "🤖 Auto-starting OpenCode with task..."
+        echo ""
+        cd "$WORKSPACE_DIR"
+        # Execute OpenCode with task in the container
+        # Use --permissions-granted flag to auto-approve all permissions
+        exec docker compose exec agent-workspace bash -c "cd /workspace && opencode --permissions-granted '$TASK_PROMPT'"
+    else
+        echo "🐚 Launching container shell..."
+        echo ""
+        cd "$WORKSPACE_DIR"
+        exec docker compose exec agent-workspace /home/agent/shell-access.sh
+    fi
 else
+    if [ -n "$TASK_PROMPT" ]; then
+        echo "🤖 Task auto-start is only supported with Docker mode (use-docker=true)"
+        echo ""
+    fi
     echo "Next steps:"
     echo "   Run tests: ./.agent-orchestrator/agent-cli.sh test $AGENT_ID"
     echo "   Check status: ./.agent-orchestrator/agent-cli.sh status"
