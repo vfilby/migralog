@@ -18,7 +18,6 @@ services:
       - "${HOME}/.ssh:/home/agent/.ssh:ro"
 
     environment:
-      - NODE_ENV=development
       - AGENT_ID=${AGENT_ID}
       - AGENT_BRANCH=${BRANCH_NAME}
       - EXPO_PORT=${EXPO_PORT}
