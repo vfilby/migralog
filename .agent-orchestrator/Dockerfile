@@ -36,6 +36,9 @@ ENV PATH="/usr/local/go/bin:${PATH}"
 
 # Skip Docker CLI installation for now (can be added later if needed for nested containers)
 
+# Upgrade npm to match dev environment version
+RUN npm install -g npm@11.6.2
+
 # Install global npm packages (yarn is already installed)
 RUN npm install -g \
     @expo/cli@latest \
