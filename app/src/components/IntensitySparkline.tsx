@@ -76,8 +76,8 @@ const IntensitySparkline: React.FC<IntensitySparklineProps> = ({
 
     // Apply Exponential Moving Average (EMA) for smoothing
     // Higher alpha = more responsive (less smooth), lower alpha = smoother
-    // alpha = 0.25 provides moderate smoothing with good responsiveness
-    const alpha = 0.25;
+    // alpha = 0.30 provides light smoothing with high responsiveness
+    const alpha = 0.30;
     const smoothed: Array<{ timestamp: number; intensity: number }> = [];
 
     data.forEach((point, index) => {
