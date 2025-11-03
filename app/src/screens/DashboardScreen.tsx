@@ -479,6 +479,8 @@ export default function DashboardScreen() {
         <View style={styles.card}>
           <EpisodeCard
             episode={currentEpisode}
+            compact
+            isLast
             testID="active-episode-card"
             onPress={() => navigation.navigate('EpisodeDetail', { episodeId: currentEpisode.id })}
           />

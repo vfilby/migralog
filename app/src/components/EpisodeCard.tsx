@@ -100,6 +100,17 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     color: theme.textSecondary,
     fontStyle: 'italic',
   },
+  ongoingBadge: {
+    backgroundColor: theme.ongoing,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  ongoingText: {
+    color: theme.ongoingText,
+    fontSize: 12,
+    fontWeight: '600',
+  },
 });
 
 const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = false, testID }: EpisodeCardProps) => {
@@ -144,11 +155,16 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
       accessibilityRole="button"
       accessibilityLabel={`Episode from ${format(episode.startTime, 'EEEE, MMM d, yyyy')}`}
     >
-      {/* Row 1: Date */}
+      {/* Row 1: Date and Ongoing badge */}
       <View style={[styles.cardFirstRow, !locationAddress && { marginBottom: 4 }]}>
         <Text style={styles.cardDate}>
           {format(episode.startTime, 'EEE, MMM d · h:mm a')}
         </Text>
+        {!episode.endTime && (
+          <View style={styles.ongoingBadge}>
+            <Text style={styles.ongoingText}>Ongoing</Text>
+          </View>
+        )}
       </View>
 
       {/* Row 2: Location if available */}
@@ -162,7 +178,6 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
       <View style={styles.cardSecondRow}>
         <Text style={styles.cardDuration}>
           {formatDuration(durationHours)}
-          {!episode.endTime && ' (ongoing)'}
         </Text>
         {intensityReadings.length > 0 && (
           <View style={styles.cardSparklineContainer}>
