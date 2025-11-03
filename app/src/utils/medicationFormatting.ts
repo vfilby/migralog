@@ -89,3 +89,26 @@ export function formatDoseWithSnapshot(
 
   return formatMedicationDosage(dose.quantity, dosageAmount, dosageUnit);
 }
+
+/**
+ * Format medication dose display text, handling skipped status
+ * Returns "Skipped" for skipped doses, otherwise formats using snapshot
+ *
+ * @param dose - Medication dose record
+ * @param medication - Medication details (optional)
+ * @returns Formatted display text ("Skipped" or "2 × 200mg")
+ */
+export function formatMedicationDoseDisplay(
+  dose: MedicationDose,
+  medication?: Medication
+): string {
+  if (dose.status === 'skipped') {
+    return 'Skipped';
+  }
+
+  if (!medication) {
+    return 'Unknown Medication';
+  }
+
+  return formatDoseWithSnapshot(dose, medication);
+}

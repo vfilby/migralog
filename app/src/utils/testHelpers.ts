@@ -215,6 +215,68 @@ async function loadTestFixtures() {
 }
 
 /**
+ * Load test fixtures specifically for demonstrating skipped doses UI (GH #116)
+ * Creates a preventative medication with 7 days of dose history (mix of taken and skipped)
+ */
+export async function loadSkippedDosesFixtures() {
+  const db = await getDatabase();
+  const now = Date.now();
+
+  // Create Test Preventative medication with daily schedule
+  const medId = `test-skipped-doses-${now}`;
+  await db.runAsync(
+    `INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, default_quantity, schedule_frequency, active, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      medId,
+      'Test Preventative',
+      'preventative',
+      50,
+      'mg',
+      1,
+      'daily',
+      1,
+      now,
+      now
+    ]
+  );
+
+  // Add doses for the past 7 days - pattern: taken, taken, skipped, skipped, taken, skipped, taken
+  const doses = [
+    { daysAgo: 6, status: 'taken', quantity: 1 },
+    { daysAgo: 5, status: 'taken', quantity: 1 },
+    { daysAgo: 4, status: 'skipped', quantity: 0 },
+    { daysAgo: 3, status: 'skipped', quantity: 0 },
+    { daysAgo: 2, status: 'taken', quantity: 1 },
+    { daysAgo: 1, status: 'skipped', quantity: 0 },
+    { daysAgo: 0, status: 'taken', quantity: 1 }, // Today
+  ];
+
+  for (const dose of doses) {
+    const doseTimestamp = now - (dose.daysAgo * 24 * 60 * 60 * 1000);
+    const doseId = `dose-${medId}-${dose.daysAgo}`;
+
+    await db.runAsync(
+      `INSERT INTO medication_doses (id, medication_id, timestamp, quantity, dosage_amount, dosage_unit, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        doseId,
+        medId,
+        doseTimestamp,
+        dose.quantity,
+        50,
+        'mg',
+        dose.status,
+        doseTimestamp,
+        doseTimestamp
+      ]
+    );
+  }
+
+  logger.log('[TestHelpers] Skipped doses fixtures loaded (7 days of mixed taken/skipped doses)');
+}
+
+/**
  * Get current database state summary for debugging
  */
 export async function getDatabaseState() {

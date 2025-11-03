@@ -17,6 +17,8 @@ import { shouldShowMedicationInTimeline } from '../utils/timelineFilters';
 import { groupEventsByDay, groupEventsByTimestamp, DayGroup } from '../utils/timelineGrouping';
 import { locationService } from '../services/locationService';
 import { useTheme, ThemeColors } from '../theme';
+import { formatMedicationDoseDisplay } from '../utils/medicationFormatting';
+import { useMedicationStatusStyles } from '../utils/medicationStyling';
 // Removed unused import: IntensitySparkline (peak intensity feature removed)
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EpisodeDetail'>;
@@ -527,6 +529,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
 export default function EpisodeDetailScreen({ route, navigation }: Props) {
   const { episodeId } = route.params;
   const { theme } = useTheme();
+  const { getStatusStyle } = useMedicationStatusStyles();
   const styles = createStyles(theme);
   const { endEpisode } = useEpisodeStore();
   const [episode, setEpisode] = useState<Episode | null>(null);
@@ -986,8 +989,8 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
             delayLongPress={500}
           >
             <Text style={styles.timelineEventTitle}>{isSkipped ? 'Medication Skipped' : 'Medication Taken'}</Text>
-            <Text style={[styles.timelineEventContent, isSkipped && { color: theme.danger }]}>
-              {dose.medication?.name || 'Unknown Medication'} • {isSkipped ? 'Skipped' : `${dose.quantity} × ${dose.medication?.dosageAmount}${dose.medication?.dosageUnit}`}
+            <Text style={[styles.timelineEventContent, getStatusStyle(dose.status)]}>
+              {dose.medication?.name || 'Unknown Medication'} • {formatMedicationDoseDisplay(dose, dose.medication)}
             </Text>
           </TouchableOpacity>
         );
