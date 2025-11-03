@@ -170,7 +170,15 @@ const IntensitySparkline: React.FC<IntensitySparklineProps> = ({
           </LinearGradient>
 
           {/* Pain scale gradient for line stroke - bottom (green) to top (purple) */}
-          <LinearGradient id="painGradientLine" x1="0" y1="1" x2="0" y2="0">
+          {/* Use userSpaceOnUse to map gradient to absolute pain scale (0-10), not path bounding box */}
+          <LinearGradient
+            id="painGradientLine"
+            x1="0"
+            y1={height - padding}
+            x2="0"
+            y2={padding}
+            gradientUnits="userSpaceOnUse"
+          >
             {/* Create gradient stops for each pain level */}
             {PAIN_SCALE.map((level, index) => (
               <Stop
