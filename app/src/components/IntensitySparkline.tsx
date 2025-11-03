@@ -1,13 +1,18 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import Svg, { Path, Circle, Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { getPainColor, PAIN_SCALE } from '../utils/painScale';
+import { IntensityReading } from '../models/types';
 
 interface IntensitySparklineProps {
   /**
-   * Array of intensity readings (0-10 scale)
+   * Array of intensity readings with timestamps
    */
-  intensities: number[];
+  readings: IntensityReading[];
+  /**
+   * Episode end time (for completed episodes) or undefined for ongoing
+   */
+  episodeEndTime?: number;
   /**
    * Width of the sparkline in pixels
    */
@@ -27,52 +32,85 @@ interface IntensitySparklineProps {
 }
 
 const IntensitySparkline: React.FC<IntensitySparklineProps> = ({
-  intensities,
+  readings,
+  episodeEndTime,
   width = 120,
   height = 40,
   color,
   showPeak = true,
 }) => {
-  if (!intensities || intensities.length === 0) {
+  if (!readings || readings.length === 0) {
     return null;
   }
 
-  // Ensure we have valid data
-  const validIntensities = intensities.filter(i => typeof i === 'number' && !isNaN(i));
-  if (validIntensities.length === 0) {
+  // Ensure we have valid data and sort by timestamp
+  const validReadings = readings
+    .filter(r => typeof r.intensity === 'number' && !isNaN(r.intensity) && typeof r.timestamp === 'number')
+    .sort((a, b) => a.timestamp - b.timestamp);
+
+  if (validReadings.length === 0) {
     return null;
   }
+
+  // Interpolate intensity readings using 5-minute intervals with sample-and-hold
+  const interpolatedData = useMemo(() => {
+    const startTime = validReadings[0].timestamp;
+    const endTime = episodeEndTime || Date.now(); // Use current time for ongoing episodes
+    const intervalMs = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+    const data: Array<{ timestamp: number; intensity: number }> = [];
+
+    // Generate 5-minute intervals
+    for (let time = startTime; time <= endTime; time += intervalMs) {
+      // Find the last reading before or at this time (sample-and-hold)
+      let intensity = 0;
+      for (let i = validReadings.length - 1; i >= 0; i--) {
+        if (validReadings[i].timestamp <= time) {
+          intensity = validReadings[i].intensity;
+          break;
+        }
+      }
+
+      data.push({ timestamp: time, intensity });
+    }
+
+    // Apply Exponential Moving Average (EMA) for smoothing
+    // alpha = 0.10 provides excellent smoothing with rounded edges while maintaining responsiveness
+    const alpha = 0.10;
+    const smoothed: Array<{ timestamp: number; intensity: number }> = [];
+
+    data.forEach((point, index) => {
+      if (index === 0) {
+        smoothed.push(point);
+      } else {
+        // EMA formula: EMA(t) = alpha * value(t) + (1 - alpha) * EMA(t-1)
+        const ema = alpha * point.intensity + (1 - alpha) * smoothed[index - 1].intensity;
+        smoothed.push({ timestamp: point.timestamp, intensity: ema });
+      }
+    });
+
+    return smoothed;
+  }, [validReadings, episodeEndTime]);
 
   // Find min/max for scaling
   const minIntensity = 0; // Always start from 0 for pain scale
   const maxIntensity = 10; // Max pain scale
-  const peakIntensity = Math.max(...validIntensities);
-  const peakIndex = validIntensities.indexOf(peakIntensity);
+  const peakIntensity = Math.max(...interpolatedData.map(d => d.intensity));
+  const peakPoint = interpolatedData.reduce((max, point) =>
+    point.intensity > max.intensity ? point : max
+  , interpolatedData[0]);
 
   // Calculate path
   const padding = 4;
   const chartWidth = width - (padding * 2);
   const chartHeight = height - (padding * 2);
-  const xStep = chartWidth / (validIntensities.length - 1 || 1);
-
-  // Apply Exponential Moving Average (EMA) for smoothing
-  const alpha = 0.75; // Smoothing factor (0 < alpha < 1, lower = smoother, higher = more responsive)
-  const smoothedIntensities = validIntensities.reduce<number[]>((acc, intensity, index) => {
-    if (index === 0) {
-      acc.push(intensity);
-    } else {
-      // EMA formula: EMA(t) = alpha * value(t) + (1 - alpha) * EMA(t-1)
-      const ema = alpha * intensity + (1 - alpha) * acc[index - 1];
-      acc.push(ema);
-    }
-    return acc;
-  }, []);
+  const xStep = chartWidth / (interpolatedData.length - 1 || 1);
 
   // Generate smooth path coordinates using quadratic curves
-  const pathData = smoothedIntensities
-    .map((intensity, index) => {
+  const pathData = interpolatedData
+    .map((point, index) => {
       const x = padding + (index * xStep);
-      const normalizedY = (intensity - minIntensity) / (maxIntensity - minIntensity);
+      const normalizedY = (point.intensity - minIntensity) / (maxIntensity - minIntensity);
       // Invert Y coordinate (SVG Y increases downward)
       const y = padding + chartHeight - (normalizedY * chartHeight);
 
@@ -81,8 +119,8 @@ const IntensitySparkline: React.FC<IntensitySparklineProps> = ({
       } else {
         // Use quadratic bezier curve for smooth interpolation
         const prevX = padding + ((index - 1) * xStep);
-        const prevIntensity = smoothedIntensities[index - 1];
-        const prevNormalizedY = (prevIntensity - minIntensity) / (maxIntensity - minIntensity);
+        const prevPoint = interpolatedData[index - 1];
+        const prevNormalizedY = (prevPoint.intensity - minIntensity) / (maxIntensity - minIntensity);
         const prevY = padding + chartHeight - (prevNormalizedY * chartHeight);
 
         // Control point is midway between points
@@ -94,6 +132,7 @@ const IntensitySparkline: React.FC<IntensitySparklineProps> = ({
     .join(' ');
 
   // Peak point coordinates
+  const peakIndex = interpolatedData.findIndex(p => p.timestamp === peakPoint.timestamp);
   const peakX = padding + (peakIndex * xStep);
   const peakNormalizedY = (peakIntensity - minIntensity) / (maxIntensity - minIntensity);
   const peakY = padding + chartHeight - (peakNormalizedY * chartHeight);

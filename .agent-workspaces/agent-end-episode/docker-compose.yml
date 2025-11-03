@@ -1,0 +1,72 @@
+services:
+  agent-workspace:
+    image: migralog-agent-workspace:latest
+    container_name: "agent-agent-end-episode"
+    working_dir: /workspace
+    volumes:
+      # Mount parent repo as read-only for cloning
+      - "/Users/vfilby/Projects/MigraineTracker:/host-repo:ro"
+
+      # Docker access for nested containers
+      - "/var/run/docker.sock:/var/run/docker.sock"
+
+      # Host tool access (for full autonomy) - read-only
+      - "/Users/vfilby/.npmrc:/home/agent/.npmrc:ro"
+      - "/Users/vfilby/.gitconfig:/home/agent/.gitconfig:ro"
+
+      # SSH keys for git push/pull authentication - read-only
+      - "/Users/vfilby/.ssh:/home/agent/.ssh:ro"
+
+    environment:
+      - AGENT_ID=agent-end-episode
+      - AGENT_BRANCH=feature/end-ongoing-episode
+      - EXPO_PORT=8100
+      - METRO_PORT=19000
+      - PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/workspace/node_modules/.bin:/home/agent/tools
+
+      # Grant full tool access
+      - DEBIAN_FRONTEND=noninteractive
+      - ANTHROPIC_API_KEY=
+      
+    ports:
+      - "8100:8100"   # Expo dev server
+      - "19000:19000" # Metro bundler
+      
+    networks:
+      - agent-network
+      
+    # Start in autonomous mode by default
+    command: ["/home/agent/agent-startup.sh"]
+
+    # Enhanced health check
+    healthcheck:
+      test: ["CMD-SHELL", "node --version && git --version && which opencode || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+      
+    labels:
+      - "agent.id=agent-end-episode"
+      - "agent.type=autonomous-workspace"
+      - "agent.tier=2"
+      
+    # Security context for full autonomy
+    cap_add:
+      - SYS_PTRACE  # For debugging tools
+    
+    # Resource limits (adjust as needed)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+
+networks:
+  agent-network:
+    driver: bridge
+    labels:
+      - "agent.network=true"

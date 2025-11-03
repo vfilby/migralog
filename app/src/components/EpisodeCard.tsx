@@ -182,7 +182,8 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
         {intensityReadings.length > 0 && (
           <View style={styles.cardSparklineContainer}>
             <IntensitySparkline
-              intensities={intensityReadings.map(r => r.intensity)}
+              readings={intensityReadings}
+              episodeEndTime={episode.endTime}
               width={120}
               height={50}
             />

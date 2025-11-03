@@ -1,0 +1,15 @@
+{
+  "id": "agent-end-episode",
+  "branch": "feature/end-ongoing-episode",
+  "created_at": "2025-11-02T20:04:57Z",
+  "use_docker": true,
+  "status": "active",
+  "ports": {
+    "expo": 8100,
+    "metro": 19000
+  },
+  "workspace_dir": "/Users/vfilby/Projects/MigraineTracker/.agent-workspaces/agent-end-episode",
+  "task_prompt": "\n  Implement the ability to end ongoing episodes (GitHub issue #39, Beads parent:\n  MigraineTracker-5529).\n\n  CHECK READY TASKS: Run 'bd ready' to see which tasks have no blockers and can be worked on.\n\n  WORKFLOW:\n  Phase 1 - Implementation (work on these first):\n    bd show MigraineTracker-939e - Add 'End Episode' button UI\n    bd show MigraineTracker-cfd2 - Implement date/time picker\n    bd show MigraineTracker-97f2 - Add endEpisode store action\n    bd show MigraineTracker-5236 - Add test coverage\n\n  Phase 2 - Verification (BLOCKED until Phase 1 complete):\n    bd show MigraineTracker-9ca7 - Run 'npm run precommit' (MUST pass with 0 errors)\n\n  Phase 3 - Delivery (BLOCKED until previous phase complete):\n    bd show MigraineTracker-046b - Push branch to remote\n    bd show MigraineTracker-8476 - Create pull request\n\n  CRITICAL: Beads dependencies enforce the workflow. Use 'bd ready' to check which tasks are\n  unblocked.\n\n  REFERENCE CODE:\n  - NewEpisodeScreen.tsx - for date/time picker patterns\n  - Existing buttons in EpisodeDetailScreen - for styling consistency\n  - episodeStore.ts updateEpisode - for store action patterns\n\n  SUCCESS: All 7 beads tasks closed, branch pushed, PR created and linked to #39.\n  ",
+  "auto_start": true,
+  "permissions_granted": true
+}
