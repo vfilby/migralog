@@ -13,7 +13,7 @@ const TestComponent = ({ status }: { status?: string }) => {
   return (
     <View>
       <Text testID="color-output">{color}</Text>
-      <Text testID="style-color-output">{style.color}</Text>
+      <Text testID="style-color-output">{String(style.color)}</Text>
     </View>
   );
 };
