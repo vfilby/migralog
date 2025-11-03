@@ -94,14 +94,14 @@ describe('EpisodeCard', () => {
       });
     });
 
-    it('should show elapsed time with (ongoing) suffix when no end time', async () => {
+    it('should show Ongoing badge when no end time', async () => {
       const ongoingEpisode = { ...baseEpisode, endTime: undefined };
 
       renderWithTheme(<EpisodeCard episode={ongoingEpisode} />);
 
       await waitFor(() => {
-        // Should show elapsed time with "(ongoing)" suffix
-        expect(screen.getByText(/(ongoing)/)).toBeTruthy();
+        // Should show "Ongoing" badge
+        expect(screen.getByText('Ongoing')).toBeTruthy();
       });
     });
 
@@ -206,13 +206,13 @@ describe('EpisodeCard', () => {
       });
     });
 
-    it('should show elapsed time with (ongoing) suffix', async () => {
+    it('should show Ongoing badge', async () => {
       const ongoingEpisode = { ...baseEpisode, endTime: undefined };
 
       renderWithTheme(<EpisodeCard episode={ongoingEpisode} compact />);
 
       await waitFor(() => {
-        expect(screen.getByText(/(ongoing)/)).toBeTruthy();
+        expect(screen.getByText('Ongoing')).toBeTruthy();
       });
     });
 

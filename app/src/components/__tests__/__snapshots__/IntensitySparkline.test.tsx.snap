@@ -1,4 +1,1045 @@
-// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`IntensitySparkline Gradient and Markers should handle custom color override 1`] = `
+<View
+  style={
+    {
+      "alignItems": "center",
+      "justifyContent": "center",
+    }
+  }
+>
+  <RNSVGSvgView
+    bbHeight={40}
+    bbWidth={120}
+    focusable={false}
+    height={40}
+    style={
+      [
+        {
+          "backgroundColor": "transparent",
+          "borderWidth": 0,
+        },
+        {
+          "flex": 0,
+          "height": 40,
+          "width": 120,
+        },
+      ]
+    }
+    width={120}
+  >
+    <RNSVGGroup
+      fill={
+        {
+          "payload": 4278190080,
+          "type": 0,
+        }
+      }
+    >
+      <RNSVGDefs>
+        <RNSVGLinearGradient
+          gradient={
+            [
+              0,
+              640580914,
+              0.1,
+              643140399,
+              0.2,
+              644390712,
+              0.3,
+              653895717,
+              0.4,
+              654282496,
+              0.5,
+              653224960,
+              0.6,
+              652628224,
+              0.7,
+              651707157,
+              0.8,
+              650520616,
+              0.9,
+              653017210,
+              1,
+              648759228,
+            ]
+          }
+          gradientTransform={null}
+          gradientUnits={0}
+          name="painGradientBg"
+          x1="0"
+          x2="0"
+          y1="1"
+          y2="0"
+        />
+        <RNSVGLinearGradient
+          gradient={
+            [
+              0,
+              -13730510,
+              0.1,
+              -11171025,
+              0.2,
+              -9920712,
+              0.3,
+              -415707,
+              0.4,
+              -28928,
+              0.5,
+              -1086464,
+              0.6,
+              -1683200,
+              0.7,
+              -2604267,
+              0.8,
+              -3790808,
+              0.9,
+              -1294214,
+              1,
+              -5552196,
+            ]
+          }
+          gradientTransform={null}
+          gradientUnits={1}
+          name="painGradientLine"
+          x1="0"
+          x2="0"
+          y1={36}
+          y2={4}
+        />
+      </RNSVGDefs>
+      <RNSVGRect
+        fill={
+          {
+            "brushRef": "painGradientBg",
+            "type": 1,
+          }
+        }
+        height={40}
+        propList={
+          [
+            "fill",
+          ]
+        }
+        rx={4}
+        width={120}
+        x={0}
+        y={0}
+      />
+      <RNSVGPath
+        d="M 4,20 Q 8.666666666666668,20 13.333333333333334,18.080000000000002 Q 18,18.080000000000002 22.666666666666668,17.696000000000005 Q 27.333333333333336,17.696000000000005 32,17.427200000000006 Q 36.66666666666667,17.427200000000006 41.333333333333336,17.239040000000006 Q 46,17.239040000000006 50.66666666666667,17.107328000000003 Q 55.333333333333336,17.107328000000003 60,17.0151296 Q 64.66666666666667,17.0151296 69.33333333333334,16.95059072 Q 74,16.95059072 78.66666666666667,16.905413504000002 Q 83.33333333333334,16.905413504000002 88,16.873789452800004 Q 92.66666666666667,16.873789452800004 97.33333333333334,16.851652616960003 Q 102,16.851652616960003 106.66666666666667,16.836156831872003 Q 111.33333333333334,16.836156831872003 116,16.825309782310406"
+        fill={null}
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+            "strokeLinecap",
+            "strokeLinejoin",
+          ]
+        }
+        stroke={
+          {
+            "payload": 4294901760,
+            "type": 0,
+          }
+        }
+        strokeLinecap={1}
+        strokeLinejoin={1}
+        strokeWidth={2}
+      />
+      <RNSVGCircle
+        cx={4}
+        cy={20}
+        fill={
+          {
+            "payload": 4293880832,
+            "type": 0,
+          }
+        }
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+          ]
+        }
+        r={3}
+        stroke={
+          {
+            "payload": 4294967295,
+            "type": 0,
+          }
+        }
+        strokeWidth={1.5}
+      />
+      <RNSVGCircle
+        cx={13.333333333333334}
+        cy={13.600000000000001}
+        fill={
+          {
+            "payload": 4292363029,
+            "type": 0,
+          }
+        }
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+          ]
+        }
+        r={3}
+        stroke={
+          {
+            "payload": 4294967295,
+            "type": 0,
+          }
+        }
+        strokeWidth={1.5}
+      />
+      <RNSVGCircle
+        cx={22.666666666666668}
+        cy={16.8}
+        fill={
+          {
+            "payload": 4293284096,
+            "type": 0,
+          }
+        }
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+          ]
+        }
+        r={3}
+        stroke={
+          {
+            "payload": 4294967295,
+            "type": 0,
+          }
+        }
+        strokeWidth={1.5}
+      />
+    </RNSVGGroup>
+  </RNSVGSvgView>
+</View>
+`;
+
+exports[`IntensitySparkline Gradient and Markers should render markers for all readings 1`] = `
+<View
+  style={
+    {
+      "alignItems": "center",
+      "justifyContent": "center",
+    }
+  }
+>
+  <RNSVGSvgView
+    bbHeight={40}
+    bbWidth={120}
+    focusable={false}
+    height={40}
+    style={
+      [
+        {
+          "backgroundColor": "transparent",
+          "borderWidth": 0,
+        },
+        {
+          "flex": 0,
+          "height": 40,
+          "width": 120,
+        },
+      ]
+    }
+    width={120}
+  >
+    <RNSVGGroup
+      fill={
+        {
+          "payload": 4278190080,
+          "type": 0,
+        }
+      }
+    >
+      <RNSVGDefs>
+        <RNSVGLinearGradient
+          gradient={
+            [
+              0,
+              640580914,
+              0.1,
+              643140399,
+              0.2,
+              644390712,
+              0.3,
+              653895717,
+              0.4,
+              654282496,
+              0.5,
+              653224960,
+              0.6,
+              652628224,
+              0.7,
+              651707157,
+              0.8,
+              650520616,
+              0.9,
+              653017210,
+              1,
+              648759228,
+            ]
+          }
+          gradientTransform={null}
+          gradientUnits={0}
+          name="painGradientBg"
+          x1="0"
+          x2="0"
+          y1="1"
+          y2="0"
+        />
+        <RNSVGLinearGradient
+          gradient={
+            [
+              0,
+              -13730510,
+              0.1,
+              -11171025,
+              0.2,
+              -9920712,
+              0.3,
+              -415707,
+              0.4,
+              -28928,
+              0.5,
+              -1086464,
+              0.6,
+              -1683200,
+              0.7,
+              -2604267,
+              0.8,
+              -3790808,
+              0.9,
+              -1294214,
+              1,
+              -5552196,
+            ]
+          }
+          gradientTransform={null}
+          gradientUnits={1}
+          name="painGradientLine"
+          x1="0"
+          x2="0"
+          y1={36}
+          y2={4}
+        />
+      </RNSVGDefs>
+      <RNSVGRect
+        fill={
+          {
+            "brushRef": "painGradientBg",
+            "type": 1,
+          }
+        }
+        height={40}
+        propList={
+          [
+            "fill",
+          ]
+        }
+        rx={4}
+        width={120}
+        x={0}
+        y={0}
+      />
+      <RNSVGPath
+        d="M 4,29.6 Q 8.666666666666668,29.6 13.333333333333334,26.72 Q 18,26.72 22.666666666666668,21.824 Q 27.333333333333336,21.824 32,22.236800000000002 Q 36.66666666666667,22.236800000000002 41.333333333333336,20.605760000000004 Q 46,20.605760000000004 50.66666666666667,19.464032000000003 Q 55.333333333333336,19.464032000000003 60,18.664822400000002 Q 64.66666666666667,18.664822400000002 69.33333333333334,18.10537568 Q 74,18.10537568 78.66666666666667,17.713762976000005 Q 83.33333333333334,17.713762976000005 88,17.439634083200005 Q 92.66666666666667,17.439634083200005 97.33333333333334,17.247743858240007 Q 102,17.247743858240007 106.66666666666667,17.113420700768007 Q 111.33333333333334,17.113420700768007 116,17.019394490537604"
+        fill={null}
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+            "strokeLinecap",
+            "strokeLinejoin",
+          ]
+        }
+        stroke={
+          {
+            "brushRef": "painGradientLine",
+            "type": 1,
+          }
+        }
+        strokeLinecap={1}
+        strokeLinejoin={1}
+        strokeWidth={2}
+      />
+      <RNSVGCircle
+        cx={4}
+        cy={29.6}
+        fill={
+          {
+            "payload": 4285046584,
+            "type": 0,
+          }
+        }
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+          ]
+        }
+        r={3}
+        stroke={
+          {
+            "payload": 4294967295,
+            "type": 0,
+          }
+        }
+        strokeWidth={1.5}
+      />
+      <RNSVGCircle
+        cx={13.333333333333334}
+        cy={20}
+        fill={
+          {
+            "payload": 4293880832,
+            "type": 0,
+          }
+        }
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+          ]
+        }
+        r={3}
+        stroke={
+          {
+            "payload": 4294967295,
+            "type": 0,
+          }
+        }
+        strokeWidth={1.5}
+      />
+      <RNSVGCircle
+        cx={22.666666666666668}
+        cy={10.399999999999999}
+        fill={
+          {
+            "payload": 4291176488,
+            "type": 0,
+          }
+        }
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+          ]
+        }
+        r={3}
+        stroke={
+          {
+            "payload": 4294967295,
+            "type": 0,
+          }
+        }
+        strokeWidth={1.5}
+      />
+      <RNSVGCircle
+        cx={32}
+        cy={23.2}
+        fill={
+          {
+            "payload": 4294938368,
+            "type": 0,
+          }
+        }
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+          ]
+        }
+        r={3}
+        stroke={
+          {
+            "payload": 4294967295,
+            "type": 0,
+          }
+        }
+        strokeWidth={1.5}
+      />
+      <RNSVGCircle
+        cx={41.333333333333336}
+        cy={16.8}
+        fill={
+          {
+            "payload": 4293284096,
+            "type": 0,
+          }
+        }
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+          ]
+        }
+        r={3}
+        stroke={
+          {
+            "payload": 4294967295,
+            "type": 0,
+          }
+        }
+        strokeWidth={1.5}
+      />
+    </RNSVGGroup>
+  </RNSVGSvgView>
+</View>
+`;
+
+exports[`IntensitySparkline Gradient and Markers should render with gradient stroke 1`] = `
+<View
+  style={
+    {
+      "alignItems": "center",
+      "justifyContent": "center",
+    }
+  }
+>
+  <RNSVGSvgView
+    bbHeight={40}
+    bbWidth={120}
+    focusable={false}
+    height={40}
+    style={
+      [
+        {
+          "backgroundColor": "transparent",
+          "borderWidth": 0,
+        },
+        {
+          "flex": 0,
+          "height": 40,
+          "width": 120,
+        },
+      ]
+    }
+    width={120}
+  >
+    <RNSVGGroup
+      fill={
+        {
+          "payload": 4278190080,
+          "type": 0,
+        }
+      }
+    >
+      <RNSVGDefs>
+        <RNSVGLinearGradient
+          gradient={
+            [
+              0,
+              640580914,
+              0.1,
+              643140399,
+              0.2,
+              644390712,
+              0.3,
+              653895717,
+              0.4,
+              654282496,
+              0.5,
+              653224960,
+              0.6,
+              652628224,
+              0.7,
+              651707157,
+              0.8,
+              650520616,
+              0.9,
+              653017210,
+              1,
+              648759228,
+            ]
+          }
+          gradientTransform={null}
+          gradientUnits={0}
+          name="painGradientBg"
+          x1="0"
+          x2="0"
+          y1="1"
+          y2="0"
+        />
+        <RNSVGLinearGradient
+          gradient={
+            [
+              0,
+              -13730510,
+              0.1,
+              -11171025,
+              0.2,
+              -9920712,
+              0.3,
+              -415707,
+              0.4,
+              -28928,
+              0.5,
+              -1086464,
+              0.6,
+              -1683200,
+              0.7,
+              -2604267,
+              0.8,
+              -3790808,
+              0.9,
+              -1294214,
+              1,
+              -5552196,
+            ]
+          }
+          gradientTransform={null}
+          gradientUnits={1}
+          name="painGradientLine"
+          x1="0"
+          x2="0"
+          y1={36}
+          y2={4}
+        />
+      </RNSVGDefs>
+      <RNSVGRect
+        fill={
+          {
+            "brushRef": "painGradientBg",
+            "type": 1,
+          }
+        }
+        height={40}
+        propList={
+          [
+            "fill",
+          ]
+        }
+        rx={4}
+        width={120}
+        x={0}
+        y={0}
+      />
+      <RNSVGPath
+        d="M 4,26.4 Q 8.666666666666668,26.4 13.333333333333334,24.48 Q 18,24.48 22.666666666666668,21.216 Q 27.333333333333336,21.216 32,19.891200000000005 Q 36.66666666666667,19.891200000000005 41.333333333333336,18.963840000000005 Q 46,18.963840000000005 50.66666666666667,18.314688000000007 Q 55.333333333333336,18.314688000000007 60,17.860281600000008 Q 64.66666666666667,17.860281600000008 69.33333333333334,17.542197120000008 Q 74,17.542197120000008 78.66666666666667,17.319537984000007 Q 83.33333333333334,17.319537984000007 88,17.16367658880001 Q 92.66666666666667,17.16367658880001 97.33333333333334,17.054573612160006 Q 102,17.054573612160006 106.66666666666667,16.978201528512006 Q 111.33333333333334,16.978201528512006 116,16.924741069958404"
+        fill={null}
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+            "strokeLinecap",
+            "strokeLinejoin",
+          ]
+        }
+        stroke={
+          {
+            "brushRef": "painGradientLine",
+            "type": 1,
+          }
+        }
+        strokeLinecap={1}
+        strokeLinejoin={1}
+        strokeWidth={2}
+      />
+      <RNSVGCircle
+        cx={4}
+        cy={26.4}
+        fill={
+          {
+            "payload": 4294551589,
+            "type": 0,
+          }
+        }
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+          ]
+        }
+        r={3}
+        stroke={
+          {
+            "payload": 4294967295,
+            "type": 0,
+          }
+        }
+        strokeWidth={1.5}
+      />
+      <RNSVGCircle
+        cx={13.333333333333334}
+        cy={20}
+        fill={
+          {
+            "payload": 4293880832,
+            "type": 0,
+          }
+        }
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+          ]
+        }
+        r={3}
+        stroke={
+          {
+            "payload": 4294967295,
+            "type": 0,
+          }
+        }
+        strokeWidth={1.5}
+      />
+      <RNSVGCircle
+        cx={22.666666666666668}
+        cy={13.600000000000001}
+        fill={
+          {
+            "payload": 4292363029,
+            "type": 0,
+          }
+        }
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+          ]
+        }
+        r={3}
+        stroke={
+          {
+            "payload": 4294967295,
+            "type": 0,
+          }
+        }
+        strokeWidth={1.5}
+      />
+      <RNSVGCircle
+        cx={32}
+        cy={16.8}
+        fill={
+          {
+            "payload": 4293284096,
+            "type": 0,
+          }
+        }
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+          ]
+        }
+        r={3}
+        stroke={
+          {
+            "payload": 4294967295,
+            "type": 0,
+          }
+        }
+        strokeWidth={1.5}
+      />
+    </RNSVGGroup>
+  </RNSVGSvgView>
+</View>
+`;
+
+exports[`IntensitySparkline Snapshot Tests should match snapshot with all intensity markers 1`] = `
+<View
+  style={
+    {
+      "alignItems": "center",
+      "justifyContent": "center",
+    }
+  }
+>
+  <RNSVGSvgView
+    bbHeight={40}
+    bbWidth={120}
+    focusable={false}
+    height={40}
+    style={
+      [
+        {
+          "backgroundColor": "transparent",
+          "borderWidth": 0,
+        },
+        {
+          "flex": 0,
+          "height": 40,
+          "width": 120,
+        },
+      ]
+    }
+    width={120}
+  >
+    <RNSVGGroup
+      fill={
+        {
+          "payload": 4278190080,
+          "type": 0,
+        }
+      }
+    >
+      <RNSVGDefs>
+        <RNSVGLinearGradient
+          gradient={
+            [
+              0,
+              640580914,
+              0.1,
+              643140399,
+              0.2,
+              644390712,
+              0.3,
+              653895717,
+              0.4,
+              654282496,
+              0.5,
+              653224960,
+              0.6,
+              652628224,
+              0.7,
+              651707157,
+              0.8,
+              650520616,
+              0.9,
+              653017210,
+              1,
+              648759228,
+            ]
+          }
+          gradientTransform={null}
+          gradientUnits={0}
+          name="painGradientBg"
+          x1="0"
+          x2="0"
+          y1="1"
+          y2="0"
+        />
+        <RNSVGLinearGradient
+          gradient={
+            [
+              0,
+              -13730510,
+              0.1,
+              -11171025,
+              0.2,
+              -9920712,
+              0.3,
+              -415707,
+              0.4,
+              -28928,
+              0.5,
+              -1086464,
+              0.6,
+              -1683200,
+              0.7,
+              -2604267,
+              0.8,
+              -3790808,
+              0.9,
+              -1294214,
+              1,
+              -5552196,
+            ]
+          }
+          gradientTransform={null}
+          gradientUnits={1}
+          name="painGradientLine"
+          x1="0"
+          x2="0"
+          y1={36}
+          y2={4}
+        />
+      </RNSVGDefs>
+      <RNSVGRect
+        fill={
+          {
+            "brushRef": "painGradientBg",
+            "type": 1,
+          }
+        }
+        height={40}
+        propList={
+          [
+            "fill",
+          ]
+        }
+        rx={4}
+        width={120}
+        x={0}
+        y={0}
+      />
+      <RNSVGPath
+        d="M 4,26.4 Q 8.666666666666668,26.4 13.333333333333334,24.48 Q 18,24.48 22.666666666666668,21.216 Q 27.333333333333336,21.216 32,19.891200000000005 Q 36.66666666666667,19.891200000000005 41.333333333333336,20.883840000000003 Q 46,20.883840000000003 50.66666666666667,21.578688000000003 Q 55.333333333333336,21.578688000000003 60,22.065081600000003 Q 64.66666666666667,22.065081600000003 69.33333333333334,22.405557120000005 Q 74,22.405557120000005 78.66666666666667,22.643889984000005 Q 83.33333333333334,22.643889984000005 88,22.810722988800002 Q 92.66666666666667,22.810722988800002 97.33333333333334,22.927506092160005 Q 102,22.927506092160005 106.66666666666667,23.009254264512002 Q 111.33333333333334,23.009254264512002 116,23.066477985158404"
+        fill={null}
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+            "strokeLinecap",
+            "strokeLinejoin",
+          ]
+        }
+        stroke={
+          {
+            "brushRef": "painGradientLine",
+            "type": 1,
+          }
+        }
+        strokeLinecap={1}
+        strokeLinejoin={1}
+        strokeWidth={2}
+      />
+      <RNSVGCircle
+        cx={4}
+        cy={26.4}
+        fill={
+          {
+            "payload": 4294551589,
+            "type": 0,
+          }
+        }
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+          ]
+        }
+        r={3}
+        stroke={
+          {
+            "payload": 4294967295,
+            "type": 0,
+          }
+        }
+        strokeWidth={1.5}
+      />
+      <RNSVGCircle
+        cx={13.333333333333334}
+        cy={20}
+        fill={
+          {
+            "payload": 4293880832,
+            "type": 0,
+          }
+        }
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+          ]
+        }
+        r={3}
+        stroke={
+          {
+            "payload": 4294967295,
+            "type": 0,
+          }
+        }
+        strokeWidth={1.5}
+      />
+      <RNSVGCircle
+        cx={22.666666666666668}
+        cy={13.600000000000001}
+        fill={
+          {
+            "payload": 4292363029,
+            "type": 0,
+          }
+        }
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+          ]
+        }
+        r={3}
+        stroke={
+          {
+            "payload": 4294967295,
+            "type": 0,
+          }
+        }
+        strokeWidth={1.5}
+      />
+      <RNSVGCircle
+        cx={32}
+        cy={16.8}
+        fill={
+          {
+            "payload": 4293284096,
+            "type": 0,
+          }
+        }
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+          ]
+        }
+        r={3}
+        stroke={
+          {
+            "payload": 4294967295,
+            "type": 0,
+          }
+        }
+        strokeWidth={1.5}
+      />
+      <RNSVGCircle
+        cx={41.333333333333336}
+        cy={23.2}
+        fill={
+          {
+            "payload": 4294938368,
+            "type": 0,
+          }
+        }
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+          ]
+        }
+        r={3}
+        stroke={
+          {
+            "payload": 4294967295,
+            "type": 0,
+          }
+        }
+        strokeWidth={1.5}
+      />
+    </RNSVGGroup>
+  </RNSVGSvgView>
+</View>
+`;
 
 exports[`IntensitySparkline Snapshot Tests should match snapshot with custom color 1`] = `
 <View
@@ -67,17 +1108,52 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot with custom col
           }
           gradientTransform={null}
           gradientUnits={0}
-          name="painGradient"
+          name="painGradientBg"
           x1="0"
           x2="0"
           y1="1"
           y2="0"
         />
+        <RNSVGLinearGradient
+          gradient={
+            [
+              0,
+              -13730510,
+              0.1,
+              -11171025,
+              0.2,
+              -9920712,
+              0.3,
+              -415707,
+              0.4,
+              -28928,
+              0.5,
+              -1086464,
+              0.6,
+              -1683200,
+              0.7,
+              -2604267,
+              0.8,
+              -3790808,
+              0.9,
+              -1294214,
+              1,
+              -5552196,
+            ]
+          }
+          gradientTransform={null}
+          gradientUnits={1}
+          name="painGradientLine"
+          x1="0"
+          x2="0"
+          y1={36}
+          y2={4}
+        />
       </RNSVGDefs>
       <RNSVGRect
         fill={
           {
-            "brushRef": "painGradient",
+            "brushRef": "painGradientBg",
             "type": 1,
           }
         }
@@ -93,7 +1169,7 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot with custom col
         y={0}
       />
       <RNSVGPath
-        d="M 4,26.4 Q 32,26.4 60,21.6 Q 88,21.6 116,15.600000000000001"
+        d="M 4,26.4 Q 8.666666666666668,26.4 13.333333333333334,24.48 Q 18,24.48 22.666666666666668,21.216 Q 27.333333333333336,21.216 32,18.9312 Q 36.66666666666667,18.9312 41.333333333333336,17.33184 Q 46,17.33184 50.66666666666667,16.212288 Q 55.333333333333336,16.212288 60,15.4286016 Q 64.66666666666667,15.4286016 69.33333333333334,14.880021120000002 Q 74,14.880021120000002 78.66666666666667,14.496014784000003 Q 83.33333333333334,14.496014784000003 88,14.227210348800003 Q 92.66666666666667,14.227210348800003 97.33333333333334,14.039047244160002 Q 102,14.039047244160002 106.66666666666667,13.907333070912 Q 111.33333333333334,13.907333070912 116,13.815133149638399"
         fill={null}
         propList={
           [
@@ -115,11 +1191,61 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot with custom col
         strokeWidth={2}
       />
       <RNSVGCircle
-        cx={116}
+        cx={4}
+        cy={26.4}
+        fill={
+          {
+            "payload": 4294551589,
+            "type": 0,
+          }
+        }
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+          ]
+        }
+        r={3}
+        stroke={
+          {
+            "payload": 4294967295,
+            "type": 0,
+          }
+        }
+        strokeWidth={1.5}
+      />
+      <RNSVGCircle
+        cx={13.333333333333334}
+        cy={20}
+        fill={
+          {
+            "payload": 4293880832,
+            "type": 0,
+          }
+        }
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+          ]
+        }
+        r={3}
+        stroke={
+          {
+            "payload": 4294967295,
+            "type": 0,
+          }
+        }
+        strokeWidth={1.5}
+      />
+      <RNSVGCircle
+        cx={22.666666666666668}
         cy={13.600000000000001}
         fill={
           {
-            "payload": 4294929259,
+            "payload": 4292363029,
             "type": 0,
           }
         }
@@ -211,17 +1337,52 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot with typical in
           }
           gradientTransform={null}
           gradientUnits={0}
-          name="painGradient"
+          name="painGradientBg"
           x1="0"
           x2="0"
           y1="1"
           y2="0"
         />
+        <RNSVGLinearGradient
+          gradient={
+            [
+              0,
+              -13730510,
+              0.1,
+              -11171025,
+              0.2,
+              -9920712,
+              0.3,
+              -415707,
+              0.4,
+              -28928,
+              0.5,
+              -1086464,
+              0.6,
+              -1683200,
+              0.7,
+              -2604267,
+              0.8,
+              -3790808,
+              0.9,
+              -1294214,
+              1,
+              -5552196,
+            ]
+          }
+          gradientTransform={null}
+          gradientUnits={1}
+          name="painGradientLine"
+          x1="0"
+          x2="0"
+          y1={36}
+          y2={4}
+        />
       </RNSVGDefs>
       <RNSVGRect
         fill={
           {
-            "brushRef": "painGradient",
+            "brushRef": "painGradientBg",
             "type": 1,
           }
         }
@@ -237,7 +1398,7 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot with typical in
         y={0}
       />
       <RNSVGPath
-        d="M 4,26.4 Q 13.333333333333334,26.4 22.666666666666668,21.6 Q 32,21.6 41.333333333333336,15.600000000000001 Q 50.66666666666667,15.600000000000001 60,9.3 Q 69.33333333333334,9.3 78.66666666666667,10.125 Q 88,10.125 97.33333333333334,15.131250000000001 Q 106.66666666666667,15.131250000000001 116,21.1828125"
+        d="M 4,26.4 Q 8.666666666666668,26.4 13.333333333333334,24.48 Q 18,24.48 22.666666666666668,21.216 Q 27.333333333333336,21.216 32,17.011200000000002 Q 36.66666666666667,17.011200000000002 41.333333333333336,15.027840000000005 Q 46,15.027840000000005 50.66666666666667,15.559488000000005 Q 55.333333333333336,15.559488000000005 60,17.851641600000004 Q 64.66666666666667,17.851641600000004 69.33333333333334,19.456149120000003 Q 74,19.456149120000003 78.66666666666667,20.579304384000004 Q 83.33333333333334,20.579304384000004 88,21.365513068800002 Q 92.66666666666667,21.365513068800002 97.33333333333334,21.915859148160003 Q 102,21.915859148160003 106.66666666666667,22.301101403712003 Q 111.33333333333334,22.301101403712003 116,22.5707709825984"
         fill={null}
         propList={
           [
@@ -250,8 +1411,8 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot with typical in
         }
         stroke={
           {
-            "payload": 4293673082,
-            "type": 0,
+            "brushRef": "painGradientLine",
+            "type": 1,
           }
         }
         strokeLinecap={1}
@@ -259,7 +1420,82 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot with typical in
         strokeWidth={2}
       />
       <RNSVGCircle
-        cx={60}
+        cx={4}
+        cy={26.4}
+        fill={
+          {
+            "payload": 4294551589,
+            "type": 0,
+          }
+        }
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+          ]
+        }
+        r={3}
+        stroke={
+          {
+            "payload": 4294967295,
+            "type": 0,
+          }
+        }
+        strokeWidth={1.5}
+      />
+      <RNSVGCircle
+        cx={13.333333333333334}
+        cy={20}
+        fill={
+          {
+            "payload": 4293880832,
+            "type": 0,
+          }
+        }
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+          ]
+        }
+        r={3}
+        stroke={
+          {
+            "payload": 4294967295,
+            "type": 0,
+          }
+        }
+        strokeWidth={1.5}
+      />
+      <RNSVGCircle
+        cx={22.666666666666668}
+        cy={13.600000000000001}
+        fill={
+          {
+            "payload": 4292363029,
+            "type": 0,
+          }
+        }
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+          ]
+        }
+        r={3}
+        stroke={
+          {
+            "payload": 4294967295,
+            "type": 0,
+          }
+        }
+        strokeWidth={1.5}
+      />
+      <RNSVGCircle
+        cx={32}
         cy={7.199999999999999}
         fill={
           {
@@ -283,124 +1519,80 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot with typical in
         }
         strokeWidth={1.5}
       />
-    </RNSVGGroup>
-  </RNSVGSvgView>
-</View>
-`;
-
-exports[`IntensitySparkline Snapshot Tests should match snapshot without peak marker 1`] = `
-<View
-  style={
-    {
-      "alignItems": "center",
-      "justifyContent": "center",
-    }
-  }
->
-  <RNSVGSvgView
-    bbHeight={40}
-    bbWidth={120}
-    focusable={false}
-    height={40}
-    style={
-      [
-        {
-          "backgroundColor": "transparent",
-          "borderWidth": 0,
-        },
-        {
-          "flex": 0,
-          "height": 40,
-          "width": 120,
-        },
-      ]
-    }
-    width={120}
-  >
-    <RNSVGGroup
-      fill={
-        {
-          "payload": 4278190080,
-          "type": 0,
-        }
-      }
-    >
-      <RNSVGDefs>
-        <RNSVGLinearGradient
-          gradient={
-            [
-              0,
-              640580914,
-              0.1,
-              643140399,
-              0.2,
-              644390712,
-              0.3,
-              653895717,
-              0.4,
-              654282496,
-              0.5,
-              653224960,
-              0.6,
-              652628224,
-              0.7,
-              651707157,
-              0.8,
-              650520616,
-              0.9,
-              653017210,
-              1,
-              648759228,
-            ]
-          }
-          gradientTransform={null}
-          gradientUnits={0}
-          name="painGradient"
-          x1="0"
-          x2="0"
-          y1="1"
-          y2="0"
-        />
-      </RNSVGDefs>
-      <RNSVGRect
+      <RNSVGCircle
+        cx={41.333333333333336}
+        cy={10.399999999999999}
         fill={
           {
-            "brushRef": "painGradient",
-            "type": 1,
+            "payload": 4291176488,
+            "type": 0,
           }
         }
-        height={40}
-        propList={
-          [
-            "fill",
-          ]
-        }
-        rx={4}
-        width={120}
-        x={0}
-        y={0}
-      />
-      <RNSVGPath
-        d="M 4,26.4 Q 18,26.4 32,21.6 Q 46,21.6 60,15.600000000000001 Q 74,15.600000000000001 88,16.5 Q 102,16.5 116,21.525"
-        fill={null}
         propList={
           [
             "fill",
             "stroke",
             "strokeWidth",
-            "strokeLinecap",
-            "strokeLinejoin",
           ]
         }
+        r={3}
         stroke={
           {
-            "payload": 4292363029,
+            "payload": 4294967295,
             "type": 0,
           }
         }
-        strokeLinecap={1}
-        strokeLinejoin={1}
-        strokeWidth={2}
+        strokeWidth={1.5}
+      />
+      <RNSVGCircle
+        cx={50.66666666666667}
+        cy={16.8}
+        fill={
+          {
+            "payload": 4293284096,
+            "type": 0,
+          }
+        }
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+          ]
+        }
+        r={3}
+        stroke={
+          {
+            "payload": 4294967295,
+            "type": 0,
+          }
+        }
+        strokeWidth={1.5}
+      />
+      <RNSVGCircle
+        cx={60}
+        cy={23.2}
+        fill={
+          {
+            "payload": 4294938368,
+            "type": 0,
+          }
+        }
+        propList={
+          [
+            "fill",
+            "stroke",
+            "strokeWidth",
+          ]
+        }
+        r={3}
+        stroke={
+          {
+            "payload": 4294967295,
+            "type": 0,
+          }
+        }
+        strokeWidth={1.5}
       />
     </RNSVGGroup>
   </RNSVGSvgView>
