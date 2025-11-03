@@ -235,13 +235,21 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
       const dayStart = startOfDay(date).getTime();
       const dayEnd = endOfDay(date).getTime();
 
-      const takenToday = doses.some(
+      // Check for doses on this day
+      const dosesOnDay = doses.filter(
         d => d.timestamp >= dayStart && d.timestamp <= dayEnd
       );
+
+      // Check if there are any taken (non-skipped) doses
+      const takenToday = dosesOnDay.some(d => d.status !== 'skipped');
+
+      // Check if ALL doses were skipped (and there's at least one)
+      const allSkipped = dosesOnDay.length > 0 && dosesOnDay.every(d => d.status === 'skipped');
 
       timeline.push({
         date,
         taken: takenToday,
+        skipped: allSkipped,
       });
     }
     return timeline;
@@ -391,7 +399,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
                   <Text style={[styles.dayLabel, { color: theme.textSecondary }]}>{format(day.date, 'EEE')}</Text>
                   <View style={[
                     styles.dayIndicator,
-                    day.taken ? { backgroundColor: theme.success } : { backgroundColor: theme.border }
+                    day.taken ? { backgroundColor: theme.success } : day.skipped ? { backgroundColor: theme.danger } : { backgroundColor: theme.border }
                   ]} />
                   <Text style={[styles.dayDate, { color: theme.textSecondary }]}>{format(day.date, 'd')}</Text>
                 </View>
@@ -451,8 +459,8 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
                       </Text>
                     </View>
                     <View style={styles.logItemRight}>
-                      <Text style={[styles.logAmount, { color: theme.text }]}>
-                        {formatDoseWithSnapshot(dose, medication)}
+                      <Text style={[styles.logAmount, { color: dose.status === 'skipped' ? theme.danger : theme.text }]}>
+                        {dose.status === 'skipped' ? 'Skipped' : formatDoseWithSnapshot(dose, medication)}
                       </Text>
                       {dose.notes && (
                         <Text style={[styles.logNotes, { color: theme.textSecondary }]} numberOfLines={1}>{dose.notes}</Text>

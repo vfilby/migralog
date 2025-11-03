@@ -976,6 +976,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
 
       case 'medication':
         const dose = event.data as MedicationDoseWithDetails;
+        const isSkipped = dose.status === 'skipped';
         return (
           <TouchableOpacity
             key={event.id}
@@ -984,9 +985,9 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
             onLongPress={() => handleMedicationLongPress(dose)}
             delayLongPress={500}
           >
-            <Text style={styles.timelineEventTitle}>Medication Taken</Text>
-            <Text style={styles.timelineEventContent}>
-              {dose.medication?.name || 'Unknown Medication'} • {dose.quantity} × {dose.medication?.dosageAmount}{dose.medication?.dosageUnit}
+            <Text style={styles.timelineEventTitle}>{isSkipped ? 'Medication Skipped' : 'Medication Taken'}</Text>
+            <Text style={[styles.timelineEventContent, isSkipped && { color: theme.danger }]}>
+              {dose.medication?.name || 'Unknown Medication'} • {isSkipped ? 'Skipped' : `${dose.quantity} × ${dose.medication?.dosageAmount}${dose.medication?.dosageUnit}`}
             </Text>
           </TouchableOpacity>
         );

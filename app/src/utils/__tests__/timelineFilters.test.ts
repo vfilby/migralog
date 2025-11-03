@@ -60,14 +60,14 @@ describe('shouldShowMedicationInTimeline', () => {
       expect(shouldShowMedicationInTimeline(dose)).toBe(false);
     });
 
-    it('should show preventative medication that was skipped', () => {
+    it('should NOT show preventative medication that was skipped', () => {
       const dose = createDose('preventative', 'skipped');
-      expect(shouldShowMedicationInTimeline(dose)).toBe(true);
+      expect(shouldShowMedicationInTimeline(dose)).toBe(false);
     });
   });
 
   describe('Edge cases', () => {
-    it('should handle medication dose without medication details', () => {
+    it('should NOT show medication dose without medication details', () => {
       const dose: MedicationDoseWithDetails = {
         id: 'dose-1',
         medicationId: 'med-1',
@@ -80,7 +80,7 @@ describe('shouldShowMedicationInTimeline', () => {
       expect(shouldShowMedicationInTimeline(dose)).toBe(false);
     });
 
-    it('should show dose without medication details if marked as skipped', () => {
+    it('should NOT show dose without medication details even if marked as skipped', () => {
       const dose: MedicationDoseWithDetails = {
         id: 'dose-1',
         medicationId: 'med-1',
@@ -89,9 +89,9 @@ describe('shouldShowMedicationInTimeline', () => {
         status: 'skipped',
         createdAt: Date.now(),
         updatedAt: Date.now(),
-        // No medication object attached
+        // No medication object attached - can't determine if rescue
       };
-      expect(shouldShowMedicationInTimeline(dose)).toBe(true);
+      expect(shouldShowMedicationInTimeline(dose)).toBe(false);
     });
   });
 
@@ -100,17 +100,18 @@ describe('shouldShowMedicationInTimeline', () => {
       const doses: MedicationDoseWithDetails[] = [
         createDose('rescue', 'taken'),           // Should show
         createDose('preventative', 'taken'),     // Should NOT show
-        createDose('preventative', 'skipped'),   // Should show
+        createDose('preventative', 'skipped'),   // Should NOT show
         createDose('rescue'),                    // Should show
         createDose('preventative'),              // Should NOT show
       ];
 
       const filtered = doses.filter(shouldShowMedicationInTimeline);
 
-      expect(filtered).toHaveLength(3);
+      expect(filtered).toHaveLength(2);
       expect(filtered[0].medication?.type).toBe('rescue');
-      expect(filtered[1].status).toBe('skipped');
-      expect(filtered[2].medication?.type).toBe('rescue');
+      expect(filtered[0].status).toBe('taken');
+      expect(filtered[1].medication?.type).toBe('rescue');
+      expect(filtered[1].status).toBeUndefined();
     });
   });
 });
