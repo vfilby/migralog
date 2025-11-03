@@ -156,15 +156,28 @@ const IntensitySparkline: React.FC<IntensitySparklineProps> = ({
     <View style={styles.container}>
       <Svg width={width} height={height}>
         <Defs>
-          {/* Pain scale gradient - bottom (green) to top (purple) */}
-          <LinearGradient id="painGradient" x1="0" y1="1" x2="0" y2="0">
+          {/* Pain scale gradient for background - bottom (green) to top (purple) */}
+          <LinearGradient id="painGradientBg" x1="0" y1="1" x2="0" y2="0">
             {/* Create gradient stops for each pain level */}
             {PAIN_SCALE.map((level, index) => (
               <Stop
-                key={level.value}
+                key={`bg-${level.value}`}
                 offset={`${(index / (PAIN_SCALE.length - 1)) * 100}%`}
                 stopColor={level.color}
                 stopOpacity="0.15"
+              />
+            ))}
+          </LinearGradient>
+
+          {/* Pain scale gradient for line stroke - bottom (green) to top (purple) */}
+          <LinearGradient id="painGradientLine" x1="0" y1="1" x2="0" y2="0">
+            {/* Create gradient stops for each pain level */}
+            {PAIN_SCALE.map((level, index) => (
+              <Stop
+                key={`line-${level.value}`}
+                offset={`${(index / (PAIN_SCALE.length - 1)) * 100}%`}
+                stopColor={level.color}
+                stopOpacity="1"
               />
             ))}
           </LinearGradient>
@@ -176,14 +189,14 @@ const IntensitySparkline: React.FC<IntensitySparklineProps> = ({
           y={0}
           width={width}
           height={height}
-          fill="url(#painGradient)"
+          fill="url(#painGradientBg)"
           rx={4}
         />
 
         {/* Sparkline path */}
         <Path
           d={pathData}
-          stroke={lineColor}
+          stroke={color || "url(#painGradientLine)"}
           strokeWidth={2}
           fill="none"
           strokeLinecap="round"
