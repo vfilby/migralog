@@ -25,10 +25,6 @@ interface IntensitySparklineProps {
    * Color of the line (defaults to peak intensity color)
    */
   color?: string;
-  /**
-   * Highlight the peak intensity point
-   */
-  showPeak?: boolean;
 }
 
 const IntensitySparkline: React.FC<IntensitySparklineProps> = ({
@@ -37,23 +33,21 @@ const IntensitySparkline: React.FC<IntensitySparklineProps> = ({
   width = 120,
   height = 40,
   color,
-  showPeak = true,
 }) => {
-  if (!readings || readings.length === 0) {
-    return null;
-  }
-
-  // Ensure we have valid data and sort by timestamp
-  const validReadings = readings
-    .filter(r => typeof r.intensity === 'number' && !isNaN(r.intensity) && typeof r.timestamp === 'number')
-    .sort((a, b) => a.timestamp - b.timestamp);
-
-  if (validReadings.length === 0) {
-    return null;
-  }
-
   // Interpolate intensity readings using 5-minute intervals with sample-and-hold
   const interpolatedData = useMemo(() => {
+    if (!readings || readings.length === 0) {
+      return [];
+    }
+
+    // Ensure we have valid data and sort by timestamp
+    const validReadings = readings
+      .filter(r => typeof r.intensity === 'number' && !isNaN(r.intensity) && typeof r.timestamp === 'number')
+      .sort((a, b) => a.timestamp - b.timestamp);
+
+    if (validReadings.length === 0) {
+      return [];
+    }
     const startTime = validReadings[0].timestamp;
     const endTime = episodeEndTime || Date.now(); // Use current time for ongoing episodes
     const intervalMs = 5 * 60 * 1000; // 5 minutes in milliseconds
@@ -91,15 +85,21 @@ const IntensitySparkline: React.FC<IntensitySparklineProps> = ({
     });
 
     return smoothed;
-  }, [validReadings, episodeEndTime]);
+  }, [readings, episodeEndTime]);
+
+  // Early return after all hooks
+  if (interpolatedData.length === 0) {
+    return null;
+  }
+
+  // Ensure we have valid data and sort by timestamp
+  const validReadings = readings
+    .filter(r => typeof r.intensity === 'number' && !isNaN(r.intensity) && typeof r.timestamp === 'number')
+    .sort((a, b) => a.timestamp - b.timestamp);
 
   // Find min/max for scaling
   const minIntensity = 0; // Always start from 0 for pain scale
   const maxIntensity = 10; // Max pain scale
-  const peakIntensity = Math.max(...interpolatedData.map(d => d.intensity));
-  const peakPoint = interpolatedData.reduce((max, point) =>
-    point.intensity > max.intensity ? point : max
-  , interpolatedData[0]);
 
   // Calculate path
   const padding = 4;
@@ -149,8 +149,6 @@ const IntensitySparkline: React.FC<IntensitySparklineProps> = ({
       color: getPainColor(reading.intensity),
     };
   });
-
-  const lineColor = color || getPainColor(peakIntensity);
 
   return (
     <View style={styles.container}>

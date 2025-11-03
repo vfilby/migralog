@@ -90,15 +90,7 @@ describe('IntensitySparkline', () => {
       expect(toJSON()).toBeTruthy();
     });
 
-    it('should hide peak marker when showPeak is false', () => {
-      const readings = createReadings([3, 5, 7, 6, 4]);
-      const { toJSON } = render(
-        <IntensitySparkline readings={readings} showPeak={false} />
-      );
-      expect(toJSON()).toBeTruthy();
-    });
-
-    it('should show peak marker by default', () => {
+    it('should render all intensity markers', () => {
       const readings = createReadings([3, 5, 7, 6, 4]);
       const { toJSON } = render(
         <IntensitySparkline readings={readings} />
@@ -237,10 +229,10 @@ describe('IntensitySparkline', () => {
       expect(toJSON()).toMatchSnapshot();
     });
 
-    it('should match snapshot without peak marker', () => {
+    it('should match snapshot with all intensity markers', () => {
       const readings = createReadings([3, 5, 7, 6, 4]);
       const { toJSON } = render(
-        <IntensitySparkline readings={readings} showPeak={false} width={120} height={40} />
+        <IntensitySparkline readings={readings} width={120} height={40} />
       );
       expect(toJSON()).toMatchSnapshot();
     });
