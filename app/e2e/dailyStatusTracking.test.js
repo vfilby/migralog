@@ -527,13 +527,43 @@ describe('Daily Status Tracking', () => {
 
     console.log(`Logging status for yesterday: ${yesterdayDate}`);
 
-    // Calendar state persists from first test (on previous month)
-    // If yesterday is in current month (mid-month), navigate forward to current month
-    // If yesterday is in previous month (1st of month), stay on previous month
-    if (yesterday.getMonth() === today.getMonth()) {
-      await element(by.id('next-month-button')).tap();
-      await waitForAnimation(1000);
-      console.log('Navigated forward to current month (yesterday is in current month)');
+    // Navigate to yesterday's month if needed
+    // Get the expected month name for yesterday
+    const yesterdayMonthName = yesterday.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    // Check if we're already on yesterday's month
+    let onCorrectMonth = false;
+    try {
+      await waitFor(element(by.text(yesterdayMonthName)))
+        .toBeVisible()
+        .withTimeout(1000);
+      onCorrectMonth = true;
+      console.log(`Already on yesterday's month: ${yesterdayMonthName}`);
+    } catch (e) {
+      console.log(`Not on yesterday's month, need to navigate to: ${yesterdayMonthName}`);
+    }
+
+    // If not on correct month, navigate to it
+    if (!onCorrectMonth) {
+      // Check if yesterday is in the future (next month) or past (previous month)
+      const currentMonthName = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+      try {
+        // Are we on current month?
+        await waitFor(element(by.text(currentMonthName)))
+          .toBeVisible()
+          .withTimeout(1000);
+
+        // We're on current month, yesterday must be in previous month (1st of month case)
+        await element(by.id('previous-month-button')).tap();
+        await waitForAnimation(1000);
+        console.log('Navigated backward to previous month for yesterday');
+      } catch (e) {
+        // We're on some other month, navigate forward to get to yesterday's month
+        await element(by.id('next-month-button')).tap();
+        await waitForAnimation(1000);
+        console.log('Navigated forward to get to yesterday\'s month');
+      }
     }
 
     // Tap on yesterday in the calendar
@@ -620,13 +650,43 @@ describe('Daily Status Tracking', () => {
 
     console.log(`Logging status for yesterday: ${yesterdayDate}`);
 
-    // Calendar state persists from first test (on previous month)
-    // If yesterday is in current month (mid-month), navigate forward to current month
-    // If yesterday is in previous month (1st of month), stay on previous month
-    if (yesterday.getMonth() === today.getMonth()) {
-      await element(by.id('next-month-button')).tap();
-      await waitForAnimation(1000);
-      console.log('Navigated forward to current month (yesterday is in current month)');
+    // Navigate to yesterday's month if needed
+    // Get the expected month name for yesterday
+    const yesterdayMonthName = yesterday.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    // Check if we're already on yesterday's month
+    let onCorrectMonth = false;
+    try {
+      await waitFor(element(by.text(yesterdayMonthName)))
+        .toBeVisible()
+        .withTimeout(1000);
+      onCorrectMonth = true;
+      console.log(`Already on yesterday's month: ${yesterdayMonthName}`);
+    } catch (e) {
+      console.log(`Not on yesterday's month, need to navigate to: ${yesterdayMonthName}`);
+    }
+
+    // If not on correct month, navigate to it
+    if (!onCorrectMonth) {
+      // Check if yesterday is in the future (next month) or past (previous month)
+      const currentMonthName = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+      try {
+        // Are we on current month?
+        await waitFor(element(by.text(currentMonthName)))
+          .toBeVisible()
+          .withTimeout(1000);
+
+        // We're on current month, yesterday must be in previous month (1st of month case)
+        await element(by.id('previous-month-button')).tap();
+        await waitForAnimation(1000);
+        console.log('Navigated backward to previous month for yesterday');
+      } catch (e) {
+        // We're on some other month, navigate forward to get to yesterday's month
+        await element(by.id('next-month-button')).tap();
+        await waitForAnimation(1000);
+        console.log('Navigated forward to get to yesterday\'s month');
+      }
     }
 
     // Tap on yesterday in the calendar
