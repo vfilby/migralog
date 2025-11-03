@@ -131,11 +131,23 @@ const IntensitySparkline: React.FC<IntensitySparklineProps> = ({
     })
     .join(' ');
 
-  // Peak point coordinates
-  const peakIndex = interpolatedData.findIndex(p => p.timestamp === peakPoint.timestamp);
-  const peakX = padding + (peakIndex * xStep);
-  const peakNormalizedY = (peakIntensity - minIntensity) / (maxIntensity - minIntensity);
-  const peakY = padding + chartHeight - (peakNormalizedY * chartHeight);
+  // Calculate positions for all logged readings
+  const readingPoints = validReadings.map(reading => {
+    // Find the closest interpolated point to this reading's timestamp
+    const closestIndex = interpolatedData.findIndex(p => p.timestamp >= reading.timestamp);
+    const index = closestIndex !== -1 ? closestIndex : interpolatedData.length - 1;
+
+    const x = padding + (index * xStep);
+    const normalizedY = (reading.intensity - minIntensity) / (maxIntensity - minIntensity);
+    const y = padding + chartHeight - (normalizedY * chartHeight);
+
+    return {
+      x,
+      y,
+      intensity: reading.intensity,
+      color: getPainColor(reading.intensity),
+    };
+  });
 
   const lineColor = color || getPainColor(peakIntensity);
 
@@ -177,17 +189,18 @@ const IntensitySparkline: React.FC<IntensitySparklineProps> = ({
           strokeLinejoin="round"
         />
 
-        {/* Peak intensity marker */}
-        {showPeak && (
+        {/* All logged intensity reading markers */}
+        {readingPoints.map((point, index) => (
           <Circle
-            cx={peakX}
-            cy={peakY}
+            key={index}
+            cx={point.x}
+            cy={point.y}
             r={3}
-            fill={lineColor}
+            fill={point.color}
             stroke="white"
             strokeWidth={1.5}
           />
-        )}
+        ))}
       </Svg>
     </View>
   );
