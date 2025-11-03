@@ -517,7 +517,6 @@ describe('Daily Status Tracking', () => {
     await waitForAnimation(1000);
 
     // Calculate yesterday's date
-    const today = new Date();
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const year = yesterday.getFullYear();
@@ -640,7 +639,6 @@ describe('Daily Status Tracking', () => {
     await waitForAnimation(1000);
 
     // Calculate yesterday's date
-    const today = new Date();
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const year = yesterday.getFullYear();
