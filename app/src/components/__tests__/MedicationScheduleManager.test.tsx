@@ -127,7 +127,7 @@ describe('MedicationScheduleManager', () => {
       ]);
     });
 
-    it('should not update dosage with zero or negative values', async () => {
+    it('should not update dosage with zero or negative values during editing', async () => {
       renderWithTheme(
         <MedicationScheduleManager
           scheduleFrequency="daily"
@@ -142,7 +142,94 @@ describe('MedicationScheduleManager', () => {
 
       fireEvent.changeText(screen.getByDisplayValue('1'), '0');
 
+      // Should not update schedule while typing invalid value
       expect(mockOnSchedulesChange).not.toHaveBeenCalled();
+    });
+
+    it('should allow clearing dosage field temporarily', async () => {
+      renderWithTheme(
+        <MedicationScheduleManager
+          scheduleFrequency="daily"
+          schedules={[dailySchedule]}
+          onSchedulesChange={mockOnSchedulesChange}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('1')).toBeTruthy();
+      });
+
+      const input = screen.getByDisplayValue('1');
+
+      // User can clear the field
+      fireEvent.changeText(input, '');
+
+      // Should not update schedule while field is empty
+      expect(mockOnSchedulesChange).not.toHaveBeenCalled();
+
+      // Field should show empty value
+      expect(screen.getByDisplayValue('')).toBeTruthy();
+    });
+
+    it('should reset to default value when blurred with empty field', async () => {
+      renderWithTheme(
+        <MedicationScheduleManager
+          scheduleFrequency="daily"
+          schedules={[dailySchedule]}
+          onSchedulesChange={mockOnSchedulesChange}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('1')).toBeTruthy();
+      });
+
+      const input = screen.getByDisplayValue('1');
+
+      // Clear the field
+      fireEvent.changeText(input, '');
+
+      // Blur the field
+      fireEvent(input, 'blur');
+
+      // Should reset to original value (1)
+      await waitFor(() => {
+        expect(mockOnSchedulesChange).toHaveBeenCalledWith([
+          { ...dailySchedule, dosage: 1 },
+        ]);
+      });
+    });
+
+    it('should allow changing from 4 to 2 naturally', async () => {
+      const scheduleWith4 = { ...dailySchedule, dosage: 4 };
+
+      renderWithTheme(
+        <MedicationScheduleManager
+          scheduleFrequency="daily"
+          schedules={[scheduleWith4]}
+          onSchedulesChange={mockOnSchedulesChange}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('4')).toBeTruthy();
+      });
+
+      const input = screen.getByDisplayValue('4');
+
+      // User can clear the field (simulating backspace)
+      fireEvent.changeText(input, '');
+
+      // Field should be empty
+      expect(screen.getByDisplayValue('')).toBeTruthy();
+
+      // User types 2
+      fireEvent.changeText(input, '2');
+
+      // Should update to 2
+      expect(mockOnSchedulesChange).toHaveBeenCalledWith([
+        { ...dailySchedule, dosage: 2 },
+      ]);
     });
 
     it('should toggle time picker when time button pressed', async () => {
