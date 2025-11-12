@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { logger } from '../utils/logger';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert, Platform, ActionSheetIOS } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert, Platform, ActionSheetIOS, useWindowDimensions } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import MapView, { Marker } from 'react-native-maps';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -17,9 +17,9 @@ import { shouldShowMedicationInTimeline } from '../utils/timelineFilters';
 import { groupEventsByDay, groupEventsByTimestamp, DayGroup } from '../utils/timelineGrouping';
 import { locationService } from '../services/locationService';
 import { useTheme, ThemeColors } from '../theme';
+import IntensitySparkline from '../components/IntensitySparkline';
 import { formatMedicationDoseDisplay } from '../utils/medicationFormatting';
 import { useMedicationStatusStyles } from '../utils/medicationStyling';
-// Removed unused import: IntensitySparkline (peak intensity feature removed)
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EpisodeDetail'>;
 
@@ -531,6 +531,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   const { theme } = useTheme();
   const { getStatusStyle } = useMedicationStatusStyles();
   const styles = createStyles(theme);
+  const { width: screenWidth } = useWindowDimensions();
   const { endEpisode } = useEpisodeStore();
   const [episode, setEpisode] = useState<Episode | null>(null);
   const [intensityReadings, setIntensityReadings] = useState<IntensityReading[]>([]);
@@ -1109,6 +1110,9 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
 
   const timeline = buildTimeline();
 
+  // Calculate sparkline width: screen width minus card margins (32px) and padding (32px)
+  const sparklineWidth = screenWidth - 64;
+
   return (
     <View style={styles.container} testID="episode-detail-screen">
       <View style={styles.header}>
@@ -1255,6 +1259,19 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
         {timeline.length > 0 && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Timeline</Text>
+
+            {/* Intensity Graph */}
+            {intensityReadings.length > 0 && (
+              <View style={{ marginTop: 8, marginBottom: 16 }}>
+                <IntensitySparkline
+                  readings={intensityReadings}
+                  episodeEndTime={episode.endTime}
+                  width={sparklineWidth}
+                  height={80}
+                />
+              </View>
+            )}
+
             <View style={styles.timelineContainer}>
               {timeline.map((dayGroup, dayIndex) => {
                 // Group events by timestamp within each day

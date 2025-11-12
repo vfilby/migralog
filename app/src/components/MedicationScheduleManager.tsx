@@ -121,6 +121,8 @@ export default function MedicationScheduleManager({
   const styles = createStyles(theme);
   const [editingScheduleIndex, setEditingScheduleIndex] = useState<number | null>(null);
   const [selectedDateScheduleIndex, setSelectedDateScheduleIndex] = useState<number | null>(null);
+  // Track text input values separately to allow natural editing (including empty strings)
+  const [dosageInputs, setDosageInputs] = useState<{ [key: number]: string }>({});
 
   const handleAddSchedule = () => {
     const today = new Date();
@@ -146,12 +148,40 @@ export default function MedicationScheduleManager({
   };
 
   const handleDosageChange = (index: number, dosage: string) => {
-    const dosageNum = parseFloat(dosage) || 0;
-    if (dosageNum <= 0) return;
+    // Update local input state to allow natural editing (including empty strings)
+    setDosageInputs(prev => ({ ...prev, [index]: dosage }));
+
+    // Only update the actual schedule if the value is valid
+    // This allows users to clear the field without validation blocking them
+    if (dosage.trim() === '') {
+      return; // Don't update schedule yet - wait for onBlur
+    }
+
+    const dosageNum = parseFloat(dosage);
+    if (isNaN(dosageNum) || dosageNum <= 0) {
+      return; // Invalid input - don't update schedule yet
+    }
 
     const updated = [...schedules];
     updated[index] = { ...updated[index], dosage: dosageNum };
     onSchedulesChange(updated);
+  };
+
+  const handleDosageBlur = (index: number) => {
+    // When user finishes editing, ensure we have a valid value
+    const currentInput = dosageInputs[index];
+    const dosageNum = parseFloat(currentInput);
+
+    // If empty or invalid, reset to schedule's current value (or 1 as default)
+    if (!currentInput || currentInput.trim() === '' || isNaN(dosageNum) || dosageNum <= 0) {
+      const updated = [...schedules];
+      const defaultValue = updated[index]?.dosage || 1;
+      updated[index] = { ...updated[index], dosage: defaultValue };
+      onSchedulesChange(updated);
+
+      // Update local state to reflect the valid value
+      setDosageInputs(prev => ({ ...prev, [index]: defaultValue.toString() }));
+    }
   };
 
   const handleTimePickerChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
@@ -283,8 +313,9 @@ export default function MedicationScheduleManager({
                 style={styles.dosageInput}
                 placeholder="1"
                 placeholderTextColor={theme.textTertiary}
-                value={schedule.dosage.toString()}
+                value={dosageInputs[index] !== undefined ? dosageInputs[index] : schedule.dosage.toString()}
                 onChangeText={(value) => handleDosageChange(index, value)}
+                onBlur={() => handleDosageBlur(index)}
                 keyboardType="decimal-pad"
               />
             </View>
