@@ -307,11 +307,12 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
 
   archiveMedication: async (id) => {
     try {
-      // Cancel notifications before archiving
-      await notificationService.cancelMedicationNotifications(id);
-      logger.log('[Store] Cancelled notifications for archived medication:', id);
-
       await medicationRepository.update(id, { active: false });
+
+      // Reschedule all notifications to update grouped notifications
+      // This ensures that grouped notifications no longer include the archived medication
+      await notificationService.rescheduleAllMedicationNotifications();
+      logger.log('[Store] Rescheduled all notifications after archiving medication:', id);
 
       const medications = get().medications.map(m =>
         m.id === id ? { ...m, active: false } : m
