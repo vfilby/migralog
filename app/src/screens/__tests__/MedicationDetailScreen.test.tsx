@@ -170,4 +170,104 @@ describe('MedicationDetailScreen', () => {
       expect(screen.getByText('Rescue')).toBeTruthy();
     });
   });
+
+  it('should display "Skipped" for skipped doses in history', async () => {
+    const now = Date.now();
+    (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([
+      {
+        id: 'dose-1',
+        medicationId: 'med-123',
+        timestamp: now - 3600000,
+        quantity: 0,
+        dosageAmount: 100,
+        dosageUnit: 'mg',
+        status: 'skipped',
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    const mockRoute = {
+      params: { medicationId: 'med-123' },
+    };
+
+    renderWithProviders(
+      <MedicationDetailScreen navigation={mockNavigation as any} route={mockRoute as any} />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Skipped')).toBeTruthy();
+    });
+  });
+
+  it('should display formatted dose for taken doses in history', async () => {
+    const now = Date.now();
+    (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([
+      {
+        id: 'dose-1',
+        medicationId: 'med-123',
+        timestamp: now - 3600000,
+        quantity: 2,
+        dosageAmount: 100,
+        dosageUnit: 'mg',
+        status: 'taken',
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    const mockRoute = {
+      params: { medicationId: 'med-123' },
+    };
+
+    renderWithProviders(
+      <MedicationDetailScreen navigation={mockNavigation as any} route={mockRoute as any} />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/2 × 100mg/)).toBeTruthy();
+    });
+  });
+
+  it('should show red indicator for days with only skipped doses in 7-day timeline', async () => {
+    const now = Date.now();
+    (medicationRepository.getById as jest.Mock).mockResolvedValue({
+      id: 'med-123',
+      name: 'Test Medication',
+      type: 'preventative',
+      dosageAmount: 100,
+      dosageUnit: 'mg',
+      defaultQuantity: 1,
+      scheduleFrequency: 'daily',
+      active: true,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([
+      {
+        id: 'dose-1',
+        medicationId: 'med-123',
+        timestamp: now - 86400000, // Yesterday
+        quantity: 0,
+        dosageAmount: 100,
+        dosageUnit: 'mg',
+        status: 'skipped',
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    const mockRoute = {
+      params: { medicationId: 'med-123' },
+    };
+
+    renderWithProviders(
+      <MedicationDetailScreen navigation={mockNavigation as any} route={mockRoute as any} />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Last 7 Days')).toBeTruthy();
+    });
+  });
 });

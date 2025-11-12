@@ -19,11 +19,13 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { Medication, MedicationDose, MedicationSchedule } from '../models/types';
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../database/medicationRepository';
-import { format, subDays, startOfDay, endOfDay } from 'date-fns';
+import { format } from 'date-fns';
 import { useTheme } from '../theme';
 import { useMedicationStore } from '../store/medicationStore';
 import { useEpisodeStore } from '../store/episodeStore';
-import { formatDosageWithUnit, formatDoseWithSnapshot } from '../utils/medicationFormatting';
+import { formatDosageWithUnit, formatMedicationDoseDisplay } from '../utils/medicationFormatting';
+import { useMedicationStatusStyles } from '../utils/medicationStyling';
+import { getLast7DaysTimeline as calculateLast7DaysTimeline } from '../utils/medicationTimeline';
 import { getCategoryName } from '../utils/presetMedications';
 import NotificationSettings from '../components/NotificationSettings';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,6 +35,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'MedicationDetail'>;
 export default function MedicationDetailScreen({ route, navigation }: Props) {
   const { medicationId } = route.params;
   const { theme } = useTheme();
+  const { getStatusStyle } = useMedicationStatusStyles();
   const { logDose, deleteDose, archiveMedication } = useMedicationStore();
   const { currentEpisode } = useEpisodeStore();
   const [medication, setMedication] = useState<Medication | null>(null);
@@ -228,25 +231,6 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
     );
   };
 
-  const getLast7DaysTimeline = () => {
-    const timeline = [];
-    for (let i = 6; i >= 0; i--) {
-      const date = subDays(new Date(), i);
-      const dayStart = startOfDay(date).getTime();
-      const dayEnd = endOfDay(date).getTime();
-
-      const takenToday = doses.some(
-        d => d.timestamp >= dayStart && d.timestamp <= dayEnd
-      );
-
-      timeline.push({
-        date,
-        taken: takenToday,
-      });
-    }
-    return timeline;
-  };
-
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -265,7 +249,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
   }
 
   const last7Days = medication.scheduleFrequency === 'daily'
-    ? getLast7DaysTimeline()
+    ? calculateLast7DaysTimeline(doses)
     : [];
 
   return (
@@ -391,7 +375,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
                   <Text style={[styles.dayLabel, { color: theme.textSecondary }]}>{format(day.date, 'EEE')}</Text>
                   <View style={[
                     styles.dayIndicator,
-                    day.taken ? { backgroundColor: theme.success } : { backgroundColor: theme.border }
+                    day.taken ? { backgroundColor: theme.success } : day.skipped ? { backgroundColor: theme.danger } : { backgroundColor: theme.border }
                   ]} />
                   <Text style={[styles.dayDate, { color: theme.textSecondary }]}>{format(day.date, 'd')}</Text>
                 </View>
@@ -451,8 +435,8 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
                       </Text>
                     </View>
                     <View style={styles.logItemRight}>
-                      <Text style={[styles.logAmount, { color: theme.text }]}>
-                        {formatDoseWithSnapshot(dose, medication)}
+                      <Text style={[styles.logAmount, getStatusStyle(dose.status)]}>
+                        {formatMedicationDoseDisplay(dose, medication)}
                       </Text>
                       {dose.notes && (
                         <Text style={[styles.logNotes, { color: theme.textSecondary }]} numberOfLines={1}>{dose.notes}</Text>

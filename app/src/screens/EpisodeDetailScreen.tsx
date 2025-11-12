@@ -18,6 +18,8 @@ import { groupEventsByDay, groupEventsByTimestamp, DayGroup } from '../utils/tim
 import { locationService } from '../services/locationService';
 import { useTheme, ThemeColors } from '../theme';
 import IntensitySparkline from '../components/IntensitySparkline';
+import { formatMedicationDoseDisplay } from '../utils/medicationFormatting';
+import { useMedicationStatusStyles } from '../utils/medicationStyling';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EpisodeDetail'>;
 
@@ -527,6 +529,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
 export default function EpisodeDetailScreen({ route, navigation }: Props) {
   const { episodeId } = route.params;
   const { theme } = useTheme();
+  const { getStatusStyle } = useMedicationStatusStyles();
   const styles = createStyles(theme);
   const { width: screenWidth } = useWindowDimensions();
   const { endEpisode } = useEpisodeStore();
@@ -977,6 +980,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
 
       case 'medication':
         const dose = event.data as MedicationDoseWithDetails;
+        const isSkipped = dose.status === 'skipped';
         return (
           <TouchableOpacity
             key={event.id}
@@ -985,9 +989,9 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
             onLongPress={() => handleMedicationLongPress(dose)}
             delayLongPress={500}
           >
-            <Text style={styles.timelineEventTitle}>Medication Taken</Text>
-            <Text style={styles.timelineEventContent}>
-              {dose.medication?.name || 'Unknown Medication'} • {dose.quantity} × {dose.medication?.dosageAmount}{dose.medication?.dosageUnit}
+            <Text style={styles.timelineEventTitle}>{isSkipped ? 'Medication Skipped' : 'Medication Taken'}</Text>
+            <Text style={[styles.timelineEventContent, getStatusStyle(dose.status)]}>
+              {dose.medication?.name || 'Unknown Medication'} • {formatMedicationDoseDisplay(dose, dose.medication)}
             </Text>
           </TouchableOpacity>
         );

@@ -1,4 +1,5 @@
-import { formatDosageWithUnit, formatMedicationDosage } from '../medicationFormatting';
+import { formatDosageWithUnit, formatMedicationDosage, formatMedicationDoseDisplay } from '../medicationFormatting';
+import { MedicationDose, Medication } from '../../models/types';
 
 describe('medicationFormatting', () => {
   describe('formatDosageWithUnit', () => {
@@ -62,6 +63,93 @@ describe('medicationFormatting', () => {
       expect(formatMedicationDosage(1, 200, 'mg')).toBe('1 × 200mg');
       expect(formatMedicationDosage(1, 10, 'minutes')).toBe('1 × 10 minutes');
       expect(formatMedicationDosage(1, 1, 'tablets')).toBe('1 × 1 tablet');
+    });
+  });
+
+  describe('formatMedicationDoseDisplay', () => {
+    const mockMedication: Medication = {
+      id: 'med-1',
+      name: 'Test Med',
+      type: 'preventative',
+      dosageAmount: 50,
+      dosageUnit: 'mg',
+      defaultQuantity: 1,
+      active: true,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    it('should return "Skipped" for skipped doses', () => {
+      const skippedDose: MedicationDose = {
+        id: 'dose-1',
+        medicationId: 'med-1',
+        timestamp: Date.now(),
+        quantity: 0,
+        status: 'skipped',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      expect(formatMedicationDoseDisplay(skippedDose, mockMedication)).toBe('Skipped');
+    });
+
+    it('should format taken doses using snapshot data', () => {
+      const takenDose: MedicationDose = {
+        id: 'dose-1',
+        medicationId: 'med-1',
+        timestamp: Date.now(),
+        quantity: 2,
+        dosageAmount: 50,
+        dosageUnit: 'mg',
+        status: 'taken',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      expect(formatMedicationDoseDisplay(takenDose, mockMedication)).toBe('2 × 50mg');
+    });
+
+    it('should return "Unknown Medication" when medication is not provided', () => {
+      const dose: MedicationDose = {
+        id: 'dose-1',
+        medicationId: 'med-1',
+        timestamp: Date.now(),
+        quantity: 1,
+        status: 'taken',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      expect(formatMedicationDoseDisplay(dose)).toBe('Unknown Medication');
+    });
+
+    it('should handle doses without status (defaults to taken)', () => {
+      const dose: MedicationDose = {
+        id: 'dose-1',
+        medicationId: 'med-1',
+        timestamp: Date.now(),
+        quantity: 1,
+        dosageAmount: 100,
+        dosageUnit: 'mg',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      expect(formatMedicationDoseDisplay(dose, mockMedication)).toBe('1 × 100mg');
+    });
+
+    it('should use medication defaults when dose snapshot is missing', () => {
+      const dose: MedicationDose = {
+        id: 'dose-1',
+        medicationId: 'med-1',
+        timestamp: Date.now(),
+        quantity: 1,
+        status: 'taken',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      expect(formatMedicationDoseDisplay(dose, mockMedication)).toBe('1 × 50mg');
     });
   });
 });

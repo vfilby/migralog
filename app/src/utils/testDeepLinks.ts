@@ -239,6 +239,37 @@ async function handleTestDeepLink(event: { url: string }) {
         }
         break;
 
+      case '/skipped-doses':
+        {
+          logger.log('[TestDeepLinks] ✅ Authorized: Loading skipped doses fixtures for GH #116');
+
+          // Reset database first
+          const resetResult = await testHelpers.resetDatabaseForTesting({
+            createBackup: false,
+            loadFixtures: false,
+          });
+          logger.log('[TestDeepLinks] Database reset:', resetResult);
+
+          // Load skipped doses fixtures
+          await testHelpers.loadSkippedDosesFixtures();
+          logger.log('[TestDeepLinks] Skipped doses fixtures loaded');
+
+          // Reload stores
+          const { useMedicationStore } = await import('../store/medicationStore');
+          await useMedicationStore.getState().loadMedications();
+          logger.log('[TestDeepLinks] Medication store reloaded');
+
+          // Navigate to Dashboard
+          const { navigationRef } = await import('../navigation/NavigationService');
+          if (navigationRef.current) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (navigationRef.current.navigate as any)('MainTabs', { screen: 'Dashboard' });
+            await new Promise(resolve => setTimeout(resolve, 500));
+            logger.log('[TestDeepLinks] Navigated to Dashboard');
+          }
+        }
+        break;
+
       default:
         logger.warn('[TestDeepLinks] Unknown test path:', path);
     }

@@ -8,19 +8,21 @@ export type MedicationDoseWithDetails = MedicationDose & {
  * Determines if a medication dose should be shown in the episode timeline.
  *
  * Timeline should only show:
- * - Rescue medications (non-scheduled)
- * - Scheduled/preventative medications that were skipped
+ * - Rescue medications (taken or skipped)
  *
  * Timeline should NOT show:
- * - Preventative medications that were taken as expected
+ * - Preventative/scheduled medications (whether taken or skipped)
+ * - Other medication types
+ *
+ * Rationale: Episode timelines focus on rescue interventions during the episode.
+ * Preventative medications are tracked separately in medication detail screens.
  *
  * @param dose - The medication dose (potentially with medication details)
  * @returns true if the dose should be shown in timeline, false otherwise
  */
 export function shouldShowMedicationInTimeline(dose: MedicationDoseWithDetails): boolean {
   const isRescue = dose.medication?.type === 'rescue';
-  const isSkipped = dose.status === 'skipped';
 
-  // Show rescue medications or any medication that was skipped
-  return isRescue || isSkipped;
+  // Only show rescue medications
+  return isRescue;
 }
