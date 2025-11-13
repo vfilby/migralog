@@ -158,6 +158,7 @@ describe('Medication Validation Schemas', () => {
       id: 'schedule-123',
       medicationId: 'med-123',
       time: '09:00',
+      timezone: 'America/Los_Angeles',
       dosage: 1,
       enabled: true,
     };
@@ -181,6 +182,31 @@ describe('Medication Validation Schemas', () => {
 
     it('should reject schedule with zero dosage', () => {
       const schedule = { ...validSchedule, dosage: 0 };
+      const result = MedicationScheduleSchema.safeParse(schedule);
+      expect(result.success).toBe(false);
+    });
+
+    it('should accept valid IANA timezone', () => {
+      const schedule = { ...validSchedule, timezone: 'America/New_York' };
+      const result = MedicationScheduleSchema.safeParse(schedule);
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject invalid timezone', () => {
+      const schedule = { ...validSchedule, timezone: 'Invalid/Timezone' };
+      const result = MedicationScheduleSchema.safeParse(schedule);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject empty timezone', () => {
+      const schedule = { ...validSchedule, timezone: '' };
+      const result = MedicationScheduleSchema.safeParse(schedule);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject missing timezone', () => {
+      const schedule = { ...validSchedule };
+      delete (schedule as any).timezone;
       const result = MedicationScheduleSchema.safeParse(schedule);
       expect(result.success).toBe(false);
     });

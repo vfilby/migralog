@@ -113,7 +113,8 @@ export interface MedicationRow {
 export interface MedicationScheduleRow {
   id: string;
   medication_id: string;
-  time: string; // HH:mm format in 24-hour time (e.g., "09:30", "14:00"), local timezone
+  time: string; // HH:mm format in 24-hour time (e.g., "09:30", "14:00")
+  timezone: string; // IANA timezone (e.g., 'America/New_York', 'America/Los_Angeles')
   dosage: number;
   enabled: number; // 0 or 1
   notification_id: string | null;

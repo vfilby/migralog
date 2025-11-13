@@ -384,6 +384,7 @@ export const medicationDoseRepository = {
     medicationId: string,
     scheduleId: string,
     scheduledTime: string,
+    scheduleTimezone: string,
     db?: SQLite.SQLiteDatabase
   ): Promise<boolean> {
     const database = db || await getDatabase();
@@ -391,13 +392,23 @@ export const medicationDoseRepository = {
     // Parse scheduled time
     const [hours, minutes] = scheduledTime.split(':').map(Number);
 
-    // Get start of today and the scheduled time for today
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-    const scheduledDateTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0);
+    // Get the current date/time in the schedule's timezone
+    const nowInScheduleTimezone = new Date().toLocaleString('en-US', { timeZone: scheduleTimezone });
+    const now = new Date(nowInScheduleTimezone);
 
-    // Query for doses of this medication logged today before the scheduled time
-    // We check if the dose was logged any time before the notification fires
+    // Create start of today (midnight) in the schedule's timezone
+    const todayStartInScheduleTZ = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+
+    // Create the scheduled time for today in the schedule's timezone
+    const scheduledDateTimeInScheduleTZ = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0);
+
+    // Convert these timezone-aware dates to UTC timestamps for database query
+    // The timestamps in the database are stored in UTC (Unix milliseconds)
+    const todayStartUTC = todayStartInScheduleTZ.getTime();
+    const scheduledDateTimeUTC = scheduledDateTimeInScheduleTZ.getTime();
+
+    // Query for doses of this medication logged today (in schedule's timezone) before the scheduled time
+    // We check if the dose was logged any time from midnight to the scheduled time in the schedule's timezone
     const results = await database.getAllAsync<MedicationDoseRow>(
       `SELECT id FROM medication_doses
        WHERE medication_id = ?
@@ -405,7 +416,7 @@ export const medicationDoseRepository = {
        AND timestamp <= ?
        AND status = 'taken'
        LIMIT 1`,
-      [medicationId, todayStart.getTime(), scheduledDateTime.getTime()]
+      [medicationId, todayStartUTC, scheduledDateTimeUTC]
     );
 
     return results.length > 0;
@@ -431,11 +442,12 @@ export const medicationScheduleRepository = {
     }
 
     await database.runAsync(
-      'INSERT INTO medication_schedules (id, medication_id, time, dosage, enabled, notification_id, reminder_enabled) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO medication_schedules (id, medication_id, time, timezone, dosage, enabled, notification_id, reminder_enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [
         newSchedule.id,
         newSchedule.medicationId,
         newSchedule.time,
+        newSchedule.timezone,
         newSchedule.dosage,
         newSchedule.enabled ? 1 : 0,
         newSchedule.notificationId || null,
@@ -454,6 +466,10 @@ export const medicationScheduleRepository = {
     if (updates.time !== undefined) {
       fields.push('time = ?');
       values.push(updates.time);
+    }
+    if (updates.timezone !== undefined) {
+      fields.push('timezone = ?');
+      values.push(updates.timezone);
     }
     if (updates.dosage !== undefined) {
       fields.push('dosage = ?');
@@ -502,6 +518,7 @@ export const medicationScheduleRepository = {
       id: row.id,
       medicationId: row.medication_id,
       time: row.time,
+      timezone: row.timezone,
       dosage: row.dosage,
       enabled: row.enabled === 1,
       notificationId: row.notification_id || undefined,

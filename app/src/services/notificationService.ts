@@ -24,7 +24,7 @@ export async function handleIncomingNotification(notification: Notifications.Not
 
   // For single medication reminders, check if already logged
   if (data.medicationId && data.scheduleId) {
-    // Get the medication to find the schedule time
+    // Get the medication to find the schedule time and timezone
     const medication = await medicationRepository.getById(data.medicationId);
     if (medication) {
       const schedule = medication.schedule?.find(s => s.id === data.scheduleId);
@@ -32,7 +32,8 @@ export async function handleIncomingNotification(notification: Notifications.Not
         const wasLogged = await medicationDoseRepository.wasLoggedForScheduleToday(
           data.medicationId,
           data.scheduleId,
-          schedule.time
+          schedule.time,
+          schedule.timezone
         );
 
         if (wasLogged) {
@@ -61,10 +62,20 @@ export async function handleIncomingNotification(notification: Notifications.Not
       const medicationId = data.medicationIds[i];
       const scheduleId = data.scheduleIds[i];
 
+      // Get medication and schedule to find timezone
+      const medication = await medicationRepository.getById(medicationId);
+      const schedule = medication?.schedule?.find(s => s.id === scheduleId);
+
+      if (!schedule) {
+        // If schedule not found, skip this medication
+        continue;
+      }
+
       const wasLogged = await medicationDoseRepository.wasLoggedForScheduleToday(
         medicationId,
         scheduleId,
-        data.time
+        data.time,
+        schedule.timezone
       );
 
       if (!wasLogged) {

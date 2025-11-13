@@ -276,6 +276,7 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
         setExistingScheduleIds(existingSchedules.map(s => s.id));
         setSchedules(existingSchedules.map(s => ({
           time: s.time,
+          timezone: s.timezone,
           dosage: s.dosage,
           enabled: s.enabled,
         })));
@@ -372,6 +373,7 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
           await medicationScheduleRepository.create({
             medicationId,
             time: schedule.time,
+            timezone: schedule.timezone,
             dosage: schedule.dosage,
             enabled: schedule.enabled,
             reminderEnabled: true,

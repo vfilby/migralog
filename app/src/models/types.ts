@@ -125,6 +125,7 @@ export interface MedicationSchedule {
   id: string;
   medicationId: string;
   time: string; // HH:mm format for daily, date for monthly/quarterly
+  timezone: string; // IANA timezone (e.g., 'America/New_York', 'America/Los_Angeles')
   dosage: number; // Number of doses for this schedule
   enabled: boolean;
   notificationId?: string; // Expo notification identifier
