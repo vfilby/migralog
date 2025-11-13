@@ -4,6 +4,7 @@ import {
   medicationDoseRepository,
 } from '../../database/medicationRepository';
 import { episodeRepository } from '../../database/episodeRepository';
+import { notificationService } from '../../services/notificationService';
 import { Medication } from '../../models/types';
 import { cacheManager } from '../../utils/cacheManager';
 
@@ -11,6 +12,7 @@ import { cacheManager } from '../../utils/cacheManager';
 jest.mock('../../database/medicationRepository');
 jest.mock('../../database/episodeRepository');
 jest.mock('../../services/errorLogger');
+jest.mock('../../services/notificationService');
 
 describe('medicationStore', () => {
   beforeEach(() => {
@@ -335,6 +337,7 @@ describe('medicationStore', () => {
       });
 
       (medicationRepository.update as jest.Mock).mockResolvedValue(undefined);
+      (notificationService.rescheduleAllMedicationNotifications as jest.Mock).mockResolvedValue(undefined);
 
       await useMedicationStore.getState().archiveMedication('med-1');
 
@@ -342,6 +345,7 @@ describe('medicationStore', () => {
       expect(state.medications[0].active).toBe(false);
       expect(state.preventativeMedications).toHaveLength(0);
       expect(medicationRepository.update).toHaveBeenCalledWith('med-1', { active: false });
+      expect(notificationService.rescheduleAllMedicationNotifications).toHaveBeenCalled();
     });
 
     it('should handle errors when archiving', async () => {
