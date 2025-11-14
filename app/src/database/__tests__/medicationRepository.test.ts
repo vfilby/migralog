@@ -945,6 +945,59 @@ describe('medicationDoseRepository', () => {
           mockDatabase.getAllAsync.mockClear();
         }
       });
+
+      it('should calculate correct UTC timestamps when device and schedule timezones differ', async () => {
+        // This test validates the critical bug fix for timezone conversion
+        // Bug: new Date(dateString) parses in device timezone, not target timezone
+        // This caused incorrect UTC timestamps when traveling across timezones
+
+        const medicationId = 'med-123';
+        const scheduleId = 'schedule-123';
+        const scheduledTime = '21:00'; // 9:00 PM
+
+        // Schedule is in Los Angeles (PDT, UTC-7)
+        const scheduleTimezone = 'America/Los_Angeles';
+
+        // Mock current time: June 15, 2024 at 8:00 PM PDT (3:00 AM UTC on June 16)
+        const mockDate = new Date('2024-06-16T03:00:00Z'); // 8 PM PDT
+        const originalDate = global.Date;
+        global.Date = jest.fn((...args) => {
+          if (args.length === 0) {
+            return mockDate;
+          }
+          return new originalDate(...args);
+        }) as any;
+        global.Date.UTC = originalDate.UTC;
+        global.Date.now = () => mockDate.getTime();
+
+        mockDatabase.getAllAsync.mockResolvedValue([]);
+
+        await medicationDoseRepository.wasLoggedForScheduleToday(
+          medicationId,
+          scheduleId,
+          scheduledTime,
+          scheduleTimezone
+        );
+
+        // Verify the SQL query was called
+        expect(mockDatabase.getAllAsync).toHaveBeenCalled();
+        const callArgs = (mockDatabase.getAllAsync as jest.Mock).mock.calls[0];
+        const [todayStartUTC, scheduledTimeUTC] = callArgs[1].slice(1, 3);
+
+        // June 15, 2024 midnight PDT = June 15, 2024 07:00:00 UTC
+        const expectedMidnightUTC = Date.UTC(2024, 5, 15, 7, 0, 0);
+
+        // June 15, 2024 9:00 PM PDT = June 16, 2024 04:00:00 UTC
+        const expectedScheduledUTC = Date.UTC(2024, 5, 16, 4, 0, 0);
+
+        // The old buggy code would have caused incorrect timestamps
+        // It would interpret times in device timezone instead of schedule timezone
+        expect(todayStartUTC).toBe(expectedMidnightUTC);
+        expect(scheduledTimeUTC).toBe(expectedScheduledUTC);
+
+        // Cleanup
+        global.Date = originalDate;
+      });
     });
   });
 
