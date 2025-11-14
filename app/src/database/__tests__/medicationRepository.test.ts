@@ -979,7 +979,7 @@ describe('medicationDoseRepository', () => {
 
         // Mock Intl.DateTimeFormat to be timezone-independent
         // This ensures the test works the same in CI (UTC) and local (PDT)
-        const MockDateTimeFormat = function(locale?: string | string[], options?: Intl.DateTimeFormatOptions) {
+        const MockDateTimeFormat = function(this: any, locale?: string | string[], options?: Intl.DateTimeFormatOptions) {
           this.locale = locale;
           this.options = options;
         } as any;
