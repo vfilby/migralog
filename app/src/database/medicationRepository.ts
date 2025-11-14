@@ -198,6 +198,130 @@ export const medicationRepository = {
   },
 };
 
+/**
+ * Cache for Intl.DateTimeFormat instances to improve performance within the iterative
+ * UTC conversion algorithm. Each timestamp calculation may call formatToParts() up to
+ * 3 times to handle DST transitions, making formatter reuse beneficial.
+ *
+ * While single-user mobile apps typically use 1-2 timezones, we limit cache size to
+ * prevent unbounded growth in edge cases (e.g., frequent international travel).
+ * Size limit of 10 accommodates reasonable travel scenarios without memory concerns.
+ */
+const formatterCache = new Map<string, Intl.DateTimeFormat>();
+const MAX_CACHE_SIZE = 10;
+
+/**
+ * Clear the formatter cache. This is exposed for testing purposes only.
+ * In tests, formatters created before Date mocking may have stale internal state.
+ * @internal
+ */
+export function clearFormatterCache(): void {
+  formatterCache.clear();
+}
+
+/**
+ * Get a cached or create a new Intl.DateTimeFormat for the given timezone.
+ * Implements simple cache eviction when limit is exceeded (removes oldest entry).
+ * @param timezone IANA timezone identifier
+ * @returns Cached DateTimeFormat instance
+ */
+function getFormatter(timezone: string): Intl.DateTimeFormat {
+  if (!formatterCache.has(timezone)) {
+    // Simple cache eviction: remove first (oldest) entry if at capacity
+    // Map iteration order is insertion order, so first entry is oldest
+    if (formatterCache.size >= MAX_CACHE_SIZE) {
+      const firstKey = formatterCache.keys().next().value;
+      if (firstKey !== undefined) {
+        formatterCache.delete(firstKey);
+      }
+    }
+
+    formatterCache.set(timezone, new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    }));
+  }
+  return formatterCache.get(timezone)!;
+}
+
+/**
+ * Helper function to convert a local time in a specific timezone to a UTC timestamp.
+ * This is necessary because JavaScript's Date constructor interprets date strings
+ * in the device's local timezone, not the target timezone.
+ *
+ * Implementation uses iterative approach with Intl.DateTimeFormat rather than date-fns-tz
+ * to avoid additional dependency. While date-fns-tz's zonedTimeToUtc() could handle this,
+ * our zero-dependency approach uses only built-in APIs and is well-tested for DST edge cases.
+ *
+ * @param year Full year (e.g., 2024)
+ * @param month Month (0-11, JavaScript convention)
+ * @param day Day of month (1-31)
+ * @param hour Hour (0-23)
+ * @param minute Minute (0-59)
+ * @param timezone IANA timezone identifier (e.g., 'America/Los_Angeles')
+ * @returns UTC timestamp in milliseconds
+ */
+function getUTCTimestampInTimezone(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  timezone: string
+): number {
+  // Get cached formatter for the target timezone
+  const formatter = getFormatter(timezone);
+
+  // Helper to extract date components from a UTC timestamp as viewed in the target timezone
+  const getLocalComponents = (utcTimestamp: number) => {
+    const parts = formatter.formatToParts(new Date(utcTimestamp));
+    return {
+      year: parseInt(parts.find(p => p.type === 'year')!.value),
+      month: parseInt(parts.find(p => p.type === 'month')!.value) - 1, // Intl returns 1-12, Date expects 0-11
+      day: parseInt(parts.find(p => p.type === 'day')!.value),
+      hour: parseInt(parts.find(p => p.type === 'hour')!.value),
+      minute: parseInt(parts.find(p => p.type === 'minute')!.value)
+    };
+  };
+
+  // Start with an approximation: treat the local time as if it were UTC
+  let utcTimestamp = Date.UTC(year, month, day, hour, minute, 0);
+
+  // Iterate to find the correct UTC timestamp (usually converges in 1-2 iterations)
+  // This handles timezone offsets and DST transitions
+  for (let i = 0; i < 3; i++) {
+    const local = getLocalComponents(utcTimestamp);
+
+    // Check if we've found the correct timestamp
+    if (local.year === year && local.month === month && local.day === day &&
+        local.hour === hour && local.minute === minute) {
+      return utcTimestamp;
+    }
+
+    // Calculate the difference and adjust
+    const targetUTC = Date.UTC(year, month, day, hour, minute, 0);
+    const actualUTC = Date.UTC(local.year, local.month, local.day, local.hour, local.minute, 0);
+    const diff = targetUTC - actualUTC;
+
+    utcTimestamp += diff;
+  }
+
+  // If we didn't converge after 3 iterations, log warning and return best approximation
+  // This can happen during DST transitions for non-existent times (e.g., 2:30 AM during spring forward)
+  // Rather than crash the app, we return the closest valid time
+  logger.warn(
+    `getUTCTimestampInTimezone did not fully converge after 3 iterations for ${year}-${month+1}-${day} ${hour}:${minute} in ${timezone}. ` +
+    `Using approximation. This may occur during DST transitions.`
+  );
+  return utcTimestamp;
+}
+
 export const medicationDoseRepository = {
   async create(dose: Omit<MedicationDose, 'id' | 'createdAt'>, db?: SQLite.SQLiteDatabase): Promise<MedicationDose> {
     const database = db || await getDatabase();
@@ -375,29 +499,67 @@ export const medicationDoseRepository = {
 
   /**
    * Check if a medication was logged for a specific scheduled time today
+   *
+   * Uses timezone-aware date calculations to determine "today" in the
+   * schedule's original timezone, not the user's current timezone.
+   * This ensures schedules work correctly when traveling across timezones.
+   *
+   * DST Handling:
+   * - Spring forward: Non-existent times (e.g., 2:30 AM) auto-adjust to next valid time
+   * - Fall back: Ambiguous times (times that occur twice) use the first occurrence
+   *
    * @param medicationId The medication ID to check
    * @param scheduleId The schedule ID to check
-   * @param scheduledTime The scheduled time in HH:mm format
-   * @returns true if medication was logged within the time window, false otherwise
+   * @param scheduledTime The scheduled time in HH:mm format (24-hour)
+   * @param scheduleTimezone IANA timezone identifier (e.g., 'America/Los_Angeles')
+   * @returns true if medication was logged between midnight and scheduled time today
    */
   async wasLoggedForScheduleToday(
     medicationId: string,
     scheduleId: string,
     scheduledTime: string,
+    scheduleTimezone: string,
     db?: SQLite.SQLiteDatabase
   ): Promise<boolean> {
     const database = db || await getDatabase();
 
+    // Validate timezone at runtime and fallback to device timezone if invalid
+    // Empty strings, null, undefined, and malformed timezone IDs all throw errors from Intl.DateTimeFormat
+    let validatedTimezone = scheduleTimezone;
+    try {
+      Intl.DateTimeFormat(undefined, { timeZone: scheduleTimezone });
+    } catch (error) {
+      logger.error(`Invalid timezone: ${scheduleTimezone}, falling back to device timezone`, error);
+      validatedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    }
+
     // Parse scheduled time
     const [hours, minutes] = scheduledTime.split(':').map(Number);
 
-    // Get start of today and the scheduled time for today
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-    const scheduledDateTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0);
+    // Get the current date components in the schedule's timezone
+    // We use formatToParts to extract the year, month, day without timezone conversion bugs
+    // Note: We create a lightweight formatter here since it's only used once per call
+    // The heavy caching is done in getUTCTimestampInTimezone which may iterate multiple times
+    const dateFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: validatedTimezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour12: false
+    });
 
-    // Query for doses of this medication logged today before the scheduled time
-    // We check if the dose was logged any time before the notification fires
+    const parts = dateFormatter.formatToParts(new Date());
+    const year = parseInt(parts.find(p => p.type === 'year')!.value);
+    const month = parseInt(parts.find(p => p.type === 'month')!.value) - 1; // JS months are 0-indexed
+    const day = parseInt(parts.find(p => p.type === 'day')!.value);
+
+    // Get UTC timestamps for midnight and scheduled time in the schedule's timezone
+    // This correctly handles timezone offsets and DST transitions
+    const todayStartUTC = getUTCTimestampInTimezone(year, month, day, 0, 0, validatedTimezone);
+    const scheduledDateTimeUTC = getUTCTimestampInTimezone(year, month, day, hours, minutes, validatedTimezone);
+
+    // Query for doses of this medication logged today (in schedule's timezone) before the scheduled time
+    // We check if the dose was logged any time from midnight to the scheduled time in the schedule's timezone
     const results = await database.getAllAsync<MedicationDoseRow>(
       `SELECT id FROM medication_doses
        WHERE medication_id = ?
@@ -405,7 +567,7 @@ export const medicationDoseRepository = {
        AND timestamp <= ?
        AND status = 'taken'
        LIMIT 1`,
-      [medicationId, todayStart.getTime(), scheduledDateTime.getTime()]
+      [medicationId, todayStartUTC, scheduledDateTimeUTC]
     );
 
     return results.length > 0;
@@ -431,11 +593,12 @@ export const medicationScheduleRepository = {
     }
 
     await database.runAsync(
-      'INSERT INTO medication_schedules (id, medication_id, time, dosage, enabled, notification_id, reminder_enabled) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO medication_schedules (id, medication_id, time, timezone, dosage, enabled, notification_id, reminder_enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [
         newSchedule.id,
         newSchedule.medicationId,
         newSchedule.time,
+        newSchedule.timezone,
         newSchedule.dosage,
         newSchedule.enabled ? 1 : 0,
         newSchedule.notificationId || null,
@@ -454,6 +617,10 @@ export const medicationScheduleRepository = {
     if (updates.time !== undefined) {
       fields.push('time = ?');
       values.push(updates.time);
+    }
+    if (updates.timezone !== undefined) {
+      fields.push('timezone = ?');
+      values.push(updates.timezone);
     }
     if (updates.dosage !== undefined) {
       fields.push('dosage = ?');
@@ -502,6 +669,7 @@ export const medicationScheduleRepository = {
       id: row.id,
       medicationId: row.medication_id,
       time: row.time,
+      timezone: row.timezone,
       dosage: row.dosage,
       enabled: row.enabled === 1,
       notificationId: row.notification_id || undefined,

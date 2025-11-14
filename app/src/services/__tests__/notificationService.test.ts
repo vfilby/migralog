@@ -32,6 +32,15 @@ describe('notificationService', () => {
     // Ensure wasLoggedForScheduleToday is available as a mock
     if (!medicationDoseRepository.wasLoggedForScheduleToday) {
       medicationDoseRepository.wasLoggedForScheduleToday = jest.fn();
+    } else {
+      (medicationDoseRepository.wasLoggedForScheduleToday as jest.Mock).mockReset();
+    }
+
+    // Ensure getById is available as a mock
+    if (!medicationRepository.getById) {
+      medicationRepository.getById = jest.fn();
+    } else {
+      (medicationRepository.getById as jest.Mock).mockReset();
     }
   });
 
@@ -131,6 +140,7 @@ describe('notificationService', () => {
       id: 'sched-123',
       medicationId: 'med-123',
       time: '09:00',
+      timezone: 'America/Los_Angeles',
       dosage: 2,
       enabled: true,
       notificationId: undefined,
@@ -336,6 +346,7 @@ describe('notificationService', () => {
       id: 'sched-1',
       medicationId: 'med-1',
       time: '09:00',
+      timezone: 'America/Los_Angeles',
       dosage: 1,
       enabled: true,
       notificationId: undefined,
@@ -345,6 +356,7 @@ describe('notificationService', () => {
       id: 'sched-2',
       medicationId: 'med-2',
       time: '09:00', // Same time as schedule 1
+      timezone: 'America/Los_Angeles',
       dosage: 2,
       enabled: true,
       notificationId: undefined,
@@ -354,6 +366,7 @@ describe('notificationService', () => {
       id: 'sched-3',
       medicationId: 'med-3',
       time: '14:00', // Different time
+      timezone: 'America/Los_Angeles',
       dosage: 1,
       enabled: true,
       notificationId: undefined,
@@ -519,6 +532,7 @@ describe('notificationService', () => {
             id: 'schedule-123',
             medicationId: 'med-123',
             time: '09:00',
+            timezone: 'America/Los_Angeles',
             dosage: 1,
             enabled: true,
           }],
@@ -628,6 +642,7 @@ describe('notificationService', () => {
             id: 'sched-1',
             medicationId: 'med-1',
             time: '21:30',
+            timezone: 'America/Los_Angeles',
             dosage: 1,
             enabled: true,
           }],
@@ -665,6 +680,24 @@ describe('notificationService', () => {
       it('should suppress notification if all medications were logged', async () => {
         (medicationDoseRepository.wasLoggedForScheduleToday as jest.Mock).mockResolvedValue(true);
 
+        // Mock medications with schedules that have timezones
+        (medicationRepository.getById as jest.Mock).mockImplementation((id: string) => {
+          const result = id === 'med-1'
+            ? {
+                id: 'med-1',
+                name: 'Med 1',
+                schedule: [{ id: 'schedule-1', time: '09:00', timezone: 'America/Los_Angeles' }],
+              }
+            : id === 'med-2'
+            ? {
+                id: 'med-2',
+                name: 'Med 2',
+                schedule: [{ id: 'schedule-2', time: '09:00', timezone: 'America/Los_Angeles' }],
+              }
+            : null;
+          return Promise.resolve(result);
+        });
+
         const notification = {
           request: {
             content: {
@@ -679,6 +712,7 @@ describe('notificationService', () => {
 
         const result = await handleIncomingNotification(notification);
 
+        expect(medicationRepository.getById).toHaveBeenCalledTimes(2);
         expect(result).toEqual({
           shouldPlaySound: false,
           shouldSetBadge: false,
@@ -689,9 +723,29 @@ describe('notificationService', () => {
       });
 
       it('should show notification if some medications were logged', async () => {
-        (medicationDoseRepository.wasLoggedForScheduleToday as jest.Mock)
-          .mockResolvedValueOnce(true)  // First medication logged
-          .mockResolvedValueOnce(false); // Second medication not logged
+        let callCount = 0;
+        (medicationDoseRepository.wasLoggedForScheduleToday as jest.Mock).mockImplementation(() => {
+          callCount++;
+          return Promise.resolve(callCount === 1); // First call true, second false
+        });
+
+        // Mock medications with schedules that have timezones
+        (medicationRepository.getById as jest.Mock).mockImplementation((id: string) => {
+          if (id === 'med-1') {
+            return Promise.resolve({
+              id: 'med-1',
+              name: 'Med 1',
+              schedule: [{ id: 'schedule-1', time: '09:00', timezone: 'America/Los_Angeles' }],
+            });
+          } else if (id === 'med-2') {
+            return Promise.resolve({
+              id: 'med-2',
+              name: 'Med 2',
+              schedule: [{ id: 'schedule-2', time: '09:00', timezone: 'America/Los_Angeles' }],
+            });
+          }
+          return Promise.resolve(null);
+        });
 
         const notification = {
           request: {
@@ -718,6 +772,24 @@ describe('notificationService', () => {
 
       it('should show notification if no medications were logged', async () => {
         (medicationDoseRepository.wasLoggedForScheduleToday as jest.Mock).mockResolvedValue(false);
+
+        // Mock medications with schedules that have timezones
+        (medicationRepository.getById as jest.Mock).mockImplementation((id: string) => {
+          if (id === 'med-1') {
+            return Promise.resolve({
+              id: 'med-1',
+              name: 'Med 1',
+              schedule: [{ id: 'schedule-1', time: '09:00', timezone: 'America/Los_Angeles' }],
+            });
+          } else if (id === 'med-2') {
+            return Promise.resolve({
+              id: 'med-2',
+              name: 'Med 2',
+              schedule: [{ id: 'schedule-2', time: '09:00', timezone: 'America/Los_Angeles' }],
+            });
+          }
+          return Promise.resolve(null);
+        });
 
         const notification = {
           request: {
@@ -817,6 +889,7 @@ describe('notificationService', () => {
           id: 'sched1',
           medicationId: 'med1',
           time: '09:00',
+          timezone: 'America/Los_Angeles',
           dosage: 1,
           enabled: true,
           createdAt: Date.now(),
@@ -861,6 +934,7 @@ describe('notificationService', () => {
           id: 'sched1',
           medicationId: 'med1',
           time: '09:00',
+          timezone: 'America/Los_Angeles',
           dosage: 1,
           enabled: true,
           createdAt: Date.now(),
@@ -895,6 +969,7 @@ describe('notificationService', () => {
           id: 'sched1',
           medicationId: 'med1',
           time: '09:00',
+          timezone: 'America/Los_Angeles',
           dosage: 1,
           enabled: true,
           createdAt: Date.now(),

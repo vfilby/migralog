@@ -359,6 +359,7 @@ export default function AddMedicationScreen({ navigation }: Props) {
           await medicationScheduleRepository.create({
             medicationId: newMedication.id,
             time: schedule.time,
+            timezone: schedule.timezone,
             dosage: schedule.dosage,
             enabled: schedule.enabled,
             reminderEnabled: true, // Default to enabled

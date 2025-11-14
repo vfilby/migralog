@@ -77,6 +77,7 @@ export const createTables = `
     id TEXT PRIMARY KEY,
     medication_id TEXT NOT NULL,
     time TEXT NOT NULL CHECK(time GLOB '[0-2][0-9]:[0-5][0-9]'),
+    timezone TEXT NOT NULL,
     dosage REAL NOT NULL DEFAULT 1 CHECK(dosage > 0),
     enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0, 1)),
     FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE

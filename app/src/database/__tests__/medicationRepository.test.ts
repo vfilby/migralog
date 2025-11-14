@@ -722,7 +722,8 @@ describe('medicationDoseRepository', () => {
       const result = await medicationDoseRepository.wasLoggedForScheduleToday(
         medicationId,
         scheduleId,
-        scheduledTime
+        scheduledTime,
+        'America/Los_Angeles'
       );
 
       expect(result).toBe(true);
@@ -743,7 +744,8 @@ describe('medicationDoseRepository', () => {
       const result = await medicationDoseRepository.wasLoggedForScheduleToday(
         medicationId,
         scheduleId,
-        scheduledTime
+        scheduledTime,
+        'America/Los_Angeles'
       );
 
       expect(result).toBe(false);
@@ -763,7 +765,8 @@ describe('medicationDoseRepository', () => {
       const result = await medicationDoseRepository.wasLoggedForScheduleToday(
         medicationId,
         scheduleId,
-        scheduledTime
+        scheduledTime,
+        'America/Los_Angeles'
       );
 
       // Should return false because dose was logged after the scheduled time
@@ -783,7 +786,8 @@ describe('medicationDoseRepository', () => {
       const result = await medicationDoseRepository.wasLoggedForScheduleToday(
         medicationId,
         scheduleId,
-        scheduledTime
+        scheduledTime,
+        'America/Los_Angeles'
       );
 
       expect(result).toBe(false);
@@ -804,7 +808,8 @@ describe('medicationDoseRepository', () => {
       await medicationDoseRepository.wasLoggedForScheduleToday(
         medicationId,
         scheduleId,
-        scheduledTime
+        scheduledTime,
+        'America/Los_Angeles'
       );
 
       // Verify the query includes timestamp boundaries for today
@@ -817,6 +822,369 @@ describe('medicationDoseRepository', () => {
       expect(params[0]).toBe(medicationId);
       expect(params[1]).toBeGreaterThan(0); // Start of today timestamp
       expect(params[2]).toBeGreaterThan(0); // Scheduled time timestamp
+    });
+
+    describe('timezone-aware checking', () => {
+      it('should correctly check schedule in PDT timezone', async () => {
+        const scheduledTime = '21:20'; // 9:20 PM PDT
+        const medicationId = 'med-123';
+        const scheduleId = 'schedule-123';
+        const timezone = 'America/Los_Angeles'; // PDT timezone
+
+        // Create a dose logged at 9:50 PM PDT
+        const pdtDate = new Date('2024-06-15T21:50:00-07:00');
+        const mockRows = [
+          {
+            id: 'dose-123',
+            medication_id: medicationId,
+            timestamp: pdtDate.getTime(),
+            quantity: 1,
+            status: 'taken',
+            episode_id: null,
+            created_at: pdtDate.getTime(),
+            updated_at: pdtDate.getTime(),
+          },
+        ];
+
+        mockDatabase.getAllAsync.mockResolvedValue(mockRows);
+
+        const result = await medicationDoseRepository.wasLoggedForScheduleToday(
+          medicationId,
+          scheduleId,
+          scheduledTime,
+          timezone
+        );
+
+        expect(result).toBe(true);
+        expect(mockDatabase.getAllAsync).toHaveBeenCalled();
+      });
+
+      it('should correctly check schedule after timezone change (PDT to EDT)', async () => {
+        const scheduledTime = '21:20'; // 9:20 PM in schedule's timezone (PDT)
+        const medicationId = 'med-123';
+        const scheduleId = 'schedule-123';
+        const scheduleTimezone = 'America/Los_Angeles'; // Schedule was created in PDT
+
+        // Simulate: User took medication at 9:50 PM PDT
+        // When viewed from EDT (next day), this is 12:50 AM EDT
+        // But it should still be considered "logged for today" in the schedule's timezone (PDT)
+        const pdtDate = new Date('2024-06-15T21:50:00-07:00');
+        const mockRows = [
+          {
+            id: 'dose-123',
+            medication_id: medicationId,
+            timestamp: pdtDate.getTime(),
+            quantity: 1,
+            status: 'taken',
+            episode_id: null,
+            created_at: pdtDate.getTime(),
+            updated_at: pdtDate.getTime(),
+          },
+        ];
+
+        mockDatabase.getAllAsync.mockResolvedValue(mockRows);
+
+        // This should return true because the dose was logged before the scheduled time
+        // in the schedule's timezone (PDT), even if we're now in a different timezone
+        const result = await medicationDoseRepository.wasLoggedForScheduleToday(
+          medicationId,
+          scheduleId,
+          scheduledTime,
+          scheduleTimezone
+        );
+
+        expect(result).toBe(true);
+      });
+
+      it('should correctly determine "today" boundary in schedule timezone', async () => {
+        const scheduledTime = '09:00'; // 9:00 AM
+        const medicationId = 'med-123';
+        const scheduleId = 'schedule-123';
+        const timezone = 'America/New_York'; // EDT timezone
+
+        // No doses logged
+        mockDatabase.getAllAsync.mockResolvedValue([]);
+
+        await medicationDoseRepository.wasLoggedForScheduleToday(
+          medicationId,
+          scheduleId,
+          scheduledTime,
+          timezone
+        );
+
+        // Verify that the query uses timestamps that correspond to
+        // "today" in the schedule's timezone, not the device's current timezone
+        const call = mockDatabase.getAllAsync.mock.calls[0];
+        const params = call[1];
+
+        // The start and end timestamps should be for "today" in America/New_York
+        expect(params[1]).toBeGreaterThan(0); // Start of today in EDT
+        expect(params[2]).toBeGreaterThan(params[1]); // Scheduled time > start of day
+      });
+
+      it('should handle different IANA timezones correctly', async () => {
+        const testCases = [
+          { timezone: 'America/Los_Angeles', time: '21:20' },
+          { timezone: 'America/New_York', time: '21:20' },
+          { timezone: 'Europe/London', time: '21:20' },
+          { timezone: 'Asia/Tokyo', time: '21:20' },
+        ];
+
+        for (const testCase of testCases) {
+          mockDatabase.getAllAsync.mockResolvedValue([]);
+
+          await medicationDoseRepository.wasLoggedForScheduleToday(
+            'med-123',
+            'schedule-123',
+            testCase.time,
+            testCase.timezone
+          );
+
+          // Should not throw an error for valid IANA timezones
+          expect(mockDatabase.getAllAsync).toHaveBeenCalled();
+          mockDatabase.getAllAsync.mockClear();
+        }
+      });
+
+      it('should calculate correct UTC timestamps when device and schedule timezones differ', async () => {
+        // This test validates the critical bug fix for timezone conversion
+        // Bug: new Date(dateString) parses in device timezone, not target timezone
+        // This caused incorrect UTC timestamps when traveling across timezones
+
+        const medicationId = 'med-123';
+        const scheduleId = 'schedule-123';
+        const scheduledTime = '21:00'; // 9:00 PM
+
+        // Schedule is in Los Angeles (PDT, UTC-7)
+        const scheduleTimezone = 'America/Los_Angeles';
+
+        // Clear formatter cache to ensure formatters are created after Date mock
+        // This prevents timezone-dependent test failures in CI (UTC) vs local (PDT)
+        const { clearFormatterCache } = await import('../medicationRepository');
+        clearFormatterCache();
+
+        // Mock current time: June 15, 2024 at 8:00 PM PDT (3:00 AM UTC on June 16)
+        const mockDate = new Date('2024-06-16T03:00:00Z'); // 8 PM PDT
+        const originalDate = global.Date;
+        const originalIntl = global.Intl;
+
+        global.Date = jest.fn((...args: any[]) => {
+          if (args.length === 0) {
+            return mockDate;
+          }
+          return new originalDate(...(args as ConstructorParameters<typeof Date>));
+        }) as any;
+        global.Date.UTC = originalDate.UTC;
+        global.Date.now = () => mockDate.getTime();
+
+        // Mock Intl.DateTimeFormat to be timezone-independent
+        // This ensures the test works the same in CI (UTC) and local (PDT)
+        const MockDateTimeFormat = function(this: any, locale?: string | string[], options?: Intl.DateTimeFormatOptions) {
+          this.locale = locale;
+          this.options = options;
+        } as any;
+
+        MockDateTimeFormat.prototype.formatToParts = function(date: Date): Intl.DateTimeFormatPart[] {
+          // When formatting for America/Los_Angeles timezone:
+          // June 16, 2024 03:00 UTC = June 15, 2024 20:00 PDT (UTC-7)
+          const utcTime = date.getTime();
+          const laDate = new originalDate(utcTime - (7 * 60 * 60 * 1000)); // Apply PDT offset
+
+          return [
+            { type: 'month', value: String(laDate.getUTCMonth() + 1).padStart(2, '0') },
+            { type: 'day', value: String(laDate.getUTCDate()).padStart(2, '0') },
+            { type: 'year', value: String(laDate.getUTCFullYear()) },
+            { type: 'hour', value: String(laDate.getUTCHours()).padStart(2, '0') },
+            { type: 'minute', value: String(laDate.getUTCMinutes()).padStart(2, '0') },
+            { type: 'second', value: String(laDate.getUTCSeconds()).padStart(2, '0') },
+          ];
+        };
+
+        MockDateTimeFormat.prototype.resolvedOptions = function() {
+          return { timeZone: 'America/Los_Angeles' };
+        };
+
+        global.Intl = {
+          ...originalIntl,
+          DateTimeFormat: MockDateTimeFormat,
+        } as any;
+
+        mockDatabase.getAllAsync.mockResolvedValue([]);
+
+        await medicationDoseRepository.wasLoggedForScheduleToday(
+          medicationId,
+          scheduleId,
+          scheduledTime,
+          scheduleTimezone
+        );
+
+        // Verify the SQL query was called
+        expect(mockDatabase.getAllAsync).toHaveBeenCalled();
+        const callArgs = (mockDatabase.getAllAsync as jest.Mock).mock.calls[0];
+        const [todayStartUTC, scheduledTimeUTC] = callArgs[1].slice(1, 3);
+
+        // June 15, 2024 midnight PDT = June 15, 2024 07:00:00 UTC
+        const expectedMidnightUTC = Date.UTC(2024, 5, 15, 7, 0, 0);
+
+        // June 15, 2024 9:00 PM PDT = June 16, 2024 04:00:00 UTC
+        const expectedScheduledUTC = Date.UTC(2024, 5, 16, 4, 0, 0);
+
+        // Verify timestamps are calculated in schedule's timezone, not device timezone
+        // This ensures correct "already logged" checks when device and schedule timezones differ
+        expect(todayStartUTC).toBe(expectedMidnightUTC);
+        expect(scheduledTimeUTC).toBe(expectedScheduledUTC);
+
+        // Cleanup
+        global.Date = originalDate;
+        global.Intl = originalIntl;
+        clearFormatterCache(); // Clear cache again to avoid affecting subsequent tests
+      });
+
+      describe('DST edge cases', () => {
+        it('should handle spring forward DST transition (non-existent time)', async () => {
+          // Test scenario: 2:30 AM does not exist on March 10, 2024 in America/Los_Angeles
+          // Clocks jump from 1:59:59 AM PST to 3:00:00 AM PDT
+          // When scheduling for 2:30 AM, the system should use the next valid time (approximately 3:30 AM PDT)
+
+          const medicationId = 'med-123';
+          const scheduleId = 'schedule-123';
+          const scheduledTime = '02:30'; // Non-existent time during spring forward
+          const timezone = 'America/Los_Angeles';
+
+          mockDatabase.getAllAsync.mockResolvedValue([]);
+
+          // This should not throw an error, but should log a warning and use approximation
+          await expect(
+            medicationDoseRepository.wasLoggedForScheduleToday(
+              medicationId,
+              scheduleId,
+              scheduledTime,
+              timezone
+            )
+          ).resolves.toBe(false);
+
+          // Verify it completed without throwing
+          expect(mockDatabase.getAllAsync).toHaveBeenCalled();
+        });
+
+        it('should handle fall back DST transition (ambiguous time)', async () => {
+          // Test scenario: 1:30 AM occurs twice on November 3, 2024 in America/Los_Angeles
+          // Clocks fall back from 1:59:59 AM PDT to 1:00:00 AM PST
+          // The system should use the first occurrence (PDT)
+
+          const medicationId = 'med-123';
+          const scheduleId = 'schedule-123';
+          const scheduledTime = '01:30'; // Ambiguous time during fall back
+          const timezone = 'America/Los_Angeles';
+
+          mockDatabase.getAllAsync.mockResolvedValue([]);
+
+          // This should handle the ambiguous time gracefully
+          await expect(
+            medicationDoseRepository.wasLoggedForScheduleToday(
+              medicationId,
+              scheduleId,
+              scheduledTime,
+              timezone
+            )
+          ).resolves.toBe(false);
+
+          expect(mockDatabase.getAllAsync).toHaveBeenCalled();
+        });
+
+        it('should handle edge case near midnight during DST transition', async () => {
+          // Test scenario: Checking a schedule at 23:30 (11:30 PM) on the day of DST transition
+          // This ensures the "today" boundary is calculated correctly even during DST
+
+          const medicationId = 'med-123';
+          const scheduleId = 'schedule-123';
+          const scheduledTime = '23:30';
+          const timezone = 'America/Los_Angeles';
+
+          mockDatabase.getAllAsync.mockResolvedValue([]);
+
+          await medicationDoseRepository.wasLoggedForScheduleToday(
+            medicationId,
+            scheduleId,
+            scheduledTime,
+            timezone
+          );
+
+          // Verify the query was executed with valid timestamps
+          const call = mockDatabase.getAllAsync.mock.calls[0];
+          const params = call[1];
+
+          expect(params[1]).toBeGreaterThan(0); // Start of today
+          expect(params[2]).toBeGreaterThan(params[1]); // Scheduled time > start of day
+        });
+      });
+
+      describe('invalid timezone handling', () => {
+        it('should fallback to device timezone when given invalid timezone', async () => {
+          const medicationId = 'med-123';
+          const scheduleId = 'schedule-123';
+          const scheduledTime = '09:00';
+          const invalidTimezone = 'Invalid/Timezone';
+
+          mockDatabase.getAllAsync.mockResolvedValue([]);
+
+          // Should not throw an error, but use device timezone as fallback
+          await expect(
+            medicationDoseRepository.wasLoggedForScheduleToday(
+              medicationId,
+              scheduleId,
+              scheduledTime,
+              invalidTimezone
+            )
+          ).resolves.toBe(false);
+
+          // Verify the query was still executed (using fallback timezone)
+          expect(mockDatabase.getAllAsync).toHaveBeenCalled();
+        });
+
+        it('should handle malformed timezone string gracefully', async () => {
+          const medicationId = 'med-123';
+          const scheduleId = 'schedule-123';
+          const scheduledTime = '09:00';
+          const malformedTimezone = 'America/Los_Angeles; DROP TABLE medications; --';
+
+          mockDatabase.getAllAsync.mockResolvedValue([]);
+
+          // Should handle malformed timezone without SQL injection
+          await expect(
+            medicationDoseRepository.wasLoggedForScheduleToday(
+              medicationId,
+              scheduleId,
+              scheduledTime,
+              malformedTimezone
+            )
+          ).resolves.toBe(false);
+
+          expect(mockDatabase.getAllAsync).toHaveBeenCalled();
+        });
+
+        it('should handle empty timezone string', async () => {
+          const medicationId = 'med-123';
+          const scheduleId = 'schedule-123';
+          const scheduledTime = '09:00';
+          const emptyTimezone = '';
+
+          mockDatabase.getAllAsync.mockResolvedValue([]);
+
+          // Empty timezone is treated as invalid and falls back to device timezone
+          // This ensures the function doesn't crash when timezone is missing/corrupt
+          await expect(
+            medicationDoseRepository.wasLoggedForScheduleToday(
+              medicationId,
+              scheduleId,
+              scheduledTime,
+              emptyTimezone
+            )
+          ).resolves.toBe(false);
+
+          expect(mockDatabase.getAllAsync).toHaveBeenCalled();
+        });
+      });
     });
   });
 

@@ -70,6 +70,20 @@ export const MedicationScheduleSchema = z.object({
   id: z.string().min(1, 'ID is required'),
   medicationId: z.string().min(1, 'Medication ID is required'),
   time: TimeStringSchema,
+  timezone: z.string()
+    .min(1, 'Timezone is required')
+    .refine(
+      (tz) => {
+        try {
+          // Validate timezone by attempting to use it with Intl.DateTimeFormat
+          Intl.DateTimeFormat(undefined, { timeZone: tz });
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      { message: 'Invalid IANA timezone identifier' }
+    ),
   dosage: z.number()
     .positive('Dosage must be positive')
     .finite('Dosage must be a finite number'),

@@ -16,11 +16,13 @@ describe('MedicationScheduleManager', () => {
   const mockOnSchedulesChange = jest.fn();
   const dailySchedule: Omit<MedicationSchedule, 'id' | 'medicationId'> = {
     time: '09:00',
+    timezone: 'America/Los_Angeles',
     dosage: 1,
     enabled: true,
   };
   const monthlySchedule: Omit<MedicationSchedule, 'id' | 'medicationId'> = {
     time: '2024-01-15',
+    timezone: 'America/Los_Angeles',
     dosage: 1,
     enabled: true,
   };
@@ -80,6 +82,7 @@ describe('MedicationScheduleManager', () => {
       expect(mockOnSchedulesChange).toHaveBeenCalledWith([
         {
           time: '09:00',
+          timezone: expect.stringMatching(/^[A-Za-z]+([/_][A-Za-z_]+)?$/), // Valid IANA timezone (UTC, GMT, or Region/City)
           dosage: 1,
           enabled: true,
         },
@@ -309,6 +312,7 @@ describe('MedicationScheduleManager', () => {
       expect(mockOnSchedulesChange).toHaveBeenCalledWith([
         {
           time: '2024-01-20',
+          timezone: expect.stringMatching(/^[A-Za-z]+([/_][A-Za-z_]+)?$/), // Valid IANA timezone (UTC, GMT, or Region/City)
           dosage: 1,
           enabled: true,
         },

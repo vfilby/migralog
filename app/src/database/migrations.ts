@@ -1235,6 +1235,75 @@ const migrations: Migration[] = [
       logger.warn('Rollback of migration 18 not implemented');
     },
   },
+  {
+    version: 19,
+    name: 'add_timezone_to_medication_schedules',
+    up: async (db: SQLite.SQLiteDatabase) => {
+      // Get the device's current timezone as default
+      const defaultTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+      logger.log(`Migration 19: Adding timezone column to medication_schedules with default: ${defaultTimezone}`);
+
+      // Check if timezone column already exists
+      const tableInfo = await db.getAllAsync<{ name: string }>(
+        "PRAGMA table_info(medication_schedules)"
+      );
+      const hasTimezoneColumn = tableInfo.some(col => col.name === 'timezone');
+
+      if (hasTimezoneColumn) {
+        logger.log('Migration 19: timezone column already exists, skipping');
+        return;
+      }
+
+      // Add timezone column to medication_schedules table
+      // Set default to device's current timezone for existing schedules
+      await db.execAsync(`
+        ALTER TABLE medication_schedules
+        ADD COLUMN timezone TEXT NOT NULL DEFAULT '${defaultTimezone}';
+      `);
+
+      logger.log('Migration 19: Successfully added timezone column to medication_schedules');
+    },
+    down: async (db: SQLite.SQLiteDatabase) => {
+      logger.log('Migration 19: Rolling back timezone column');
+
+      // SQLite doesn't support DROP COLUMN directly, so we need to recreate the table
+      await db.execAsync(`
+        PRAGMA foreign_keys=off;
+
+        BEGIN TRANSACTION;
+
+        -- Create new table without timezone column
+        CREATE TABLE medication_schedules_new (
+          id TEXT PRIMARY KEY,
+          medication_id TEXT NOT NULL,
+          time TEXT NOT NULL CHECK(time GLOB '[0-2][0-9]:[0-5][0-9]'),
+          dosage REAL NOT NULL DEFAULT 1 CHECK(dosage > 0),
+          enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0, 1)),
+          notification_id TEXT,
+          reminder_enabled INTEGER NOT NULL DEFAULT 1,
+          FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE
+        );
+
+        -- Copy data (excluding timezone column)
+        INSERT INTO medication_schedules_new (id, medication_id, time, dosage, enabled, notification_id, reminder_enabled)
+        SELECT id, medication_id, time, dosage, enabled, notification_id, reminder_enabled
+        FROM medication_schedules;
+
+        -- Drop old table
+        DROP TABLE medication_schedules;
+
+        -- Rename new table
+        ALTER TABLE medication_schedules_new RENAME TO medication_schedules;
+
+        COMMIT;
+
+        PRAGMA foreign_keys=on;
+      `);
+
+      logger.log('Migration 19: Successfully rolled back timezone column');
+    },
+  },
 ];
 
 class MigrationRunner {

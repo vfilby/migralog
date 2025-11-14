@@ -128,8 +128,12 @@ export default function MedicationScheduleManager({
     const today = new Date();
     const dateString = today.toISOString().split('T')[0]; // YYYY-MM-DD format
 
+    // Get device's current timezone as default
+    const deviceTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
     const newSchedule = {
       time: scheduleFrequency === 'daily' ? '09:00' : dateString,
+      timezone: deviceTimezone,
       dosage: 1,
       enabled: true,
     };
