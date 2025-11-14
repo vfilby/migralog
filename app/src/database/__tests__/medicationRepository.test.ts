@@ -958,6 +958,11 @@ describe('medicationDoseRepository', () => {
         // Schedule is in Los Angeles (PDT, UTC-7)
         const scheduleTimezone = 'America/Los_Angeles';
 
+        // Clear formatter cache to ensure formatters are created after Date mock
+        // This prevents timezone-dependent test failures in CI (UTC) vs local (PDT)
+        const { clearFormatterCache } = await import('../medicationRepository');
+        clearFormatterCache();
+
         // Mock current time: June 15, 2024 at 8:00 PM PDT (3:00 AM UTC on June 16)
         const mockDate = new Date('2024-06-16T03:00:00Z'); // 8 PM PDT
         const originalDate = global.Date;
@@ -997,6 +1002,7 @@ describe('medicationDoseRepository', () => {
 
         // Cleanup
         global.Date = originalDate;
+        clearFormatterCache(); // Clear cache again to avoid affecting subsequent tests
       });
 
       describe('DST edge cases', () => {

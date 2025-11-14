@@ -205,6 +205,15 @@ export const medicationRepository = {
 const formatterCache = new Map<string, Intl.DateTimeFormat>();
 
 /**
+ * Clear the formatter cache. This is exposed for testing purposes only.
+ * In tests, formatters created before Date mocking may have stale internal state.
+ * @internal
+ */
+export function clearFormatterCache(): void {
+  formatterCache.clear();
+}
+
+/**
  * Get a cached or create a new Intl.DateTimeFormat for the given timezone.
  * @param timezone IANA timezone identifier
  * @returns Cached DateTimeFormat instance
