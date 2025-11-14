@@ -199,10 +199,16 @@ export const medicationRepository = {
 };
 
 /**
- * Cache for Intl.DateTimeFormat instances to improve performance.
- * Creating formatters is expensive, so we cache them per timezone.
+ * Cache for Intl.DateTimeFormat instances to improve performance within the iterative
+ * UTC conversion algorithm. Each timestamp calculation may call formatToParts() up to
+ * 3 times to handle DST transitions, making formatter reuse beneficial.
+ *
+ * While single-user mobile apps typically use 1-2 timezones, we limit cache size to
+ * prevent unbounded growth in edge cases (e.g., frequent international travel).
+ * Size limit of 10 accommodates reasonable travel scenarios without memory concerns.
  */
 const formatterCache = new Map<string, Intl.DateTimeFormat>();
+const MAX_CACHE_SIZE = 10;
 
 /**
  * Clear the formatter cache. This is exposed for testing purposes only.
@@ -215,11 +221,21 @@ export function clearFormatterCache(): void {
 
 /**
  * Get a cached or create a new Intl.DateTimeFormat for the given timezone.
+ * Implements simple cache eviction when limit is exceeded (removes oldest entry).
  * @param timezone IANA timezone identifier
  * @returns Cached DateTimeFormat instance
  */
 function getFormatter(timezone: string): Intl.DateTimeFormat {
   if (!formatterCache.has(timezone)) {
+    // Simple cache eviction: remove first (oldest) entry if at capacity
+    // Map iteration order is insertion order, so first entry is oldest
+    if (formatterCache.size >= MAX_CACHE_SIZE) {
+      const firstKey = formatterCache.keys().next().value;
+      if (firstKey !== undefined) {
+        formatterCache.delete(firstKey);
+      }
+    }
+
     formatterCache.set(timezone, new Intl.DateTimeFormat('en-US', {
       timeZone: timezone,
       year: 'numeric',
@@ -238,6 +254,10 @@ function getFormatter(timezone: string): Intl.DateTimeFormat {
  * Helper function to convert a local time in a specific timezone to a UTC timestamp.
  * This is necessary because JavaScript's Date constructor interprets date strings
  * in the device's local timezone, not the target timezone.
+ *
+ * Implementation uses iterative approach with Intl.DateTimeFormat rather than date-fns-tz
+ * to avoid additional dependency. While date-fns-tz's zonedTimeToUtc() could handle this,
+ * our zero-dependency approach uses only built-in APIs and is well-tested for DST edge cases.
  *
  * @param year Full year (e.g., 2024)
  * @param month Month (0-11, JavaScript convention)
@@ -263,7 +283,7 @@ function getUTCTimestampInTimezone(
     const parts = formatter.formatToParts(new Date(utcTimestamp));
     return {
       year: parseInt(parts.find(p => p.type === 'year')!.value),
-      month: parseInt(parts.find(p => p.type === 'month')!.value) - 1,
+      month: parseInt(parts.find(p => p.type === 'month')!.value) - 1, // Intl returns 1-12, Date expects 0-11
       day: parseInt(parts.find(p => p.type === 'day')!.value),
       hour: parseInt(parts.find(p => p.type === 'hour')!.value),
       minute: parseInt(parts.find(p => p.type === 'minute')!.value)
@@ -504,6 +524,7 @@ export const medicationDoseRepository = {
     const database = db || await getDatabase();
 
     // Validate timezone at runtime and fallback to device timezone if invalid
+    // Empty strings, null, undefined, and malformed timezone IDs all throw errors from Intl.DateTimeFormat
     let validatedTimezone = scheduleTimezone;
     try {
       Intl.DateTimeFormat(undefined, { timeZone: scheduleTimezone });

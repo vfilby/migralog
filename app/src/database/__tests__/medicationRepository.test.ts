@@ -1029,8 +1029,8 @@ describe('medicationDoseRepository', () => {
         // June 15, 2024 9:00 PM PDT = June 16, 2024 04:00:00 UTC
         const expectedScheduledUTC = Date.UTC(2024, 5, 16, 4, 0, 0);
 
-        // The old buggy code would have caused incorrect timestamps
-        // It would interpret times in device timezone instead of schedule timezone
+        // Verify timestamps are calculated in schedule's timezone, not device timezone
+        // This ensures correct "already logged" checks when device and schedule timezones differ
         expect(todayStartUTC).toBe(expectedMidnightUTC);
         expect(scheduledTimeUTC).toBe(expectedScheduledUTC);
 
@@ -1171,7 +1171,8 @@ describe('medicationDoseRepository', () => {
 
           mockDatabase.getAllAsync.mockResolvedValue([]);
 
-          // Should fallback to device timezone
+          // Empty timezone is treated as invalid and falls back to device timezone
+          // This ensures the function doesn't crash when timezone is missing/corrupt
           await expect(
             medicationDoseRepository.wasLoggedForScheduleToday(
               medicationId,

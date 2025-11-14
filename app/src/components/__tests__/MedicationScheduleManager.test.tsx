@@ -82,7 +82,7 @@ describe('MedicationScheduleManager', () => {
       expect(mockOnSchedulesChange).toHaveBeenCalledWith([
         {
           time: '09:00',
-          timezone: expect.any(String), // Device timezone from Intl.DateTimeFormat
+          timezone: expect.stringMatching(/^[A-Za-z]+\/[A-Za-z_]+$/), // Valid IANA timezone format (Region/City)
           dosage: 1,
           enabled: true,
         },
@@ -312,7 +312,7 @@ describe('MedicationScheduleManager', () => {
       expect(mockOnSchedulesChange).toHaveBeenCalledWith([
         {
           time: '2024-01-20',
-          timezone: expect.any(String), // Device timezone from Intl.DateTimeFormat
+          timezone: expect.stringMatching(/^[A-Za-z]+\/[A-Za-z_]+$/), // Valid IANA timezone format (Region/City)
           dosage: 1,
           enabled: true,
         },
