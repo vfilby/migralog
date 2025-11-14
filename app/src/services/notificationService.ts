@@ -342,7 +342,7 @@ class NotificationService {
     try {
       const medication = await medicationRepository.getById(medicationId);
       if (!medication) {
-        logger.error('[Notification] Medication not found:', medicationId);
+        logger.error('[Notification] Medication not found');
         return;
       }
 
@@ -463,7 +463,7 @@ class NotificationService {
         try {
           const medication = await medicationRepository.getById(medicationId);
           if (!medication) {
-            logger.error('[Notification] Medication not found:', medicationId);
+            logger.error('[Notification] Medication not found');
             continue;
           }
 
@@ -998,8 +998,6 @@ class NotificationService {
       const presentedNotifications = await Notifications.getPresentedNotificationsAsync();
 
       logger.log('[Notification] Checking presented notifications to dismiss:', {
-        medicationId,
-        scheduleId,
         totalPresented: presentedNotifications.length,
       });
 
@@ -1037,15 +1035,14 @@ class NotificationService {
 
         if (shouldDismiss) {
           await Notifications.dismissNotificationAsync(notification.request.identifier);
-          logger.log('[Notification] Dismissed notification for medication:', {
-            medicationId,
-            scheduleId,
-            notificationId: notification.request.identifier,
-          });
+          logger.log('[Notification] Dismissed notification for medication');
         }
       }
     } catch (error) {
-      logger.error('[Notification] Error dismissing medication notification:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('[Notification] Error dismissing medication notification:', {
+        error: errorMessage,
+      });
     }
   }
 
