@@ -71,6 +71,10 @@ module.exports = {
           testDone: true,
         },
       },
+      log: {
+        enabled: true,
+        keepOnlyFailedTestsArtifacts: false,
+      },
     },
   },
 };
