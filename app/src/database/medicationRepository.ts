@@ -199,6 +199,33 @@ export const medicationRepository = {
 };
 
 /**
+ * Cache for Intl.DateTimeFormat instances to improve performance.
+ * Creating formatters is expensive, so we cache them per timezone.
+ */
+const formatterCache = new Map<string, Intl.DateTimeFormat>();
+
+/**
+ * Get a cached or create a new Intl.DateTimeFormat for the given timezone.
+ * @param timezone IANA timezone identifier
+ * @returns Cached DateTimeFormat instance
+ */
+function getFormatter(timezone: string): Intl.DateTimeFormat {
+  if (!formatterCache.has(timezone)) {
+    formatterCache.set(timezone, new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    }));
+  }
+  return formatterCache.get(timezone)!;
+}
+
+/**
  * Helper function to convert a local time in a specific timezone to a UTC timestamp.
  * This is necessary because JavaScript's Date constructor interprets date strings
  * in the device's local timezone, not the target timezone.
@@ -219,17 +246,8 @@ function getUTCTimestampInTimezone(
   minute: number,
   timezone: string
 ): number {
-  // Create formatter for the target timezone
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  });
+  // Get cached formatter for the target timezone
+  const formatter = getFormatter(timezone);
 
   // Helper to extract date components from a UTC timestamp as viewed in the target timezone
   const getLocalComponents = (utcTimestamp: number) => {
@@ -265,6 +283,13 @@ function getUTCTimestampInTimezone(
     utcTimestamp += diff;
   }
 
+  // If we didn't converge after 3 iterations, log warning and return best approximation
+  // This can happen during DST transitions for non-existent times (e.g., 2:30 AM during spring forward)
+  // Rather than crash the app, we return the closest valid time
+  logger.warn(
+    `getUTCTimestampInTimezone did not fully converge after 3 iterations for ${year}-${month+1}-${day} ${hour}:${minute} in ${timezone}. ` +
+    `Using approximation. This may occur during DST transitions.`
+  );
   return utcTimestamp;
 }
 
@@ -469,28 +494,39 @@ export const medicationDoseRepository = {
   ): Promise<boolean> {
     const database = db || await getDatabase();
 
+    // Validate timezone at runtime and fallback to device timezone if invalid
+    let validatedTimezone = scheduleTimezone;
+    try {
+      Intl.DateTimeFormat(undefined, { timeZone: scheduleTimezone });
+    } catch (error) {
+      logger.error(`Invalid timezone: ${scheduleTimezone}, falling back to device timezone`, error);
+      validatedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    }
+
     // Parse scheduled time
     const [hours, minutes] = scheduledTime.split(':').map(Number);
 
     // Get the current date components in the schedule's timezone
     // We use formatToParts to extract the year, month, day without timezone conversion bugs
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: scheduleTimezone,
+    // Note: We create a lightweight formatter here since it's only used once per call
+    // The heavy caching is done in getUTCTimestampInTimezone which may iterate multiple times
+    const dateFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: validatedTimezone,
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
       hour12: false
     });
 
-    const parts = formatter.formatToParts(new Date());
+    const parts = dateFormatter.formatToParts(new Date());
     const year = parseInt(parts.find(p => p.type === 'year')!.value);
     const month = parseInt(parts.find(p => p.type === 'month')!.value) - 1; // JS months are 0-indexed
     const day = parseInt(parts.find(p => p.type === 'day')!.value);
 
     // Get UTC timestamps for midnight and scheduled time in the schedule's timezone
     // This correctly handles timezone offsets and DST transitions
-    const todayStartUTC = getUTCTimestampInTimezone(year, month, day, 0, 0, scheduleTimezone);
-    const scheduledDateTimeUTC = getUTCTimestampInTimezone(year, month, day, hours, minutes, scheduleTimezone);
+    const todayStartUTC = getUTCTimestampInTimezone(year, month, day, 0, 0, validatedTimezone);
+    const scheduledDateTimeUTC = getUTCTimestampInTimezone(year, month, day, hours, minutes, validatedTimezone);
 
     // Query for doses of this medication logged today (in schedule's timezone) before the scheduled time
     // We check if the dose was logged any time from midnight to the scheduled time in the schedule's timezone

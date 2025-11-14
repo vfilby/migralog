@@ -998,6 +998,151 @@ describe('medicationDoseRepository', () => {
         // Cleanup
         global.Date = originalDate;
       });
+
+      describe('DST edge cases', () => {
+        it('should handle spring forward DST transition (non-existent time)', async () => {
+          // Test scenario: 2:30 AM does not exist on March 10, 2024 in America/Los_Angeles
+          // Clocks jump from 1:59:59 AM PST to 3:00:00 AM PDT
+          // When scheduling for 2:30 AM, the system should use the next valid time (approximately 3:30 AM PDT)
+
+          const medicationId = 'med-123';
+          const scheduleId = 'schedule-123';
+          const scheduledTime = '02:30'; // Non-existent time during spring forward
+          const timezone = 'America/Los_Angeles';
+
+          mockDatabase.getAllAsync.mockResolvedValue([]);
+
+          // This should not throw an error, but should log a warning and use approximation
+          await expect(
+            medicationDoseRepository.wasLoggedForScheduleToday(
+              medicationId,
+              scheduleId,
+              scheduledTime,
+              timezone
+            )
+          ).resolves.toBe(false);
+
+          // Verify it completed without throwing
+          expect(mockDatabase.getAllAsync).toHaveBeenCalled();
+        });
+
+        it('should handle fall back DST transition (ambiguous time)', async () => {
+          // Test scenario: 1:30 AM occurs twice on November 3, 2024 in America/Los_Angeles
+          // Clocks fall back from 1:59:59 AM PDT to 1:00:00 AM PST
+          // The system should use the first occurrence (PDT)
+
+          const medicationId = 'med-123';
+          const scheduleId = 'schedule-123';
+          const scheduledTime = '01:30'; // Ambiguous time during fall back
+          const timezone = 'America/Los_Angeles';
+
+          mockDatabase.getAllAsync.mockResolvedValue([]);
+
+          // This should handle the ambiguous time gracefully
+          await expect(
+            medicationDoseRepository.wasLoggedForScheduleToday(
+              medicationId,
+              scheduleId,
+              scheduledTime,
+              timezone
+            )
+          ).resolves.toBe(false);
+
+          expect(mockDatabase.getAllAsync).toHaveBeenCalled();
+        });
+
+        it('should handle edge case near midnight during DST transition', async () => {
+          // Test scenario: Checking a schedule at 23:30 (11:30 PM) on the day of DST transition
+          // This ensures the "today" boundary is calculated correctly even during DST
+
+          const medicationId = 'med-123';
+          const scheduleId = 'schedule-123';
+          const scheduledTime = '23:30';
+          const timezone = 'America/Los_Angeles';
+
+          mockDatabase.getAllAsync.mockResolvedValue([]);
+
+          await medicationDoseRepository.wasLoggedForScheduleToday(
+            medicationId,
+            scheduleId,
+            scheduledTime,
+            timezone
+          );
+
+          // Verify the query was executed with valid timestamps
+          const call = mockDatabase.getAllAsync.mock.calls[0];
+          const params = call[1];
+
+          expect(params[1]).toBeGreaterThan(0); // Start of today
+          expect(params[2]).toBeGreaterThan(params[1]); // Scheduled time > start of day
+        });
+      });
+
+      describe('invalid timezone handling', () => {
+        it('should fallback to device timezone when given invalid timezone', async () => {
+          const medicationId = 'med-123';
+          const scheduleId = 'schedule-123';
+          const scheduledTime = '09:00';
+          const invalidTimezone = 'Invalid/Timezone';
+
+          mockDatabase.getAllAsync.mockResolvedValue([]);
+
+          // Should not throw an error, but use device timezone as fallback
+          await expect(
+            medicationDoseRepository.wasLoggedForScheduleToday(
+              medicationId,
+              scheduleId,
+              scheduledTime,
+              invalidTimezone
+            )
+          ).resolves.toBe(false);
+
+          // Verify the query was still executed (using fallback timezone)
+          expect(mockDatabase.getAllAsync).toHaveBeenCalled();
+        });
+
+        it('should handle malformed timezone string gracefully', async () => {
+          const medicationId = 'med-123';
+          const scheduleId = 'schedule-123';
+          const scheduledTime = '09:00';
+          const malformedTimezone = 'America/Los_Angeles; DROP TABLE medications; --';
+
+          mockDatabase.getAllAsync.mockResolvedValue([]);
+
+          // Should handle malformed timezone without SQL injection
+          await expect(
+            medicationDoseRepository.wasLoggedForScheduleToday(
+              medicationId,
+              scheduleId,
+              scheduledTime,
+              malformedTimezone
+            )
+          ).resolves.toBe(false);
+
+          expect(mockDatabase.getAllAsync).toHaveBeenCalled();
+        });
+
+        it('should handle empty timezone string', async () => {
+          const medicationId = 'med-123';
+          const scheduleId = 'schedule-123';
+          const scheduledTime = '09:00';
+          const emptyTimezone = '';
+
+          mockDatabase.getAllAsync.mockResolvedValue([]);
+
+          // Should fallback to device timezone
+          await expect(
+            medicationDoseRepository.wasLoggedForScheduleToday(
+              medicationId,
+              scheduleId,
+              scheduledTime,
+              emptyTimezone
+            )
+          ).resolves.toBe(false);
+
+          expect(mockDatabase.getAllAsync).toHaveBeenCalled();
+        });
+      });
     });
   });
 

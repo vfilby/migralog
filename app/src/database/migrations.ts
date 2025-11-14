@@ -1280,12 +1280,14 @@ const migrations: Migration[] = [
           time TEXT NOT NULL CHECK(time GLOB '[0-2][0-9]:[0-5][0-9]'),
           dosage REAL NOT NULL DEFAULT 1 CHECK(dosage > 0),
           enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0, 1)),
+          notification_id TEXT,
+          reminder_enabled INTEGER NOT NULL DEFAULT 1,
           FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE
         );
 
         -- Copy data (excluding timezone column)
-        INSERT INTO medication_schedules_new (id, medication_id, time, dosage, enabled)
-        SELECT id, medication_id, time, dosage, enabled
+        INSERT INTO medication_schedules_new (id, medication_id, time, dosage, enabled, notification_id, reminder_enabled)
+        SELECT id, medication_id, time, dosage, enabled, notification_id, reminder_enabled
         FROM medication_schedules;
 
         -- Drop old table
