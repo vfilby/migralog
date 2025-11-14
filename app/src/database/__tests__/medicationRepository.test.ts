@@ -961,11 +961,11 @@ describe('medicationDoseRepository', () => {
         // Mock current time: June 15, 2024 at 8:00 PM PDT (3:00 AM UTC on June 16)
         const mockDate = new Date('2024-06-16T03:00:00Z'); // 8 PM PDT
         const originalDate = global.Date;
-        global.Date = jest.fn((...args) => {
+        global.Date = jest.fn((...args: any[]) => {
           if (args.length === 0) {
             return mockDate;
           }
-          return new originalDate(...args);
+          return new originalDate(...(args as ConstructorParameters<typeof Date>));
         }) as any;
         global.Date.UTC = originalDate.UTC;
         global.Date.now = () => mockDate.getTime();
