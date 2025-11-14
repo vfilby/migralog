@@ -966,6 +966,8 @@ describe('medicationDoseRepository', () => {
         // Mock current time: June 15, 2024 at 8:00 PM PDT (3:00 AM UTC on June 16)
         const mockDate = new Date('2024-06-16T03:00:00Z'); // 8 PM PDT
         const originalDate = global.Date;
+        const originalIntl = global.Intl;
+
         global.Date = jest.fn((...args: any[]) => {
           if (args.length === 0) {
             return mockDate;
@@ -974,6 +976,38 @@ describe('medicationDoseRepository', () => {
         }) as any;
         global.Date.UTC = originalDate.UTC;
         global.Date.now = () => mockDate.getTime();
+
+        // Mock Intl.DateTimeFormat to be timezone-independent
+        // This ensures the test works the same in CI (UTC) and local (PDT)
+        const MockDateTimeFormat = function(locale?: string | string[], options?: Intl.DateTimeFormatOptions) {
+          this.locale = locale;
+          this.options = options;
+        } as any;
+
+        MockDateTimeFormat.prototype.formatToParts = function(date: Date): Intl.DateTimeFormatPart[] {
+          // When formatting for America/Los_Angeles timezone:
+          // June 16, 2024 03:00 UTC = June 15, 2024 20:00 PDT (UTC-7)
+          const utcTime = date.getTime();
+          const laDate = new originalDate(utcTime - (7 * 60 * 60 * 1000)); // Apply PDT offset
+
+          return [
+            { type: 'month', value: String(laDate.getUTCMonth() + 1).padStart(2, '0') },
+            { type: 'day', value: String(laDate.getUTCDate()).padStart(2, '0') },
+            { type: 'year', value: String(laDate.getUTCFullYear()) },
+            { type: 'hour', value: String(laDate.getUTCHours()).padStart(2, '0') },
+            { type: 'minute', value: String(laDate.getUTCMinutes()).padStart(2, '0') },
+            { type: 'second', value: String(laDate.getUTCSeconds()).padStart(2, '0') },
+          ];
+        };
+
+        MockDateTimeFormat.prototype.resolvedOptions = function() {
+          return { timeZone: 'America/Los_Angeles' };
+        };
+
+        global.Intl = {
+          ...originalIntl,
+          DateTimeFormat: MockDateTimeFormat,
+        } as any;
 
         mockDatabase.getAllAsync.mockResolvedValue([]);
 
@@ -1002,6 +1036,7 @@ describe('medicationDoseRepository', () => {
 
         // Cleanup
         global.Date = originalDate;
+        global.Intl = originalIntl;
         clearFormatterCache(); // Clear cache again to avoid affecting subsequent tests
       });
 
