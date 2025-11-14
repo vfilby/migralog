@@ -313,6 +313,102 @@ describe('notificationService', () => {
     });
   });
 
+  describe('dismissMedicationNotification', () => {
+    it('should dismiss single medication notification', async () => {
+      const mockPresentedNotifs = [
+        {
+          request: {
+            identifier: 'notif-1',
+            content: { data: { medicationId: 'med-123', scheduleId: 'sched-1' } },
+          },
+        },
+        {
+          request: {
+            identifier: 'notif-2',
+            content: { data: { medicationId: 'med-456', scheduleId: 'sched-2' } },
+          },
+        },
+      ];
+
+      const getPresentedMock = jest.fn().mockResolvedValue(mockPresentedNotifs);
+      const dismissMock = jest.fn().mockResolvedValue(undefined);
+
+      (Notifications as any).getPresentedNotificationsAsync = getPresentedMock;
+      (Notifications as any).dismissNotificationAsync = dismissMock;
+
+      await notificationService.dismissMedicationNotification('med-123');
+
+      // Verify getPresentedNotificationsAsync was called
+      expect(getPresentedMock).toHaveBeenCalled();
+
+      // Should only dismiss notifications for med-123
+      expect(dismissMock).toHaveBeenCalledTimes(1);
+      expect(dismissMock).toHaveBeenCalledWith('notif-1');
+    });
+
+    it('should dismiss medication from grouped notification', async () => {
+      const mockPresentedNotifs = [
+        {
+          request: {
+            identifier: 'notif-group-1',
+            content: {
+              data: {
+                medicationIds: ['med-123', 'med-456'],
+                scheduleIds: ['sched-1', 'sched-2'],
+              },
+            },
+          },
+        },
+      ];
+
+      const getPresentedMock = jest.fn().mockResolvedValue(mockPresentedNotifs);
+      const dismissMock = jest.fn().mockResolvedValue(undefined);
+
+      (Notifications as any).getPresentedNotificationsAsync = getPresentedMock;
+      (Notifications as any).dismissNotificationAsync = dismissMock;
+
+      await notificationService.dismissMedicationNotification('med-123', 'sched-1');
+
+      // Should dismiss the grouped notification containing this medication
+      expect(dismissMock).toHaveBeenCalledTimes(1);
+      expect(dismissMock).toHaveBeenCalledWith('notif-group-1');
+    });
+
+    it('should handle errors when dismissing notifications', async () => {
+      const getPresentedMock = jest.fn().mockRejectedValue(
+        new Error('Failed to get presented notifications')
+      );
+
+      (Notifications as any).getPresentedNotificationsAsync = getPresentedMock;
+
+      await expect(
+        notificationService.dismissMedicationNotification('med-123')
+      ).resolves.not.toThrow();
+    });
+
+    it('should not dismiss notifications for different medications', async () => {
+      const mockPresentedNotifs = [
+        {
+          request: {
+            identifier: 'notif-1',
+            content: { data: { medicationId: 'med-456', scheduleId: 'sched-1' } },
+          },
+        },
+      ];
+
+      const getPresentedMock = jest.fn().mockResolvedValue(mockPresentedNotifs);
+      const dismissMock = jest.fn().mockResolvedValue(undefined);
+
+      (Notifications as any).getPresentedNotificationsAsync = getPresentedMock;
+      (Notifications as any).dismissNotificationAsync = dismissMock;
+
+      await notificationService.dismissMedicationNotification('med-123');
+
+      // Should not dismiss any notifications since medication IDs don't match
+      expect(dismissMock).not.toHaveBeenCalled();
+    });
+  });
+
   describe('scheduleGroupedNotifications', () => {
     const mockMedication1: Medication = {
       id: 'med-1',

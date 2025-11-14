@@ -989,6 +989,67 @@ class NotificationService {
   }
 
   /**
+   * Dismiss presented notifications for a medication
+   * This removes notifications from the notification tray when medication is logged from the app
+   */
+  async dismissMedicationNotification(medicationId: string, scheduleId?: string): Promise<void> {
+    try {
+      // Get all presented notifications
+      const presentedNotifications = await Notifications.getPresentedNotificationsAsync();
+
+      logger.log('[Notification] Checking presented notifications to dismiss:', {
+        medicationId,
+        scheduleId,
+        totalPresented: presentedNotifications.length,
+      });
+
+      for (const notification of presentedNotifications) {
+        const data = notification.request.content.data as {
+          medicationId?: string;
+          medicationIds?: string[];
+          scheduleId?: string;
+          scheduleIds?: string[];
+        };
+
+        // Check if this notification is for the medication being logged
+        let shouldDismiss = false;
+
+        // Single medication notification
+        if (data.medicationId === medicationId) {
+          // If scheduleId is provided, only dismiss if it matches
+          if (scheduleId) {
+            shouldDismiss = data.scheduleId === scheduleId;
+          } else {
+            shouldDismiss = true;
+          }
+        }
+
+        // Multiple medication notification - check if this medication is in the group
+        if (data.medicationIds?.includes(medicationId)) {
+          if (scheduleId) {
+            // Find the index of the medication and check if schedule matches
+            const medIndex = data.medicationIds.indexOf(medicationId);
+            shouldDismiss = data.scheduleIds?.[medIndex] === scheduleId;
+          } else {
+            shouldDismiss = true;
+          }
+        }
+
+        if (shouldDismiss) {
+          await Notifications.dismissNotificationAsync(notification.request.identifier);
+          logger.log('[Notification] Dismissed notification for medication:', {
+            medicationId,
+            scheduleId,
+            notificationId: notification.request.identifier,
+          });
+        }
+      }
+    } catch (error) {
+      logger.error('[Notification] Error dismissing medication notification:', error);
+    }
+  }
+
+  /**
    * Reschedule all medication notifications with grouping
    * This should be called after any medication schedule changes
    */
