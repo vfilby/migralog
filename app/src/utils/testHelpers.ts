@@ -94,8 +94,22 @@ export async function resetDatabaseForTesting(options: {
     logger.log('[TestHelpers] Database reset complete');
     return { success: true, message: 'Database reset successfully' };
   } catch (error) {
-    logger.error('[TestHelpers] Failed to reset database:', error);
-    return { success: false, message: `Reset failed: ${error}` };
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    logger.error('[TestHelpers] Failed to reset database:', errorMessage, errorStack);
+
+    // Show error as toast for E2E test visibility
+    if (__DEV__) {
+      const Toast = require('react-native-toast-message').default;
+      Toast.show({
+        type: 'error',
+        text1: '[TestHelpers] Failed to reset database',
+        text2: errorMessage,
+        visibilityTime: 5000,
+      });
+    }
+
+    return { success: false, message: `Reset failed: ${errorMessage}` };
   }
 }
 
@@ -182,12 +196,13 @@ async function loadTestFixtures() {
 
   const scheduleId = `test-schedule-${Date.now()}`;
   await db.runAsync(
-    `INSERT INTO medication_schedules (id, medication_id, time, dosage, enabled)
-     VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO medication_schedules (id, medication_id, time, timezone, dosage, enabled)
+     VALUES (?, ?, ?, ?, ?, ?)`,
     [
       scheduleId,
       preventativeMedId,
       timeString,
+      'America/Los_Angeles', // Default timezone for test fixtures
       1,
       1
     ]
