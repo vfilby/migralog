@@ -68,21 +68,25 @@ const IntensitySparkline: React.FC<IntensitySparklineProps> = ({
       data.push({ timestamp: time, intensity });
     }
 
-    // Apply Exponential Moving Average (EMA) for smoothing
+    // Apply Reverse (Look-Ahead) Exponential Moving Average for smoothing
+    // Process from end to start so the curve anticipates changes instead of lagging
     // Higher alpha = more responsive (less smooth), lower alpha = smoother
     // alpha = 0.30 provides light smoothing with high responsiveness
     const alpha = 0.30;
-    const smoothed: Array<{ timestamp: number; intensity: number }> = [];
+    const smoothed: Array<{ timestamp: number; intensity: number }> = new Array(data.length);
 
-    data.forEach((point, index) => {
-      if (index === 0) {
-        smoothed.push(point);
+    // Process backwards from end to start
+    for (let index = data.length - 1; index >= 0; index--) {
+      if (index === data.length - 1) {
+        // Last point uses raw value
+        smoothed[index] = data[index];
       } else {
-        // EMA formula: EMA(t) = alpha * value(t) + (1 - alpha) * EMA(t-1)
-        const ema = alpha * point.intensity + (1 - alpha) * smoothed[index - 1].intensity;
-        smoothed.push({ timestamp: point.timestamp, intensity: ema });
+        // Reverse EMA formula: EMA(t) = alpha * value(t) + (1 - alpha) * EMA(t+1)
+        // Looks ahead to the next point instead of back to the previous
+        const ema = alpha * data[index].intensity + (1 - alpha) * smoothed[index + 1].intensity;
+        smoothed[index] = { timestamp: data[index].timestamp, intensity: ema };
       }
-    });
+    }
 
     return smoothed;
   }, [readings, episodeEndTime]);
@@ -107,7 +111,7 @@ const IntensitySparkline: React.FC<IntensitySparklineProps> = ({
   const chartHeight = height - (padding * 2);
   const xStep = chartWidth / (interpolatedData.length - 1 || 1);
 
-  // Generate smooth path coordinates using quadratic curves
+  // Generate path coordinates using linear segments (EMA-smoothed)
   const pathData = interpolatedData
     .map((point, index) => {
       const x = padding + (index * xStep);
@@ -118,16 +122,7 @@ const IntensitySparkline: React.FC<IntensitySparklineProps> = ({
       if (index === 0) {
         return `M ${x},${y}`;
       } else {
-        // Use quadratic bezier curve for smooth interpolation
-        const prevX = padding + ((index - 1) * xStep);
-        const prevPoint = interpolatedData[index - 1];
-        const prevNormalizedY = (prevPoint.intensity - minIntensity) / (maxIntensity - minIntensity);
-        const prevY = padding + chartHeight - (prevNormalizedY * chartHeight);
-
-        // Control point is midway between points
-        const cpX = (prevX + x) / 2;
-
-        return `Q ${cpX},${prevY} ${x},${y}`;
+        return `L ${x},${y}`;
       }
     })
     .join(' ');
