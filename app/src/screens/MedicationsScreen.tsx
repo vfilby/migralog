@@ -37,11 +37,13 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     fontSize: 34,
     fontWeight: 'bold',
     color: theme.text,
+    flexShrink: 1,
   },
   archivedLink: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    flexShrink: 0,
   },
   archivedLinkText: {
     fontSize: 16,
