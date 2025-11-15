@@ -131,19 +131,21 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     gap: 12,
   },
   compactLeft: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: 4,
-    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 0,
   },
   compactName: {
     fontSize: 14,
     fontWeight: '600',
     color: theme.text,
+    flexShrink: 0,
   },
   compactTime: {
     fontSize: 13,
     color: theme.textSecondary,
+    flexShrink: 0,
   },
   compactButtons: {
     flexDirection: 'row',
