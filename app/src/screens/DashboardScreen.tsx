@@ -28,12 +28,14 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   title: {
     fontSize: 34,
     fontWeight: 'bold',
     color: theme.text,
-    flex: 1,
+    flexShrink: 1,
   },
   settingsButton: {
     padding: 8,
@@ -123,12 +125,15 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
     gap: 12,
   },
   compactLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 8,
+    flex: 1,
   },
   compactName: {
     fontSize: 14,
@@ -141,8 +146,8 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   },
   compactButtons: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 6,
-    flexShrink: 0,
   },
   compactLogButton: {
     backgroundColor: theme.primary,
@@ -169,8 +174,8 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   compactStatus: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 4,
-    flexShrink: 0,
   },
   compactStatusText: {
     fontSize: 12,
