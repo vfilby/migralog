@@ -34,7 +34,7 @@ const IntensitySparkline: React.FC<IntensitySparklineProps> = ({
   height = 40,
   color,
 }) => {
-  // Interpolate intensity readings using 30-minute intervals with sample-and-hold
+  // Interpolate intensity readings using 5-minute intervals with sample-and-hold
   const interpolatedData = useMemo(() => {
     if (!readings || readings.length === 0) {
       return [];
@@ -50,11 +50,11 @@ const IntensitySparkline: React.FC<IntensitySparklineProps> = ({
     }
     const startTime = validReadings[0].timestamp;
     const endTime = episodeEndTime || Date.now(); // Use current time for ongoing episodes
-    const intervalMs = 30 * 60 * 1000; // 30 minutes in milliseconds
+    const intervalMs = 5 * 60 * 1000; // 5 minutes in milliseconds
 
     const data: Array<{ timestamp: number; intensity: number }> = [];
 
-    // Generate 30-minute intervals
+    // Generate 5-minute intervals
     for (let time = startTime; time <= endTime; time += intervalMs) {
       // Find the last reading before or at this time (sample-and-hold)
       let intensity = 0;

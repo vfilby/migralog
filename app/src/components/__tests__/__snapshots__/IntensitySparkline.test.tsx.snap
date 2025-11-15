@@ -128,7 +128,7 @@ exports[`IntensitySparkline Gradient and Markers should handle custom color over
         y={0}
       />
       <RNSVGPath
-        d="M 4,20 L 60,19.04 L 116,18.368000000000002"
+        d="M 4,20 L 13.333333333333334,18.080000000000002 L 22.666666666666668,17.696000000000005 L 32,17.427200000000006 L 41.333333333333336,17.239040000000006 L 50.66666666666667,17.107328000000003 L 60,17.0151296 L 69.33333333333334,16.95059072 L 78.66666666666667,16.905413504000002 L 88,16.873789452800004 L 97.33333333333334,16.851652616960003 L 106.66666666666667,16.836156831872003 L 116,16.825309782310406"
         fill={null}
         propList={
           [
@@ -175,7 +175,7 @@ exports[`IntensitySparkline Gradient and Markers should handle custom color over
         strokeWidth={1.5}
       />
       <RNSVGCircle
-        cx={60}
+        cx={13.333333333333334}
         cy={13.600000000000001}
         fill={
           {
@@ -200,7 +200,7 @@ exports[`IntensitySparkline Gradient and Markers should handle custom color over
         strokeWidth={1.5}
       />
       <RNSVGCircle
-        cx={60}
+        cx={22.666666666666668}
         cy={16.8}
         fill={
           {
@@ -357,7 +357,7 @@ exports[`IntensitySparkline Gradient and Markers should render markers for all r
         y={0}
       />
       <RNSVGPath
-        d="M 4,29.6 L 60,25.76 L 116,23.072000000000003"
+        d="M 4,29.6 L 13.333333333333334,26.72 L 22.666666666666668,21.824 L 32,22.236800000000002 L 41.333333333333336,20.605760000000004 L 50.66666666666667,19.464032000000003 L 60,18.664822400000002 L 69.33333333333334,18.10537568 L 78.66666666666667,17.713762976000005 L 88,17.439634083200005 L 97.33333333333334,17.247743858240007 L 106.66666666666667,17.113420700768007 L 116,17.019394490537604"
         fill={null}
         propList={
           [
@@ -404,7 +404,7 @@ exports[`IntensitySparkline Gradient and Markers should render markers for all r
         strokeWidth={1.5}
       />
       <RNSVGCircle
-        cx={60}
+        cx={13.333333333333334}
         cy={20}
         fill={
           {
@@ -429,7 +429,7 @@ exports[`IntensitySparkline Gradient and Markers should render markers for all r
         strokeWidth={1.5}
       />
       <RNSVGCircle
-        cx={60}
+        cx={22.666666666666668}
         cy={10.399999999999999}
         fill={
           {
@@ -454,7 +454,7 @@ exports[`IntensitySparkline Gradient and Markers should render markers for all r
         strokeWidth={1.5}
       />
       <RNSVGCircle
-        cx={60}
+        cx={32}
         cy={23.2}
         fill={
           {
@@ -479,7 +479,7 @@ exports[`IntensitySparkline Gradient and Markers should render markers for all r
         strokeWidth={1.5}
       />
       <RNSVGCircle
-        cx={60}
+        cx={41.333333333333336}
         cy={16.8}
         fill={
           {
@@ -636,7 +636,7 @@ exports[`IntensitySparkline Gradient and Markers should render with gradient str
         y={0}
       />
       <RNSVGPath
-        d="M 4,26.4 L 60,23.520000000000003 L 116,21.504"
+        d="M 4,26.4 L 13.333333333333334,24.48 L 22.666666666666668,21.216 L 32,19.891200000000005 L 41.333333333333336,18.963840000000005 L 50.66666666666667,18.314688000000007 L 60,17.860281600000008 L 69.33333333333334,17.542197120000008 L 78.66666666666667,17.319537984000007 L 88,17.16367658880001 L 97.33333333333334,17.054573612160006 L 106.66666666666667,16.978201528512006 L 116,16.924741069958404"
         fill={null}
         propList={
           [
@@ -683,7 +683,7 @@ exports[`IntensitySparkline Gradient and Markers should render with gradient str
         strokeWidth={1.5}
       />
       <RNSVGCircle
-        cx={60}
+        cx={13.333333333333334}
         cy={20}
         fill={
           {
@@ -708,7 +708,7 @@ exports[`IntensitySparkline Gradient and Markers should render with gradient str
         strokeWidth={1.5}
       />
       <RNSVGCircle
-        cx={60}
+        cx={22.666666666666668}
         cy={13.600000000000001}
         fill={
           {
@@ -733,7 +733,7 @@ exports[`IntensitySparkline Gradient and Markers should render with gradient str
         strokeWidth={1.5}
       />
       <RNSVGCircle
-        cx={60}
+        cx={32}
         cy={16.8}
         fill={
           {
@@ -890,7 +890,7 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot with all intens
         y={0}
       />
       <RNSVGPath
-        d="M 4,26.4 L 60,25.44 L 116,24.768"
+        d="M 4,26.4 L 13.333333333333334,24.48 L 22.666666666666668,21.216 L 32,19.891200000000005 L 41.333333333333336,20.883840000000003 L 50.66666666666667,21.578688000000003 L 60,22.065081600000003 L 69.33333333333334,22.405557120000005 L 78.66666666666667,22.643889984000005 L 88,22.810722988800002 L 97.33333333333334,22.927506092160005 L 106.66666666666667,23.009254264512002 L 116,23.066477985158404"
         fill={null}
         propList={
           [
@@ -937,7 +937,7 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot with all intens
         strokeWidth={1.5}
       />
       <RNSVGCircle
-        cx={60}
+        cx={13.333333333333334}
         cy={20}
         fill={
           {
@@ -962,7 +962,7 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot with all intens
         strokeWidth={1.5}
       />
       <RNSVGCircle
-        cx={60}
+        cx={22.666666666666668}
         cy={13.600000000000001}
         fill={
           {
@@ -987,7 +987,7 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot with all intens
         strokeWidth={1.5}
       />
       <RNSVGCircle
-        cx={60}
+        cx={32}
         cy={16.8}
         fill={
           {
@@ -1012,7 +1012,7 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot with all intens
         strokeWidth={1.5}
       />
       <RNSVGCircle
-        cx={60}
+        cx={41.333333333333336}
         cy={23.2}
         fill={
           {
@@ -1169,7 +1169,7 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot with custom col
         y={0}
       />
       <RNSVGPath
-        d="M 4,26.4 L 60,22.560000000000002 L 116,19.872000000000003"
+        d="M 4,26.4 L 13.333333333333334,24.48 L 22.666666666666668,21.216 L 32,18.9312 L 41.333333333333336,17.33184 L 50.66666666666667,16.212288 L 60,15.4286016 L 69.33333333333334,14.880021120000002 L 78.66666666666667,14.496014784000003 L 88,14.227210348800003 L 97.33333333333334,14.039047244160002 L 106.66666666666667,13.907333070912 L 116,13.815133149638399"
         fill={null}
         propList={
           [
@@ -1216,7 +1216,7 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot with custom col
         strokeWidth={1.5}
       />
       <RNSVGCircle
-        cx={60}
+        cx={13.333333333333334}
         cy={20}
         fill={
           {
@@ -1241,7 +1241,7 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot with custom col
         strokeWidth={1.5}
       />
       <RNSVGCircle
-        cx={60}
+        cx={22.666666666666668}
         cy={13.600000000000001}
         fill={
           {
@@ -1398,7 +1398,7 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot with typical in
         y={0}
       />
       <RNSVGPath
-        d="M 4,26.4 L 60,25.44 L 116,24.768"
+        d="M 4,26.4 L 13.333333333333334,24.48 L 22.666666666666668,21.216 L 32,17.011200000000002 L 41.333333333333336,15.027840000000005 L 50.66666666666667,15.559488000000005 L 60,17.851641600000004 L 69.33333333333334,19.456149120000003 L 78.66666666666667,20.579304384000004 L 88,21.365513068800002 L 97.33333333333334,21.915859148160003 L 106.66666666666667,22.301101403712003 L 116,22.5707709825984"
         fill={null}
         propList={
           [
@@ -1445,7 +1445,7 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot with typical in
         strokeWidth={1.5}
       />
       <RNSVGCircle
-        cx={60}
+        cx={13.333333333333334}
         cy={20}
         fill={
           {
@@ -1470,7 +1470,7 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot with typical in
         strokeWidth={1.5}
       />
       <RNSVGCircle
-        cx={60}
+        cx={22.666666666666668}
         cy={13.600000000000001}
         fill={
           {
@@ -1495,7 +1495,7 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot with typical in
         strokeWidth={1.5}
       />
       <RNSVGCircle
-        cx={60}
+        cx={32}
         cy={7.199999999999999}
         fill={
           {
@@ -1520,7 +1520,7 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot with typical in
         strokeWidth={1.5}
       />
       <RNSVGCircle
-        cx={60}
+        cx={41.333333333333336}
         cy={10.399999999999999}
         fill={
           {
@@ -1545,7 +1545,7 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot with typical in
         strokeWidth={1.5}
       />
       <RNSVGCircle
-        cx={60}
+        cx={50.66666666666667}
         cy={16.8}
         fill={
           {
