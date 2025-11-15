@@ -40,6 +40,9 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   settingsButton: {
     padding: 8,
   },
+  content: {
+    flex: 1,
+  },
   card: {
     backgroundColor: theme.card,
     marginHorizontal: 16,
@@ -356,7 +359,7 @@ export default function DashboardScreen() {
   const styles = createStyles(theme);
 
   return (
-    <ScrollView style={styles.container} testID="dashboard-screen">
+    <View style={styles.container} testID="dashboard-screen">
       <View style={styles.header}>
         <Text style={styles.title} testID="dashboard-title">MigraLog</Text>
         <TouchableOpacity
@@ -371,8 +374,9 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Daily Status Widget */}
-      <DailyStatusWidget />
+      <ScrollView style={styles.content}>
+        {/* Daily Status Widget */}
+        <DailyStatusWidget />
 
       {/* Today's Medications */}
       {todaysMedications.length > 0 && (
@@ -546,6 +550,7 @@ export default function DashboardScreen() {
           </View>
         )}
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
