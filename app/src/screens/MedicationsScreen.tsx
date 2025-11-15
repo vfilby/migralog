@@ -144,6 +144,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 12,
   },
   singleLogButtonText: {
@@ -155,6 +156,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     marginTop: 12,
+    justifyContent: 'center',
   },
   quickLogButton: {
     flex: 1,
@@ -163,6 +165,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   quickLogButtonText: {
     color: theme.primaryText,
@@ -176,6 +179,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: theme.primary,
   },
@@ -451,7 +455,7 @@ export default function MedicationsScreen() {
   return (
     <View style={styles.container} testID="medications-screen">
       <View style={styles.header}>
-        <Text style={styles.title}>Medications</Text>
+        <Text style={styles.title} numberOfLines={1}>Medications</Text>
         <TouchableOpacity
           onPress={() => navigation.navigate('ArchivedMedications')}
           testID="archived-medications-link"
