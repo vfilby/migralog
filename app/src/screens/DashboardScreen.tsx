@@ -353,6 +353,9 @@ export default function DashboardScreen() {
           style={styles.settingsButton}
           onPress={() => navigation.navigate('Settings')}
           testID="settings-button"
+          accessibilityRole="button"
+          accessibilityLabel="Settings"
+          accessibilityHint="Open app settings"
         >
           <Ionicons name="settings-outline" size={24} color={theme.primary} />
         </TouchableOpacity>
@@ -378,6 +381,9 @@ export default function DashboardScreen() {
                   <TouchableOpacity
                     style={styles.compactLeft}
                     onPress={() => navigation.navigate('MedicationDetail', { medicationId: item.medication.id })}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${item.medication.name} at ${format(item.doseTime, 'h:mm a')}`}
+                    accessibilityHint="View medication details"
                   >
                     <Text style={styles.compactName}>{item.medication.name}</Text>
                     <Text style={styles.compactTime}>{format(item.doseTime, 'h:mm a')}</Text>
@@ -390,6 +396,9 @@ export default function DashboardScreen() {
                     <TouchableOpacity
                       style={styles.compactUndoButton}
                       onPress={() => handleUndoAction(item)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Undo medication log"
+                      accessibilityHint={`Remove log for ${item.medication.name}`}
                     >
                       <Text style={styles.compactUndoText}>Undo</Text>
                     </TouchableOpacity>
@@ -400,6 +409,9 @@ export default function DashboardScreen() {
                   <TouchableOpacity
                     style={styles.compactLeft}
                     onPress={() => navigation.navigate('MedicationDetail', { medicationId: item.medication.id })}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${item.medication.name} at ${format(item.doseTime, 'h:mm a')}`}
+                    accessibilityHint="View medication details"
                   >
                     <Text style={styles.compactName}>{item.medication.name}</Text>
                     <Text style={styles.compactTime}>{format(item.doseTime, 'h:mm a')}</Text>
@@ -410,6 +422,9 @@ export default function DashboardScreen() {
                     <TouchableOpacity
                       style={styles.compactUndoButton}
                       onPress={() => handleUndoAction(item)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Undo medication skip"
+                      accessibilityHint={`Remove skip for ${item.medication.name}`}
                     >
                       <Text style={styles.compactUndoText}>Undo</Text>
                     </TouchableOpacity>
@@ -420,6 +435,9 @@ export default function DashboardScreen() {
                   <TouchableOpacity
                     style={styles.compactLeft}
                     onPress={() => navigation.navigate('MedicationDetail', { medicationId: item.medication.id })}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${item.medication.name} at ${format(item.doseTime, 'h:mm a')}`}
+                    accessibilityHint="View medication details"
                   >
                     <Text style={styles.compactName}>{item.medication.name}</Text>
                     <Text style={styles.compactTime}>{format(item.doseTime, 'h:mm a')}</Text>
@@ -428,6 +446,9 @@ export default function DashboardScreen() {
                     <TouchableOpacity
                       style={styles.compactLogButton}
                       onPress={() => handleTakeMedication(item)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Log ${item.schedule.dosage} ${item.medication.dosageAmount}${item.medication.dosageUnit} of ${item.medication.name}`}
+                      accessibilityHint="Mark this medication as taken"
                     >
                       <Text style={styles.compactLogButtonText}>
                         Log {item.schedule.dosage} × {item.medication.dosageAmount}{item.medication.dosageUnit}
@@ -436,6 +457,9 @@ export default function DashboardScreen() {
                     <TouchableOpacity
                       style={styles.compactSkipButton}
                       onPress={() => handleSkipMedication(item)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Skip ${item.medication.name}`}
+                      accessibilityHint="Mark this medication as skipped"
                     >
                       <Text style={styles.compactSkipButtonText}>Skip</Text>
                     </TouchableOpacity>
@@ -454,6 +478,9 @@ export default function DashboardScreen() {
             style={[styles.actionButton, styles.primaryButton]}
             onPress={() => navigation.navigate('NewEpisode', {})}
             testID="start-episode-button"
+            accessibilityRole="button"
+            accessibilityLabel="Start Episode"
+            accessibilityHint="Record a new migraine episode"
           >
             <Text style={styles.primaryButtonText}>Start Episode</Text>
           </TouchableOpacity>
@@ -468,6 +495,9 @@ export default function DashboardScreen() {
               });
             }}
             testID="log-medication-button"
+            accessibilityRole="button"
+            accessibilityLabel="Log Medication"
+            accessibilityHint="Record rescue medication taken"
           >
             <Text style={styles.secondaryButtonText}>Log Medication</Text>
           </TouchableOpacity>

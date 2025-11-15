@@ -278,6 +278,10 @@ export default function MonthlyCalendarView({
                   onPress={() => handleDayPress(day, dateStr)}
                   disabled={isFuture}
                   testID={`calendar-day-${dateStr}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${format(day, 'MMMM d, yyyy')}${status ? `, Status: ${status.status}` : ', No status recorded'}`}
+                  accessibilityHint={isFuture ? 'Future date, cannot be edited' : 'Double tap to view or edit daily status'}
+                  accessibilityState={{ disabled: isFuture }}
                 >
                   {renderStatusIndicator(status)}
                   <Text style={isTodayDate ? styles.dayNumberToday : (isFuture ? styles.dayNumberFuture : styles.dayNumber)}>
@@ -300,6 +304,9 @@ export default function MonthlyCalendarView({
           onPress={handlePreviousMonth}
           style={styles.navButton}
           testID="previous-month-button"
+          accessibilityRole="button"
+          accessibilityLabel="Previous month"
+          accessibilityHint="Double tap to view the previous month"
         >
           <Ionicons
             name="chevron-back"
@@ -316,6 +323,9 @@ export default function MonthlyCalendarView({
           onPress={handleNextMonth}
           style={styles.navButton}
           testID="next-month-button"
+          accessibilityRole="button"
+          accessibilityLabel="Next month"
+          accessibilityHint="Double tap to view the next month"
         >
           <Ionicons
             name="chevron-forward"

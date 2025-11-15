@@ -193,7 +193,14 @@ export default function DailyStatusWidget({ onStatusLogged }: DailyStatusWidgetP
           <Text style={styles.loggedText}>
             <Text style={styles.emoji}>{statusEmoji}</Text> Yesterday logged as {statusLabel}
           </Text>
-          <TouchableOpacity style={styles.undoButton} onPress={handleUndo} testID="undo-status-button">
+          <TouchableOpacity
+            style={styles.undoButton}
+            onPress={handleUndo}
+            testID="undo-status-button"
+            accessibilityRole="button"
+            accessibilityLabel="Undo yesterday's status"
+            accessibilityHint={`Remove ${statusLabel} status for yesterday`}
+          >
             <Text style={styles.undoButtonText}>Undo</Text>
           </TouchableOpacity>
         </View>
@@ -211,6 +218,9 @@ export default function DailyStatusWidget({ onStatusLogged }: DailyStatusWidgetP
           style={[styles.button, styles.greenButton]}
           onPress={() => handleLogStatus('green')}
           testID="widget-green-button"
+          accessibilityRole="button"
+          accessibilityLabel="Clear day"
+          accessibilityHint="Log yesterday as a migraine-free day"
         >
           <Text style={styles.emoji}>🟢</Text>
           <Text style={styles.buttonText}>Clear</Text>
@@ -219,6 +229,9 @@ export default function DailyStatusWidget({ onStatusLogged }: DailyStatusWidgetP
           style={[styles.button, styles.yellowButton]}
           onPress={() => handleLogStatus('yellow')}
           testID="widget-yellow-button"
+          accessibilityRole="button"
+          accessibilityLabel="Not clear day"
+          accessibilityHint="Log yesterday as not migraine-free"
         >
           <Text style={styles.emoji}>🟡</Text>
           <Text style={styles.buttonText}>Not Clear</Text>

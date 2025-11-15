@@ -447,6 +447,9 @@ export default function MedicationsScreen() {
         <TouchableOpacity
           onPress={() => navigation.navigate('ArchivedMedications')}
           testID="archived-medications-link"
+          accessibilityRole="button"
+          accessibilityLabel="Archived medications"
+          accessibilityHint="Opens the list of archived medications"
         >
           <View style={styles.archivedLink}>
             <Ionicons name="archive-outline" size={20} color={theme.primary} />
@@ -469,6 +472,9 @@ export default function MedicationsScreen() {
                 key={med.id}
                 style={styles.medicationCard}
                 onPress={() => navigation.navigate('MedicationDetail', { medicationId: med.id })}
+                accessibilityRole="button"
+                accessibilityLabel={`${med.name} preventative medication`}
+                accessibilityHint="Opens details and history for this medication"
               >
                 <View style={styles.medicationHeader}>
                   <Text style={styles.medicationName}>{med.name}</Text>
@@ -541,6 +547,9 @@ export default function MedicationsScreen() {
                                     e.stopPropagation();
                                     handleUndoLog(med.id, schedule.id, logState.doseId!);
                                   }}
+                                  accessibilityRole="button"
+                                  accessibilityLabel="Undo"
+                                  accessibilityHint="Removes this logged dose"
                                 >
                                   <Text style={styles.undoButtonText}>Undo</Text>
                                 </TouchableOpacity>
@@ -573,6 +582,9 @@ export default function MedicationsScreen() {
                               e.stopPropagation();
                               handleQuickLog(med.id, schedule.id, schedule.dosage, timeStr);
                             }}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Log ${timeStr} dose`}
+                            accessibilityHint={`Records that you took your ${timeStr} dose of ${med.name}`}
                           >
                             <Text style={styles.scheduleLogButtonText}>Log {timeStr}</Text>
                           </TouchableOpacity>
@@ -599,6 +611,9 @@ export default function MedicationsScreen() {
                 key={med.id}
                 style={styles.medicationCard}
                 onPress={() => navigation.navigate('MedicationDetail', { medicationId: med.id })}
+                accessibilityRole="button"
+                accessibilityLabel={`${med.name} rescue medication`}
+                accessibilityHint="Opens details and history for this medication"
               >
                 <View style={styles.medicationHeader}>
                   <Text style={styles.medicationName}>{med.name}</Text>
@@ -632,6 +647,9 @@ export default function MedicationsScreen() {
                       e.stopPropagation();
                       handleRescueQuickLog(med.id, med.defaultQuantity || 1);
                     }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Quick log ${med.name}`}
+                    accessibilityHint={`Logs ${med.defaultQuantity || 1} dose of ${med.name} at the current time`}
                   >
                     <Text style={styles.quickLogButtonText}>Quick Log</Text>
                   </TouchableOpacity>
@@ -641,6 +659,9 @@ export default function MedicationsScreen() {
                       e.stopPropagation();
                       navigation.navigate('LogMedication', { medicationId: med.id });
                     }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Log details"
+                    accessibilityHint="Opens detailed logging screen to specify time, dosage, and notes"
                   >
                     <Text style={styles.detailedLogButtonText}>Log Details</Text>
                   </TouchableOpacity>
@@ -663,6 +684,9 @@ export default function MedicationsScreen() {
                 key={med.id}
                 style={styles.medicationCard}
                 onPress={() => navigation.navigate('MedicationDetail', { medicationId: med.id })}
+                accessibilityRole="button"
+                accessibilityLabel={`${med.name} other medication`}
+                accessibilityHint="Opens details and history for this medication"
               >
                 <View style={styles.medicationHeader}>
                   <Text style={styles.medicationName}>{med.name}</Text>
@@ -697,6 +721,9 @@ export default function MedicationsScreen() {
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => navigation.navigate('AddMedication')}
+          accessibilityRole="button"
+          accessibilityLabel="Add medication"
+          accessibilityHint="Opens the screen to add a new medication"
         >
           <Text style={styles.addButtonText}>+ Add Medication</Text>
         </TouchableOpacity>

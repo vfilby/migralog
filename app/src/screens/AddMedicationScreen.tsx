@@ -407,7 +407,12 @@ export default function AddMedicationScreen({ navigation }: Props) {
   return (
     <View style={styles.container} testID="add-medication-screen">
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel"
+          accessibilityHint="Discards changes and returns to the medications list"
+        >
           <Text style={styles.cancelButton}>Cancel</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Add Medication</Text>
@@ -425,6 +430,10 @@ export default function AddMedicationScreen({ navigation }: Props) {
                 type === 'rescue' && styles.typeButtonActive,
               ]}
               onPress={() => setType('rescue')}
+              accessibilityRole="button"
+              accessibilityLabel="Rescue medication"
+              accessibilityHint="Select rescue medication type for medications taken during an episode"
+              accessibilityState={{ selected: type === 'rescue' }}
             >
               <Text
                 style={[
@@ -441,6 +450,10 @@ export default function AddMedicationScreen({ navigation }: Props) {
                 type === 'preventative' && styles.typeButtonActive,
               ]}
               onPress={() => setType('preventative')}
+              accessibilityRole="button"
+              accessibilityLabel="Preventative medication"
+              accessibilityHint="Select preventative medication type for medications taken on a schedule"
+              accessibilityState={{ selected: type === 'preventative' }}
             >
               <Text
                 style={[
@@ -457,6 +470,10 @@ export default function AddMedicationScreen({ navigation }: Props) {
                 type === 'other' && styles.typeButtonActive,
               ]}
               onPress={() => setType('other')}
+              accessibilityRole="button"
+              accessibilityLabel="Other medication"
+              accessibilityHint="Select other medication type for supplements or non-migraine medications"
+              accessibilityState={{ selected: type === 'other' }}
             >
               <Text
                 style={[
@@ -490,6 +507,9 @@ export default function AddMedicationScreen({ navigation }: Props) {
               <TouchableOpacity
                 style={styles.changePhotoButton}
                 onPress={showImageOptions}
+                accessibilityRole="button"
+                accessibilityLabel="Change photo"
+                accessibilityHint="Opens options to take a new photo or choose from library"
               >
                 <Text style={styles.changePhotoText}>Change Photo</Text>
               </TouchableOpacity>
@@ -498,6 +518,9 @@ export default function AddMedicationScreen({ navigation }: Props) {
             <TouchableOpacity
               style={styles.addPhotoButton}
               onPress={showImageOptions}
+              accessibilityRole="button"
+              accessibilityLabel="Add photo"
+              accessibilityHint="Opens options to take a photo of medication or choose from library"
             >
               <Text style={styles.addPhotoText}>+ Add Photo</Text>
               <Text style={styles.addPhotoSubtext}>
@@ -528,6 +551,10 @@ export default function AddMedicationScreen({ navigation }: Props) {
                     dosageUnit === unit && styles.unitButtonActive,
                   ]}
                   onPress={() => setDosageUnit(unit)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${unit} unit`}
+                  accessibilityHint={`Selects ${unit} as the dosage unit`}
+                  accessibilityState={{ selected: dosageUnit === unit }}
                 >
                   <Text
                     style={[
@@ -572,6 +599,10 @@ export default function AddMedicationScreen({ navigation }: Props) {
                 setSchedulingMode('as-needed');
                 setSchedules([]);  // Clear schedules when switching to as-needed
               }}
+              accessibilityRole="button"
+              accessibilityLabel="As needed"
+              accessibilityHint="Select as-needed for medications taken when needed without a schedule"
+              accessibilityState={{ selected: schedulingMode === 'as-needed' }}
             >
               <Text
                 style={[
@@ -588,6 +619,10 @@ export default function AddMedicationScreen({ navigation }: Props) {
                 schedulingMode === 'scheduled' && styles.typeButtonActive,
               ]}
               onPress={() => setSchedulingMode('scheduled')}
+              accessibilityRole="button"
+              accessibilityLabel="Scheduled"
+              accessibilityHint="Select scheduled for medications taken on a regular schedule"
+              accessibilityState={{ selected: schedulingMode === 'scheduled' }}
             >
               <Text
                 style={[
@@ -612,6 +647,10 @@ export default function AddMedicationScreen({ navigation }: Props) {
                   scheduleFrequency === 'daily' && styles.frequencyButtonActive,
                 ]}
                 onPress={() => setScheduleFrequency('daily')}
+                accessibilityRole="button"
+                accessibilityLabel="Daily schedule"
+                accessibilityHint="Set medication to be taken every day"
+                accessibilityState={{ selected: scheduleFrequency === 'daily' }}
               >
                 <Text
                   style={[
@@ -628,6 +667,10 @@ export default function AddMedicationScreen({ navigation }: Props) {
                   scheduleFrequency === 'monthly' && styles.frequencyButtonActive,
                 ]}
                 onPress={() => setScheduleFrequency('monthly')}
+                accessibilityRole="button"
+                accessibilityLabel="Monthly schedule"
+                accessibilityHint="Set medication to be taken once per month"
+                accessibilityState={{ selected: scheduleFrequency === 'monthly' }}
               >
                 <Text
                   style={[
@@ -644,6 +687,10 @@ export default function AddMedicationScreen({ navigation }: Props) {
                   scheduleFrequency === 'quarterly' && styles.frequencyButtonActive,
                 ]}
                 onPress={() => setScheduleFrequency('quarterly')}
+                accessibilityRole="button"
+                accessibilityLabel="Quarterly schedule"
+                accessibilityHint="Set medication to be taken once every three months"
+                accessibilityState={{ selected: scheduleFrequency === 'quarterly' }}
               >
                 <Text
                   style={[
@@ -692,6 +739,10 @@ export default function AddMedicationScreen({ navigation }: Props) {
           style={[styles.saveButton, saving && styles.saveButtonDisabled]}
           onPress={handleSave}
           disabled={saving}
+          accessibilityRole="button"
+          accessibilityLabel={saving ? 'Saving medication' : 'Save medication'}
+          accessibilityHint="Saves the medication and returns to the medications list"
+          accessibilityState={{ disabled: saving }}
         >
           <Text style={styles.saveButtonText}>
             {saving ? 'Saving...' : 'Save Medication'}

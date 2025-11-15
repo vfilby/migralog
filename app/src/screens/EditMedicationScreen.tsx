@@ -407,7 +407,12 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel"
+            accessibilityHint="Return to previous screen"
+          >
             <Text style={styles.cancelButton}>Cancel</Text>
           </TouchableOpacity>
           <Text style={styles.title}>Edit Medication</Text>
@@ -421,7 +426,12 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
   return (
     <View style={styles.container} testID="edit-medication-screen">
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel"
+          accessibilityHint="Discard changes and return to previous screen"
+        >
           <Text style={styles.cancelButton}>Cancel</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Edit Medication</Text>
@@ -439,6 +449,10 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
                 type === 'rescue' && styles.typeButtonActive,
               ]}
               onPress={() => setType('rescue')}
+              accessibilityRole="button"
+              accessibilityLabel="Rescue medication"
+              accessibilityHint="Set medication type to rescue"
+              accessibilityState={{ selected: type === 'rescue' }}
             >
               <Text
                 style={[
@@ -455,6 +469,10 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
                 type === 'preventative' && styles.typeButtonActive,
               ]}
               onPress={() => setType('preventative')}
+              accessibilityRole="button"
+              accessibilityLabel="Preventative medication"
+              accessibilityHint="Set medication type to preventative"
+              accessibilityState={{ selected: type === 'preventative' }}
             >
               <Text
                 style={[
@@ -471,6 +489,10 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
                 type === 'other' && styles.typeButtonActive,
               ]}
               onPress={() => setType('other')}
+              accessibilityRole="button"
+              accessibilityLabel="Other medication"
+              accessibilityHint="Set medication type to other"
+              accessibilityState={{ selected: type === 'other' }}
             >
               <Text
                 style={[
@@ -506,6 +528,9 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
               <TouchableOpacity
                 style={styles.changePhotoButton}
                 onPress={showImageOptions}
+                accessibilityRole="button"
+                accessibilityLabel="Change photo"
+                accessibilityHint="Replace the current medication photo"
               >
                 <Text style={styles.changePhotoText}>Change Photo</Text>
               </TouchableOpacity>
@@ -514,6 +539,9 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
             <TouchableOpacity
               style={styles.addPhotoButton}
               onPress={showImageOptions}
+              accessibilityRole="button"
+              accessibilityLabel="Add photo"
+              accessibilityHint="Take a picture or choose from your library"
             >
               <Text style={styles.addPhotoText}>+ Add Photo</Text>
               <Text style={styles.addPhotoSubtext}>
@@ -544,6 +572,10 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
                     dosageUnit === unit && styles.unitButtonActive,
                   ]}
                   onPress={() => setDosageUnit(unit)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${unit} unit`}
+                  accessibilityHint={`Set dosage unit to ${unit}`}
+                  accessibilityState={{ selected: dosageUnit === unit }}
                 >
                   <Text
                     style={[
@@ -588,6 +620,10 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
                 setSchedulingMode('as-needed');
                 setSchedules([]);  // Clear schedules when switching to as-needed
               }}
+              accessibilityRole="button"
+              accessibilityLabel="As needed scheduling"
+              accessibilityHint="Set medication to be taken as needed"
+              accessibilityState={{ selected: schedulingMode === 'as-needed' }}
             >
               <Text
                 style={[
@@ -604,6 +640,10 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
                 schedulingMode === 'scheduled' && styles.typeButtonActive,
               ]}
               onPress={() => setSchedulingMode('scheduled')}
+              accessibilityRole="button"
+              accessibilityLabel="Scheduled dosing"
+              accessibilityHint="Set medication to be taken on a schedule"
+              accessibilityState={{ selected: schedulingMode === 'scheduled' }}
             >
               <Text
                 style={[
@@ -628,6 +668,10 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
                   scheduleFrequency === 'daily' && styles.frequencyButtonActive,
                 ]}
                 onPress={() => setScheduleFrequency('daily')}
+                accessibilityRole="button"
+                accessibilityLabel="Daily frequency"
+                accessibilityHint="Set schedule to repeat daily"
+                accessibilityState={{ selected: scheduleFrequency === 'daily' }}
               >
                 <Text
                   style={[
@@ -644,6 +688,10 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
                   scheduleFrequency === 'monthly' && styles.frequencyButtonActive,
                 ]}
                 onPress={() => setScheduleFrequency('monthly')}
+                accessibilityRole="button"
+                accessibilityLabel="Monthly frequency"
+                accessibilityHint="Set schedule to repeat monthly"
+                accessibilityState={{ selected: scheduleFrequency === 'monthly' }}
               >
                 <Text
                   style={[
@@ -660,6 +708,10 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
                   scheduleFrequency === 'quarterly' && styles.frequencyButtonActive,
                 ]}
                 onPress={() => setScheduleFrequency('quarterly')}
+                accessibilityRole="button"
+                accessibilityLabel="Quarterly frequency"
+                accessibilityHint="Set schedule to repeat quarterly"
+                accessibilityState={{ selected: scheduleFrequency === 'quarterly' }}
               >
                 <Text
                   style={[
@@ -708,6 +760,10 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
           style={[styles.saveButton, saving && styles.saveButtonDisabled]}
           onPress={handleSave}
           disabled={saving}
+          accessibilityRole="button"
+          accessibilityLabel="Save changes"
+          accessibilityHint="Saves the medication changes and returns to previous screen"
+          accessibilityState={{ disabled: saving }}
         >
           <Text style={styles.saveButtonText}>
             {saving ? 'Saving...' : 'Save Changes'}

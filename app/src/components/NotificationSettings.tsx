@@ -160,6 +160,9 @@ const NotificationSettings = React.memo(({ medicationId, showTitle = true, notif
           <TouchableOpacity
             style={styles.settingsLinkButton}
             onPress={handleOpenSystemSettings}
+            accessibilityRole="button"
+            accessibilityLabel="Open Settings"
+            accessibilityHint="Double tap to open system settings to enable notifications"
           >
             <Text style={styles.settingsLinkButtonText}>Open Settings</Text>
             <Ionicons name="chevron-forward" size={18} color={theme.primary} />
@@ -210,6 +213,9 @@ const NotificationSettings = React.memo(({ medicationId, showTitle = true, notif
             onValueChange={(value) => handleToggle('timeSensitiveEnabled', value)}
             trackColor={{ false: theme.border, true: theme.primary }}
             ios_backgroundColor={theme.border}
+            accessibilityRole="switch"
+            accessibilityLabel="Time-Sensitive notifications"
+            accessibilityHint="Toggle to show notifications even in Focus mode"
           />
         </View>
 
@@ -220,6 +226,9 @@ const NotificationSettings = React.memo(({ medicationId, showTitle = true, notif
           style={styles.settingRow}
           onPress={showFollowUpDelayPicker}
           testID="follow-up-delay-picker"
+          accessibilityRole="button"
+          accessibilityLabel={`Follow-up Reminder: ${FOLLOW_UP_DELAY_OPTIONS.find(o => o.value === effectiveSettings.followUpDelay)?.label}`}
+          accessibilityHint="Double tap to change the follow-up reminder delay"
         >
           <View style={styles.settingLeft}>
             <Ionicons name="alarm-outline" size={20} color={theme.textSecondary} />
@@ -256,6 +265,9 @@ const NotificationSettings = React.memo(({ medicationId, showTitle = true, notif
             onValueChange={(value) => handleToggle('criticalAlertsEnabled', value)}
             trackColor={{ false: theme.border, true: theme.primary }}
             ios_backgroundColor={theme.border}
+            accessibilityRole="switch"
+            accessibilityLabel="Critical Alerts"
+            accessibilityHint="Toggle to play sound on follow-up reminders even when device is silenced"
           />
         </View>
       </View>
@@ -265,6 +277,9 @@ const NotificationSettings = React.memo(({ medicationId, showTitle = true, notif
           style={styles.resetButton}
           onPress={handleResetToDefaults}
           testID="reset-to-defaults-button"
+          accessibilityRole="button"
+          accessibilityLabel="Reset to Defaults"
+          accessibilityHint="Double tap to remove custom settings and use global defaults"
         >
           <Ionicons name="refresh-outline" size={20} color={theme.error} />
           <Text style={styles.resetButtonText}>Reset to Defaults</Text>

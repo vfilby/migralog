@@ -260,6 +260,9 @@ export default function MedicationScheduleManager({
                   <TouchableOpacity
                     style={styles.timeButton}
                     onPress={() => toggleTimePicker(index)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Time: ${schedule.time}`}
+                    accessibilityHint="Double tap to change the medication time"
                   >
                     <Text style={styles.timeButtonText}>{schedule.time}</Text>
                   </TouchableOpacity>
@@ -287,6 +290,9 @@ export default function MedicationScheduleManager({
                   <TouchableOpacity
                     style={styles.timeButton}
                     onPress={() => toggleDatePicker(index)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Date: ${schedule.time}`}
+                    accessibilityHint="Double tap to change the date last taken"
                   >
                     <Text style={styles.timeButtonText}>{schedule.time}</Text>
                   </TouchableOpacity>
@@ -328,13 +334,22 @@ export default function MedicationScheduleManager({
           <TouchableOpacity
             style={styles.removeButton}
             onPress={() => handleRemoveSchedule(index)}
+            accessibilityRole="button"
+            accessibilityLabel="Remove schedule"
+            accessibilityHint="Double tap to remove this medication schedule"
           >
             <Text style={styles.removeButtonText}>Remove</Text>
           </TouchableOpacity>
         </View>
       ))}
 
-      <TouchableOpacity style={styles.addButton} onPress={handleAddSchedule}>
+      <TouchableOpacity
+        style={styles.addButton}
+        onPress={handleAddSchedule}
+        accessibilityRole="button"
+        accessibilityLabel="Add schedule"
+        accessibilityHint="Double tap to add a new medication schedule"
+      >
         <Text style={styles.addButtonText}>+ Add Schedule</Text>
       </TouchableOpacity>
     </View>

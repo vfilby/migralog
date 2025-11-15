@@ -264,7 +264,12 @@ export default function EditIntensityReadingScreen({ route, navigation }: Props)
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel"
+            accessibilityHint="Return to previous screen"
+          >
             <Text style={styles.cancelButton}>Cancel</Text>
           </TouchableOpacity>
           <Text style={styles.title}>Edit Intensity</Text>
@@ -284,7 +289,12 @@ export default function EditIntensityReadingScreen({ route, navigation }: Props)
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel"
+          accessibilityHint="Discard changes and return to previous screen"
+        >
           <Text style={styles.cancelButton}>Cancel</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Edit Intensity</Text>
@@ -298,6 +308,9 @@ export default function EditIntensityReadingScreen({ route, navigation }: Props)
           <TouchableOpacity
             style={styles.timeButton}
             onPress={() => setShowDatePicker(true)}
+            accessibilityRole="button"
+            accessibilityLabel={`Change time, currently ${format(timestamp, 'MMM d, yyyy h:mm a')}`}
+            accessibilityHint="Opens date and time picker"
           >
             <Text style={styles.timeText}>
               {format(timestamp, 'MMM d, yyyy h:mm a')}
@@ -344,6 +357,10 @@ export default function EditIntensityReadingScreen({ route, navigation }: Props)
                       },
                     ]}
                     onPress={() => setIntensity(value)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Set pain intensity to ${value}`}
+                    accessibilityHint={`Pain level ${value}, ${getPainLevel(value).label}`}
+                    accessibilityState={{ selected: isSelected }}
                   >
                     <Text
                       style={[
@@ -369,6 +386,10 @@ export default function EditIntensityReadingScreen({ route, navigation }: Props)
           style={[styles.saveButton, saving && styles.saveButtonDisabled]}
           onPress={handleSave}
           disabled={saving}
+          accessibilityRole="button"
+          accessibilityLabel="Save changes"
+          accessibilityHint="Saves the edited intensity reading and returns to previous screen"
+          accessibilityState={{ disabled: saving }}
         >
           <Text style={styles.saveButtonText}>
             {saving ? 'Saving...' : 'Save Changes'}
@@ -378,6 +399,10 @@ export default function EditIntensityReadingScreen({ route, navigation }: Props)
           style={styles.deleteButton}
           onPress={handleDelete}
           disabled={saving}
+          accessibilityRole="button"
+          accessibilityLabel="Delete reading"
+          accessibilityHint="Permanently deletes this intensity reading"
+          accessibilityState={{ disabled: saving }}
         >
           <Text style={styles.deleteButtonText}>Delete Reading</Text>
         </TouchableOpacity>

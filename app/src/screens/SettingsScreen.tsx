@@ -481,7 +481,12 @@ export default function SettingsScreen({ navigation }: Props) {
   return (
     <View style={styles.container} testID="settings-screen">
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Done"
+          accessibilityHint="Closes the settings screen and returns to the previous screen"
+        >
           <Text style={styles.backButton}>Done</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Settings</Text>
@@ -502,6 +507,9 @@ export default function SettingsScreen({ navigation }: Props) {
               style={styles.aboutRow}
               onPress={handleVersionTap}
               activeOpacity={0.6}
+              accessibilityRole="button"
+              accessibilityLabel={`App version ${buildInfo.version} build ${buildInfo.buildNumber}`}
+              accessibilityHint="Tap 7 times to toggle developer mode"
             >
               <Text style={styles.aboutLabel}>Version</Text>
               <View style={styles.buildValueContainer}>
@@ -530,6 +538,10 @@ export default function SettingsScreen({ navigation }: Props) {
                 themeMode === 'light' && styles.themeOptionActive
               ]}
               onPress={() => setThemeMode('light')}
+              accessibilityRole="button"
+              accessibilityLabel="Light theme"
+              accessibilityHint="Switches the app appearance to light mode"
+              accessibilityState={{ selected: themeMode === 'light' }}
             >
               <Ionicons
                 name="sunny"
@@ -553,6 +565,10 @@ export default function SettingsScreen({ navigation }: Props) {
                 themeMode === 'dark' && styles.themeOptionActive
               ]}
               onPress={() => setThemeMode('dark')}
+              accessibilityRole="button"
+              accessibilityLabel="Dark theme"
+              accessibilityHint="Switches the app appearance to dark mode"
+              accessibilityState={{ selected: themeMode === 'dark' }}
             >
               <Ionicons
                 name="moon"
@@ -576,6 +592,10 @@ export default function SettingsScreen({ navigation }: Props) {
                 themeMode === 'system' && styles.themeOptionActive
               ]}
               onPress={() => setThemeMode('system')}
+              accessibilityRole="button"
+              accessibilityLabel="System theme"
+              accessibilityHint="Sets the app appearance to match your device settings"
+              accessibilityState={{ selected: themeMode === 'system' }}
             >
               <Ionicons
                 name="phone-portrait"
@@ -635,6 +655,9 @@ export default function SettingsScreen({ navigation }: Props) {
               <TouchableOpacity
                 style={styles.developerButton}
                 onPress={handleRequestNotifications}
+                accessibilityRole="button"
+                accessibilityLabel="Enable notifications"
+                accessibilityHint="Requests permission to send medication reminder notifications"
               >
                 <Ionicons name="notifications-outline" size={20} color={theme.primary} />
                 <Text style={styles.developerButtonText}>Enable Notifications</Text>
@@ -646,6 +669,9 @@ export default function SettingsScreen({ navigation }: Props) {
                 <TouchableOpacity
                   style={styles.developerButton}
                   onPress={() => handleTestNotification(false)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Test regular notification"
+                  accessibilityHint="Schedules a test notification to appear in 5 seconds"
                 >
                   <Ionicons name="flask-outline" size={20} color={theme.primary} />
                   <Text style={styles.developerButtonText}>Test Regular Notification (5s)</Text>
@@ -654,6 +680,9 @@ export default function SettingsScreen({ navigation }: Props) {
                 <TouchableOpacity
                   style={styles.developerButton}
                   onPress={() => handleTestNotification(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Test time-sensitive notification"
+                  accessibilityHint="Schedules a time-sensitive test notification that breaks through Focus mode in 5 seconds"
                 >
                   <Ionicons name="flash-outline" size={20} color={theme.primary} />
                   <Text style={styles.developerButtonText}>Test Time-Sensitive (5s)</Text>
@@ -662,6 +691,9 @@ export default function SettingsScreen({ navigation }: Props) {
                 <TouchableOpacity
                   style={styles.developerButton}
                   onPress={handleViewScheduledNotifications}
+                  accessibilityRole="button"
+                  accessibilityLabel="View scheduled notifications"
+                  accessibilityHint="Shows a list of all currently scheduled notifications"
                 >
                   <Ionicons name="list-outline" size={20} color={theme.primary} />
                   <Text style={styles.developerButtonText}>View Scheduled Notifications</Text>
@@ -689,6 +721,9 @@ export default function SettingsScreen({ navigation }: Props) {
                     disabled={isTogglingNotifications}
                     trackColor={{ false: theme.borderLight, true: theme.primary }}
                     thumbColor={theme.card}
+                    accessibilityRole="switch"
+                    accessibilityLabel="Enable medication reminders"
+                    accessibilityHint="Toggles all medication reminder notifications on or off"
                   />
                 </View>
               </View>
@@ -708,6 +743,9 @@ export default function SettingsScreen({ navigation }: Props) {
               <TouchableOpacity
                 style={styles.settingsLinkButton}
                 onPress={handleOpenSystemSettings}
+                accessibilityRole="button"
+                accessibilityLabel="Open system settings"
+                accessibilityHint="Opens the device settings app to enable notifications"
               >
                 <Text style={styles.settingsLinkButtonText}>Open Settings</Text>
                 <Ionicons name="chevron-forward" size={18} color={theme.primary} />
@@ -756,6 +794,9 @@ export default function SettingsScreen({ navigation }: Props) {
               <TouchableOpacity
                 style={styles.developerButton}
                 onPress={handleRequestLocationPermission}
+                accessibilityRole="button"
+                accessibilityLabel="Enable location"
+                accessibilityHint="Requests permission to access your location when starting episodes"
               >
                 <Ionicons name="location-outline" size={20} color={theme.primary} />
                 <Text style={styles.developerButtonText}>Enable Location</Text>
@@ -770,6 +811,9 @@ export default function SettingsScreen({ navigation }: Props) {
           <TouchableOpacity
             style={styles.navigationItem}
             onPress={handleExportData}
+            accessibilityRole="button"
+            accessibilityLabel="Export data"
+            accessibilityHint="Exports your migraine data as JSON to share with healthcare providers"
           >
             <View style={styles.navigationItemContent}>
               <Ionicons name="document-text-outline" size={24} color={theme.primary} />
@@ -786,6 +830,9 @@ export default function SettingsScreen({ navigation }: Props) {
           <TouchableOpacity
             style={styles.navigationItem}
             onPress={() => navigation.navigate('BackupRecovery')}
+            accessibilityRole="button"
+            accessibilityLabel="Backup and recovery"
+            accessibilityHint="Opens the backup and recovery screen to create and manage backups"
           >
             <View style={styles.navigationItemContent}>
               <Ionicons name="cloud-upload-outline" size={24} color={theme.primary} />
@@ -862,6 +909,9 @@ export default function SettingsScreen({ navigation }: Props) {
             <TouchableOpacity
               style={styles.developerButton}
               onPress={viewErrorLogs}
+              accessibilityRole="button"
+              accessibilityLabel="View error logs"
+              accessibilityHint="Opens the error logs screen to view recent app errors"
             >
               <Ionicons name="list-outline" size={20} color={theme.primary} />
               <Text style={styles.developerButtonText}>View Error Logs</Text>
@@ -872,6 +922,9 @@ export default function SettingsScreen({ navigation }: Props) {
                 style={styles.developerButton}
                 onPress={viewPerformance}
                 testID="view-performance-button"
+                accessibilityRole="button"
+                accessibilityLabel="Performance"
+                accessibilityHint="Opens the performance monitoring screen"
               >
                 <Ionicons name="speedometer-outline" size={20} color={theme.primary} />
                 <Text style={styles.developerButtonText}>Performance</Text>
@@ -881,6 +934,9 @@ export default function SettingsScreen({ navigation }: Props) {
             <TouchableOpacity
               style={styles.developerButton}
               onPress={testErrorLogging}
+              accessibilityRole="button"
+              accessibilityLabel="Test error logging"
+              accessibilityHint="Creates a test error entry in the error logs"
             >
               <Ionicons name="flask-outline" size={20} color={theme.primary} />
               <Text style={styles.developerButtonText}>Test Error Logging</Text>
@@ -1000,6 +1056,9 @@ export default function SettingsScreen({ navigation }: Props) {
               style={styles.developerButton}
               onPress={testSentry}
               testID="test-sentry-button"
+              accessibilityRole="button"
+              accessibilityLabel="Test Sentry integration"
+              accessibilityHint="Sends test events to Sentry to verify error tracking is working"
             >
               <Ionicons name="bug-outline" size={20} color={theme.primary} />
               <Text style={styles.developerButtonText}>Test Sentry Integration</Text>
@@ -1008,6 +1067,9 @@ export default function SettingsScreen({ navigation }: Props) {
             <TouchableOpacity
               style={[styles.developerButton, styles.developerButtonDanger]}
               onPress={clearAllLogs}
+              accessibilityRole="button"
+              accessibilityLabel="Clear logs"
+              accessibilityHint="Deletes all error logs from the database"
             >
               <Ionicons name="trash-outline" size={20} color={theme.error} />
               <Text style={[styles.developerButtonText, styles.developerButtonTextDanger]}>
@@ -1021,6 +1083,9 @@ export default function SettingsScreen({ navigation }: Props) {
                   style={[styles.developerButton, styles.developerButtonDanger]}
                   onPress={handleResetDatabase}
                   testID="reset-database-button"
+                  accessibilityRole="button"
+                  accessibilityLabel="Reset database"
+                  accessibilityHint="Creates a backup then clears all data from the database for testing purposes"
                 >
                   <Ionicons name="refresh-outline" size={20} color={theme.error} />
                   <Text style={[styles.developerButtonText, styles.developerButtonTextDanger]}>
@@ -1032,6 +1097,9 @@ export default function SettingsScreen({ navigation }: Props) {
                   style={[styles.developerButton]}
                   onPress={handleResetDatabaseWithFixtures}
                   testID="reset-database-with-fixtures-button"
+                  accessibilityRole="button"
+                  accessibilityLabel="Reset with test data"
+                  accessibilityHint="Creates a backup, clears the database, and loads sample medications and episodes for testing"
                 >
                   <Ionicons name="flask-outline" size={20} color={theme.primary} />
                   <Text style={[styles.developerButtonText]}>

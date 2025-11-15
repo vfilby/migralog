@@ -479,7 +479,12 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
   return (
     <View style={styles.container} testID="new-episode-screen">
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel"
+          accessibilityHint="Discards changes and returns to the previous screen"
+        >
           <Text style={styles.cancelButton}>Cancel</Text>
         </TouchableOpacity>
         <Text style={styles.title}>{isEditing ? 'Edit Episode' : 'Start Episode'}</Text>
@@ -499,6 +504,9 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
           <TouchableOpacity
             style={styles.timeButton}
             onPress={() => setShowDatePicker(true)}
+            accessibilityRole="button"
+            accessibilityLabel={`Episode start time, ${format(startTime, 'MMM d, yyyy h:mm a')}`}
+            accessibilityHint="Opens date and time picker to change the episode start time"
           >
             <Text style={styles.timeText}>{format(startTime, 'MMM d, yyyy h:mm a')}</Text>
           </TouchableOpacity>
@@ -522,6 +530,9 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
             <TouchableOpacity
               style={styles.timeButton}
               onPress={() => setShowEndDatePicker(true)}
+              accessibilityRole="button"
+              accessibilityLabel={`Episode end time, ${format(endTime, 'MMM d, yyyy h:mm a')}`}
+              accessibilityHint="Opens date and time picker to change the episode end time"
             >
               <Text style={styles.timeText}>{format(endTime, 'MMM d, yyyy h:mm a')}</Text>
             </TouchableOpacity>
@@ -591,6 +602,10 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
                     locations.includes(item.value) && styles.locationButtonActive,
                   ]}
                   onPress={() => toggleSelection(item.value, locations, setLocations)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Left ${item.label}`}
+                  accessibilityHint={locations.includes(item.value) ? `Tap to deselect left ${item.label.toLowerCase()} as a pain location` : `Tap to select left ${item.label.toLowerCase()} as a pain location`}
+                  accessibilityState={{ selected: locations.includes(item.value) }}
                 >
                   <Text
                     style={[
@@ -615,6 +630,10 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
                     locations.includes(item.value) && styles.locationButtonActive,
                   ]}
                   onPress={() => toggleSelection(item.value, locations, setLocations)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Right ${item.label}`}
+                  accessibilityHint={locations.includes(item.value) ? `Tap to deselect right ${item.label.toLowerCase()} as a pain location` : `Tap to select right ${item.label.toLowerCase()} as a pain location`}
+                  accessibilityState={{ selected: locations.includes(item.value) }}
                 >
                   <Text
                     style={[
@@ -642,6 +661,10 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
                   symptoms.includes(item.value) && styles.chipActive,
                 ]}
                 onPress={() => toggleSelection(item.value, symptoms, setSymptoms)}
+                accessibilityRole="button"
+                accessibilityLabel={item.label}
+                accessibilityHint={symptoms.includes(item.value) ? `Tap to deselect ${item.label.toLowerCase()} as a symptom` : `Tap to select ${item.label.toLowerCase()} as a symptom`}
+                accessibilityState={{ selected: symptoms.includes(item.value) }}
               >
                 <Text
                   style={[
@@ -668,6 +691,10 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
                   triggers.includes(item.value) && styles.chipActive,
                 ]}
                 onPress={() => toggleSelection(item.value, triggers, setTriggers)}
+                accessibilityRole="button"
+                accessibilityLabel={item.label}
+                accessibilityHint={triggers.includes(item.value) ? `Tap to deselect ${item.label.toLowerCase()} as a trigger` : `Tap to select ${item.label.toLowerCase()} as a trigger`}
+                accessibilityState={{ selected: triggers.includes(item.value) }}
               >
                 <Text
                   style={[
@@ -715,6 +742,13 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
             onPress={handleSave}
             disabled={saving}
             testID="save-episode-button"
+            accessibilityRole="button"
+            accessibilityLabel={saving
+              ? (isEditing ? 'Saving Changes' : 'Starting Episode')
+              : (isEditing ? 'Save Changes' : 'Start Episode')
+            }
+            accessibilityHint={isEditing ? 'Saves changes to this episode and returns to the previous screen' : 'Creates a new episode with the entered details and returns to the previous screen'}
+            accessibilityState={{ disabled: saving }}
           >
             <Text style={styles.saveButtonText}>
               {saving

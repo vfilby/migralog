@@ -411,7 +411,12 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel"
+            accessibilityHint="Return to previous screen"
+          >
             <Text style={styles.cancelButton}>Cancel</Text>
           </TouchableOpacity>
           <Text style={styles.title}>Log Update</Text>
@@ -431,7 +436,12 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
   return (
     <View style={styles.container} testID="log-update-screen">
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel"
+          accessibilityHint="Discard changes and return to previous screen"
+        >
           <Text style={styles.cancelButton}>Cancel</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Log Update</Text>
@@ -491,6 +501,10 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
                     isSelected && styles.chipSelected,
                   ]}
                   onPress={() => toggleSymptom(symptom.value)}
+                  accessibilityRole="button"
+                  accessibilityLabel={symptom.label}
+                  accessibilityHint={isSelected ? `Remove ${symptom.label} from symptoms` : `Add ${symptom.label} to symptoms`}
+                  accessibilityState={{ selected: isSelected }}
                 >
                   <Text style={[
                     styles.chipText,
@@ -519,6 +533,10 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
                     currentPainLocations.includes(item.value) && styles.locationButtonActive,
                   ]}
                   onPress={() => togglePainLocation(item.value)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Left ${item.label}`}
+                  accessibilityHint={currentPainLocations.includes(item.value) ? `Remove left ${item.label} from pain locations` : `Add left ${item.label} to pain locations`}
+                  accessibilityState={{ selected: currentPainLocations.includes(item.value) }}
                 >
                   <Text
                     style={[
@@ -543,6 +561,10 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
                     currentPainLocations.includes(item.value) && styles.locationButtonActive,
                   ]}
                   onPress={() => togglePainLocation(item.value)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Right ${item.label}`}
+                  accessibilityHint={currentPainLocations.includes(item.value) ? `Remove right ${item.label} from pain locations` : `Add right ${item.label} to pain locations`}
+                  accessibilityState={{ selected: currentPainLocations.includes(item.value) }}
                 >
                   <Text
                     style={[
@@ -588,6 +610,10 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
             onPress={handleSave}
             disabled={saving}
             testID="save-update-button"
+            accessibilityRole="button"
+            accessibilityLabel="Save update"
+            accessibilityHint="Saves the episode update with current intensity, symptoms, and pain locations"
+            accessibilityState={{ disabled: saving }}
           >
             <Text style={styles.saveButtonText}>
               {saving ? 'Saving...' : 'Save Update'}

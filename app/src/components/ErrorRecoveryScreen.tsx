@@ -58,6 +58,9 @@ const ErrorRecoveryScreen: React.FC<ErrorRecoveryScreenProps> = ({ error, onRese
           style={styles.primaryButton}
           onPress={onReset}
           testID="error-recovery-reset"
+          accessibilityRole="button"
+          accessibilityLabel="Try Again"
+          accessibilityHint="Double tap to reset the app and try again"
         >
           <Text style={styles.primaryButtonText}>Try Again</Text>
         </TouchableOpacity>
