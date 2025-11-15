@@ -1,4 +1,3 @@
-import { notificationService, handleIncomingNotification } from '../notificationService';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -8,7 +7,7 @@ import {
 } from '../../database/medicationRepository';
 import { Medication, MedicationSchedule } from '../../models/types';
 
-// Mock dependencies
+// Mock dependencies BEFORE importing the service
 jest.mock('expo-notifications');
 jest.mock('../../database/medicationRepository');
 jest.mock('../../services/errorLogger');
@@ -22,6 +21,31 @@ jest.mock('@react-native-async-storage/async-storage');
   HIGH: 1,
   MAX: 2,
 };
+
+// Set up mocks for methods that aren't automatically mocked
+(Notifications as any).getPresentedNotificationsAsync = jest.fn();
+(Notifications as any).dismissNotificationAsync = jest.fn();
+(Notifications as any).setNotificationCategoryAsync = jest.fn();
+(Notifications as any).addNotificationResponseReceivedListener = jest.fn();
+(Notifications as any).addNotificationReceivedListener = jest.fn();
+(Notifications as any).requestPermissionsAsync = jest.fn();
+(Notifications as any).getPermissionsAsync = jest.fn();
+(Notifications as any).scheduleNotificationAsync = jest.fn();
+(Notifications as any).cancelScheduledNotificationAsync = jest.fn();
+(Notifications as any).getAllScheduledNotificationsAsync = jest.fn();
+(Notifications as any).cancelAllScheduledNotificationsAsync = jest.fn();
+(Notifications as any).SchedulableTriggerInputTypes = {
+  DAILY: 'daily',
+  WEEKLY: 'weekly',
+  YEARLY: 'yearly',
+  DATE: 'date',
+  TIME_INTERVAL: 'timeInterval',
+  CALENDAR: 'calendar',
+  UNKNOWN: 'unknown',
+};
+
+// NOW import the service after mocks are set up
+import { notificationService, handleIncomingNotification } from '../notificationService';
 
 describe('notificationService', () => {
   beforeEach(() => {
@@ -42,6 +66,10 @@ describe('notificationService', () => {
     } else {
       (medicationRepository.getById as jest.Mock).mockReset();
     }
+
+    // Set up default mocks for notification methods used in dismissMedicationNotification tests
+    (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue([]);
+    (Notifications.dismissNotificationAsync as jest.Mock).mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -310,6 +338,112 @@ describe('notificationService', () => {
       await notificationService.cancelAllNotifications();
 
       expect(Notifications.cancelAllScheduledNotificationsAsync).toHaveBeenCalled();
+    });
+  });
+
+  describe('dismissMedicationNotification', () => {
+    it('should dismiss single medication notification', async () => {
+      const mockPresentedNotifs = [
+        {
+          request: {
+            identifier: 'notif-1',
+            content: { data: { medicationId: 'med-123', scheduleId: 'sched-1' } },
+          },
+        },
+        {
+          request: {
+            identifier: 'notif-2',
+            content: { data: { medicationId: 'med-456', scheduleId: 'sched-2' } },
+          },
+        },
+      ];
+
+      (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue(mockPresentedNotifs);
+
+      await notificationService.dismissMedicationNotification('med-123');
+
+      // Verify getPresentedNotificationsAsync was called
+      expect(Notifications.getPresentedNotificationsAsync).toHaveBeenCalled();
+
+      // Should only dismiss notifications for med-123
+      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledTimes(1);
+      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith('notif-1');
+    });
+
+    it('should dismiss medication from grouped notification', async () => {
+      const mockPresentedNotifs = [
+        {
+          request: {
+            identifier: 'notif-group-1',
+            content: {
+              data: {
+                medicationIds: ['med-123', 'med-456'],
+                scheduleIds: ['sched-1', 'sched-2'],
+              },
+            },
+          },
+        },
+      ];
+
+      (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue(mockPresentedNotifs);
+
+      await notificationService.dismissMedicationNotification('med-123', 'sched-1');
+
+      // Should dismiss the grouped notification containing this medication
+      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledTimes(1);
+      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith('notif-group-1');
+    });
+
+    it('should not dismiss grouped notification if scheduleId does not match', async () => {
+      const mockPresentedNotifs = [
+        {
+          request: {
+            identifier: 'notif-group-1',
+            content: {
+              data: {
+                medicationIds: ['med-123', 'med-456'],
+                scheduleIds: ['sched-1', 'sched-2'],
+              },
+            },
+          },
+        },
+      ];
+
+      (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue(mockPresentedNotifs);
+
+      // Try to dismiss med-123 but with a different scheduleId (sched-3 instead of sched-1)
+      await notificationService.dismissMedicationNotification('med-123', 'sched-3');
+
+      // Should NOT dismiss the notification since scheduleId doesn't match
+      expect(Notifications.dismissNotificationAsync).not.toHaveBeenCalled();
+    });
+
+    it('should handle errors when dismissing notifications', async () => {
+      (Notifications.getPresentedNotificationsAsync as jest.Mock).mockRejectedValue(
+        new Error('Failed to get presented notifications')
+      );
+
+      await expect(
+        notificationService.dismissMedicationNotification('med-123')
+      ).resolves.not.toThrow();
+    });
+
+    it('should not dismiss notifications for different medications', async () => {
+      const mockPresentedNotifs = [
+        {
+          request: {
+            identifier: 'notif-1',
+            content: { data: { medicationId: 'med-456', scheduleId: 'sched-1' } },
+          },
+        },
+      ];
+
+      (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue(mockPresentedNotifs);
+
+      await notificationService.dismissMedicationNotification('med-123');
+
+      // Should not dismiss any notifications since medication IDs don't match
+      expect(Notifications.dismissNotificationAsync).not.toHaveBeenCalled();
     });
   });
 

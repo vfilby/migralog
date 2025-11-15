@@ -342,7 +342,7 @@ class NotificationService {
     try {
       const medication = await medicationRepository.getById(medicationId);
       if (!medication) {
-        logger.error('[Notification] Medication not found:', medicationId);
+        logger.error('[Notification] Medication not found');
         return;
       }
 
@@ -367,6 +367,7 @@ class NotificationService {
 
       await useMedicationStore.getState().logDose({
         medicationId,
+        scheduleId,
         timestamp,
         quantity: dosage,
         dosageAmount: medication.dosageAmount,
@@ -463,7 +464,7 @@ class NotificationService {
         try {
           const medication = await medicationRepository.getById(medicationId);
           if (!medication) {
-            logger.error('[Notification] Medication not found:', medicationId);
+            logger.error('[Notification] Medication not found');
             continue;
           }
 
@@ -482,6 +483,7 @@ class NotificationService {
           const timestamp = Date.now();
           await useMedicationStore.getState().logDose({
             medicationId,
+            scheduleId,
             timestamp,
             quantity: dosage,
             dosageAmount: medication.dosageAmount,
@@ -986,6 +988,69 @@ class NotificationService {
   async cancelAllNotifications(): Promise<void> {
     await Notifications.cancelAllScheduledNotificationsAsync();
     logger.log('[Notification] Cancelled all notifications');
+  }
+
+  /**
+   * Dismiss presented notifications for a medication
+   * This removes notifications from the notification tray when medication is logged from the app
+   *
+   * For grouped notifications (multiple medications at the same time):
+   * - If scheduleId is provided, only dismisses if BOTH medicationId AND scheduleId match
+   * - This ensures medications with multiple daily schedules only dismiss the correct notification
+   * - Example: Med A at 9am and 9pm should only dismiss the 9am notification when logging the 9am dose
+   */
+  async dismissMedicationNotification(medicationId: string, scheduleId?: string): Promise<void> {
+    try {
+      // Get all presented notifications
+      const presentedNotifications = await Notifications.getPresentedNotificationsAsync();
+
+      logger.log('[Notification] Checking presented notifications to dismiss:', {
+        totalPresented: presentedNotifications.length,
+      });
+
+      for (const notification of presentedNotifications) {
+        const data = notification.request.content.data as {
+          medicationId?: string;
+          medicationIds?: string[];
+          scheduleId?: string;
+          scheduleIds?: string[];
+        };
+
+        // Check if this notification is for the medication being logged
+        let shouldDismiss = false;
+
+        // Single medication notification
+        if (data.medicationId === medicationId) {
+          // If scheduleId is provided, only dismiss if it matches
+          if (scheduleId) {
+            shouldDismiss = data.scheduleId === scheduleId;
+          } else {
+            shouldDismiss = true;
+          }
+        }
+
+        // Multiple medication notification - check if this medication is in the group
+        if (data.medicationIds?.includes(medicationId)) {
+          if (scheduleId) {
+            // Find the index of the medication and check if schedule matches
+            const medIndex = data.medicationIds.indexOf(medicationId);
+            shouldDismiss = data.scheduleIds?.[medIndex] === scheduleId;
+          } else {
+            shouldDismiss = true;
+          }
+        }
+
+        if (shouldDismiss) {
+          await Notifications.dismissNotificationAsync(notification.request.identifier);
+          logger.log('[Notification] Dismissed notification for medication');
+        }
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('[Notification] Error dismissing medication notification:', {
+        error: errorMessage,
+      });
+    }
   }
 
   /**
