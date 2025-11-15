@@ -570,6 +570,72 @@ describe('medicationDoseRepository', () => {
     });
   });
 
+  describe('getMedicationUsageCounts', () => {
+    it('should return usage counts for all medications', async () => {
+      const mockRows = [
+        { medication_id: 'med-1', count: 5 },
+        { medication_id: 'med-2', count: 3 },
+        { medication_id: 'med-3', count: 10 },
+      ];
+
+      mockDatabase.getAllAsync.mockResolvedValue(mockRows);
+
+      const result = await medicationDoseRepository.getMedicationUsageCounts();
+
+      expect(result).toBeInstanceOf(Map);
+      expect(result.size).toBe(3);
+      expect(result.get('med-1')).toBe(5);
+      expect(result.get('med-2')).toBe(3);
+      expect(result.get('med-3')).toBe(10);
+      expect(mockDatabase.getAllAsync).toHaveBeenCalledWith(
+        expect.stringContaining('SELECT medication_id, COUNT(*) as count'),
+        expect.any(Array)
+      );
+      expect(mockDatabase.getAllAsync).toHaveBeenCalledWith(
+        expect.stringContaining('GROUP BY medication_id'),
+        expect.any(Array)
+      );
+    });
+
+    it('should return empty map when no doses exist', async () => {
+      mockDatabase.getAllAsync.mockResolvedValue([]);
+
+      const result = await medicationDoseRepository.getMedicationUsageCounts();
+
+      expect(result).toBeInstanceOf(Map);
+      expect(result.size).toBe(0);
+    });
+
+    it('should only count doses with status "taken" from past 3 months', async () => {
+      const mockRows = [
+        { medication_id: 'med-1', count: 5 },
+      ];
+
+      mockDatabase.getAllAsync.mockResolvedValue(mockRows);
+
+      await medicationDoseRepository.getMedicationUsageCounts();
+
+      expect(mockDatabase.getAllAsync).toHaveBeenCalledWith(
+        expect.stringContaining("WHERE status = 'taken' AND timestamp >= ?"),
+        expect.any(Array)
+      );
+
+      // Verify the timestamp parameter is within reasonable bounds (3 months ago)
+      const call = mockDatabase.getAllAsync.mock.calls[0];
+      const params = call[1];
+      expect(params).toHaveLength(1);
+      expect(params[0]).toBeGreaterThan(0); // Should be a valid timestamp
+
+      // Verify timestamp is approximately 3 months ago
+      const threeMonthsAgo = new Date();
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+      const cutoffTimestamp = threeMonthsAgo.getTime();
+      // Allow for some test execution time (within 1 minute)
+      expect(params[0]).toBeGreaterThanOrEqual(cutoffTimestamp - 60000);
+      expect(params[0]).toBeLessThanOrEqual(cutoffTimestamp + 60000);
+    });
+  });
+
   describe('Validation Error Handling', () => {
     describe('medicationRepository.create validation', () => {
       it('should allow preventative medication without schedule frequency', async () => {
