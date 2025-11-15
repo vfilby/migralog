@@ -24,6 +24,9 @@ export interface ThemeColors {
   danger: string;
   dangerText: string;
   success: string;
+  successText: string;
+  warning: string;
+  warningText: string;
   error: string;
 
   // Status
@@ -61,6 +64,9 @@ export const lightColors: ThemeColors = {
   danger: '#D30F00', // Changed from #FF3B30 for better contrast (now 5.24:1 with white text)
   dangerText: '#FFFFFF',
   success: '#248A3D', // Changed from #34C759 for better contrast (now 4.55:1 on white)
+  successText: '#FFFFFF',
+  warning: '#C77700', // Changed from #F59E0B for WCAG AA compliance (3.46:1 with white text)
+  warningText: '#FFFFFF',
   error: '#D30F00', // Changed from #FF3B30 for consistency with danger
 
   // Status
@@ -98,6 +104,9 @@ export const darkColors: ThemeColors = {
   danger: '#E03020', // Changed from #FF453A for WCAG AA contrast (now 4.55:1 with white text)
   dangerText: '#FFFFFF',
   success: '#32D65F', // Adjusted from #30D158 for better visibility on dark backgrounds
+  successText: '#FFFFFF',
+  warning: '#E89C00', // Lighter than light theme for dark background visibility
+  warningText: '#FFFFFF',
   error: '#E03020', // Changed from #FF453A for consistency with danger
 
   // Status

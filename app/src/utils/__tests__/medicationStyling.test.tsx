@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react-native';
 import { View, Text } from 'react-native';
 import { useMedicationStatusStyles } from '../medicationStyling';
 import { ThemeProvider } from '../../theme';
+import { lightColors } from '../../theme/colors';
 
 // Test component that uses the hook
 const TestComponent = ({ status }: { status?: string }) => {
@@ -36,8 +37,8 @@ describe('medicationStyling', () => {
 
         // Should return a hex color (danger color)
         expect(color).toMatch(/^#[A-F0-9]{6}$/i);
-        // In light theme, danger is '#D30F00' (updated for WCAG AA compliance)
-        expect(color).toBe('#D30F00');
+        // In light theme, should match the danger color from theme
+        expect(color).toBe(lightColors.danger);
       });
     });
 
@@ -49,8 +50,8 @@ describe('medicationStyling', () => {
 
         // Should return a hex color (text color)
         expect(color).toMatch(/^#[A-F0-9]{6}$/i);
-        // In light theme, text is '#000000'
-        expect(color).toBe('#000000');
+        // In light theme, should match the text color from theme
+        expect(color).toBe(lightColors.text);
       });
     });
 
@@ -62,7 +63,7 @@ describe('medicationStyling', () => {
 
         // Should return a hex color (text color)
         expect(color).toMatch(/^#[A-F0-9]{6}$/i);
-        expect(color).toBe('#000000');
+        expect(color).toBe(lightColors.text);
       });
     });
 
@@ -72,7 +73,7 @@ describe('medicationStyling', () => {
       await waitFor(() => {
         const styleColor = screen.getByTestId('style-color-output').props.children;
 
-        expect(styleColor).toBe('#D30F00'); // danger color (updated for WCAG AA compliance)
+        expect(styleColor).toBe(lightColors.danger);
       });
     });
 
@@ -84,7 +85,7 @@ describe('medicationStyling', () => {
 
         expect(typeof styleColor).toBe('string');
         expect(styleColor).toMatch(/^#[A-F0-9]{6}$/i);
-        expect(styleColor).toBe('#000000');
+        expect(styleColor).toBe(lightColors.text);
       });
     });
   });

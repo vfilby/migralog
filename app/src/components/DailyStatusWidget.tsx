@@ -50,10 +50,10 @@ const createStyles = (theme: ThemeColors) =>
       borderRadius: 12,
     },
     greenButton: {
-      backgroundColor: '#28A745', // Green color for clear days
+      backgroundColor: theme.success,
     },
     yellowButton: {
-      backgroundColor: '#C77700', // Changed from #F59E0B for WCAG AA compliance (3.46:1 with white text)
+      backgroundColor: theme.warning,
     },
     buttonText: {
       fontSize: 16,
