@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   backButton: {
     fontSize: 17,
     color: '#007AFF',
-    width: 60,
+    minWidth: 60,
   },
   loadingText: {
     textAlign: 'center',

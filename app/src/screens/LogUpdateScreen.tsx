@@ -71,7 +71,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   cancelButton: {
     fontSize: 17,
     color: theme.primary,
-    width: 60,
+    minWidth: 60,
   },
   content: {
     flex: 1,

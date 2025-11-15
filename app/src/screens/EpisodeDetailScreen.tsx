@@ -85,7 +85,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   backButton: {
     fontSize: 17,
     color: theme.primary,
-    width: 60,
+    minWidth: 60,
   },
   editButton: {
     fontSize: 17,
