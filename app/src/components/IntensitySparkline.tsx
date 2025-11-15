@@ -107,7 +107,7 @@ const IntensitySparkline: React.FC<IntensitySparklineProps> = ({
   const chartHeight = height - (padding * 2);
   const xStep = chartWidth / (interpolatedData.length - 1 || 1);
 
-  // Generate smooth path coordinates using quadratic curves
+  // Generate path coordinates using linear segments (EMA-smoothed)
   const pathData = interpolatedData
     .map((point, index) => {
       const x = padding + (index * xStep);
@@ -118,17 +118,7 @@ const IntensitySparkline: React.FC<IntensitySparklineProps> = ({
       if (index === 0) {
         return `M ${x},${y}`;
       } else {
-        // Use quadratic bezier curve for smooth interpolation
-        const prevX = padding + ((index - 1) * xStep);
-        const prevPoint = interpolatedData[index - 1];
-        const prevNormalizedY = (prevPoint.intensity - minIntensity) / (maxIntensity - minIntensity);
-        const prevY = padding + chartHeight - (prevNormalizedY * chartHeight);
-
-        // Control point uses previous Y to create smooth flowing curves
-        // This makes the curve "carry forward" the previous level before transitioning
-        const cpX = (prevX + x) / 2;
-
-        return `Q ${cpX},${prevY} ${x},${y}`;
+        return `L ${x},${y}`;
       }
     })
     .join(' ');

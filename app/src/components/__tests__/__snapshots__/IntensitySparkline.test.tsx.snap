@@ -128,7 +128,7 @@ exports[`IntensitySparkline Gradient and Markers should handle custom color over
         y={0}
       />
       <RNSVGPath
-        d="M 4,20 Q 32,20 60,19.04 Q 88,19.04 116,18.368000000000002"
+        d="M 4,20 L 60,19.04 L 116,18.368000000000002"
         fill={null}
         propList={
           [
@@ -357,7 +357,7 @@ exports[`IntensitySparkline Gradient and Markers should render markers for all r
         y={0}
       />
       <RNSVGPath
-        d="M 4,29.6 Q 32,29.6 60,25.76 Q 88,25.76 116,23.072000000000003"
+        d="M 4,29.6 L 60,25.76 L 116,23.072000000000003"
         fill={null}
         propList={
           [
@@ -636,7 +636,7 @@ exports[`IntensitySparkline Gradient and Markers should render with gradient str
         y={0}
       />
       <RNSVGPath
-        d="M 4,26.4 Q 32,26.4 60,23.520000000000003 Q 88,23.520000000000003 116,21.504"
+        d="M 4,26.4 L 60,23.520000000000003 L 116,21.504"
         fill={null}
         propList={
           [
@@ -890,7 +890,7 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot with all intens
         y={0}
       />
       <RNSVGPath
-        d="M 4,26.4 Q 32,26.4 60,25.44 Q 88,25.44 116,24.768"
+        d="M 4,26.4 L 60,25.44 L 116,24.768"
         fill={null}
         propList={
           [
@@ -1169,7 +1169,7 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot with custom col
         y={0}
       />
       <RNSVGPath
-        d="M 4,26.4 Q 32,26.4 60,22.560000000000002 Q 88,22.560000000000002 116,19.872000000000003"
+        d="M 4,26.4 L 60,22.560000000000002 L 116,19.872000000000003"
         fill={null}
         propList={
           [
@@ -1398,7 +1398,7 @@ exports[`IntensitySparkline Snapshot Tests should match snapshot with typical in
         y={0}
       />
       <RNSVGPath
-        d="M 4,26.4 Q 32,26.4 60,25.44 Q 88,25.44 116,24.768"
+        d="M 4,26.4 L 60,25.44 L 116,24.768"
         fill={null}
         propList={
           [
