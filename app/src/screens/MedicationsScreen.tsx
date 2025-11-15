@@ -30,6 +30,8 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   title: {
     fontSize: 34,
@@ -72,21 +74,24 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   },
   medicationHeader: {
     marginBottom: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
     alignItems: 'flex-start',
+    gap: 8,
   },
   medicationName: {
     fontSize: 18,
     fontWeight: '600',
     color: theme.text,
-    flex: 1,
+  },
+  badgeContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   typeBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
-    marginLeft: 8,
   },
   typeBadgeText: {
     fontSize: 12,
@@ -478,7 +483,7 @@ export default function MedicationsScreen() {
               >
                 <View style={styles.medicationHeader}>
                   <Text style={styles.medicationName}>{med.name}</Text>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <View style={styles.badgeContainer}>
                     <View style={[styles.typeBadge, { backgroundColor: theme.success + '20' }]}>
                       <Text style={[styles.typeBadgeText, { color: theme.success }]}>Preventative</Text>
                     </View>
@@ -617,7 +622,7 @@ export default function MedicationsScreen() {
               >
                 <View style={styles.medicationHeader}>
                   <Text style={styles.medicationName}>{med.name}</Text>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <View style={styles.badgeContainer}>
                     <View style={[styles.typeBadge, { backgroundColor: theme.primary + '20' }]}>
                       <Text style={[styles.typeBadgeText, { color: theme.primary }]}>Rescue</Text>
                     </View>
@@ -690,7 +695,7 @@ export default function MedicationsScreen() {
               >
                 <View style={styles.medicationHeader}>
                   <Text style={styles.medicationName}>{med.name}</Text>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <View style={styles.badgeContainer}>
                     <View style={[styles.typeBadge, { backgroundColor: theme.textSecondary + '20' }]}>
                       <Text style={[styles.typeBadgeText, { color: theme.textSecondary }]}>Other</Text>
                     </View>
