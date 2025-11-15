@@ -498,6 +498,28 @@ export const medicationDoseRepository = {
   },
 
   /**
+   * Get usage count for each medication (number of doses logged)
+   * Used to sort medications by frequency of use
+   * @returns Map of medication IDs to their usage counts
+   */
+  async getMedicationUsageCounts(db?: SQLite.SQLiteDatabase): Promise<Map<string, number>> {
+    const database = db || await getDatabase();
+    const results = await database.getAllAsync<{ medication_id: string; count: number }>(
+      `SELECT medication_id, COUNT(*) as count
+       FROM medication_doses
+       WHERE status = 'taken'
+       GROUP BY medication_id`
+    );
+
+    const usageCounts = new Map<string, number>();
+    results.forEach(row => {
+      usageCounts.set(row.medication_id, row.count);
+    });
+
+    return usageCounts;
+  },
+
+  /**
    * Check if a medication was logged for a specific scheduled time today
    *
    * Uses timezone-aware date calculations to determine "today" in the

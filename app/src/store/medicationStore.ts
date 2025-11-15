@@ -56,8 +56,21 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
     // Check cache first (5 second TTL)
     const cached = cacheManager.get<Medication[]>('medications');
     if (cached) {
+      // Get usage counts to sort rescue medications by frequency
+      const usageCounts = await medicationDoseRepository.getMedicationUsageCounts();
+
       const preventativeMedications = cached.filter(m => m.type === 'preventative');
-      const rescueMedications = cached.filter(m => m.type === 'rescue');
+      const rescueMedications = cached
+        .filter(m => m.type === 'rescue')
+        .sort((a, b) => {
+          const countA = usageCounts.get(a.id) || 0;
+          const countB = usageCounts.get(b.id) || 0;
+          // Sort by frequency descending, then by name ascending for ties
+          if (countB !== countA) {
+            return countB - countA;
+          }
+          return a.name.localeCompare(b.name);
+        });
       const otherMedications = cached.filter(m => m.type === 'other');
       set({
         medications: cached,
@@ -72,8 +85,22 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const medications = await medicationRepository.getActive();
+
+      // Get usage counts to sort rescue medications by frequency
+      const usageCounts = await medicationDoseRepository.getMedicationUsageCounts();
+
       const preventativeMedications = medications.filter(m => m.type === 'preventative');
-      const rescueMedications = medications.filter(m => m.type === 'rescue');
+      const rescueMedications = medications
+        .filter(m => m.type === 'rescue')
+        .sort((a, b) => {
+          const countA = usageCounts.get(a.id) || 0;
+          const countB = usageCounts.get(b.id) || 0;
+          // Sort by frequency descending, then by name ascending for ties
+          if (countB !== countA) {
+            return countB - countA;
+          }
+          return a.name.localeCompare(b.name);
+        });
       const otherMedications = medications.filter(m => m.type === 'other');
 
       cacheManager.set('medications', medications);

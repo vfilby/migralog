@@ -67,6 +67,7 @@ describe('medicationStore', () => {
       ];
 
       (medicationRepository.getActive as jest.Mock).mockResolvedValue(mockMedications);
+      (medicationDoseRepository.getMedicationUsageCounts as jest.Mock).mockResolvedValue(new Map());
 
       await useMedicationStore.getState().loadMedications();
 
@@ -83,6 +84,7 @@ describe('medicationStore', () => {
     it('should handle errors when loading medications', async () => {
       const error = new Error('Database error');
       (medicationRepository.getActive as jest.Mock).mockRejectedValue(error);
+      (medicationDoseRepository.getMedicationUsageCounts as jest.Mock).mockResolvedValue(new Map());
 
       await useMedicationStore.getState().loadMedications();
 
@@ -95,6 +97,7 @@ describe('medicationStore', () => {
       (medicationRepository.getActive as jest.Mock).mockImplementation(
         () => new Promise(resolve => setTimeout(() => resolve([]), 100))
       );
+      (medicationDoseRepository.getMedicationUsageCounts as jest.Mock).mockResolvedValue(new Map());
 
       const loadPromise = useMedicationStore.getState().loadMedications();
 
@@ -103,6 +106,127 @@ describe('medicationStore', () => {
       await loadPromise;
 
       expect(useMedicationStore.getState().loading).toBe(false);
+    });
+
+    it('should sort rescue medications by usage frequency', async () => {
+      const mockMedications: Medication[] = [
+        {
+          id: 'rescue-1',
+          name: 'Aspirin',
+          type: 'rescue',
+          dosageAmount: 100,
+          dosageUnit: 'mg',
+          defaultQuantity: 1,
+          scheduleFrequency: undefined,
+          photoUri: undefined,
+          schedule: [],
+          active: true,
+          notes: undefined,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+        {
+          id: 'rescue-2',
+          name: 'Ibuprofen',
+          type: 'rescue',
+          dosageAmount: 200,
+          dosageUnit: 'mg',
+          defaultQuantity: 1,
+          scheduleFrequency: undefined,
+          photoUri: undefined,
+          schedule: [],
+          active: true,
+          notes: undefined,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+        {
+          id: 'rescue-3',
+          name: 'Triptan',
+          type: 'rescue',
+          dosageAmount: 50,
+          dosageUnit: 'mg',
+          defaultQuantity: 1,
+          scheduleFrequency: undefined,
+          photoUri: undefined,
+          schedule: [],
+          active: true,
+          notes: undefined,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+      ];
+
+      // Mock usage counts: rescue-2 has 10 uses, rescue-3 has 5 uses, rescue-1 has 2 uses
+      const usageCounts = new Map([
+        ['rescue-1', 2],
+        ['rescue-2', 10],
+        ['rescue-3', 5],
+      ]);
+
+      (medicationRepository.getActive as jest.Mock).mockResolvedValue(mockMedications);
+      (medicationDoseRepository.getMedicationUsageCounts as jest.Mock).mockResolvedValue(usageCounts);
+
+      await useMedicationStore.getState().loadMedications();
+
+      const state = useMedicationStore.getState();
+      expect(state.rescueMedications).toHaveLength(3);
+      // Should be sorted by frequency: rescue-2 (10), rescue-3 (5), rescue-1 (2)
+      expect(state.rescueMedications[0].id).toBe('rescue-2');
+      expect(state.rescueMedications[1].id).toBe('rescue-3');
+      expect(state.rescueMedications[2].id).toBe('rescue-1');
+    });
+
+    it('should sort rescue medications alphabetically when usage counts are equal', async () => {
+      const mockMedications: Medication[] = [
+        {
+          id: 'rescue-z',
+          name: 'Zolmitriptan',
+          type: 'rescue',
+          dosageAmount: 100,
+          dosageUnit: 'mg',
+          defaultQuantity: 1,
+          scheduleFrequency: undefined,
+          photoUri: undefined,
+          schedule: [],
+          active: true,
+          notes: undefined,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+        {
+          id: 'rescue-a',
+          name: 'Aspirin',
+          type: 'rescue',
+          dosageAmount: 200,
+          dosageUnit: 'mg',
+          defaultQuantity: 1,
+          scheduleFrequency: undefined,
+          photoUri: undefined,
+          schedule: [],
+          active: true,
+          notes: undefined,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+      ];
+
+      // Both have the same usage count
+      const usageCounts = new Map([
+        ['rescue-z', 5],
+        ['rescue-a', 5],
+      ]);
+
+      (medicationRepository.getActive as jest.Mock).mockResolvedValue(mockMedications);
+      (medicationDoseRepository.getMedicationUsageCounts as jest.Mock).mockResolvedValue(usageCounts);
+
+      await useMedicationStore.getState().loadMedications();
+
+      const state = useMedicationStore.getState();
+      expect(state.rescueMedications).toHaveLength(2);
+      // Should be sorted alphabetically when counts are equal
+      expect(state.rescueMedications[0].name).toBe('Aspirin');
+      expect(state.rescueMedications[1].name).toBe('Zolmitriptan');
     });
   });
 
@@ -229,6 +353,7 @@ describe('medicationStore', () => {
     it('should update medication and reload', async () => {
       (medicationRepository.update as jest.Mock).mockResolvedValue(undefined);
       (medicationRepository.getActive as jest.Mock).mockResolvedValue([]);
+      (medicationDoseRepository.getMedicationUsageCounts as jest.Mock).mockResolvedValue(new Map());
 
       await useMedicationStore.getState().updateMedication('med-123', { name: 'Updated' });
 
@@ -386,6 +511,7 @@ describe('medicationStore', () => {
 
       (medicationRepository.update as jest.Mock).mockResolvedValue(undefined);
       (medicationRepository.getActive as jest.Mock).mockResolvedValue([{ ...med, active: true }]);
+      (medicationDoseRepository.getMedicationUsageCounts as jest.Mock).mockResolvedValue(new Map());
 
       await useMedicationStore.getState().unarchiveMedication('med-1');
 
@@ -626,6 +752,7 @@ describe('medicationStore', () => {
       ];
 
       (medicationRepository.getActive as jest.Mock).mockResolvedValue(mockMeds);
+      (medicationDoseRepository.getMedicationUsageCounts as jest.Mock).mockResolvedValue(new Map());
       await useMedicationStore.getState().loadMedications();
 
       expect(useMedicationStore.getState().medications).toHaveLength(1);
