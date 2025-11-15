@@ -502,16 +502,24 @@ export const medicationDoseRepository = {
    *
    * Returns a map of medication IDs to their usage count (number of doses logged).
    * This is used to sort medications by frequency of use.
+   * Only counts doses from the past 3 months to keep the query efficient.
    *
    * @returns Map of medication ID to usage count
    */
   async getMedicationUsageCounts(db?: SQLite.SQLiteDatabase): Promise<Map<string, number>> {
     const database = db || await getDatabase();
+
+    // Calculate timestamp for 3 months ago
+    const threeMonthsAgo = new Date();
+    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+    const cutoffTimestamp = threeMonthsAgo.getTime();
+
     const results = await database.getAllAsync<{ medication_id: string; count: number }>(
       `SELECT medication_id, COUNT(*) as count
        FROM medication_doses
-       WHERE status = 'taken'
-       GROUP BY medication_id`
+       WHERE status = 'taken' AND timestamp >= ?
+       GROUP BY medication_id`,
+      [cutoffTimestamp]
     );
 
     const usageCounts = new Map<string, number>();

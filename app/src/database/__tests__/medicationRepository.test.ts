@@ -588,10 +588,12 @@ describe('medicationDoseRepository', () => {
       expect(result.get('med-2')).toBe(3);
       expect(result.get('med-3')).toBe(10);
       expect(mockDatabase.getAllAsync).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT medication_id, COUNT(*) as count')
+        expect.stringContaining('SELECT medication_id, COUNT(*) as count'),
+        expect.any(Array)
       );
       expect(mockDatabase.getAllAsync).toHaveBeenCalledWith(
-        expect.stringContaining('GROUP BY medication_id')
+        expect.stringContaining('GROUP BY medication_id'),
+        expect.any(Array)
       );
     });
 
@@ -604,7 +606,7 @@ describe('medicationDoseRepository', () => {
       expect(result.size).toBe(0);
     });
 
-    it('should only count doses with status "taken"', async () => {
+    it('should only count doses with status "taken" from past 3 months', async () => {
       const mockRows = [
         { medication_id: 'med-1', count: 5 },
       ];
@@ -614,8 +616,23 @@ describe('medicationDoseRepository', () => {
       await medicationDoseRepository.getMedicationUsageCounts();
 
       expect(mockDatabase.getAllAsync).toHaveBeenCalledWith(
-        expect.stringContaining("WHERE status = 'taken'")
+        expect.stringContaining("WHERE status = 'taken' AND timestamp >= ?"),
+        expect.any(Array)
       );
+
+      // Verify the timestamp parameter is within reasonable bounds (3 months ago)
+      const call = mockDatabase.getAllAsync.mock.calls[0];
+      const params = call[1];
+      expect(params).toHaveLength(1);
+      expect(params[0]).toBeGreaterThan(0); // Should be a valid timestamp
+
+      // Verify timestamp is approximately 3 months ago
+      const threeMonthsAgo = new Date();
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+      const cutoffTimestamp = threeMonthsAgo.getTime();
+      // Allow for some test execution time (within 1 minute)
+      expect(params[0]).toBeGreaterThanOrEqual(cutoffTimestamp - 60000);
+      expect(params[0]).toBeLessThanOrEqual(cutoffTimestamp + 60000);
     });
   });
 
