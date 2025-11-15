@@ -43,13 +43,13 @@ const createStyles = (theme: ThemeColors) =>
     },
     button: {
       flex: 1,
-      flexDirection: 'row',
+      flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
       paddingVertical: 14,
-      paddingHorizontal: 16,
+      paddingHorizontal: 8,
       borderRadius: 12,
-      gap: 8,
+      gap: 4,
     },
     greenButton: {
       backgroundColor: theme.primary,
@@ -61,6 +61,7 @@ const createStyles = (theme: ThemeColors) =>
       fontSize: 16,
       fontWeight: '600',
       color: '#FFFFFF',
+      textAlign: 'center',
     },
     emoji: {
       fontSize: 20,
