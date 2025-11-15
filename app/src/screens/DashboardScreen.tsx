@@ -125,7 +125,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   },
   compactRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     flexWrap: 'wrap',
     gap: 12,
@@ -141,10 +141,12 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: theme.text,
+    flexShrink: 1,
   },
   compactTime: {
     fontSize: 13,
     color: theme.textSecondary,
+    flexShrink: 1,
   },
   compactButtons: {
     flexDirection: 'row',
@@ -156,6 +158,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 6,
+    flexShrink: 1,
   },
   compactLogButtonText: {
     color: theme.primaryText,
@@ -167,6 +170,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 6,
+    flexShrink: 0,
   },
   compactSkipButtonText: {
     color: '#FFFFFF',
