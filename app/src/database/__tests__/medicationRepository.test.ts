@@ -570,6 +570,55 @@ describe('medicationDoseRepository', () => {
     });
   });
 
+  describe('getMedicationUsageCounts', () => {
+    it('should return usage counts for all medications', async () => {
+      const mockRows = [
+        { medication_id: 'med-1', count: 5 },
+        { medication_id: 'med-2', count: 3 },
+        { medication_id: 'med-3', count: 10 },
+      ];
+
+      mockDatabase.getAllAsync.mockResolvedValue(mockRows);
+
+      const result = await medicationDoseRepository.getMedicationUsageCounts();
+
+      expect(result).toBeInstanceOf(Map);
+      expect(result.size).toBe(3);
+      expect(result.get('med-1')).toBe(5);
+      expect(result.get('med-2')).toBe(3);
+      expect(result.get('med-3')).toBe(10);
+      expect(mockDatabase.getAllAsync).toHaveBeenCalledWith(
+        expect.stringContaining('SELECT medication_id, COUNT(*) as count')
+      );
+      expect(mockDatabase.getAllAsync).toHaveBeenCalledWith(
+        expect.stringContaining('GROUP BY medication_id')
+      );
+    });
+
+    it('should return empty map when no doses exist', async () => {
+      mockDatabase.getAllAsync.mockResolvedValue([]);
+
+      const result = await medicationDoseRepository.getMedicationUsageCounts();
+
+      expect(result).toBeInstanceOf(Map);
+      expect(result.size).toBe(0);
+    });
+
+    it('should only count doses with status "taken"', async () => {
+      const mockRows = [
+        { medication_id: 'med-1', count: 5 },
+      ];
+
+      mockDatabase.getAllAsync.mockResolvedValue(mockRows);
+
+      await medicationDoseRepository.getMedicationUsageCounts();
+
+      expect(mockDatabase.getAllAsync).toHaveBeenCalledWith(
+        expect.stringContaining("WHERE status = 'taken'")
+      );
+    });
+  });
+
   describe('Validation Error Handling', () => {
     describe('medicationRepository.create validation', () => {
       it('should allow preventative medication without schedule frequency', async () => {
