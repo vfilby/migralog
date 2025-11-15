@@ -67,8 +67,10 @@ const createStyles = (theme: ThemeColors) =>
       justifyContent: 'space-between',
     },
     loggedText: {
+      flex: 1,
       fontSize: 15,
       color: theme.text,
+      marginRight: 12,
     },
     undoButton: {
       paddingVertical: 6,
