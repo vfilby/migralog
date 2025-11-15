@@ -151,6 +151,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     color: theme.primaryText,
     fontSize: 15,
     fontWeight: '600',
+    textAlign: 'center',
   },
   medicationActions: {
     flexDirection: 'row',
@@ -171,6 +172,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     color: theme.primaryText,
     fontSize: 15,
     fontWeight: '600',
+    textAlign: 'center',
   },
   detailedLogButton: {
     flex: 1,
@@ -187,6 +189,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     color: theme.primary,
     fontSize: 15,
     fontWeight: '600',
+    textAlign: 'center',
   },
   emptyCard: {
     backgroundColor: theme.card,
