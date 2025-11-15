@@ -659,7 +659,7 @@ export default function SettingsScreen({ navigation }: Props) {
                 accessibilityLabel="Enable notifications"
                 accessibilityHint="Requests permission to send medication reminder notifications"
               >
-                <Ionicons name="notifications-outline" size={20} color={theme.primary} />
+                <Ionicons name="notifications-outline" size={24} color={theme.primary} />
                 <Text style={styles.developerButtonText}>Enable Notifications</Text>
               </TouchableOpacity>
             )}
@@ -673,7 +673,7 @@ export default function SettingsScreen({ navigation }: Props) {
                   accessibilityLabel="Test regular notification"
                   accessibilityHint="Schedules a test notification to appear in 5 seconds"
                 >
-                  <Ionicons name="flask-outline" size={20} color={theme.primary} />
+                  <Ionicons name="flask-outline" size={24} color={theme.primary} />
                   <Text style={styles.developerButtonText}>Test Regular Notification (5s)</Text>
                 </TouchableOpacity>
 
@@ -684,7 +684,7 @@ export default function SettingsScreen({ navigation }: Props) {
                   accessibilityLabel="Test time-sensitive notification"
                   accessibilityHint="Schedules a time-sensitive test notification that breaks through Focus mode in 5 seconds"
                 >
-                  <Ionicons name="flash-outline" size={20} color={theme.primary} />
+                  <Ionicons name="flash-outline" size={24} color={theme.primary} />
                   <Text style={styles.developerButtonText}>Test Time-Sensitive (5s)</Text>
                 </TouchableOpacity>
 
@@ -695,7 +695,7 @@ export default function SettingsScreen({ navigation }: Props) {
                   accessibilityLabel="View scheduled notifications"
                   accessibilityHint="Shows a list of all currently scheduled notifications"
                 >
-                  <Ionicons name="list-outline" size={20} color={theme.primary} />
+                  <Ionicons name="list-outline" size={24} color={theme.primary} />
                   <Text style={styles.developerButtonText}>View Scheduled Notifications</Text>
                 </TouchableOpacity>
               </>
@@ -798,7 +798,7 @@ export default function SettingsScreen({ navigation }: Props) {
                 accessibilityLabel="Enable location"
                 accessibilityHint="Requests permission to access your location when starting episodes"
               >
-                <Ionicons name="location-outline" size={20} color={theme.primary} />
+                <Ionicons name="location-outline" size={24} color={theme.primary} />
                 <Text style={styles.developerButtonText}>Enable Location</Text>
               </TouchableOpacity>
             </View>
@@ -913,7 +913,7 @@ export default function SettingsScreen({ navigation }: Props) {
               accessibilityLabel="View error logs"
               accessibilityHint="Opens the error logs screen to view recent app errors"
             >
-              <Ionicons name="list-outline" size={20} color={theme.primary} />
+              <Ionicons name="list-outline" size={24} color={theme.primary} />
               <Text style={styles.developerButtonText}>View Error Logs</Text>
             </TouchableOpacity>
 
@@ -926,7 +926,7 @@ export default function SettingsScreen({ navigation }: Props) {
                 accessibilityLabel="Performance"
                 accessibilityHint="Opens the performance monitoring screen"
               >
-                <Ionicons name="speedometer-outline" size={20} color={theme.primary} />
+                <Ionicons name="speedometer-outline" size={24} color={theme.primary} />
                 <Text style={styles.developerButtonText}>Performance</Text>
               </TouchableOpacity>
             )}
@@ -938,7 +938,7 @@ export default function SettingsScreen({ navigation }: Props) {
               accessibilityLabel="Test error logging"
               accessibilityHint="Creates a test error entry in the error logs"
             >
-              <Ionicons name="flask-outline" size={20} color={theme.primary} />
+              <Ionicons name="flask-outline" size={24} color={theme.primary} />
               <Text style={styles.developerButtonText}>Test Error Logging</Text>
             </TouchableOpacity>
 
@@ -954,7 +954,7 @@ export default function SettingsScreen({ navigation }: Props) {
                 >
                   <Ionicons
                     name={sentryStatus.isConfigured ? 'checkmark-circle' : 'alert-circle'}
-                    size={20}
+                    size={24}
                     color={sentryStatus.isConfigured ? '#34C759' : theme.danger}
                   />
                   <View style={{ flex: 1, marginLeft: 12 }}>
@@ -1060,7 +1060,7 @@ export default function SettingsScreen({ navigation }: Props) {
               accessibilityLabel="Test Sentry integration"
               accessibilityHint="Sends test events to Sentry to verify error tracking is working"
             >
-              <Ionicons name="bug-outline" size={20} color={theme.primary} />
+              <Ionicons name="bug-outline" size={24} color={theme.primary} />
               <Text style={styles.developerButtonText}>Test Sentry Integration</Text>
             </TouchableOpacity>
 
@@ -1087,7 +1087,7 @@ export default function SettingsScreen({ navigation }: Props) {
                   accessibilityLabel="Reset database"
                   accessibilityHint="Creates a backup then clears all data from the database for testing purposes"
                 >
-                  <Ionicons name="refresh-outline" size={20} color={theme.error} />
+                  <Ionicons name="refresh-outline" size={24} color={theme.error} />
                   <Text style={[styles.developerButtonText, styles.developerButtonTextDanger]}>
                     Reset Database (Testing)
                   </Text>
@@ -1101,7 +1101,7 @@ export default function SettingsScreen({ navigation }: Props) {
                   accessibilityLabel="Reset with test data"
                   accessibilityHint="Creates a backup, clears the database, and loads sample medications and episodes for testing"
                 >
-                  <Ionicons name="flask-outline" size={20} color={theme.primary} />
+                  <Ionicons name="flask-outline" size={24} color={theme.primary} />
                   <Text style={[styles.developerButtonText]}>
                     Reset with Test Data
                   </Text>
@@ -1326,12 +1326,11 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     backgroundColor: theme.card,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 14,
+    padding: 16,
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: theme.border,
-    gap: 8,
+    gap: 12,
   },
   developerButtonDanger: {
     borderColor: theme.error + '40', // 40% opacity
