@@ -121,16 +121,19 @@ const IntensitySparkline: React.FC<IntensitySparklineProps> = ({
         // Use quadratic bezier curve for smooth interpolation with look-ahead
         const prevX = padding + ((index - 1) * xStep);
 
-        // Look ahead to next point for anticipatory smoothing
+        // Blend current and next point for smooth anticipatory curve
         let controlY = y; // Default to current point's Y
         if (index < interpolatedData.length - 1) {
-          // Use next point's Y to anticipate the change
+          // Blend current and next point Y values for gentler anticipation
           const nextPoint = interpolatedData[index + 1];
           const nextNormalizedY = (nextPoint.intensity - minIntensity) / (maxIntensity - minIntensity);
-          controlY = padding + chartHeight - (nextNormalizedY * chartHeight);
+          const nextY = padding + chartHeight - (nextNormalizedY * chartHeight);
+
+          // Use weighted average: 30% next, 70% current for subtle anticipation
+          controlY = y * 0.7 + nextY * 0.3;
         }
 
-        // Control point is midway between points, using look-ahead Y
+        // Control point is midway between points, using blended Y
         const cpX = (prevX + x) / 2;
 
         return `Q ${cpX},${controlY} ${x},${y}`;
