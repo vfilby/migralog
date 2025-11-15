@@ -43,13 +43,11 @@ const createStyles = (theme: ThemeColors) =>
     },
     button: {
       flex: 1,
-      flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 14,
-      paddingHorizontal: 8,
+      paddingVertical: 16,
+      paddingHorizontal: 12,
       borderRadius: 12,
-      gap: 4,
     },
     greenButton: {
       backgroundColor: theme.primary,
@@ -62,9 +60,6 @@ const createStyles = (theme: ThemeColors) =>
       fontWeight: '600',
       color: '#FFFFFF',
       textAlign: 'center',
-    },
-    emoji: {
-      fontSize: 20,
     },
     loggedContainer: {
       flexDirection: 'row',
@@ -186,13 +181,12 @@ export default function DailyStatusWidget({ onStatusLogged }: DailyStatusWidgetP
 
   if (yesterdayStatus) {
     const statusLabel = yesterdayStatus.status === 'green' ? 'Clear day' : 'Not clear';
-    const statusEmoji = yesterdayStatus.status === 'green' ? '🟢' : '🟡';
 
     return (
       <View style={styles.container} testID="daily-status-widget-logged">
         <View style={styles.loggedContainer}>
           <Text style={styles.loggedText}>
-            <Text style={styles.emoji}>{statusEmoji}</Text> Yesterday logged as {statusLabel}
+            Yesterday logged as {statusLabel}
           </Text>
           <TouchableOpacity
             style={styles.undoButton}
@@ -223,7 +217,6 @@ export default function DailyStatusWidget({ onStatusLogged }: DailyStatusWidgetP
           accessibilityLabel="Clear day"
           accessibilityHint="Log yesterday as a migraine-free day"
         >
-          <Text style={styles.emoji}>🟢</Text>
           <Text style={styles.buttonText}>Clear</Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -234,7 +227,6 @@ export default function DailyStatusWidget({ onStatusLogged }: DailyStatusWidgetP
           accessibilityLabel="Not clear day"
           accessibilityHint="Log yesterday as not migraine-free"
         >
-          <Text style={styles.emoji}>🟡</Text>
           <Text style={styles.buttonText}>Not Clear</Text>
         </TouchableOpacity>
       </View>
