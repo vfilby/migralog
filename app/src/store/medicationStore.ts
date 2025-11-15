@@ -194,7 +194,8 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
 
       // Dismiss any presented notifications for this medication
       // This removes the notification from the notification tray when logging from the app
-      await notificationService.dismissMedicationNotification(dose.medicationId);
+      // Pass scheduleId to ensure only the correct notification is dismissed for medications with multiple schedules
+      await notificationService.dismissMedicationNotification(dose.medicationId, dose.scheduleId);
       logger.log('[Store] Dismissed notification for logged medication');
 
       // Add to doses in state

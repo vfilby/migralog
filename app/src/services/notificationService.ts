@@ -367,6 +367,7 @@ class NotificationService {
 
       await useMedicationStore.getState().logDose({
         medicationId,
+        scheduleId,
         timestamp,
         quantity: dosage,
         dosageAmount: medication.dosageAmount,
@@ -482,6 +483,7 @@ class NotificationService {
           const timestamp = Date.now();
           await useMedicationStore.getState().logDose({
             medicationId,
+            scheduleId,
             timestamp,
             quantity: dosage,
             dosageAmount: medication.dosageAmount,
@@ -991,6 +993,11 @@ class NotificationService {
   /**
    * Dismiss presented notifications for a medication
    * This removes notifications from the notification tray when medication is logged from the app
+   *
+   * For grouped notifications (multiple medications at the same time):
+   * - If scheduleId is provided, only dismisses if BOTH medicationId AND scheduleId match
+   * - This ensures medications with multiple daily schedules only dismiss the correct notification
+   * - Example: Med A at 9am and 9pm should only dismiss the 9am notification when logging the 9am dose
    */
   async dismissMedicationNotification(medicationId: string, scheduleId?: string): Promise<void> {
     try {

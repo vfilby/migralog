@@ -137,6 +137,7 @@ export type DoseStatus = 'taken' | 'skipped';
 export interface MedicationDose {
   id: string;
   medicationId: string;
+  scheduleId?: string; // Link to the schedule that triggered this dose (for preventative medications)
   timestamp: number;
   quantity: number; // Number of dosage units taken (e.g., 2 pills)
   dosageAmount?: number; // Dosage per unit at time of logging (e.g., 50mg per pill) - snapshot for historical accuracy

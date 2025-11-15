@@ -394,6 +394,30 @@ describe('notificationService', () => {
       expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith('notif-group-1');
     });
 
+    it('should not dismiss grouped notification if scheduleId does not match', async () => {
+      const mockPresentedNotifs = [
+        {
+          request: {
+            identifier: 'notif-group-1',
+            content: {
+              data: {
+                medicationIds: ['med-123', 'med-456'],
+                scheduleIds: ['sched-1', 'sched-2'],
+              },
+            },
+          },
+        },
+      ];
+
+      (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue(mockPresentedNotifs);
+
+      // Try to dismiss med-123 but with a different scheduleId (sched-3 instead of sched-1)
+      await notificationService.dismissMedicationNotification('med-123', 'sched-3');
+
+      // Should NOT dismiss the notification since scheduleId doesn't match
+      expect(Notifications.dismissNotificationAsync).not.toHaveBeenCalled();
+    });
+
     it('should handle errors when dismissing notifications', async () => {
       (Notifications.getPresentedNotificationsAsync as jest.Mock).mockRejectedValue(
         new Error('Failed to get presented notifications')
