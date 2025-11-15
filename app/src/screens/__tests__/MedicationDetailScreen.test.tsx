@@ -24,6 +24,12 @@ jest.mock('../../database/medicationRepository', () => ({
     delete: jest.fn(),
   },
 }));
+jest.mock('../../utils/textScaling', () => ({
+  isLargeTextModeEnabled: jest.fn(() => false),
+  getFontScale: jest.fn(() => 1.0),
+  getScaledFontSize: jest.fn((size) => size),
+  MAX_FONT_SCALE: 3.1,
+}));
 
 const mockNavigation = {
   navigate: jest.fn(),

@@ -28,6 +28,7 @@ import { useMedicationStatusStyles } from '../utils/medicationStyling';
 import { getLast7DaysTimeline as calculateLast7DaysTimeline } from '../utils/medicationTimeline';
 import { getCategoryName } from '../utils/presetMedications';
 import NotificationSettings from '../components/NotificationSettings';
+import { isLargeTextModeEnabled } from '../utils/textScaling';
 import { Ionicons } from '@expo/vector-icons';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MedicationDetail'>;
@@ -257,6 +258,8 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
     ? calculateLast7DaysTimeline(doses)
     : [];
 
+  const largeTextMode = isLargeTextModeEnabled();
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]} testID="medication-detail-screen">
       {/* Header */}
@@ -269,7 +272,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
         >
           <Text style={[styles.backButton, { color: theme.primary }]}>← Back</Text>
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Medication Details</Text>
+        {!largeTextMode && <Text style={[styles.headerTitle, { color: theme.text }]}>Medication Details</Text>}
         <TouchableOpacity
           onPress={() => navigation.navigate('EditMedication', { medicationId })}
           accessibilityRole="button"

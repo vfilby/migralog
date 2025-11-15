@@ -19,6 +19,7 @@ import { MedicationType, ScheduleFrequency, MedicationSchedule } from '../models
 import MedicationScheduleManager from '../components/MedicationScheduleManager';
 import { useTheme, ThemeColors } from '../theme';
 import { notificationService } from '../services/notificationService';
+import { isLargeTextModeEnabled } from '../utils/textScaling';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditMedication'>;
 
@@ -403,6 +404,8 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
     }
   };
 
+  const largeTextMode = isLargeTextModeEnabled();
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -415,7 +418,7 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
           >
             <Text style={styles.cancelButton}>Cancel</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>Edit Medication</Text>
+          {!largeTextMode && <Text style={styles.title}>Edit Medication</Text>}
           <View style={{ width: 60 }} />
         </View>
         <Text style={styles.loadingText}>Loading...</Text>
@@ -434,7 +437,7 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
         >
           <Text style={styles.cancelButton}>Cancel</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Edit Medication</Text>
+        {!largeTextMode && <Text style={styles.title}>Edit Medication</Text>}
         <View style={{ width: 60 }} />
       </View>
 
