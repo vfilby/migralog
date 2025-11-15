@@ -68,21 +68,25 @@ const IntensitySparkline: React.FC<IntensitySparklineProps> = ({
       data.push({ timestamp: time, intensity });
     }
 
-    // Apply Exponential Moving Average (EMA) for smoothing
+    // Apply Reverse (Look-Ahead) Exponential Moving Average for smoothing
+    // Process from end to start so the curve anticipates changes instead of lagging
     // Higher alpha = more responsive (less smooth), lower alpha = smoother
     // alpha = 0.30 provides light smoothing with high responsiveness
     const alpha = 0.30;
-    const smoothed: Array<{ timestamp: number; intensity: number }> = [];
+    const smoothed: Array<{ timestamp: number; intensity: number }> = new Array(data.length);
 
-    data.forEach((point, index) => {
-      if (index === 0) {
-        smoothed.push(point);
+    // Process backwards from end to start
+    for (let index = data.length - 1; index >= 0; index--) {
+      if (index === data.length - 1) {
+        // Last point uses raw value
+        smoothed[index] = data[index];
       } else {
-        // EMA formula: EMA(t) = alpha * value(t) + (1 - alpha) * EMA(t-1)
-        const ema = alpha * point.intensity + (1 - alpha) * smoothed[index - 1].intensity;
-        smoothed.push({ timestamp: point.timestamp, intensity: ema });
+        // Reverse EMA formula: EMA(t) = alpha * value(t) + (1 - alpha) * EMA(t+1)
+        // Looks ahead to the next point instead of back to the previous
+        const ema = alpha * data[index].intensity + (1 - alpha) * smoothed[index + 1].intensity;
+        smoothed[index] = { timestamp: data[index].timestamp, intensity: ema };
       }
-    });
+    }
 
     return smoothed;
   }, [readings, episodeEndTime]);
