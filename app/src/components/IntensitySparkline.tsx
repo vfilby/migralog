@@ -120,14 +120,11 @@ const IntensitySparkline: React.FC<IntensitySparklineProps> = ({
       } else {
         // Use quadratic bezier curve for smooth interpolation
         const prevX = padding + ((index - 1) * xStep);
-        const prevPoint = interpolatedData[index - 1];
-        const prevNormalizedY = (prevPoint.intensity - minIntensity) / (maxIntensity - minIntensity);
-        const prevY = padding + chartHeight - (prevNormalizedY * chartHeight);
 
-        // Control point is midway between points
+        // Control point is midway between points, using current Y to lead INTO the datapoint
         const cpX = (prevX + x) / 2;
 
-        return `Q ${cpX},${prevY} ${x},${y}`;
+        return `Q ${cpX},${y} ${x},${y}`;
       }
     })
     .join(' ');
