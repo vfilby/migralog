@@ -36,8 +36,8 @@ describe('medicationStyling', () => {
 
         // Should return a hex color (danger color)
         expect(color).toMatch(/^#[A-F0-9]{6}$/i);
-        // In light theme, danger is '#FF3B30'
-        expect(color).toBe('#FF3B30');
+        // In light theme, danger is '#D30F00' (updated for WCAG AA compliance)
+        expect(color).toBe('#D30F00');
       });
     });
 
@@ -72,7 +72,7 @@ describe('medicationStyling', () => {
       await waitFor(() => {
         const styleColor = screen.getByTestId('style-color-output').props.children;
 
-        expect(styleColor).toBe('#FF3B30'); // danger color
+        expect(styleColor).toBe('#D30F00'); // danger color (updated for WCAG AA compliance)
       });
     });
 

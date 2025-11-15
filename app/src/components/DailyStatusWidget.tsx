@@ -55,7 +55,7 @@ const createStyles = (theme: ThemeColors) =>
       backgroundColor: theme.primary,
     },
     yellowButton: {
-      backgroundColor: '#F59E0B',
+      backgroundColor: '#C77700', // Changed from #F59E0B for WCAG AA compliance (3.46:1 with white text)
     },
     buttonText: {
       fontSize: 16,
