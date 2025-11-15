@@ -285,7 +285,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
         <View style={[styles.section, { backgroundColor: theme.card }]}>
           <View style={styles.medicationHeader}>
             <Text style={[styles.medicationName, { color: theme.text }]}>{medication.name}</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={styles.badgeContainer}>
               <View style={[styles.typeBadge, {
                 backgroundColor: medication.type === 'preventative'
                   ? theme.success + '20'
@@ -631,10 +631,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
     paddingTop: 60,
     paddingBottom: 16,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
+    gap: 8,
   },
   backButton: {
     fontSize: 17,
@@ -643,6 +645,8 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: '600',
+    flexShrink: 1,
+    textAlign: 'center',
   },
   editButton: {
     fontSize: 17,
@@ -673,21 +677,24 @@ const styles = StyleSheet.create({
     paddingBottom: 0,
   },
   medicationHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
     alignItems: 'flex-start',
     marginBottom: 16,
+    gap: 12,
   },
   medicationName: {
     fontSize: 28,
     fontWeight: '700',
-    flex: 1,
+  },
+  badgeContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   typeBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
-    marginLeft: 12,
   },
   typeBadgeText: {
     fontSize: 13,
