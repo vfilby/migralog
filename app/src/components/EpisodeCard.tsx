@@ -66,7 +66,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     color: theme.text,
-    flexShrink: 1,
+    flex: 1,
   },
   cardSecondRow: {
     flexDirection: 'row',
@@ -109,6 +109,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
+    flexShrink: 0,
   },
   ongoingText: {
     color: theme.ongoingText,

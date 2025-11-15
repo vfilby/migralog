@@ -42,7 +42,8 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   },
   card: {
     backgroundColor: theme.card,
-    margin: 16,
+    marginHorizontal: 16,
+    marginVertical: 8,
     padding: 16,
     borderRadius: 12,
     shadowColor: theme.shadow,
@@ -50,6 +51,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    alignSelf: 'stretch',
   },
   cardTitle: {
     fontSize: 20,
