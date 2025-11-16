@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme, ThemeColors } from '../theme';
 import { useMedicationStore } from '../store/medicationStore';
@@ -74,10 +74,23 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
 export default function MedicationUsageStatistics({ selectedRange }: MedicationUsageStatisticsProps) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const { medications, doses } = useMedicationStore();
+  const { medications, doses, schedules, loadSchedules } = useMedicationStore();
+
+  // Load schedules when component mounts
+  useEffect(() => {
+    loadSchedules();
+  }, [loadSchedules]);
 
   const statistics = useMemo(() => {
     const { startDate, endDate } = getDateRangeForDays(selectedRange);
+
+    // Calculate actual days in range (inclusive)
+    const normalizedStart = new Date(startDate);
+    normalizedStart.setHours(0, 0, 0, 0);
+    const normalizedEnd = new Date(endDate);
+    normalizedEnd.setHours(0, 0, 0, 0);
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const totalDays = Math.round((normalizedEnd.getTime() - normalizedStart.getTime()) / msPerDay) + 1;
 
     // Calculate per-medication stats
     const allMedicationStats = calculatePerMedicationStats(
@@ -98,23 +111,92 @@ export default function MedicationUsageStatistics({ selectedRange }: MedicationU
     // Sort medications by total doses (descending)
     rescueMedicationStats.sort((a, b) => b.totalDoses - a.totalDoses);
 
+    // Calculate preventative medication compliance
+    const preventativeMedications = medications.filter(m => m.type === 'preventative');
+    const preventativeComplianceStats = preventativeMedications.map(medication => {
+      // Get enabled schedules for this medication
+      const medicationSchedules = schedules.filter(
+        s => s.medicationId === medication.id && s.enabled
+      );
+
+      // Calculate expected doses (schedules × days in range)
+      const expectedDoses = medicationSchedules.length * totalDays;
+
+      // Count actual doses taken (exclude skipped)
+      const medicationDoses = doses.filter(d =>
+        d.medicationId === medication.id &&
+        d.status === 'taken' &&
+        d.timestamp >= normalizedStart.getTime() &&
+        d.timestamp <= normalizedEnd.getTime()
+      );
+      const actualDoses = medicationDoses.length;
+
+      // Calculate compliance percentage
+      const compliance = expectedDoses > 0
+        ? Math.min(Math.round((actualDoses / expectedDoses) * 100), 100)
+        : 0;
+
+      return {
+        medicationId: medication.id,
+        medicationName: medication.name,
+        expectedDoses,
+        actualDoses,
+        compliance,
+      };
+    });
+
+    // Sort by compliance (descending)
+    preventativeComplianceStats.sort((a, b) => b.compliance - a.compliance);
+
     return {
       rescueMedicationStats,
+      preventativeComplianceStats,
     };
-  }, [selectedRange, medications, doses]);
+  }, [selectedRange, medications, doses, schedules]);
 
-  const hasMedicationData = statistics.rescueMedicationStats.length > 0;
+  const hasRescueMedicationData = statistics.rescueMedicationStats.length > 0;
+  const hasPreventativeMedicationData = statistics.preventativeComplianceStats.length > 0;
 
   return (
     <View style={styles.container} testID="medication-usage-statistics" accessibilityRole="summary">
-      <Text style={styles.sectionTitle} accessibilityRole="header">Rescue Medication Usage</Text>
+      {/* Preventative Medication Compliance */}
+      {hasPreventativeMedicationData && (
+        <>
+          <Text style={styles.sectionTitle} accessibilityRole="header">Preventative Medication Compliance</Text>
+          <View style={styles.card} testID="preventative-compliance-card">
+            {statistics.preventativeComplianceStats.map((stat, index) => (
+              <View
+                key={stat.medicationId}
+                style={[
+                  styles.medicationItem,
+                  index === statistics.preventativeComplianceStats.length - 1 ? styles.medicationItemLast : {},
+                ]}
+                testID={`preventative-item-${stat.medicationId}`}
+              >
+                <Text style={styles.medicationName}>{stat.medicationName}</Text>
+                <Text
+                  style={styles.medicationStats}
+                  accessibilityLabel={`${stat.medicationName}: ${stat.compliance}% compliance`}
+                >
+                  {stat.compliance}%
+                </Text>
+              </View>
+            ))}
+          </View>
+        </>
+      )}
 
-      {!hasMedicationData ? (
+      {/* Rescue Medication Usage */}
+      <Text style={[styles.sectionTitle, hasPreventativeMedicationData && { marginTop: 24 }]} accessibilityRole="header">
+        Rescue Medication Usage
+      </Text>
+
+      {!hasRescueMedicationData ? (
         <View style={styles.emptyContainer} testID="empty-state">
           <Text style={styles.emptyText}>No rescue medication usage in selected period</Text>
         </View>
       ) : (
-        <View style={styles.card}>
+        <View style={styles.card} testID="rescue-medication-card">
           {/* Rescue Medication Breakdown */}
           {statistics.rescueMedicationStats.map((stat, index) => (
             <View
@@ -123,7 +205,7 @@ export default function MedicationUsageStatistics({ selectedRange }: MedicationU
                 styles.medicationItem,
                 index === statistics.rescueMedicationStats.length - 1 ? styles.medicationItemLast : {},
               ]}
-              testID={`medication-item-${stat.medicationId}`}
+              testID={`rescue-item-${stat.medicationId}`}
             >
               <Text style={styles.medicationName}>{stat.medicationName}</Text>
               <Text
