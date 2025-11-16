@@ -39,11 +39,11 @@ export default function AnalyticsScreen() {
         <Text style={styles.title}>Trends & Analytics</Text>
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} stickyHeaderIndices={[1]}>
         {/* Monthly Calendar View */}
         <MonthlyCalendarView />
 
-        {/* Time Range Selector */}
+        {/* Time Range Selector - Sticky when scrolling */}
         <TimeRangeSelector
           selectedRange={selectedTimeRange}
           onRangeChange={setSelectedTimeRange}
