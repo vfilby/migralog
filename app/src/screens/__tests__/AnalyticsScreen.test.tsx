@@ -23,6 +23,39 @@ jest.mock('../../components/MonthlyCalendarView', () => {
   };
 });
 
+jest.mock('../../components/TimeRangeSelector', () => {
+  const { View, Text } = require('react-native');
+  return function MockTimeRangeSelector() {
+    return (
+      <View testID="time-range-selector">
+        <Text>Time Range Selector</Text>
+      </View>
+    );
+  };
+});
+
+jest.mock('../../components/EpisodeStatistics', () => {
+  const { View, Text } = require('react-native');
+  return function MockEpisodeStatistics() {
+    return (
+      <View testID="episode-statistics">
+        <Text>Episode Statistics</Text>
+      </View>
+    );
+  };
+});
+
+jest.mock('../../components/MedicationUsageStatistics', () => {
+  const { View, Text } = require('react-native');
+  return function MockMedicationUsageStatistics() {
+    return (
+      <View testID="medication-usage-statistics">
+        <Text>Medication Usage Statistics</Text>
+      </View>
+    );
+  };
+});
+
 const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <ThemeProvider>
     {children}
@@ -49,41 +82,24 @@ describe('AnalyticsScreen', () => {
       });
     });
 
-    it('shows empty state when no episodes exist', async () => {
-      const { useEpisodeStore } = require('../../store/episodeStore');
-      useEpisodeStore.mockReturnValue({
-        episodes: [],
-        loading: false,
-        error: null,
-        loadEpisodes: jest.fn(),
-      });
-
-      const { getByText } = render(<AnalyticsScreen />, { wrapper: TestWrapper });
-      
+    it('renders time range selector component', async () => {
+      const { getByTestId } = render(<AnalyticsScreen />, { wrapper: TestWrapper });
       await waitFor(() => {
-        expect(getByText('No data yet')).toBeTruthy();
-        expect(getByText('Start tracking episodes to see insights')).toBeTruthy();
+        expect(getByTestId('time-range-selector')).toBeTruthy();
       });
     });
 
-    it('displays statistics sections', async () => {
-      const { getByText } = render(<AnalyticsScreen />, { wrapper: TestWrapper });
-      
+    it('renders episode statistics component', async () => {
+      const { getByTestId } = render(<AnalyticsScreen />, { wrapper: TestWrapper });
       await waitFor(() => {
-        expect(getByText('This Month')).toBeTruthy();
-        expect(getByText('Overall Statistics')).toBeTruthy();
-        expect(getByText('Coming Soon')).toBeTruthy();
+        expect(getByTestId('episode-statistics')).toBeTruthy();
       });
     });
 
-    it('displays coming soon features', async () => {
-      const { getByText } = render(<AnalyticsScreen />, { wrapper: TestWrapper });
-      
+    it('renders medication usage statistics component', async () => {
+      const { getByTestId } = render(<AnalyticsScreen />, { wrapper: TestWrapper });
       await waitFor(() => {
-        expect(getByText('• Pattern recognition')).toBeTruthy();
-        expect(getByText('• Trigger analysis')).toBeTruthy();
-        expect(getByText('• Medication effectiveness')).toBeTruthy();
-        expect(getByText('• Exportable reports')).toBeTruthy();
+        expect(getByTestId('medication-usage-statistics')).toBeTruthy();
       });
     });
 
@@ -95,72 +111,11 @@ describe('AnalyticsScreen', () => {
     });
   });
 
-  describe('Statistics Display', () => {
-    it('shows zero stats when no episodes exist', async () => {
-      const { useEpisodeStore } = require('../../store/episodeStore');
-      useEpisodeStore.mockReturnValue({
-        episodes: [],
-        loading: false,
-        error: null,
-        loadEpisodes: jest.fn(),
-      });
-
-      const { getAllByText } = render(<AnalyticsScreen />, { wrapper: TestWrapper });
-      
-      await waitFor(() => {
-        const zeros = getAllByText('0');
-        expect(zeros.length).toBeGreaterThan(0);
-      });
-    });
-
-    it('calculates and displays stats when episodes exist', async () => {
-      const { useEpisodeStore } = require('../../store/episodeStore');
-      const mockEpisodes = [
-        {
-          id: 'episode-1',
-          startTime: Date.now() - 24 * 60 * 60 * 1000,
-          endTime: Date.now() - 20 * 60 * 60 * 1000,
-          locations: ['front'],
-          qualities: ['throbbing'],
-          symptoms: ['nausea'],
-          triggers: ['stress'],
-          notes: 'Test episode',
-          createdAt: Date.now() - 24 * 60 * 60 * 1000,
-          updatedAt: Date.now() - 20 * 60 * 60 * 1000,
-        },
-      ];
-
-      useEpisodeStore.mockReturnValue({
-        episodes: mockEpisodes,
-        loading: false,
-        error: null,
-        loadEpisodes: jest.fn(),
-      });
-
-      const { getAllByText } = render(<AnalyticsScreen />, { wrapper: TestWrapper });
-      
-      await waitFor(() => {
-        const ones = getAllByText('1');
-        expect(ones.length).toBeGreaterThan(0);
-      });
-    });
-  });
-
   describe('Accessibility', () => {
     it('has proper testID for the screen', async () => {
       const { getByTestId } = render(<AnalyticsScreen />, { wrapper: TestWrapper });
       await waitFor(() => {
         expect(getByTestId('analytics-screen')).toBeTruthy();
-      });
-    });
-
-    it('provides accessible labels for stats', async () => {
-      const { getByText, getAllByText } = render(<AnalyticsScreen />, { wrapper: TestWrapper });
-
-      await waitFor(() => {
-        expect(getByText('Episodes')).toBeTruthy();
-        expect(getAllByText('Total Episodes').length).toBeGreaterThanOrEqual(1);
-        expect(getByText('Avg Duration')).toBeTruthy();
       });
     });
   });
