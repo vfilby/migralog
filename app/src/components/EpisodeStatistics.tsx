@@ -70,7 +70,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     backgroundColor: theme.card,
     borderRadius: 12,
     padding: 20,
-    marginTop: 12,
+    marginTop: 8,
     shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,

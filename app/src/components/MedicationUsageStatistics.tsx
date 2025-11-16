@@ -27,7 +27,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     backgroundColor: theme.card,
     borderRadius: 12,
     padding: 20,
-    marginTop: 12,
+    marginTop: 8,
     shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -159,35 +159,8 @@ export default function MedicationUsageStatistics({ selectedRange }: MedicationU
 
   return (
     <View style={styles.container} testID="medication-usage-statistics" accessibilityRole="summary">
-      {/* Preventative Medication Compliance */}
-      {hasPreventativeMedicationData && (
-        <>
-          <Text style={styles.sectionTitle} accessibilityRole="header">Preventative Medication Compliance</Text>
-          <View style={styles.card} testID="preventative-compliance-card">
-            {statistics.preventativeComplianceStats.map((stat, index) => (
-              <View
-                key={stat.medicationId}
-                style={[
-                  styles.medicationItem,
-                  index === statistics.preventativeComplianceStats.length - 1 ? styles.medicationItemLast : {},
-                ]}
-                testID={`preventative-item-${stat.medicationId}`}
-              >
-                <Text style={styles.medicationName}>{stat.medicationName}</Text>
-                <Text
-                  style={styles.medicationStats}
-                  accessibilityLabel={`${stat.medicationName}: ${stat.compliance}% compliance`}
-                >
-                  {stat.compliance}%
-                </Text>
-              </View>
-            ))}
-          </View>
-        </>
-      )}
-
       {/* Rescue Medication Usage */}
-      <Text style={[styles.sectionTitle, hasPreventativeMedicationData && { marginTop: 24 }]} accessibilityRole="header">
+      <Text style={styles.sectionTitle} accessibilityRole="header">
         Rescue Medication Usage
       </Text>
 
@@ -217,6 +190,35 @@ export default function MedicationUsageStatistics({ selectedRange }: MedicationU
             </View>
           ))}
         </View>
+      )}
+
+      {/* Preventative Medication Compliance */}
+      {hasPreventativeMedicationData && (
+        <>
+          <Text style={[styles.sectionTitle, { marginTop: 24 }]} accessibilityRole="header">
+            Preventative Medication Compliance
+          </Text>
+          <View style={styles.card} testID="preventative-compliance-card">
+            {statistics.preventativeComplianceStats.map((stat, index) => (
+              <View
+                key={stat.medicationId}
+                style={[
+                  styles.medicationItem,
+                  index === statistics.preventativeComplianceStats.length - 1 ? styles.medicationItemLast : {},
+                ]}
+                testID={`preventative-item-${stat.medicationId}`}
+              >
+                <Text style={styles.medicationName}>{stat.medicationName}</Text>
+                <Text
+                  style={styles.medicationStats}
+                  accessibilityLabel={`${stat.medicationName}: ${stat.compliance}% compliance`}
+                >
+                  {stat.compliance}%
+                </Text>
+              </View>
+            ))}
+          </View>
+        </>
       )}
     </View>
   );
