@@ -78,12 +78,6 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  durationTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.text,
-    marginBottom: 12,
-  },
   durationRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -187,57 +181,53 @@ export default function EpisodeStatistics({ selectedRange }: EpisodeStatisticsPr
           <Text style={styles.emptyText}>No episodes in selected period</Text>
         </View>
       ) : (
-        <>
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard} testID="total-episodes-card" accessible accessibilityLabel={`${statistics.episodeFrequency} total episodes in the selected period`}>
-              <Text style={styles.statValue}>
-                {statistics.episodeFrequency}
-              </Text>
-              <Text style={styles.statLabel}>Total Episodes</Text>
-            </View>
+        <View style={styles.durationCard} testID="duration-metrics-card" accessible accessibilityLabel="Episode statistics">
+          <View style={styles.durationRow} testID="total-episodes-row">
+            <Text style={styles.durationRowLabel}>Total Episodes:</Text>
+            <Text
+              style={styles.durationRowValue}
+              accessibilityLabel={`Total episodes: ${statistics.episodeFrequency}`}
+            >
+              {statistics.episodeFrequency}
+            </Text>
           </View>
 
-          {/* Duration Metrics */}
-          <View style={styles.durationCard} testID="duration-metrics-card" accessible accessibilityLabel="Episode duration statistics">
-            <Text style={styles.durationTitle} accessibilityRole="header">Episode Durations</Text>
-
-            <View style={styles.durationRow} testID="shortest-duration-row">
-              <Text style={styles.durationRowLabel}>Shortest Episode:</Text>
-              <Text
-                style={styles.durationRowValue}
-                accessibilityLabel={`Shortest episode: ${statistics.durationMetrics.shortest !== null ? formatDuration(statistics.durationMetrics.shortest) : 'N/A'}`}
-              >
-                {statistics.durationMetrics.shortest !== null
-                  ? formatDuration(statistics.durationMetrics.shortest)
-                  : 'N/A'}
-              </Text>
-            </View>
-
-            <View style={styles.durationRow} testID="longest-duration-row">
-              <Text style={styles.durationRowLabel}>Longest Episode:</Text>
-              <Text
-                style={styles.durationRowValue}
-                accessibilityLabel={`Longest episode: ${statistics.durationMetrics.longest !== null ? formatDuration(statistics.durationMetrics.longest) : 'N/A'}`}
-              >
-                {statistics.durationMetrics.longest !== null
-                  ? formatDuration(statistics.durationMetrics.longest)
-                  : 'N/A'}
-              </Text>
-            </View>
-
-            <View style={[styles.durationRow, styles.durationRowLast]} testID="average-duration-row">
-              <Text style={styles.durationRowLabel}>Average Duration:</Text>
-              <Text
-                style={styles.durationRowValue}
-                accessibilityLabel={`Average duration: ${statistics.durationMetrics.average !== null ? formatDuration(statistics.durationMetrics.average) : 'N/A'}`}
-              >
-                {statistics.durationMetrics.average !== null
-                  ? formatDuration(statistics.durationMetrics.average)
-                  : 'N/A'}
-              </Text>
-            </View>
+          <View style={styles.durationRow} testID="shortest-duration-row">
+            <Text style={styles.durationRowLabel}>Shortest Episode:</Text>
+            <Text
+              style={styles.durationRowValue}
+              accessibilityLabel={`Shortest episode: ${statistics.durationMetrics.shortest !== null ? formatDuration(statistics.durationMetrics.shortest) : 'N/A'}`}
+            >
+              {statistics.durationMetrics.shortest !== null
+                ? formatDuration(statistics.durationMetrics.shortest)
+                : 'N/A'}
+            </Text>
           </View>
-        </>
+
+          <View style={styles.durationRow} testID="longest-duration-row">
+            <Text style={styles.durationRowLabel}>Longest Episode:</Text>
+            <Text
+              style={styles.durationRowValue}
+              accessibilityLabel={`Longest episode: ${statistics.durationMetrics.longest !== null ? formatDuration(statistics.durationMetrics.longest) : 'N/A'}`}
+            >
+              {statistics.durationMetrics.longest !== null
+                ? formatDuration(statistics.durationMetrics.longest)
+                : 'N/A'}
+            </Text>
+          </View>
+
+          <View style={[styles.durationRow, styles.durationRowLast]} testID="average-duration-row">
+            <Text style={styles.durationRowLabel}>Average Duration:</Text>
+            <Text
+              style={styles.durationRowValue}
+              accessibilityLabel={`Average duration: ${statistics.durationMetrics.average !== null ? formatDuration(statistics.durationMetrics.average) : 'N/A'}`}
+            >
+              {statistics.durationMetrics.average !== null
+                ? formatDuration(statistics.durationMetrics.average)
+                : 'N/A'}
+            </Text>
+          </View>
+        </View>
       )}
     </View>
   );
