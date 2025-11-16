@@ -799,7 +799,7 @@ class BackupService {
   async importBackup(): Promise<BackupMetadata> {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: 'application/json',
+        type: ['application/json', 'application/x-sqlite3', 'application/octet-stream', '*/*'],
         copyToCacheDirectory: true,
       });
 
@@ -808,6 +808,47 @@ class BackupService {
       }
 
       const fileUri = result.assets[0].uri;
+      const fileName = result.assets[0].name || '';
+
+      // Detect file type based on extension
+      const isDbFile = fileName.endsWith('.db') || fileName.endsWith('.sqlite') || fileName.endsWith('.sqlite3');
+
+      if (isDbFile) {
+        // For .db files, we need to handle them differently
+        // Copy the .db file as a backup snapshot
+        const backupId = this.generateBackupId();
+        const backupPath = this.getBackupPath(backupId, 'snapshot');
+
+        await FileSystem.copyAsync({
+          from: fileUri,
+          to: backupPath,
+        });
+
+        // Get file info to determine size
+        const fileInfo = await FileSystem.getInfoAsync(backupPath);
+        const fileSize = fileInfo.exists && !fileInfo.isDirectory ? fileInfo.size : 0;
+
+        // Create metadata for the snapshot backup
+        const metadata: BackupMetadata = {
+          id: backupId,
+          timestamp: Date.now(),
+          version: '1.0.0',
+          schemaVersion: await migrationRunner.getCurrentVersion(),
+          episodeCount: 0, // We can't easily count without opening the DB
+          medicationCount: 0,
+          fileSize,
+          fileName: fileName,
+          backupType: 'snapshot',
+        };
+
+        const metadataPath = this.getBackupPath(backupId, 'json');
+        await FileSystem.writeAsStringAsync(metadataPath, JSON.stringify(metadata, null, 2));
+
+        logger.log('[Import] Database snapshot imported successfully:', backupId);
+        return metadata;
+      }
+
+      // Handle JSON export files
       const content = await FileSystem.readAsStringAsync(fileUri);
       const backupData: BackupData = JSON.parse(content);
 

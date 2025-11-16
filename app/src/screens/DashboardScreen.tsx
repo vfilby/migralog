@@ -286,10 +286,10 @@ export default function DashboardScreen() {
         ]);
 
         // THEN load schedules and doses (they depend on medications being loaded)
-        // Today's medications are computed from store state, so no separate load needed
+        // Load 90 days of doses for analytics (Trends page needs this data)
         await Promise.all([
           loadSchedules(),
-          loadRecentDoses(1),
+          loadRecentDoses(90),
         ]);
       };
       loadData();

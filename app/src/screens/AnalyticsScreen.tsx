@@ -147,14 +147,14 @@ export default function AnalyticsScreen() {
       </View>
 
       <ScrollView style={styles.content}>
+        {/* Monthly Calendar View */}
+        <MonthlyCalendarView />
+
         {/* Time Range Selector */}
         <TimeRangeSelector
           selectedRange={selectedTimeRange}
           onRangeChange={setSelectedTimeRange}
         />
-
-        {/* Monthly Calendar View */}
-        <MonthlyCalendarView />
 
         {/* Episode Statistics */}
         <EpisodeStatistics selectedRange={selectedTimeRange} />
