@@ -120,8 +120,11 @@ export default function DailyStatusWidget({ onStatusLogged }: DailyStatusWidgetP
       // No status logged yet - show the prompt
       setShouldShow(true);
       setYesterdayStatus(null);
+    } else if (status.id.startsWith('calculated-')) {
+      // Calculated status from episode data - hide widget (no undo for auto-calculated days)
+      setShouldShow(false);
     } else {
-      // Status was logged
+      // Manually logged status
       const loggedAt = status.updatedAt || status.createdAt;
       const minutesSinceLogged = (Date.now() - loggedAt) / 60000;
 
