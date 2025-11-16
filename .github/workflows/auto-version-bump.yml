@@ -78,15 +78,12 @@ jobs:
 
           if [ "$CHANGELOG_CHANGED" = "true" ]; then
             git add CHANGELOG.md
-            git commit -m "chore: bump version to $NEW_VERSION
-
-Updated CHANGELOG.md with latest changes.
-
-[skip ci]"
+            git commit -m "chore: bump version to $NEW_VERSION" \
+                       -m "Updated CHANGELOG.md with latest changes." \
+                       -m "[skip ci]"
           else
-            git commit -m "chore: bump version to $NEW_VERSION
-
-[skip ci]"
+            git commit -m "chore: bump version to $NEW_VERSION" \
+                       -m "[skip ci]"
           fi
 
       - name: Push changes
