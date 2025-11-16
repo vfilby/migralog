@@ -58,7 +58,9 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
     marginBottom: 8,
+    gap: 8,
   },
   cardDate: {
     fontSize: 17,
@@ -70,7 +72,9 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
     marginBottom: 4,
+    gap: 8,
   },
   cardDuration: {
     fontSize: 15,
@@ -105,6 +109,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
+    flexShrink: 0,
   },
   ongoingText: {
     color: theme.ongoingText,
@@ -169,7 +174,7 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
 
       {/* Row 2: Location if available */}
       {locationAddress && (
-        <Text style={styles.cardLocation} numberOfLines={1}>
+        <Text style={styles.cardLocation}>
           {locationAddress}
         </Text>
       )}

@@ -34,6 +34,12 @@ jest.mock('../../components/MedicationScheduleManager', () => {
     return <View testID="medication-schedule-manager"><Text>Schedule Manager</Text></View>;
   };
 });
+jest.mock('../../utils/textScaling', () => ({
+  isLargeTextModeEnabled: jest.fn(() => false),
+  getFontScale: jest.fn(() => 1.0),
+  getScaledFontSize: jest.fn((size) => size),
+  MAX_FONT_SCALE: 3.1,
+}));
 
 const mockNavigation = {
   navigate: jest.fn(),

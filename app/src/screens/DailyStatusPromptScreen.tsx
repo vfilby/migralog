@@ -50,7 +50,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   closeButton: {
     fontSize: 17,
     color: theme.primary,
-    width: 60,
+    minWidth: 60,
   },
   content: {
     flex: 1,

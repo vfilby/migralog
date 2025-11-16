@@ -45,7 +45,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   cancelButton: {
     fontSize: 17,
     color: theme.primary,
-    width: 60,
+    minWidth: 60,
   },
   loadingContainer: {
     flex: 1,
@@ -219,7 +219,12 @@ export default function EditEpisodeNoteScreen({ route, navigation }: Props) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel"
+            accessibilityHint="Return to previous screen"
+          >
             <Text style={styles.cancelButton}>Cancel</Text>
           </TouchableOpacity>
           <Text style={styles.title}>Edit Note</Text>
@@ -236,7 +241,12 @@ export default function EditEpisodeNoteScreen({ route, navigation }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel"
+          accessibilityHint="Discard changes and return to previous screen"
+        >
           <Text style={styles.cancelButton}>Cancel</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Edit Note</Text>
@@ -250,6 +260,9 @@ export default function EditEpisodeNoteScreen({ route, navigation }: Props) {
           <TouchableOpacity
             style={styles.timeButton}
             onPress={() => setShowDatePicker(true)}
+            accessibilityRole="button"
+            accessibilityLabel={`Change time, currently ${format(timestamp, 'MMM d, yyyy h:mm a')}`}
+            accessibilityHint="Opens date and time picker"
           >
             <Text style={styles.timeText}>
               {format(timestamp, 'MMM d, yyyy h:mm a')}
@@ -292,6 +305,10 @@ export default function EditEpisodeNoteScreen({ route, navigation }: Props) {
           style={[styles.saveButton, saving && styles.saveButtonDisabled]}
           onPress={handleSave}
           disabled={saving}
+          accessibilityRole="button"
+          accessibilityLabel="Save changes"
+          accessibilityHint="Saves the edited note and returns to previous screen"
+          accessibilityState={{ disabled: saving }}
         >
           <Text style={styles.saveButtonText}>
             {saving ? 'Saving...' : 'Save Changes'}
@@ -301,6 +318,10 @@ export default function EditEpisodeNoteScreen({ route, navigation }: Props) {
           style={styles.deleteButton}
           onPress={handleDelete}
           disabled={saving}
+          accessibilityRole="button"
+          accessibilityLabel="Delete note"
+          accessibilityHint="Permanently deletes this note"
+          accessibilityState={{ disabled: saving }}
         >
           <Text style={styles.deleteButtonText}>Delete Note</Text>
         </TouchableOpacity>

@@ -45,7 +45,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   cancelButton: {
     fontSize: 17,
     color: theme.primary,
-    width: 60,
+    minWidth: 60,
   },
   loadingText: {
     textAlign: 'center',
@@ -356,7 +356,12 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel"
+            accessibilityHint="Discards changes and returns to the previous screen"
+          >
             <Text style={styles.cancelButton}>Cancel</Text>
           </TouchableOpacity>
           <Text style={styles.title} testID="log-medication-title">Log Medication</Text>
@@ -378,6 +383,9 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
                     <TouchableOpacity
                       style={styles.quickLogButton}
                       onPress={() => handleQuickLog(med)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Quick log ${med.name}`}
+                      accessibilityHint={`Logs ${med.defaultQuantity || 1} dose of ${med.dosageAmount}${med.dosageUnit} at the current time`}
                     >
                       <Text style={styles.quickLogButtonText}>
                         Log {med.defaultQuantity || 1} × {med.dosageAmount}{med.dosageUnit}
@@ -386,6 +394,9 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
                     <TouchableOpacity
                       style={styles.detailsButton}
                       onPress={() => setSelectedMedId(med.id)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Details"
+                      accessibilityHint="Opens detailed form to specify time, dosage, and notes"
                     >
                       <Text style={styles.detailsButtonText}>Details</Text>
                     </TouchableOpacity>
@@ -407,7 +418,12 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
   return (
     <View style={styles.container} testID="log-medication-screen">
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel"
+          accessibilityHint="Discards changes and returns to the previous screen"
+        >
           <Text style={styles.cancelButton}>Cancel</Text>
         </TouchableOpacity>
         <Text style={styles.title} testID="log-medication-title">Log Medication</Text>
@@ -429,6 +445,9 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
           <TouchableOpacity
             style={styles.timeButton}
             onPress={() => setShowDatePicker(true)}
+            accessibilityRole="button"
+            accessibilityLabel={`Time taken: ${format(timestamp, 'MMM d, yyyy h:mm a')}`}
+            accessibilityHint="Opens date and time picker to change when medication was taken"
           >
             <Text style={styles.timeText}>
               {format(timestamp, 'MMM d, yyyy h:mm a')}
@@ -459,6 +478,9 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
                 const current = parseFloat(amount) || 0;
                 if (current > 0.5) setAmount((current - 0.5).toString());
               }}
+              accessibilityRole="button"
+              accessibilityLabel="Decrease amount"
+              accessibilityHint="Decreases the number of doses by 0.5"
             >
               <Text style={styles.amountButtonText}>−</Text>
             </TouchableOpacity>
@@ -467,6 +489,8 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
               value={amount}
               onChangeText={setAmount}
               keyboardType="decimal-pad"
+              accessibilityLabel="Number of doses"
+              accessibilityHint="Enter the number of doses taken"
             />
             <TouchableOpacity
               style={styles.amountButton}
@@ -474,6 +498,9 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
                 const current = parseFloat(amount) || 0;
                 setAmount((current + 0.5).toString());
               }}
+              accessibilityRole="button"
+              accessibilityLabel="Increase amount"
+              accessibilityHint="Increases the number of doses by 0.5"
             >
               <Text style={styles.amountButtonText}>+</Text>
             </TouchableOpacity>
@@ -496,6 +523,10 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
                   parseFloat(amount) === value && styles.quickButtonActive,
                 ]}
                 onPress={() => setAmount(value.toString())}
+                accessibilityRole="button"
+                accessibilityLabel={`${value} doses`}
+                accessibilityHint={`Sets the number of doses to ${value}`}
+                accessibilityState={{ selected: parseFloat(amount) === value }}
               >
                 <Text
                   style={[
@@ -533,6 +564,10 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
           style={[styles.saveButton, saving && styles.saveButtonDisabled]}
           onPress={handleSave}
           disabled={saving}
+          accessibilityRole="button"
+          accessibilityLabel={saving ? 'Logging medication' : 'Log medication'}
+          accessibilityHint="Saves the medication dose and returns to the previous screen"
+          accessibilityState={{ disabled: saving }}
         >
           <Text style={styles.saveButtonText}>
             {saving ? 'Logging...' : 'Log Medication'}

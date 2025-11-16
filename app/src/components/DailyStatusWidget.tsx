@@ -43,27 +43,23 @@ const createStyles = (theme: ThemeColors) =>
     },
     button: {
       flex: 1,
-      flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 14,
-      paddingHorizontal: 16,
+      paddingVertical: 16,
+      paddingHorizontal: 12,
       borderRadius: 12,
-      gap: 8,
     },
     greenButton: {
-      backgroundColor: theme.primary,
+      backgroundColor: theme.success,
     },
     yellowButton: {
-      backgroundColor: '#F59E0B',
+      backgroundColor: theme.warning,
     },
     buttonText: {
       fontSize: 16,
       fontWeight: '600',
       color: '#FFFFFF',
-    },
-    emoji: {
-      fontSize: 20,
+      textAlign: 'center',
     },
     loggedContainer: {
       flexDirection: 'row',
@@ -71,8 +67,10 @@ const createStyles = (theme: ThemeColors) =>
       justifyContent: 'space-between',
     },
     loggedText: {
+      flex: 1,
       fontSize: 15,
       color: theme.text,
+      marginRight: 12,
     },
     undoButton: {
       paddingVertical: 6,
@@ -185,15 +183,21 @@ export default function DailyStatusWidget({ onStatusLogged }: DailyStatusWidgetP
 
   if (yesterdayStatus) {
     const statusLabel = yesterdayStatus.status === 'green' ? 'Clear day' : 'Not clear';
-    const statusEmoji = yesterdayStatus.status === 'green' ? '🟢' : '🟡';
 
     return (
       <View style={styles.container} testID="daily-status-widget-logged">
         <View style={styles.loggedContainer}>
           <Text style={styles.loggedText}>
-            <Text style={styles.emoji}>{statusEmoji}</Text> Yesterday logged as {statusLabel}
+            Yesterday logged as {statusLabel}
           </Text>
-          <TouchableOpacity style={styles.undoButton} onPress={handleUndo} testID="undo-status-button">
+          <TouchableOpacity
+            style={styles.undoButton}
+            onPress={handleUndo}
+            testID="undo-status-button"
+            accessibilityRole="button"
+            accessibilityLabel="Undo yesterday's status"
+            accessibilityHint={`Remove ${statusLabel} status for yesterday`}
+          >
             <Text style={styles.undoButtonText}>Undo</Text>
           </TouchableOpacity>
         </View>
@@ -211,16 +215,20 @@ export default function DailyStatusWidget({ onStatusLogged }: DailyStatusWidgetP
           style={[styles.button, styles.greenButton]}
           onPress={() => handleLogStatus('green')}
           testID="widget-green-button"
+          accessibilityRole="button"
+          accessibilityLabel="Clear day"
+          accessibilityHint="Log yesterday as a migraine-free day"
         >
-          <Text style={styles.emoji}>🟢</Text>
           <Text style={styles.buttonText}>Clear</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.button, styles.yellowButton]}
           onPress={() => handleLogStatus('yellow')}
           testID="widget-yellow-button"
+          accessibilityRole="button"
+          accessibilityLabel="Not clear day"
+          accessibilityHint="Log yesterday as not migraine-free"
         >
-          <Text style={styles.emoji}>🟡</Text>
           <Text style={styles.buttonText}>Not Clear</Text>
         </TouchableOpacity>
       </View>

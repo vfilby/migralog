@@ -218,8 +218,7 @@ describe('DailyStatusWidget', () => {
       renderWithTheme(<DailyStatusWidget />);
 
       await waitFor(() => {
-        expect(screen.getByText(/Clear day/)).toBeTruthy();
-        expect(screen.getByText(/🟢/)).toBeTruthy();
+        expect(screen.getByText(/Yesterday logged as Clear day/)).toBeTruthy();
       });
     });
 
@@ -236,8 +235,7 @@ describe('DailyStatusWidget', () => {
       renderWithTheme(<DailyStatusWidget />);
 
       await waitFor(() => {
-        expect(screen.getByText(/Not clear/)).toBeTruthy();
-        expect(screen.getByText(/🟡/)).toBeTruthy();
+        expect(screen.getByText(/Yesterday logged as Not clear/)).toBeTruthy();
       });
     });
 

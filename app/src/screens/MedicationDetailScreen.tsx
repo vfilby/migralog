@@ -28,6 +28,7 @@ import { useMedicationStatusStyles } from '../utils/medicationStyling';
 import { getLast7DaysTimeline as calculateLast7DaysTimeline } from '../utils/medicationTimeline';
 import { getCategoryName } from '../utils/presetMedications';
 import NotificationSettings from '../components/NotificationSettings';
+import { isLargeTextModeEnabled } from '../utils/textScaling';
 import { Ionicons } from '@expo/vector-icons';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MedicationDetail'>;
@@ -235,7 +236,12 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            accessibilityHint="Return to previous screen"
+          >
             <Text style={[styles.backButton, { color: theme.primary }]}>← Back</Text>
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: theme.text }]}>Loading...</Text>
@@ -252,16 +258,26 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
     ? calculateLast7DaysTimeline(doses)
     : [];
 
+  const largeTextMode = isLargeTextModeEnabled();
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]} testID="medication-detail-screen">
       {/* Header */}
       <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          accessibilityHint="Return to previous screen"
+        >
           <Text style={[styles.backButton, { color: theme.primary }]}>← Back</Text>
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Medication Details</Text>
+        {!largeTextMode && <Text style={[styles.headerTitle, { color: theme.text }]}>Medication Details</Text>}
         <TouchableOpacity
           onPress={() => navigation.navigate('EditMedication', { medicationId })}
+          accessibilityRole="button"
+          accessibilityLabel="Edit medication"
+          accessibilityHint="Opens the edit medication screen"
         >
           <Text style={[styles.editButton, { color: theme.primary }]}>Edit</Text>
         </TouchableOpacity>
@@ -272,7 +288,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
         <View style={[styles.section, { backgroundColor: theme.card }]}>
           <View style={styles.medicationHeader}>
             <Text style={[styles.medicationName, { color: theme.text }]}>{medication.name}</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={styles.badgeContainer}>
               <View style={[styles.typeBadge, {
                 backgroundColor: medication.type === 'preventative'
                   ? theme.success + '20'
@@ -337,6 +353,9 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
             <TouchableOpacity
               style={[styles.logDoseButton, { backgroundColor: theme.primary }]}
               onPress={handleLogDoseNow}
+              accessibilityRole="button"
+              accessibilityLabel="Log dose now"
+              accessibilityHint={`Logs a dose of ${medication.name} with current time`}
             >
               <Text style={[styles.logDoseButtonText, { color: theme.primaryText }]}>Log Dose Now</Text>
             </TouchableOpacity>
@@ -391,6 +410,10 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
               style={styles.collapsibleHeader}
               onPress={() => setNotificationSettingsExpanded(!notificationSettingsExpanded)}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Notification overrides"
+              accessibilityHint={notificationSettingsExpanded ? "Collapse notification settings" : "Expand notification settings"}
+              accessibilityState={{ expanded: notificationSettingsExpanded }}
             >
               <Text style={[styles.sectionTitle, { color: theme.text }]}>Notification Overrides</Text>
               <Ionicons
@@ -425,6 +448,9 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
                     style={styles.logItem}
                     onLongPress={() => handleDoseAction(dose)}
                     activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Dose logged on ${format(new Date(dose.timestamp), 'MMM d, yyyy')} at ${format(new Date(dose.timestamp), 'h:mm a')}`}
+                    accessibilityHint="Long press to edit or delete this dose"
                   >
                     <View style={styles.logItemLeft}>
                       <Text style={[styles.logDate, { color: theme.text }]}>
@@ -452,6 +478,9 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
                 <TouchableOpacity
                   style={styles.viewAllButton}
                   onPress={() => navigation.navigate('MedicationLog')}
+                  accessibilityRole="button"
+                  accessibilityLabel={`View all ${doses.length} doses`}
+                  accessibilityHint="Opens the full medication log screen"
                 >
                   <Text style={[styles.viewAllText, { color: theme.primary }]}>
                     View All ({doses.length})
@@ -468,6 +497,9 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
             style={styles.archiveButton}
             onPress={handleArchive}
             testID="archive-medication-button"
+            accessibilityRole="button"
+            accessibilityLabel="Archive medication"
+            accessibilityHint={`Archives ${medication.name} and hides it from active medications`}
           >
             <Ionicons name="archive-outline" size={20} color={theme.danger} />
             <Text style={[styles.archiveButtonText, { color: theme.danger }]}>
@@ -494,11 +526,21 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={[styles.modalHeader, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-            <TouchableOpacity onPress={handleCancelEdit}>
+            <TouchableOpacity
+              onPress={handleCancelEdit}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel"
+              accessibilityHint="Discard changes and close edit modal"
+            >
               <Text style={[styles.modalCancelButton, { color: theme.primary }]}>Cancel</Text>
             </TouchableOpacity>
             <Text style={[styles.modalTitle, { color: theme.text }]}>Edit Dose</Text>
-            <TouchableOpacity onPress={handleSaveEdit}>
+            <TouchableOpacity
+              onPress={handleSaveEdit}
+              accessibilityRole="button"
+              accessibilityLabel="Save"
+              accessibilityHint="Saves the edited dose and closes modal"
+            >
               <Text style={[styles.modalSaveButton, { color: theme.primary }]}>Save</Text>
             </TouchableOpacity>
           </View>
@@ -517,6 +559,9 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
                   borderColor: theme.border,
                 }]}
                 onPress={() => setShowDateTimePicker(true)}
+                accessibilityRole="button"
+                accessibilityLabel={`Change time, currently ${editTimestamp && format(new Date(editTimestamp), 'MMM d, yyyy h:mm a')}`}
+                accessibilityHint="Opens date and time picker"
               >
                 <Text style={[styles.modalValue, { color: theme.text }]}>
                   {editTimestamp && format(new Date(editTimestamp), 'MMM d, yyyy h:mm a')}
@@ -589,10 +634,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
     paddingTop: 60,
     paddingBottom: 16,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
+    gap: 8,
   },
   backButton: {
     fontSize: 17,
@@ -601,6 +648,8 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: '600',
+    flexShrink: 1,
+    textAlign: 'center',
   },
   editButton: {
     fontSize: 17,
@@ -631,21 +680,24 @@ const styles = StyleSheet.create({
     paddingBottom: 0,
   },
   medicationHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
     alignItems: 'flex-start',
     marginBottom: 16,
+    gap: 12,
   },
   medicationName: {
     fontSize: 28,
     fontWeight: '700',
-    flex: 1,
+  },
+  badgeContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   typeBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
-    marginLeft: 12,
   },
   typeBadgeText: {
     fontSize: 13,

@@ -170,6 +170,9 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
           <TouchableOpacity
             style={styles.actionButton}
             onPress={() => handleRestoreBackup(backup.id, date)}
+            accessibilityRole="button"
+            accessibilityLabel="Restore backup"
+            accessibilityHint={`Restore backup from ${date}`}
           >
             <Ionicons name="refresh" size={20} color={theme.primary} />
             <Text style={styles.actionButtonText}>Restore</Text>
@@ -177,6 +180,9 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
           <TouchableOpacity
             style={styles.actionButton}
             onPress={() => handleExportBackup(backup.id)}
+            accessibilityRole="button"
+            accessibilityLabel="Export backup"
+            accessibilityHint="Share or save this backup file"
           >
             <Ionicons name="share-outline" size={20} color={theme.primary} />
             <Text style={styles.actionButtonText}>Export</Text>
@@ -184,6 +190,9 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
           <TouchableOpacity
             style={styles.actionButton}
             onPress={() => handleDeleteBackup(backup.id, date)}
+            accessibilityRole="button"
+            accessibilityLabel="Delete backup"
+            accessibilityHint={`Permanently delete backup from ${date}`}
           >
             <Ionicons name="trash-outline" size={20} color={theme.danger} />
             <Text style={[styles.actionButtonText, { color: theme.danger }]}>Delete</Text>
@@ -196,7 +205,12 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
   return (
     <View style={styles.container} testID="backup-recovery-screen">
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          accessibilityHint="Return to previous screen"
+        >
           <Ionicons name="arrow-back" size={24} color={theme.primary} />
         </TouchableOpacity>
         <Text style={styles.title}>Backup & Recovery</Text>
@@ -221,6 +235,10 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
             style={[styles.primaryButton, creatingBackup && styles.primaryButtonDisabled]}
             onPress={handleCreateBackup}
             disabled={creatingBackup}
+            accessibilityRole="button"
+            accessibilityLabel="Create backup"
+            accessibilityHint="Creates a snapshot of all your migraine tracking data"
+            accessibilityState={{ disabled: creatingBackup }}
           >
             {creatingBackup ? (
               <ActivityIndicator color={theme.primaryText} />
@@ -232,7 +250,13 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.secondaryButton} onPress={handleImportBackup}>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={handleImportBackup}
+            accessibilityRole="button"
+            accessibilityLabel="Import backup"
+            accessibilityHint="Import a backup file from your device"
+          >
             <Ionicons name="cloud-download-outline" size={24} color={theme.primary} />
             <Text style={styles.secondaryButtonText}>Import Backup</Text>
           </TouchableOpacity>

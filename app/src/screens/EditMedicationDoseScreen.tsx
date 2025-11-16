@@ -45,7 +45,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   cancelButton: {
     fontSize: 17,
     color: theme.primary,
-    width: 60,
+    minWidth: 60,
   },
   loadingContainer: {
     flex: 1,
@@ -314,7 +314,12 @@ export default function EditMedicationDoseScreen({ route, navigation }: Props) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel"
+            accessibilityHint="Return to previous screen"
+          >
             <Text style={styles.cancelButton}>Cancel</Text>
           </TouchableOpacity>
           <Text style={styles.title}>Edit Medication</Text>
@@ -331,7 +336,12 @@ export default function EditMedicationDoseScreen({ route, navigation }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel"
+          accessibilityHint="Discard changes and return to previous screen"
+        >
           <Text style={styles.cancelButton}>Cancel</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Edit Medication</Text>
@@ -353,6 +363,9 @@ export default function EditMedicationDoseScreen({ route, navigation }: Props) {
           <TouchableOpacity
             style={styles.timeButton}
             onPress={() => setShowDatePicker(true)}
+            accessibilityRole="button"
+            accessibilityLabel={`Change time, currently ${format(timestamp, 'MMM d, yyyy h:mm a')}`}
+            accessibilityHint="Opens date and time picker"
           >
             <Text style={styles.timeText}>
               {format(timestamp, 'MMM d, yyyy h:mm a')}
@@ -383,6 +396,9 @@ export default function EditMedicationDoseScreen({ route, navigation }: Props) {
                 const current = parseFloat(amount) || 0;
                 if (current > 0.5) setAmount((current - 0.5).toString());
               }}
+              accessibilityRole="button"
+              accessibilityLabel="Decrease dose amount"
+              accessibilityHint="Decreases the number of doses by 0.5"
             >
               <Text style={styles.amountButtonText}>−</Text>
             </TouchableOpacity>
@@ -391,6 +407,8 @@ export default function EditMedicationDoseScreen({ route, navigation }: Props) {
               value={amount}
               onChangeText={setAmount}
               keyboardType="decimal-pad"
+              accessibilityLabel="Dose amount"
+              accessibilityHint="Number of doses taken"
             />
             <TouchableOpacity
               style={styles.amountButton}
@@ -398,6 +416,9 @@ export default function EditMedicationDoseScreen({ route, navigation }: Props) {
                 const current = parseFloat(amount) || 0;
                 setAmount((current + 0.5).toString());
               }}
+              accessibilityRole="button"
+              accessibilityLabel="Increase dose amount"
+              accessibilityHint="Increases the number of doses by 0.5"
             >
               <Text style={styles.amountButtonText}>+</Text>
             </TouchableOpacity>
@@ -420,6 +441,10 @@ export default function EditMedicationDoseScreen({ route, navigation }: Props) {
                   parseFloat(amount) === value && styles.quickButtonActive,
                 ]}
                 onPress={() => setAmount(value.toString())}
+                accessibilityRole="button"
+                accessibilityLabel={`Set dose amount to ${value}`}
+                accessibilityHint={`Select ${value} dose${value > 1 ? 's' : ''}`}
+                accessibilityState={{ selected: parseFloat(amount) === value }}
               >
                 <Text
                   style={[
@@ -457,6 +482,10 @@ export default function EditMedicationDoseScreen({ route, navigation }: Props) {
           style={[styles.saveButton, saving && styles.saveButtonDisabled]}
           onPress={handleSave}
           disabled={saving}
+          accessibilityRole="button"
+          accessibilityLabel="Save changes"
+          accessibilityHint="Saves the edited medication dose and returns to previous screen"
+          accessibilityState={{ disabled: saving }}
         >
           <Text style={styles.saveButtonText}>
             {saving ? 'Saving...' : 'Save Changes'}
@@ -466,6 +495,10 @@ export default function EditMedicationDoseScreen({ route, navigation }: Props) {
           style={styles.deleteButton}
           onPress={handleDelete}
           disabled={saving}
+          accessibilityRole="button"
+          accessibilityLabel="Delete dose"
+          accessibilityHint="Permanently deletes this medication dose"
+          accessibilityState={{ disabled: saving }}
         >
           <Text style={styles.deleteButtonText}>Delete Dose</Text>
         </TouchableOpacity>

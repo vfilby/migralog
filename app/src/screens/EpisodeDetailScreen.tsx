@@ -67,21 +67,25 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
     paddingHorizontal: 16,
     paddingTop: 60,
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: theme.border,
+    gap: 8,
   },
   title: {
     fontSize: 17,
     fontWeight: '600',
     color: theme.text,
+    flexShrink: 1,
+    textAlign: 'center',
   },
   backButton: {
     fontSize: 17,
     color: theme.primary,
-    width: 60,
+    minWidth: 60,
   },
   editButton: {
     fontSize: 17,
@@ -1116,11 +1120,22 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   return (
     <View style={styles.container} testID="episode-detail-screen">
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          accessibilityHint="Returns to the previous screen"
+        >
           <Text style={styles.backButton}>Back</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Episode Details</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('NewEpisode', { episodeId })} testID="edit-episode-button">
+        <TouchableOpacity
+          onPress={() => navigation.navigate('NewEpisode', { episodeId })}
+          testID="edit-episode-button"
+          accessibilityRole="button"
+          accessibilityLabel="Edit episode"
+          accessibilityHint="Opens the edit screen to modify episode details"
+        >
           <Text style={styles.editButton}>Edit</Text>
         </TouchableOpacity>
       </View>
@@ -1165,7 +1180,13 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
 
           {/* Location Link */}
           {episode.location && (
-            <TouchableOpacity style={styles.detailRow} onPress={handleOpenMap}>
+            <TouchableOpacity
+              style={styles.detailRow}
+              onPress={handleOpenMap}
+              accessibilityRole="button"
+              accessibilityLabel={`Episode location: ${locationAddress || 'View on map'}`}
+              accessibilityHint="Opens a map showing where this episode started"
+            >
               <Text style={styles.detailLabel}>Location:</Text>
               <Text style={[styles.detailValue, styles.locationLink]}>
                 {locationAddress || 'View on Map'} →
@@ -1180,6 +1201,9 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
                 style={styles.actionButton}
                 onPress={() => navigation.navigate('LogUpdate', { episodeId })}
                 testID="log-update-button"
+                accessibilityRole="button"
+                accessibilityLabel="Log update"
+                accessibilityHint="Opens screen to log pain intensity updates, symptoms, or notes"
               >
                 <Text style={styles.actionButtonText}>Log Update</Text>
               </TouchableOpacity>
@@ -1187,6 +1211,9 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
                 style={styles.actionButton}
                 onPress={() => navigation.navigate('LogMedication', { episodeId })}
                 testID="log-medication-from-episode-button"
+                accessibilityRole="button"
+                accessibilityLabel="Log medication"
+                accessibilityHint="Opens screen to record medications taken for this episode"
               >
                 <Text style={styles.actionButtonText}>Log Medication</Text>
               </TouchableOpacity>
@@ -1317,7 +1344,14 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
       {!episode.endTime && (
         <View style={styles.footer}>
           <View style={styles.endButtonsContainer}>
-            <TouchableOpacity style={styles.endButton} onPress={endEpisodeNow} testID="end-now-button">
+            <TouchableOpacity
+              style={styles.endButton}
+              onPress={endEpisodeNow}
+              testID="end-now-button"
+              accessibilityRole="button"
+              accessibilityLabel="End episode now"
+              accessibilityHint="Ends this episode with the current time"
+            >
               <Text style={styles.endButtonText}>End Now</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -1327,6 +1361,9 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
                 setShowEndTimePicker(true);
               }}
               testID="end-custom-button"
+              accessibilityRole="button"
+              accessibilityLabel="End episode with custom time"
+              accessibilityHint="Opens date picker to choose when the episode ended"
             >
               <Text style={styles.endCustomButtonText}>End...</Text>
             </TouchableOpacity>
@@ -1345,7 +1382,12 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
           <View style={styles.modalHeader}>
             <View style={{ width: 60 }} />
             <Text style={styles.modalTitle}>Episode Location</Text>
-            <TouchableOpacity onPress={() => setShowMapModal(false)}>
+            <TouchableOpacity
+              onPress={() => setShowMapModal(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Done"
+              accessibilityHint="Closes the map and returns to episode details"
+            >
               <Text style={styles.modalCloseButton}>Done</Text>
             </TouchableOpacity>
           </View>
@@ -1393,11 +1435,21 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowEndTimePicker(false)}>
+            <TouchableOpacity
+              onPress={() => setShowEndTimePicker(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel"
+              accessibilityHint="Closes the time picker without ending the episode"
+            >
               <Text style={styles.modalCloseButton}>Cancel</Text>
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Set End Time</Text>
-            <TouchableOpacity onPress={endEpisodeWithCustomTime}>
+            <TouchableOpacity
+              onPress={endEpisodeWithCustomTime}
+              accessibilityRole="button"
+              accessibilityLabel="Done"
+              accessibilityHint="Ends the episode with the selected time"
+            >
               <Text style={styles.modalCloseButton}>Done</Text>
             </TouchableOpacity>
           </View>

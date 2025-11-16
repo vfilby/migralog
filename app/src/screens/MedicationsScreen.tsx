@@ -30,16 +30,21 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   title: {
     fontSize: 34,
     fontWeight: 'bold',
     color: theme.text,
+    flexShrink: 0,
+    flexBasis: '100%',
   },
   archivedLink: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    flexShrink: 0,
   },
   archivedLinkText: {
     fontSize: 16,
@@ -72,21 +77,24 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   },
   medicationHeader: {
     marginBottom: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
     alignItems: 'flex-start',
+    gap: 8,
   },
   medicationName: {
     fontSize: 18,
     fontWeight: '600',
     color: theme.text,
-    flex: 1,
+  },
+  badgeContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   typeBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
-    marginLeft: 8,
   },
   typeBadgeText: {
     fontSize: 12,
@@ -136,17 +144,20 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 12,
   },
   singleLogButtonText: {
     color: theme.primaryText,
     fontSize: 15,
     fontWeight: '600',
+    textAlign: 'center',
   },
   medicationActions: {
     flexDirection: 'row',
     gap: 8,
     marginTop: 12,
+    justifyContent: 'center',
   },
   quickLogButton: {
     flex: 1,
@@ -155,11 +166,13 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   quickLogButtonText: {
     color: theme.primaryText,
     fontSize: 15,
     fontWeight: '600',
+    textAlign: 'center',
   },
   detailedLogButton: {
     flex: 1,
@@ -168,6 +181,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: theme.primary,
   },
@@ -175,6 +189,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     color: theme.primary,
     fontSize: 15,
     fontWeight: '600',
+    textAlign: 'center',
   },
   emptyCard: {
     backgroundColor: theme.card,
@@ -443,10 +458,13 @@ export default function MedicationsScreen() {
   return (
     <View style={styles.container} testID="medications-screen">
       <View style={styles.header}>
-        <Text style={styles.title}>Medications</Text>
+        <Text style={styles.title} numberOfLines={1}>Medications</Text>
         <TouchableOpacity
           onPress={() => navigation.navigate('ArchivedMedications')}
           testID="archived-medications-link"
+          accessibilityRole="button"
+          accessibilityLabel="Archived medications"
+          accessibilityHint="Opens the list of archived medications"
         >
           <View style={styles.archivedLink}>
             <Ionicons name="archive-outline" size={20} color={theme.primary} />
@@ -469,10 +487,13 @@ export default function MedicationsScreen() {
                 key={med.id}
                 style={styles.medicationCard}
                 onPress={() => navigation.navigate('MedicationDetail', { medicationId: med.id })}
+                accessibilityRole="button"
+                accessibilityLabel={`${med.name} preventative medication`}
+                accessibilityHint="Opens details and history for this medication"
               >
                 <View style={styles.medicationHeader}>
                   <Text style={styles.medicationName}>{med.name}</Text>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <View style={styles.badgeContainer}>
                     <View style={[styles.typeBadge, { backgroundColor: theme.success + '20' }]}>
                       <Text style={[styles.typeBadgeText, { color: theme.success }]}>Preventative</Text>
                     </View>
@@ -541,6 +562,9 @@ export default function MedicationsScreen() {
                                     e.stopPropagation();
                                     handleUndoLog(med.id, schedule.id, logState.doseId!);
                                   }}
+                                  accessibilityRole="button"
+                                  accessibilityLabel="Undo"
+                                  accessibilityHint="Removes this logged dose"
                                 >
                                   <Text style={styles.undoButtonText}>Undo</Text>
                                 </TouchableOpacity>
@@ -573,6 +597,9 @@ export default function MedicationsScreen() {
                               e.stopPropagation();
                               handleQuickLog(med.id, schedule.id, schedule.dosage, timeStr);
                             }}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Log ${timeStr} dose`}
+                            accessibilityHint={`Records that you took your ${timeStr} dose of ${med.name}`}
                           >
                             <Text style={styles.scheduleLogButtonText}>Log {timeStr}</Text>
                           </TouchableOpacity>
@@ -599,10 +626,13 @@ export default function MedicationsScreen() {
                 key={med.id}
                 style={styles.medicationCard}
                 onPress={() => navigation.navigate('MedicationDetail', { medicationId: med.id })}
+                accessibilityRole="button"
+                accessibilityLabel={`${med.name} rescue medication`}
+                accessibilityHint="Opens details and history for this medication"
               >
                 <View style={styles.medicationHeader}>
                   <Text style={styles.medicationName}>{med.name}</Text>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <View style={styles.badgeContainer}>
                     <View style={[styles.typeBadge, { backgroundColor: theme.primary + '20' }]}>
                       <Text style={[styles.typeBadgeText, { color: theme.primary }]}>Rescue</Text>
                     </View>
@@ -632,6 +662,9 @@ export default function MedicationsScreen() {
                       e.stopPropagation();
                       handleRescueQuickLog(med.id, med.defaultQuantity || 1);
                     }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Quick log ${med.name}`}
+                    accessibilityHint={`Logs ${med.defaultQuantity || 1} dose of ${med.name} at the current time`}
                   >
                     <Text style={styles.quickLogButtonText}>Quick Log</Text>
                   </TouchableOpacity>
@@ -641,6 +674,9 @@ export default function MedicationsScreen() {
                       e.stopPropagation();
                       navigation.navigate('LogMedication', { medicationId: med.id });
                     }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Log details"
+                    accessibilityHint="Opens detailed logging screen to specify time, dosage, and notes"
                   >
                     <Text style={styles.detailedLogButtonText}>Log Details</Text>
                   </TouchableOpacity>
@@ -663,10 +699,13 @@ export default function MedicationsScreen() {
                 key={med.id}
                 style={styles.medicationCard}
                 onPress={() => navigation.navigate('MedicationDetail', { medicationId: med.id })}
+                accessibilityRole="button"
+                accessibilityLabel={`${med.name} other medication`}
+                accessibilityHint="Opens details and history for this medication"
               >
                 <View style={styles.medicationHeader}>
                   <Text style={styles.medicationName}>{med.name}</Text>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <View style={styles.badgeContainer}>
                     <View style={[styles.typeBadge, { backgroundColor: theme.textSecondary + '20' }]}>
                       <Text style={[styles.typeBadgeText, { color: theme.textSecondary }]}>Other</Text>
                     </View>
@@ -697,6 +736,9 @@ export default function MedicationsScreen() {
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => navigation.navigate('AddMedication')}
+          accessibilityRole="button"
+          accessibilityLabel="Add medication"
+          accessibilityHint="Opens the screen to add a new medication"
         >
           <Text style={styles.addButtonText}>+ Add Medication</Text>
         </TouchableOpacity>
