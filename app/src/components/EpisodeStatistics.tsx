@@ -122,9 +122,9 @@ export default function EpisodeStatistics({ selectedRange }: EpisodeStatisticsPr
 
     // Calculate percentages
     const migraineDaysPercent = Math.round((migraineDays / totalDays) * 100);
+    const notClearDaysPercent = Math.round((dayCategorization.unclear / totalDays) * 100);
     const clearDaysPercent = Math.round((dayCategorization.clear / totalDays) * 100);
-    const notClearDays = dayCategorization.unclear + dayCategorization.untracked;
-    const notClearDaysPercent = Math.round((notClearDays / totalDays) * 100);
+    const unknownDaysPercent = Math.round((dayCategorization.untracked / totalDays) * 100);
 
     // Calculate duration metrics
     const durationMetrics = calculateDurationMetrics(
@@ -137,9 +137,9 @@ export default function EpisodeStatistics({ selectedRange }: EpisodeStatisticsPr
       migraineDaysPercent,
       episodeFrequency,
       dayCategorization,
-      clearDaysPercent,
-      notClearDays,
       notClearDaysPercent,
+      clearDaysPercent,
+      unknownDaysPercent,
       durationMetrics,
     };
   }, [selectedRange, episodes, dailyStatuses]);
@@ -150,26 +150,45 @@ export default function EpisodeStatistics({ selectedRange }: EpisodeStatisticsPr
     <View style={styles.container} testID="episode-statistics" accessibilityRole="summary">
       {/* Day Statistics */}
       <Text style={styles.sectionTitle} accessibilityRole="header">Day Statistics</Text>
-      <View style={styles.statsGrid}>
-        <View style={styles.statCard} testID="migraine-days-card" accessible accessibilityLabel={`${statistics.migraineDays} migraine days, ${statistics.migraineDaysPercent}% of the selected period`}>
-          <Text style={styles.statValue}>
-            {statistics.migraineDays}
+      <View style={styles.durationCard} testID="day-statistics-card" accessible accessibilityLabel="Day statistics">
+        <View style={styles.durationRow} testID="migraine-days-row">
+          <Text style={styles.durationRowLabel}>Migraine Days:</Text>
+          <Text
+            style={styles.durationRowValue}
+            accessibilityLabel={`Migraine days: ${statistics.migraineDays} (${statistics.migraineDaysPercent}%)`}
+          >
+            {statistics.migraineDays} ({statistics.migraineDaysPercent}%)
           </Text>
-          <Text style={styles.statLabel}>Migraine Days ({statistics.migraineDaysPercent}%)</Text>
         </View>
 
-        <View style={styles.statCard} testID="clear-days-card" accessible accessibilityLabel={`${statistics.dayCategorization.clear} clear days, ${statistics.clearDaysPercent}% of the selected period`}>
-          <Text style={styles.statValue}>
-            {statistics.dayCategorization.clear}
+        <View style={styles.durationRow} testID="not-clear-days-row">
+          <Text style={styles.durationRowLabel}>Not Clear Days:</Text>
+          <Text
+            style={styles.durationRowValue}
+            accessibilityLabel={`Not clear days: ${statistics.dayCategorization.unclear} (${statistics.notClearDaysPercent}%)`}
+          >
+            {statistics.dayCategorization.unclear} ({statistics.notClearDaysPercent}%)
           </Text>
-          <Text style={styles.statLabel}>Clear Days ({statistics.clearDaysPercent}%)</Text>
         </View>
 
-        <View style={styles.statCard} testID="not-clear-days-card" accessible accessibilityLabel={`${statistics.notClearDays} not clear days, ${statistics.notClearDaysPercent}% of the selected period`}>
-          <Text style={styles.statValue}>
-            {statistics.notClearDays}
+        <View style={styles.durationRow} testID="clear-days-row">
+          <Text style={styles.durationRowLabel}>Clear Days:</Text>
+          <Text
+            style={styles.durationRowValue}
+            accessibilityLabel={`Clear days: ${statistics.dayCategorization.clear} (${statistics.clearDaysPercent}%)`}
+          >
+            {statistics.dayCategorization.clear} ({statistics.clearDaysPercent}%)
           </Text>
-          <Text style={styles.statLabel}>Not Clear Days ({statistics.notClearDaysPercent}%)</Text>
+        </View>
+
+        <View style={[styles.durationRow, styles.durationRowLast]} testID="unknown-days-row">
+          <Text style={styles.durationRowLabel}>Unknown Days:</Text>
+          <Text
+            style={styles.durationRowValue}
+            accessibilityLabel={`Unknown days: ${statistics.dayCategorization.untracked} (${statistics.unknownDaysPercent}%)`}
+          >
+            {statistics.dayCategorization.untracked} ({statistics.unknownDaysPercent}%)
+          </Text>
         </View>
       </View>
 
