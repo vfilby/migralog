@@ -36,14 +36,10 @@ describe('Trends & Analytics Screen', () => {
       await element(by.text('Trends')).tap();
       await waitForAnimation(1000);
 
-      // Verify main screen is visible
+      // Verify main screen is visible by checking the header
       await waitFor(element(by.text('Trends & Analytics')))
         .toBeVisible()
         .withTimeout(5000);
-
-      await waitFor(element(by.id('analytics-screen')))
-        .toBeVisible()
-        .withTimeout(3000);
 
       console.log('✅ Trends screen loaded successfully');
 
@@ -58,9 +54,11 @@ describe('Trends & Analytics Screen', () => {
 
       console.log('✅ Monthly calendar view is visible');
 
-      // Verify Time Range Selector is visible (using whileElement to scroll if needed)
+      // Scroll down to reveal Time Range Selector
       await waitFor(element(by.id('time-range-selector')))
         .toBeVisible()
+        .whileElement(by.id('analytics-screen'))
+        .scroll(100, 'down')
         .withTimeout(5000);
 
       // Verify all three time range buttons are visible
@@ -70,16 +68,20 @@ describe('Trends & Analytics Screen', () => {
 
       console.log('✅ Time range selector with all options is visible');
 
-      // Verify Episode Statistics section is visible
+      // Scroll to Episode Statistics section
       await waitFor(element(by.id('episode-statistics')))
         .toBeVisible()
+        .whileElement(by.id('analytics-screen'))
+        .scroll(100, 'down')
         .withTimeout(5000);
 
       console.log('✅ Episode statistics section is visible');
 
-      // Verify Medication Usage Statistics is visible (may need scrolling)
+      // Scroll to Medication Usage Statistics section
       await waitFor(element(by.id('medication-usage-statistics')))
         .toBeVisible()
+        .whileElement(by.id('analytics-screen'))
+        .scroll(100, 'down')
         .withTimeout(5000);
 
       console.log('✅ Medication usage statistics section is visible');
@@ -90,14 +92,16 @@ describe('Trends & Analytics Screen', () => {
       await element(by.text('Trends')).tap();
       await waitForAnimation(1000);
 
-      // Verify screen is loaded
-      await waitFor(element(by.id('analytics-screen')))
+      // Verify screen is loaded by checking header
+      await waitFor(element(by.text('Trends & Analytics')))
         .toBeVisible()
         .withTimeout(5000);
 
-      // Wait for time range selector
+      // Scroll to time range selector
       await waitFor(element(by.id('time-range-selector')))
         .toBeVisible()
+        .whileElement(by.id('analytics-screen'))
+        .scroll(100, 'down')
         .withTimeout(5000);
 
       // Verify time range buttons have accessibility labels
@@ -115,9 +119,11 @@ describe('Trends & Analytics Screen', () => {
       await element(by.text('Trends')).tap();
       await waitForAnimation(1000);
 
-      // Wait for time range selector
+      // Scroll to time range selector
       await waitFor(element(by.id('time-range-selector')))
         .toBeVisible()
+        .whileElement(by.id('analytics-screen'))
+        .scroll(100, 'down')
         .withTimeout(5000);
 
       // Test switching to 7 days
@@ -147,13 +153,18 @@ describe('Trends & Analytics Screen', () => {
       await element(by.text('Trends')).tap();
       await waitForAnimation(1000);
 
-      // Wait for time range selector and statistics
+      // Scroll to time range selector
       await waitFor(element(by.id('time-range-selector')))
         .toBeVisible()
+        .whileElement(by.id('analytics-screen'))
+        .scroll(100, 'down')
         .withTimeout(5000);
 
+      // Scroll to episode statistics
       await waitFor(element(by.id('episode-statistics')))
         .toBeVisible()
+        .whileElement(by.id('analytics-screen'))
+        .scroll(100, 'down')
         .withTimeout(5000);
 
       // Switch to 7 days range
@@ -180,9 +191,11 @@ describe('Trends & Analytics Screen', () => {
       await element(by.text('Trends')).tap();
       await waitForAnimation(1000);
 
-      // Verify episode statistics section is visible
+      // Scroll to episode statistics section
       await waitFor(element(by.id('episode-statistics')))
         .toBeVisible()
+        .whileElement(by.id('analytics-screen'))
+        .scroll(100, 'down')
         .withTimeout(5000);
 
       // Verify empty state is shown for episode statistics
@@ -200,9 +213,11 @@ describe('Trends & Analytics Screen', () => {
       await element(by.text('Trends')).tap();
       await waitForAnimation(1000);
 
-      // Verify Day Statistics section is visible
-      await waitFor(element(by.text('Day Statistics')))
+      // Scroll to episode statistics section to find Day Statistics
+      await waitFor(element(by.id('episode-statistics')))
         .toBeVisible()
+        .whileElement(by.id('analytics-screen'))
+        .scroll(100, 'down')
         .withTimeout(5000);
 
       // Verify day statistics card is visible
@@ -229,9 +244,11 @@ describe('Trends & Analytics Screen', () => {
       await element(by.text('Trends')).tap();
       await waitForAnimation(1000);
 
-      // Verify episode statistics section is visible
+      // Scroll to episode statistics section
       await waitFor(element(by.id('episode-statistics')))
         .toBeVisible()
+        .whileElement(by.id('analytics-screen'))
+        .scroll(100, 'down')
         .withTimeout(5000);
 
       // Verify duration metrics card is visible (not empty state)
@@ -255,9 +272,11 @@ describe('Trends & Analytics Screen', () => {
       await element(by.text('Trends')).tap();
       await waitForAnimation(1000);
 
-      // Verify medication usage statistics section is visible
+      // Scroll to medication usage statistics section
       await waitFor(element(by.id('medication-usage-statistics')))
         .toBeVisible()
+        .whileElement(by.id('analytics-screen'))
+        .scroll(200, 'down')
         .withTimeout(5000);
 
       // Verify empty state is shown
@@ -278,9 +297,11 @@ describe('Trends & Analytics Screen', () => {
       await element(by.text('Trends')).tap();
       await waitForAnimation(1000);
 
-      // Verify medication usage statistics section is visible
+      // Scroll to medication usage statistics section
       await waitFor(element(by.id('medication-usage-statistics')))
         .toBeVisible()
+        .whileElement(by.id('analytics-screen'))
+        .scroll(200, 'down')
         .withTimeout(5000);
 
       // Verify Rescue Medication Usage header is visible
@@ -340,8 +361,10 @@ describe('Trends & Analytics Screen', () => {
       await element(by.text('Trends')).tap();
       await waitForAnimation(1000);
 
-      // Verify on Trends screen
-      await expect(element(by.id('analytics-screen'))).toBeVisible();
+      // Verify on Trends screen by checking header
+      await waitFor(element(by.text('Trends & Analytics')))
+        .toBeVisible()
+        .withTimeout(3000);
 
       // Switch to Episodes tab
       await element(by.text('Episodes')).tap();
@@ -351,12 +374,10 @@ describe('Trends & Analytics Screen', () => {
       await element(by.text('Trends')).tap();
       await waitForAnimation(1000);
 
-      // Verify Trends screen still renders correctly
-      await waitFor(element(by.id('analytics-screen')))
+      // Verify Trends screen still renders correctly by checking calendar
+      await waitFor(element(by.id('previous-month-button')))
         .toBeVisible()
         .withTimeout(3000);
-
-      await expect(element(by.id('previous-month-button'))).toBeVisible();
 
       console.log('✅ Trends screen handles tab switching correctly');
     });
@@ -366,9 +387,11 @@ describe('Trends & Analytics Screen', () => {
       await element(by.text('Trends')).tap();
       await waitForAnimation(1000);
 
-      // Wait for time range selector
+      // Scroll to time range selector
       await waitFor(element(by.id('time-range-selector')))
         .toBeVisible()
+        .whileElement(by.id('analytics-screen'))
+        .scroll(100, 'down')
         .withTimeout(5000);
 
       // Change to 90 days
@@ -383,9 +406,11 @@ describe('Trends & Analytics Screen', () => {
       await element(by.text('Trends')).tap();
       await waitForAnimation(1000);
 
-      // Wait for time range selector to be visible
+      // Scroll to time range selector again
       await waitFor(element(by.id('time-range-selector')))
         .toBeVisible()
+        .whileElement(by.id('analytics-screen'))
+        .scroll(100, 'down')
         .withTimeout(5000);
 
       // Verify 90 days is still selected
