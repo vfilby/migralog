@@ -26,6 +26,17 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   content: {
     flex: 1,
   },
+  statisticsHeaderContainer: {
+    backgroundColor: theme.background,
+  },
+  statisticsHeader: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: theme.text,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
 });
 
 export default function AnalyticsScreen() {
@@ -43,11 +54,14 @@ export default function AnalyticsScreen() {
         {/* Monthly Calendar View */}
         <MonthlyCalendarView />
 
-        {/* Time Range Selector - Sticky when scrolling */}
-        <TimeRangeSelector
-          selectedRange={selectedTimeRange}
-          onRangeChange={setSelectedTimeRange}
-        />
+        {/* Statistics Header + Time Range Selector - Sticky when scrolling */}
+        <View style={styles.statisticsHeaderContainer}>
+          <Text style={styles.statisticsHeader}>Statistics</Text>
+          <TimeRangeSelector
+            selectedRange={selectedTimeRange}
+            onRangeChange={setSelectedTimeRange}
+          />
+        </View>
 
         {/* Episode Statistics */}
         <EpisodeStatistics selectedRange={selectedTimeRange} />

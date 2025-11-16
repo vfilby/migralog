@@ -21,7 +21,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     paddingHorizontal: 16,
   },
   sectionTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '600',
     color: theme.text,
     marginBottom: 12,
