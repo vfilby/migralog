@@ -50,41 +50,26 @@ let newTag;
 if (releaseType === 'production') {
   // Production tag: v1.0.0
   newTag = `v${version}`;
-
-  // Check if this version tag already exists
-  try {
-    execSync(`git rev-parse ${newTag}`, { stdio: 'ignore' });
-    console.error(`❌ Tag ${newTag} already exists!`);
-    console.error('   Bump version first: npm version patch|minor|major');
-    process.exit(1);
-  } catch {
-    // Tag doesn't exist, good to proceed
-  }
 } else {
-  // Alpha/Beta tag: alpha-v1.0.0-rc.1, beta-v1.0.0-rc.1
-  const tagPrefix = `${releaseType}-v${version}-rc.`;
+  // Alpha/Beta tag: alpha-v1.0.0, beta-v1.0.0
+  // No more RC numbers - versions are auto-incremented via GitHub Actions
+  newTag = `${releaseType}-v${version}`;
+}
 
-  // Get all existing tags matching this pattern
-  let existingTags = [];
-  try {
-    const tagsOutput = execSync(`git tag -l "${tagPrefix}*"`).toString();
-    existingTags = tagsOutput.trim().split('\n').filter(Boolean);
-  } catch (error) {
-    // No existing tags, that's fine
+// Check if this tag already exists
+try {
+  execSync(`git rev-parse ${newTag}`, { stdio: 'ignore' });
+  console.error(`❌ Tag ${newTag} already exists!`);
+  if (releaseType === 'production') {
+    console.error('   Bump version first: npm version minor|major');
+  } else {
+    console.error('   Version was already tagged for ${releaseType}.');
+    console.error('   Merge another PR to auto-increment the patch version,');
+    console.error('   or manually bump: npm version patch|minor|major');
   }
-
-  // Find highest RC number
-  let maxRc = 0;
-  existingTags.forEach(tag => {
-    const match = tag.match(/rc\.(\d+)$/);
-    if (match) {
-      maxRc = Math.max(maxRc, parseInt(match[1], 10));
-    }
-  });
-
-  // Create next tag
-  const nextRc = maxRc + 1;
-  newTag = `${tagPrefix}${nextRc}`;
+  process.exit(1);
+} catch {
+  // Tag doesn't exist, good to proceed
 }
 
 console.log(`\n📝 Generating changelog...`);

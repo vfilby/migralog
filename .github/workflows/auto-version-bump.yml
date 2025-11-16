@@ -1,0 +1,108 @@
+name: Auto Version Bump
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'CHANGELOG.md'
+      - 'package.json'
+      - 'package-lock.json'
+
+permissions:
+  contents: write
+
+jobs:
+  version-bump:
+    runs-on: ubuntu-latest
+
+    # Skip if commit message contains version bump indicator
+    if: "!contains(github.event.head_commit.message, 'chore: bump version')"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./app
+        run: npm ci
+
+      - name: Configure Git
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+      - name: Bump patch version
+        working-directory: ./app
+        run: |
+          # Get current version
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "Current version: $CURRENT_VERSION"
+
+          # Bump patch version
+          npm version patch --no-git-tag-version
+
+          # Get new version
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "New version: $NEW_VERSION"
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+
+      - name: Generate changelog
+        working-directory: ./app
+        run: |
+          npm run changelog:generate
+
+          # Check if changelog was modified
+          if git diff --quiet CHANGELOG.md; then
+            echo "No changelog changes"
+            echo "CHANGELOG_CHANGED=false" >> $GITHUB_ENV
+          else
+            echo "Changelog updated"
+            echo "CHANGELOG_CHANGED=true" >> $GITHUB_ENV
+          fi
+
+      - name: Commit version bump
+        working-directory: ./app
+        run: |
+          git add package.json package-lock.json
+
+          if [ "$CHANGELOG_CHANGED" = "true" ]; then
+            git add CHANGELOG.md
+            git commit -m "chore: bump version to $NEW_VERSION
+
+Updated CHANGELOG.md with latest changes.
+
+[skip ci]"
+          else
+            git commit -m "chore: bump version to $NEW_VERSION
+
+[skip ci]"
+          fi
+
+      - name: Push changes
+        run: |
+          git push origin main
+
+      - name: Summary
+        run: |
+          echo "### Version Bump Complete ✓" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**New Version:** $NEW_VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "**Changelog Updated:** $CHANGELOG_CHANGED" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "To create a release, run:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "npm run release:alpha   # For alpha release" >> $GITHUB_STEP_SUMMARY
+          echo "npm run release:beta    # For beta release" >> $GITHUB_STEP_SUMMARY
+          echo "npm run release:production  # For production release" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
