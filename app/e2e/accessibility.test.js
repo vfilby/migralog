@@ -22,7 +22,9 @@ describe('Accessibility Features', () => {
   describe('Screen Reader Compatibility', () => {
     it('should have accessibility labels on Dashboard interactive elements', async () => {
       // Verify Dashboard is loaded
-      await expect(element(by.id('dashboard-screen'))).toBeVisible();
+      await waitFor(element(by.id('dashboard-title')))
+        .toBeVisible()
+        .withTimeout(3000);
 
       // Check Settings button has accessibility label
       const settingsButton = element(by.id('settings-button'));
@@ -36,7 +38,9 @@ describe('Accessibility Features', () => {
     });
 
     it('should have accessibility labels on Daily Status Widget buttons', async () => {
-      await expect(element(by.id('dashboard-screen'))).toBeVisible();
+      await waitFor(element(by.id('dashboard-title')))
+        .toBeVisible()
+        .withTimeout(3000);
 
       // Check if daily status widget is visible (may not always be present)
       const widget = element(by.id('daily-status-widget'));
@@ -73,7 +77,7 @@ describe('Accessibility Features', () => {
 
       // Return to Home tab
       await element(by.text('Home')).tap();
-      await waitFor(element(by.id('dashboard-screen')))
+      await waitFor(element(by.id('dashboard-title')))
         .toBeVisible()
         .withTimeout(3000);
     });
@@ -119,7 +123,7 @@ describe('Accessibility Features', () => {
       // Cancel to return to dashboard
       await element(by.text('Cancel')).tap();
       await waitForAnimation(1000);
-      await waitFor(element(by.id('dashboard-screen')))
+      await waitFor(element(by.id('dashboard-title')))
         .toBeVisible()
         .withTimeout(5000);
     });
@@ -171,7 +175,7 @@ describe('Accessibility Features', () => {
 
       // Return to dashboard using Done button text
       await element(by.text('Done')).tap();
-      await waitFor(element(by.id('dashboard-screen')))
+      await waitFor(element(by.id('dashboard-title')))
         .toBeVisible()
         .withTimeout(3000);
     });
@@ -195,7 +199,7 @@ describe('Accessibility Features', () => {
       await doneButton.tap();
 
       // Verify returned to dashboard
-      await waitFor(element(by.id('dashboard-screen')))
+      await waitFor(element(by.id('dashboard-title')))
         .toBeVisible()
         .withTimeout(3000);
     });
@@ -220,7 +224,9 @@ describe('Accessibility Features', () => {
       // This test verifies the app structure supports keyboard navigation
       // by ensuring interactive elements are properly labeled and ordered
 
-      await expect(element(by.id('dashboard-screen'))).toBeVisible();
+      await waitFor(element(by.id('dashboard-title')))
+        .toBeVisible()
+        .withTimeout(3000);
 
       // Interactive elements should be in logical tab order
       // (verified through accessibility labels and roles)
