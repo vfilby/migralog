@@ -17,6 +17,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   container: {
     marginTop: 24,
     paddingHorizontal: 16,
+    paddingBottom: 24,
   },
   sectionTitle: {
     fontSize: 22,
@@ -138,8 +139,8 @@ export default function MedicationUsageStatistics({ selectedRange }: MedicationU
   const hasMedicationData = statistics.perMedicationStats.length > 0;
 
   return (
-    <View style={styles.container} testID="medication-usage-statistics">
-      <Text style={styles.sectionTitle}>Medication Usage</Text>
+    <View style={styles.container} testID="medication-usage-statistics" accessibilityRole="summary">
+      <Text style={styles.sectionTitle} accessibilityRole="header">Medication Usage</Text>
 
       {!hasMedicationData ? (
         <View style={styles.emptyContainer} testID="empty-state">
@@ -172,7 +173,7 @@ export default function MedicationUsageStatistics({ selectedRange }: MedicationU
           {/* Per-Medication Breakdown */}
           {statistics.perMedicationStats.length > 0 && (
             <>
-              <Text style={styles.medicationListTitle}>Per-Medication Breakdown</Text>
+              <Text style={styles.medicationListTitle} accessibilityRole="header">Per-Medication Breakdown</Text>
               {statistics.perMedicationStats.map((stat, index) => (
                 <View
                   key={stat.medicationId}

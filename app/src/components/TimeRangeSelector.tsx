@@ -72,6 +72,7 @@ export default function TimeRangeSelector({ selectedRange, onRangeChange }: Time
               accessibilityRole={'button' as AccessibilityRole}
               accessibilityLabel={accessibilityLabel}
               accessibilityState={{ selected: isSelected }}
+              accessibilityHint={isSelected ? 'Currently selected' : 'Double tap to select this time range'}
               testID={`time-range-${value}`}
             >
               <Text style={[styles.buttonText, isSelected && styles.buttonTextSelected]}>

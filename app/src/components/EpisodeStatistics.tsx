@@ -139,8 +139,8 @@ export default function EpisodeStatistics({ selectedRange }: EpisodeStatisticsPr
   const hasEpisodes = statistics.episodeFrequency > 0;
 
   return (
-    <View style={styles.container} testID="episode-statistics">
-      <Text style={styles.sectionTitle}>Episode Statistics</Text>
+    <View style={styles.container} testID="episode-statistics" accessibilityRole="summary">
+      <Text style={styles.sectionTitle} accessibilityRole="header">Episode Statistics</Text>
 
       {!hasEpisodes ? (
         <View style={styles.emptyContainer} testID="empty-state">
@@ -150,15 +150,15 @@ export default function EpisodeStatistics({ selectedRange }: EpisodeStatisticsPr
         <>
           {/* Episode & Day Counts */}
           <View style={styles.statsGrid}>
-            <View style={styles.statCard} testID="migraine-days-card">
-              <Text style={styles.statValue} accessibilityLabel={`${statistics.migraineDays} migraine days`}>
+            <View style={styles.statCard} testID="migraine-days-card" accessible accessibilityLabel={`${statistics.migraineDays} migraine days in the selected period`}>
+              <Text style={styles.statValue}>
                 {statistics.migraineDays}
               </Text>
               <Text style={styles.statLabel}>Migraine Days</Text>
             </View>
 
-            <View style={styles.statCard} testID="total-episodes-card">
-              <Text style={styles.statValue} accessibilityLabel={`${statistics.episodeFrequency} total episodes`}>
+            <View style={styles.statCard} testID="total-episodes-card" accessible accessibilityLabel={`${statistics.episodeFrequency} total episodes in the selected period`}>
+              <Text style={styles.statValue}>
                 {statistics.episodeFrequency}
               </Text>
               <Text style={styles.statLabel}>Total Episodes</Text>
@@ -167,22 +167,22 @@ export default function EpisodeStatistics({ selectedRange }: EpisodeStatisticsPr
 
           {/* Day Categorization */}
           <View style={[styles.statsGrid, { marginTop: 12 }]}>
-            <View style={styles.statCard} testID="clear-days-card">
-              <Text style={styles.statValue} accessibilityLabel={`${statistics.dayCategorization.clear} clear days`}>
+            <View style={styles.statCard} testID="clear-days-card" accessible accessibilityLabel={`${statistics.dayCategorization.clear} clear days`}>
+              <Text style={styles.statValue}>
                 {statistics.dayCategorization.clear}
               </Text>
               <Text style={styles.statLabel}>Clear Days</Text>
             </View>
 
-            <View style={styles.statCard} testID="unclear-days-card">
-              <Text style={styles.statValue} accessibilityLabel={`${statistics.dayCategorization.unclear} unclear days`}>
+            <View style={styles.statCard} testID="unclear-days-card" accessible accessibilityLabel={`${statistics.dayCategorization.unclear} unclear days`}>
+              <Text style={styles.statValue}>
                 {statistics.dayCategorization.unclear}
               </Text>
               <Text style={styles.statLabel}>Unclear Days</Text>
             </View>
 
-            <View style={styles.statCard} testID="untracked-days-card">
-              <Text style={styles.statValue} accessibilityLabel={`${statistics.dayCategorization.untracked} untracked days`}>
+            <View style={styles.statCard} testID="untracked-days-card" accessible accessibilityLabel={`${statistics.dayCategorization.untracked} untracked days`}>
+              <Text style={styles.statValue}>
                 {statistics.dayCategorization.untracked}
               </Text>
               <Text style={styles.statLabel}>Untracked Days</Text>
@@ -190,8 +190,8 @@ export default function EpisodeStatistics({ selectedRange }: EpisodeStatisticsPr
           </View>
 
           {/* Duration Metrics */}
-          <View style={styles.durationCard} testID="duration-metrics-card">
-            <Text style={styles.durationTitle}>Episode Durations</Text>
+          <View style={styles.durationCard} testID="duration-metrics-card" accessible accessibilityLabel="Episode duration statistics">
+            <Text style={styles.durationTitle} accessibilityRole="header">Episode Durations</Text>
 
             <View style={styles.durationRow} testID="shortest-duration-row">
               <Text style={styles.durationRowLabel}>Shortest Episode:</Text>
