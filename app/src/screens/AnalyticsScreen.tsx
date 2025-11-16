@@ -50,18 +50,20 @@ export default function AnalyticsScreen() {
         <Text style={styles.title}>Trends & Analytics</Text>
       </View>
 
-      <ScrollView style={styles.content} stickyHeaderIndices={[1]}>
+      <ScrollView style={styles.content} stickyHeaderIndices={[2]}>
         {/* Monthly Calendar View */}
         <MonthlyCalendarView />
 
-        {/* Statistics Header + Time Range Selector - Sticky when scrolling */}
+        {/* Statistics Header */}
         <View style={styles.statisticsHeaderContainer}>
           <Text style={styles.statisticsHeader}>Statistics</Text>
-          <TimeRangeSelector
-            selectedRange={selectedTimeRange}
-            onRangeChange={setSelectedTimeRange}
-          />
         </View>
+
+        {/* Time Range Selector - Sticky when scrolling */}
+        <TimeRangeSelector
+          selectedRange={selectedTimeRange}
+          onRangeChange={setSelectedTimeRange}
+        />
 
         {/* Episode Statistics */}
         <EpisodeStatistics selectedRange={selectedTimeRange} />
