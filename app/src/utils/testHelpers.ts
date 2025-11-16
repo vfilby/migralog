@@ -66,6 +66,16 @@ export async function resetDatabaseForTesting(options: {
 
     logger.log('[TestHelpers] All tables cleared');
 
+    // 3a. Update schema_version to current version to avoid running migrations
+    // This prevents the ~1 second migration delay during tests
+    logger.log('[TestHelpers] Updating schema version to current...');
+    const { SCHEMA_VERSION } = await import('../database/schema');
+    await db.runAsync(
+      'UPDATE schema_version SET version = ?, updated_at = ? WHERE id = 1',
+      [SCHEMA_VERSION, Date.now()]
+    );
+    logger.log(`[TestHelpers] Schema version set to ${SCHEMA_VERSION}`);
+
     // 4. Reset Zustand stores to clear in-memory state
     logger.log('[TestHelpers] Resetting stores...');
     useDailyStatusStore.getState().reset();
@@ -376,6 +386,15 @@ export async function loadCorruptedDatabase() {
     await db.execAsync('DELETE FROM medication_doses');
     await db.execAsync('DELETE FROM medication_schedules');
     await db.execAsync('DELETE FROM medications');
+
+    // Update schema_version to current version to avoid running migrations
+    logger.log('[TestHelpers] Updating schema version to current...');
+    const { SCHEMA_VERSION } = await import('../database/schema');
+    await db.runAsync(
+      'UPDATE schema_version SET version = ?, updated_at = ? WHERE id = 1',
+      [SCHEMA_VERSION, Date.now()]
+    );
+    logger.log(`[TestHelpers] Schema version set to ${SCHEMA_VERSION}`);
 
     // Create a normal medication that we can interact with
     const medicationId = `error-test-med-${Date.now()}`;

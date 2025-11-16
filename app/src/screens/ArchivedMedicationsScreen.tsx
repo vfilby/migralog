@@ -13,10 +13,128 @@ import { RootStackParamList } from '../navigation/types';
 import { medicationRepository } from '../database/medicationRepository';
 import { useMedicationStore } from '../store/medicationStore';
 import { Medication } from '../models/types';
+import { useTheme, ThemeColors } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ArchivedMedications'>;
 
+const createStyles = (theme: ThemeColors) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.background,
+  },
+  header: {
+    backgroundColor: theme.card,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 60,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border,
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: theme.text,
+  },
+  backButton: {
+    fontSize: 17,
+    color: theme.primary,
+    minWidth: 60,
+  },
+  loadingText: {
+    textAlign: 'center',
+    marginTop: 40,
+    fontSize: 16,
+    color: theme.textSecondary,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.textSecondary,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 15,
+    color: theme.textTertiary,
+    textAlign: 'center',
+  },
+  content: {
+    flex: 1,
+  },
+  medicationCard: {
+    backgroundColor: theme.card,
+    marginHorizontal: 16,
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  medicationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  medicationInfo: {
+    flex: 1,
+  },
+  medicationName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.text,
+    marginBottom: 2,
+  },
+  medicationType: {
+    fontSize: 14,
+    color: theme.textSecondary,
+  },
+  restoreButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: theme.primary,
+    borderRadius: 6,
+  },
+  restoreButtonText: {
+    fontSize: 14,
+    color: theme.primaryText,
+    fontWeight: '600',
+  },
+  medicationDetails: {
+    gap: 4,
+  },
+  dosageText: {
+    fontSize: 16,
+    color: theme.primary,
+    fontWeight: '500',
+  },
+  frequencyText: {
+    fontSize: 14,
+    color: theme.textSecondary,
+  },
+  notes: {
+    marginTop: 8,
+    fontSize: 14,
+    color: theme.textSecondary,
+    fontStyle: 'italic',
+  },
+});
+
 export default function ArchivedMedicationsScreen({ navigation }: Props) {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   const [archivedMedications, setArchivedMedications] = useState<Medication[]>([]);
   const [loading, setLoading] = useState(true);
   const { unarchiveMedication } = useMedicationStore();
@@ -116,118 +234,3 @@ export default function ArchivedMedicationsScreen({ navigation }: Props) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F2F2F7',
-  },
-  header: {
-    backgroundColor: '#fff',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 60,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#000',
-  },
-  backButton: {
-    fontSize: 17,
-    color: '#007AFF',
-    minWidth: 60,
-  },
-  loadingText: {
-    textAlign: 'center',
-    marginTop: 40,
-    fontSize: 16,
-    color: '#8E8E93',
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#8E8E93',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 15,
-    color: '#C7C7CC',
-    textAlign: 'center',
-  },
-  content: {
-    flex: 1,
-  },
-  medicationCard: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginTop: 16,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  medicationHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  medicationInfo: {
-    flex: 1,
-  },
-  medicationName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 2,
-  },
-  medicationType: {
-    fontSize: 14,
-    color: '#8E8E93',
-  },
-  restoreButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#007AFF',
-    borderRadius: 6,
-  },
-  restoreButtonText: {
-    fontSize: 14,
-    color: '#fff',
-    fontWeight: '600',
-  },
-  medicationDetails: {
-    gap: 4,
-  },
-  dosageText: {
-    fontSize: 16,
-    color: '#007AFF',
-    fontWeight: '500',
-  },
-  frequencyText: {
-    fontSize: 14,
-    color: '#8E8E93',
-  },
-  notes: {
-    marginTop: 8,
-    fontSize: 14,
-    color: '#8E8E93',
-    fontStyle: 'italic',
-  },
-});
