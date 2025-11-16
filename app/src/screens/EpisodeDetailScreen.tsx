@@ -32,11 +32,16 @@ type SymptomChange = {
   changeType: 'added' | 'removed';
 };
 
+type PainLocationChange = {
+  location: PainLocation;
+  changeType: 'added' | 'removed' | 'unchanged';
+};
+
 type TimelineEvent = {
   id: string;
   timestamp: number;
-  type: 'intensity' | 'note' | 'medication' | 'symptom' | 'symptom_initial' | 'pain_location' | 'end';
-  data: IntensityReading | EpisodeNote | MedicationDoseWithDetails | SymptomLog | SymptomChange[] | PainLocationLog | null;
+  type: 'intensity' | 'note' | 'medication' | 'symptom' | 'symptom_initial' | 'pain_location' | 'pain_location_initial' | 'end';
+  data: IntensityReading | EpisodeNote | MedicationDoseWithDetails | SymptomLog | SymptomChange[] | PainLocationLog | PainLocationChange[] | null;
 };
 
 type GroupedTimelineEvent = {
@@ -730,14 +735,74 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
       });
     });
 
-    // Add pain location logs (changes in pain location areas over time)
-    painLocationLogs.forEach(painLoc => {
+    // Add initial pain locations as a timeline event (if episode has pain locations)
+    if (episode && episode.locations && episode.locations.length > 0) {
+      const initialPainLocationChanges: PainLocationChange[] = episode.locations.map(location => ({
+        location,
+        changeType: 'added' as const,
+      }));
+
       events.push({
-        id: `pain-location-${painLoc.id}`,
-        timestamp: painLoc.timestamp,
-        type: 'pain_location',
-        data: painLoc,
+        id: 'pain-locations-initial',
+        timestamp: episode.startTime,
+        type: 'pain_location_initial',
+        data: initialPainLocationChanges,
       });
+    }
+
+    // Add pain location logs with deltas (changes in pain location areas over time)
+    // Sort pain location logs by time to calculate deltas correctly
+    const sortedPainLocationLogs = [...painLocationLogs].sort((a, b) => a.timestamp - b.timestamp);
+
+    // Track current pain location state
+    let currentPainLocations = new Set(episode?.locations || []);
+
+    sortedPainLocationLogs.forEach(painLoc => {
+      const newLocations = new Set(painLoc.painLocations);
+      const locationChanges: PainLocationChange[] = [];
+
+      // Find additions (in new but not in current)
+      painLoc.painLocations.forEach(location => {
+        if (!currentPainLocations.has(location)) {
+          locationChanges.push({
+            location,
+            changeType: 'added',
+          });
+        }
+      });
+
+      // Find removals (in current but not in new)
+      currentPainLocations.forEach(location => {
+        if (!newLocations.has(location)) {
+          locationChanges.push({
+            location,
+            changeType: 'removed',
+          });
+        }
+      });
+
+      // Find unchanged (in both current and new)
+      painLoc.painLocations.forEach(location => {
+        if (currentPainLocations.has(location)) {
+          locationChanges.push({
+            location,
+            changeType: 'unchanged',
+          });
+        }
+      });
+
+      // Add event if there are any locations to show (changes or unchanged)
+      if (locationChanges.length > 0) {
+        events.push({
+          id: `pain-location-${painLoc.id}`,
+          timestamp: painLoc.timestamp,
+          type: 'pain_location',
+          data: locationChanges,
+        });
+      }
+
+      // Update current state
+      currentPainLocations = newLocations;
     });
 
     // Add medications - only show rescue medications or skipped scheduled medications
@@ -852,31 +917,6 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     }
   };
 
-  const handlePainLocationLongPress = (painLoc: PainLocationLog) => {
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ['Cancel', 'Edit'],
-          cancelButtonIndex: 0,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 1) {
-            Alert.alert('Coming Soon', 'Edit pain location feature coming soon!');
-          }
-        }
-      );
-    } else {
-      Alert.alert(
-        'Pain Location Actions',
-        `${format(new Date(painLoc.timestamp), 'MMM d, yyyy h:mm a')}`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Edit', onPress: () => Alert.alert('Coming Soon', 'Edit pain location feature coming soon!') },
-        ]
-      );
-    }
-  };
-
   const handleMedicationLongPress = (dose: MedicationDoseWithDetails) => {
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
@@ -962,25 +1002,9 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
         return null;
 
       case 'pain_location':
-        const painLoc = event.data as PainLocationLog;
-        const locationLabels = painLoc.painLocations.map(loc => {
-          const location = PAIN_LOCATIONS.find(l => l.value === loc);
-          if (!location) return loc;
-          const sideLabel = location.side === 'left' ? 'Left' : 'Right';
-          return `${sideLabel} ${location.label}`;
-        }).join(', ');
-        return (
-          <TouchableOpacity
-            key={event.id}
-            style={{ marginBottom: 12 }}
-            activeOpacity={0.7}
-            onLongPress={() => handlePainLocationLongPress(painLoc)}
-            delayLongPress={500}
-          >
-            <Text style={styles.timelineEventTitle}>Pain Location Changed</Text>
-            <Text style={styles.timelineEventContent}>{locationLabels}</Text>
-          </TouchableOpacity>
-        );
+      case 'pain_location_initial':
+        // Pain locations are now rendered grouped in renderGroupedTimelineEvent
+        return null;
 
       case 'medication':
         const dose = event.data as MedicationDoseWithDetails;
@@ -1015,9 +1039,15 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   const renderGroupedTimelineEvent = (group: GroupedTimelineEvent, index: number, isLast: boolean, dateLabel?: React.ReactNode) => {
     const time = format(group.timestamp, 'h:mm a');
 
-    // Separate symptom events from other events
+    // Separate symptom events and pain location events from other events
     const symptomEvents = group.events.filter(e => e.type === 'symptom' || e.type === 'symptom_initial');
-    const otherEvents = group.events.filter(e => e.type !== 'symptom' && e.type !== 'symptom_initial');
+    const painLocationEvents = group.events.filter(e => e.type === 'pain_location' || e.type === 'pain_location_initial');
+    const otherEvents = group.events.filter(e =>
+      e.type !== 'symptom' &&
+      e.type !== 'symptom_initial' &&
+      e.type !== 'pain_location' &&
+      e.type !== 'pain_location_initial'
+    );
 
     // Get the primary color for the dot (intensity > medication > note)
     const intensityEvent = group.events.find(e => e.type === 'intensity');
@@ -1080,6 +1110,63 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
                       <View key={`${event.id}-${idx}`} style={[styles.chip, chipStyle]}>
                         <Text style={[styles.chipText, textStyle]}>
                           {indicator}{change.symptom.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </Text>
+                      </View>
+                    );
+                  });
+                })}
+              </View>
+            </View>
+          )}
+
+          {/* Render pain location changes with +/- indicators */}
+          {painLocationEvents.length > 0 && (
+            <View style={{ marginBottom: 12 }}>
+              <Text style={styles.timelineEventTitle}>
+                {painLocationEvents[0].type === 'pain_location_initial' ? 'Initial Pain Locations' : 'Pain Location Changes'}
+              </Text>
+              <View style={styles.chipContainer}>
+                {painLocationEvents.map(event => {
+                  const locationChanges = event.data as PainLocationChange[];
+                  const isInitial = event.type === 'pain_location_initial';
+
+                  return locationChanges.map((change, idx) => {
+                    const location = PAIN_LOCATIONS.find(l => l.value === change.location);
+                    const sideLabel = location?.side === 'left' ? 'Left' : 'Right';
+                    const locationLabel = location ? `${sideLabel} ${location.label}` : change.location;
+
+                    // For initial pain locations, use neutral styling without indicators
+                    if (isInitial) {
+                      return (
+                        <View key={`${event.id}-${idx}`} style={styles.chip}>
+                          <Text style={styles.chipText}>
+                            {locationLabel}
+                          </Text>
+                        </View>
+                      );
+                    }
+
+                    // For unchanged locations, use neutral styling without indicators
+                    if (change.changeType === 'unchanged') {
+                      return (
+                        <View key={`${event.id}-${idx}`} style={styles.chip}>
+                          <Text style={styles.chipText}>
+                            {locationLabel}
+                          </Text>
+                        </View>
+                      );
+                    }
+
+                    // For pain location changes, show +/- with color coding
+                    const isAdded = change.changeType === 'added';
+                    const chipStyle = isAdded ? styles.symptomAddedChip : styles.symptomRemovedChip;
+                    const textStyle = isAdded ? styles.symptomAddedText : styles.symptomRemovedText;
+                    const indicator = isAdded ? '+ ' : '− ';
+
+                    return (
+                      <View key={`${event.id}-${idx}`} style={[styles.chip, chipStyle]}>
+                        <Text style={[styles.chipText, textStyle]}>
+                          {indicator}{locationLabel}
                         </Text>
                       </View>
                     );

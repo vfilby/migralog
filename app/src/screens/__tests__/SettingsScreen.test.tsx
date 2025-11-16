@@ -102,8 +102,8 @@ describe('SettingsScreen', () => {
 
     await waitFor(() => {
       expect(screen.getByText('MigraLog')).toBeTruthy();
-      // Version now includes build number and commit hash
-      expect(screen.getByText(/1\.0\.0 \(.+:.+\)/)).toBeTruthy();
+      // Version now includes build number and commit hash (or "build dev" in dev)
+      expect(screen.getByText(/1\.\d+\.\d+ (build |\().+/)).toBeTruthy();
     });
   });
 

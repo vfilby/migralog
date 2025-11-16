@@ -50,7 +50,7 @@ export default function AnalyticsScreen() {
         <Text style={styles.title}>Trends & Analytics</Text>
       </View>
 
-      <ScrollView style={styles.content} stickyHeaderIndices={[2]}>
+      <ScrollView style={styles.content} stickyHeaderIndices={[2]} testID="analytics-scroll-view">
         {/* Monthly Calendar View */}
         <MonthlyCalendarView />
 
