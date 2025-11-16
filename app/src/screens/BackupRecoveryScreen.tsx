@@ -278,7 +278,7 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
               </Text>
             </View>
           ) : (
-            backups.map(renderBackupItem)
+            backups.map((backup) => renderBackupItem(backup))
           )}
         </View>
 

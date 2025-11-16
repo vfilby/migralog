@@ -24,7 +24,7 @@ interface MedicationState {
   rescueMedications: Medication[];
   otherMedications: Medication[];
   schedules: MedicationSchedule[]; // All schedules for active medications
-  doses: MedicationDose[]; // Recent doses (last 7 days)
+  doses: MedicationDose[]; // Recent doses (last 90 days for analytics)
   loading: boolean;
   error: string | null;
 
@@ -309,7 +309,7 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
     }
   },
 
-  loadRecentDoses: async (days = 7) => {
+  loadRecentDoses: async (days = 90) => {
     try {
       // Get all doses for each medication
       const allDoses: MedicationDose[] = [];

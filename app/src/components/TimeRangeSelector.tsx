@@ -1,0 +1,80 @@
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, AccessibilityRole } from 'react-native';
+import { useTheme, ThemeColors } from '../theme';
+
+interface TimeRangeSelectorProps {
+  selectedRange: 7 | 30 | 90;
+  onRangeChange: (range: 7 | 30 | 90) => void;
+}
+
+const createStyles = (theme: ThemeColors) => StyleSheet.create({
+  container: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: theme.background,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  button: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: theme.card,
+    borderWidth: 1,
+    borderColor: theme.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonSelected: {
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
+  },
+  buttonText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: theme.text,
+  },
+  buttonTextSelected: {
+    color: theme.primaryText,
+  },
+});
+
+export default function TimeRangeSelector({ selectedRange, onRangeChange }: TimeRangeSelectorProps) {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
+
+  const ranges: Array<{ value: 7 | 30 | 90; label: string; accessibilityLabel: string }> = [
+    { value: 7, label: '7 Days', accessibilityLabel: 'Select 7 days time range' },
+    { value: 30, label: '30 Days', accessibilityLabel: 'Select 30 days time range' },
+    { value: 90, label: '90 Days', accessibilityLabel: 'Select 90 days time range' },
+  ];
+
+  return (
+    <View style={styles.container} testID="time-range-selector">
+      <View style={styles.buttonContainer}>
+        {ranges.map(({ value, label, accessibilityLabel }) => {
+          const isSelected = selectedRange === value;
+          return (
+            <TouchableOpacity
+              key={value}
+              style={[styles.button, isSelected && styles.buttonSelected]}
+              onPress={() => onRangeChange(value)}
+              accessibilityRole={'button' as AccessibilityRole}
+              accessibilityLabel={accessibilityLabel}
+              accessibilityState={{ selected: isSelected }}
+              accessibilityHint={isSelected ? 'Currently selected' : 'Double tap to select this time range'}
+              testID={`time-range-${value}`}
+            >
+              <Text style={[styles.buttonText, isSelected && styles.buttonTextSelected]}>
+                {label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+}

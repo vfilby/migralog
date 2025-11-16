@@ -386,7 +386,7 @@ describe('DashboardScreen', () => {
 
       await waitFor(() => {
         expect(mockLoadSchedules).toHaveBeenCalled();
-        expect(mockLoadRecentDoses).toHaveBeenCalledWith(1);
+        expect(mockLoadRecentDoses).toHaveBeenCalledWith(90);
       });
     });
 
