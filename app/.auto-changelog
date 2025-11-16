@@ -1,0 +1,43 @@
+{
+  "output": "CHANGELOG.md",
+  "template": "compact",
+  "unreleased": true,
+  "commitLimit": false,
+  "backfillLimit": false,
+  "hideCredit": true,
+  "commitUrl": "https://github.com/vfilby/MigraineTracker/commit/{id}",
+  "compareUrl": "https://github.com/vfilby/MigraineTracker/compare/{from}...{to}",
+  "issueUrl": "https://github.com/vfilby/MigraineTracker/issues/{id}",
+  "replaceText": {
+    "^feat(\\(.+\\))?:": "✨ **Feature:**",
+    "^fix(\\(.+\\))?:": "🐛 **Fix:**",
+    "^perf(\\(.+\\))?:": "⚡ **Performance:**",
+    "^refactor(\\(.+\\))?:": "♻️ Refactor:",
+    "^chore(\\(.+\\))?:": "🔧 Chore:",
+    "^docs(\\(.+\\))?:": "📝 Docs:",
+    "^test(\\(.+\\))?:": "✅ Test:",
+    "^style(\\(.+\\))?:": "💄 Style:",
+    "^build(\\(.+\\))?:": "🏗️ Build:",
+    "^ci(\\(.+\\))?:": "👷 CI:",
+    "^security(\\(.+\\))?:": "🔒 **Security:**",
+    "^revert(\\(.+\\))?:": "⏪ Revert:"
+  },
+  "includeBranch": [
+    "main",
+    "master"
+  ],
+  "sections": [
+    {
+      "title": "### 🎯 User-Facing Changes",
+      "commits": {
+        "title": "^(feat|fix|perf|security)"
+      }
+    },
+    {
+      "title": "### 🔧 Technical Changes",
+      "commits": {
+        "title": "^(refactor|chore|docs|test|style|build|ci|revert)"
+      }
+    }
+  ]
+}

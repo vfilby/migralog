@@ -87,24 +87,89 @@ if (releaseType === 'production') {
   newTag = `${tagPrefix}${nextRc}`;
 }
 
+console.log(`\n📝 Generating changelog...`);
+
+// Generate changelog
+try {
+  execSync('npm run changelog:release', { stdio: 'inherit' });
+  console.log('✅ Changelog generated');
+} catch (error) {
+  console.error('❌ Failed to generate changelog:', error.message);
+  process.exit(1);
+}
+
+// Commit changelog if it changed
+try {
+  const changelogStatus = execSync('git status --porcelain CHANGELOG.md').toString().trim();
+  if (changelogStatus) {
+    console.log('📝 Committing changelog...');
+    execSync('git add CHANGELOG.md', { stdio: 'inherit' });
+    execSync(`git commit -m "chore: update CHANGELOG.md for ${newTag}"`, { stdio: 'inherit' });
+    console.log('✅ Changelog committed');
+  } else {
+    console.log('ℹ️  Changelog unchanged');
+  }
+} catch (error) {
+  console.error('❌ Failed to commit changelog:', error.message);
+  process.exit(1);
+}
+
 console.log(`\n🏷️  Creating tag: ${newTag}`);
 
-// Create tag
+// Extract changelog entry for this version (for tag annotation)
+let tagMessage = `Release ${newTag}`;
 try {
-  execSync(`git tag ${newTag}`, { stdio: 'inherit' });
+  const changelog = fs.readFileSync(path.join(__dirname, '..', 'CHANGELOG.md'), 'utf8');
+
+  // Extract the section for unreleased changes (will be this version)
+  const lines = changelog.split('\n');
+  let capturing = false;
+  let changelogLines = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Start capturing after "Unreleased" header
+    if (line.includes('Unreleased')) {
+      capturing = true;
+      continue;
+    }
+
+    // Stop at next version header or after 30 lines
+    if (capturing && (line.match(/^####\s+\[/) || changelogLines.length > 30)) {
+      break;
+    }
+
+    if (capturing && line.trim()) {
+      changelogLines.push(line);
+    }
+  }
+
+  if (changelogLines.length > 0) {
+    tagMessage = `Release ${newTag}\n\n${changelogLines.slice(0, 20).join('\n')}`;
+  }
+} catch (error) {
+  // If we can't read changelog, use simple message
+  console.log('⚠️  Could not extract changelog excerpt, using simple tag message');
+}
+
+// Create annotated tag
+try {
+  execSync(`git tag -a ${newTag} -m "${tagMessage}"`, { stdio: 'inherit' });
   console.log('✅ Tag created locally');
 } catch (error) {
   console.error('❌ Failed to create tag:', error.message);
   process.exit(1);
 }
 
-// Push tag to remote
+// Push changelog commit and tag to remote
 try {
-  console.log('⬆️  Pushing tag to remote...');
+  console.log('⬆️  Pushing changelog commit and tag to remote...');
+  execSync('git push origin main', { stdio: 'inherit' });
   execSync(`git push origin ${newTag}`, { stdio: 'inherit' });
-  console.log('✅ Tag pushed to remote');
+  console.log('✅ Changelog and tag pushed to remote');
 } catch (error) {
-  console.error('❌ Failed to push tag:', error.message);
+  console.error('❌ Failed to push:', error.message);
   console.error('   Cleaning up local tag...');
   execSync(`git tag -d ${newTag}`);
   process.exit(1);
