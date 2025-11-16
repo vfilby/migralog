@@ -34,7 +34,7 @@ type SymptomChange = {
 
 type PainLocationChange = {
   location: PainLocation;
-  changeType: 'added' | 'removed';
+  changeType: 'added' | 'removed' | 'unchanged';
 };
 
 type TimelineEvent = {
@@ -781,7 +781,17 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
         }
       });
 
-      // Only add event if there are changes
+      // Find unchanged (in both current and new)
+      painLoc.painLocations.forEach(location => {
+        if (currentPainLocations.has(location)) {
+          locationChanges.push({
+            location,
+            changeType: 'unchanged',
+          });
+        }
+      });
+
+      // Add event if there are any locations to show (changes or unchanged)
       if (locationChanges.length > 0) {
         events.push({
           id: `pain-location-${painLoc.id}`,
@@ -1121,7 +1131,6 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
                   const isInitial = event.type === 'pain_location_initial';
 
                   return locationChanges.map((change, idx) => {
-                    const isAdded = change.changeType === 'added';
                     const location = PAIN_LOCATIONS.find(l => l.value === change.location);
                     const sideLabel = location?.side === 'left' ? 'Left' : 'Right';
                     const locationLabel = location ? `${sideLabel} ${location.label}` : change.location;
@@ -1137,7 +1146,19 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
                       );
                     }
 
+                    // For unchanged locations, use neutral styling without indicators
+                    if (change.changeType === 'unchanged') {
+                      return (
+                        <View key={`${event.id}-${idx}`} style={styles.chip}>
+                          <Text style={styles.chipText}>
+                            {locationLabel}
+                          </Text>
+                        </View>
+                      );
+                    }
+
                     // For pain location changes, show +/- with color coding
+                    const isAdded = change.changeType === 'added';
                     const chipStyle = isAdded ? styles.symptomAddedChip : styles.symptomRemovedChip;
                     const textStyle = isAdded ? styles.symptomAddedText : styles.symptomRemovedText;
                     const indicator = isAdded ? '+ ' : '− ';
