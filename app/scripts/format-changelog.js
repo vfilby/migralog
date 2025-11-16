@@ -22,7 +22,6 @@ const userFacingPrefixes = ['✨', '🐛', '⚡', '🔒'];
 const technicalPrefixes = ['♻️', '🔧', '📝', '✅', '💄', '🏗️', '👷', '⏪'];
 
 let result = [];
-let currentSection = null;
 let userFacingChanges = [];
 let technicalChanges = [];
 let inUnreleasedSection = false;
