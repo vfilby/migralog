@@ -35,9 +35,14 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     elevation: 3,
   },
   medicationItem: {
-    paddingVertical: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: theme.border,
+    gap: 8,
   },
   medicationItemLast: {
     borderBottomWidth: 0,
@@ -46,11 +51,12 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     color: theme.text,
-    marginBottom: 4,
+    flex: 0,
   },
   medicationStats: {
     fontSize: 14,
     color: theme.textSecondary,
+    textAlign: 'right',
   },
   emptyContainer: {
     alignItems: 'center',
