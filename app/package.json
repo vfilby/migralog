@@ -26,7 +26,9 @@
     "release:production": "node scripts/tag-release.js production",
     "version:patch": "npm version patch",
     "version:minor": "npm version minor",
-    "version:major": "npm version major"
+    "version:major": "npm version major",
+    "changelog:generate": "auto-changelog --config .auto-changelog --unreleased && node scripts/format-changelog.js",
+    "changelog:release": "auto-changelog --config .auto-changelog && node scripts/format-changelog.js"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -76,6 +78,7 @@
     "@types/react": "~19.1.0",
     "@typescript-eslint/eslint-plugin": "^8.46.1",
     "@typescript-eslint/parser": "^8.46.1",
+    "auto-changelog": "^2.5.0",
     "babel-jest": "^30.2.0",
     "babel-preset-expo": "^54.0.3",
     "better-sqlite3": "^12.4.1",

@@ -94,6 +94,55 @@ jobs:
           echo "✅ Build submitted successfully!"
           echo "Check build status at: https://expo.dev/accounts/akin-gulp/projects/migraine-tracker/builds"
 
+      - name: Extract changelog for release notes
+        if: success()
+        id: changelog
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+
+          # Read CHANGELOG.md and extract the section for unreleased changes
+          if [ -f "CHANGELOG.md" ]; then
+            # Extract everything between "Unreleased" and the next version header
+            CHANGELOG_SECTION=$(awk '/#### Unreleased/,/^#### \[/ {if (/^#### \[/) exit; if (!/#### Unreleased/) print}' CHANGELOG.md | head -50)
+
+            if [ -z "$CHANGELOG_SECTION" ]; then
+              CHANGELOG_SECTION="No changelog available for this release."
+            fi
+          else
+            CHANGELOG_SECTION="No changelog available for this release."
+          fi
+
+          # Save to output (handle multiline)
+          {
+            echo 'notes<<EOF'
+            echo "$CHANGELOG_SECTION"
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        if: success()
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          body: |
+            ## MigraLog TestFlight Build
+
+            **Release Type:** ${{ env.RELEASE_TYPE }}
+            **Build Profile:** ${{ env.BUILD_PROFILE }}
+
+            ### Changes in this Release
+
+            ${{ steps.changelog.outputs.notes }}
+
+            ---
+
+            **Build Status:** https://expo.dev/accounts/akin-gulp/projects/migraine-tracker/builds
+          draft: false
+          prerelease: ${{ env.RELEASE_TYPE != 'production' }}
+
       - name: Notify on failure
         if: failure()
         run: |
