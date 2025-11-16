@@ -98,7 +98,7 @@ jobs:
           echo "Check build status at: https://expo.dev/accounts/akin-gulp/projects/migraine-tracker/builds"
 
       - name: Extract changelog for release notes
-        if: success()
+        if: success() && startsWith(github.ref, 'refs/tags/')
         id: changelog
         run: |
           TAG_NAME="${GITHUB_REF#refs/tags/}"
@@ -123,7 +123,7 @@ jobs:
           } >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
-        if: success()
+        if: success() && startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
           name: Release ${{ github.ref_name }}
