@@ -114,6 +114,9 @@ export default function EpisodeStatistics({ selectedRange }: EpisodeStatisticsPr
   const statistics = useMemo(() => {
     const { startDate, endDate } = getDateRangeForDays(selectedRange);
 
+    // Calculate total days in range
+    const totalDays = selectedRange;
+
     // Calculate migraine days (unique days with episodes)
     const migraineDays = calculateMigraineDays(episodes, startDate, endDate);
 
@@ -123,15 +126,26 @@ export default function EpisodeStatistics({ selectedRange }: EpisodeStatisticsPr
     // Categorize days by status
     const dayCategorization = categorizeDays(dailyStatuses, startDate, endDate);
 
+    // Calculate percentages
+    const migraineDaysPercent = Math.round((migraineDays / totalDays) * 100);
+    const clearDaysPercent = Math.round((dayCategorization.clear / totalDays) * 100);
+    const notClearDays = dayCategorization.unclear + dayCategorization.untracked;
+    const notClearDaysPercent = Math.round((notClearDays / totalDays) * 100);
+
     // Calculate duration metrics
     const durationMetrics = calculateDurationMetrics(
       episodes.filter(ep => ep.startTime >= startDate.getTime() && ep.startTime <= endDate.getTime())
     );
 
     return {
+      totalDays,
       migraineDays,
+      migraineDaysPercent,
       episodeFrequency,
       dayCategorization,
+      clearDaysPercent,
+      notClearDays,
+      notClearDaysPercent,
       durationMetrics,
     };
   }, [selectedRange, episodes, dailyStatuses]);
@@ -140,7 +154,33 @@ export default function EpisodeStatistics({ selectedRange }: EpisodeStatisticsPr
 
   return (
     <View style={styles.container} testID="episode-statistics" accessibilityRole="summary">
-      <Text style={styles.sectionTitle} accessibilityRole="header">Episode Statistics</Text>
+      {/* Day Statistics */}
+      <Text style={styles.sectionTitle} accessibilityRole="header">Day Statistics</Text>
+      <View style={styles.statsGrid}>
+        <View style={styles.statCard} testID="migraine-days-card" accessible accessibilityLabel={`${statistics.migraineDays} migraine days, ${statistics.migraineDaysPercent}% of the selected period`}>
+          <Text style={styles.statValue}>
+            {statistics.migraineDays}
+          </Text>
+          <Text style={styles.statLabel}>Migraine Days ({statistics.migraineDaysPercent}%)</Text>
+        </View>
+
+        <View style={styles.statCard} testID="clear-days-card" accessible accessibilityLabel={`${statistics.dayCategorization.clear} clear days, ${statistics.clearDaysPercent}% of the selected period`}>
+          <Text style={styles.statValue}>
+            {statistics.dayCategorization.clear}
+          </Text>
+          <Text style={styles.statLabel}>Clear Days ({statistics.clearDaysPercent}%)</Text>
+        </View>
+
+        <View style={styles.statCard} testID="not-clear-days-card" accessible accessibilityLabel={`${statistics.notClearDays} not clear days, ${statistics.notClearDaysPercent}% of the selected period`}>
+          <Text style={styles.statValue}>
+            {statistics.notClearDays}
+          </Text>
+          <Text style={styles.statLabel}>Not Clear Days ({statistics.notClearDaysPercent}%)</Text>
+        </View>
+      </View>
+
+      {/* Episode Statistics */}
+      <Text style={[styles.sectionTitle, { marginTop: 24 }]} accessibilityRole="header">Episode Statistics</Text>
 
       {!hasEpisodes ? (
         <View style={styles.emptyContainer} testID="empty-state">
@@ -148,44 +188,12 @@ export default function EpisodeStatistics({ selectedRange }: EpisodeStatisticsPr
         </View>
       ) : (
         <>
-          {/* Episode & Day Counts */}
           <View style={styles.statsGrid}>
-            <View style={styles.statCard} testID="migraine-days-card" accessible accessibilityLabel={`${statistics.migraineDays} migraine days in the selected period`}>
-              <Text style={styles.statValue}>
-                {statistics.migraineDays}
-              </Text>
-              <Text style={styles.statLabel}>Migraine Days</Text>
-            </View>
-
             <View style={styles.statCard} testID="total-episodes-card" accessible accessibilityLabel={`${statistics.episodeFrequency} total episodes in the selected period`}>
               <Text style={styles.statValue}>
                 {statistics.episodeFrequency}
               </Text>
               <Text style={styles.statLabel}>Total Episodes</Text>
-            </View>
-          </View>
-
-          {/* Day Categorization */}
-          <View style={[styles.statsGrid, { marginTop: 12 }]}>
-            <View style={styles.statCard} testID="clear-days-card" accessible accessibilityLabel={`${statistics.dayCategorization.clear} clear days`}>
-              <Text style={styles.statValue}>
-                {statistics.dayCategorization.clear}
-              </Text>
-              <Text style={styles.statLabel}>Clear Days</Text>
-            </View>
-
-            <View style={styles.statCard} testID="unclear-days-card" accessible accessibilityLabel={`${statistics.dayCategorization.unclear} unclear days`}>
-              <Text style={styles.statValue}>
-                {statistics.dayCategorization.unclear}
-              </Text>
-              <Text style={styles.statLabel}>Unclear Days</Text>
-            </View>
-
-            <View style={styles.statCard} testID="untracked-days-card" accessible accessibilityLabel={`${statistics.dayCategorization.untracked} untracked days`}>
-              <Text style={styles.statValue}>
-                {statistics.dayCategorization.untracked}
-              </Text>
-              <Text style={styles.statLabel}>Untracked Days</Text>
             </View>
           </View>
 
