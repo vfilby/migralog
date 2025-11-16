@@ -6,6 +6,10 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ##### 🎯 User-Facing Changes
 
+- ✨ **Feature:** Calculate red days from episode data instead of manual logging [`#153`](https://github.com/vfilby/migralog/pull/153)
+- Fix pain location timeline to show only changes (delta) [`#150`](https://github.com/vfilby/migralog/pull/150)
+- 🐛 **Fix:** Add dark mode support to archived medications page [`#152`](https://github.com/vfilby/migralog/pull/152)
+- ✨ **Feature:** Add automated changelog generation for TestFlight releases [`#149`](https://github.com/vfilby/migralog/pull/149)
 - Redesign Trends & Analytics page with comprehensive statistics [`#147`](https://github.com/vfilby/migralog/pull/147)
 - ✨ **Feature:** Add WCAG accessibility compliance support [`#138`](https://github.com/vfilby/migralog/pull/138)
 - Add npm overrides to eliminate remaining moderate vulnerabilities [`#137`](https://github.com/vfilby/migralog/pull/137)
@@ -65,6 +69,9 @@ All notable changes to this project will be documented in this file. Dates are d
 - Fix: Medication status sync between Dashboard and Medications screen (Issue #7) [`#9`](https://github.com/vfilby/migralog/pull/9)
 - ✨ **Feature:** Improve symptom timeline UI and move episode metadata [`#6`](https://github.com/vfilby/migralog/pull/6)
 - 🐛 **Fix:** Medication tracking UI persistence bug [`#1`](https://github.com/vfilby/migralog/pull/1)
+- ✨ **Feature:** Calculate red days from episode data instead of manual logging (#153) [`#144`](https://github.com/vfilby/MigraineTracker/issues/144)
+- Fix pain location timeline to show only changes (delta) (#150) [`#148`](https://github.com/vfilby/MigraineTracker/issues/148)
+- 🐛 **Fix:** Add dark mode support to archived medications page (#152) [`#145`](https://github.com/vfilby/MigraineTracker/issues/145) [`#142`](https://github.com/vfilby/MigraineTracker/issues/142)
 - Fix: Dismiss notification when logging scheduled medication (Issue #122) (#128) [`#122`](https://github.com/vfilby/MigraineTracker/issues/122)
 - 🐛 **Fix:** reschedule notifications when archiving medications (#126) [`#123`](https://github.com/vfilby/MigraineTracker/issues/123)
 - Fix skipped doses UI issues (#117) [`#116`](https://github.com/vfilby/MigraineTracker/issues/116)
