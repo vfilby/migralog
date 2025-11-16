@@ -108,8 +108,14 @@ export default function EpisodeStatistics({ selectedRange }: EpisodeStatisticsPr
   const statistics = useMemo(() => {
     const { startDate, endDate } = getDateRangeForDays(selectedRange);
 
-    // Calculate total days in range
-    const totalDays = selectedRange;
+    // Calculate actual total days in range (inclusive)
+    // Normalize dates to midnight for accurate day counting
+    const normalizedStart = new Date(startDate);
+    normalizedStart.setHours(0, 0, 0, 0);
+    const normalizedEnd = new Date(endDate);
+    normalizedEnd.setHours(0, 0, 0, 0);
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const totalDays = Math.round((normalizedEnd.getTime() - normalizedStart.getTime()) / msPerDay) + 1;
 
     // Calculate migraine days (unique days with episodes)
     const migraineDays = calculateMigraineDays(episodes, startDate, endDate);
