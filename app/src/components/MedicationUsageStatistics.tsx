@@ -49,13 +49,13 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   },
   medicationName: {
     fontSize: 15,
-    fontWeight: '500',
-    color: theme.text,
+    color: theme.textSecondary,
     flex: 0,
   },
   medicationStats: {
-    fontSize: 14,
-    color: theme.textSecondary,
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.text,
     textAlign: 'right',
   },
   emptyContainer: {
