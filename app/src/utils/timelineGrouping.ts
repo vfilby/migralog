@@ -8,7 +8,7 @@ export type MedicationDoseWithDetails = MedicationDose & {
 export type TimelineEvent = {
   id: string;
   timestamp: number;
-  type: 'intensity' | 'note' | 'medication' | 'symptom' | 'symptom_initial' | 'pain_location' | 'end';
+  type: 'intensity' | 'note' | 'medication' | 'symptom' | 'symptom_initial' | 'pain_location' | 'pain_location_initial' | 'end';
   // Data varies by event type (IntensityReading | MedicationDose | SymptomLog | etc.)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any;
