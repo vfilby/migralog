@@ -5,10 +5,12 @@ import { ThemeProvider } from '../../theme/ThemeContext';
 import { Alert } from 'react-native';
 
 const mockLogDayStatus = jest.fn();
+const mockGetEpisodesForDate = jest.fn();
 
 jest.mock('../../store/dailyStatusStore', () => ({
   useDailyStatusStore: jest.fn(() => ({
     logDayStatus: mockLogDayStatus,
+    getEpisodesForDate: mockGetEpisodesForDate,
     todayStatus: null,
     logs: [],
     loading: false,
@@ -45,6 +47,7 @@ describe('DailyStatusPromptScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockLogDayStatus.mockResolvedValue(undefined);
+    mockGetEpisodesForDate.mockResolvedValue([]);
   });
 
   describe('Rendering', () => {
@@ -191,6 +194,300 @@ describe('DailyStatusPromptScreen', () => {
       );
       await waitFor(() => {
         expect(getByTestId('daily-status-prompt-screen')).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Episode Integration', () => {
+    it('loads episodes on mount', async () => {
+      render(
+        <DailyStatusPromptScreen navigation={{ goBack: mockGoBack, navigate: mockNavigate } as any} route={mockRoute} />,
+        { wrapper: TestWrapper }
+      );
+
+      await waitFor(() => {
+        expect(mockGetEpisodesForDate).toHaveBeenCalledWith('2025-01-15');
+      });
+    });
+
+    it('displays episode info when episodes exist', async () => {
+      const mockEpisode = {
+        id: 'episode-1',
+        startTime: new Date('2025-01-15T10:00:00').getTime(),
+        endTime: new Date('2025-01-15T14:30:00').getTime(),
+        notes: 'Stress migraine',
+        locations: [],
+        qualities: [],
+        symptoms: [],
+        triggers: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      mockGetEpisodesForDate.mockResolvedValue([mockEpisode]);
+
+      const { getByText } = render(
+        <DailyStatusPromptScreen navigation={{ goBack: mockGoBack, navigate: mockNavigate } as any} route={mockRoute} />,
+        { wrapper: TestWrapper }
+      );
+
+      await waitFor(() => {
+        expect(getByText('🔴 Episode Day')).toBeTruthy();
+        expect(getByText('You had an episode on this day:')).toBeTruthy();
+        expect(getByText(/Stress migraine/)).toBeTruthy();
+      });
+    });
+
+    it('displays multiple episodes when present', async () => {
+      const mockEpisodes = [
+        {
+          id: 'episode-1',
+          startTime: new Date('2025-01-15T10:00:00').getTime(),
+          endTime: new Date('2025-01-15T14:00:00').getTime(),
+          notes: '',
+          locations: [],
+          qualities: [],
+          symptoms: [],
+          triggers: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+        {
+          id: 'episode-2',
+          startTime: new Date('2025-01-15T18:00:00').getTime(),
+          endTime: new Date('2025-01-15T20:00:00').getTime(),
+          notes: '',
+          locations: [],
+          qualities: [],
+          symptoms: [],
+          triggers: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+      ];
+      mockGetEpisodesForDate.mockResolvedValue(mockEpisodes);
+
+      const { getByText } = render(
+        <DailyStatusPromptScreen navigation={{ goBack: mockGoBack, navigate: mockNavigate } as any} route={mockRoute} />,
+        { wrapper: TestWrapper }
+      );
+
+      await waitFor(() => {
+        expect(getByText('You had 2 episodes on this day:')).toBeTruthy();
+      });
+    });
+
+    it('hides status buttons when episodes exist', async () => {
+      const mockEpisode = {
+        id: 'episode-1',
+        startTime: new Date('2025-01-15T10:00:00').getTime(),
+        endTime: new Date('2025-01-15T14:00:00').getTime(),
+        notes: '',
+        locations: [],
+        qualities: [],
+        symptoms: [],
+        triggers: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      mockGetEpisodesForDate.mockResolvedValue([mockEpisode]);
+
+      const { queryByTestId } = render(
+        <DailyStatusPromptScreen navigation={{ goBack: mockGoBack, navigate: mockNavigate } as any} route={mockRoute} />,
+        { wrapper: TestWrapper }
+      );
+
+      await waitFor(() => {
+        expect(queryByTestId('green-day-button')).toBeNull();
+        expect(queryByTestId('yellow-day-button')).toBeNull();
+      });
+    });
+
+    it('shows automatic red day message when episodes exist', async () => {
+      const mockEpisode = {
+        id: 'episode-1',
+        startTime: new Date('2025-01-15T10:00:00').getTime(),
+        endTime: new Date('2025-01-15T14:00:00').getTime(),
+        notes: '',
+        locations: [],
+        qualities: [],
+        symptoms: [],
+        triggers: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      mockGetEpisodesForDate.mockResolvedValue([mockEpisode]);
+
+      const { getByText } = render(
+        <DailyStatusPromptScreen navigation={{ goBack: mockGoBack, navigate: mockNavigate } as any} route={mockRoute} />,
+        { wrapper: TestWrapper }
+      );
+
+      await waitFor(() => {
+        expect(getByText('This day is automatically marked as red based on your episode data.')).toBeTruthy();
+      });
+    });
+
+    it('formats episode time correctly for ended episodes', async () => {
+      const mockEpisode = {
+        id: 'episode-1',
+        startTime: new Date('2025-01-15T10:30:00').getTime(),
+        endTime: new Date('2025-01-15T14:45:00').getTime(),
+        notes: '',
+        locations: [],
+        qualities: [],
+        symptoms: [],
+        triggers: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      mockGetEpisodesForDate.mockResolvedValue([mockEpisode]);
+
+      const { getByText } = render(
+        <DailyStatusPromptScreen navigation={{ goBack: mockGoBack, navigate: mockNavigate } as any} route={mockRoute} />,
+        { wrapper: TestWrapper }
+      );
+
+      await waitFor(() => {
+        expect(getByText(/10:30 AM - 2:45 PM/)).toBeTruthy();
+      });
+    });
+
+    it('formats episode time correctly for ongoing episodes', async () => {
+      const mockEpisode = {
+        id: 'episode-1',
+        startTime: new Date('2025-01-15T10:30:00').getTime(),
+        endTime: null,
+        notes: '',
+        locations: [],
+        qualities: [],
+        symptoms: [],
+        triggers: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      mockGetEpisodesForDate.mockResolvedValue([mockEpisode]);
+
+      const { getByText } = render(
+        <DailyStatusPromptScreen navigation={{ goBack: mockGoBack, navigate: mockNavigate } as any} route={mockRoute} />,
+        { wrapper: TestWrapper }
+      );
+
+      await waitFor(() => {
+        expect(getByText(/Started at 10:30 AM/)).toBeTruthy();
+      });
+    });
+
+    it('formats episode duration correctly', async () => {
+      const mockEpisode = {
+        id: 'episode-1',
+        startTime: new Date('2025-01-15T10:00:00').getTime(),
+        endTime: new Date('2025-01-15T14:30:00').getTime(),
+        notes: '',
+        locations: [],
+        qualities: [],
+        symptoms: [],
+        triggers: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      mockGetEpisodesForDate.mockResolvedValue([mockEpisode]);
+
+      const { getByText } = render(
+        <DailyStatusPromptScreen navigation={{ goBack: mockGoBack, navigate: mockNavigate } as any} route={mockRoute} />,
+        { wrapper: TestWrapper }
+      );
+
+      await waitFor(() => {
+        expect(getByText(/Duration: 4h 30m/)).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Status Selection and Saving', () => {
+    it('allows selecting green status', async () => {
+      const { getByTestId } = render(
+        <DailyStatusPromptScreen navigation={{ goBack: mockGoBack, navigate: mockNavigate } as any} route={mockRoute} />,
+        { wrapper: TestWrapper }
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('green-day-button')).toBeTruthy();
+      });
+
+      const greenButton = getByTestId('green-day-button');
+      fireEvent.press(greenButton);
+
+      await waitFor(() => {
+        expect(getByTestId('save-status-button')).toBeTruthy();
+      });
+
+      const saveButton = getByTestId('save-status-button');
+      fireEvent.press(saveButton);
+
+      await waitFor(() => {
+        expect(mockLogDayStatus).toHaveBeenCalledWith(
+          '2025-01-15',
+          'green',
+          undefined,
+          undefined,
+          true
+        );
+      });
+    });
+
+    it('allows selecting yellow status', async () => {
+      const { getByTestId } = render(
+        <DailyStatusPromptScreen navigation={{ goBack: mockGoBack, navigate: mockNavigate } as any} route={mockRoute} />,
+        { wrapper: TestWrapper }
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('yellow-day-button')).toBeTruthy();
+      });
+
+      const yellowButton = getByTestId('yellow-day-button');
+      fireEvent.press(yellowButton);
+
+      await waitFor(() => {
+        expect(getByTestId('save-status-button')).toBeTruthy();
+      });
+
+      const saveButton = getByTestId('save-status-button');
+      fireEvent.press(saveButton);
+
+      await waitFor(() => {
+        expect(mockLogDayStatus).toHaveBeenCalledWith(
+          '2025-01-15',
+          'yellow',
+          undefined,
+          undefined,
+          true
+        );
+      });
+    });
+
+    it('navigates back after successful save', async () => {
+      const { getByTestId } = render(
+        <DailyStatusPromptScreen navigation={{ goBack: mockGoBack, navigate: mockNavigate } as any} route={mockRoute} />,
+        { wrapper: TestWrapper }
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('green-day-button')).toBeTruthy();
+      });
+
+      const greenButton = getByTestId('green-day-button');
+      fireEvent.press(greenButton);
+
+      await waitFor(() => {
+        expect(getByTestId('save-status-button')).toBeTruthy();
+      });
+
+      const saveButton = getByTestId('save-status-button');
+      fireEvent.press(saveButton);
+
+      await waitFor(() => {
+        expect(mockGoBack).toHaveBeenCalled();
       });
     });
   });

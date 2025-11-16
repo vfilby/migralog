@@ -202,6 +202,28 @@ export const episodeRepository = {
     return this.mapRowToEpisode(result);
   },
 
+  async getEpisodesForDate(dateStr: string, db?: SQLite.SQLiteDatabase): Promise<Episode[]> {
+    const database = db || await getDatabase();
+    // Convert date string (YYYY-MM-DD) to timestamp range (start and end of day)
+    const date = new Date(dateStr + 'T00:00:00');
+    const startOfDay = date.getTime();
+    const endOfDay = new Date(dateStr + 'T23:59:59.999').getTime();
+
+    // Find episodes where the date falls within the episode range
+    // This includes episodes that:
+    // 1. Start on this date
+    // 2. End on this date
+    // 3. Span across this date
+    const results = await database.getAllAsync<EpisodeRow>(
+      `SELECT * FROM episodes
+       WHERE (start_time <= ? AND (end_time IS NULL OR end_time >= ?))
+       ORDER BY start_time DESC`,
+      [endOfDay, startOfDay]
+    );
+
+    return results.map(this.mapRowToEpisode);
+  },
+
   async delete(id: string, db?: SQLite.SQLiteDatabase): Promise<void> {
     const database = db || await getDatabase();
     await database.runAsync('DELETE FROM episodes WHERE id = ?', [id]);

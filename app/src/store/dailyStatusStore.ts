@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import { DailyStatusLog, DayStatus, YellowDayType } from '../models/types';
+import { DailyStatusLog, DayStatus, YellowDayType, Episode } from '../models/types';
 import { dailyStatusRepository } from '../database/dailyStatusRepository';
+import { episodeRepository } from '../database/episodeRepository';
 import { errorLogger } from '../services/errorLogger';
 import { toastService } from '../services/toastService';
 import { format, subDays } from 'date-fns';
@@ -18,6 +19,7 @@ interface DailyStatusState {
   updateDayStatus: (id: string, updates: Partial<DailyStatusLog>) => Promise<void>;
   deleteDayStatus: (id: string) => Promise<void>;
   getDayStatus: (date: string) => Promise<DailyStatusLog | null>;
+  getEpisodesForDate: (date: string) => Promise<Episode[]>;
   checkShouldPrompt: () => Promise<boolean>;
   reset: () => void;
 }
@@ -31,8 +33,70 @@ export const useDailyStatusStore = create<DailyStatusState>((set, get) => ({
   loadDailyStatuses: async (startDate, endDate) => {
     set({ loading: true, error: null });
     try {
-      const dailyStatuses = await dailyStatusRepository.getDateRange(startDate, endDate);
-      set({ dailyStatuses, loading: false });
+      // Load manually logged statuses
+      const manualStatuses = await dailyStatusRepository.getDateRange(startDate, endDate);
+
+      // Load episodes in this date range and calculate red days
+      const startTimestamp = new Date(startDate + 'T00:00:00').getTime();
+      const endTimestamp = new Date(endDate + 'T23:59:59.999').getTime();
+      const episodes = await episodeRepository.getByDateRange(startTimestamp, endTimestamp);
+
+      // Build a map of dates that have manual statuses
+      const manualStatusMap = new Map<string, DailyStatusLog>();
+      manualStatuses.forEach(status => {
+        manualStatusMap.set(status.date, status);
+      });
+
+      // Build a map of dates that have episodes (calculated red days)
+      const episodeDateMap = new Map<string, Episode[]>();
+      episodes.forEach(episode => {
+        // Get all dates this episode spans
+        const episodeStart = new Date(episode.startTime);
+        const episodeEnd = episode.endTime ? new Date(episode.endTime) : new Date();
+
+        let currentDate = new Date(episodeStart);
+        currentDate.setHours(0, 0, 0, 0);
+
+        const endDate = new Date(episodeEnd);
+        endDate.setHours(0, 0, 0, 0);
+
+        while (currentDate <= endDate) {
+          const dateStr = format(currentDate, 'yyyy-MM-dd');
+          if (!episodeDateMap.has(dateStr)) {
+            episodeDateMap.set(dateStr, []);
+          }
+          episodeDateMap.get(dateStr)!.push(episode);
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+      });
+
+      // Merge: episode-based red days take precedence over manual statuses
+      const mergedStatuses: DailyStatusLog[] = [];
+
+      // Add all episode-based red days
+      episodeDateMap.forEach((episodes, dateStr) => {
+        mergedStatuses.push({
+          id: `calculated-${dateStr}`,
+          date: dateStr,
+          status: 'red' as DayStatus,
+          notes: `${episodes.length} episode${episodes.length > 1 ? 's' : ''}`,
+          prompted: false,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+      });
+
+      // Add manual statuses for dates without episodes
+      manualStatuses.forEach(status => {
+        if (!episodeDateMap.has(status.date)) {
+          mergedStatuses.push(status);
+        }
+      });
+
+      // Sort by date
+      mergedStatuses.sort((a, b) => a.date.localeCompare(b.date));
+
+      set({ dailyStatuses: mergedStatuses, loading: false });
     } catch (error) {
       await errorLogger.log('database', 'Failed to load daily statuses', error as Error, {
         operation: 'loadDailyStatuses',
@@ -132,6 +196,22 @@ export const useDailyStatusStore = create<DailyStatusState>((set, get) => ({
 
   getDayStatus: async (date) => {
     try {
+      // First check if there's an episode on this date (auto red day)
+      const episodes = await episodeRepository.getEpisodesForDate(date);
+      if (episodes.length > 0) {
+        // Return a calculated red day status based on episodes
+        return {
+          id: `calculated-${date}`,
+          date,
+          status: 'red' as DayStatus,
+          notes: `${episodes.length} episode${episodes.length > 1 ? 's' : ''}`,
+          prompted: false,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+      }
+
+      // Otherwise, get manually logged status
       const log = await dailyStatusRepository.getByDate(date);
       return log;
     } catch (error) {
@@ -144,19 +224,35 @@ export const useDailyStatusStore = create<DailyStatusState>((set, get) => ({
     }
   },
 
+  getEpisodesForDate: async (date) => {
+    try {
+      const episodes = await episodeRepository.getEpisodesForDate(date);
+      return episodes;
+    } catch (error) {
+      await errorLogger.log('database', 'Failed to get episodes for date', error as Error, {
+        operation: 'getEpisodesForDate',
+        date
+      });
+      return [];
+    }
+  },
+
   checkShouldPrompt: async () => {
     try {
       // Check if we should show the daily prompt for yesterday
       const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
-      const yesterdayLog = await dailyStatusRepository.getByDate(yesterday);
 
-      // Don't prompt if user already logged status for yesterday
-      if (yesterdayLog) {
+      // Don't prompt if there was an episode on yesterday (auto red day)
+      const episodes = await episodeRepository.getEpisodesForDate(yesterday);
+      if (episodes.length > 0) {
         return false;
       }
 
-      // TODO: Also check if there was an episode on yesterday (would auto-create red day)
-      // This will be implemented when we integrate with episodeStore
+      // Don't prompt if user already logged status for yesterday
+      const yesterdayLog = await dailyStatusRepository.getByDate(yesterday);
+      if (yesterdayLog) {
+        return false;
+      }
 
       return true;
     } catch (error) {
