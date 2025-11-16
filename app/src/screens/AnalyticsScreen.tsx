@@ -4,6 +4,7 @@ import { useEpisodeStore } from '../store/episodeStore';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { useTheme, ThemeColors } from '../theme';
 import MonthlyCalendarView from '../components/MonthlyCalendarView';
+import TimeRangeSelector from '../components/TimeRangeSelector';
 
 const createStyles = (theme: ThemeColors) => StyleSheet.create({
   container: {
@@ -100,6 +101,7 @@ export default function AnalyticsScreen() {
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const { episodes, loadEpisodes } = useEpisodeStore();
+  const [selectedTimeRange, setSelectedTimeRange] = useState<7 | 30 | 90>(30);
   const [stats, setStats] = useState({
     totalEpisodes: 0,
     averageDuration: 0,
@@ -143,6 +145,12 @@ export default function AnalyticsScreen() {
       </View>
 
       <ScrollView style={styles.content}>
+        {/* Time Range Selector */}
+        <TimeRangeSelector
+          selectedRange={selectedTimeRange}
+          onRangeChange={setSelectedTimeRange}
+        />
+
         {/* Monthly Calendar View */}
         <MonthlyCalendarView />
 
