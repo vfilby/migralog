@@ -13,12 +13,6 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: theme.background,
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.textSecondary,
-    marginBottom: 8,
-  },
   buttonContainer: {
     flexDirection: 'row',
     gap: 8,
@@ -60,7 +54,6 @@ export default function TimeRangeSelector({ selectedRange, onRangeChange }: Time
 
   return (
     <View style={styles.container} testID="time-range-selector">
-      <Text style={styles.label}>Time Range</Text>
       <View style={styles.buttonContainer}>
         {ranges.map(({ value, label, accessibilityLabel }) => {
           const isSelected = selectedRange === value;
