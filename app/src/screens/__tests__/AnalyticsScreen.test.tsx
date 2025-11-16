@@ -155,11 +155,11 @@ describe('AnalyticsScreen', () => {
     });
 
     it('provides accessible labels for stats', async () => {
-      const { getByText } = render(<AnalyticsScreen />, { wrapper: TestWrapper });
+      const { getByText, getAllByText } = render(<AnalyticsScreen />, { wrapper: TestWrapper });
 
       await waitFor(() => {
         expect(getByText('Episodes')).toBeTruthy();
-        expect(getByText('Total Episodes')).toBeTruthy();
+        expect(getAllByText('Total Episodes').length).toBeGreaterThanOrEqual(1);
         expect(getByText('Avg Duration')).toBeTruthy();
       });
     });
