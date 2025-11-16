@@ -113,6 +113,14 @@ export default function MedicationUsageStatistics({ selectedRange }: MedicationU
 
     // Calculate preventative medication compliance
     const preventativeMedications = medications.filter(m => m.type === 'preventative');
+
+    // Pre-filter doses once for the date range to improve performance
+    const dosesInRange = doses.filter(d =>
+      d.status === 'taken' &&
+      d.timestamp >= normalizedStart.getTime() &&
+      d.timestamp <= normalizedEnd.getTime()
+    );
+
     const preventativeComplianceStats = preventativeMedications.map(medication => {
       // Get enabled schedules for this medication
       const medicationSchedules = schedules.filter(
@@ -122,14 +130,8 @@ export default function MedicationUsageStatistics({ selectedRange }: MedicationU
       // Calculate expected doses (schedules × days in range)
       const expectedDoses = medicationSchedules.length * totalDays;
 
-      // Count actual doses taken (exclude skipped)
-      const medicationDoses = doses.filter(d =>
-        d.medicationId === medication.id &&
-        d.status === 'taken' &&
-        d.timestamp >= normalizedStart.getTime() &&
-        d.timestamp <= normalizedEnd.getTime()
-      );
-      const actualDoses = medicationDoses.length;
+      // Count actual doses taken (using pre-filtered doses)
+      const actualDoses = dosesInRange.filter(d => d.medicationId === medication.id).length;
 
       // Calculate compliance percentage
       const compliance = expectedDoses > 0

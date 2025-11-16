@@ -9,6 +9,7 @@ import {
   calculateEpisodeFrequency,
   calculateDurationMetrics,
   formatDuration,
+  formatDateToYYYYMMDD,
 } from '../utils/analyticsUtils';
 
 interface EpisodeStatisticsProps {
@@ -109,15 +110,9 @@ export default function EpisodeStatistics({ selectedRange }: EpisodeStatisticsPr
   useEffect(() => {
     const loadData = async () => {
       const { startDate, endDate } = getDateRangeForDays(selectedRange);
-      const formatDate = (date: Date): string => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-      };
 
-      const startDateStr = formatDate(startDate);
-      const endDateStr = formatDate(endDate);
+      const startDateStr = formatDateToYYYYMMDD(startDate);
+      const endDateStr = formatDateToYYYYMMDD(endDate);
 
       const statuses = await dailyStatusRepository.getDateRange(startDateStr, endDateStr);
       setDailyStatuses(statuses);
@@ -143,12 +138,6 @@ export default function EpisodeStatistics({ selectedRange }: EpisodeStatisticsPr
 
     // Categorize each day with priority: episode > daily status
     // This ensures mutually exclusive categories that sum to 100%
-    const formatDate = (date: Date): string => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    };
 
     // Filter episodes to only those that touch the date range
     const relevantEpisodes = episodes.filter(episode => {
@@ -172,15 +161,15 @@ export default function EpisodeStatistics({ selectedRange }: EpisodeStatisticsPr
       end.setHours(0, 0, 0, 0);
 
       while (current <= end) {
-        episodeDaysSet.add(formatDate(current));
+        episodeDaysSet.add(formatDateToYYYYMMDD(current));
         current.setDate(current.getDate() + 1);
       }
     });
 
     // Filter daily statuses to only those in our date range
     // This ensures we're not affected by whatever month the calendar is showing
-    const startDateStr = formatDate(normalizedStart);
-    const endDateStr = formatDate(normalizedEnd);
+    const startDateStr = formatDateToYYYYMMDD(normalizedStart);
+    const endDateStr = formatDateToYYYYMMDD(normalizedEnd);
     const relevantDailyStatuses = dailyStatuses.filter(log =>
       log.date >= startDateStr && log.date <= endDateStr
     );
@@ -198,7 +187,7 @@ export default function EpisodeStatistics({ selectedRange }: EpisodeStatisticsPr
 
     const currentDate = new Date(normalizedStart);
     for (let i = 0; i < totalDays; i++) {
-      const dateStr = formatDate(currentDate);
+      const dateStr = formatDateToYYYYMMDD(currentDate);
 
       // Priority 1: Check if this is a migraine day (has episode)
       if (episodeDaysSet.has(dateStr)) {

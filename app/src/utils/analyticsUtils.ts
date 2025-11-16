@@ -3,6 +3,23 @@
  */
 
 /**
+ * Formats a date as YYYY-MM-DD string in local timezone
+ *
+ * @param date - The date to format
+ * @returns Date string in YYYY-MM-DD format
+ *
+ * @example
+ * formatDateToYYYYMMDD(new Date('2024-01-15T10:30:00'));
+ * // Returns: "2024-01-15"
+ */
+export function formatDateToYYYYMMDD(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
  * Gets the start and end dates for a time range going back N days from today
  *
  * @param days - Number of days to go back from today (e.g., 7, 30, 90)
@@ -142,14 +159,6 @@ interface DailyStatusLog {
 export function calculateMigraineDays(episodes: Episode[], startDate: Date, endDate: Date): number {
   const uniqueDays = new Set<string>();
 
-  // Helper to format date as YYYY-MM-DD in local timezone
-  const formatDate = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
   // Normalize range dates to local midnight
   const rangeStart = new Date(startDate);
   rangeStart.setHours(0, 0, 0, 0);
@@ -185,7 +194,7 @@ export function calculateMigraineDays(episodes: Episode[], startDate: Date, endD
     // Iterate through all days from start to end
     const currentDay = new Date(startDay);
     while (currentDay <= endDay) {
-      const dateStr = formatDate(currentDay);
+      const dateStr = formatDateToYYYYMMDD(currentDay);
       uniqueDays.add(dateStr);
       currentDay.setDate(currentDay.getDate() + 1);
     }
@@ -244,13 +253,6 @@ export function categorizeDays(
   startDate: Date,
   endDate: Date
 ): { clear: number; unclear: number; untracked: number } {
-  // Helper to format date as YYYY-MM-DD in local timezone
-  const formatDate = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
 
   // Create a map of dates to statuses
   const statusMap = new Map<string, 'green' | 'yellow' | 'red'>();
@@ -275,7 +277,7 @@ export function categorizeDays(
   const currentDate = new Date(normalizedStart);
 
   for (let i = 0; i < totalDays; i++) {
-    const dateStr = formatDate(currentDate);
+    const dateStr = formatDateToYYYYMMDD(currentDate);
     const status = statusMap.get(dateStr);
 
     if (status === 'green') {
