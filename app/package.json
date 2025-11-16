@@ -14,7 +14,7 @@
     "test:lint": "eslint . --ext .ts,.tsx,.js,.jsx",
     "test:lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx --fix",
     "test:lint:ci": "eslint . --ext .ts,.tsx,.js,.jsx --max-warnings=0",
-    "test:ci": "jest --ci --coverage --watchAll=false",
+    "test:ci": "TZ=UTC jest --ci --coverage --watchAll=false",
     "test:ui": "npx detox test --configuration ios.sim.debug --maxWorkers 3",
     "test:ui:select": "bash scripts/select-ui-test.sh",
     "test:ui:build": "npm run generate-build-info && npx detox build -c ios.sim.debug",

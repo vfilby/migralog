@@ -330,3 +330,268 @@ export function calculateDurationMetrics(
     average: Math.round(average)
   };
 }
+
+/**
+ * Medication-related Analytics Functions
+ */
+
+interface Medication {
+  id: string;
+  name: string;
+  type: 'preventative' | 'rescue' | 'other';
+  category?: 'otc' | 'nsaid' | 'triptan' | 'cgrp' | 'preventive' | 'supplement' | 'other';
+}
+
+interface MedicationDose {
+  id: string;
+  medicationId: string;
+  scheduleId?: string;
+  timestamp: number;
+  status?: 'taken' | 'skipped';
+}
+
+interface MedicationSchedule {
+  id: string;
+  medicationId: string;
+  time: string; // HH:mm format
+  timezone: string;
+  dosage: number;
+  enabled: boolean;
+}
+
+/**
+ * Calculates preventative medication compliance as a percentage
+ *
+ * @param medications - Array of all medications
+ * @param doses - Array of medication doses
+ * @param schedules - Array of medication schedules
+ * @param startDate - Start of the date range (inclusive)
+ * @param endDate - End of the date range (inclusive)
+ * @returns Compliance percentage (0-100) for preventative medications
+ *
+ * @example
+ * const medications = [
+ *   { id: '1', name: 'Topiramate', type: 'preventative', category: 'preventive' },
+ * ];
+ * const schedules = [
+ *   { id: 's1', medicationId: '1', time: '08:00', dosage: 1, enabled: true },
+ * ];
+ * const doses = [
+ *   { id: 'd1', medicationId: '1', scheduleId: 's1', timestamp: new Date('2024-01-15T08:00:00').getTime(), status: 'taken' },
+ * ];
+ * calculatePreventativeCompliance(medications, doses, schedules, new Date('2024-01-15'), new Date('2024-01-15'));
+ * // Returns: 100
+ */
+export function calculatePreventativeCompliance(
+  medications: Medication[],
+  doses: MedicationDose[],
+  schedules: MedicationSchedule[],
+  startDate: Date,
+  endDate: Date
+): number {
+  // Filter for preventative medications only
+  const preventativeMedications = medications.filter(m => m.type === 'preventative');
+
+  if (preventativeMedications.length === 0) {
+    return 0;
+  }
+
+  // Get schedules for preventative medications that are enabled
+  const preventativeSchedules = schedules.filter(s => {
+    const medication = preventativeMedications.find(m => m.id === s.medicationId);
+    return medication && s.enabled;
+  });
+
+  if (preventativeSchedules.length === 0) {
+    return 0;
+  }
+
+  // Normalize date range
+  const rangeStart = new Date(startDate);
+  rangeStart.setHours(0, 0, 0, 0);
+  const rangeEnd = new Date(endDate);
+  rangeEnd.setHours(0, 0, 0, 0);
+
+  // Calculate total days in range (inclusive)
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const totalDays = Math.round((rangeEnd.getTime() - rangeStart.getTime()) / msPerDay) + 1;
+
+  // Calculate expected doses (schedules per day * days)
+  const scheduledDosesPerDay = preventativeSchedules.length;
+  const totalScheduledDoses = scheduledDosesPerDay * totalDays;
+
+  // For filtering doses, use end of day for the end date
+  const rangeEndForDoses = new Date(endDate);
+  rangeEndForDoses.setHours(23, 59, 59, 999);
+
+  // Filter doses that are taken (not skipped) within date range and for preventative meds
+  const preventativeMedicationIds = new Set(preventativeMedications.map(m => m.id));
+  const takenDoses = doses.filter(d => {
+    if (!preventativeMedicationIds.has(d.medicationId)) {
+      return false;
+    }
+    // Status defaults to 'taken' if not specified, so only exclude if explicitly 'skipped'
+    if (d.status === 'skipped') {
+      return false;
+    }
+    return d.timestamp >= rangeStart.getTime() && d.timestamp <= rangeEndForDoses.getTime();
+  });
+
+  const totalTakenDoses = takenDoses.length;
+
+  // Calculate compliance percentage
+  if (totalScheduledDoses === 0) {
+    return 0;
+  }
+
+  const compliance = (totalTakenDoses / totalScheduledDoses) * 100;
+  return Math.min(Math.round(compliance), 100); // Cap at 100%
+}
+
+/**
+ * Counts the number of unique days where NSAID medication was taken
+ *
+ * @param medications - Array of all medications
+ * @param doses - Array of medication doses
+ * @param startDate - Start of the date range (inclusive)
+ * @param endDate - End of the date range (inclusive)
+ * @returns Number of unique days with NSAID doses
+ *
+ * @example
+ * const medications = [
+ *   { id: '1', name: 'Ibuprofen', type: 'rescue', category: 'nsaid' },
+ * ];
+ * const doses = [
+ *   { id: 'd1', medicationId: '1', timestamp: new Date('2024-01-15T08:00:00').getTime(), status: 'taken' },
+ *   { id: 'd2', medicationId: '1', timestamp: new Date('2024-01-15T16:00:00').getTime(), status: 'taken' },
+ *   { id: 'd3', medicationId: '1', timestamp: new Date('2024-01-17T08:00:00').getTime(), status: 'taken' },
+ * ];
+ * calculateNSAIDUsage(medications, doses, new Date('2024-01-01'), new Date('2024-01-31'));
+ * // Returns: 2 (15th and 17th)
+ */
+export function calculateNSAIDUsage(
+  medications: Medication[],
+  doses: MedicationDose[],
+  startDate: Date,
+  endDate: Date
+): number {
+  // Filter for NSAID medications
+  const nsaidMedications = medications.filter(m => m.category === 'nsaid');
+
+  if (nsaidMedications.length === 0) {
+    return 0;
+  }
+
+  const nsaidMedicationIds = new Set(nsaidMedications.map(m => m.id));
+
+  // Normalize date range
+  const rangeStart = new Date(startDate);
+  rangeStart.setHours(0, 0, 0, 0);
+  const rangeEnd = new Date(endDate);
+  rangeEnd.setHours(23, 59, 59, 999);
+
+  // Filter NSAID doses within date range
+  const nsaidDoses = doses.filter(d => {
+    if (!nsaidMedicationIds.has(d.medicationId)) {
+      return false;
+    }
+    if (d.status === 'skipped') {
+      return false;
+    }
+    return d.timestamp >= rangeStart.getTime() && d.timestamp <= rangeEnd.getTime();
+  });
+
+  // Count unique days
+  const uniqueDays = new Set<string>();
+  nsaidDoses.forEach(dose => {
+    const doseDate = new Date(dose.timestamp);
+    const dateStr = `${doseDate.getFullYear()}-${String(doseDate.getMonth() + 1).padStart(2, '0')}-${String(doseDate.getDate()).padStart(2, '0')}`;
+    uniqueDays.add(dateStr);
+  });
+
+  return uniqueDays.size;
+}
+
+/**
+ * Calculates per-medication statistics (total doses and unique days with doses)
+ *
+ * @param medications - Array of all medications
+ * @param doses - Array of medication doses
+ * @param startDate - Start of the date range (inclusive)
+ * @param endDate - End of the date range (inclusive)
+ * @returns Array of stats for each medication with doses in the range
+ *
+ * @example
+ * const medications = [
+ *   { id: '1', name: 'Sumatriptan', type: 'rescue', category: 'triptan' },
+ *   { id: '2', name: 'Ibuprofen', type: 'rescue', category: 'nsaid' },
+ * ];
+ * const doses = [
+ *   { id: 'd1', medicationId: '1', timestamp: new Date('2024-01-15T08:00:00').getTime(), status: 'taken' },
+ *   { id: 'd2', medicationId: '1', timestamp: new Date('2024-01-15T16:00:00').getTime(), status: 'taken' },
+ *   { id: 'd3', medicationId: '1', timestamp: new Date('2024-01-17T08:00:00').getTime(), status: 'taken' },
+ *   { id: 'd4', medicationId: '2', timestamp: new Date('2024-01-20T08:00:00').getTime(), status: 'taken' },
+ * ];
+ * calculatePerMedicationStats(medications, doses, new Date('2024-01-01'), new Date('2024-01-31'));
+ * // Returns: [
+ * //   { medicationId: '1', medicationName: 'Sumatriptan', totalDoses: 3, daysWithDoses: 2 },
+ * //   { medicationId: '2', medicationName: 'Ibuprofen', totalDoses: 1, daysWithDoses: 1 },
+ * // ]
+ */
+export function calculatePerMedicationStats(
+  medications: Medication[],
+  doses: MedicationDose[],
+  startDate: Date,
+  endDate: Date
+): Array<{ medicationId: string; medicationName: string; totalDoses: number; daysWithDoses: number }> {
+  // Normalize date range
+  const rangeStart = new Date(startDate);
+  rangeStart.setHours(0, 0, 0, 0);
+  const rangeEnd = new Date(endDate);
+  rangeEnd.setHours(23, 59, 59, 999);
+
+  // Filter doses within date range (exclude skipped doses)
+  const relevantDoses = doses.filter(d => {
+    if (d.status === 'skipped') {
+      return false;
+    }
+    return d.timestamp >= rangeStart.getTime() && d.timestamp <= rangeEnd.getTime();
+  });
+
+  // Group doses by medication
+  const medicationDosesMap = new Map<string, MedicationDose[]>();
+  relevantDoses.forEach(dose => {
+    const existing = medicationDosesMap.get(dose.medicationId) || [];
+    existing.push(dose);
+    medicationDosesMap.set(dose.medicationId, existing);
+  });
+
+  // Calculate stats for each medication
+  const stats: Array<{ medicationId: string; medicationName: string; totalDoses: number; daysWithDoses: number }> = [];
+
+  medicationDosesMap.forEach((medDoses, medicationId) => {
+    const medication = medications.find(m => m.id === medicationId);
+    if (!medication) {
+      return; // Skip if medication not found
+    }
+
+    const totalDoses = medDoses.length;
+
+    // Count unique days
+    const uniqueDays = new Set<string>();
+    medDoses.forEach(dose => {
+      const doseDate = new Date(dose.timestamp);
+      const dateStr = `${doseDate.getFullYear()}-${String(doseDate.getMonth() + 1).padStart(2, '0')}-${String(doseDate.getDate()).padStart(2, '0')}`;
+      uniqueDays.add(dateStr);
+    });
+
+    stats.push({
+      medicationId,
+      medicationName: medication.name,
+      totalDoses,
+      daysWithDoses: uniqueDays.size,
+    });
+  });
+
+  return stats;
+}

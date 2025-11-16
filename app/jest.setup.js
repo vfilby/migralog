@@ -1,3 +1,6 @@
+// Set timezone to UTC for consistent date handling across different environments
+process.env.TZ = 'UTC';
+
 // Mock expo-sqlite
 jest.mock('expo-sqlite', () => ({
   openDatabaseAsync: jest.fn(() =>

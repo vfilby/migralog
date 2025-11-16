@@ -6,6 +6,7 @@ import { useTheme, ThemeColors } from '../theme';
 import MonthlyCalendarView from '../components/MonthlyCalendarView';
 import TimeRangeSelector from '../components/TimeRangeSelector';
 import EpisodeStatistics from '../components/EpisodeStatistics';
+import MedicationUsageStatistics from '../components/MedicationUsageStatistics';
 
 const createStyles = (theme: ThemeColors) => StyleSheet.create({
   container: {
@@ -157,6 +158,9 @@ export default function AnalyticsScreen() {
 
         {/* Episode Statistics */}
         <EpisodeStatistics selectedRange={selectedTimeRange} />
+
+        {/* Medication Usage Statistics */}
+        <MedicationUsageStatistics selectedRange={selectedTimeRange} />
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>This Month</Text>
