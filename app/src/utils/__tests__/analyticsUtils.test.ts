@@ -313,12 +313,97 @@ describe('analyticsUtils', () => {
       expect(result).toBe(0);
     });
 
-    it('should handle ongoing episodes (no endTime)', () => {
-      const episodes = [
-        { id: '1', startTime: new Date('2024-01-15T10:00:00').getTime() }, // No endTime
-      ];
-      const result = calculateMigraineDays(episodes, new Date('2024-01-01'), new Date('2024-01-31'));
-      expect(result).toBeGreaterThanOrEqual(1);
+    describe('ongoing episodes (no endTime)', () => {
+      beforeEach(() => {
+        // Mock current time to ensure consistent test results
+        jest.setSystemTime(new Date('2024-01-31T12:00:00'));
+      });
+
+      it('should count all days from start to current date for ongoing episode', () => {
+        const episodes = [
+          { id: '1', startTime: new Date('2024-01-15T10:00:00').getTime() }, // No endTime - ongoing
+        ];
+        const result = calculateMigraineDays(episodes, new Date('2024-01-01'), new Date('2024-01-31'));
+        // Episode started Jan 15, today is Jan 31
+        // Should count: Jan 15, 16, 17, ..., 31 = 17 days
+        expect(result).toBe(17);
+      });
+
+      it('should count ongoing episode that started before range', () => {
+        const episodes = [
+          { id: '1', startTime: new Date('2023-12-28T10:00:00').getTime() }, // Started before range, no endTime
+        ];
+        const result = calculateMigraineDays(episodes, new Date('2024-01-01'), new Date('2024-01-31'));
+        // Episode started Dec 28, still ongoing on Jan 31
+        // Should count all days in range: Jan 1-31 = 31 days
+        expect(result).toBe(31);
+      });
+
+      it('should count ongoing episode that started at range start', () => {
+        const episodes = [
+          { id: '1', startTime: new Date('2024-01-01T00:00:00').getTime() }, // No endTime
+        ];
+        const result = calculateMigraineDays(episodes, new Date('2024-01-01'), new Date('2024-01-31'));
+        // Started Jan 1, still ongoing on Jan 31
+        // Should count: Jan 1-31 = 31 days
+        expect(result).toBe(31);
+      });
+
+      it('should count ongoing episode that started mid-range', () => {
+        const episodes = [
+          { id: '1', startTime: new Date('2024-01-20T10:00:00').getTime() }, // No endTime
+        ];
+        const result = calculateMigraineDays(episodes, new Date('2024-01-01'), new Date('2024-01-31'));
+        // Started Jan 20, still ongoing on Jan 31
+        // Should count: Jan 20-31 = 12 days
+        expect(result).toBe(12);
+      });
+
+      it('should count ongoing episode that started on last day of range', () => {
+        const episodes = [
+          { id: '1', startTime: new Date('2024-01-31T10:00:00').getTime() }, // No endTime
+        ];
+        const result = calculateMigraineDays(episodes, new Date('2024-01-01'), new Date('2024-01-31'));
+        // Started Jan 31, still ongoing on Jan 31
+        // Should count: Jan 31 = 1 day
+        expect(result).toBe(1);
+      });
+
+      it('should handle mix of completed and ongoing episodes', () => {
+        const episodes = [
+          { id: '1', startTime: new Date('2024-01-05T10:00:00').getTime(), endTime: new Date('2024-01-07T14:00:00').getTime() },
+          { id: '2', startTime: new Date('2024-01-15T10:00:00').getTime() }, // No endTime - ongoing
+          { id: '3', startTime: new Date('2024-01-25T10:00:00').getTime(), endTime: new Date('2024-01-26T14:00:00').getTime() },
+        ];
+        const result = calculateMigraineDays(episodes, new Date('2024-01-01'), new Date('2024-01-31'));
+        // Episode 1: Jan 5, 6, 7 = 3 days
+        // Episode 2 (ongoing): Jan 15-31 = 17 days
+        // Episode 3: Jan 25, 26 = 2 days (both overlap with episode 2)
+        // Total unique days: 3 + 17 = 20 days (episode 3 doesn't add new days)
+        expect(result).toBe(20);
+      });
+
+      it('should not count ongoing episode that started after range', () => {
+        const episodes = [
+          { id: '1', startTime: new Date('2024-02-05T10:00:00').getTime() }, // No endTime, but starts after range
+        ];
+        const result = calculateMigraineDays(episodes, new Date('2024-01-01'), new Date('2024-01-31'));
+        // Episode started Feb 5, range ends Jan 31
+        // Should count: 0 days
+        expect(result).toBe(0);
+      });
+
+      it('should clip ongoing episode to range end date', () => {
+        jest.setSystemTime(new Date('2024-02-15T12:00:00')); // Current date is Feb 15
+
+        const episodes = [
+          { id: '1', startTime: new Date('2024-01-20T10:00:00').getTime() }, // No endTime, still ongoing
+        ];
+        const result = calculateMigraineDays(episodes, new Date('2024-01-01'), new Date('2024-01-31'));
+        // Episode started Jan 20, still ongoing on Feb 15
+        // But range ends Jan 31, so should only count Jan 20-31 = 12 days
+        expect(result).toBe(12);
+      });
     });
 
     it('should handle empty episode array', () => {
