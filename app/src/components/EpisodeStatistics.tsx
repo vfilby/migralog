@@ -142,7 +142,8 @@ export default function EpisodeStatistics({ selectedRange }: EpisodeStatisticsPr
     // Filter episodes to only those that touch the date range
     const relevantEpisodes = episodes.filter(episode => {
       const episodeStart = new Date(episode.startTime);
-      const episodeEnd = episode.endTime ? new Date(episode.endTime) : episodeStart;
+      // For ongoing episodes (no endTime), use current time to include all days up to now
+      const episodeEnd = episode.endTime ? new Date(episode.endTime) : new Date();
 
       // Episode touches range if it starts before range ends AND ends after range starts
       return episodeEnd >= normalizedStart && episodeStart <= normalizedEnd;
@@ -152,7 +153,8 @@ export default function EpisodeStatistics({ selectedRange }: EpisodeStatisticsPr
     const episodeDaysSet = new Set<string>();
     relevantEpisodes.forEach(episode => {
       const episodeStart = new Date(episode.startTime);
-      const episodeEnd = episode.endTime ? new Date(episode.endTime) : episodeStart;
+      // For ongoing episodes (no endTime), use current time to include all days up to now
+      const episodeEnd = episode.endTime ? new Date(episode.endTime) : new Date();
 
       // Mark all days this episode spans (but only within the date range)
       const current = new Date(Math.max(episodeStart.getTime(), normalizedStart.getTime()));
