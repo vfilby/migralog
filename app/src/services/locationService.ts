@@ -2,11 +2,26 @@ import * as Location from 'expo-location';
 import { logger } from '../utils/logger';
 import { EpisodeLocation } from '../models/types';
 
+interface GeocodeQueueItem {
+  latitude: number;
+  longitude: number;
+  resolve: (value: string | null) => void;
+  reject: (error: Error) => void;
+}
+
 class LocationService {
   private hasPermission: boolean = false;
   private lastLocation: EpisodeLocation | null = null;
   private lastLocationTime: number = 0;
   private readonly CACHE_DURATION_MS = 5000; // Cache location for 5 seconds
+
+  // Reverse geocoding cache and rate limiting
+  private geocodeCache: Map<string, { address: string | null; timestamp: number }> = new Map();
+  private readonly GEOCODE_CACHE_DURATION_MS = 3600000; // Cache for 1 hour
+  private geocodeQueue: GeocodeQueueItem[] = [];
+  private isProcessingQueue: boolean = false;
+  private lastGeocodeTime: number = 0;
+  private readonly MIN_GEOCODE_INTERVAL_MS = 1000; // Min 1 second between requests
 
   async requestPermission(): Promise<boolean> {
     try {
@@ -118,29 +133,92 @@ class LocationService {
     }
   }
 
-  async reverseGeocode(latitude: number, longitude: number): Promise<string | null> {
-    try {
-      const results = await Location.reverseGeocodeAsync({
-        latitude,
-        longitude,
-      });
+  /**
+   * Process the geocoding queue with rate limiting
+   * Ensures requests are spaced out by MIN_GEOCODE_INTERVAL_MS
+   */
+  private async processGeocodeQueue(): Promise<void> {
+    if (this.isProcessingQueue || this.geocodeQueue.length === 0) {
+      return;
+    }
 
-      if (results.length > 0) {
-        const result = results[0];
-        // Return coarse location: "City, State" or "City, Country"
-        const parts = [];
-        if (result.city) parts.push(result.city);
-        if (result.region) parts.push(result.region);
-        else if (result.country) parts.push(result.country);
+    this.isProcessingQueue = true;
 
-        return parts.length > 0 ? parts.join(', ') : null;
+    while (this.geocodeQueue.length > 0) {
+      const item = this.geocodeQueue.shift();
+      if (!item) break;
+
+      // Rate limiting: wait if needed to avoid hitting API limits
+      const now = Date.now();
+      const timeSinceLastRequest = now - this.lastGeocodeTime;
+      if (timeSinceLastRequest < this.MIN_GEOCODE_INTERVAL_MS) {
+        const waitTime = this.MIN_GEOCODE_INTERVAL_MS - timeSinceLastRequest;
+        await new Promise(resolve => setTimeout(resolve, waitTime));
       }
 
-      return null;
-    } catch (error) {
-      logger.error('Failed to reverse geocode:', error);
-      return null;
+      try {
+        const results = await Location.reverseGeocodeAsync({
+          latitude: item.latitude,
+          longitude: item.longitude,
+        });
+
+        this.lastGeocodeTime = Date.now();
+
+        if (results.length > 0) {
+          const result = results[0];
+          // Return coarse location: "City, State" or "City, Country"
+          const parts = [];
+          if (result.city) parts.push(result.city);
+          if (result.region) parts.push(result.region);
+          else if (result.country) parts.push(result.country);
+
+          const address = parts.length > 0 ? parts.join(', ') : null;
+
+          // Cache the result
+          const cacheKey = `${item.latitude.toFixed(4)},${item.longitude.toFixed(4)}`;
+          this.geocodeCache.set(cacheKey, {
+            address,
+            timestamp: Date.now(),
+          });
+
+          item.resolve(address);
+        } else {
+          item.resolve(null);
+        }
+      } catch (error) {
+        logger.error('Failed to reverse geocode:', error);
+        item.resolve(null); // Resolve with null instead of rejecting to avoid breaking UI
+      }
     }
+
+    this.isProcessingQueue = false;
+  }
+
+  /**
+   * Reverse geocode a lat/lng coordinate to a human-readable address
+   * Uses caching and rate limiting to avoid API rate limits
+   */
+  async reverseGeocode(latitude: number, longitude: number): Promise<string | null> {
+    // Round coordinates to 4 decimal places for cache key (~11m precision)
+    const cacheKey = `${latitude.toFixed(4)},${longitude.toFixed(4)}`;
+
+    // Check cache first
+    const cached = this.geocodeCache.get(cacheKey);
+    if (cached) {
+      const age = Date.now() - cached.timestamp;
+      if (age < this.GEOCODE_CACHE_DURATION_MS) {
+        return cached.address;
+      } else {
+        // Cache expired, remove it
+        this.geocodeCache.delete(cacheKey);
+      }
+    }
+
+    // Add to queue and process
+    return new Promise((resolve, reject) => {
+      this.geocodeQueue.push({ latitude, longitude, resolve, reject });
+      this.processGeocodeQueue();
+    });
   }
 }
 

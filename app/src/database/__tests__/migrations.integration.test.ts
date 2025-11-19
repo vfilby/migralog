@@ -1,117 +1,19 @@
 /**
- * Integration Tests for Database Migrations
+ * Integration Tests for Database Migrations (After Squashing)
  *
- * These tests use better-sqlite3 to create a REAL in-memory SQLite database
- * and verify that:
- * 1. SQL executes successfully
- * 2. Data is preserved during migrations
- * 3. Rollbacks work correctly
- * 4. Foreign key constraints are maintained
- * 5. Failure scenarios are handled properly
+ * All migrations have been squashed into the base schema (schema.ts).
+ * These tests verify that:
+ * 1. Fresh databases are created at version 19 directly
+ * 2. No migrations are needed for new installs
+ * 3. Schema structure matches expected final state
+ * 4. Foreign key constraints work correctly
  *
  * Note: better-sqlite3 has a different API than expo-sqlite, so we create
  * an adapter to make the migration code work with both.
  */
 
 import Database from 'better-sqlite3';
-
-// Schema from version 1 (before any migrations)
-const SCHEMA_V1 = `
-  CREATE TABLE IF NOT EXISTS schema_version (
-    id INTEGER PRIMARY KEY CHECK (id = 1),
-    version INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS episodes (
-    id TEXT PRIMARY KEY,
-    start_time INTEGER NOT NULL,
-    end_time INTEGER,
-    locations TEXT NOT NULL,
-    qualities TEXT NOT NULL,
-    symptoms TEXT NOT NULL,
-    triggers TEXT NOT NULL,
-    notes TEXT,
-    peak_intensity REAL,
-    average_intensity REAL,
-    created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_episodes_start_time ON episodes(start_time);
-
-  CREATE TABLE IF NOT EXISTS intensity_readings (
-    id TEXT PRIMARY KEY,
-    episode_id TEXT NOT NULL,
-    timestamp INTEGER NOT NULL,
-    intensity REAL NOT NULL,
-    FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE CASCADE
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_intensity_readings_episode ON intensity_readings(episode_id);
-
-  CREATE TABLE IF NOT EXISTS symptom_logs (
-    id TEXT PRIMARY KEY,
-    episode_id TEXT NOT NULL,
-    timestamp INTEGER NOT NULL,
-    symptom TEXT NOT NULL,
-    severity TEXT,
-    FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE CASCADE
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_symptom_logs_episode ON symptom_logs(episode_id);
-
-  CREATE TABLE IF NOT EXISTS medications (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    type TEXT NOT NULL,
-    dosage_amount REAL NOT NULL,
-    dosage_unit TEXT NOT NULL,
-    created_at INTEGER NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS medication_schedules (
-    id TEXT PRIMARY KEY,
-    medication_id TEXT NOT NULL,
-    time TEXT NOT NULL,
-    dosage REAL NOT NULL DEFAULT 1,
-    enabled INTEGER NOT NULL DEFAULT 1,
-    FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_medication_schedules_medication ON medication_schedules(medication_id);
-
-  CREATE TABLE IF NOT EXISTS medication_doses (
-    id TEXT PRIMARY KEY,
-    medication_id TEXT NOT NULL,
-    timestamp INTEGER NOT NULL,
-    amount REAL NOT NULL,
-    episode_id TEXT,
-    effectiveness_rating REAL,
-    time_to_relief INTEGER,
-    side_effects TEXT,
-    notes TEXT,
-    created_at INTEGER NOT NULL,
-    FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE,
-    FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE SET NULL
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_medication_doses_medication ON medication_doses(medication_id);
-  CREATE INDEX IF NOT EXISTS idx_medication_doses_episode ON medication_doses(episode_id);
-  CREATE INDEX IF NOT EXISTS idx_medication_doses_timestamp ON medication_doses(timestamp);
-
-  CREATE TABLE IF NOT EXISTS medication_reminders (
-    id TEXT PRIMARY KEY,
-    medication_id TEXT NOT NULL,
-    scheduled_time INTEGER NOT NULL,
-    notification_id TEXT,
-    dismissed INTEGER NOT NULL DEFAULT 0,
-    taken INTEGER NOT NULL DEFAULT 0,
-    FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE
-  );
-
-  INSERT INTO schema_version (id, version, updated_at) VALUES (1, 1, ${Date.now()});
-`;
+import { createTables } from '../schema';
 
 /**
  * Adapter to make better-sqlite3 work with expo-sqlite migration code
@@ -161,7 +63,7 @@ const getMigrations = () => {
   return migrationsModule.migrationRunner;
 };
 
-describe('Migration Integration Tests (Real Database)', () => {
+describe('Migration Integration Tests (Squashed Schema)', () => {
   let db: Database.Database;
   let adapter: BetterSQLiteAdapter;
 
@@ -177,281 +79,162 @@ describe('Migration Integration Tests (Real Database)', () => {
     }
   });
 
-  describe('Data Preservation Tests', () => {
-    describe('Migration 2: add_location_to_episodes', () => {
-      it('should preserve episode data when adding location columns', async () => {
-        // Setup: Create v1 database with test episode
-        db.exec(SCHEMA_V1);
+  describe('Fresh Database Creation', () => {
+    it('should create database at version 19 without migrations', async () => {
+      // Create schema
+      await adapter.execAsync(createTables);
 
-        const testEpisode = {
-          id: 'ep-test-1',
-          start_time: Date.now(),
-          end_time: null,
-          locations: JSON.stringify(['Front', 'Left']),
-          qualities: JSON.stringify(['Throbbing']),
-          symptoms: JSON.stringify(['Nausea']),
-          triggers: JSON.stringify(['Stress']),
-          notes: 'Test episode',
-          peak_intensity: 7.5,
-          average_intensity: 6.0,
-          created_at: Date.now(),
-          updated_at: Date.now()
-        };
-
-        db.prepare(`
-          INSERT INTO episodes (id, start_time, end_time, locations, qualities, symptoms,
-                               triggers, notes, peak_intensity, average_intensity,
-                               created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          testEpisode.id, testEpisode.start_time, testEpisode.end_time,
-          testEpisode.locations, testEpisode.qualities, testEpisode.symptoms,
-          testEpisode.triggers, testEpisode.notes, testEpisode.peak_intensity,
-          testEpisode.average_intensity, testEpisode.created_at, testEpisode.updated_at
-        );
-
-        // Execute: Run migration 2
-        const migrationRunner = getMigrations();
-        await migrationRunner.initialize(adapter as any);
-        await migrationRunner.runMigrations();
-
-        // Verify: Data preserved and new columns added
-        const episodes = await adapter.getAllAsync<any>('SELECT * FROM episodes');
-        expect(episodes).toHaveLength(1);
-        expect(episodes[0].id).toBe(testEpisode.id);
-        expect(episodes[0].start_time).toBe(testEpisode.start_time);
-        expect(episodes[0].locations).toBe(testEpisode.locations);
-        expect(episodes[0].notes).toBe(testEpisode.notes);
-
-        // Verify location columns exist and are null (added in migration 2)
-        expect(episodes[0]).toHaveProperty('latitude');
-        expect(episodes[0]).toHaveProperty('longitude');
-        expect(episodes[0].latitude).toBeNull();
-        expect(episodes[0].longitude).toBeNull();
-
-        // Verify peak_intensity and average_intensity do NOT exist (removed in migration 13)
-        expect(episodes[0]).not.toHaveProperty('peak_intensity');
-        expect(episodes[0]).not.toHaveProperty('average_intensity');
-      });
-
-      it('should preserve episode data during rollback from v2 to v1', async () => {
-        // Setup: Migrate to v2 and add episode with location
-        db.exec(SCHEMA_V1);
-        const migrationRunner = getMigrations();
-        await migrationRunner.initialize(adapter as any);
-        await migrationRunner.runMigrations();
-
-        const testEpisode = {
-          id: 'ep-test-2',
-          start_time: Date.now(),
-          locations: JSON.stringify(['Back']),
-          qualities: JSON.stringify(['Sharp']),
-          symptoms: JSON.stringify([]),
-          triggers: JSON.stringify([]),
-          latitude: 40.7128,
-          longitude: -74.0060,
-          location_accuracy: 10.5,
-          location_timestamp: Date.now(),
-          created_at: Date.now(),
-          updated_at: Date.now()
-        };
-
-        db.prepare(`
-          INSERT INTO episodes (id, start_time, locations, qualities, symptoms, triggers,
-                               latitude, longitude, location_accuracy, location_timestamp,
-                               created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          testEpisode.id, testEpisode.start_time, testEpisode.locations,
-          testEpisode.qualities, testEpisode.symptoms, testEpisode.triggers,
-          testEpisode.latitude, testEpisode.longitude, testEpisode.location_accuracy,
-          testEpisode.location_timestamp, testEpisode.created_at, testEpisode.updated_at
-        );
-
-        // Execute: Rollback to v1
-        await migrationRunner.rollback(1);
-
-        // Verify: Core data preserved, location columns removed
-        const episodes = await adapter.getAllAsync<any>('SELECT * FROM episodes');
-        expect(episodes).toHaveLength(1);
-        expect(episodes[0].id).toBe(testEpisode.id);
-        expect(episodes[0].start_time).toBe(testEpisode.start_time);
-        expect(episodes[0].locations).toBe(testEpisode.locations);
-
-        // Location columns should NOT exist
-        expect(episodes[0]).not.toHaveProperty('latitude');
-        expect(episodes[0]).not.toHaveProperty('longitude');
-      });
-    });
-
-    describe('Migration 6: add_status_to_medication_doses', () => {
-      it('should preserve dose and FK relationships when adding status column', async () => {
-        // Setup: Create v1 database with medication and doses
-        db.exec(SCHEMA_V1);
-
-        const medicationId = 'med-test-1';
-        const episodeId = 'ep-test-1';
-        const doseId = 'dose-test-1';
-
-        // Create medication
-        db.prepare(`
-          INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, created_at)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `).run(medicationId, 'Aspirin', 'rescue', 500, 'mg', Date.now());
-
-        // Create episode
-        db.prepare(`
-          INSERT INTO episodes (id, start_time, locations, qualities, symptoms, triggers,
-                               created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(episodeId, Date.now(), '[]', '[]', '[]', '[]', Date.now(), Date.now());
-
-        // Create dose linked to both (use 'amount' since we start with SCHEMA_V1 before migrations)
-        db.prepare(`
-          INSERT INTO medication_doses (id, medication_id, timestamp, amount, episode_id, created_at)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `).run(doseId, medicationId, Date.now(), 2, episodeId, Date.now());
-
-        // Execute: Migrate to v6
-        const migrationRunner = getMigrations();
-        await migrationRunner.initialize(adapter as any);
-        await migrationRunner.runMigrations();
-
-        // Verify: Dose data and relationships preserved (using 'quantity' after Migration 15)
-        const doses = await adapter.getAllAsync<any>('SELECT * FROM medication_doses');
-        expect(doses).toHaveLength(1);
-        expect(doses[0].id).toBe(doseId);
-        expect(doses[0].medication_id).toBe(medicationId);
-        expect(doses[0].episode_id).toBe(episodeId);
-        expect(doses[0].quantity).toBe(2);
-
-        // New status column should exist with default value
-        expect(doses[0].status).toBe('taken');
-      });
-
-      it('should preserve FK constraints during rollback', async () => {
-        // Setup: Migrate to v6
-        db.exec(SCHEMA_V1);
-        const migrationRunner = getMigrations();
-        await migrationRunner.initialize(adapter as any);
-        await migrationRunner.runMigrations();
-
-        const medicationId = 'med-test-2';
-        const doseId = 'dose-test-2';
-
-        // Create medication and dose (after v11 migration, need to add updated_at)
-        db.prepare(`
-          INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).run(medicationId, 'Ibuprofen', 'rescue', 200, 'mg', Date.now(), Date.now());
-
-        db.prepare(`
-          INSERT INTO medication_doses (id, medication_id, timestamp, quantity, status, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).run(doseId, medicationId, Date.now(), 1, 'skipped', Date.now(), Date.now());
-
-        // Execute: Rollback to v5
-        await migrationRunner.rollback(5);
-
-        // Verify: FK still enforced - deleting medication should cascade
-        db.prepare('DELETE FROM medications WHERE id = ?').run(medicationId);
-        const doses = await adapter.getAllAsync<any>('SELECT * FROM medication_doses');
-        expect(doses).toHaveLength(0); // Cascade delete worked
-      });
-    });
-  });
-
-  describe('Failure Scenario Tests', () => {
-    it('should handle SQL execution failure during migration', async () => {
-      // Setup: v1 database
-      db.exec(SCHEMA_V1);
-
-      // Create test data
-      db.prepare(`
-        INSERT INTO episodes (id, start_time, locations, qualities, symptoms, triggers,
-                             created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run('ep-1', Date.now(), '[]', '[]', '[]', '[]', Date.now(), Date.now());
-
-      // Create failing adapter that throws error on execAsync
-      let callCount = 0;
-      const failingAdapter = {
-        execAsync: jest.fn(async (sql: string) => {
-          callCount++;
-          // Let schema_version table creation succeed
-          if (sql.includes('CREATE TABLE IF NOT EXISTS schema_version')) {
-            return adapter.execAsync(sql);
-          }
-          // Let first migration check succeed
-          if (callCount <= 2) {
-            return adapter.execAsync(sql);
-          }
-          // Fail on actual migration
-          if (sql.includes('ALTER TABLE episodes ADD COLUMN')) {
-            throw new Error('Simulated SQL execution failure');
-          }
-          return adapter.execAsync(sql);
-        }),
-        getAllAsync: jest.fn((sql: string) => adapter.getAllAsync(sql)),
-        runAsync: jest.fn((sql: string, params?: any[]) => adapter.runAsync(sql, params))
-      };
-
+      // Initialize migration runner
       const migrationRunner = getMigrations();
-      await migrationRunner.initialize(failingAdapter as any);
+      await migrationRunner.initialize(adapter as any);
 
-      // Execute: Migration should fail
-      await expect(migrationRunner.runMigrations()).rejects.toThrow();
+      // Verify version is set to 19
+      const version = await adapter.getAllAsync<{ version: number }>(
+        'SELECT version FROM schema_version WHERE id = 1'
+      );
+      expect(version).toHaveLength(1);
+      expect(version[0].version).toBe(19);
 
-      // Verify: Original data still exists (check with real adapter)
-      const episodes = await adapter.getAllAsync('SELECT * FROM episodes');
-      expect(episodes).toHaveLength(1);
+      // Verify no migrations are needed
+      const needsMigration = await migrationRunner.needsMigration();
+      expect(needsMigration).toBe(false);
     });
 
-    it('should validate database connection before migration', async () => {
-      db.exec(SCHEMA_V1);
+    it('should create all expected tables with correct schema', async () => {
+      // Create schema
+      await adapter.execAsync(createTables);
 
-      // Create adapter that fails on validation check
-      const failingAdapter = {
-        execAsync: jest.fn(async (sql: string) => {
-          // Let schema_version creation succeed
-          if (sql.includes('CREATE TABLE IF NOT EXISTS schema_version')) {
-            return adapter.execAsync(sql);
-          }
-          throw new Error('Connection failed');
-        }),
-        getAllAsync: jest.fn(async (sql: string) => {
-          // Let version check succeed
-          if (sql.includes('SELECT version FROM schema_version')) {
-            return adapter.getAllAsync(sql);
-          }
-          // Fail on validation check (SELECT 1)
-          if (sql === 'SELECT 1') {
-            throw new Error('Connection failed');
-          }
-          return adapter.getAllAsync(sql);
-        }),
-        runAsync: jest.fn(async (sql: string, params?: any[]) => {
-          // Let initial version insert succeed
-          if (sql.includes('INSERT OR IGNORE INTO schema_version')) {
-            return adapter.runAsync(sql, params);
-          }
-          return adapter.runAsync(sql, params);
-        })
-      };
-
+      // Initialize migration runner
       const migrationRunner = getMigrations();
-      await migrationRunner.initialize(failingAdapter as any);
+      await migrationRunner.initialize(adapter as any);
 
-      // Execute: Migration should fail validation
-      await expect(migrationRunner.runMigrations()).rejects.toThrow('validation failed');
+      // Verify all expected tables exist
+      const tables = await adapter.getAllAsync<{ name: string }>(
+        "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+      );
+
+      const tableNames = tables.map(t => t.name);
+      expect(tableNames).toContain('episodes');
+      expect(tableNames).toContain('intensity_readings');
+      expect(tableNames).toContain('symptom_logs');
+      expect(tableNames).toContain('pain_location_logs');
+      expect(tableNames).toContain('medications');
+      expect(tableNames).toContain('medication_schedules');
+      expect(tableNames).toContain('medication_doses');
+      expect(tableNames).toContain('medication_reminders');
+      expect(tableNames).toContain('daily_status_logs');
+      expect(tableNames).toContain('schema_version');
+    });
+
+    it('should have correct columns in episodes table', async () => {
+      await adapter.execAsync(createTables);
+
+      const columns = await adapter.getAllAsync<any>('PRAGMA table_info(episodes)');
+      const columnNames = columns.map((c: any) => c.name);
+
+      // Core columns
+      expect(columnNames).toContain('id');
+      expect(columnNames).toContain('start_time');
+      expect(columnNames).toContain('end_time');
+      expect(columnNames).toContain('locations');
+      expect(columnNames).toContain('qualities');
+      expect(columnNames).toContain('symptoms');
+      expect(columnNames).toContain('triggers');
+      expect(columnNames).toContain('notes');
+      expect(columnNames).toContain('created_at');
+      expect(columnNames).toContain('updated_at');
+
+      // Location columns (from migration 2)
+      expect(columnNames).toContain('latitude');
+      expect(columnNames).toContain('longitude');
+      expect(columnNames).toContain('location_accuracy');
+      expect(columnNames).toContain('location_timestamp');
+
+      // These columns were removed in migration 13
+      expect(columnNames).not.toContain('peak_intensity');
+      expect(columnNames).not.toContain('average_intensity');
+    });
+
+    it('should have correct columns in medications table', async () => {
+      await adapter.execAsync(createTables);
+
+      const columns = await adapter.getAllAsync<any>('PRAGMA table_info(medications)');
+      const columnNames = columns.map((c: any) => c.name);
+
+      expect(columnNames).toContain('id');
+      expect(columnNames).toContain('name');
+      expect(columnNames).toContain('type');
+      expect(columnNames).toContain('dosage_amount');
+      expect(columnNames).toContain('dosage_unit');
+      expect(columnNames).toContain('default_quantity'); // renamed from default_dosage in migration 14
+      expect(columnNames).toContain('category'); // added in migration 16
+      expect(columnNames).toContain('created_at');
+      expect(columnNames).toContain('updated_at');
+
+      // These columns were removed in migration 11
+      expect(columnNames).not.toContain('start_date');
+      expect(columnNames).not.toContain('end_date');
+    });
+
+    it('should have correct columns in medication_doses table', async () => {
+      await adapter.execAsync(createTables);
+
+      const columns = await adapter.getAllAsync<any>('PRAGMA table_info(medication_doses)');
+      const columnNames = columns.map((c: any) => c.name);
+
+      expect(columnNames).toContain('id');
+      expect(columnNames).toContain('medication_id');
+      expect(columnNames).toContain('timestamp');
+      expect(columnNames).toContain('quantity'); // renamed from amount in migration 15
+      expect(columnNames).toContain('status'); // added in migration 6
+      expect(columnNames).toContain('dosage_amount'); // added in migration 10
+      expect(columnNames).toContain('dosage_unit'); // added in migration 10
+      expect(columnNames).toContain('updated_at'); // added in migration 12
+
+      // Old column name should not exist
+      expect(columnNames).not.toContain('amount');
+    });
+
+    it('should have correct columns in medication_schedules table', async () => {
+      await adapter.execAsync(createTables);
+
+      const columns = await adapter.getAllAsync<any>('PRAGMA table_info(medication_schedules)');
+      const columnNames = columns.map((c: any) => c.name);
+
+      expect(columnNames).toContain('id');
+      expect(columnNames).toContain('medication_id');
+      expect(columnNames).toContain('time');
+      expect(columnNames).toContain('timezone'); // added in migration 19
+      expect(columnNames).toContain('dosage');
+      expect(columnNames).toContain('enabled');
+    });
+
+    it('should have composite indexes created', async () => {
+      await adapter.execAsync(createTables);
+
+      const indexes = await adapter.getAllAsync<{ name: string }>(
+        "SELECT name FROM sqlite_master WHERE type='index'"
+      );
+      const indexNames = indexes.map(i => i.name);
+
+      // Composite indexes from migration 9
+      expect(indexNames).toContain('idx_episodes_date_range');
+      expect(indexNames).toContain('idx_medications_active_type');
+      expect(indexNames).toContain('idx_medication_doses_med_time');
+      expect(indexNames).toContain('idx_reminders_incomplete');
+      expect(indexNames).toContain('idx_intensity_readings_time');
+      expect(indexNames).toContain('idx_daily_status_date_status');
     });
   });
 
   describe('Foreign Key Constraint Tests', () => {
-    it('should maintain CASCADE delete through all migrations', async () => {
-      // Setup: v1 database with full data chain
-      db.exec(SCHEMA_V1);
+    beforeEach(async () => {
+      await adapter.execAsync(createTables);
+      const migrationRunner = getMigrations();
+      await migrationRunner.initialize(adapter as any);
+    });
 
+    it('should enforce CASCADE delete on episode -> intensity_readings', async () => {
       const episodeId = 'ep-cascade-test';
       const readingId = 'reading-test';
 
@@ -463,142 +246,213 @@ describe('Migration Integration Tests (Real Database)', () => {
       `).run(episodeId, Date.now(), '[]', '[]', '[]', '[]', Date.now(), Date.now());
 
       db.prepare(`
-        INSERT INTO intensity_readings (id, episode_id, timestamp, intensity)
-        VALUES (?, ?, ?, ?)
-      `).run(readingId, episodeId, Date.now(), 7.0);
+        INSERT INTO intensity_readings (id, episode_id, timestamp, intensity, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(readingId, episodeId, Date.now(), 7.0, Date.now(), Date.now());
 
-      // Execute: Migrate through all versions
-      const migrationRunner = getMigrations();
-      await migrationRunner.initialize(adapter as any);
-      await migrationRunner.runMigrations();
-
-      // Verify: DELETE CASCADE still works after all migrations
+      // Delete episode
       db.prepare('DELETE FROM episodes WHERE id = ?').run(episodeId);
 
+      // Verify intensity reading was cascade deleted
       const readings = await adapter.getAllAsync('SELECT * FROM intensity_readings');
-      expect(readings).toHaveLength(0); // Cascade worked
+      expect(readings).toHaveLength(0);
     });
 
-    it('should maintain SET NULL behavior through migrations', async () => {
-      // Setup: v1 database
-      db.exec(SCHEMA_V1);
+    it('should enforce SET NULL on episode deletion for medication_doses', async () => {
+      const medicationId = 'med-test';
+      const episodeId = 'ep-test';
+      const doseId = 'dose-test';
 
-      const medicationId = 'med-setnull-test';
-      const episodeId = 'ep-setnull-test';
-      const doseId = 'dose-setnull-test';
-
-      // Create full chain
+      // Create medication
       db.prepare(`
-        INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).run(medicationId, 'Test Med', 'rescue', 100, 'mg', Date.now());
+        INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(medicationId, 'Test Med', 'rescue', 100, 'mg', Date.now(), Date.now());
 
+      // Create episode
       db.prepare(`
         INSERT INTO episodes (id, start_time, locations, qualities, symptoms, triggers,
                              created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(episodeId, Date.now(), '[]', '[]', '[]', '[]', Date.now(), Date.now());
 
+      // Create dose linked to both
       db.prepare(`
-        INSERT INTO medication_doses (id, medication_id, timestamp, amount, episode_id, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).run(doseId, medicationId, Date.now(), 1, episodeId, Date.now());
+        INSERT INTO medication_doses (id, medication_id, timestamp, quantity, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(doseId, medicationId, Date.now(), 1, 'taken', Date.now(), Date.now());
 
-      // Execute: Migrate through all versions
-      const migrationRunner = getMigrations();
-      await migrationRunner.initialize(adapter as any);
-      await migrationRunner.runMigrations();
+      // Link dose to episode
+      db.prepare('UPDATE medication_doses SET episode_id = ? WHERE id = ?').run(episodeId, doseId);
 
-      // Verify: DELETE SET NULL still works
+      // Delete episode
       db.prepare('DELETE FROM episodes WHERE id = ?').run(episodeId);
 
+      // Verify dose still exists but episode_id is NULL
       const doses = await adapter.getAllAsync<any>('SELECT * FROM medication_doses');
       expect(doses).toHaveLength(1);
-      expect(doses[0].episode_id).toBeNull(); // SET NULL worked
+      expect(doses[0].episode_id).toBeNull();
+    });
+
+    it('should enforce CASCADE delete on medication -> medication_doses', async () => {
+      const medicationId = 'med-cascade';
+      const doseId = 'dose-cascade';
+
+      // Create medication
+      db.prepare(`
+        INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(medicationId, 'Test Med', 'rescue', 100, 'mg', Date.now(), Date.now());
+
+      // Create dose
+      db.prepare(`
+        INSERT INTO medication_doses (id, medication_id, timestamp, quantity, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(doseId, medicationId, Date.now(), 1, 'taken', Date.now(), Date.now());
+
+      // Delete medication
+      db.prepare('DELETE FROM medications WHERE id = ?').run(medicationId);
+
+      // Verify dose was cascade deleted
+      const doses = await adapter.getAllAsync('SELECT * FROM medication_doses');
+      expect(doses).toHaveLength(0);
     });
   });
 
-  describe('Schema Integrity Tests', () => {
-    it('should create all expected tables through migrations', async () => {
-      // Setup: v1 database
-      db.exec(SCHEMA_V1);
-
-      // Execute: Run all migrations
+  describe('Data Integrity Tests', () => {
+    beforeEach(async () => {
+      await adapter.execAsync(createTables);
       const migrationRunner = getMigrations();
       await migrationRunner.initialize(adapter as any);
-      await migrationRunner.runMigrations();
+    });
 
-      // Verify: All expected tables exist
-      const tables = await adapter.getAllAsync<{ name: string }>(
-        "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+    it('should enforce CHECK constraints on medication type', async () => {
+      // Valid types should work
+      expect(() => {
+        db.prepare(`
+          INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run('med-1', 'Test', 'rescue', 100, 'mg', Date.now(), Date.now());
+      }).not.toThrow();
+
+      expect(() => {
+        db.prepare(`
+          INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run('med-2', 'Test', 'preventative', 100, 'mg', Date.now(), Date.now());
+      }).not.toThrow();
+
+      expect(() => {
+        db.prepare(`
+          INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run('med-3', 'Test', 'other', 100, 'mg', Date.now(), Date.now());
+      }).not.toThrow();
+
+      // Invalid type should fail
+      expect(() => {
+        db.prepare(`
+          INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run('med-4', 'Test', 'invalid', 100, 'mg', Date.now(), Date.now());
+      }).toThrow();
+    });
+
+    it('should enforce CHECK constraint on medication_doses status', async () => {
+      const medicationId = 'med-status-test';
+
+      // Create medication
+      db.prepare(`
+        INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(medicationId, 'Test', 'rescue', 100, 'mg', Date.now(), Date.now());
+
+      // Valid statuses should work
+      expect(() => {
+        db.prepare(`
+          INSERT INTO medication_doses (id, medication_id, timestamp, quantity, status, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run('dose-1', medicationId, Date.now(), 1, 'taken', Date.now(), Date.now());
+      }).not.toThrow();
+
+      expect(() => {
+        db.prepare(`
+          INSERT INTO medication_doses (id, medication_id, timestamp, quantity, status, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run('dose-2', medicationId, Date.now(), 0, 'skipped', Date.now(), Date.now());
+      }).not.toThrow();
+
+      // Invalid status should fail
+      expect(() => {
+        db.prepare(`
+          INSERT INTO medication_doses (id, medication_id, timestamp, quantity, status, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run('dose-3', medicationId, Date.now(), 1, 'invalid', Date.now(), Date.now());
+      }).toThrow();
+    });
+
+    it('should enforce quantity > 0 when status is taken', async () => {
+      const medicationId = 'med-quantity-test';
+
+      // Create medication
+      db.prepare(`
+        INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(medicationId, 'Test', 'rescue', 100, 'mg', Date.now(), Date.now());
+
+      // status=taken with quantity=0 should fail
+      expect(() => {
+        db.prepare(`
+          INSERT INTO medication_doses (id, medication_id, timestamp, quantity, status, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run('dose-fail', medicationId, Date.now(), 0, 'taken', Date.now(), Date.now());
+      }).toThrow();
+
+      // status=skipped with quantity=0 should work
+      expect(() => {
+        db.prepare(`
+          INSERT INTO medication_doses (id, medication_id, timestamp, quantity, status, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run('dose-ok', medicationId, Date.now(), 0, 'skipped', Date.now(), Date.now());
+      }).not.toThrow();
+    });
+  });
+
+  describe('Performance Tests', () => {
+    it('should complete fresh database initialization quickly', async () => {
+      const startTime = Date.now();
+
+      await adapter.execAsync(createTables);
+      const migrationRunner = getMigrations();
+      await migrationRunner.initialize(adapter as any);
+
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+
+      // Should be very fast since no migrations need to run
+      expect(duration).toBeLessThan(100); // Less than 100ms
+    });
+
+    it('should not run any migrations for fresh database', async () => {
+      await adapter.execAsync(createTables);
+
+      const migrationRunner = getMigrations();
+      await migrationRunner.initialize(adapter as any);
+
+      // Track if runMigrations does anything
+      const versionBefore = await adapter.getAllAsync<{ version: number }>(
+        'SELECT version FROM schema_version'
       );
 
-      const tableNames = tables.map(t => t.name);
-      expect(tableNames).toContain('episodes');
-      expect(tableNames).toContain('episode_notes'); // Migration 3
-      expect(tableNames).toContain('daily_status_logs'); // Migration 5
-      expect(tableNames).toContain('medications');
-      expect(tableNames).toContain('medication_doses');
-      expect(tableNames).toContain('medication_schedules');
-      expect(tableNames).toContain('schema_version');
-    });
-
-    it('should verify column types are correct after migrations', async () => {
-      db.exec(SCHEMA_V1);
-      const migrationRunner = getMigrations();
-      await migrationRunner.initialize(adapter as any);
       await migrationRunner.runMigrations();
 
-      // Check episodes table schema
-      const episodeColumns = await adapter.getAllAsync<any>('PRAGMA table_info(episodes)');
-      const latitudeCol = episodeColumns.find((c: any) => c.name === 'latitude');
-      const longitudeCol = episodeColumns.find((c: any) => c.name === 'longitude');
+      const versionAfter = await adapter.getAllAsync<{ version: number }>(
+        'SELECT version FROM schema_version'
+      );
 
-      expect(latitudeCol).toBeDefined();
-      expect(latitudeCol.type).toBe('REAL');
-      expect(longitudeCol).toBeDefined();
-      expect(longitudeCol.type).toBe('REAL');
-
-      // Check medication_doses status column
-      const doseColumns = await adapter.getAllAsync<any>('PRAGMA table_info(medication_doses)');
-      const statusCol = doseColumns.find((c: any) => c.name === 'status');
-
-      expect(statusCol).toBeDefined();
-      expect(statusCol.type).toBe('TEXT');
-      expect(statusCol.notnull).toBe(1);
-      expect(statusCol.dflt_value).toBe("'taken'");
-    });
-  });
-
-  describe('Version Tracking Tests', () => {
-    it('should update version after each migration', async () => {
-      db.exec(SCHEMA_V1);
-      const migrationRunner = getMigrations();
-      await migrationRunner.initialize(adapter as any);
-
-      // Start at v1
-      let version = await adapter.getAllAsync<{ version: number }>('SELECT version FROM schema_version');
-      expect(version[0].version).toBe(1);
-
-      // Run migrations
-      await migrationRunner.runMigrations();
-
-      // Should be at latest version (19)
-      version = await adapter.getAllAsync<{ version: number }>('SELECT version FROM schema_version');
-      expect(version[0].version).toBe(19);
-    });
-
-    it('should track version during rollback', async () => {
-      db.exec(SCHEMA_V1);
-      const migrationRunner = getMigrations();
-      await migrationRunner.initialize(adapter as any);
-      await migrationRunner.runMigrations();
-
-      // Rollback to v3
-      await migrationRunner.rollback(3);
-
-      const version = await adapter.getAllAsync<{ version: number }>('SELECT version FROM schema_version');
-      expect(version[0].version).toBe(3);
+      // Version should remain at 19
+      expect(versionBefore[0].version).toBe(19);
+      expect(versionAfter[0].version).toBe(19);
     });
   });
 });

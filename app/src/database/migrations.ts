@@ -1,6 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 import { logger } from '../utils/logger';
-import { getMedicationByName, formatIngredientsAsNotes } from '../utils/presetMedications';
+import { SCHEMA_VERSION } from './schema';
 
 const SCHEMA_VERSION_TABLE = `
   CREATE TABLE IF NOT EXISTS schema_version (
@@ -17,1291 +17,148 @@ export interface Migration {
   down?: (db: SQLite.SQLiteDatabase) => Promise<void>;
 }
 
-// Define all migrations in order
+// Migration v19: Add CHECK constraints to existing tables
+//
+// Previous migrations (v1-v18) have been squashed into the base schema (schema.ts).
+// New databases are created at v19 directly with all constraints included.
+//
+// This migration ensures v18 databases (from v1.1.4) get all the CHECK constraints
+// that were added to schema.ts but never properly migrated to existing databases.
+//
+// Tables recreated with constraints:
+// - intensity_readings, episode_notes, pain_location_logs
+// - medication_schedules, medication_reminders, daily_status_logs
 const migrations: Migration[] = [
   {
-    version: 2,
-    name: 'add_location_to_episodes',
+    version: 19,
+    name: 'add_check_constraints_to_tables',
     up: async (db: SQLite.SQLiteDatabase) => {
-      // Check if columns already exist before adding them
-      const tableInfo = await db.getAllAsync<{ name: string }>(
-        "PRAGMA table_info(episodes)"
-      );
-      const columnNames = tableInfo.map(col => col.name);
+      logger.log('Migration 19: Adding CHECK constraints to tables...');
 
-      // Add location columns to episodes table if they don't exist
-      if (!columnNames.includes('latitude')) {
-        await db.execAsync('ALTER TABLE episodes ADD COLUMN latitude REAL;');
-      }
-      if (!columnNames.includes('longitude')) {
-        await db.execAsync('ALTER TABLE episodes ADD COLUMN longitude REAL;');
-      }
-      if (!columnNames.includes('location_accuracy')) {
-        await db.execAsync('ALTER TABLE episodes ADD COLUMN location_accuracy REAL;');
-      }
-      if (!columnNames.includes('location_timestamp')) {
-        await db.execAsync('ALTER TABLE episodes ADD COLUMN location_timestamp INTEGER;');
-      }
-    },
-    down: async (db: SQLite.SQLiteDatabase) => {
-      // SQLite doesn't support DROP COLUMN, so recreate table without location columns
-      // This is the recommended SQLite pattern for removing columns
-      //
-      // CRITICAL: Use transaction to ensure atomic operation and prevent data loss
-      // If any step fails, entire rollback is reverted to preserve original state
+      // SQLite doesn't support ALTER TABLE to add CHECK constraints
+      // Must recreate tables with constraints
 
-      try {
-        // Begin transaction - ensures all-or-nothing execution
-        await db.execAsync('BEGIN TRANSACTION;');
-
-        // Step 1: Create temporary table with original schema (without location columns)
-        // Check which columns exist in current episodes table
-        const columns = await db.getAllAsync<{ name: string }>(
-          "PRAGMA table_info(episodes)"
-        );
-        const columnNames = columns.map(col => col.name);
-        const hasPeakIntensity = columnNames.includes('peak_intensity');
-        const hasAverageIntensity = columnNames.includes('average_intensity');
-
-        // Build CREATE TABLE statement based on which columns exist
-        const backupColumns = [
-          'id TEXT PRIMARY KEY',
-          'start_time INTEGER NOT NULL',
-          'end_time INTEGER',
-          'locations TEXT NOT NULL',
-          'qualities TEXT NOT NULL',
-          'symptoms TEXT NOT NULL',
-          'triggers TEXT NOT NULL',
-          'notes TEXT'
-        ];
-        if (hasPeakIntensity) backupColumns.push('peak_intensity REAL');
-        if (hasAverageIntensity) backupColumns.push('average_intensity REAL');
-        backupColumns.push('created_at INTEGER NOT NULL', 'updated_at INTEGER NOT NULL');
-
-        await db.execAsync(`
-          CREATE TABLE episodes_backup (
-            ${backupColumns.join(',\n            ')}
-          );
-        `);
-
-        // Step 2: Copy data from current table (excluding location columns)
-        const columnsToSelect = [
-          'id', 'start_time', 'end_time', 'locations', 'qualities', 'symptoms',
-          'triggers', 'notes'
-        ];
-        if (hasPeakIntensity) columnsToSelect.push('peak_intensity');
-        if (hasAverageIntensity) columnsToSelect.push('average_intensity');
-        columnsToSelect.push('created_at', 'updated_at');
-
-        await db.execAsync(`
-          INSERT INTO episodes_backup
-          SELECT ${columnsToSelect.join(', ')}
-          FROM episodes;
-        `);
-
-        // CRITICAL: Verify all data was copied before proceeding
-        const originalCount = await db.getAllAsync<{ count: number }>('SELECT COUNT(*) as count FROM episodes');
-        const backupCount = await db.getAllAsync<{ count: number }>('SELECT COUNT(*) as count FROM episodes_backup');
-
-        // Verify row counts match (skip in test environment with mocked getAllAsync)
-        if (originalCount && originalCount[0] && backupCount && backupCount[0]) {
-          if (originalCount[0].count !== backupCount[0].count) {
-            throw new Error(
-              `Row count mismatch during rollback: original=${originalCount[0].count}, backup=${backupCount[0].count}. ` +
-              `Aborting to prevent data loss.`
-            );
-          }
-          logger.log(`Verified ${originalCount[0].count} episodes copied to backup table`);
-        }
-
-        // Step 3: Drop original table (safe now - data verified in backup)
-        await db.execAsync('DROP TABLE episodes;');
-
-        // Step 4: Rename backup table to original name
-        await db.execAsync('ALTER TABLE episodes_backup RENAME TO episodes;');
-
-        // Step 5: Recreate indexes
-        await db.execAsync('CREATE INDEX IF NOT EXISTS idx_episodes_start_time ON episodes(start_time);');
-
-        // Commit transaction - all changes permanent
-        await db.execAsync('COMMIT;');
-
-        logger.log('Rolled back migration 2: Removed location columns from episodes table');
-      } catch (error) {
-        // Rollback transaction - reverts all changes, preserves original state
-        try {
-          await db.execAsync('ROLLBACK;');
-          logger.log('Transaction rolled back - original data preserved');
-        } catch (rollbackError) {
-          logger.error('CRITICAL: Failed to rollback transaction:', rollbackError);
-        }
-
-        // Re-throw original error
-        throw new Error(`Rollback of migration 2 failed: ${(error as Error).message}`);
-      }
-    },
-  },
-  {
-    version: 3,
-    name: 'add_episode_notes_table',
-    up: async (db: SQLite.SQLiteDatabase) => {
+      // 1. intensity_readings - add intensity range check
       await db.execAsync(`
-        CREATE TABLE IF NOT EXISTS episode_notes (
+        CREATE TABLE intensity_readings_new (
           id TEXT PRIMARY KEY,
           episode_id TEXT NOT NULL,
-          timestamp INTEGER NOT NULL,
-          note TEXT NOT NULL,
-          created_at INTEGER NOT NULL,
-          FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE CASCADE
-        );
-      `);
-
-      // Create index for efficient queries
-      await db.execAsync(`
-        CREATE INDEX IF NOT EXISTS idx_episode_notes_episode ON episode_notes(episode_id);
-      `);
-
-      await db.execAsync(`
-        CREATE INDEX IF NOT EXISTS idx_episode_notes_timestamp ON episode_notes(timestamp);
-      `);
-    },
-    down: async (db: SQLite.SQLiteDatabase) => {
-      await db.execAsync('DROP TABLE IF EXISTS episode_notes;');
-      await db.execAsync('DROP INDEX IF EXISTS idx_episode_notes_episode;');
-      await db.execAsync('DROP INDEX IF EXISTS idx_episode_notes_timestamp;');
-    },
-  },
-  {
-    version: 4,
-    name: 'add_notification_fields_to_schedules',
-    up: async (db: SQLite.SQLiteDatabase) => {
-      // Check if columns already exist before adding them
-      const tableInfo = await db.getAllAsync<{ name: string }>(
-        "PRAGMA table_info(medication_schedules)"
-      );
-      const columnNames = tableInfo.map(col => col.name);
-
-      // Add notification_id column if it doesn't exist
-      if (!columnNames.includes('notification_id')) {
-        await db.execAsync('ALTER TABLE medication_schedules ADD COLUMN notification_id TEXT;');
-      }
-
-      // Add reminder_enabled column if it doesn't exist (default to 1 = true)
-      if (!columnNames.includes('reminder_enabled')) {
-        await db.execAsync('ALTER TABLE medication_schedules ADD COLUMN reminder_enabled INTEGER NOT NULL DEFAULT 1;');
-      }
-
-      logger.log('Added notification fields to medication_schedules table');
-    },
-    down: async (db: SQLite.SQLiteDatabase) => {
-      // SQLite doesn't support DROP COLUMN, so recreate table without notification columns
-      // This is the recommended SQLite pattern for removing columns
-      //
-      // CRITICAL: Use transaction to ensure atomic operation and prevent data loss
-
-      try {
-        await db.execAsync('BEGIN TRANSACTION;');
-
-        // Step 1: Create temporary table with original schema (without notification columns)
-        await db.execAsync(`
-          CREATE TABLE medication_schedules_backup (
-            id TEXT PRIMARY KEY,
-            medication_id TEXT NOT NULL,
-            time TEXT NOT NULL,
-            dosage REAL NOT NULL DEFAULT 1,
-            enabled INTEGER NOT NULL DEFAULT 1,
-            FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE
-          );
-        `);
-
-        // Step 2: Copy data from current table (excluding notification columns)
-        await db.execAsync(`
-          INSERT INTO medication_schedules_backup
-          SELECT id, medication_id, time, dosage, enabled
-          FROM medication_schedules;
-        `);
-
-        // CRITICAL: Verify all data was copied
-        const originalCount = await db.getAllAsync<{ count: number }>('SELECT COUNT(*) as count FROM medication_schedules');
-        const backupCount = await db.getAllAsync<{ count: number }>('SELECT COUNT(*) as count FROM medication_schedules_backup');
-
-        if (originalCount && originalCount[0] && backupCount && backupCount[0]) {
-          if (originalCount[0].count !== backupCount[0].count) {
-            throw new Error(
-              `Row count mismatch: original=${originalCount[0].count}, backup=${backupCount[0].count}. Aborting.`
-            );
-          }
-          logger.log(`Verified ${originalCount[0].count} schedules copied to backup table`);
-        }
-
-        // Step 3: Drop original table (safe now)
-        await db.execAsync('DROP TABLE medication_schedules;');
-
-        // Step 4: Rename backup table to original name
-        await db.execAsync('ALTER TABLE medication_schedules_backup RENAME TO medication_schedules;');
-
-        await db.execAsync('COMMIT;');
-
-        logger.log('Rolled back migration 4: Removed notification fields from medication_schedules table');
-      } catch (error) {
-        try {
-          await db.execAsync('ROLLBACK;');
-          logger.log('Transaction rolled back - original data preserved');
-        } catch (rollbackError) {
-          logger.error('CRITICAL: Failed to rollback transaction:', rollbackError);
-        }
-        throw new Error(`Rollback of migration 4 failed: ${(error as Error).message}`);
-      }
-    },
-  },
-  {
-    version: 5,
-    name: 'add_daily_status_logs_table',
-    up: async (db: SQLite.SQLiteDatabase) => {
-      await db.execAsync(`
-        CREATE TABLE IF NOT EXISTS daily_status_logs (
-          id TEXT PRIMARY KEY,
-          date TEXT NOT NULL UNIQUE,
-          status TEXT NOT NULL,
-          status_type TEXT,
-          notes TEXT,
-          prompted INTEGER NOT NULL DEFAULT 0,
-          created_at INTEGER NOT NULL,
-          updated_at INTEGER NOT NULL
-        );
-      `);
-
-      // Create indexes for efficient queries
-      await db.execAsync(`
-        CREATE INDEX IF NOT EXISTS idx_daily_status_date ON daily_status_logs(date);
-      `);
-
-      await db.execAsync(`
-        CREATE INDEX IF NOT EXISTS idx_daily_status_status ON daily_status_logs(status);
-      `);
-
-      logger.log('Created daily_status_logs table with indexes');
-    },
-    down: async (db: SQLite.SQLiteDatabase) => {
-      await db.execAsync('DROP TABLE IF EXISTS daily_status_logs;');
-      await db.execAsync('DROP INDEX IF EXISTS idx_daily_status_date;');
-      await db.execAsync('DROP INDEX IF EXISTS idx_daily_status_status;');
-      logger.log('Dropped daily_status_logs table and indexes');
-    },
-  },
-  {
-    version: 6,
-    name: 'add_status_to_medication_doses',
-    up: async (db: SQLite.SQLiteDatabase) => {
-      // Check if column already exists before adding it
-      const tableInfo = await db.getAllAsync<{ name: string }>(
-        "PRAGMA table_info(medication_doses)"
-      );
-      const columnNames = tableInfo.map(col => col.name);
-
-      // Add status column if it doesn't exist (default to 'taken')
-      if (!columnNames.includes('status')) {
-        await db.execAsync('ALTER TABLE medication_doses ADD COLUMN status TEXT NOT NULL DEFAULT \'taken\';');
-      }
-
-      logger.log('Added status column to medication_doses table');
-    },
-    down: async (db: SQLite.SQLiteDatabase) => {
-      // SQLite doesn't support DROP COLUMN, so recreate table without status column
-      // This is the recommended SQLite pattern for removing columns
-      //
-      // CRITICAL: Use transaction to ensure atomic operation and prevent data loss
-
-      try {
-        await db.execAsync('BEGIN TRANSACTION;');
-
-        // Check which columns exist in current medication_doses table
-        const columns = await db.getAllAsync<{ name: string }>(
-          "PRAGMA table_info(medication_doses)"
-        );
-        const columnNames = columns.map(col => col.name);
-
-        // Determine if we have 'amount' or 'quantity' (Migration 15 renamed amount to quantity)
-        const quantityColumn = columnNames.includes('quantity') ? 'quantity' : 'amount';
-
-        // Step 1: Create temporary table with original schema (without status column)
-        await db.execAsync(`
-          CREATE TABLE medication_doses_backup (
-            id TEXT PRIMARY KEY,
-            medication_id TEXT NOT NULL,
-            timestamp INTEGER NOT NULL,
-            amount REAL NOT NULL,
-            episode_id TEXT,
-            effectiveness_rating REAL,
-            time_to_relief INTEGER,
-            side_effects TEXT,
-            notes TEXT,
-            created_at INTEGER NOT NULL,
-            FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE,
-            FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE SET NULL
-          );
-        `);
-
-        // Step 2: Copy data from current table (excluding status column)
-        // Map quantity back to amount if that's what we have
-        await db.execAsync(`
-          INSERT INTO medication_doses_backup
-          SELECT id, medication_id, timestamp, ${quantityColumn} as amount, episode_id,
-                 effectiveness_rating, time_to_relief, side_effects, notes, created_at
-          FROM medication_doses;
-        `);
-
-        // CRITICAL: Verify all data was copied
-        const originalCount = await db.getAllAsync<{ count: number }>('SELECT COUNT(*) as count FROM medication_doses');
-        const backupCount = await db.getAllAsync<{ count: number }>('SELECT COUNT(*) as count FROM medication_doses_backup');
-
-        if (originalCount && originalCount[0] && backupCount && backupCount[0]) {
-          if (originalCount[0].count !== backupCount[0].count) {
-            throw new Error(
-              `Row count mismatch: original=${originalCount[0].count}, backup=${backupCount[0].count}. Aborting.`
-            );
-          }
-          logger.log(`Verified ${originalCount[0].count} doses copied to backup table`);
-        }
-
-        // Step 3: Drop original table (safe now)
-        await db.execAsync('DROP TABLE medication_doses;');
-
-        // Step 4: Rename backup table to original name
-        await db.execAsync('ALTER TABLE medication_doses_backup RENAME TO medication_doses;');
-
-        // Step 5: Recreate indexes
-        await db.execAsync('CREATE INDEX IF NOT EXISTS idx_medication_doses_medication ON medication_doses(medication_id);');
-        await db.execAsync('CREATE INDEX IF NOT EXISTS idx_medication_doses_episode ON medication_doses(episode_id);');
-        await db.execAsync('CREATE INDEX IF NOT EXISTS idx_medication_doses_timestamp ON medication_doses(timestamp);');
-
-        await db.execAsync('COMMIT;');
-
-        logger.log('Rolled back migration 6: Removed status column from medication_doses table');
-      } catch (error) {
-        try {
-          await db.execAsync('ROLLBACK;');
-          logger.log('Transaction rolled back - original data preserved');
-        } catch (rollbackError) {
-          logger.error('CRITICAL: Failed to rollback transaction:', rollbackError);
-        }
-        throw new Error(`Rollback of migration 6 failed: ${(error as Error).message}`);
-      }
-    },
-  },
-  {
-    version: 9,
-    name: 'add_composite_indexes',
-    up: async (db: SQLite.SQLiteDatabase) => {
-      // Add composite indexes for common query patterns to improve performance
-
-      // Episode queries by date range (most common query pattern)
-      await db.execAsync(`
-        CREATE INDEX IF NOT EXISTS idx_episodes_date_range
-        ON episodes(start_time, end_time);
-      `);
-
-      // Active medications filter (frequently used on medications screen)
-      // Check if active column exists before creating index on it
-      const medicationColumns = await db.getAllAsync<{ name: string }>(
-        "PRAGMA table_info(medications)"
-      );
-      const hasActiveColumn = medicationColumns.some(col => col.name === 'active');
-
-      if (hasActiveColumn) {
-        await db.execAsync(`
-          CREATE INDEX IF NOT EXISTS idx_medications_active_type
-          ON medications(active, type) WHERE active = 1;
-        `);
-      }
-
-      // Medication doses by medication and timestamp (for dose history)
-      await db.execAsync(`
-        CREATE INDEX IF NOT EXISTS idx_medication_doses_med_time
-        ON medication_doses(medication_id, timestamp DESC);
-      `);
-
-      // Incomplete medication reminders (for notification queries)
-      // Check if completed column exists
-      const reminderColumns = await db.getAllAsync<{ name: string }>(
-        "PRAGMA table_info(medication_reminders)"
-      );
-      const hasCompletedColumn = reminderColumns.some(col => col.name === 'completed');
-
-      if (hasCompletedColumn) {
-        await db.execAsync(`
-          CREATE INDEX IF NOT EXISTS idx_reminders_incomplete
-          ON medication_reminders(medication_id, scheduled_time)
-          WHERE completed = 0;
-        `);
-      }
-
-      // Intensity readings by timestamp for episode timeline
-      await db.execAsync(`
-        CREATE INDEX IF NOT EXISTS idx_intensity_readings_time
-        ON intensity_readings(episode_id, timestamp);
-      `);
-
-      // Daily status by date and status for calendar views
-      // Check if daily_status_logs table exists
-      const tables = await db.getAllAsync<{ name: string }>(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='daily_status_logs'"
-      );
-
-      if (tables.length > 0) {
-        await db.execAsync(`
-          CREATE INDEX IF NOT EXISTS idx_daily_status_date_status
-          ON daily_status_logs(date, status);
-        `);
-      }
-
-      logger.log('Added composite indexes for improved query performance');
-    },
-    down: async (db: SQLite.SQLiteDatabase) => {
-      // Remove composite indexes in reverse order
-      try {
-        await db.execAsync('DROP INDEX IF EXISTS idx_daily_status_date_status;');
-        await db.execAsync('DROP INDEX IF EXISTS idx_intensity_readings_time;');
-        await db.execAsync('DROP INDEX IF EXISTS idx_reminders_incomplete;');
-        await db.execAsync('DROP INDEX IF EXISTS idx_medication_doses_med_time;');
-        await db.execAsync('DROP INDEX IF EXISTS idx_medications_active_type;');
-        await db.execAsync('DROP INDEX IF EXISTS idx_episodes_date_range;');
-
-        logger.log('Rolled back migration 9: Removed composite indexes');
-      } catch (error) {
-        throw new Error(`Rollback of migration 9 failed: ${(error as Error).message}`);
-      }
-    },
-  },
-  {
-    version: 10,
-    name: 'add_dosage_snapshot_to_doses',
-    up: async (db: SQLite.SQLiteDatabase) => {
-      // Add dosage_amount and dosage_unit columns to medication_doses table
-      // These columns snapshot the medication's dosage at the time of logging
-      // to preserve historical accuracy when medication dosages are changed
-
-      const tableInfo = await db.getAllAsync<{ name: string }>(
-        "PRAGMA table_info(medication_doses)"
-      );
-      const columnNames = tableInfo.map(col => col.name);
-
-      // Add dosage_amount column if it doesn't exist
-      if (!columnNames.includes('dosage_amount')) {
-        await db.execAsync('ALTER TABLE medication_doses ADD COLUMN dosage_amount REAL;');
-        logger.log('Added dosage_amount column to medication_doses');
-      }
-
-      // Add dosage_unit column if it doesn't exist
-      if (!columnNames.includes('dosage_unit')) {
-        await db.execAsync('ALTER TABLE medication_doses ADD COLUMN dosage_unit TEXT;');
-        logger.log('Added dosage_unit column to medication_doses');
-      }
-
-      // Populate existing doses with dosage snapshot from their medications
-      // This backfills historical data so old doses show correct amounts
-      await db.execAsync(`
-        UPDATE medication_doses
-        SET
-          dosage_amount = (
-            SELECT medications.dosage_amount
-            FROM medications
-            WHERE medications.id = medication_doses.medication_id
-          ),
-          dosage_unit = (
-            SELECT medications.dosage_unit
-            FROM medications
-            WHERE medications.id = medication_doses.medication_id
-          )
-        WHERE dosage_amount IS NULL OR dosage_unit IS NULL;
-      `);
-
-      logger.log('Migration 10: Added dosage snapshot fields to medication_doses');
-    },
-    down: async (_db: SQLite.SQLiteDatabase) => {
-      // SQLite doesn't support DROP COLUMN
-      // Would need to recreate table without these columns
-      // Since this is new functionality, down migration not critical
-      logger.warn('Rollback of migration 10 not implemented (SQLite limitation)');
-    },
-  },
-  {
-    version: 11,
-    name: 'remove_medication_date_columns',
-    up: async (db: SQLite.SQLiteDatabase) => {
-      // Remove start_date and end_date columns from medications table
-      // These fields are not exposed in the UI and medication usage history
-      // can be derived from medication_doses table
-      //
-      // SQLite doesn't support DROP COLUMN, so we need to:
-      // 1. Check which columns exist in current table
-      // 2. Create new table without start_date and end_date
-      // 3. Copy data from old table (only existing columns)
-      // 4. Drop old table
-      // 5. Rename new table
-
-      // Get existing columns from medications table
-      const columns = await db.getAllAsync<{ name: string }>(
-        "PRAGMA table_info(medications)"
-      );
-      const columnNames = columns.map(col => col.name);
-
-      // Build SELECT and INSERT clauses dynamically based on existing columns
-      const insertColumns: string[] = ['id', 'name', 'type', 'dosage_amount', 'dosage_unit'];
-      const selectExpressions: string[] = ['id', 'name', 'type', 'dosage_amount', 'dosage_unit'];
-
-      // Add optional columns only if they exist in the source table
-      if (columnNames.includes('default_dosage')) {
-        insertColumns.push('default_dosage');
-        selectExpressions.push('default_dosage');
-      }
-      if (columnNames.includes('schedule_frequency')) {
-        insertColumns.push('schedule_frequency');
-        selectExpressions.push('schedule_frequency');
-      }
-      if (columnNames.includes('photo_uri')) {
-        insertColumns.push('photo_uri');
-        selectExpressions.push('photo_uri');
-      }
-      if (columnNames.includes('active')) {
-        insertColumns.push('active');
-        selectExpressions.push('active');
-      }
-      if (columnNames.includes('notes')) {
-        insertColumns.push('notes');
-        selectExpressions.push('notes');
-      }
-      if (columnNames.includes('created_at')) {
-        insertColumns.push('created_at');
-        selectExpressions.push('created_at');
-      }
-      if (columnNames.includes('updated_at')) {
-        insertColumns.push('updated_at');
-        selectExpressions.push('updated_at');
-      } else if (columnNames.includes('created_at')) {
-        // If updated_at doesn't exist but created_at does, use created_at for updated_at
-        insertColumns.push('updated_at');
-        selectExpressions.push('created_at as updated_at');
-      }
-
-      // Build final clauses
-      const insertClause = insertColumns.join(', ');
-      const selectClause = selectExpressions.join(', ');
-
-      await db.execAsync(`
-        -- Disable foreign keys temporarily to prevent cascade deletes during table recreation
-        PRAGMA foreign_keys = OFF;
-
-        BEGIN TRANSACTION;
-
-        -- Create new medications table without start_date and end_date
-        CREATE TABLE medications_new (
-          id TEXT PRIMARY KEY,
-          name TEXT NOT NULL CHECK(length(name) > 0 AND length(name) <= 200),
-          type TEXT NOT NULL CHECK(type IN ('preventative', 'rescue')),
-          dosage_amount REAL NOT NULL CHECK(dosage_amount > 0),
-          dosage_unit TEXT NOT NULL CHECK(length(dosage_unit) > 0 AND length(dosage_unit) <= 50),
-          default_dosage REAL CHECK(default_dosage IS NULL OR default_dosage > 0),
-          schedule_frequency TEXT CHECK(schedule_frequency IS NULL OR schedule_frequency IN ('daily', 'monthly', 'quarterly')),
-          photo_uri TEXT CHECK(photo_uri IS NULL OR length(photo_uri) <= 500),
-          active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0, 1)),
-          notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
-          created_at INTEGER NOT NULL CHECK(created_at > 0),
-          updated_at INTEGER NOT NULL CHECK(updated_at > 0)
-        );
-
-        -- Copy all data except start_date and end_date
-        INSERT INTO medications_new (${insertClause})
-        SELECT ${selectClause}
-        FROM medications;
-
-        -- Drop old table
-        DROP TABLE medications;
-
-        -- Rename new table to medications
-        ALTER TABLE medications_new RENAME TO medications;
-
-        COMMIT;
-
-        -- Re-enable foreign keys
-        PRAGMA foreign_keys = ON;
-      `);
-
-      logger.log('Migration 11: Removed start_date and end_date from medications');
-    },
-    down: async (_db: SQLite.SQLiteDatabase) => {
-      // Cannot easily restore removed columns without backup
-      logger.warn('Rollback of migration 11 not implemented - would need backup to restore start_date/end_date');
-    },
-  },
-  {
-    version: 12,
-    name: 'add_updated_at_to_event_tables',
-    up: async (db: SQLite.SQLiteDatabase) => {
-      // Add updated_at column to tables that are missing it
-      // This creates a consistent pattern across all tables:
-      // - timestamp/start_time/etc: when the event occurred
-      // - created_at: when the record was first saved to DB
-      // - updated_at: when the record was last modified
-      //
-      // Tables being updated:
-      // - intensity_readings: has timestamp + created_at, adding updated_at
-      // - pain_location_logs: has timestamp + created_at, adding updated_at
-      // - medication_doses: has timestamp + created_at, adding updated_at
-
-      // Check if tables exist first
-      const tables = await db.getAllAsync<{ name: string }>(
-        "SELECT name FROM sqlite_master WHERE type='table'"
-      );
-      const tableNames = tables.map(t => t.name);
-
-      const intensityTableExists = tableNames.includes('intensity_readings');
-      const painLocationTableExists = tableNames.includes('pain_location_logs');
-      const doseTableExists = tableNames.includes('medication_doses');
-
-      // Check if columns already exist before adding them
-      let intensityHasUpdatedAt = false;
-      let painLocationHasUpdatedAt = false;
-      let doseHasUpdatedAt = false;
-
-      if (intensityTableExists) {
-        const intensityColumns = await db.getAllAsync<{ name: string }>(
-          "PRAGMA table_info(intensity_readings)"
-        );
-        intensityHasUpdatedAt = intensityColumns.some(col => col.name === 'updated_at');
-      }
-
-      if (painLocationTableExists) {
-        const painLocationColumns = await db.getAllAsync<{ name: string }>(
-          "PRAGMA table_info(pain_location_logs)"
-        );
-        painLocationHasUpdatedAt = painLocationColumns.some(col => col.name === 'updated_at');
-      }
-
-      if (doseTableExists) {
-        const doseColumns = await db.getAllAsync<{ name: string }>(
-          "PRAGMA table_info(medication_doses)"
-        );
-        doseHasUpdatedAt = doseColumns.some(col => col.name === 'updated_at');
-      }
-
-      // Add updated_at column to intensity_readings if it doesn't exist
-      // Note: SQLite doesn't support non-constant defaults in ALTER TABLE ADD COLUMN
-      // So we use a two-step approach: add column with DEFAULT 0, then UPDATE to set proper values
-      if (intensityTableExists && !intensityHasUpdatedAt) {
-        await db.execAsync(`
-          ALTER TABLE intensity_readings
-          ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0;
-        `);
-
-        // Check if created_at column exists before using it
-        const intensityColumns = await db.getAllAsync<{ name: string }>(
-          "PRAGMA table_info(intensity_readings)"
-        );
-        const hasCreatedAt = intensityColumns.some(col => col.name === 'created_at');
-
-        if (hasCreatedAt) {
-          await db.execAsync(`
-            UPDATE intensity_readings
-            SET updated_at = created_at
-            WHERE updated_at = 0;
-          `);
-        } else {
-          // If no created_at, use timestamp as fallback
-          await db.execAsync(`
-            UPDATE intensity_readings
-            SET updated_at = timestamp
-            WHERE updated_at = 0;
-          `);
-        }
-        logger.log('Added updated_at to intensity_readings');
-      }
-
-      // Add updated_at column to pain_location_logs if it doesn't exist
-      if (painLocationTableExists && !painLocationHasUpdatedAt) {
-        await db.execAsync(`
-          ALTER TABLE pain_location_logs
-          ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0;
-        `);
-
-        // Check if created_at column exists before using it
-        const painLocationColumns = await db.getAllAsync<{ name: string }>(
-          "PRAGMA table_info(pain_location_logs)"
-        );
-        const hasCreatedAt = painLocationColumns.some(col => col.name === 'created_at');
-
-        if (hasCreatedAt) {
-          await db.execAsync(`
-            UPDATE pain_location_logs
-            SET updated_at = created_at
-            WHERE updated_at = 0;
-          `);
-        } else {
-          // If no created_at, use timestamp as fallback
-          await db.execAsync(`
-            UPDATE pain_location_logs
-            SET updated_at = timestamp
-            WHERE updated_at = 0;
-          `);
-        }
-        logger.log('Added updated_at to pain_location_logs');
-      }
-
-      // Add updated_at column to medication_doses if it doesn't exist
-      if (doseTableExists && !doseHasUpdatedAt) {
-        await db.execAsync(`
-          ALTER TABLE medication_doses
-          ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0;
-        `);
-
-        // Check if created_at column exists before using it
-        const doseColumns = await db.getAllAsync<{ name: string }>(
-          "PRAGMA table_info(medication_doses)"
-        );
-        const hasCreatedAt = doseColumns.some(col => col.name === 'created_at');
-
-        if (hasCreatedAt) {
-          await db.execAsync(`
-            UPDATE medication_doses
-            SET updated_at = created_at
-            WHERE updated_at = 0;
-          `);
-        } else {
-          // If no created_at, use timestamp as fallback
-          await db.execAsync(`
-            UPDATE medication_doses
-            SET updated_at = timestamp
-            WHERE updated_at = 0;
-          `);
-        }
-        logger.log('Added updated_at to medication_doses');
-      }
-
-      logger.log('Migration 12: Added updated_at columns for consistency');
-    },
-    down: async (_db: SQLite.SQLiteDatabase) => {
-      // SQLite doesn't support DROP COLUMN easily, would need table recreation
-      logger.warn('Rollback of migration 12 not implemented (would require table recreation)');
-    },
-  },
-  {
-    version: 13,
-    name: 'remove_episode_intensity_columns',
-    up: async (db: SQLite.SQLiteDatabase) => {
-      // Remove peak_intensity and average_intensity from episodes table
-      // These columns are redundant - intensity data is tracked in intensity_readings table
-      // Use table recreation pattern since SQLite doesn't support DROP COLUMN
-
-      // Get existing columns from episodes table
-      const columns = await db.getAllAsync<{ name: string }>(
-        "PRAGMA table_info(episodes)"
-      );
-      const columnNames = columns.map(col => col.name);
-
-      // Build SELECT and INSERT clauses dynamically, excluding peak_intensity and average_intensity
-      const columnsToKeep = [
-        'id', 'start_time', 'end_time', 'locations', 'qualities', 'symptoms',
-        'triggers', 'notes', 'created_at', 'updated_at'
-      ];
-
-      // Add location columns if they exist (added in migration 2)
-      if (columnNames.includes('latitude')) {
-        columnsToKeep.push('latitude', 'longitude', 'location_accuracy', 'location_timestamp');
-      }
-
-      const insertClause = columnsToKeep.join(', ');
-      const selectClause = columnsToKeep.join(', ');
-
-      await db.execAsync(`
-        -- Disable foreign keys temporarily to prevent cascade deletes
-        PRAGMA foreign_keys = OFF;
-
-        BEGIN TRANSACTION;
-
-        -- Create new episodes table without peak_intensity and average_intensity
-        CREATE TABLE episodes_new (
-          id TEXT PRIMARY KEY,
-          start_time INTEGER NOT NULL CHECK(start_time > 0),
-          end_time INTEGER CHECK(end_time IS NULL OR end_time > start_time),
-          locations TEXT NOT NULL,
-          qualities TEXT NOT NULL,
-          symptoms TEXT NOT NULL,
-          triggers TEXT NOT NULL,
-          notes TEXT CHECK(length(notes) <= 5000),
-          latitude REAL CHECK(latitude IS NULL OR (latitude >= -90 AND latitude <= 90)),
-          longitude REAL CHECK(longitude IS NULL OR (longitude >= -180 AND longitude <= 180)),
-          location_accuracy REAL CHECK(location_accuracy IS NULL OR location_accuracy >= 0),
-          location_timestamp INTEGER CHECK(location_timestamp IS NULL OR location_timestamp > 0),
-          created_at INTEGER NOT NULL CHECK(created_at > 0),
-          updated_at INTEGER NOT NULL CHECK(updated_at > 0)
-        );
-
-        -- Copy all data except peak_intensity and average_intensity
-        INSERT INTO episodes_new (${insertClause})
-        SELECT ${selectClause}
-        FROM episodes;
-
-        -- Drop old table
-        DROP TABLE episodes;
-
-        -- Rename new table to episodes
-        ALTER TABLE episodes_new RENAME TO episodes;
-
-        -- Recreate indexes
-        CREATE INDEX IF NOT EXISTS idx_episodes_start_time ON episodes(start_time);
-        CREATE INDEX IF NOT EXISTS idx_episodes_date_range ON episodes(start_time, end_time);
-
-        COMMIT;
-
-        -- Re-enable foreign keys
-        PRAGMA foreign_keys = ON;
-      `);
-
-      logger.log('Migration 13: Removed peak_intensity and average_intensity from episodes');
-    },
-    down: async (_db: SQLite.SQLiteDatabase) => {
-      // Cannot safely restore removed columns with data
-      logger.warn('Rollback of migration 13 not implemented (data would be lost)');
-    },
-  },
-  {
-    version: 14,
-    name: 'rename_default_dosage_to_default_quantity',
-    up: async (db: SQLite.SQLiteDatabase) => {
-      // Rename default_dosage to default_quantity for consistency
-      // "quantity" is clearer: it's the number of units (e.g., 2 tablets)
-      // "dosage" is the amount per unit (e.g., 50mg per tablet)
-      // Use table recreation pattern since SQLite doesn't support RENAME COLUMN
-
-      // Get existing columns from medications table
-      const columns = await db.getAllAsync<{ name: string }>(
-        "PRAGMA table_info(medications)"
-      );
-      const columnNames = columns.map(col => col.name);
-
-      // Build SELECT and INSERT clauses
-      const columnsToKeep = ['id', 'name', 'type', 'dosage_amount', 'dosage_unit'];
-
-      // Handle default_dosage -> default_quantity rename
-      const selectExpressions = [...columnsToKeep];
-      if (columnNames.includes('default_dosage')) {
-        columnsToKeep.push('default_quantity');
-        selectExpressions.push('default_dosage as default_quantity');
-      } else if (columnNames.includes('default_quantity')) {
-        columnsToKeep.push('default_quantity');
-        selectExpressions.push('default_quantity');
-      }
-
-      // Add remaining optional columns
-      const optionalColumns = ['schedule_frequency', 'photo_uri', 'active', 'notes', 'created_at', 'updated_at'];
-      for (const col of optionalColumns) {
-        if (columnNames.includes(col)) {
-          columnsToKeep.push(col);
-          selectExpressions.push(col);
-        }
-      }
-
-      const insertClause = columnsToKeep.join(', ');
-      const selectClause = selectExpressions.join(', ');
-
-      await db.execAsync(`
-        -- Disable foreign keys temporarily to prevent cascade deletes
-        PRAGMA foreign_keys = OFF;
-
-        BEGIN TRANSACTION;
-
-        -- Create new medications table with default_quantity
-        CREATE TABLE medications_new (
-          id TEXT PRIMARY KEY,
-          name TEXT NOT NULL CHECK(length(name) > 0 AND length(name) <= 200),
-          type TEXT NOT NULL CHECK(type IN ('preventative', 'rescue')),
-          dosage_amount REAL NOT NULL CHECK(dosage_amount > 0),
-          dosage_unit TEXT NOT NULL CHECK(length(dosage_unit) > 0 AND length(dosage_unit) <= 50),
-          default_quantity REAL CHECK(default_quantity IS NULL OR default_quantity > 0),
-          schedule_frequency TEXT CHECK(schedule_frequency IS NULL OR schedule_frequency IN ('daily', 'monthly', 'quarterly')),
-          photo_uri TEXT CHECK(photo_uri IS NULL OR length(photo_uri) <= 500),
-          active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0, 1)),
-          notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
-          created_at INTEGER NOT NULL CHECK(created_at > 0),
-          updated_at INTEGER NOT NULL CHECK(updated_at > 0)
-        );
-
-        -- Copy all data, renaming default_dosage to default_quantity
-        INSERT INTO medications_new (${insertClause})
-        SELECT ${selectClause}
-        FROM medications;
-
-        -- Drop old table
-        DROP TABLE medications;
-
-        -- Rename new table to medications
-        ALTER TABLE medications_new RENAME TO medications;
-
-        -- Recreate indexes
-        CREATE INDEX IF NOT EXISTS idx_medications_active_type ON medications(active, type) WHERE active = 1;
-
-        COMMIT;
-
-        -- Re-enable foreign keys
-        PRAGMA foreign_keys = ON;
-      `);
-
-      logger.log('Migration 14: Renamed default_dosage to default_quantity in medications');
-    },
-    down: async (_db: SQLite.SQLiteDatabase) => {
-      // Could recreate with old column name, but would lose semantic clarity
-      logger.warn('Rollback of migration 14 not implemented (would require table recreation)');
-    },
-  },
-  {
-    version: 15,
-    name: 'rename_dose_amount_to_quantity',
-    up: async (db: SQLite.SQLiteDatabase) => {
-      // Rename amount to quantity in medication_doses for consistency with medication.default_quantity
-      // "quantity" is clearer: it's the number of units taken (e.g., 2 tablets)
-      // Use table recreation pattern since SQLite doesn't support RENAME COLUMN
-
-      // Get existing columns from medication_doses table
-      const columns = await db.getAllAsync<{ name: string }>(
-        "PRAGMA table_info(medication_doses)"
-      );
-      const columnNames = columns.map(col => col.name);
-
-      // Build SELECT and INSERT clauses
-      const columnsToKeep = ['id', 'medication_id', 'timestamp'];
-
-      // Handle amount -> quantity rename
-      const selectExpressions = [...columnsToKeep];
-      if (columnNames.includes('amount')) {
-        columnsToKeep.push('quantity');
-        selectExpressions.push('amount as quantity');
-      } else if (columnNames.includes('quantity')) {
-        columnsToKeep.push('quantity');
-        selectExpressions.push('quantity');
-      }
-
-      // Add remaining columns
-      const remainingColumns = [
-        'dosage_amount', 'dosage_unit', 'status', 'episode_id',
-        'effectiveness_rating', 'time_to_relief', 'side_effects', 'notes',
-        'created_at', 'updated_at'
-      ];
-      for (const col of remainingColumns) {
-        if (columnNames.includes(col)) {
-          columnsToKeep.push(col);
-          selectExpressions.push(col);
-        }
-      }
-
-      const insertClause = columnsToKeep.join(', ');
-      const selectClause = selectExpressions.join(', ');
-
-      await db.execAsync(`
-        -- Disable foreign keys temporarily to prevent cascade deletes
-        PRAGMA foreign_keys = OFF;
-
-        BEGIN TRANSACTION;
-
-        -- Create new medication_doses table with quantity
-        CREATE TABLE medication_doses_new (
-          id TEXT PRIMARY KEY,
-          medication_id TEXT NOT NULL,
           timestamp INTEGER NOT NULL CHECK(timestamp > 0),
-          quantity REAL NOT NULL CHECK(quantity >= 0),
-          dosage_amount REAL,
-          dosage_unit TEXT,
-          status TEXT NOT NULL DEFAULT 'taken' CHECK(status IN ('taken', 'skipped')),
-          episode_id TEXT,
-          effectiveness_rating REAL CHECK(effectiveness_rating IS NULL OR (effectiveness_rating >= 0 AND effectiveness_rating <= 10)),
-          time_to_relief INTEGER CHECK(time_to_relief IS NULL OR (time_to_relief > 0 AND time_to_relief <= 1440)),
-          side_effects TEXT,
+          intensity REAL NOT NULL CHECK(intensity >= 0 AND intensity <= 10),
           notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
           created_at INTEGER NOT NULL CHECK(created_at > 0),
           updated_at INTEGER NOT NULL CHECK(updated_at > 0),
-          FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE,
-          FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE SET NULL,
-          CHECK(status != 'taken' OR quantity > 0)
+          FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE CASCADE
         );
-
-        -- Copy all data, renaming amount to quantity
-        INSERT INTO medication_doses_new (${insertClause})
-        SELECT ${selectClause}
-        FROM medication_doses;
-
-        -- Drop old table
-        DROP TABLE medication_doses;
-
-        -- Rename new table to medication_doses
-        ALTER TABLE medication_doses_new RENAME TO medication_doses;
-
-        -- Recreate indexes
-        CREATE INDEX IF NOT EXISTS idx_medication_doses_medication ON medication_doses(medication_id);
-        CREATE INDEX IF NOT EXISTS idx_medication_doses_episode ON medication_doses(episode_id);
-        CREATE INDEX IF NOT EXISTS idx_medication_doses_timestamp ON medication_doses(timestamp);
-        CREATE INDEX IF NOT EXISTS idx_medication_doses_med_time ON medication_doses(medication_id, timestamp DESC);
-
-        COMMIT;
-
-        -- Re-enable foreign keys
-        PRAGMA foreign_keys = ON;
       `);
+      await db.execAsync(`INSERT INTO intensity_readings_new SELECT * FROM intensity_readings;`);
+      await db.execAsync(`DROP TABLE intensity_readings;`);
+      await db.execAsync(`ALTER TABLE intensity_readings_new RENAME TO intensity_readings;`);
+      await db.execAsync(`CREATE INDEX IF NOT EXISTS idx_intensity_readings_episode ON intensity_readings(episode_id);`);
+      await db.execAsync(`CREATE INDEX IF NOT EXISTS idx_intensity_readings_timestamp ON intensity_readings(episode_id, timestamp);`);
 
-      logger.log('Migration 15: Renamed amount to quantity in medication_doses');
-    },
-    down: async (_db: SQLite.SQLiteDatabase) => {
-      // Could recreate with old column name, but would lose semantic clarity
-      logger.warn('Rollback of migration 15 not implemented (would require table recreation)');
-    },
-  },
-  {
-    version: 16,
-    name: 'add_category_to_medications',
-    up: async (db: SQLite.SQLiteDatabase) => {
-      // Add category column to medications table and populate from preset medications
-      // Category helps track medication overuse (e.g., NSAIDs) and filter medications
-
-      // Check if column already exists before adding it
-      const tableInfo = await db.getAllAsync<{ name: string }>(
-        "PRAGMA table_info(medications)"
-      );
-      const columnNames = tableInfo.map(col => col.name);
-
-      // Add category column if it doesn't exist
-      if (!columnNames.includes('category')) {
-        await db.execAsync('ALTER TABLE medications ADD COLUMN category TEXT CHECK(category IS NULL OR category IN (\'otc\', \'nsaid\', \'triptan\', \'cgrp\', \'preventive\', \'supplement\', \'other\'));');
-        logger.log('Added category column to medications table');
-      }
-
-      // Import preset medications to match against
-      const { getMedicationByName } = await import('../utils/presetMedications');
-
-      // Get all medications
-      const medications = await db.getAllAsync<{ id: string; name: string }>(
-        'SELECT id, name FROM medications'
-      );
-
-      // Match and update categories for existing medications
-      let matchedCount = 0;
-      for (const medication of medications) {
-        const preset = getMedicationByName(medication.name);
-        if (preset) {
-          await db.runAsync(
-            'UPDATE medications SET category = ? WHERE id = ?',
-            [preset.category, medication.id]
-          );
-          matchedCount++;
-        }
-      }
-
-      logger.log(`Migration 16: Added category column and matched ${matchedCount}/${medications.length} medications`);
-    },
-    down: async (_db: SQLite.SQLiteDatabase) => {
-      // SQLite doesn't support DROP COLUMN easily, would need table recreation
-      logger.warn('Rollback of migration 16 not implemented (would require table recreation)');
-    },
-  },
-  {
-    version: 17,
-    name: 'add_other_medication_type',
-    up: async (db: SQLite.SQLiteDatabase) => {
-      // Add 'other' to medication type constraint
-      // SQLite doesn't support modifying CHECK constraints, so recreate table
-
-      // Get existing columns to build the new table
-      const columns = await db.getAllAsync<{ name: string }>(
-        "PRAGMA table_info(medications)"
-      );
-      const columnNames = columns.map(col => col.name);
-
-      // Build column list for copying data
-      const columnsToKeep = [
-        'id', 'name', 'type', 'dosage_amount', 'dosage_unit',
-        'default_quantity', 'schedule_frequency', 'photo_uri',
-        'active', 'notes', 'created_at', 'updated_at'
-      ];
-
-      // Add category if it exists (from migration 16)
-      if (columnNames.includes('category')) {
-        columnsToKeep.push('category');
-      }
-
-      const insertClause = columnsToKeep.join(', ');
-      const selectClause = columnsToKeep.join(', ');
-
+      // 2. episode_notes - add note length check
       await db.execAsync(`
-        -- Disable foreign keys temporarily
-        PRAGMA foreign_keys = OFF;
-
-        BEGIN TRANSACTION;
-
-        -- Create new medications table with updated CHECK constraint
-        CREATE TABLE medications_new (
+        CREATE TABLE episode_notes_new (
           id TEXT PRIMARY KEY,
-          name TEXT NOT NULL CHECK(length(name) > 0 AND length(name) <= 200),
-          type TEXT NOT NULL CHECK(type IN ('preventative', 'rescue', 'other')),
-          dosage_amount REAL NOT NULL CHECK(dosage_amount > 0),
-          dosage_unit TEXT NOT NULL CHECK(length(dosage_unit) > 0 AND length(dosage_unit) <= 50),
-          default_quantity REAL CHECK(default_quantity IS NULL OR default_quantity > 0),
-          schedule_frequency TEXT CHECK(schedule_frequency IS NULL OR schedule_frequency IN ('daily', 'monthly', 'quarterly')),
-          photo_uri TEXT CHECK(photo_uri IS NULL OR length(photo_uri) <= 500),
-          active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0, 1)),
-          notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
-          category TEXT CHECK(category IS NULL OR category IN ('otc', 'nsaid', 'triptan', 'cgrp', 'preventive', 'supplement', 'other')),
+          episode_id TEXT NOT NULL,
+          timestamp INTEGER NOT NULL CHECK(timestamp > 0),
+          note TEXT NOT NULL CHECK(length(note) > 0 AND length(note) <= 5000),
           created_at INTEGER NOT NULL CHECK(created_at > 0),
-          updated_at INTEGER NOT NULL CHECK(updated_at > 0)
+          FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE CASCADE
         );
-
-        -- Copy all data
-        INSERT INTO medications_new (${insertClause})
-        SELECT ${selectClause}
-        FROM medications;
-
-        -- Drop old table
-        DROP TABLE medications;
-
-        -- Rename new table
-        ALTER TABLE medications_new RENAME TO medications;
-
-        -- Recreate index
-        CREATE INDEX IF NOT EXISTS idx_medications_active_type ON medications(active, type) WHERE active = 1;
-
-        COMMIT;
-
-        -- Re-enable foreign keys
-        PRAGMA foreign_keys = ON;
       `);
+      await db.execAsync(`INSERT INTO episode_notes_new SELECT * FROM episode_notes;`);
+      await db.execAsync(`DROP TABLE episode_notes;`);
+      await db.execAsync(`ALTER TABLE episode_notes_new RENAME TO episode_notes;`);
+      await db.execAsync(`CREATE INDEX IF NOT EXISTS idx_episode_notes_episode ON episode_notes(episode_id);`);
+      await db.execAsync(`CREATE INDEX IF NOT EXISTS idx_episode_notes_timestamp ON episode_notes(episode_id, timestamp);`);
 
-      logger.log('Migration 17: Added "other" medication type');
-    },
-    down: async (_db: SQLite.SQLiteDatabase) => {
-      logger.warn('Rollback of migration 17 not implemented');
-    },
-  },
-  {
-    version: 18,
-    name: 'append_ingredients_to_combo_medications',
-    up: async (db: SQLite.SQLiteDatabase) => {
-      // Append ingredients to notes for existing combo medications
-      // List of combo medication names that have ingredients
-      const comboMedicationNames = [
-        'Excedrin Migraine',
-        'Beam',
-        'Cove',
-        'Cove Beam',
-        'MigreLief',
-        'Migraine MD',
-        'Dolovent',
-        'Migravent',
-      ];
-
-      for (const medName of comboMedicationNames) {
-        const preset = getMedicationByName(medName);
-        if (!preset || !preset.ingredients) {
-          continue;
-        }
-
-        const ingredientsText = formatIngredientsAsNotes(preset);
-        if (!ingredientsText) {
-          continue;
-        }
-
-        // Get existing medications with this name
-        const rows = await db.getAllAsync<{ id: string; name: string; notes: string | null }>(
-          'SELECT id, name, notes FROM medications WHERE name = ?',
-          [medName]
+      // 3. pain_location_logs - add time checks
+      await db.execAsync(`
+        CREATE TABLE pain_location_logs_new (
+          id TEXT PRIMARY KEY,
+          episode_id TEXT NOT NULL,
+          onset_time INTEGER NOT NULL CHECK(onset_time > 0),
+          resolution_time INTEGER CHECK(resolution_time IS NULL OR resolution_time > onset_time),
+          location TEXT NOT NULL,
+          severity REAL,
+          notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
+          created_at INTEGER NOT NULL CHECK(created_at > 0),
+          updated_at INTEGER NOT NULL CHECK(updated_at > 0),
+          FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE CASCADE
         );
-
-        for (const row of rows) {
-          // Skip if notes already contain ingredients to prevent duplicates
-          if (row.notes && row.notes.includes('Ingredients:')) {
-            continue;
-          }
-
-          // Append ingredients to existing notes if any, or set as notes
-          const updatedNotes = row.notes
-            ? `${row.notes}\n\n${ingredientsText}`
-            : ingredientsText;
-
-          await db.runAsync(
-            'UPDATE medications SET notes = ?, updated_at = ? WHERE id = ?',
-            [updatedNotes, Date.now(), row.id]
-          );
-        }
-      }
-
-      logger.log('Migration 18: Appended ingredients to combo medication notes');
-    },
-    down: async (_db: SQLite.SQLiteDatabase) => {
-      logger.warn('Rollback of migration 18 not implemented');
-    },
-  },
-  {
-    version: 19,
-    name: 'add_timezone_to_medication_schedules',
-    up: async (db: SQLite.SQLiteDatabase) => {
-      // Get the device's current timezone as default
-      const defaultTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-      logger.log(`Migration 19: Adding timezone column to medication_schedules with default: ${defaultTimezone}`);
-
-      // Check if timezone column already exists
-      const tableInfo = await db.getAllAsync<{ name: string }>(
-        "PRAGMA table_info(medication_schedules)"
-      );
-      const hasTimezoneColumn = tableInfo.some(col => col.name === 'timezone');
-
-      if (hasTimezoneColumn) {
-        logger.log('Migration 19: timezone column already exists, skipping');
-        return;
-      }
-
-      // Add timezone column to medication_schedules table
-      // Set default to device's current timezone for existing schedules
-      await db.execAsync(`
-        ALTER TABLE medication_schedules
-        ADD COLUMN timezone TEXT NOT NULL DEFAULT '${defaultTimezone}';
       `);
+      await db.execAsync(`INSERT INTO pain_location_logs_new SELECT * FROM pain_location_logs;`);
+      await db.execAsync(`DROP TABLE pain_location_logs;`);
+      await db.execAsync(`ALTER TABLE pain_location_logs_new RENAME TO pain_location_logs;`);
+      await db.execAsync(`CREATE INDEX IF NOT EXISTS idx_pain_location_logs_episode ON pain_location_logs(episode_id);`);
 
-      logger.log('Migration 19: Successfully added timezone column to medication_schedules');
-    },
-    down: async (db: SQLite.SQLiteDatabase) => {
-      logger.log('Migration 19: Rolling back timezone column');
-
-      // SQLite doesn't support DROP COLUMN directly, so we need to recreate the table
+      // 4. medication_schedules - add constraint checks
       await db.execAsync(`
-        PRAGMA foreign_keys=off;
-
-        BEGIN TRANSACTION;
-
-        -- Create new table without timezone column
         CREATE TABLE medication_schedules_new (
           id TEXT PRIMARY KEY,
           medication_id TEXT NOT NULL,
           time TEXT NOT NULL CHECK(time GLOB '[0-2][0-9]:[0-5][0-9]'),
+          days TEXT NOT NULL,
+          timezone TEXT NOT NULL,
           dosage REAL NOT NULL DEFAULT 1 CHECK(dosage > 0),
           enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0, 1)),
           notification_id TEXT,
-          reminder_enabled INTEGER NOT NULL DEFAULT 1,
+          reminder_enabled INTEGER NOT NULL DEFAULT 1 CHECK(reminder_enabled IN (0, 1)),
           FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE
         );
-
-        -- Copy data (excluding timezone column)
-        INSERT INTO medication_schedules_new (id, medication_id, time, dosage, enabled, notification_id, reminder_enabled)
-        SELECT id, medication_id, time, dosage, enabled, notification_id, reminder_enabled
-        FROM medication_schedules;
-
-        -- Drop old table
-        DROP TABLE medication_schedules;
-
-        -- Rename new table
-        ALTER TABLE medication_schedules_new RENAME TO medication_schedules;
-
-        COMMIT;
-
-        PRAGMA foreign_keys=on;
       `);
+      await db.execAsync(`INSERT INTO medication_schedules_new SELECT * FROM medication_schedules;`);
+      await db.execAsync(`DROP TABLE medication_schedules;`);
+      await db.execAsync(`ALTER TABLE medication_schedules_new RENAME TO medication_schedules;`);
+      await db.execAsync(`CREATE INDEX IF NOT EXISTS idx_medication_schedules_medication ON medication_schedules(medication_id);`);
 
-      logger.log('Migration 19: Successfully rolled back timezone column');
+      // 5. medication_reminders - add constraint checks
+      await db.execAsync(`
+        CREATE TABLE medication_reminders_new (
+          id TEXT PRIMARY KEY,
+          medication_id TEXT NOT NULL,
+          scheduled_time INTEGER NOT NULL CHECK(scheduled_time > 0),
+          completed INTEGER NOT NULL DEFAULT 0 CHECK(completed IN (0, 1)),
+          completed_at INTEGER CHECK(completed_at IS NULL OR completed_at > 0),
+          snoozed_until INTEGER CHECK(snoozed_until IS NULL OR snoozed_until > scheduled_time),
+          FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE,
+          CHECK(completed = 0 OR completed_at IS NOT NULL)
+        );
+      `);
+      await db.execAsync(`INSERT INTO medication_reminders_new SELECT * FROM medication_reminders;`);
+      await db.execAsync(`DROP TABLE medication_reminders;`);
+      await db.execAsync(`ALTER TABLE medication_reminders_new RENAME TO medication_reminders;`);
+      await db.execAsync(`CREATE INDEX IF NOT EXISTS idx_medication_reminders_medication ON medication_reminders(medication_id);`);
+      await db.execAsync(`CREATE INDEX IF NOT EXISTS idx_medication_reminders_scheduled ON medication_reminders(scheduled_time);`);
+
+      // 6. daily_status_logs - add comprehensive checks
+      await db.execAsync(`
+        CREATE TABLE daily_status_logs_new (
+          id TEXT PRIMARY KEY,
+          date TEXT NOT NULL UNIQUE CHECK(date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
+          status TEXT NOT NULL CHECK(status IN ('green', 'yellow', 'red')),
+          status_type TEXT CHECK(status_type IS NULL OR status_type IN ('prodrome', 'postdrome', 'anxiety', 'other')),
+          severity REAL CHECK(severity IS NULL OR (severity >= 0 AND severity <= 10)),
+          notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
+          prompted INTEGER NOT NULL DEFAULT 0 CHECK(prompted IN (0, 1)),
+          created_at INTEGER NOT NULL CHECK(created_at > 0),
+          CHECK(status = 'yellow' OR status_type IS NULL)
+        );
+      `);
+      await db.execAsync(`INSERT INTO daily_status_logs_new SELECT * FROM daily_status_logs;`);
+      await db.execAsync(`DROP TABLE daily_status_logs;`);
+      await db.execAsync(`ALTER TABLE daily_status_logs_new RENAME TO daily_status_logs;`);
+      await db.execAsync(`CREATE INDEX IF NOT EXISTS idx_daily_status_date ON daily_status_logs(date);`);
+      await db.execAsync(`CREATE INDEX IF NOT EXISTS idx_daily_status_status ON daily_status_logs(status);`);
+
+      logger.log('Migration 19: CHECK constraints added successfully');
+    },
+    down: async (_db: SQLite.SQLiteDatabase) => {
+      // Downgrade would recreate tables without the constraints
+      // Not implementing as this is destructive and unlikely to be needed
+      throw new Error('Migration 19 does not support downgrade');
     },
   },
 ];
@@ -1321,11 +178,11 @@ class MigrationRunner {
     );
 
     if (result.length === 0) {
-      // This is a fresh database or pre-migration database
-      // Insert initial version (assuming current schema is version 1)
+      // This is a fresh database - set to version 19 (current schema)
+      // All migrations have been squashed into the base schema (schema.ts)
       // Use INSERT OR IGNORE to handle case where row already exists
       await this.db.runAsync(
-        'INSERT OR IGNORE INTO schema_version (id, version, updated_at) VALUES (1, 1, ?)',
+        'INSERT OR IGNORE INTO schema_version (id, version, updated_at) VALUES (1, 19, ?)',
         [Date.now()]
       );
     }
@@ -1479,6 +336,33 @@ class MigrationRunner {
             return false;
           }
           break;
+
+        case 19:
+          // Verify CHECK constraints were added (test one table as indicator)
+          // Can't directly check constraints in SQLite, but verify tables exist
+          const allTables = await this.db.getAllAsync<{ name: string }>(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+          );
+          const allTableNames = allTables.map(t => t.name);
+
+          const requiredTables = [
+            'intensity_readings',
+            'episode_notes',
+            'pain_location_logs',
+            'medication_schedules',
+            'medication_reminders',
+            'daily_status_logs'
+          ];
+
+          for (const table of requiredTables) {
+            if (!allTableNames.includes(table)) {
+              logger.error(`Smoke test failed: Table ${table} not found after migration 19`);
+              return false;
+            }
+          }
+
+          logger.log('Migration 19: All tables recreated with CHECK constraints');
+          break;
       }
 
       logger.log(`Smoke tests passed for migration ${migrationVersion}`);
@@ -1504,7 +388,9 @@ class MigrationRunner {
   async getTargetVersion(): Promise<number> {
     // Return the highest migration version available
     if (migrations.length === 0) {
-      return 1;
+      // When migrations are squashed (empty array), return current schema version
+      // This allows existing databases to upgrade to the squashed version
+      return SCHEMA_VERSION;
     }
     return Math.max(...migrations.map(m => m.version));
   }

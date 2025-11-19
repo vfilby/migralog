@@ -27,6 +27,12 @@ describe('locationService', () => {
     (locationService as any).lastLocation = null;
     (locationService as any).lastLocationTime = 0;
     (locationService as any).hasPermission = false;
+
+    // Reset geocoding cache and queue
+    (locationService as any).geocodeCache = new Map();
+    (locationService as any).geocodeQueue = [];
+    (locationService as any).isProcessingQueue = false;
+    (locationService as any).lastGeocodeTime = 0;
   });
 
   afterEach(() => {

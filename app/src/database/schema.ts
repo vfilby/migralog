@@ -1,6 +1,6 @@
 // Database schema and initialization
 
-export const SCHEMA_VERSION = 18;
+export const SCHEMA_VERSION = 19;
 
 export const createTables = `
   -- Episodes table
@@ -55,6 +55,16 @@ export const createTables = `
     FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE CASCADE
   );
 
+  -- Episode notes table
+  CREATE TABLE IF NOT EXISTS episode_notes (
+    id TEXT PRIMARY KEY,
+    episode_id TEXT NOT NULL,
+    timestamp INTEGER NOT NULL CHECK(timestamp > 0),
+    note TEXT NOT NULL CHECK(length(note) > 0 AND length(note) <= 5000),
+    created_at INTEGER NOT NULL CHECK(created_at > 0),
+    FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE CASCADE
+  );
+
   -- Medications table
   CREATE TABLE IF NOT EXISTS medications (
     id TEXT PRIMARY KEY,
@@ -80,6 +90,8 @@ export const createTables = `
     timezone TEXT NOT NULL,
     dosage REAL NOT NULL DEFAULT 1 CHECK(dosage > 0),
     enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0, 1)),
+    notification_id TEXT,
+    reminder_enabled INTEGER NOT NULL DEFAULT 1 CHECK(reminder_enabled IN (0, 1)),
     FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE
   );
 
@@ -140,6 +152,8 @@ export const createTables = `
   CREATE INDEX IF NOT EXISTS idx_medication_reminders_scheduled ON medication_reminders(scheduled_time);
   CREATE INDEX IF NOT EXISTS idx_daily_status_date ON daily_status_logs(date);
   CREATE INDEX IF NOT EXISTS idx_daily_status_status ON daily_status_logs(status);
+  CREATE INDEX IF NOT EXISTS idx_episode_notes_episode ON episode_notes(episode_id);
+  CREATE INDEX IF NOT EXISTS idx_episode_notes_timestamp ON episode_notes(episode_id, timestamp);
 
   -- Composite indexes for common query patterns (added in v9)
   CREATE INDEX IF NOT EXISTS idx_episodes_date_range ON episodes(start_time, end_time);
