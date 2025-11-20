@@ -8,6 +8,11 @@ const mockBackupService = {
   createBackup: jest.fn(),
   exportBackup: jest.fn(),
   importBackup: jest.fn(),
+  deleteBackup: jest.fn(),
+  checkForBrokenBackups: jest.fn(),
+  cleanupBrokenBackups: jest.fn(),
+  formatDate: jest.fn((timestamp: number) => new Date(timestamp).toLocaleString()),
+  formatFileSize: jest.fn((size: number) => `${Math.round(size / 1024)} KB`),
 };
 
 jest.mock('../../services/backupService', () => ({
@@ -39,6 +44,7 @@ describe('BackupRecoveryScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockBackupService.listBackups.mockResolvedValue([]);
+    mockBackupService.checkForBrokenBackups.mockResolvedValue(0);
   });
 
   describe('Rendering', () => {
@@ -105,6 +111,37 @@ describe('BackupRecoveryScreen', () => {
         <BackupRecoveryScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
         { wrapper: TestWrapper }
       );
+      await waitFor(() => {
+        expect(getByTestId('backup-recovery-screen')).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Error Handling and Data Integrity', () => {
+    it('should not display warning banner when no broken backups', async () => {
+      mockBackupService.listBackups.mockResolvedValue([]);
+      mockBackupService.checkForBrokenBackups.mockResolvedValue(0);
+
+      const { queryByText } = render(
+        <BackupRecoveryScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        { wrapper: TestWrapper }
+      );
+
+      await waitFor(() => {
+        expect(queryByText('Broken Backups Detected')).toBeNull();
+      });
+    });
+
+    it('should handle backup list loading errors gracefully', async () => {
+      mockBackupService.listBackups.mockRejectedValue(new Error('Database error'));
+      mockBackupService.checkForBrokenBackups.mockResolvedValue(0);
+
+      const { getByTestId } = render(
+        <BackupRecoveryScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        { wrapper: TestWrapper }
+      );
+
+      // Should still render the screen without crashing
       await waitFor(() => {
         expect(getByTestId('backup-recovery-screen')).toBeTruthy();
       });

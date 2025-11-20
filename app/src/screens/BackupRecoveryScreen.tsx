@@ -24,6 +24,7 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [creatingBackup, setCreatingBackup] = useState(false);
+  const [brokenBackupCount, setBrokenBackupCount] = useState(0);
 
   useEffect(() => {
     loadBackups();
@@ -33,6 +34,10 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
     try {
       const backupList = await backupService.listBackups();
       setBackups(backupList);
+
+      // Check for broken backups
+      const brokenCount = await backupService.checkForBrokenBackups();
+      setBrokenBackupCount(brokenCount);
     } catch (error) {
       logger.error('Failed to load backups:', error);
       Alert.alert('Error', 'Failed to load backups');
@@ -69,16 +74,48 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
   const handleImportBackup = async () => {
     Alert.alert(
       'Import Backup',
-      'Select a backup file to import. Supports both .db (snapshot) and .json (export) formats.\n\nNote: Imported backups will be added to your backup list.',
+      'Select a backup file to import and restore. This will replace all current data and require an app restart.\n\nSupports both .db (snapshot) and .json (export) formats.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Import',
+          text: 'Import & Restore',
+          style: 'destructive',
           onPress: async () => {
             try {
-              await backupService.importBackup();
-              Alert.alert('Success', 'Backup imported successfully');
+              const metadata = await backupService.importBackup();
               await loadBackups();
+
+              // Immediately ask to restore the imported backup
+              Alert.alert(
+                'Restore Backup?',
+                `Backup imported successfully. Do you want to restore it now?\n\nThis will replace all current data and require an app restart.`,
+                [
+                  {
+                    text: 'Not Now',
+                    style: 'cancel',
+                    onPress: () => {
+                      Alert.alert('Saved', 'Backup saved to your backup list. You can restore it later from the Available Backups section.');
+                    }
+                  },
+                  {
+                    text: 'Restore Now',
+                    style: 'destructive',
+                    onPress: async () => {
+                      try {
+                        await backupService.restoreBackup(metadata.id);
+                        Alert.alert(
+                          'Success',
+                          'Backup restored successfully. Please restart the app.',
+                          [{ text: 'OK', onPress: () => navigation.goBack() }]
+                        );
+                      } catch (error) {
+                        logger.error('Failed to restore imported backup:', error);
+                        Alert.alert('Error', 'Failed to restore backup: ' + (error as Error).message);
+                      }
+                    },
+                  },
+                ]
+              );
             } catch (error) {
               if ((error as Error).message !== 'Import cancelled') {
                 logger.error('Failed to import backup:', error);
@@ -142,15 +179,48 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
     );
   };
 
+  const handleCleanupBrokenBackups = () => {
+    Alert.alert(
+      'Clean Up Broken Backups',
+      `Found ${brokenBackupCount} broken or corrupted backup file${brokenBackupCount !== 1 ? 's' : ''}.\n\nThese files have invalid metadata or are orphaned. Would you like to remove them?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const cleanedCount = await backupService.cleanupBrokenBackups();
+              Alert.alert(
+                'Cleanup Complete',
+                `Removed ${cleanedCount} broken backup file${cleanedCount !== 1 ? 's' : ''}.`
+              );
+              await loadBackups();
+            } catch (error) {
+              logger.error('Failed to cleanup broken backups:', error);
+              Alert.alert('Error', 'Failed to cleanup broken backups: ' + (error as Error).message);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const styles = createStyles(theme);
 
   const renderBackupItem = (backup: BackupMetadata) => {
+    // Skip rendering if backup ID is invalid (safety check)
+    if (!backup.id || backup.id === 'undefined') {
+      logger.warn('[BackupRecoveryScreen] Skipping render of backup with invalid ID:', backup);
+      return null;
+    }
+
     const date = backupService.formatDate(backup.timestamp);
     const size = backupService.formatFileSize(backup.fileSize);
     const isSnapshot = backup.backupType === 'snapshot';
 
     return (
-      <View key={backup.id} style={styles.backupCard}>
+      <View style={styles.backupCard}>
         <View style={styles.backupHeader}>
           <View style={styles.backupInfo}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -262,6 +332,34 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
+        {/* Warning banner for broken backups */}
+        {brokenBackupCount > 0 && (
+          <View style={styles.section}>
+            <View style={styles.warningBanner}>
+              <View style={styles.warningHeader}>
+                <Ionicons name="warning" size={24} color={theme.danger} />
+                <Text style={styles.warningTitle}>Broken Backups Detected</Text>
+              </View>
+              <Text style={styles.warningText}>
+                Found {brokenBackupCount} corrupted or invalid backup file{brokenBackupCount !== 1 ? 's' : ''}.
+                These files cannot be restored and can be safely removed.
+              </Text>
+              <TouchableOpacity
+                style={[styles.secondaryButton, styles.dangerSecondaryButton]}
+                onPress={handleCleanupBrokenBackups}
+                accessibilityRole="button"
+                accessibilityLabel="Clean up broken backups"
+                accessibilityHint={`Remove ${brokenBackupCount} broken backup file${brokenBackupCount !== 1 ? 's' : ''}`}
+              >
+                <Ionicons name="trash-outline" size={20} color={theme.danger} />
+                <Text style={[styles.secondaryButtonText, styles.dangerSecondaryButtonText]}>
+                  Clean Up ({brokenBackupCount})
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         {/* Available Backups */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Available Backups</Text>
@@ -278,7 +376,11 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
               </Text>
             </View>
           ) : (
-            backups.map((backup) => renderBackupItem(backup))
+            backups.map((backup) => (
+              <React.Fragment key={backup.id}>
+                {renderBackupItem(backup)}
+              </React.Fragment>
+            ))
           )}
         </View>
 
@@ -368,6 +470,30 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   },
   dangerSecondaryButtonText: {
     color: theme.danger,
+  },
+  warningBanner: {
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.danger,
+  },
+  warningHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  warningTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: theme.danger,
+  },
+  warningText: {
+    fontSize: 15,
+    color: theme.textSecondary,
+    marginBottom: 16,
+    lineHeight: 20,
   },
   backupCard: {
     backgroundColor: theme.card,
