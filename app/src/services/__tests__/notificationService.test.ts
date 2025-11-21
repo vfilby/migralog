@@ -94,6 +94,85 @@ describe('notificationService', () => {
       // Verify initialization completes without error
       expect(Notifications.setNotificationCategoryAsync).toHaveBeenCalled();
     });
+
+    it('should process pending notification response from before app init', async () => {
+      // Reset the service's initialized flag so we can test initialization
+      (notificationService as any).initialized = false;
+
+      (Notifications.setNotificationCategoryAsync as jest.Mock).mockResolvedValue(undefined);
+      (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockReturnValue({
+        remove: jest.fn(),
+      });
+      (Notifications.addNotificationReceivedListener as jest.Mock).mockReturnValue({
+        remove: jest.fn(),
+      });
+
+      // Mock a pending TAKE_NOW notification response
+      const pendingResponse = {
+        actionIdentifier: 'TAKE_NOW',
+        notification: {
+          request: {
+            content: {
+              data: {
+                medicationId: 'med-123',
+                scheduleId: 'schedule-456',
+              },
+            },
+          },
+        },
+      };
+
+      (Notifications.getLastNotificationResponseAsync as jest.Mock).mockResolvedValue(pendingResponse);
+
+      // Mock medication data
+      const mockMedication: Medication = {
+        id: 'med-123',
+        name: 'Test Medication',
+        type: 'rescue',
+        dosageAmount: 50,
+        dosageUnit: 'mg',
+        defaultQuantity: 1,
+        active: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      (medicationRepository.getById as jest.Mock).mockResolvedValue(mockMedication);
+
+      // Mock the store's logDose method
+      const mockLogDose = jest.fn().mockResolvedValue({
+        id: 'dose-123',
+        medicationId: 'med-123',
+        scheduleId: 'schedule-456',
+        timestamp: expect.any(Number),
+        quantity: 1,
+        dosageAmount: 50,
+        dosageUnit: 'mg',
+        notes: 'Logged from notification',
+        updatedAt: expect.any(Number),
+        createdAt: expect.any(Number),
+      });
+
+      // Mock the medication store
+      jest.mock('../../store/medicationStore', () => ({
+        useMedicationStore: {
+          getState: () => ({
+            logDose: mockLogDose,
+          }),
+        },
+      }));
+
+      await notificationService.initialize();
+
+      // Verify getLastNotificationResponseAsync was called
+      expect(Notifications.getLastNotificationResponseAsync).toHaveBeenCalled();
+
+      // Give time for async processing
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Verify medication was retrieved
+      expect(medicationRepository.getById).toHaveBeenCalledWith('med-123');
+    });
   });
 
   describe('requestPermissions', () => {
