@@ -1,6 +1,6 @@
 {
   "name": "migralog",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "main": "index.ts",
   "scripts": {
     "start": "npm run generate-build-info && expo start --dev-client",
@@ -10,7 +10,7 @@
     "generate-build-info": "node scripts/generate-build-info.js",
     "build:ios": "eas build --platform ios --non-interactive --auto-submit",
     "submit:ios": "eas submit -p ios",
-    "precommit": "npm run test:lint:ci && npx tsc --noEmit && npm run test:ci",
+    "precommit": "npm audit && npm run test:lint:ci && npx tsc --noEmit && npm run test:ci",
     "test:lint": "eslint . --ext .ts,.tsx,.js,.jsx",
     "test:lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx --fix",
     "test:lint:ci": "eslint . --ext .ts,.tsx,.js,.jsx --max-warnings=0",
