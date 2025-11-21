@@ -151,6 +151,17 @@ class NotificationService {
     // Set up notification response listeners
     this.setupNotificationHandlers();
 
+    // Handle any pending notification response that arrived before app initialized
+    // This is critical for notification actions (like "Take All") that are tapped
+    // while the app is in the background or not running
+    const lastResponse = await Notifications.getLastNotificationResponseAsync();
+    if (lastResponse) {
+      logger.log('[Notification] Processing pending notification response from before app init:', {
+        actionIdentifier: lastResponse.actionIdentifier,
+      });
+      await this.handleNotificationResponse(lastResponse);
+    }
+
     this.initialized = true;
   }
 
@@ -209,80 +220,87 @@ class NotificationService {
   }
 
   /**
+   * Handle a notification response (shared logic for listener and pending responses)
+   */
+  private async handleNotificationResponse(response: Notifications.NotificationResponse): Promise<void> {
+    try {
+      const { actionIdentifier, notification } = response;
+      const data = notification.request.content.data as {
+        medicationId?: string;
+        medicationIds?: string[];
+        scheduleId?: string;
+        scheduleIds?: string[];
+        time?: string;
+      };
+
+      logger.log('[Notification] Response received:', {
+        actionIdentifier,
+        data,
+      });
+
+      switch (actionIdentifier) {
+        case 'TAKE_NOW':
+          if (data.medicationId && data.scheduleId) {
+            await this.handleTakeNow(data.medicationId, data.scheduleId);
+          }
+          break;
+        case 'SNOOZE_10':
+          if (data.medicationId && data.scheduleId) {
+            // Cancel follow-up reminder since user snoozed
+            await this.cancelFollowUpReminder(`${data.medicationId}:${data.scheduleId}`);
+            await this.handleSnooze(data.medicationId, data.scheduleId, 10);
+          }
+          break;
+        case 'TAKE_ALL_NOW':
+          if (data.medicationIds && data.scheduleIds) {
+            await this.handleTakeAllNow(data.medicationIds, data.scheduleIds, data.time);
+          }
+          break;
+        case 'REMIND_LATER':
+          if (data.medicationIds && data.scheduleIds && data.time) {
+            // Cancel follow-up reminder since user chose to snooze
+            await this.cancelFollowUpReminder(`multi:${data.time}`);
+            await this.handleRemindLater(data.medicationIds, data.scheduleIds, data.time, 10);
+          }
+          break;
+        case 'VIEW_DETAILS':
+          // This will be handled by navigation in the app
+          logger.log('[Notification] View details tapped, opening app');
+          break;
+        default:
+          // User tapped notification - cancel follow-up reminder
+          if (data.medicationId && data.scheduleId) {
+            await this.cancelFollowUpReminder(`${data.medicationId}:${data.scheduleId}`);
+          } else if (data.medicationIds && data.time) {
+            await this.cancelFollowUpReminder(`multi:${data.time}`);
+          }
+          logger.log('[Notification] Notification tapped, opening app');
+          break;
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('[Notification] Error handling notification response:', {
+        error: errorMessage,
+        errorStack: error instanceof Error ? error.stack : undefined,
+      });
+      // Log to error logger so we can track these failures
+      const { errorLogger } = await import('./errorLogger');
+      await errorLogger.log(
+        'general',
+        '[Notification] Unhandled error in notification response listener',
+        error instanceof Error ? error : undefined,
+        { context: 'notification_response_handling' }
+      );
+    }
+  }
+
+  /**
    * Set up handlers for notification interactions
    */
   private setupNotificationHandlers(): void {
     // Handle notification response (tap or action button)
     Notifications.addNotificationResponseReceivedListener(async (response) => {
-      try {
-        const { actionIdentifier, notification } = response;
-        const data = notification.request.content.data as {
-          medicationId?: string;
-          medicationIds?: string[];
-          scheduleId?: string;
-          scheduleIds?: string[];
-          time?: string;
-        };
-
-        logger.log('[Notification] Response received:', {
-          actionIdentifier,
-          data,
-        });
-
-        switch (actionIdentifier) {
-          case 'TAKE_NOW':
-            if (data.medicationId && data.scheduleId) {
-              await this.handleTakeNow(data.medicationId, data.scheduleId);
-            }
-            break;
-          case 'SNOOZE_10':
-            if (data.medicationId && data.scheduleId) {
-              // Cancel follow-up reminder since user snoozed
-              await this.cancelFollowUpReminder(`${data.medicationId}:${data.scheduleId}`);
-              await this.handleSnooze(data.medicationId, data.scheduleId, 10);
-            }
-            break;
-          case 'TAKE_ALL_NOW':
-            if (data.medicationIds && data.scheduleIds) {
-              await this.handleTakeAllNow(data.medicationIds, data.scheduleIds, data.time);
-            }
-            break;
-          case 'REMIND_LATER':
-            if (data.medicationIds && data.scheduleIds && data.time) {
-              // Cancel follow-up reminder since user chose to snooze
-              await this.cancelFollowUpReminder(`multi:${data.time}`);
-              await this.handleRemindLater(data.medicationIds, data.scheduleIds, data.time, 10);
-            }
-            break;
-          case 'VIEW_DETAILS':
-            // This will be handled by navigation in the app
-            logger.log('[Notification] View details tapped, opening app');
-            break;
-          default:
-            // User tapped notification - cancel follow-up reminder
-            if (data.medicationId && data.scheduleId) {
-              await this.cancelFollowUpReminder(`${data.medicationId}:${data.scheduleId}`);
-            } else if (data.medicationIds && data.time) {
-              await this.cancelFollowUpReminder(`multi:${data.time}`);
-            }
-            logger.log('[Notification] Notification tapped, opening app');
-            break;
-        }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        logger.error('[Notification] Error handling notification response:', {
-          error: errorMessage,
-          errorStack: error instanceof Error ? error.stack : undefined,
-        });
-        // Log to error logger so we can track these failures
-        const { errorLogger } = await import('./errorLogger');
-        errorLogger.log(
-          'general',
-          '[Notification] Unhandled error in notification response listener',
-          error instanceof Error ? error : undefined,
-          { context: 'notification_response_handling' }
-        );
-      }
+      await this.handleNotificationResponse(response);
     });
 
     // Handle notifications received while app is in foreground

@@ -34,6 +34,7 @@ jest.mock('@react-native-async-storage/async-storage');
 (Notifications as any).cancelScheduledNotificationAsync = jest.fn();
 (Notifications as any).getAllScheduledNotificationsAsync = jest.fn();
 (Notifications as any).cancelAllScheduledNotificationsAsync = jest.fn();
+(Notifications as any).getLastNotificationResponseAsync = jest.fn();
 (Notifications as any).SchedulableTriggerInputTypes = {
   DAILY: 'daily',
   WEEKLY: 'weekly',
@@ -70,6 +71,8 @@ describe('notificationService', () => {
     // Set up default mocks for notification methods used in dismissMedicationNotification tests
     (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue([]);
     (Notifications.dismissNotificationAsync as jest.Mock).mockResolvedValue(undefined);
+    // Default: no pending notification response (null)
+    (Notifications.getLastNotificationResponseAsync as jest.Mock).mockResolvedValue(null);
   });
 
   afterEach(() => {
