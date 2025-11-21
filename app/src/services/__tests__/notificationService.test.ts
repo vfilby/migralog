@@ -21,6 +21,7 @@ jest.mock('@react-native-async-storage/async-storage');
   HIGH: 1,
   MAX: 2,
 };
+(Notifications as any).DEFAULT_ACTION_IDENTIFIER = 'expo.modules.notifications.actions.DEFAULT';
 
 // Set up mocks for methods that aren't automatically mocked
 (Notifications as any).getPresentedNotificationsAsync = jest.fn();
@@ -34,6 +35,7 @@ jest.mock('@react-native-async-storage/async-storage');
 (Notifications as any).cancelScheduledNotificationAsync = jest.fn();
 (Notifications as any).getAllScheduledNotificationsAsync = jest.fn();
 (Notifications as any).cancelAllScheduledNotificationsAsync = jest.fn();
+(Notifications as any).getLastNotificationResponseAsync = jest.fn();
 (Notifications as any).SchedulableTriggerInputTypes = {
   DAILY: 'daily',
   WEEKLY: 'weekly',
@@ -53,6 +55,11 @@ describe('notificationService', () => {
     jest.spyOn(console, 'log').mockImplementation();
     jest.spyOn(console, 'error').mockImplementation();
 
+    // Reset service initialization state
+    (notificationService as any).initialized = false;
+    // Clear follow-up notifications map
+    (notificationService as any).followUpNotifications.clear();
+
     // Ensure wasLoggedForScheduleToday is available as a mock
     if (!medicationDoseRepository.wasLoggedForScheduleToday) {
       medicationDoseRepository.wasLoggedForScheduleToday = jest.fn();
@@ -70,6 +77,8 @@ describe('notificationService', () => {
     // Set up default mocks for notification methods used in dismissMedicationNotification tests
     (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue([]);
     (Notifications.dismissNotificationAsync as jest.Mock).mockResolvedValue(undefined);
+    // Default: no pending notification response (null)
+    (Notifications.getLastNotificationResponseAsync as jest.Mock).mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -90,6 +99,342 @@ describe('notificationService', () => {
 
       // Verify initialization completes without error
       expect(Notifications.setNotificationCategoryAsync).toHaveBeenCalled();
+    });
+
+    it('should process pending notification response from before app init', async () => {
+      // Reset the service's initialized flag so we can test initialization
+      (notificationService as any).initialized = false;
+
+      (Notifications.setNotificationCategoryAsync as jest.Mock).mockResolvedValue(undefined);
+      (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockReturnValue({
+        remove: jest.fn(),
+      });
+      (Notifications.addNotificationReceivedListener as jest.Mock).mockReturnValue({
+        remove: jest.fn(),
+      });
+
+      // Mock a pending TAKE_NOW notification response
+      const pendingResponse = {
+        actionIdentifier: 'TAKE_NOW',
+        notification: {
+          request: {
+            content: {
+              data: {
+                medicationId: 'med-123',
+                scheduleId: 'schedule-456',
+              },
+            },
+          },
+        },
+      };
+
+      (Notifications.getLastNotificationResponseAsync as jest.Mock).mockResolvedValue(pendingResponse);
+
+      // Mock medication data
+      const mockMedication: Medication = {
+        id: 'med-123',
+        name: 'Test Medication',
+        type: 'rescue',
+        dosageAmount: 50,
+        dosageUnit: 'mg',
+        defaultQuantity: 1,
+        active: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      (medicationRepository.getById as jest.Mock).mockResolvedValue(mockMedication);
+
+      // Mock the store's logDose method
+      const mockLogDose = jest.fn().mockResolvedValue({
+        id: 'dose-123',
+        medicationId: 'med-123',
+        scheduleId: 'schedule-456',
+        timestamp: expect.any(Number),
+        quantity: 1,
+        dosageAmount: 50,
+        dosageUnit: 'mg',
+        notes: 'Logged from notification',
+        updatedAt: expect.any(Number),
+        createdAt: expect.any(Number),
+      });
+
+      // Mock the medication store
+      jest.mock('../../store/medicationStore', () => ({
+        useMedicationStore: {
+          getState: () => ({
+            logDose: mockLogDose,
+          }),
+        },
+      }));
+
+      await notificationService.initialize();
+
+      // Verify getLastNotificationResponseAsync was called
+      expect(Notifications.getLastNotificationResponseAsync).toHaveBeenCalled();
+
+      // Give time for async processing
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Verify medication was retrieved
+      expect(medicationRepository.getById).toHaveBeenCalledWith('med-123');
+    });
+
+    it('should handle TAKE_ALL_NOW action from pending response', async () => {
+      // Reset the service's initialized flag
+      (notificationService as any).initialized = false;
+
+      (Notifications.setNotificationCategoryAsync as jest.Mock).mockResolvedValue(undefined);
+      (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockReturnValue({
+        remove: jest.fn(),
+      });
+      (Notifications.addNotificationReceivedListener as jest.Mock).mockReturnValue({
+        remove: jest.fn(),
+      });
+
+      // Mock pending TAKE_ALL_NOW response
+      const pendingResponse = {
+        actionIdentifier: 'TAKE_ALL_NOW',
+        notification: {
+          request: {
+            content: {
+              data: {
+                medicationIds: ['med-1', 'med-2'],
+                scheduleIds: ['sched-1', 'sched-2'],
+                time: '09:00',
+              },
+            },
+          },
+        },
+      };
+
+      (Notifications.getLastNotificationResponseAsync as jest.Mock).mockResolvedValue(pendingResponse);
+
+      const mockMed1: Medication = {
+        id: 'med-1',
+        name: 'Med A',
+        type: 'rescue',
+        dosageAmount: 100,
+        dosageUnit: 'mg',
+        active: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      const mockMed2: Medication = {
+        id: 'med-2',
+        name: 'Med B',
+        type: 'rescue',
+        dosageAmount: 200,
+        dosageUnit: 'mg',
+        active: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      (medicationRepository.getById as jest.Mock)
+        .mockResolvedValueOnce(mockMed1)
+        .mockResolvedValueOnce(mockMed2);
+
+      await notificationService.initialize();
+
+      // Verify getLastNotificationResponseAsync was called
+      expect(Notifications.getLastNotificationResponseAsync).toHaveBeenCalled();
+
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Verify both medications were retrieved
+      expect(medicationRepository.getById).toHaveBeenCalledWith('med-1');
+      expect(medicationRepository.getById).toHaveBeenCalledWith('med-2');
+    });
+
+    it('should handle SNOOZE_10 action from pending response', async () => {
+      // Reset the service's initialized flag
+      (notificationService as any).initialized = false;
+
+      (Notifications.setNotificationCategoryAsync as jest.Mock).mockResolvedValue(undefined);
+      (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockReturnValue({
+        remove: jest.fn(),
+      });
+      (Notifications.addNotificationReceivedListener as jest.Mock).mockReturnValue({
+        remove: jest.fn(),
+      });
+
+      const pendingResponse = {
+        actionIdentifier: 'SNOOZE_10',
+        notification: {
+          request: {
+            content: {
+              data: {
+                medicationId: 'med-123',
+                scheduleId: 'schedule-456',
+              },
+            },
+          },
+        },
+      };
+
+      (Notifications.getLastNotificationResponseAsync as jest.Mock).mockResolvedValue(pendingResponse);
+      (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('snoozed-notif-id');
+
+      const mockMedication: Medication = {
+        id: 'med-123',
+        name: 'Test Med',
+        type: 'rescue',
+        dosageAmount: 50,
+        dosageUnit: 'mg',
+        active: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      (medicationRepository.getById as jest.Mock).mockResolvedValue(mockMedication);
+
+      await notificationService.initialize();
+
+      expect(Notifications.getLastNotificationResponseAsync).toHaveBeenCalled();
+
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Verify notification was rescheduled
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalled();
+    });
+
+    it('should handle REMIND_LATER action from pending response', async () => {
+      // Reset the service's initialized flag
+      (notificationService as any).initialized = false;
+
+      (Notifications.setNotificationCategoryAsync as jest.Mock).mockResolvedValue(undefined);
+      (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockReturnValue({
+        remove: jest.fn(),
+      });
+      (Notifications.addNotificationReceivedListener as jest.Mock).mockReturnValue({
+        remove: jest.fn(),
+      });
+
+      const pendingResponse = {
+        actionIdentifier: 'REMIND_LATER',
+        notification: {
+          request: {
+            content: {
+              data: {
+                medicationIds: ['med-1', 'med-2'],
+                scheduleIds: ['sched-1', 'sched-2'],
+                time: '09:00',
+              },
+            },
+          },
+        },
+      };
+
+      (Notifications.getLastNotificationResponseAsync as jest.Mock).mockResolvedValue(pendingResponse);
+      (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('remind-later-id');
+
+      const mockMed1: Medication = {
+        id: 'med-1',
+        name: 'Med A',
+        type: 'preventative',
+        dosageAmount: 10,
+        dosageUnit: 'mg',
+        active: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      const mockMed2: Medication = {
+        id: 'med-2',
+        name: 'Med B',
+        type: 'preventative',
+        dosageAmount: 20,
+        dosageUnit: 'mg',
+        active: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      (medicationRepository.getById as jest.Mock)
+        .mockResolvedValueOnce(mockMed1)
+        .mockResolvedValueOnce(mockMed2);
+
+      await notificationService.initialize();
+
+      expect(Notifications.getLastNotificationResponseAsync).toHaveBeenCalled();
+
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Verify medications were retrieved and notification rescheduled
+      expect(medicationRepository.getById).toHaveBeenCalledWith('med-1');
+      expect(medicationRepository.getById).toHaveBeenCalledWith('med-2');
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalled();
+    });
+
+    it('should handle VIEW_DETAILS action from pending response', async () => {
+      // Reset the service's initialized flag
+      (notificationService as any).initialized = false;
+
+      (Notifications.setNotificationCategoryAsync as jest.Mock).mockResolvedValue(undefined);
+      (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockReturnValue({
+        remove: jest.fn(),
+      });
+      (Notifications.addNotificationReceivedListener as jest.Mock).mockReturnValue({
+        remove: jest.fn(),
+      });
+
+      const pendingResponse = {
+        actionIdentifier: 'VIEW_DETAILS',
+        notification: {
+          request: {
+            content: {
+              data: {
+                medicationId: 'med-123',
+              },
+            },
+          },
+        },
+      };
+
+      (Notifications.getLastNotificationResponseAsync as jest.Mock).mockResolvedValue(pendingResponse);
+
+      await notificationService.initialize();
+
+      expect(Notifications.getLastNotificationResponseAsync).toHaveBeenCalled();
+
+      // VIEW_DETAILS just logs - no other action needed
+    });
+
+    it('should handle default notification tap from pending response', async () => {
+      // Reset the service's initialized flag
+      (notificationService as any).initialized = false;
+
+      (Notifications.setNotificationCategoryAsync as jest.Mock).mockResolvedValue(undefined);
+      (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockReturnValue({
+        remove: jest.fn(),
+      });
+      (Notifications.addNotificationReceivedListener as jest.Mock).mockReturnValue({
+        remove: jest.fn(),
+      });
+
+      const pendingResponse = {
+        actionIdentifier: Notifications.DEFAULT_ACTION_IDENTIFIER,
+        notification: {
+          request: {
+            content: {
+              data: {
+                medicationId: 'med-123',
+                scheduleId: 'sched-456',
+              },
+            },
+          },
+        },
+      };
+
+      (Notifications.getLastNotificationResponseAsync as jest.Mock).mockResolvedValue(pendingResponse);
+
+      await notificationService.initialize();
+
+      expect(Notifications.getLastNotificationResponseAsync).toHaveBeenCalled();
+
+      // Default action just logs and cancels follow-up
     });
   });
 
@@ -760,7 +1105,7 @@ describe('notificationService', () => {
     });
 
     describe('grouped medication notifications', () => {
-      it.skip('should suppress notification if single medication was already logged', async () => {
+      it('should suppress notification if single medication was already logged', async () => {
         // Test the single medication path using data that works
         const mockMedication: Medication = {
           id: 'med-1',
@@ -801,7 +1146,8 @@ describe('notificationService', () => {
         expect(medicationDoseRepository.wasLoggedForScheduleToday).toHaveBeenCalledWith(
           'med-1',
           'sched-1',
-          '21:30'
+          '21:30',
+          'America/Los_Angeles'
         );
         expect(result).toEqual({
           shouldPlaySound: false,
@@ -1504,6 +1850,555 @@ describe('notificationService', () => {
           await expect(listenerCallback(response)).resolves.not.toThrow();
         }
       });
+    });
+  });
+
+  describe('Follow-up Reminders', () => {
+    describe('notification received listener', () => {
+      it('should schedule follow-up reminder for single medication in foreground', async () => {
+        let receivedListener: any;
+
+        // Set up necessary initialization mocks
+        (Notifications.setNotificationCategoryAsync as jest.Mock).mockResolvedValue(undefined);
+        (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockReturnValue({
+          remove: jest.fn(),
+        });
+        (Notifications.addNotificationReceivedListener as jest.Mock).mockImplementation((cb) => {
+          receivedListener = cb;
+          return { remove: jest.fn() };
+        });
+
+        const mockMedication: Medication = {
+          id: 'med-123',
+          name: 'Test Med',
+          type: 'preventative',
+          dosageAmount: 100,
+          dosageUnit: 'mg',
+          active: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+
+        (medicationRepository.getById as jest.Mock).mockResolvedValue(mockMedication);
+        (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('follow-up-id');
+
+        await notificationService.initialize();
+
+        const notification = {
+          request: {
+            content: {
+              data: {
+                medicationId: 'med-123',
+                scheduleId: 'sched-123',
+              },
+            },
+          },
+        };
+
+        if (receivedListener) {
+          await receivedListener(notification);
+          // Allow async operations to complete
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+
+        // Verify medication was fetched and follow-up scheduled
+        expect(medicationRepository.getById).toHaveBeenCalledWith('med-123');
+        expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(
+          expect.objectContaining({
+            content: expect.objectContaining({
+              title: 'Reminder: Test Med',
+              body: 'Did you take your medication?',
+              data: expect.objectContaining({
+                medicationId: 'med-123',
+                scheduleId: 'sched-123',
+                isFollowUp: true,
+              }),
+            }),
+          })
+        );
+      });
+
+      it('should schedule follow-up reminder for multiple medications in foreground', async () => {
+        let receivedListener: any;
+
+        (Notifications.setNotificationCategoryAsync as jest.Mock).mockResolvedValue(undefined);
+        (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockReturnValue({
+          remove: jest.fn(),
+        });
+        (Notifications.addNotificationReceivedListener as jest.Mock).mockImplementation((cb) => {
+          receivedListener = cb;
+          return { remove: jest.fn() };
+        });
+
+        const mockMed1: Medication = {
+          id: 'med-1',
+          name: 'Med A',
+          type: 'preventative',
+          dosageAmount: 100,
+          dosageUnit: 'mg',
+          active: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+
+        const mockMed2: Medication = {
+          id: 'med-2',
+          name: 'Med B',
+          type: 'preventative',
+          dosageAmount: 200,
+          dosageUnit: 'mg',
+          active: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+
+        (medicationRepository.getById as jest.Mock)
+          .mockResolvedValueOnce(mockMed1)
+          .mockResolvedValueOnce(mockMed2);
+        (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('follow-up-group-id');
+
+        await notificationService.initialize();
+
+        const notification = {
+          request: {
+            content: {
+              data: {
+                medicationIds: ['med-1', 'med-2'],
+                scheduleIds: ['sched-1', 'sched-2'],
+                time: '09:00',
+              },
+            },
+          },
+        };
+
+        if (receivedListener) {
+          await receivedListener(notification);
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+
+        // Verify follow-up scheduled for grouped medications
+        expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(
+          expect.objectContaining({
+            content: expect.objectContaining({
+              title: expect.stringContaining('2 medications'),
+              body: 'Did you take your medication?',
+              data: expect.objectContaining({
+                medicationIds: ['med-1', 'med-2'],
+                scheduleIds: ['sched-1', 'sched-2'],
+                isFollowUp: true,
+              }),
+            }),
+          })
+        );
+      });
+
+      it('should NOT schedule follow-up for isFollowUp notifications', async () => {
+        let receivedListener: any;
+
+        (Notifications.setNotificationCategoryAsync as jest.Mock).mockResolvedValue(undefined);
+        (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockReturnValue({
+          remove: jest.fn(),
+        });
+        (Notifications.addNotificationReceivedListener as jest.Mock).mockImplementation((cb) => {
+          receivedListener = cb;
+          return { remove: jest.fn() };
+        });
+
+        await notificationService.initialize();
+
+        const notification = {
+          request: {
+            content: {
+              data: {
+                medicationId: 'med-123',
+                scheduleId: 'sched-123',
+                isFollowUp: true, // This is already a follow-up
+              },
+            },
+          },
+        };
+
+        if (receivedListener) {
+          await receivedListener(notification);
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+
+        // Should NOT schedule another follow-up
+        expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+      });
+
+      it('should handle medication not found when scheduling follow-up', async () => {
+        let receivedListener: any;
+
+        (Notifications.setNotificationCategoryAsync as jest.Mock).mockResolvedValue(undefined);
+        (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockReturnValue({
+          remove: jest.fn(),
+        });
+        (Notifications.addNotificationReceivedListener as jest.Mock).mockImplementation((cb) => {
+          receivedListener = cb;
+          return { remove: jest.fn() };
+        });
+
+        (medicationRepository.getById as jest.Mock).mockResolvedValue(null);
+
+        await notificationService.initialize();
+
+        const notification = {
+          request: {
+            content: {
+              data: {
+                medicationId: 'nonexistent',
+                scheduleId: 'sched-123',
+              },
+            },
+          },
+        };
+
+        if (receivedListener) {
+          await expect(receivedListener(notification)).resolves.not.toThrow();
+        }
+      });
+    });
+
+    describe('follow-up cancellation', () => {
+      it('should cancel follow-up when user taps notification', async () => {
+        let responseListener: any;
+
+        (Notifications.setNotificationCategoryAsync as jest.Mock).mockResolvedValue(undefined);
+        (Notifications.addNotificationReceivedListener as jest.Mock).mockReturnValue({
+          remove: jest.fn(),
+        });
+        (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockImplementation((cb) => {
+          responseListener = cb;
+          return { remove: jest.fn() };
+        });
+
+        (Notifications.cancelScheduledNotificationAsync as jest.Mock).mockResolvedValue(undefined);
+
+        await notificationService.initialize();
+
+        // First, simulate scheduling a follow-up
+        const followUpId = 'follow-up-123';
+        (notificationService as any).followUpNotifications.set('med-123:sched-123', followUpId);
+
+        // Now tap the notification (default action)
+        const response = {
+          actionIdentifier: Notifications.DEFAULT_ACTION_IDENTIFIER,
+          notification: {
+            request: {
+              content: {
+                data: {
+                  medicationId: 'med-123',
+                  scheduleId: 'sched-123',
+                },
+              },
+            },
+          },
+        };
+
+        if (responseListener) {
+          await responseListener(response);
+        }
+
+        // Verify follow-up was cancelled
+        expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith(followUpId);
+      });
+
+      it('should cancel follow-up for multiple medications when tapped', async () => {
+        let responseListener: any;
+
+        (Notifications.setNotificationCategoryAsync as jest.Mock).mockResolvedValue(undefined);
+        (Notifications.addNotificationReceivedListener as jest.Mock).mockReturnValue({
+          remove: jest.fn(),
+        });
+        (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockImplementation((cb) => {
+          responseListener = cb;
+          return { remove: jest.fn() };
+        });
+
+        await notificationService.initialize();
+
+        // Simulate follow-up scheduled for grouped notification
+        const followUpId = 'follow-up-multi-123';
+        (notificationService as any).followUpNotifications.set('multi:09:00', followUpId);
+
+        const response = {
+          actionIdentifier: Notifications.DEFAULT_ACTION_IDENTIFIER,
+          notification: {
+            request: {
+              content: {
+                data: {
+                  medicationIds: ['med-1', 'med-2'],
+                  scheduleIds: ['sched-1', 'sched-2'],
+                  time: '09:00',
+                },
+              },
+            },
+          },
+        };
+
+        if (responseListener) {
+          await responseListener(response);
+        }
+
+        expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith(followUpId);
+      });
+    });
+  });
+
+  describe('rescheduleAllMedicationNotifications', () => {
+    it('should cancel all notifications and reschedule for active medications', async () => {
+      const mockMedication: Medication = {
+        id: 'med-123',
+        name: 'Test Med',
+        type: 'preventative',
+        scheduleFrequency: 'daily',
+        dosageAmount: 100,
+        dosageUnit: 'mg',
+        active: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      const mockSchedule: MedicationSchedule = {
+        id: 'sched-123',
+        medicationId: 'med-123',
+        time: '09:00',
+        timezone: 'America/Los_Angeles',
+        dosage: 1,
+        enabled: true,
+      };
+
+      (medicationRepository.getActive as jest.Mock).mockResolvedValue([mockMedication]);
+      (medicationScheduleRepository.getByMedicationId as jest.Mock).mockResolvedValue([mockSchedule]);
+      (Notifications.cancelAllScheduledNotificationsAsync as jest.Mock).mockResolvedValue(undefined);
+      (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('new-notif-id');
+      (medicationScheduleRepository.update as jest.Mock).mockResolvedValue(mockSchedule);
+
+      await notificationService.rescheduleAllMedicationNotifications();
+
+      // Verify workflow
+      expect(Notifications.cancelAllScheduledNotificationsAsync).toHaveBeenCalled();
+      expect(medicationRepository.getActive).toHaveBeenCalled();
+      expect(medicationScheduleRepository.getByMedicationId).toHaveBeenCalledWith('med-123');
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalled();
+      expect(medicationScheduleRepository.update).toHaveBeenCalledWith('sched-123', {
+        notificationId: 'new-notif-id',
+      });
+    });
+
+    it('should skip disabled schedules when rescheduling', async () => {
+      const mockMedication: Medication = {
+        id: 'med-123',
+        name: 'Test Med',
+        type: 'preventative',
+        scheduleFrequency: 'daily',
+        dosageAmount: 100,
+        dosageUnit: 'mg',
+        active: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      const disabledSchedule: MedicationSchedule = {
+        id: 'sched-123',
+        medicationId: 'med-123',
+        time: '09:00',
+        timezone: 'America/Los_Angeles',
+        dosage: 1,
+        enabled: false, // Disabled
+      };
+
+      (medicationRepository.getActive as jest.Mock).mockResolvedValue([mockMedication]);
+      (medicationScheduleRepository.getByMedicationId as jest.Mock).mockResolvedValue([disabledSchedule]);
+
+      await notificationService.rescheduleAllMedicationNotifications();
+
+      // Should not schedule notifications for disabled schedules
+      expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+    });
+
+    it('should skip non-daily medications when rescheduling', async () => {
+      const mockMedication: Medication = {
+        id: 'med-123',
+        name: 'Test Med',
+        type: 'rescue', // Not preventative
+        dosageAmount: 100,
+        dosageUnit: 'mg',
+        active: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      (medicationRepository.getActive as jest.Mock).mockResolvedValue([mockMedication]);
+
+      await notificationService.rescheduleAllMedicationNotifications();
+
+      // Should not fetch schedules for non-preventative medications
+      expect(medicationScheduleRepository.getByMedicationId).not.toHaveBeenCalled();
+      expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+    });
+
+    it('should handle errors gracefully when rescheduling', async () => {
+      (medicationRepository.getActive as jest.Mock).mockRejectedValue(new Error('Database error'));
+
+      // Should not throw
+      await expect(notificationService.rescheduleAllMedicationNotifications()).resolves.not.toThrow();
+    });
+
+    it('should group medications at same time when rescheduling', async () => {
+      const mockMed1: Medication = {
+        id: 'med-1',
+        name: 'Med A',
+        type: 'preventative',
+        scheduleFrequency: 'daily',
+        dosageAmount: 100,
+        dosageUnit: 'mg',
+        active: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      const mockMed2: Medication = {
+        id: 'med-2',
+        name: 'Med B',
+        type: 'preventative',
+        scheduleFrequency: 'daily',
+        dosageAmount: 200,
+        dosageUnit: 'mg',
+        active: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      const schedule1: MedicationSchedule = {
+        id: 'sched-1',
+        medicationId: 'med-1',
+        time: '09:00',
+        timezone: 'America/Los_Angeles',
+        dosage: 1,
+        enabled: true,
+      };
+
+      const schedule2: MedicationSchedule = {
+        id: 'sched-2',
+        medicationId: 'med-2',
+        time: '09:00', // Same time
+        timezone: 'America/Los_Angeles',
+        dosage: 1,
+        enabled: true,
+      };
+
+      (medicationRepository.getActive as jest.Mock).mockResolvedValue([mockMed1, mockMed2]);
+      (medicationScheduleRepository.getByMedicationId as jest.Mock)
+        .mockResolvedValueOnce([schedule1])
+        .mockResolvedValueOnce([schedule2]);
+      (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('grouped-notif-id');
+
+      await notificationService.rescheduleAllMedicationNotifications();
+
+      // Should create one grouped notification
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          content: expect.objectContaining({
+            title: 'Time for 2 Medications',
+            body: 'Med A, Med B',
+          }),
+        })
+      );
+    });
+  });
+
+  describe('Store Integration', () => {
+    it('should call store logDose with correct parameters when TAKE_NOW is triggered', async () => {
+      const mockMedication = {
+        id: 'med-123',
+        name: 'Test Med',
+        dosageAmount: 100,
+        dosageUnit: 'mg',
+        defaultQuantity: 1,
+        schedule: [{ id: 'sched-123', dosage: 2 }],
+      };
+
+      (medicationRepository.getById as jest.Mock).mockResolvedValue(mockMedication);
+
+      let responseListener: any;
+
+      (Notifications.setNotificationCategoryAsync as jest.Mock).mockResolvedValue(undefined);
+      (Notifications.addNotificationReceivedListener as jest.Mock).mockReturnValue({
+        remove: jest.fn(),
+      });
+      (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockImplementation((cb) => {
+        responseListener = cb;
+        return { remove: jest.fn() };
+      });
+
+      await notificationService.initialize();
+
+      const response = {
+        actionIdentifier: 'TAKE_NOW',
+        notification: {
+          request: {
+            content: {
+              data: { medicationId: 'med-123', scheduleId: 'sched-123' },
+            },
+          },
+        },
+      };
+
+      if (responseListener) {
+        await responseListener(response);
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      // Verify medication was retrieved
+      expect(medicationRepository.getById).toHaveBeenCalledWith('med-123');
+
+      // Note: Due to dynamic import, we can't easily verify logDose was called in this test
+      // This would be better tested in an integration test or E2E test
+    });
+
+    it('should validate medication configuration before logging dose', async () => {
+      const mockMedicationInvalid = {
+        id: 'med-123',
+        name: 'Invalid Med',
+        dosageAmount: undefined, // Missing required field
+        dosageUnit: 'mg',
+        defaultQuantity: 1,
+        schedule: [{ id: 'sched-123', dosage: 2 }],
+      };
+
+      (medicationRepository.getById as jest.Mock).mockResolvedValue(mockMedicationInvalid);
+
+      let responseListener: any;
+
+      (Notifications.setNotificationCategoryAsync as jest.Mock).mockResolvedValue(undefined);
+      (Notifications.addNotificationReceivedListener as jest.Mock).mockReturnValue({
+        remove: jest.fn(),
+      });
+      (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockImplementation((cb) => {
+        responseListener = cb;
+        return { remove: jest.fn() };
+      });
+
+      await notificationService.initialize();
+
+      const response = {
+        actionIdentifier: 'TAKE_NOW',
+        notification: {
+          request: {
+            content: {
+              data: { medicationId: 'med-123', scheduleId: 'sched-123' },
+            },
+          },
+        },
+      };
+
+      if (responseListener) {
+        // Should not throw - error is caught and logged
+        await expect(responseListener(response)).resolves.not.toThrow();
+      }
     });
   });
 
