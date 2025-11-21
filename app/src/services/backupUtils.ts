@@ -152,3 +152,42 @@ export async function initializeBackupDirectory(): Promise<void> {
     await FileSystem.makeDirectoryAsync(BACKUP_DIR, { intermediates: true });
   }
 }
+
+/**
+ * Get metadata for a specific backup
+ * Tries to read from .meta.json file first (snapshot backups), then from JSON backup file
+ */
+export async function getBackupMetadata(backupId: string): Promise<BackupMetadata | null> {
+  try {
+    // Try snapshot first (.meta.json)
+    const metadataPath = getMetadataPath(backupId);
+    const metadataInfo = await FileSystem.getInfoAsync(metadataPath);
+
+    if (metadataInfo.exists) {
+      const content = await FileSystem.readAsStringAsync(metadataPath);
+      return JSON.parse(content);
+    }
+
+    // Try JSON backup
+    const jsonPath = getBackupPath(backupId, 'json');
+    const jsonInfo = await FileSystem.getInfoAsync(jsonPath);
+
+    if (jsonInfo.exists) {
+      const content = await FileSystem.readAsStringAsync(jsonPath);
+      const backupData: BackupData = JSON.parse(content);
+      const fileSize = 'size' in jsonInfo ? jsonInfo.size : 0;
+
+      return {
+        ...backupData.metadata,
+        fileName: `${backupId}.json`,
+        fileSize,
+        backupType: 'json',
+      };
+    }
+
+    return null;
+  } catch (error) {
+    logger.error('Failed to get backup metadata:', error);
+    return null;
+  }
+}

@@ -1,8 +1,10 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import * as SQLite from 'expo-sqlite';
 import { logger } from '../utils/logger';
+import { errorLogger } from './errorLogger';
 import { episodeRepository, episodeNoteRepository } from '../database/episodeRepository';
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../database/medicationRepository';
+import { dailyStatusRepository } from '../database/dailyStatusRepository';
 import { migrationRunner } from '../database/migrations';
 import {
   Episode,
@@ -18,94 +20,17 @@ import {
 import {
   DB_PATH,
   getBackupPath,
-  getMetadataPath,
-  validateBackupMetadata,
+  getBackupMetadata,
+  validateBackupData,
 } from './backupUtils';
 
 class RestoreService {
-  /**
-   * Validate backup data structure
-   * Ensures critical fields are present and valid
-   */
-  private validateBackupData(backupData: unknown): backupData is BackupData {
-    if (!backupData || typeof backupData !== 'object') {
-      logger.error('[Validation] Backup data is missing or not an object');
-      return false;
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const b = backupData as any;
-
-    // Validate metadata
-    if (!validateBackupMetadata(b.metadata)) {
-      return false;
-    }
-
-    // Validate arrays are present and are actually arrays
-    if (!Array.isArray(b.episodes)) {
-      logger.error('[Validation] episodes field is missing or not an array');
-      return false;
-    }
-
-    if (!Array.isArray(b.medications)) {
-      logger.error('[Validation] medications field is missing or not an array');
-      return false;
-    }
-
-    if (!Array.isArray(b.medicationDoses)) {
-      logger.error('[Validation] medicationDoses field is missing or not an array');
-      return false;
-    }
-
-    if (!Array.isArray(b.medicationSchedules)) {
-      logger.error('[Validation] medicationSchedules field is missing or not an array');
-      return false;
-    }
-
-    return true;
-  }
-
-  async getBackupMetadata(backupId: string): Promise<BackupMetadata | null> {
-    try {
-      // Try snapshot first (.meta.json)
-      const metadataPath = getMetadataPath(backupId);
-      const metadataInfo = await FileSystem.getInfoAsync(metadataPath);
-
-      if (metadataInfo.exists) {
-        const content = await FileSystem.readAsStringAsync(metadataPath);
-        return JSON.parse(content);
-      }
-
-      // Try JSON backup
-      const jsonPath = getBackupPath(backupId, 'json');
-      const jsonInfo = await FileSystem.getInfoAsync(jsonPath);
-
-      if (jsonInfo.exists) {
-        const content = await FileSystem.readAsStringAsync(jsonPath);
-        const backupData: BackupData = JSON.parse(content);
-        const fileSize = 'size' in jsonInfo ? jsonInfo.size : 0;
-
-        return {
-          ...backupData.metadata,
-          fileName: `${backupId}.json`,
-          fileSize,
-          backupType: 'json',
-        };
-      }
-
-      return null;
-    } catch (error) {
-      logger.error('Failed to get backup metadata:', error);
-      return null;
-    }
-  }
-
   async restoreBackup(backupId: string): Promise<void> {
     try {
       logger.log('[Restore] Starting backup restore:', backupId);
 
       // Get metadata to determine backup type
-      const metadata = await this.getBackupMetadata(backupId);
+      const metadata = await getBackupMetadata(backupId);
       if (!metadata) {
         throw new Error('Backup not found');
       }
@@ -119,6 +44,12 @@ class RestoreService {
       logger.log('[Restore] Backup restored successfully');
     } catch (error) {
       logger.error('[Restore] FAILED to restore backup:', error);
+      await errorLogger.log(
+        'storage',
+        'Failed to restore backup',
+        error as Error,
+        { context: 'RestoreService.restoreBackup', backupId }
+      );
       throw new Error('Failed to restore backup: ' + (error as Error).message);
     }
   }
@@ -236,6 +167,12 @@ class RestoreService {
       logger.log('[Restore] Snapshot restore complete');
     } catch (error) {
       logger.error('[Restore] FAILED to restore snapshot:', error);
+      await errorLogger.log(
+        'storage',
+        'Failed to restore snapshot backup',
+        error as Error,
+        { context: 'RestoreService.restoreSnapshotBackup', backupId }
+      );
       throw error;
     }
   }
@@ -257,7 +194,7 @@ class RestoreService {
       const backupData: BackupData = JSON.parse(content);
 
       // Validate backup structure
-      if (!backupData.metadata || !backupData.episodes || !backupData.medications) {
+      if (!validateBackupData(backupData)) {
         throw new Error('Invalid backup file format - missing required fields');
       }
 
@@ -290,6 +227,7 @@ class RestoreService {
         await medicationRepository.deleteAll();
         await medicationDoseRepository.deleteAll();
         await medicationScheduleRepository.deleteAll();
+        await dailyStatusRepository.deleteAll();
 
         // Get database instance for raw SQL inserts
         const db = await import('../database/db').then(m => m.getDatabase());
@@ -442,6 +380,12 @@ class RestoreService {
       logger.log('[Restore] JSON backup restored successfully');
     } catch (error) {
       logger.error('[Restore] FAILED to restore JSON backup:', error);
+      await errorLogger.log(
+        'storage',
+        'Failed to restore JSON backup',
+        error as Error,
+        { context: 'RestoreService.restoreJsonBackup', backupId }
+      );
       throw error;
     }
   }

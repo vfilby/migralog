@@ -39,17 +39,27 @@ jest.mock('../../database/episodeRepository');
 jest.mock('../../database/medicationRepository');
 jest.mock('../../database/dailyStatusRepository');
 jest.mock('../../database/migrations');
-jest.mock('../../services/errorLogger');
+jest.mock('../errorLogger', () => ({
+  errorLogger: {
+    log: jest.fn(() => Promise.resolve()),
+    getLogs: jest.fn(() => Promise.resolve([])),
+    clearLogs: jest.fn(() => Promise.resolve()),
+    getRecentLogs: jest.fn(() => Promise.resolve([])),
+    getLogsByType: jest.fn(() => Promise.resolve([])),
+  },
+}));
 
 // Mock db module
 const mockDatabase = {
   getAllAsync: jest.fn(),
   execAsync: jest.fn(),
   runAsync: jest.fn(),
+  closeAsync: jest.fn(),
 };
 
 jest.mock('../../database/db', () => ({
   getDatabase: jest.fn(() => Promise.resolve(mockDatabase)),
+  closeDatabase: jest.fn(() => Promise.resolve()),
 }));
 
 describe('backupService', () => {
@@ -1282,6 +1292,149 @@ describe('backupService', () => {
 
       expect(formatted).toBeDefined();
       expect(typeof formatted).toBe('string');
+    });
+  });
+
+  describe('Facade Delegation Tests', () => {
+    it('should delegate createBackup to BackupServiceImpl', async () => {
+      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true, size: 1234 });
+      (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
+      (episodeRepository.getAll as jest.Mock).mockResolvedValue([]);
+      (medicationRepository.getAll as jest.Mock).mockResolvedValue([]);
+      (medicationDoseRepository.getAll as jest.Mock).mockResolvedValue([]);
+      (episodeNoteRepository.getByEpisodeId as jest.Mock).mockResolvedValue([]);
+      (intensityRepository.getByEpisodeId as jest.Mock).mockResolvedValue([]);
+      (dailyStatusRepository.getDateRange as jest.Mock).mockResolvedValue([]);
+      (medicationScheduleRepository.getByMedicationId as jest.Mock).mockResolvedValue([]);
+      (migrationRunner.getCurrentVersion as jest.Mock).mockResolvedValue(1);
+      (mockDatabase.getAllAsync as jest.Mock).mockResolvedValue([
+        { sql: 'CREATE TABLE episodes (...)' },
+      ]);
+
+      const metadata = await backupService.createBackup();
+
+      expect(metadata).toBeDefined();
+      expect(metadata.id).toBeDefined();
+      expect(FileSystem.writeAsStringAsync).toHaveBeenCalled();
+    });
+
+    it('should delegate restoreBackup to RestoreService', async () => {
+      const mockBackup = {
+        metadata: {
+          id: 'test-backup',
+          timestamp: Date.now(),
+          version: '1.0.0',
+          schemaVersion: 1,
+          episodeCount: 0,
+          medicationCount: 0,
+        },
+        schemaSQL: 'CREATE TABLE episodes (...);',
+        episodes: [],
+        medications: [],
+        medicationDoses: [],
+        medicationSchedules: [],
+        episodeNotes: [],
+      };
+
+      // Mock JSON backup (not snapshot)
+      (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
+        if (path.includes('.meta.json')) {
+          return Promise.resolve({ exists: false });
+        }
+        return Promise.resolve({ exists: true, size: 1000 });
+      });
+      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
+        JSON.stringify(mockBackup)
+      );
+      (migrationRunner.getCurrentVersion as jest.Mock).mockResolvedValue(1);
+      (mockDatabase.execAsync as jest.Mock).mockResolvedValue(undefined);
+      (mockDatabase.runAsync as jest.Mock).mockResolvedValue(undefined);
+      (mockDatabase.getAllAsync as jest.Mock).mockResolvedValue([]);
+
+      await backupService.restoreBackup('test-backup');
+
+      expect(mockDatabase.execAsync).toHaveBeenCalled();
+    });
+
+    it('should delegate importDatabaseFile to RestoreService', async () => {
+      const mockPickerResult = {
+        canceled: false,
+        assets: [{ uri: 'file:///path/to/database.db' }],
+      };
+
+      (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValue(mockPickerResult);
+      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true, size: 5000 });
+      (FileSystem.copyAsync as jest.Mock).mockResolvedValue(undefined);
+
+      await backupService.importDatabaseFile();
+
+      // Should copy the database file (both backup and import)
+      expect(FileSystem.copyAsync).toHaveBeenCalled();
+      // importDatabaseFile doesn't run migrations - it requires app reload
+    });
+
+    it('should delegate exportBackup to BackupServiceImpl', async () => {
+      const mockBackup = {
+        metadata: {
+          id: 'test-export',
+          timestamp: Date.now(),
+          version: '1.0.0',
+          schemaVersion: 1,
+          episodeCount: 0,
+          medicationCount: 0,
+        },
+        episodes: [],
+        medications: [],
+        medicationDoses: [],
+        medicationSchedules: [],
+      };
+
+      (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
+        if (path.includes('.meta.json')) {
+          return Promise.resolve({ exists: false });
+        }
+        return Promise.resolve({ exists: true, size: 1000 });
+      });
+      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
+        JSON.stringify(mockBackup)
+      );
+      (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true);
+      (Sharing.shareAsync as jest.Mock).mockResolvedValue(undefined);
+
+      await backupService.exportBackup('test-export');
+
+      expect(Sharing.shareAsync).toHaveBeenCalled();
+    });
+
+    it('should delegate listBackups to BackupServiceImpl', async () => {
+      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true, size: 500 });
+      (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue([]);
+
+      const backups = await backupService.listBackups();
+
+      expect(backups).toEqual([]);
+      expect(FileSystem.readDirectoryAsync).toHaveBeenCalled();
+    });
+
+    it('should delegate deleteBackup to BackupServiceImpl', async () => {
+      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true });
+      (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
+
+      await backupService.deleteBackup('test-delete');
+
+      expect(FileSystem.deleteAsync).toHaveBeenCalled();
+    });
+
+    it('should delegate formatFileSize utility method', () => {
+      const formatted = backupService.formatFileSize(1024);
+      expect(formatted).toBe('1 KB');
+    });
+
+    it('should delegate formatDate utility method', () => {
+      const timestamp = Date.now();
+      const formatted = backupService.formatDate(timestamp);
+      expect(typeof formatted).toBe('string');
+      expect(formatted).toBeDefined();
     });
   });
 
