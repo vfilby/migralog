@@ -179,3 +179,28 @@ export interface DailyStatusLog {
   createdAt: number;
   updatedAt: number;
 }
+
+// Backup/Restore types
+export interface BackupMetadata {
+  id: string;
+  timestamp: number;
+  version: string;
+  schemaVersion: number;
+  episodeCount: number;
+  medicationCount: number;
+  fileSize: number;
+  fileName: string;
+  backupType: 'snapshot' | 'json'; // DB file snapshot or JSON export
+}
+
+export interface BackupData {
+  metadata: Omit<BackupMetadata, 'fileSize' | 'fileName' | 'backupType'>;
+  schemaSQL?: string; // Complete CREATE TABLE statements for the schema at backup time (optional for backward compatibility)
+  episodes: Episode[];
+  episodeNotes?: EpisodeNote[]; // Optional for backward compatibility
+  intensityReadings?: IntensityReading[]; // Optional for backward compatibility
+  dailyStatusLogs?: DailyStatusLog[]; // Optional for backward compatibility
+  medications: Medication[];
+  medicationDoses: MedicationDose[];
+  medicationSchedules: MedicationSchedule[];
+}

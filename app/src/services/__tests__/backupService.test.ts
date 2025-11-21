@@ -1,4 +1,5 @@
 import { backupService, BackupData } from '../backupService';
+import { initializeBackupDirectory, validateBackupMetadata, validateBackupData } from '../backupUtils';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
@@ -65,12 +66,12 @@ describe('backupService', () => {
     jest.restoreAllMocks();
   });
 
-  describe('initialize', () => {
+  describe('initializeBackupDirectory', () => {
     it('should create backup directory if it does not exist', async () => {
       (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: false });
       (FileSystem.makeDirectoryAsync as jest.Mock).mockResolvedValue(undefined);
 
-      await backupService.initialize();
+      await initializeBackupDirectory();
 
       expect(FileSystem.makeDirectoryAsync).toHaveBeenCalledWith(BACKUP_DIR, {
         intermediates: true,
@@ -80,7 +81,7 @@ describe('backupService', () => {
     it('should not create directory if it already exists', async () => {
       (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true });
 
-      await backupService.initialize();
+      await initializeBackupDirectory();
 
       expect(FileSystem.makeDirectoryAsync).not.toHaveBeenCalled();
     });
@@ -742,7 +743,7 @@ describe('backupService', () => {
         medicationCount: 0,
       };
 
-      const result = (backupService as any).validateBackupMetadata(invalidMetadata);
+      const result = validateBackupMetadata(invalidMetadata);
       expect(result).toBe(false);
     });
 
@@ -756,7 +757,7 @@ describe('backupService', () => {
         medicationCount: 0,
       };
 
-      const result = (backupService as any).validateBackupMetadata(invalidMetadata);
+      const result = validateBackupMetadata(invalidMetadata);
       expect(result).toBe(false);
     });
 
@@ -770,7 +771,7 @@ describe('backupService', () => {
         medicationCount: 0,
       };
 
-      const result = (backupService as any).validateBackupMetadata(invalidMetadata);
+      const result = validateBackupMetadata(invalidMetadata);
       expect(result).toBe(false);
     });
 
@@ -784,7 +785,7 @@ describe('backupService', () => {
         medicationCount: 0,
       };
 
-      const result = (backupService as any).validateBackupMetadata(invalidMetadata);
+      const result = validateBackupMetadata(invalidMetadata);
       expect(result).toBe(false);
     });
 
@@ -798,7 +799,7 @@ describe('backupService', () => {
         medicationCount: 0,
       };
 
-      const result = (backupService as any).validateBackupMetadata(invalidMetadata);
+      const result = validateBackupMetadata(invalidMetadata);
       expect(result).toBe(false);
     });
 
@@ -812,7 +813,7 @@ describe('backupService', () => {
         medicationCount: 0,
       };
 
-      const result = (backupService as any).validateBackupMetadata(invalidMetadata);
+      const result = validateBackupMetadata(invalidMetadata);
       expect(result).toBe(false);
     });
 
@@ -826,7 +827,7 @@ describe('backupService', () => {
         medicationCount: 0,
       };
 
-      const result = (backupService as any).validateBackupMetadata(invalidMetadata);
+      const result = validateBackupMetadata(invalidMetadata);
       expect(result).toBe(false);
     });
 
@@ -840,7 +841,7 @@ describe('backupService', () => {
         medicationCount: 0,
       };
 
-      const result = (backupService as any).validateBackupMetadata(invalidMetadata);
+      const result = validateBackupMetadata(invalidMetadata);
       expect(result).toBe(false);
     });
 
@@ -853,7 +854,7 @@ describe('backupService', () => {
         medicationCount: 0,
       };
 
-      const result = (backupService as any).validateBackupMetadata(invalidMetadata);
+      const result = validateBackupMetadata(invalidMetadata);
       expect(result).toBe(false);
     });
 
@@ -867,7 +868,7 @@ describe('backupService', () => {
         medicationCount: 0,
       };
 
-      const result = (backupService as any).validateBackupMetadata(invalidMetadata);
+      const result = validateBackupMetadata(invalidMetadata);
       expect(result).toBe(false);
     });
 
@@ -881,7 +882,7 @@ describe('backupService', () => {
         medicationCount: 0,
       };
 
-      const result = (backupService as any).validateBackupMetadata(invalidMetadata);
+      const result = validateBackupMetadata(invalidMetadata);
       expect(result).toBe(false);
     });
 
@@ -895,7 +896,7 @@ describe('backupService', () => {
         medicationCount: -3,
       };
 
-      const result = (backupService as any).validateBackupMetadata(invalidMetadata);
+      const result = validateBackupMetadata(invalidMetadata);
       expect(result).toBe(false);
     });
 
@@ -909,7 +910,7 @@ describe('backupService', () => {
         medicationCount: 3,
       };
 
-      const result = (backupService as any).validateBackupMetadata(validMetadata);
+      const result = validateBackupMetadata(validMetadata);
       expect(result).toBe(true);
     });
   });
@@ -930,7 +931,7 @@ describe('backupService', () => {
         medicationSchedules: [],
       };
 
-      const result = (backupService as any).validateBackupData(invalidBackup);
+      const result = validateBackupData(invalidBackup);
       expect(result).toBe(false);
     });
 
@@ -950,7 +951,7 @@ describe('backupService', () => {
         medicationSchedules: [],
       };
 
-      const result = (backupService as any).validateBackupData(invalidBackup);
+      const result = validateBackupData(invalidBackup);
       expect(result).toBe(false);
     });
 
@@ -970,7 +971,7 @@ describe('backupService', () => {
         medicationSchedules: [],
       };
 
-      const result = (backupService as any).validateBackupData(invalidBackup);
+      const result = validateBackupData(invalidBackup);
       expect(result).toBe(false);
     });
 
@@ -990,7 +991,7 @@ describe('backupService', () => {
         medicationSchedules: [],
       };
 
-      const result = (backupService as any).validateBackupData(validBackup);
+      const result = validateBackupData(validBackup);
       expect(result).toBe(true);
     });
   });
