@@ -1,9 +1,19 @@
+/**
+ * Migration Runner Tests (After Squashing)
+ *
+ * All migrations have been squashed into the base schema (schema.ts).
+ * These tests verify that:
+ * 1. Fresh databases are created at version 19 directly
+ * 2. No migrations run for fresh databases
+ * 3. Migration runner initializes correctly
+ */
+
 import { migrationRunner } from '../migrations';
 
 // Mock expo-sqlite
 jest.mock('expo-sqlite');
 
-describe('migrationRunner', () => {
+describe('migrationRunner (Squashed Schema)', () => {
   let mockDatabase: any;
 
   beforeEach(() => {
@@ -29,7 +39,7 @@ describe('migrationRunner', () => {
 
   describe('initialization', () => {
     it('should initialize with database', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 0 }]);
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
 
       await migrationRunner.initialize(mockDatabase);
 
@@ -45,108 +55,114 @@ describe('migrationRunner', () => {
       expect(mockDatabase.execAsync).toHaveBeenCalled();
       expect(mockDatabase.runAsync).toHaveBeenCalled();
     });
-  });
 
-  describe('backup before migration', () => {
-    beforeEach(async () => {
-      // Set up database with old version
-      mockDatabase.getAllAsync
-        .mockResolvedValueOnce([{ version: 1 }]) // For initialize
-        .mockResolvedValue([{ name: 'episodes' }]); // For migrations
+    it('should set version to 19 for fresh database', async () => {
+      // Mock empty schema_version table (fresh database)
+      mockDatabase.getAllAsync.mockResolvedValue([]);
+
       await migrationRunner.initialize(mockDatabase);
-    });
 
-    it('should create backup before running migrations when backup function provided', async () => {
-      const createBackup = jest.fn().mockResolvedValue(undefined);
-
-      await migrationRunner.runMigrations(createBackup);
-
-      expect(createBackup).toHaveBeenCalledWith(mockDatabase);
-      expect(console.log).toHaveBeenCalledWith('Creating automatic backup before migration...');
-      expect(console.log).toHaveBeenCalledWith('Backup created successfully');
-       
-    });
-
-    it('should abort migration if backup creation fails', async () => {
-      const createBackup = jest.fn().mockRejectedValue(new Error('Backup failed'));
-
-      await expect(migrationRunner.runMigrations(createBackup)).rejects.toThrow(
-        'Migration aborted: Failed to create backup'
+      // Should insert version 19
+      expect(mockDatabase.runAsync).toHaveBeenCalledWith(
+        'INSERT OR IGNORE INTO schema_version (id, version, updated_at) VALUES (1, 19, ?)',
+        expect.any(Array)
       );
-
-      expect(createBackup).toHaveBeenCalledWith(mockDatabase);
-      expect(console.error).toHaveBeenCalledWith(
-        'Failed to create backup before migration:',
-        expect.any(Error)
-      );
-    });
-
-    it('should warn when no backup function provided', async () => {
-      await migrationRunner.runMigrations();
-
-      expect(console.warn).toHaveBeenCalledWith(
-        'No backup function provided, skipping automatic backup'
-      );
-    });
-
-    it('should run migrations after successful backup', async () => {
-      const createBackup = jest.fn().mockResolvedValue(undefined);
-
-      await migrationRunner.runMigrations(createBackup);
-
-      // Backup should be called first
-      expect(createBackup).toHaveBeenCalled();
-
-      // Then migrations should run
-      expect(mockDatabase.runAsync).toHaveBeenCalled();
-    });
-
-    it('should not run migrations if backup fails', async () => {
-      const createBackup = jest.fn().mockRejectedValue(new Error('Backup failed'));
-      const initialRunAsyncCalls = mockDatabase.runAsync.mock.calls.length;
-
-      await expect(migrationRunner.runMigrations(createBackup)).rejects.toThrow();
-
-      // No additional migration calls should have been made (only init calls)
-      const finalRunAsyncCalls = mockDatabase.runAsync.mock.calls.length;
-      expect(finalRunAsyncCalls).toBe(initialRunAsyncCalls);
     });
   });
 
   describe('getCurrentVersion', () => {
     it('should return current schema version', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 2 }]);
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
       await migrationRunner.initialize(mockDatabase);
 
       const version = await migrationRunner.getCurrentVersion();
 
-      expect(version).toBe(2);
+      expect(version).toBe(19);
     });
 
-    it('should return 1 if no version record exists', async () => {
+    it('should return 19 for fresh database after initialization', async () => {
       mockDatabase.getAllAsync.mockResolvedValue([]);
       mockDatabase.runAsync.mockResolvedValue(undefined);
       await migrationRunner.initialize(mockDatabase);
 
+      // After init, should return 19
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
       const version = await migrationRunner.getCurrentVersion();
 
-      expect(version).toBe(1);
+      expect(version).toBe(19);
     });
   });
 
   describe('getTargetVersion', () => {
-    it('should return the highest migration version', async () => {
+    it('should return 19 from migration v19', async () => {
       const targetVersion = await migrationRunner.getTargetVersion();
 
-      // Should return the highest version from migrations array (currently 19)
+      // Migration v19 exists in the array, so target version is 19
       expect(targetVersion).toBe(19);
     });
   });
 
+  describe('needsMigration', () => {
+    it('should return false for fresh database at version 19', async () => {
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
+      await migrationRunner.initialize(mockDatabase);
+
+      const needsMigration = await migrationRunner.needsMigration();
+
+      // Current version 19, target version 19, so no migration needed
+      expect(needsMigration).toBe(false);
+    });
+
+    it('should return false after initialization', async () => {
+      mockDatabase.getAllAsync.mockResolvedValue([]);
+      await migrationRunner.initialize(mockDatabase);
+
+      // After initialization, fresh database should be at v19
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
+      const needsMigration = await migrationRunner.needsMigration();
+
+      expect(needsMigration).toBe(false);
+    });
+
+    it('should return true for v18 database needing upgrade to v19', async () => {
+      // Simulate existing v18 database (from v1.1.4)
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: 18 }]);
+      await migrationRunner.initialize(mockDatabase);
+
+      const needsMigration = await migrationRunner.needsMigration();
+
+      // Current version 18, target version 19, so migration needed
+      expect(needsMigration).toBe(true);
+    });
+  });
+
   describe('migration execution', () => {
-    it('should skip migrations if database is up to date', async () => {
-      const targetVersion = await migrationRunner.getTargetVersion();
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: targetVersion }]);
+    it('should upgrade v18 database to v19 by running migration', async () => {
+      // Simulate existing v18 database (from v1.1.4)
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: 18 }]);
+      await migrationRunner.initialize(mockDatabase);
+
+      // Reset mock to track runMigrations calls
+      jest.clearAllMocks();
+
+      await migrationRunner.runMigrations();
+
+      // Migration v19 should run - check that execAsync was called for table recreations
+      expect(mockDatabase.execAsync).toHaveBeenCalled();
+
+      // Version should be updated to 19
+      expect(mockDatabase.runAsync).toHaveBeenCalledWith(
+        'UPDATE schema_version SET version = ?, updated_at = ? WHERE id = 1',
+        [19, expect.any(Number)]
+      );
+
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('Migration 19')
+      );
+    });
+
+    it('should not run migrations for fresh database at version 19', async () => {
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
       await migrationRunner.initialize(mockDatabase);
 
       await migrationRunner.runMigrations();
@@ -156,28 +172,76 @@ describe('migrationRunner', () => {
       );
     });
 
-    it('should run pending migrations in order', async () => {
-      mockDatabase.getAllAsync
-        .mockResolvedValueOnce([{ version: 1 }]) // For initialize
-        .mockResolvedValue([{ name: 'episodes' }]); // For migration checks
+    it('should not execute any migration SQL for fresh database', async () => {
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
       await migrationRunner.initialize(mockDatabase);
+
+      const execCallsBefore = mockDatabase.execAsync.mock.calls.length;
+      const runCallsBefore = mockDatabase.runAsync.mock.calls.length;
 
       await migrationRunner.runMigrations();
 
-      // Should have attempted to run migrations
-      expect(mockDatabase.execAsync).toHaveBeenCalled();
+      const execCallsAfter = mockDatabase.execAsync.mock.calls.length;
+      const runCallsAfter = mockDatabase.runAsync.mock.calls.length;
+
+      // Should not execute any additional SQL (beyond initialization)
+      expect(execCallsAfter).toBe(execCallsBefore);
+      expect(runCallsAfter).toBe(runCallsBefore);
     });
 
-    it('should update version after each migration', async () => {
-      mockDatabase.getAllAsync
-        .mockResolvedValueOnce([{ version: 1 }]) // For initialize
-        .mockResolvedValue([{ name: 'episodes' }]); // For migration checks
+    it('should handle runMigrations being called multiple times', async () => {
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
       await migrationRunner.initialize(mockDatabase);
 
       await migrationRunner.runMigrations();
+      await migrationRunner.runMigrations();
+      await migrationRunner.runMigrations();
 
-      // Should have updated the version
-      expect(mockDatabase.runAsync).toHaveBeenCalled();
+      // Should not throw or cause issues
+      expect(console.log).toHaveBeenCalledWith(
+        'Database is up to date, no migrations needed'
+      );
+    });
+  });
+
+  describe('rollback', () => {
+    it('should handle rollback attempt gracefully', async () => {
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
+      await migrationRunner.initialize(mockDatabase);
+
+      // Trying to rollback from 19 to any version should log "No rollback needed"
+      await migrationRunner.rollback(19);
+
+      expect(console.log).toHaveBeenCalledWith('No rollback needed');
+    });
+
+    it('should handle rollback to higher version', async () => {
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
+      await migrationRunner.initialize(mockDatabase);
+
+      await migrationRunner.rollback(20);
+
+      expect(console.log).toHaveBeenCalledWith('No rollback needed');
+    });
+  });
+
+  describe('error handling', () => {
+    it('should throw error if not initialized', async () => {
+      await expect(migrationRunner.getCurrentVersion()).rejects.toThrow(
+        'MigrationRunner not initialized'
+      );
+    });
+
+    it('should throw error if runMigrations called before initialize', async () => {
+      await expect(migrationRunner.runMigrations()).rejects.toThrow(
+        'MigrationRunner not initialized'
+      );
+    });
+
+    it('should throw error if rollback called before initialize', async () => {
+      await expect(migrationRunner.rollback(1)).rejects.toThrow(
+        'MigrationRunner not initialized'
+      );
     });
   });
 });

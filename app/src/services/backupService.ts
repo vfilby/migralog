@@ -1,5 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { logger } from '../utils/logger';
+import { errorLogger } from './errorLogger';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 
@@ -43,6 +44,99 @@ const WEEKLY_BACKUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in millisec
 const LAST_WEEKLY_BACKUP_KEY = '@MigraLog:lastWeeklyBackup';
 
 class BackupService {
+  /**
+   * Validate backup metadata to ensure data integrity
+   * Critical for health data - we must validate all required fields
+   */
+  private validateBackupMetadata(metadata: unknown): metadata is Omit<BackupMetadata, 'fileSize' | 'fileName' | 'backupType'> {
+    if (!metadata || typeof metadata !== 'object') {
+      logger.error('[Validation] Metadata is missing or not an object');
+      return false;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const m = metadata as any;
+
+    // Validate id: must be a non-empty string
+    if (typeof m.id !== 'string' || !m.id.trim()) {
+      logger.error('[Validation] metadata.id is missing, empty, or not a string:', m.id);
+      return false;
+    }
+
+    // Validate timestamp: must be a positive number
+    if (typeof m.timestamp !== 'number' || m.timestamp <= 0) {
+      logger.error('[Validation] metadata.timestamp is invalid:', m.timestamp);
+      return false;
+    }
+
+    // Validate version: must be a non-empty string
+    if (typeof m.version !== 'string' || !m.version.trim()) {
+      logger.error('[Validation] metadata.version is missing or invalid:', m.version);
+      return false;
+    }
+
+    // Validate schemaVersion: must be a non-negative number
+    if (typeof m.schemaVersion !== 'number' || m.schemaVersion < 0) {
+      logger.error('[Validation] metadata.schemaVersion is invalid:', m.schemaVersion);
+      return false;
+    }
+
+    // Validate counts: must be non-negative numbers
+    if (typeof m.episodeCount !== 'number' || m.episodeCount < 0) {
+      logger.error('[Validation] metadata.episodeCount is invalid:', m.episodeCount);
+      return false;
+    }
+
+    if (typeof m.medicationCount !== 'number' || m.medicationCount < 0) {
+      logger.error('[Validation] metadata.medicationCount is invalid:', m.medicationCount);
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Validate backup data structure
+   * Ensures critical fields are present and valid
+   */
+  private validateBackupData(backupData: unknown): backupData is BackupData {
+    if (!backupData || typeof backupData !== 'object') {
+      logger.error('[Validation] Backup data is missing or not an object');
+      return false;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const b = backupData as any;
+
+    // Validate metadata
+    if (!this.validateBackupMetadata(b.metadata)) {
+      return false;
+    }
+
+    // Validate arrays are present and are actually arrays
+    if (!Array.isArray(b.episodes)) {
+      logger.error('[Validation] episodes field is missing or not an array');
+      return false;
+    }
+
+    if (!Array.isArray(b.medications)) {
+      logger.error('[Validation] medications field is missing or not an array');
+      return false;
+    }
+
+    if (!Array.isArray(b.medicationDoses)) {
+      logger.error('[Validation] medicationDoses field is missing or not an array');
+      return false;
+    }
+
+    if (!Array.isArray(b.medicationSchedules)) {
+      logger.error('[Validation] medicationSchedules field is missing or not an array');
+      return false;
+    }
+
+    return true;
+  }
+
   async initialize(): Promise<void> {
     const dirInfo = await FileSystem.getInfoAsync(BACKUP_DIR);
     if (!dirInfo.exists) {
@@ -120,6 +214,17 @@ class BackupService {
       return metadata;
     } catch (error) {
       logger.error('[Backup] FAILED to create snapshot backup:', error);
+      // Log to error logger for Sentry tracking
+      try {
+        await errorLogger.log(
+          'storage',
+          'Failed to create snapshot backup',
+          error as Error,
+          { operation: 'createSnapshotBackup' }
+        );
+      } catch (e) {
+        logger.error('[Backup] Failed to log snapshot backup error:', e);
+      }
       throw new Error('Failed to create snapshot backup: ' + (error as Error).message);
     }
   }
@@ -284,6 +389,10 @@ class BackupService {
             if (metadataInfo.exists) {
               const metadataContent = await FileSystem.readAsStringAsync(metadataPath);
               const metadata: BackupMetadata = JSON.parse(metadataContent);
+              // Ensure ID is set (some old metadata files may not have it)
+              if (!metadata.id) {
+                metadata.id = backupId;
+              }
               backups.push(metadata);
             } else {
               // Legacy snapshot without metadata - create basic metadata
@@ -310,23 +419,41 @@ class BackupService {
             const content = await FileSystem.readAsStringAsync(filePath);
             const backupData: BackupData = JSON.parse(content);
 
+            // Validate backup metadata - CRITICAL for data integrity
+            if (!backupData || !this.validateBackupMetadata(backupData.metadata)) {
+              logger.warn(`[Backup] Skipping invalid backup file: ${file} (invalid or missing metadata)`);
+              continue;
+            }
+
             const fileInfo = await FileSystem.getInfoAsync(filePath);
             const fileSize = fileInfo.exists && 'size' in fileInfo ? fileInfo.size : 0;
 
-            backups.push({
+            const metadata: BackupMetadata = {
               ...backupData.metadata,
               fileName: file,
               fileSize,
               backupType: 'json',
-            });
+            };
+
+            backups.push(metadata);
           }
         } catch (error) {
           logger.error(`Failed to read backup ${file}:`, error);
+          // Continue processing other backups even if one fails
         }
       }
 
+      // Filter out any backups with invalid IDs before returning
+      const validBackups = backups.filter(backup => {
+        if (!backup.id || backup.id === 'undefined') {
+          logger.warn(`[Backup] Filtering out backup with invalid ID:`, backup);
+          return false;
+        }
+        return true;
+      });
+
       // Sort by timestamp, newest first
-      return backups.sort((a, b) => b.timestamp - a.timestamp);
+      return validBackups.sort((a, b) => b.timestamp - a.timestamp);
     } catch (error) {
       logger.error('Failed to list backups:', error);
       return [];
@@ -415,6 +542,18 @@ class BackupService {
         );
       }
 
+      // Checkpoint WAL to ensure all changes are flushed to main DB
+      // This prevents data loss when we delete the WAL file
+      logger.log('[Restore] Checkpointing WAL file');
+      try {
+        const { getDatabase } = await import('../database/db');
+        const currentDb = await getDatabase();
+        await currentDb.execAsync('PRAGMA wal_checkpoint(TRUNCATE);');
+        logger.log('[Restore] WAL checkpointed successfully');
+      } catch (error) {
+        logger.warn('[Restore] WAL checkpoint failed (database may already be closed):', error);
+      }
+
       // Close current database connection
       const { closeDatabase } = await import('../database/db');
       await closeDatabase();
@@ -431,16 +570,51 @@ class BackupService {
         logger.log('[Restore] Safety backup created at:', safetyBackupPath);
       }
 
-      // Copy snapshot to database location
+      // Delete existing database files (including WAL and SHM journal files)
+      // WAL (Write-Ahead Logging) files can have read-only permissions that persist
+      logger.log('[Restore] Removing existing database files');
+      const dbExists = await FileSystem.getInfoAsync(DB_PATH);
+      if (dbExists.exists) {
+        await FileSystem.deleteAsync(DB_PATH);
+      }
+
+      // Also delete WAL and SHM files if they exist
+      const walPath = `${DB_PATH}-wal`;
+      const shmPath = `${DB_PATH}-shm`;
+
+      const walExists = await FileSystem.getInfoAsync(walPath);
+      if (walExists.exists) {
+        logger.log('[Restore] Removing WAL file');
+        await FileSystem.deleteAsync(walPath);
+      }
+
+      const shmExists = await FileSystem.getInfoAsync(shmPath);
+      if (shmExists.exists) {
+        logger.log('[Restore] Removing SHM file');
+        await FileSystem.deleteAsync(shmPath);
+      }
+
+      // Copy snapshot to database location using read/write to ensure proper permissions
+      // Direct copyAsync can preserve read-only permissions from the source file
       logger.log('[Restore] Copying snapshot to database location');
-      await FileSystem.copyAsync({
-        from: backupPath,
-        to: DB_PATH,
+
+      // Read backup file as base64
+      const backupContent = await FileSystem.readAsStringAsync(backupPath, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // Write to database location (creates new file with write permissions)
+      await FileSystem.writeAsStringAsync(DB_PATH, backupContent, {
+        encoding: FileSystem.EncodingType.Base64,
       });
 
       // Re-open database and run migrations if needed
       logger.log('[Restore] Reopening database');
-      // await import('../database/db').then(m => m.getDatabase());
+      const { getDatabase } = await import('../database/db');
+      const restoredDb = await getDatabase();
+
+      // Reinitialize migration runner with new database connection
+      await migrationRunner.initialize(restoredDb);
 
       const restoredSchemaVersion = await migrationRunner.getCurrentVersion();
       logger.log('[Restore] Current schema version after restore:', restoredSchemaVersion);
@@ -668,6 +842,130 @@ class BackupService {
   }
 
   /**
+   * Check for broken backup files without deleting them
+   * Returns the count of broken backup files found
+   */
+  async checkForBrokenBackups(): Promise<number> {
+    try {
+      await this.initialize();
+
+      const dirInfo = await FileSystem.getInfoAsync(BACKUP_DIR);
+      if (!dirInfo.exists) {
+        return 0;
+      }
+
+      const files = await FileSystem.readDirectoryAsync(BACKUP_DIR);
+      let brokenCount = 0;
+
+      for (const file of files) {
+        try {
+          // Check for JSON files with invalid metadata
+          if (file.endsWith('.json') && !file.endsWith('.meta.json')) {
+            const filePath = BACKUP_DIR + file;
+            const content = await FileSystem.readAsStringAsync(filePath);
+            const backupData: BackupData = JSON.parse(content);
+
+            // If metadata is missing or invalid, count it
+            if (!backupData || !backupData.metadata || !backupData.metadata.id) {
+              brokenCount++;
+            }
+          }
+          // Check for orphaned metadata files (no corresponding .db file)
+          else if (file.endsWith('.meta.json')) {
+            const backupId = file.replace('.meta.json', '');
+            const dbPath = this.getBackupPath(backupId, 'snapshot');
+            const dbInfo = await FileSystem.getInfoAsync(dbPath);
+
+            if (!dbInfo.exists) {
+              brokenCount++;
+            }
+          }
+        } catch {
+          // If we can't parse a JSON file, it's probably corrupted - count it
+          if (file.endsWith('.json') && !file.endsWith('.meta.json')) {
+            brokenCount++;
+          }
+        }
+      }
+
+      return brokenCount;
+    } catch (error) {
+      logger.error('[Backup] Failed to check for broken backups:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Clean up orphaned or broken backup files
+   * This removes:
+   * - JSON files with invalid/missing metadata
+   * - Orphaned metadata files without corresponding backup files
+   * Returns the number of files cleaned up
+   */
+  async cleanupBrokenBackups(): Promise<number> {
+    try {
+      await this.initialize();
+
+      const dirInfo = await FileSystem.getInfoAsync(BACKUP_DIR);
+      if (!dirInfo.exists) {
+        return 0;
+      }
+
+      const files = await FileSystem.readDirectoryAsync(BACKUP_DIR);
+      let cleanedCount = 0;
+
+      for (const file of files) {
+        try {
+          // Check for JSON files with invalid metadata
+          if (file.endsWith('.json') && !file.endsWith('.meta.json')) {
+            const filePath = BACKUP_DIR + file;
+            const content = await FileSystem.readAsStringAsync(filePath);
+            const backupData: BackupData = JSON.parse(content);
+
+            // If metadata is missing or invalid, delete the file
+            if (!backupData || !backupData.metadata || !backupData.metadata.id) {
+              logger.log(`[Cleanup] Deleting broken JSON backup: ${file}`);
+              await FileSystem.deleteAsync(filePath);
+              cleanedCount++;
+            }
+          }
+          // Check for orphaned metadata files (no corresponding .db file)
+          else if (file.endsWith('.meta.json')) {
+            const backupId = file.replace('.meta.json', '');
+            const dbPath = this.getBackupPath(backupId, 'snapshot');
+            const dbInfo = await FileSystem.getInfoAsync(dbPath);
+
+            if (!dbInfo.exists) {
+              logger.log(`[Cleanup] Deleting orphaned metadata file: ${file}`);
+              const metadataPath = BACKUP_DIR + file;
+              await FileSystem.deleteAsync(metadataPath);
+              cleanedCount++;
+            }
+          }
+        } catch (error) {
+          logger.error(`[Cleanup] Failed to process ${file}:`, error);
+          // If we can't parse a JSON file, it's probably corrupted - delete it
+          if (file.endsWith('.json') && !file.endsWith('.meta.json')) {
+            try {
+              logger.log(`[Cleanup] Deleting corrupted JSON backup: ${file}`);
+              await FileSystem.deleteAsync(BACKUP_DIR + file);
+              cleanedCount++;
+            } catch (deleteError) {
+              logger.error(`[Cleanup] Failed to delete corrupted backup ${file}:`, deleteError);
+            }
+          }
+        }
+      }
+
+      logger.log(`[Cleanup] Cleaned up ${cleanedCount} broken backup file(s)`);
+      return cleanedCount;
+    } catch (error) {
+      logger.error('[Cleanup] Failed to cleanup broken backups:', error);
+      throw new Error('Failed to cleanup broken backups: ' + (error as Error).message);
+    }
+  }
+
+  /**
    * Export current database as JSON for sharing with healthcare providers
    * Creates temporary file and immediately prompts user to save/share
    * Does NOT store the file in backups directory - this is for data export, not backup
@@ -841,7 +1139,7 @@ class BackupService {
           backupType: 'snapshot',
         };
 
-        const metadataPath = this.getBackupPath(backupId, 'json');
+        const metadataPath = this.getMetadataPath(backupId);
         await FileSystem.writeAsStringAsync(metadataPath, JSON.stringify(metadata, null, 2));
 
         logger.log('[Import] Database snapshot imported successfully:', backupId);
@@ -850,11 +1148,18 @@ class BackupService {
 
       // Handle JSON export files
       const content = await FileSystem.readAsStringAsync(fileUri);
-      const backupData: BackupData = JSON.parse(content);
+      let backupData: unknown;
 
-      // Validate backup structure
-      if (!backupData.metadata || !backupData.episodes || !backupData.medications) {
-        throw new Error('Invalid backup file format');
+      try {
+        backupData = JSON.parse(content);
+      } catch (parseError) {
+        logger.error('[Import] Failed to parse backup JSON:', parseError);
+        throw new Error('Invalid backup file: corrupted or not valid JSON');
+      }
+
+      // Validate backup structure - CRITICAL for data integrity
+      if (!this.validateBackupData(backupData)) {
+        throw new Error('Invalid backup file format: missing or invalid required fields. Please ensure the backup file is complete and not corrupted.');
       }
 
       // If imported backup doesn't have schemaSQL (old format), add current schema
@@ -891,34 +1196,50 @@ class BackupService {
 
   async deleteBackup(backupId: string): Promise<void> {
     try {
-      // Get metadata to determine backup type
-      const metadata = await this.getBackupMetadata(backupId);
-      if (!metadata) {
-        // Try both types if metadata not found
-        const snapshotPath = this.getBackupPath(backupId, 'snapshot');
-        const jsonPath = this.getBackupPath(backupId, 'json');
-        const metadataPath = this.getMetadataPath(backupId);
+      logger.log('[Delete] Attempting to delete backup:', backupId);
 
-        await FileSystem.deleteAsync(snapshotPath, { idempotent: true });
-        await FileSystem.deleteAsync(jsonPath, { idempotent: true });
-        await FileSystem.deleteAsync(metadataPath, { idempotent: true });
-        return;
+      // Try to delete all possible file types (snapshot, json, metadata)
+      // This handles corrupted backups or backups with missing/invalid metadata
+      const snapshotPath = this.getBackupPath(backupId, 'snapshot');
+      const jsonPath = this.getBackupPath(backupId, 'json');
+      const metadataPath = this.getMetadataPath(backupId);
+
+      // Check which files actually exist
+      const snapshotExists = await FileSystem.getInfoAsync(snapshotPath);
+      const jsonExists = await FileSystem.getInfoAsync(jsonPath);
+      const metadataExists = await FileSystem.getInfoAsync(metadataPath);
+
+      let deletedCount = 0;
+
+      // Delete snapshot file if it exists
+      if (snapshotExists.exists) {
+        await FileSystem.deleteAsync(snapshotPath);
+        logger.log('[Delete] Deleted snapshot file:', snapshotPath);
+        deletedCount++;
       }
 
-      const backupPath = this.getBackupPath(backupId, metadata.backupType);
-      const fileInfo = await FileSystem.getInfoAsync(backupPath);
-
-      if (fileInfo.exists) {
-        await FileSystem.deleteAsync(backupPath);
+      // Delete JSON file if it exists
+      if (jsonExists.exists) {
+        await FileSystem.deleteAsync(jsonPath);
+        logger.log('[Delete] Deleted JSON file:', jsonPath);
+        deletedCount++;
       }
 
-      // Delete metadata if it's a snapshot
-      if (metadata.backupType === 'snapshot') {
-        const metadataPath = this.getMetadataPath(backupId);
-        await FileSystem.deleteAsync(metadataPath, { idempotent: true });
+      // Delete metadata file if it exists
+      if (metadataExists.exists) {
+        await FileSystem.deleteAsync(metadataPath);
+        logger.log('[Delete] Deleted metadata file:', metadataPath);
+        deletedCount++;
       }
+
+      if (deletedCount === 0) {
+        logger.warn('[Delete] No files found for backup:', backupId);
+        throw new Error('Backup files not found');
+      }
+
+      logger.log(`[Delete] Successfully deleted ${deletedCount} file(s) for backup:`, backupId);
     } catch (error) {
-      logger.error('Failed to delete backup:', error);
+      logger.error('[Delete] Failed to delete backup:', error);
       throw new Error('Failed to delete backup: ' + (error as Error).message);
     }
   }
@@ -1144,6 +1465,17 @@ class BackupService {
       }
     } catch (error) {
       logger.error('Failed to cleanup old backups:', error);
+      // Log to error logger for Sentry tracking
+      try {
+        await errorLogger.log(
+          'storage',
+          'Failed to cleanup old automatic backups',
+          error as Error,
+          { operation: 'cleanupOldAutoBackups' }
+        );
+      } catch (e) {
+        logger.error('[Backup] Failed to log cleanup error:', e);
+      }
     }
   }
 
@@ -1188,6 +1520,17 @@ class BackupService {
       }
     } catch (error) {
       logger.error('[Backup] Failed to check/create weekly backup:', error);
+      // Log to error logger for Sentry tracking
+      try {
+        await errorLogger.log(
+          'storage',
+          'Failed to check/create weekly backup',
+          error as Error,
+          { operation: 'checkAndCreateWeeklyBackup' }
+        );
+      } catch (e) {
+        logger.error('[Backup] Failed to log weekly backup error:', e);
+      }
       // Don't throw - weekly backup failure shouldn't crash the app
       return null;
     }

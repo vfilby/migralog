@@ -336,6 +336,116 @@ describe('backupService', () => {
     });
   });
 
+  describe('checkForBrokenBackups', () => {
+    it('should count JSON files with invalid metadata', async () => {
+      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true });
+      (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue([
+        'broken.json',
+        'valid.json',
+      ]);
+      (FileSystem.readAsStringAsync as jest.Mock)
+        .mockResolvedValueOnce('{}') // broken.json - no metadata
+        .mockResolvedValueOnce(JSON.stringify({
+          metadata: { id: 'valid', timestamp: 1000, version: '1.0.0', schemaVersion: 1, episodeCount: 0, medicationCount: 0 },
+          episodes: [],
+          medications: [],
+          medicationDoses: [],
+          medicationSchedules: [],
+        })); // valid.json
+
+      const brokenCount = await backupService.checkForBrokenBackups();
+
+      expect(brokenCount).toBe(1);
+    });
+
+    it('should count corrupted JSON files that fail to parse', async () => {
+      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true });
+      (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue([
+        'corrupted.json',
+      ]);
+      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValueOnce('invalid json{{{');
+
+      const brokenCount = await backupService.checkForBrokenBackups();
+
+      expect(brokenCount).toBe(1);
+    });
+
+    it('should count orphaned metadata files', async () => {
+      (FileSystem.getInfoAsync as jest.Mock)
+        .mockResolvedValueOnce({ exists: true }) // initialize() - backup dir exists
+        .mockResolvedValueOnce({ exists: true }) // backup dir check in checkForBrokenBackups
+        .mockResolvedValueOnce({ exists: false }); // orphaned.db doesn't exist
+      (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue([
+        'orphaned.meta.json',
+      ]);
+
+      const brokenCount = await backupService.checkForBrokenBackups();
+
+      expect(brokenCount).toBe(1);
+    });
+  });
+
+  describe('cleanupBrokenBackups', () => {
+    it('should remove JSON files with invalid metadata', async () => {
+      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true });
+      (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue([
+        'broken.json',
+        'valid.json',
+      ]);
+      (FileSystem.readAsStringAsync as jest.Mock)
+        .mockResolvedValueOnce('{}') // broken.json - no metadata
+        .mockResolvedValueOnce(JSON.stringify({
+          metadata: { id: 'valid', timestamp: 1000, version: '1.0.0', schemaVersion: 1, episodeCount: 0, medicationCount: 0 },
+          episodes: [],
+          medications: [],
+          medicationDoses: [],
+          medicationSchedules: [],
+        })); // valid.json
+      (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
+
+      const cleanedCount = await (backupService as any).cleanupBrokenBackups();
+
+      expect(cleanedCount).toBe(1);
+      expect(FileSystem.deleteAsync).toHaveBeenCalledWith(
+        `${BACKUP_DIR}broken.json`
+      );
+    });
+
+    it('should remove corrupted JSON files that fail to parse', async () => {
+      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true });
+      (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue([
+        'corrupted.json',
+      ]);
+      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValueOnce('invalid json{{{');
+      (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
+
+      const cleanedCount = await (backupService as any).cleanupBrokenBackups();
+
+      expect(cleanedCount).toBe(1);
+      expect(FileSystem.deleteAsync).toHaveBeenCalledWith(
+        `${BACKUP_DIR}corrupted.json`
+      );
+    });
+
+    it('should remove orphaned metadata files', async () => {
+      (FileSystem.getInfoAsync as jest.Mock)
+        .mockResolvedValueOnce({ exists: true }) // initialize() - backup dir exists
+        .mockResolvedValueOnce({ exists: true }) // backup dir check in cleanupBrokenBackups
+        .mockResolvedValueOnce({ exists: false }); // orphaned.db doesn't exist
+      (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue([
+        'orphaned.meta.json',
+      ]);
+      (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
+
+      const cleanedCount = await (backupService as any).cleanupBrokenBackups();
+
+      expect(cleanedCount).toBe(1);
+      expect(FileSystem.deleteAsync).toHaveBeenCalledWith(
+        `${BACKUP_DIR}orphaned.meta.json`
+      );
+    });
+  });
+
   describe('getBackupMetadata', () => {
     it('should return backup metadata for JSON backup if backup exists', async () => {
       const mockBackup = {
@@ -622,6 +732,269 @@ describe('backupService', () => {
     });
   });
 
+  describe('validateBackupMetadata', () => {
+    it('should reject metadata with missing id', () => {
+      const invalidMetadata = {
+        timestamp: Date.now(),
+        version: '1.0.0',
+        schemaVersion: 1,
+        episodeCount: 0,
+        medicationCount: 0,
+      };
+
+      const result = (backupService as any).validateBackupMetadata(invalidMetadata);
+      expect(result).toBe(false);
+    });
+
+    it('should reject metadata with undefined id', () => {
+      const invalidMetadata = {
+        id: undefined,
+        timestamp: Date.now(),
+        version: '1.0.0',
+        schemaVersion: 1,
+        episodeCount: 0,
+        medicationCount: 0,
+      };
+
+      const result = (backupService as any).validateBackupMetadata(invalidMetadata);
+      expect(result).toBe(false);
+    });
+
+    it('should reject metadata with null id', () => {
+      const invalidMetadata = {
+        id: null,
+        timestamp: Date.now(),
+        version: '1.0.0',
+        schemaVersion: 1,
+        episodeCount: 0,
+        medicationCount: 0,
+      };
+
+      const result = (backupService as any).validateBackupMetadata(invalidMetadata);
+      expect(result).toBe(false);
+    });
+
+    it('should reject metadata with empty string id', () => {
+      const invalidMetadata = {
+        id: '',
+        timestamp: Date.now(),
+        version: '1.0.0',
+        schemaVersion: 1,
+        episodeCount: 0,
+        medicationCount: 0,
+      };
+
+      const result = (backupService as any).validateBackupMetadata(invalidMetadata);
+      expect(result).toBe(false);
+    });
+
+    it('should reject metadata with whitespace-only id', () => {
+      const invalidMetadata = {
+        id: '   ',
+        timestamp: Date.now(),
+        version: '1.0.0',
+        schemaVersion: 1,
+        episodeCount: 0,
+        medicationCount: 0,
+      };
+
+      const result = (backupService as any).validateBackupMetadata(invalidMetadata);
+      expect(result).toBe(false);
+    });
+
+    it('should reject metadata with numeric id', () => {
+      const invalidMetadata = {
+        id: 12345,
+        timestamp: Date.now(),
+        version: '1.0.0',
+        schemaVersion: 1,
+        episodeCount: 0,
+        medicationCount: 0,
+      };
+
+      const result = (backupService as any).validateBackupMetadata(invalidMetadata);
+      expect(result).toBe(false);
+    });
+
+    it('should reject metadata with invalid timestamp (zero)', () => {
+      const invalidMetadata = {
+        id: 'test',
+        timestamp: 0,
+        version: '1.0.0',
+        schemaVersion: 1,
+        episodeCount: 0,
+        medicationCount: 0,
+      };
+
+      const result = (backupService as any).validateBackupMetadata(invalidMetadata);
+      expect(result).toBe(false);
+    });
+
+    it('should reject metadata with negative timestamp', () => {
+      const invalidMetadata = {
+        id: 'test',
+        timestamp: -100,
+        version: '1.0.0',
+        schemaVersion: 1,
+        episodeCount: 0,
+        medicationCount: 0,
+      };
+
+      const result = (backupService as any).validateBackupMetadata(invalidMetadata);
+      expect(result).toBe(false);
+    });
+
+    it('should reject metadata with missing version', () => {
+      const invalidMetadata = {
+        id: 'test',
+        timestamp: Date.now(),
+        schemaVersion: 1,
+        episodeCount: 0,
+        medicationCount: 0,
+      };
+
+      const result = (backupService as any).validateBackupMetadata(invalidMetadata);
+      expect(result).toBe(false);
+    });
+
+    it('should reject metadata with negative schemaVersion', () => {
+      const invalidMetadata = {
+        id: 'test',
+        timestamp: Date.now(),
+        version: '1.0.0',
+        schemaVersion: -1,
+        episodeCount: 0,
+        medicationCount: 0,
+      };
+
+      const result = (backupService as any).validateBackupMetadata(invalidMetadata);
+      expect(result).toBe(false);
+    });
+
+    it('should reject metadata with negative episodeCount', () => {
+      const invalidMetadata = {
+        id: 'test',
+        timestamp: Date.now(),
+        version: '1.0.0',
+        schemaVersion: 1,
+        episodeCount: -5,
+        medicationCount: 0,
+      };
+
+      const result = (backupService as any).validateBackupMetadata(invalidMetadata);
+      expect(result).toBe(false);
+    });
+
+    it('should reject metadata with negative medicationCount', () => {
+      const invalidMetadata = {
+        id: 'test',
+        timestamp: Date.now(),
+        version: '1.0.0',
+        schemaVersion: 1,
+        episodeCount: 0,
+        medicationCount: -3,
+      };
+
+      const result = (backupService as any).validateBackupMetadata(invalidMetadata);
+      expect(result).toBe(false);
+    });
+
+    it('should accept valid metadata', () => {
+      const validMetadata = {
+        id: 'test-backup',
+        timestamp: Date.now(),
+        version: '1.0.0',
+        schemaVersion: 1,
+        episodeCount: 5,
+        medicationCount: 3,
+      };
+
+      const result = (backupService as any).validateBackupMetadata(validMetadata);
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('validateBackupData', () => {
+    it('should reject backup with missing episodes array', () => {
+      const invalidBackup = {
+        metadata: {
+          id: 'test',
+          timestamp: Date.now(),
+          version: '1.0.0',
+          schemaVersion: 1,
+          episodeCount: 0,
+          medicationCount: 0,
+        },
+        medications: [],
+        medicationDoses: [],
+        medicationSchedules: [],
+      };
+
+      const result = (backupService as any).validateBackupData(invalidBackup);
+      expect(result).toBe(false);
+    });
+
+    it('should reject backup with non-array episodes field', () => {
+      const invalidBackup = {
+        metadata: {
+          id: 'test',
+          timestamp: Date.now(),
+          version: '1.0.0',
+          schemaVersion: 1,
+          episodeCount: 0,
+          medicationCount: 0,
+        },
+        episodes: 'not an array',
+        medications: [],
+        medicationDoses: [],
+        medicationSchedules: [],
+      };
+
+      const result = (backupService as any).validateBackupData(invalidBackup);
+      expect(result).toBe(false);
+    });
+
+    it('should reject backup with invalid metadata', () => {
+      const invalidBackup = {
+        metadata: {
+          id: '',  // Invalid: empty string
+          timestamp: Date.now(),
+          version: '1.0.0',
+          schemaVersion: 1,
+          episodeCount: 0,
+          medicationCount: 0,
+        },
+        episodes: [],
+        medications: [],
+        medicationDoses: [],
+        medicationSchedules: [],
+      };
+
+      const result = (backupService as any).validateBackupData(invalidBackup);
+      expect(result).toBe(false);
+    });
+
+    it('should accept valid backup data', () => {
+      const validBackup = {
+        metadata: {
+          id: 'test',
+          timestamp: Date.now(),
+          version: '1.0.0',
+          schemaVersion: 1,
+          episodeCount: 0,
+          medicationCount: 0,
+        },
+        episodes: [],
+        medications: [],
+        medicationDoses: [],
+        medicationSchedules: [],
+      };
+
+      const result = (backupService as any).validateBackupData(validBackup);
+      expect(result).toBe(true);
+    });
+  });
+
   describe('importBackup', () => {
     const mockBackupData: BackupData = {
       metadata: {
@@ -693,7 +1066,7 @@ describe('backupService', () => {
 
       (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValue({
         canceled: false,
-        assets: [{ uri: 'file:///path/to/backup.json' }],
+        assets: [{ uri: 'file:///path/to/backup.json', name: 'backup.json' }],
       });
       (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
         JSON.stringify(invalidBackup)
@@ -701,6 +1074,164 @@ describe('backupService', () => {
 
       await expect(backupService.importBackup()).rejects.toThrow(
         'Invalid backup file format'
+      );
+    });
+
+    it('should reject backup with missing metadata.id', async () => {
+      const invalidBackup = {
+        metadata: {
+          timestamp: Date.now(),
+          version: '1.0.0',
+          schemaVersion: 1,
+          episodeCount: 0,
+          medicationCount: 0,
+        },
+        episodes: [],
+        medications: [],
+        medicationDoses: [],
+        medicationSchedules: [],
+      };
+
+      (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValue({
+        canceled: false,
+        assets: [{ uri: 'file:///path/to/backup.json', name: 'backup.json' }],
+      });
+      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
+        JSON.stringify(invalidBackup)
+      );
+
+      await expect(backupService.importBackup()).rejects.toThrow(
+        'Invalid backup file format'
+      );
+    });
+
+    it('should reject backup with undefined metadata.id', async () => {
+      const invalidBackup = {
+        metadata: {
+          id: undefined,
+          timestamp: Date.now(),
+          version: '1.0.0',
+          schemaVersion: 1,
+          episodeCount: 0,
+          medicationCount: 0,
+        },
+        episodes: [],
+        medications: [],
+        medicationDoses: [],
+        medicationSchedules: [],
+      };
+
+      (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValue({
+        canceled: false,
+        assets: [{ uri: 'file:///path/to/backup.json', name: 'backup.json' }],
+      });
+      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
+        JSON.stringify(invalidBackup)
+      );
+
+      await expect(backupService.importBackup()).rejects.toThrow(
+        'Invalid backup file format'
+      );
+    });
+
+    it('should reject backup with null metadata.id', async () => {
+      const invalidBackup = {
+        metadata: {
+          id: null,
+          timestamp: Date.now(),
+          version: '1.0.0',
+          schemaVersion: 1,
+          episodeCount: 0,
+          medicationCount: 0,
+        },
+        episodes: [],
+        medications: [],
+        medicationDoses: [],
+        medicationSchedules: [],
+      };
+
+      (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValue({
+        canceled: false,
+        assets: [{ uri: 'file:///path/to/backup.json', name: 'backup.json' }],
+      });
+      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
+        JSON.stringify(invalidBackup)
+      );
+
+      await expect(backupService.importBackup()).rejects.toThrow(
+        'Invalid backup file format'
+      );
+    });
+
+    it('should reject backup with empty string metadata.id', async () => {
+      const invalidBackup = {
+        metadata: {
+          id: '',
+          timestamp: Date.now(),
+          version: '1.0.0',
+          schemaVersion: 1,
+          episodeCount: 0,
+          medicationCount: 0,
+        },
+        episodes: [],
+        medications: [],
+        medicationDoses: [],
+        medicationSchedules: [],
+      };
+
+      (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValue({
+        canceled: false,
+        assets: [{ uri: 'file:///path/to/backup.json', name: 'backup.json' }],
+      });
+      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
+        JSON.stringify(invalidBackup)
+      );
+
+      await expect(backupService.importBackup()).rejects.toThrow(
+        'Invalid backup file format'
+      );
+    });
+
+    it('should reject backup with numeric metadata.id', async () => {
+      const invalidBackup = {
+        metadata: {
+          id: 12345,
+          timestamp: Date.now(),
+          version: '1.0.0',
+          schemaVersion: 1,
+          episodeCount: 0,
+          medicationCount: 0,
+        },
+        episodes: [],
+        medications: [],
+        medicationDoses: [],
+        medicationSchedules: [],
+      };
+
+      (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValue({
+        canceled: false,
+        assets: [{ uri: 'file:///path/to/backup.json', name: 'backup.json' }],
+      });
+      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
+        JSON.stringify(invalidBackup)
+      );
+
+      await expect(backupService.importBackup()).rejects.toThrow(
+        'Invalid backup file format'
+      );
+    });
+
+    it('should reject corrupted JSON file', async () => {
+      (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValue({
+        canceled: false,
+        assets: [{ uri: 'file:///path/to/backup.json', name: 'backup.json' }],
+      });
+      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
+        'invalid json {{{['
+      );
+
+      await expect(backupService.importBackup()).rejects.toThrow(
+        'Invalid backup file: corrupted or not valid JSON'
       );
     });
   });
@@ -715,10 +1246,12 @@ describe('backupService', () => {
       expect(FileSystem.deleteAsync).toHaveBeenCalled();
     });
 
-    it('should not throw if file does not exist', async () => {
+    it('should throw if backup files do not exist', async () => {
       (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: false });
 
-      await expect(backupService.deleteBackup('nonexistent')).resolves.not.toThrow();
+      await expect(backupService.deleteBackup('nonexistent')).rejects.toThrow(
+        'Failed to delete backup: Backup files not found'
+      );
     });
 
     it('should handle delete errors', async () => {
