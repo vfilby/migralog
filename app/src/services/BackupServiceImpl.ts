@@ -11,13 +11,9 @@ import { dailyStatusRepository } from '../database/dailyStatusRepository';
 import { migrationRunner } from '../database/migrations';
 import { buildInfo } from '../buildInfo';
 import {
-  Episode,
-  Medication,
-  MedicationDose,
   MedicationSchedule,
   EpisodeNote,
   IntensityReading,
-  DailyStatusLog,
   BackupMetadata,
   BackupData,
 } from '../models/types';
@@ -32,8 +28,6 @@ import {
   getMetadataPath,
   getBackupMetadata,
   initializeBackupDirectory,
-  validateBackupData,
-  validateBackupMetadata,
   formatFileSize,
   formatDate,
 } from './backupUtils';
@@ -295,29 +289,11 @@ class BackupServiceImpl {
               });
             }
           }
-          // Handle JSON backups (legacy or user exports)
+          // Skip JSON backups - JSON restore support removed in Issue #185
+          // JSON files are no longer listed as restorable backups
           else if (file.endsWith('.json') && !file.endsWith('.meta.json')) {
-            const filePath = BACKUP_DIR + file;
-            const content = await FileSystem.readAsStringAsync(filePath);
-            const backupData: BackupData = JSON.parse(content);
-
-            // Validate backup metadata - CRITICAL for data integrity
-            if (!backupData || !validateBackupMetadata(backupData.metadata)) {
-              logger.warn(`[Backup] Skipping invalid backup file: ${file} (invalid or missing metadata)`);
-              continue;
-            }
-
-            const fileInfo = await FileSystem.getInfoAsync(filePath);
-            const fileSize = fileInfo.exists && 'size' in fileInfo ? fileInfo.size : 0;
-
-            const metadata: BackupMetadata = {
-              ...backupData.metadata,
-              fileName: file,
-              fileSize,
-              backupType: 'json',
-            };
-
-            backups.push(metadata);
+            logger.log(`[Backup] Skipping legacy JSON backup file: ${file} (JSON restore no longer supported)`);
+            // Continue without adding to backups list
           }
         } catch (error) {
           logger.error(`Failed to read backup ${file}:`, error);
@@ -355,7 +331,11 @@ class BackupServiceImpl {
       if (metadata.backupType === 'snapshot') {
         await this.restoreSnapshotBackup(backupId, metadata);
       } else {
-        await this.restoreJsonBackup(backupId);
+        // JSON restore support removed in Issue #185
+        throw new Error(
+          'JSON backup restore is no longer supported. Please use a snapshot (.db) backup instead. ' +
+          'You can export your data using the Export Data feature and create a new snapshot backup.'
+        );
       }
 
       logger.log('[Restore] Backup restored successfully');
@@ -478,212 +458,6 @@ class BackupServiceImpl {
       logger.log('[Restore] Snapshot restore complete');
     } catch (error) {
       logger.error('[Restore] FAILED to restore snapshot:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Restore from a JSON backup (legacy format)
-   * This recreates the database from exported JSON data
-   *
-   * TODO: Remove this code path after 1 month migration period (added 2025-10-18)
-   * This is only needed for backward compatibility with JSON backups created before
-   * the snapshot-based backup system. After users have migrated to snapshot backups,
-   * this can be safely removed to simplify the codebase.
-   */
-  private async restoreJsonBackup(backupId: string): Promise<void> {
-    try {
-      logger.log('[Restore] Restoring from JSON backup');
-      const backupPath = getBackupPath(backupId, 'json');
-      const content = await FileSystem.readAsStringAsync(backupPath);
-      const backupData: BackupData = JSON.parse(content);
-
-      // Validate backup structure
-      if (!backupData.metadata || !backupData.episodes || !backupData.medications) {
-        throw new Error('Invalid backup file format - missing required fields');
-      }
-
-      // Handle old backups without schemaSQL (backward compatibility)
-      const isOldBackup = !backupData.schemaSQL;
-      if (isOldBackup) {
-        logger.warn('[Restore] Old backup format detected (no schemaSQL) - using legacy restore method');
-      }
-
-      // Check schema version compatibility
-      const currentSchemaVersion = await migrationRunner.getCurrentVersion();
-      const backupSchemaVersion = backupData.metadata.schemaVersion;
-
-      logger.log('[Restore] Current schema version:', currentSchemaVersion);
-      logger.log('[Restore] Backup schema version:', backupSchemaVersion);
-
-      if (backupSchemaVersion > currentSchemaVersion) {
-        throw new Error(
-          `Cannot restore backup from newer schema version ${backupSchemaVersion} to older version ${currentSchemaVersion}. ` +
-          `Please update the app to the latest version before restoring this backup.`
-        );
-      }
-
-      if (isOldBackup) {
-        // Legacy restore method for old backups without schemaSQL
-        // Clear existing data and insert into current schema, preserving IDs
-        logger.log('[Restore] Using legacy restore (delete data, insert into current schema with ID preservation)');
-        await episodeRepository.deleteAll();
-        await episodeNoteRepository.deleteAll();
-        await medicationRepository.deleteAll();
-        await medicationDoseRepository.deleteAll();
-        await medicationScheduleRepository.deleteAll();
-
-        // Get database instance for raw SQL inserts
-        const db = await import('../database/db').then(m => m.getDatabase());
-
-        logger.log('[Restore] Inserting episodes...');
-        for (const episode of backupData.episodes) {
-          await this.insertEpisodeWithId(episode, db);
-        }
-
-        if (backupData.episodeNotes) {
-          logger.log('[Restore] Inserting episode notes...');
-          for (const note of backupData.episodeNotes) {
-            await this.insertEpisodeNoteWithId(note, db);
-          }
-        }
-
-        if (backupData.intensityReadings) {
-          logger.log('[Restore] Inserting intensity readings...');
-          for (const reading of backupData.intensityReadings) {
-            await this.insertIntensityReadingWithId(reading, db);
-          }
-        }
-
-        if (backupData.dailyStatusLogs) {
-          logger.log('[Restore] Inserting daily status logs...');
-          for (const status of backupData.dailyStatusLogs) {
-            await this.insertDailyStatusWithId(status, db);
-          }
-        }
-
-        logger.log('[Restore] Inserting medications...');
-        for (const medication of backupData.medications) {
-          await this.insertMedicationWithId(medication, db);
-        }
-
-        logger.log('[Restore] Inserting medication doses...');
-        for (const dose of backupData.medicationDoses) {
-          await this.insertMedicationDoseWithId(dose, db);
-        }
-
-        logger.log('[Restore] Inserting medication schedules...');
-        for (const schedule of backupData.medicationSchedules) {
-          await this.insertMedicationScheduleWithId(schedule, db);
-        }
-
-        logger.log('[Restore] Legacy restore complete');
-      } else {
-        // New restore method: restore to backup's schema version, then run migrations
-        logger.log('[Restore] Using new restore (recreate schema from backup, then migrate)');
-
-        // Get database instance
-        const db = await import('../database/db').then(m => m.getDatabase());
-
-        // Drop all tables except schema_version (which is managed by migration runner)
-        logger.log('[Restore] Dropping existing tables...');
-        const tables = await db.getAllAsync<{ name: string }>(
-          `SELECT name FROM sqlite_master
-           WHERE type = 'table'
-           AND name NOT LIKE 'sqlite_%'
-           AND name != 'schema_version'`
-        );
-
-        for (const { name } of tables) {
-          logger.log('[Restore] Dropping table:', name);
-          await db.execAsync(`DROP TABLE IF EXISTS ${name}`);
-        }
-
-        // Drop all indexes
-        logger.log('[Restore] Dropping existing indexes...');
-        const indexes = await db.getAllAsync<{ name: string }>(
-          `SELECT name FROM sqlite_master
-           WHERE type = 'index'
-           AND name NOT LIKE 'sqlite_%'`
-        );
-
-        for (const { name } of indexes) {
-          logger.log('[Restore] Dropping index:', name);
-          await db.execAsync(`DROP INDEX IF EXISTS ${name}`);
-        }
-
-        // Execute schema SQL from backup to recreate tables at backup's schema version
-        logger.log('[Restore] Recreating tables from backup schema...');
-        if (!backupData.schemaSQL) {
-          throw new Error('Backup schema SQL is missing - cannot restore');
-        }
-        await db.execAsync(backupData.schemaSQL);
-        logger.log('[Restore] Tables recreated successfully');
-
-        // Set schema_version to backup's version
-        logger.log('[Restore] Setting schema version to:', backupSchemaVersion);
-        await db.runAsync(
-          'UPDATE schema_version SET version = ?, updated_at = ? WHERE id = 1',
-          [backupSchemaVersion, Date.now()]
-        );
-
-        // Insert backup data using raw SQL to preserve IDs
-        logger.log('[Restore] Inserting episodes...');
-        for (const episode of backupData.episodes) {
-          await this.insertEpisodeWithId(episode, db);
-        }
-
-        if (backupData.episodeNotes) {
-          logger.log('[Restore] Inserting episode notes...');
-          for (const note of backupData.episodeNotes) {
-            await this.insertEpisodeNoteWithId(note, db);
-          }
-        }
-
-        if (backupData.intensityReadings) {
-          logger.log('[Restore] Inserting intensity readings...');
-          for (const reading of backupData.intensityReadings) {
-            await this.insertIntensityReadingWithId(reading, db);
-          }
-        }
-
-        if (backupData.dailyStatusLogs) {
-          logger.log('[Restore] Inserting daily status logs...');
-          for (const status of backupData.dailyStatusLogs) {
-            await this.insertDailyStatusWithId(status, db);
-          }
-        }
-
-        logger.log('[Restore] Inserting medications...');
-        for (const medication of backupData.medications) {
-          await this.insertMedicationWithId(medication, db);
-        }
-
-        logger.log('[Restore] Inserting medication doses...');
-        for (const dose of backupData.medicationDoses) {
-          await this.insertMedicationDoseWithId(dose, db);
-        }
-
-        logger.log('[Restore] Inserting medication schedules...');
-        for (const schedule of backupData.medicationSchedules) {
-          await this.insertMedicationScheduleWithId(schedule, db);
-        }
-
-        logger.log('[Restore] Data insertion complete');
-
-        // Run migrations from backup version to current version
-        if (backupSchemaVersion < currentSchemaVersion) {
-          logger.log('[Restore] Running migrations from version', backupSchemaVersion, 'to', currentSchemaVersion);
-          await migrationRunner.runMigrations();
-          logger.log('[Restore] Migrations completed successfully');
-        } else {
-          logger.log('[Restore] No migrations needed - backup is at current version');
-        }
-      }
-
-      logger.log('[Restore] JSON backup restored successfully');
-    } catch (error) {
-      logger.error('[Restore] FAILED to restore JSON backup:', error);
       throw error;
     }
   }
@@ -993,48 +767,13 @@ class BackupServiceImpl {
         return metadata;
       }
 
-      // Handle JSON export files
-      const content = await FileSystem.readAsStringAsync(fileUri);
-      let backupData: unknown;
-
-      try {
-        backupData = JSON.parse(content);
-      } catch (parseError) {
-        logger.error('[Import] Failed to parse backup JSON:', parseError);
-        throw new Error('Invalid backup file: corrupted or not valid JSON');
-      }
-
-      // Validate backup structure - CRITICAL for data integrity
-      if (!validateBackupData(backupData)) {
-        throw new Error('Invalid backup file format: missing or invalid required fields. Please ensure the backup file is complete and not corrupted.');
-      }
-
-      // If imported backup doesn't have schemaSQL (old format), add current schema
-      if (!backupData.schemaSQL) {
-        logger.log('[Import] Old backup format detected, adding current schema SQL');
-        backupData.schemaSQL = await this.exportSchemaSQL();
-        backupData.metadata.schemaVersion = await migrationRunner.getCurrentVersion();
-      }
-
-      // Create a new backup with imported data
-      const backupId = generateBackupId();
-      const backupPath = getBackupPath(backupId, 'json');
-
-      // Update metadata with new ID and timestamp
-      backupData.metadata.id = backupId;
-      backupData.metadata.timestamp = Date.now();
-
-      await FileSystem.writeAsStringAsync(backupPath, JSON.stringify(backupData, null, 2));
-
-      const fileInfo = await FileSystem.getInfoAsync(backupPath);
-      const fileSize = fileInfo.exists && 'size' in fileInfo ? fileInfo.size : 0;
-
-      return {
-        ...backupData.metadata,
-        fileName: `${backupId}.json`,
-        fileSize,
-        backupType: 'json',
-      };
+      // JSON backup import no longer supported - Issue #185
+      // Only snapshot (.db) files can be imported now
+      throw new Error(
+        'JSON backup files are no longer supported for import. ' +
+        'Please use a snapshot (.db) backup file instead. ' +
+        'To create a snapshot backup, use the "Create Backup" button.'
+      );
     } catch (error) {
       logger.error('Failed to import backup:', error);
       throw new Error('Failed to import backup: ' + (error as Error).message);
@@ -1089,130 +828,6 @@ class BackupServiceImpl {
       logger.error('[Delete] Failed to delete backup:', error);
       throw new Error('Failed to delete backup: ' + (error as Error).message);
     }
-  }
-
-  /**
-   * Insert data using raw SQL to preserve original IDs from backup
-   * This is critical for maintaining foreign key relationships during restore
-   */
-  private async insertEpisodeWithId(episode: Episode, db: SQLite.SQLiteDatabase): Promise<void> {
-    await db.runAsync(
-      `INSERT INTO episodes (
-        id, start_time, end_time, locations, qualities, symptoms, triggers, notes,
-        latitude, longitude, location_accuracy, location_timestamp, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        episode.id,
-        episode.startTime,
-        episode.endTime || null,
-        JSON.stringify(episode.locations),
-        JSON.stringify(episode.qualities),
-        JSON.stringify(episode.symptoms),
-        JSON.stringify(episode.triggers),
-        episode.notes || null,
-        episode.location?.latitude || null,
-        episode.location?.longitude || null,
-        episode.location?.accuracy || null,
-        episode.location?.timestamp || null,
-        episode.createdAt,
-        episode.updatedAt,
-      ]
-    );
-  }
-
-  private async insertEpisodeNoteWithId(note: EpisodeNote, db: SQLite.SQLiteDatabase): Promise<void> {
-    await db.runAsync(
-      `INSERT INTO episode_notes (id, episode_id, timestamp, note, created_at) VALUES (?, ?, ?, ?, ?)`,
-      [note.id, note.episodeId, note.timestamp, note.note, note.createdAt]
-    );
-  }
-
-  private async insertIntensityReadingWithId(reading: IntensityReading, db: SQLite.SQLiteDatabase): Promise<void> {
-    await db.runAsync(
-      `INSERT INTO intensity_readings (id, episode_id, timestamp, intensity, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
-      [reading.id, reading.episodeId, reading.timestamp, reading.intensity, reading.createdAt, reading.updatedAt]
-    );
-  }
-
-  private async insertDailyStatusWithId(status: DailyStatusLog, db: SQLite.SQLiteDatabase): Promise<void> {
-    await db.runAsync(
-      `INSERT INTO daily_status_logs (
-        id, date, status, status_type, notes, prompted, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        status.id,
-        status.date,
-        status.status,
-        status.statusType || null,
-        status.notes || null,
-        status.prompted ? 1 : 0,
-        status.createdAt,
-        status.updatedAt,
-      ]
-    );
-  }
-
-  private async insertMedicationWithId(medication: Medication, db: SQLite.SQLiteDatabase): Promise<void> {
-    await db.runAsync(
-      `INSERT INTO medications (
-        id, name, type, dosage_amount, dosage_unit, default_quantity, schedule_frequency,
-        photo_uri, active, notes, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        medication.id,
-        medication.name,
-        medication.type,
-        medication.dosageAmount,
-        medication.dosageUnit,
-        medication.defaultQuantity || null,
-        medication.scheduleFrequency || null,
-        medication.photoUri || null,
-        medication.active ? 1 : 0,
-        medication.notes || null,
-        medication.createdAt,
-        medication.updatedAt,
-      ]
-    );
-  }
-
-  private async insertMedicationDoseWithId(dose: MedicationDose, db: SQLite.SQLiteDatabase): Promise<void> {
-    await db.runAsync(
-      `INSERT INTO medication_doses (
-        id, medication_id, timestamp, quantity, status, episode_id, effectiveness_rating,
-        time_to_relief, side_effects, notes, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        dose.id,
-        dose.medicationId,
-        dose.timestamp,
-        dose.quantity,
-        dose.status || 'taken',
-        dose.episodeId || null,
-        dose.effectivenessRating || null,
-        dose.timeToRelief || null,
-        dose.sideEffects ? JSON.stringify(dose.sideEffects) : null,
-        dose.notes || null,
-        dose.createdAt,
-        dose.updatedAt,
-      ]
-    );
-  }
-
-  private async insertMedicationScheduleWithId(schedule: MedicationSchedule, db: SQLite.SQLiteDatabase): Promise<void> {
-    await db.runAsync(
-      `INSERT INTO medication_schedules (
-        id, medication_id, time, dosage, enabled, notification_id, reminder_enabled
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        schedule.id,
-        schedule.medicationId,
-        schedule.time,
-        schedule.dosage,
-        schedule.enabled ? 1 : 0,
-        schedule.notificationId || null,
-        schedule.reminderEnabled !== undefined ? (schedule.reminderEnabled ? 1 : 0) : 1,
-      ]
-    );
   }
 
   /**
