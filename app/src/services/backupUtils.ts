@@ -2,6 +2,9 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { BackupMetadata, BackupData } from '../models/types';
 import { logger } from '../utils/logger';
 
+// Re-export formatting utilities from their dedicated module
+export { formatFileSize, formatDate } from '../utils/formatting';
+
 // Constants
 export const BACKUP_DIR = `${FileSystem.documentDirectory}backups/`;
 export const DB_PATH = `${FileSystem.documentDirectory}SQLite/migralog.db`;
@@ -106,7 +109,7 @@ export function validateBackupData(backupData: unknown): backupData is BackupDat
  * Generate a unique backup ID
  */
 export function generateBackupId(): string {
-  return `backup_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return `backup_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
 }
 
 /**
@@ -124,24 +127,6 @@ export function getMetadataPath(backupId: string): string {
   return `${BACKUP_DIR}${backupId}.meta.json`;
 }
 
-/**
- * Format file size in human-readable format
- */
-export function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
-}
-
-/**
- * Format timestamp as locale date string
- */
-export function formatDate(timestamp: number): string {
-  const date = new Date(timestamp);
-  return date.toLocaleString();
-}
 
 /**
  * Initialize backup directory

@@ -861,7 +861,7 @@ class BackupServiceImpl {
       // Note: schemaSQL omitted because this is for data sharing, not backup/restore
       const exportData: BackupData = {
         metadata: {
-          id: `export_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          id: `export_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
           timestamp: Date.now(),
           version: buildInfo.version,
           schemaVersion,
