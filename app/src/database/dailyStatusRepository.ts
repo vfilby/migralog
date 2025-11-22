@@ -164,12 +164,6 @@ export const dailyStatusRepository = {
       }
     });
 
-    // Build a map of manual status by date
-    const manualStatusMap = new Map<string, string>();
-    manualStatuses.forEach(row => {
-      manualStatusMap.set(row.date, row.status);
-    });
-
     // Calculate stats: episodes take precedence over manual status
     const stats = { green: 0, yellow: 0, red: 0 };
 

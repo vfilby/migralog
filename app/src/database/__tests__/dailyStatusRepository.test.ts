@@ -544,7 +544,7 @@ describe('dailyStatusRepository', () => {
       const mockStatusRows = [
         { id: '1', date: '2025-10-15', status: 'green', status_type: null, notes: null, prompted: 1, created_at: Date.now(), updated_at: Date.now() },
       ];
-      // Ongoing episode (no end_time)
+      // Ongoing episode (no end_time) - will use current date as end
       const mockEpisodes = [
         {
           id: 'ep-1',
@@ -568,9 +568,116 @@ describe('dailyStatusRepository', () => {
 
       const result = await dailyStatusRepository.getMonthStats(2025, 10);
 
-      // Day with ongoing episode should be red
+      // Day with ongoing episode should be red (at minimum Oct 15, but could extend
+      // to Oct 31 depending on when test runs since end_time=null uses new Date())
       expect(result.red).toBeGreaterThanOrEqual(1);
       expect(result.green).toBe(0);
+    });
+
+    it('should handle episode starting in previous month and extending into current month', async () => {
+      // No manual statuses in October
+      mockDatabase.getAllAsync.mockResolvedValueOnce([]);
+      // Episode starts in September and ends in October
+      const mockEpisodes = [
+        {
+          id: 'ep-1',
+          start_time: new Date('2025-09-29T20:00:00').getTime(),
+          end_time: new Date('2025-10-02T08:00:00').getTime(),
+          locations: '[]',
+          qualities: '[]',
+          symptoms: '[]',
+          triggers: '[]',
+          notes: null,
+          latitude: null,
+          longitude: null,
+          location_accuracy: null,
+          location_timestamp: null,
+          created_at: Date.now(),
+          updated_at: Date.now(),
+        },
+      ];
+      mockDatabase.getAllAsync.mockResolvedValueOnce(mockEpisodes);
+
+      const result = await dailyStatusRepository.getMonthStats(2025, 10);
+
+      // Only Oct 1 and Oct 2 should count as red (Sep 29-30 are outside Oct)
+      expect(result).toEqual({ green: 0, yellow: 0, red: 2 });
+    });
+
+    it('should handle episode starting in current month and extending into next month', async () => {
+      // No manual statuses in October
+      mockDatabase.getAllAsync.mockResolvedValueOnce([]);
+      // Episode starts Oct 30 and ends Nov 2
+      const mockEpisodes = [
+        {
+          id: 'ep-1',
+          start_time: new Date('2025-10-30T22:00:00').getTime(),
+          end_time: new Date('2025-11-02T10:00:00').getTime(),
+          locations: '[]',
+          qualities: '[]',
+          symptoms: '[]',
+          triggers: '[]',
+          notes: null,
+          latitude: null,
+          longitude: null,
+          location_accuracy: null,
+          location_timestamp: null,
+          created_at: Date.now(),
+          updated_at: Date.now(),
+        },
+      ];
+      mockDatabase.getAllAsync.mockResolvedValueOnce(mockEpisodes);
+
+      const result = await dailyStatusRepository.getMonthStats(2025, 10);
+
+      // Only Oct 30 and Oct 31 should count as red (Nov 1-2 are outside Oct)
+      expect(result).toEqual({ green: 0, yellow: 0, red: 2 });
+    });
+
+    it('should count multiple episodes on same day as single red day', async () => {
+      // No manual statuses
+      mockDatabase.getAllAsync.mockResolvedValueOnce([]);
+      // Two separate episodes on the same day
+      const mockEpisodes = [
+        {
+          id: 'ep-1',
+          start_time: new Date('2025-10-15T08:00:00').getTime(),
+          end_time: new Date('2025-10-15T10:00:00').getTime(),
+          locations: '[]',
+          qualities: '[]',
+          symptoms: '[]',
+          triggers: '[]',
+          notes: null,
+          latitude: null,
+          longitude: null,
+          location_accuracy: null,
+          location_timestamp: null,
+          created_at: Date.now(),
+          updated_at: Date.now(),
+        },
+        {
+          id: 'ep-2',
+          start_time: new Date('2025-10-15T14:00:00').getTime(),
+          end_time: new Date('2025-10-15T16:00:00').getTime(),
+          locations: '[]',
+          qualities: '[]',
+          symptoms: '[]',
+          triggers: '[]',
+          notes: null,
+          latitude: null,
+          longitude: null,
+          location_accuracy: null,
+          location_timestamp: null,
+          created_at: Date.now(),
+          updated_at: Date.now(),
+        },
+      ];
+      mockDatabase.getAllAsync.mockResolvedValueOnce(mockEpisodes);
+
+      const result = await dailyStatusRepository.getMonthStats(2025, 10);
+
+      // Should count as only 1 red day, not 2
+      expect(result).toEqual({ green: 0, yellow: 0, red: 1 });
     });
   });
 
