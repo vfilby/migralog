@@ -80,9 +80,6 @@ describe('BackupRecoveryScreen', () => {
         expect(getByText('No backups yet')).toBeTruthy();
       }, { timeout: 3000 });
     });
-
-    // Note: Backup list rendering covered by E2E tests
-    // UI changes in Issue #185 removed badge - visual change only
   });
 
   describe('Accessibility', () => {
