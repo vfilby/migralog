@@ -385,6 +385,22 @@ export const intensityRepository = {
       [id]
     );
   },
+
+  async getAll(db?: SQLite.SQLiteDatabase): Promise<IntensityReading[]> {
+    const database = db || await getDatabase();
+    const results = await database.getAllAsync<IntensityReadingRow>(
+      'SELECT * FROM intensity_readings ORDER BY timestamp ASC'
+    );
+
+    return results.map(row => ({
+      id: row.id,
+      episodeId: row.episode_id,
+      timestamp: row.timestamp,
+      intensity: row.intensity,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  },
 };
 
 export const symptomLogRepository = {

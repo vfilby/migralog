@@ -195,9 +195,11 @@ describe('Trends & Analytics Screen', () => {
       await element(by.text('Trends')).tap();
       await waitForAnimation(1000);
 
-      // Swipe to reveal episode statistics
-      await element(by.id('analytics-scroll-view')).scroll(300, 'down');
-      await waitForAnimation(500);
+      // Scroll to duration metrics card (further scrolling needed due to histogram component)
+      await waitFor(element(by.id('duration-metrics-card')))
+        .toBeVisible()
+        .whileElement(by.id('analytics-scroll-view'))
+        .scroll(100, 'down');
 
       // Verify duration metrics card is visible (not empty state)
       await expect(element(by.id('duration-metrics-card'))).toBeVisible();

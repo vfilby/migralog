@@ -45,6 +45,17 @@ jest.mock('../../components/EpisodeStatistics', () => {
   };
 });
 
+jest.mock('../../components/IntensityHistogram', () => {
+  const { View, Text } = require('react-native');
+  return function MockIntensityHistogram() {
+    return (
+      <View testID="intensity-histogram">
+        <Text>Intensity Histogram</Text>
+      </View>
+    );
+  };
+});
+
 jest.mock('../../components/MedicationUsageStatistics', () => {
   const { View, Text } = require('react-native');
   return function MockMedicationUsageStatistics() {
@@ -100,6 +111,13 @@ describe('AnalyticsScreen', () => {
       const { getByTestId } = render(<AnalyticsScreen />, { wrapper: TestWrapper });
       await waitFor(() => {
         expect(getByTestId('medication-usage-statistics')).toBeTruthy();
+      });
+    });
+
+    it('renders intensity histogram component', async () => {
+      const { getByTestId } = render(<AnalyticsScreen />, { wrapper: TestWrapper });
+      await waitFor(() => {
+        expect(getByTestId('intensity-histogram')).toBeTruthy();
       });
     });
 
