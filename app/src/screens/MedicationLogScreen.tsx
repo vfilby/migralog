@@ -11,8 +11,8 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { medicationDoseRepository, medicationRepository } from '../database/medicationRepository';
 import { MedicationDose, Medication } from '../models/types';
-import { format } from 'date-fns';
 import { formatDoseWithSnapshot, formatDosageWithUnit } from '../utils/medicationFormatting';
+import { formatRelativeDate } from '../utils/dateFormatting';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MedicationLog'>;
 
@@ -52,21 +52,6 @@ export default function MedicationLogScreen({ navigation }: Props) {
     }
   };
 
-  const formatDate = (timestamp: number) => {
-    const now = new Date();
-    const date = new Date(timestamp);
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    if (date >= today) {
-      return `Today, ${format(date, 'h:mm a')}`;
-    } else if (date >= yesterday) {
-      return `Yesterday, ${format(date, 'h:mm a')}`;
-    } else {
-      return format(date, 'MMM d, yyyy h:mm a');
-    }
-  };
 
   return (
     <View style={styles.container} testID="medication-log-screen">
@@ -96,7 +81,7 @@ export default function MedicationLogScreen({ navigation }: Props) {
                   <Text style={styles.medicationName}>
                     {dose.medication?.name || 'Unknown Medication'}
                   </Text>
-                  <Text style={styles.doseTime}>{formatDate(dose.timestamp)}</Text>
+                  <Text style={styles.doseTime}>{formatRelativeDate(dose.timestamp)}</Text>
                 </View>
                 <TouchableOpacity
                   style={styles.editButton}
