@@ -220,32 +220,132 @@ describe('MonthlyCalendarView', () => {
       });
     });
 
-    it('should navigate to next month', async () => {
-      renderWithTheme(<MonthlyCalendarView initialDate={testDate} />);
+    it('should navigate to next month when viewing past month', async () => {
+      // Start viewing December 2023 (a past month)
+      const pastMonthDate = new Date('2023-12-15T10:00:00');
+      renderWithTheme(<MonthlyCalendarView initialDate={pastMonthDate} />);
 
       await waitFor(() => {
-        expect(screen.getByText('January 2024')).toBeTruthy();
+        expect(screen.getByText('December 2023')).toBeTruthy();
         expect(screen.getByTestId('next-month-button')).toBeTruthy();
       });
 
       fireEvent.press(screen.getByTestId('next-month-button'));
 
       await waitFor(() => {
-        expect(screen.getByText('February 2024')).toBeTruthy();
+        expect(screen.getByText('January 2024')).toBeTruthy();
       });
     });
 
     it('should load data when month changes', async () => {
-      renderWithTheme(<MonthlyCalendarView initialDate={testDate} />);
+      // Start viewing December 2023 so we can navigate forward
+      const pastMonthDate = new Date('2023-12-15T10:00:00');
+      renderWithTheme(<MonthlyCalendarView initialDate={pastMonthDate} />);
 
       await waitFor(() => {
-        expect(mockLoadDailyStatuses).toHaveBeenCalledWith('2024-01-01', '2024-01-31');
+        expect(mockLoadDailyStatuses).toHaveBeenCalledWith('2023-12-01', '2023-12-31');
       });
 
       fireEvent.press(screen.getByTestId('next-month-button'));
 
       await waitFor(() => {
-        expect(mockLoadDailyStatuses).toHaveBeenCalledWith('2024-02-01', '2024-02-29');
+        expect(mockLoadDailyStatuses).toHaveBeenCalledWith('2024-01-01', '2024-01-31');
+      });
+    });
+
+    it('should prevent navigation beyond current month', async () => {
+      // System time is set to January 2024, so viewing January shouldn't allow forward navigation
+      renderWithTheme(<MonthlyCalendarView initialDate={testDate} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('January 2024')).toBeTruthy();
+      });
+
+      // The next month button should be disabled
+      const nextButton = screen.getByTestId('next-month-button');
+      expect(nextButton.props.accessibilityState?.disabled).toBe(true);
+    });
+
+    it('should allow navigation to current month but not beyond', async () => {
+      // Start from December 2023, should be able to navigate to Jan 2024 but not Feb
+      const pastMonthDate = new Date('2023-12-15T10:00:00');
+      renderWithTheme(<MonthlyCalendarView initialDate={pastMonthDate} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('December 2023')).toBeTruthy();
+      });
+
+      // Navigate to January 2024 (current month)
+      fireEvent.press(screen.getByTestId('next-month-button'));
+
+      await waitFor(() => {
+        expect(screen.getByText('January 2024')).toBeTruthy();
+      });
+
+      // Now the next button should be disabled
+      const nextButton = screen.getByTestId('next-month-button');
+      expect(nextButton.props.accessibilityState?.disabled).toBe(true);
+    });
+
+    it('should not change month when pressing disabled next button', async () => {
+      // System time is January 2024, so next button should be disabled
+      renderWithTheme(<MonthlyCalendarView initialDate={testDate} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('January 2024')).toBeTruthy();
+      });
+
+      // Try pressing the disabled next button
+      fireEvent.press(screen.getByTestId('next-month-button'));
+
+      // Should still be January 2024 (not February)
+      await waitFor(() => {
+        expect(screen.getByText('January 2024')).toBeTruthy();
+      });
+      expect(screen.queryByText('February 2024')).toBeNull();
+    });
+
+    it('should show correct accessibility hint based on navigation state', async () => {
+      // Start from December 2023 (can navigate forward)
+      const pastMonthDate = new Date('2023-12-15T10:00:00');
+      renderWithTheme(<MonthlyCalendarView initialDate={pastMonthDate} />);
+
+      await waitFor(() => {
+        const nextButton = screen.getByTestId('next-month-button');
+        expect(nextButton.props.accessibilityHint).toBe('Double tap to view the next month');
+      });
+
+      // Navigate to January 2024 (current month, cannot navigate forward)
+      fireEvent.press(screen.getByTestId('next-month-button'));
+
+      await waitFor(() => {
+        const nextButton = screen.getByTestId('next-month-button');
+        expect(nextButton.props.accessibilityHint).toBe('Cannot navigate beyond current month');
+      });
+    });
+
+    it('should apply disabled styling to next button on current month', async () => {
+      renderWithTheme(<MonthlyCalendarView initialDate={testDate} />);
+
+      await waitFor(() => {
+        const nextButton = screen.getByTestId('next-month-button');
+        // The button should have the disabled style applied (opacity: 0.3)
+        const styles = nextButton.props.style;
+        const flatStyles = Array.isArray(styles) ? Object.assign({}, ...styles.filter(Boolean)) : styles;
+        expect(flatStyles.opacity).toBe(0.3);
+      });
+    });
+
+    it('should not apply disabled styling to next button when viewing past month', async () => {
+      const pastMonthDate = new Date('2023-12-15T10:00:00');
+      renderWithTheme(<MonthlyCalendarView initialDate={pastMonthDate} />);
+
+      await waitFor(() => {
+        const nextButton = screen.getByTestId('next-month-button');
+        // The button should NOT have reduced opacity
+        const styles = nextButton.props.style;
+        const flatStyles = Array.isArray(styles) ? Object.assign({}, ...styles.filter(Boolean)) : styles;
+        expect(flatStyles.opacity).not.toBe(0.3);
       });
     });
   });
@@ -469,18 +569,19 @@ describe('MonthlyCalendarView', () => {
     });
 
     it('should navigate across year boundary', async () => {
-      const decDate = new Date('2024-12-15T10:00:00');
-      
+      // Navigate from December 2023 to January 2024 (current month per testDate)
+      const decDate = new Date('2023-12-15T10:00:00');
+
       renderWithTheme(<MonthlyCalendarView initialDate={decDate} />);
 
       await waitFor(() => {
-        expect(screen.getByText('December 2024')).toBeTruthy();
+        expect(screen.getByText('December 2023')).toBeTruthy();
       });
 
       fireEvent.press(screen.getByTestId('next-month-button'));
 
       await waitFor(() => {
-        expect(screen.getByText('January 2025')).toBeTruthy();
+        expect(screen.getByText('January 2024')).toBeTruthy();
       });
     });
   });

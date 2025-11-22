@@ -25,6 +25,7 @@ import {
   isAfter,
   startOfDay,
   isToday,
+  isBefore,
 } from 'date-fns';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -58,6 +59,9 @@ const createStyles = (theme: ThemeColors) =>
     },
     navButton: {
       padding: 8,
+    },
+    navButtonDisabled: {
+      opacity: 0.3,
     },
     weekdayRow: {
       flexDirection: 'row',
@@ -181,8 +185,18 @@ export default function MonthlyCalendarView({
     setCurrentMonth((prev) => subMonths(prev, 1));
   };
 
+  // Check if we can navigate to the next month (can't go beyond current month)
+  const canNavigateForward = (): boolean => {
+    const today = new Date();
+    const currentMonthStart = startOfMonth(currentMonth);
+    const todayMonthStart = startOfMonth(today);
+    return isBefore(currentMonthStart, todayMonthStart);
+  };
+
   const handleNextMonth = () => {
-    setCurrentMonth((prev) => addMonths(prev, 1));
+    if (canNavigateForward()) {
+      setCurrentMonth((prev) => addMonths(prev, 1));
+    }
   };
 
   const handleDayPress = (date: Date, dateStr: string) => {
@@ -321,11 +335,13 @@ export default function MonthlyCalendarView({
 
         <TouchableOpacity
           onPress={handleNextMonth}
-          style={styles.navButton}
+          style={[styles.navButton, !canNavigateForward() && styles.navButtonDisabled]}
           testID="next-month-button"
           accessibilityRole="button"
           accessibilityLabel="Next month"
-          accessibilityHint="Double tap to view the next month"
+          accessibilityHint={canNavigateForward() ? "Double tap to view the next month" : "Cannot navigate beyond current month"}
+          disabled={!canNavigateForward()}
+          accessibilityState={{ disabled: !canNavigateForward() }}
         >
           <Ionicons
             name="chevron-forward"
