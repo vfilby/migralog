@@ -17,7 +17,8 @@ import { RootStackParamList } from '../navigation/types';
 import { useDailyStatusStore } from '../store/dailyStatusStore';
 import { YellowDayType, Episode } from '../models/types';
 import { useTheme, ThemeColors } from '../theme';
-import { format, subDays, isSameDay } from 'date-fns';
+import { format, subDays } from 'date-fns';
+import { formatEpisodeTimeRange, formatEpisodeDuration } from '../utils/dateFormatting';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DailyStatusPrompt'>;
 
@@ -247,6 +248,10 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [loadingData, setLoadingData] = useState(true);
 
+  // Computed values for readability
+  const hasEpisodes = episodes.length > 0;
+  const isRedDay = hasEpisodes;
+
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -354,78 +359,6 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
     }
   };
 
-  const formatEpisodeTime = (startTime: number, endTime?: number | null) => {
-    try {
-      const startDate = new Date(startTime);
-      // Validate the date is valid
-      if (isNaN(startDate.getTime())) {
-        return 'Unknown time';
-      }
-
-      const targetDateObj = new Date(targetDate + 'T00:00:00');
-
-      // Check if start date is on the target date
-      const startIsOnTargetDate = isSameDay(startDate, targetDateObj);
-
-      if (endTime) {
-        const endDate = new Date(endTime);
-        // Validate end date is valid
-        if (isNaN(endDate.getTime())) {
-          // Just show start time if end is invalid
-          return startIsOnTargetDate
-            ? `Started at ${format(startDate, 'h:mm a')}`
-            : `Started ${format(startDate, 'MMM d, h:mm a')}`;
-        }
-
-        const endIsOnTargetDate = isSameDay(endDate, targetDateObj);
-
-        // If both start and end are on the same day, just show times
-        if (startIsOnTargetDate && endIsOnTargetDate) {
-          return `${format(startDate, 'h:mm a')} - ${format(endDate, 'h:mm a')}`;
-        }
-
-        // Multi-day episode - show dates with times
-        const startStr = startIsOnTargetDate
-          ? format(startDate, 'h:mm a')
-          : format(startDate, 'MMM d, h:mm a');
-        const endStr = endIsOnTargetDate
-          ? format(endDate, 'h:mm a')
-          : format(endDate, 'MMM d, h:mm a');
-
-        return `${startStr} - ${endStr}`;
-      }
-
-      // Ongoing episode
-      if (startIsOnTargetDate) {
-        return `Started at ${format(startDate, 'h:mm a')}`;
-      }
-      return `Started ${format(startDate, 'MMM d, h:mm a')}`;
-    } catch {
-      return 'Unknown time';
-    }
-  };
-
-  const formatEpisodeDuration = (startTime: number, endTime?: number) => {
-    try {
-      const end = endTime || Date.now();
-      const durationMs = end - startTime;
-
-      // Handle invalid or negative duration
-      if (isNaN(durationMs) || durationMs < 0) {
-        return 'Unknown duration';
-      }
-
-      const hours = Math.floor(durationMs / (1000 * 60 * 60));
-      const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
-
-      if (hours > 0) {
-        return `${hours}h ${minutes}m`;
-      }
-      return `${minutes}m`;
-    } catch {
-      return 'Unknown duration';
-    }
-  };
 
   if (loadingData) {
     return (
@@ -460,7 +393,7 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
         </Text>
 
         {/* Show episode info if there are episodes on this date */}
-        {episodes.length > 0 && (
+        {isRedDay && (
           <View style={styles.episodeInfo}>
             <Text style={styles.episodeInfoTitle}>
               🔴 Episode Day
@@ -480,7 +413,7 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
                 accessibilityLabel={`View episode details`}
               >
                 <Text style={styles.episodeTime}>
-                  {formatEpisodeTime(episode.startTime, episode.endTime)}
+                  {formatEpisodeTimeRange(episode.startTime, episode.endTime, targetDate)}
                 </Text>
                 <Text style={styles.episodeDetails}>
                   Duration: {formatEpisodeDuration(episode.startTime, episode.endTime)}
@@ -496,7 +429,7 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
         )}
 
         {/* Notes section for red days - outside the red bubble */}
-        {episodes.length > 0 && (
+        {isRedDay && (
           <View style={styles.notesSection}>
             <Text style={styles.sectionTitle}>Notes (optional)</Text>
             <TextInput
@@ -513,7 +446,7 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
         )}
 
         {/* Only show status buttons if there are no episodes */}
-        {episodes.length === 0 && (
+        {!isRedDay && (
           <View style={styles.statusButtonContainer}>
             {/* Green Day Button */}
             <TouchableOpacity
@@ -558,7 +491,7 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
         )}
 
         {/* Expanded Green Day Details - notes only */}
-        {episodes.length === 0 && selectedStatus === 'green' && (
+        {!isRedDay && selectedStatus === 'green' && (
           <View style={styles.expandedSection}>
             <Text style={styles.sectionTitle}>Notes (optional)</Text>
             <TextInput
@@ -575,7 +508,7 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
         )}
 
         {/* Expanded Yellow Day Details - only if no episodes */}
-        {episodes.length === 0 && selectedStatus === 'yellow' && (
+        {!isRedDay && selectedStatus === 'yellow' && (
           <View style={styles.expandedSection}>
             <Text style={styles.sectionTitle}>Why wasn't it clear? (optional)</Text>
             <View style={styles.typeChipContainer}>
@@ -617,7 +550,7 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
       </ScrollView>
 
       {/* Save Button Footer for green/yellow days */}
-      {episodes.length === 0 && (
+      {!isRedDay && (
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={0}
@@ -646,7 +579,7 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
       )}
 
       {/* Save Button Footer for red days - to save notes */}
-      {episodes.length > 0 && (
+      {isRedDay && (
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={0}
