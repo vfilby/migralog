@@ -4,7 +4,7 @@ import { useDailyCheckinSettingsStore } from '../store/dailyCheckinSettingsStore
 import { useDailyStatusStore } from '../store/dailyStatusStore';
 import { useEpisodeStore } from '../store/episodeStore';
 import { format } from 'date-fns';
-import { notificationService } from './notificationService';
+import { areNotificationsGloballyEnabled } from './notificationUtils';
 
 // Notification category for daily check-in
 const DAILY_CHECKIN_CATEGORY = 'DAILY_CHECKIN';
@@ -78,6 +78,7 @@ export async function handleDailyCheckinNotification(
 class DailyCheckinService {
   private initialized = false;
   private scheduledNotificationId: string | null = null;
+  private responseSubscription: Notifications.Subscription | null = null;
 
   /**
    * Initialize the daily check-in service
@@ -124,7 +125,13 @@ class DailyCheckinService {
    * Set up handler for notification responses
    */
   private setupResponseHandler(): void {
-    Notifications.addNotificationResponseReceivedListener(async (response) => {
+    // Remove existing subscription if any (prevents duplicates on re-init)
+    if (this.responseSubscription) {
+      this.responseSubscription.remove();
+      this.responseSubscription = null;
+    }
+
+    this.responseSubscription = Notifications.addNotificationResponseReceivedListener(async (response) => {
       const { actionIdentifier, notification } = response;
       const data = notification.request.content.data as {
         type?: string;
@@ -189,7 +196,7 @@ class DailyCheckinService {
       await this.cancelNotification();
 
       // Check if notifications are globally enabled
-      const globallyEnabled = await notificationService.areNotificationsGloballyEnabled();
+      const globallyEnabled = await areNotificationsGloballyEnabled();
       if (!globallyEnabled) {
         logger.log('[DailyCheckin] Notifications globally disabled, skipping schedule');
         return;

@@ -803,6 +803,81 @@ export default function SettingsScreen({ navigation }: Props) {
                   <NotificationSettings showTitle={false} />
                 </View>
               )}
+
+              {/* Daily Check-in (within Notifications section, only when enabled) */}
+              {notificationsEnabled && (
+                <>
+                  <View style={styles.sectionDivider} />
+                  <Text style={styles.subsectionTitle}>Daily Check-in</Text>
+                  <Text style={styles.sectionDescription}>
+                    Get a reminder to log how your day went
+                  </Text>
+
+                  <View style={[styles.settingsSection, styles.notificationToggleSection]}>
+                    <View style={styles.settingRow}>
+                      <View style={styles.settingInfo}>
+                        <Text style={styles.settingLabel}>Enable Daily Check-in</Text>
+                        <Text style={styles.settingDescription}>
+                          {dailyCheckinSettings.enabled
+                            ? `Reminder at ${formatCheckinTime(dailyCheckinSettings.checkInTime)}`
+                            : 'Daily reminders disabled'}
+                        </Text>
+                      </View>
+                      <Switch
+                        value={dailyCheckinSettings.enabled}
+                        onValueChange={handleToggleDailyCheckin}
+                        trackColor={{ false: theme.borderLight, true: theme.primary }}
+                        thumbColor={theme.card}
+                        accessibilityRole="switch"
+                        accessibilityLabel="Enable daily check-in"
+                        accessibilityHint="Toggles daily check-in reminders on or off"
+                      />
+                    </View>
+                  </View>
+
+                  {dailyCheckinSettings.enabled && (
+                    <View style={styles.settingsSection}>
+                      <TouchableOpacity
+                        style={[styles.diagnosticCard, { marginBottom: 0 }]}
+                        onPress={() => setShowCheckinTimePicker(!showCheckinTimePicker)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Check-in time: ${formatCheckinTime(dailyCheckinSettings.checkInTime)}`}
+                        accessibilityHint="Tap to change the daily check-in reminder time"
+                      >
+                        <View style={styles.diagnosticRow}>
+                          <View style={styles.diagnosticLeft}>
+                            <Ionicons
+                              name="time-outline"
+                              size={20}
+                              color={theme.textSecondary}
+                            />
+                            <Text style={styles.diagnosticLabel}>Check-in Time</Text>
+                          </View>
+                          <View style={styles.diagnosticRight}>
+                            <Text style={[styles.diagnosticValueSecondary, { color: theme.primary, fontWeight: '600' }]}>
+                              {formatCheckinTime(dailyCheckinSettings.checkInTime)}
+                            </Text>
+                            <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+
+                      {showCheckinTimePicker && (
+                        <View style={styles.timePickerContainer}>
+                          <DateTimePicker
+                            value={getCheckinTimeAsDate()}
+                            mode="time"
+                            is24Hour={false}
+                            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                            onChange={handleCheckinTimeChange}
+                            themeVariant={isDark ? 'dark' : 'light'}
+                          />
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </>
+              )}
             </>
           ) : (
             <View style={styles.disabledNotificationsCard}>
@@ -873,80 +948,6 @@ export default function SettingsScreen({ navigation }: Props) {
             </View>
           )}
         </View>
-
-        {/* Daily Check-in Section */}
-        {notificationPermissions?.granted && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Daily Check-in</Text>
-            <Text style={styles.sectionDescription}>
-              Get a reminder to log how your day went. You can quickly mark a day as clear or not clear.
-            </Text>
-
-            <View style={[styles.settingsSection, styles.notificationToggleSection]}>
-              <View style={styles.settingRow}>
-                <View style={styles.settingInfo}>
-                  <Text style={styles.settingLabel}>Enable Daily Check-in</Text>
-                  <Text style={styles.settingDescription}>
-                    {dailyCheckinSettings.enabled
-                      ? `Reminder at ${formatCheckinTime(dailyCheckinSettings.checkInTime)}`
-                      : 'Daily reminders disabled'}
-                  </Text>
-                </View>
-                <Switch
-                  value={dailyCheckinSettings.enabled}
-                  onValueChange={handleToggleDailyCheckin}
-                  trackColor={{ false: theme.borderLight, true: theme.primary }}
-                  thumbColor={theme.card}
-                  accessibilityRole="switch"
-                  accessibilityLabel="Enable daily check-in"
-                  accessibilityHint="Toggles daily check-in reminders on or off"
-                />
-              </View>
-            </View>
-
-            {dailyCheckinSettings.enabled && (
-              <View style={styles.settingsSection}>
-                <TouchableOpacity
-                  style={[styles.diagnosticCard, { marginBottom: 0 }]}
-                  onPress={() => setShowCheckinTimePicker(!showCheckinTimePicker)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Check-in time: ${formatCheckinTime(dailyCheckinSettings.checkInTime)}`}
-                  accessibilityHint="Tap to change the daily check-in reminder time"
-                >
-                  <View style={styles.diagnosticRow}>
-                    <View style={styles.diagnosticLeft}>
-                      <Ionicons
-                        name="time-outline"
-                        size={20}
-                        color={theme.textSecondary}
-                      />
-                      <Text style={styles.diagnosticLabel}>Check-in Time</Text>
-                    </View>
-                    <View style={styles.diagnosticRight}>
-                      <Text style={[styles.diagnosticValueSecondary, { color: theme.primary, fontWeight: '600' }]}>
-                        {formatCheckinTime(dailyCheckinSettings.checkInTime)}
-                      </Text>
-                      <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
-                    </View>
-                  </View>
-                </TouchableOpacity>
-
-                {showCheckinTimePicker && (
-                  <View style={styles.timePickerContainer}>
-                    <DateTimePicker
-                      value={getCheckinTimeAsDate()}
-                      mode="time"
-                      is24Hour={false}
-                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                      onChange={handleCheckinTimeChange}
-                      themeVariant={isDark ? 'dark' : 'light'}
-                    />
-                  </View>
-                )}
-              </View>
-            )}
-          </View>
-        )}
 
         {/* Data Section */}
         <View style={styles.section}>
@@ -1305,6 +1306,17 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     color: theme.textSecondary,
     marginBottom: 16,
     lineHeight: 20,
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: theme.borderLight,
+    marginVertical: 20,
+  },
+  subsectionTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: theme.text,
+    marginBottom: 4,
   },
   aboutCard: {
     backgroundColor: theme.card,

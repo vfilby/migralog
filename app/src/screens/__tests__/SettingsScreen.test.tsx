@@ -6,6 +6,7 @@ import { renderWithProviders } from '../../utils/screenTestHelpers';
 import { errorLogger } from '../../services/errorLogger';
 import { notificationService } from '../../services/notificationService';
 import { locationService } from '../../services/locationService';
+import { dailyCheckinService } from '../../services/dailyCheckinService';
 import * as SQLite from 'expo-sqlite';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -13,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 jest.mock('../../services/errorLogger');
 jest.mock('../../services/notificationService');
 jest.mock('../../services/locationService');
+jest.mock('../../services/dailyCheckinService');
 jest.mock('expo-sqlite');
 jest.mock('expo-notifications');
 jest.mock('@react-native-async-storage/async-storage');
@@ -76,6 +78,9 @@ describe('SettingsScreen', () => {
     (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
     (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('test-notification-id');
     (Notifications.AndroidNotificationPriority as any) = { HIGH: 'HIGH' };
+    (dailyCheckinService.scheduleNotification as jest.Mock).mockResolvedValue(undefined);
+    (dailyCheckinService.cancelNotification as jest.Mock).mockResolvedValue(undefined);
+    (dailyCheckinService.rescheduleNotification as jest.Mock).mockResolvedValue(undefined);
   });
 
   it('should render settings screen with all sections (except hidden developer)', async () => {
@@ -708,6 +713,105 @@ describe('SettingsScreen', () => {
       await waitFor(() => {
         // Developer section should be visible
         expect(screen.getByText('Developer')).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Daily Check-in Settings', () => {
+    beforeEach(() => {
+      // Enable notifications for daily check-in tests
+      (notificationService.getPermissions as jest.Mock).mockResolvedValue({
+        granted: true,
+        canAskAgain: true,
+      });
+      (notificationService.areNotificationsGloballyEnabled as jest.Mock).mockResolvedValue(true);
+    });
+
+    it('should show daily check-in settings when notifications are enabled', async () => {
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Daily Check-in')).toBeTruthy();
+        expect(screen.getByText('Enable Daily Check-in')).toBeTruthy();
+      });
+    });
+
+    it('should not show daily check-in settings when notifications are globally disabled', async () => {
+      (notificationService.areNotificationsGloballyEnabled as jest.Mock).mockResolvedValue(false);
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Notifications')).toBeTruthy();
+      });
+
+      // Wait a bit for the async state update, then check
+      await waitFor(() => {
+        expect(screen.queryByText('Daily Check-in')).toBeNull();
+      });
+    });
+
+    it('should not show daily check-in settings when notification permission is denied', async () => {
+      (notificationService.getPermissions as jest.Mock).mockResolvedValue({
+        granted: false,
+        canAskAgain: true,
+      });
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.queryByText('Daily Check-in')).toBeNull();
+      });
+    });
+
+    it('should toggle daily check-in and call service methods', async () => {
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Enable Daily Check-in')).toBeTruthy();
+      });
+
+      // Find and toggle the switch
+      const switchElement = screen.getByRole('switch', { name: 'Enable daily check-in' });
+      fireEvent(switchElement, 'onValueChange', false);
+
+      await waitFor(() => {
+        expect(dailyCheckinService.cancelNotification).toHaveBeenCalled();
+        expect(Alert.alert).toHaveBeenCalledWith('Success', 'Daily check-in reminders have been disabled');
+      });
+    });
+
+    it('should schedule notification when daily check-in is enabled', async () => {
+      // Start with check-in disabled by setting up the store state
+      const { useDailyCheckinSettingsStore } = require('../../store/dailyCheckinSettingsStore');
+      useDailyCheckinSettingsStore.setState({
+        settings: { enabled: false, checkInTime: '21:00' },
+        isLoaded: true,
+      });
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Enable Daily Check-in')).toBeTruthy();
+      });
+
+      // Find and toggle the switch to enable
+      const switchElement = screen.getByRole('switch', { name: 'Enable daily check-in' });
+      fireEvent(switchElement, 'onValueChange', true);
+
+      await waitFor(() => {
+        expect(dailyCheckinService.scheduleNotification).toHaveBeenCalled();
+        expect(Alert.alert).toHaveBeenCalledWith('Success', 'Daily check-in reminders have been enabled');
       });
     });
   });

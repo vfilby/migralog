@@ -1,13 +1,13 @@
 import * as Notifications from 'expo-notifications';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from '../utils/logger';
 import { Medication, MedicationSchedule } from '../models/types';
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../database/medicationRepository';
 import { useNotificationSettingsStore } from '../store/notificationSettingsStore';
 import { handleDailyCheckinNotification } from './dailyCheckinService';
-
-// AsyncStorage key for global notification toggle
-const NOTIFICATIONS_ENABLED_KEY = '@notifications_enabled';
+import {
+  areNotificationsGloballyEnabled as areNotificationsGloballyEnabledUtil,
+  setNotificationsGloballyEnabled as setNotificationsGloballyEnabledUtil,
+} from './notificationUtils';
 
 /**
  * Handle incoming notifications and decide whether to show them
@@ -972,14 +972,7 @@ class NotificationService {
    * Check if notifications are globally enabled
    */
   async areNotificationsGloballyEnabled(): Promise<boolean> {
-    try {
-      const value = await AsyncStorage.getItem(NOTIFICATIONS_ENABLED_KEY);
-      // Default to true if not set (for existing users)
-      return value === null ? true : JSON.parse(value);
-    } catch (error) {
-      logger.error('[Notification] Error reading global toggle state:', error);
-      return true; // Default to enabled on error
-    }
+    return areNotificationsGloballyEnabledUtil();
   }
 
   /**
@@ -989,8 +982,7 @@ class NotificationService {
    */
   async setGlobalNotificationsEnabled(enabled: boolean): Promise<void> {
     try {
-      await AsyncStorage.setItem(NOTIFICATIONS_ENABLED_KEY, JSON.stringify(enabled));
-      logger.log('[Notification] Global toggle set to:', enabled);
+      await setNotificationsGloballyEnabledUtil(enabled);
 
       if (!enabled) {
         // Disable: Cancel all notifications

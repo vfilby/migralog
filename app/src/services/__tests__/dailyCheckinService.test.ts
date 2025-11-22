@@ -2,7 +2,7 @@ import * as Notifications from 'expo-notifications';
 
 // Mock dependencies BEFORE importing the service
 jest.mock('expo-notifications');
-jest.mock('../notificationService');
+jest.mock('../notificationUtils');
 jest.mock('../../store/dailyCheckinSettingsStore');
 jest.mock('../../store/dailyStatusStore');
 jest.mock('../../store/episodeStore');
@@ -31,7 +31,7 @@ jest.mock('../../services/errorLogger');
 
 // Import service and mocked stores AFTER mocks are set up
 import { dailyCheckinService, handleDailyCheckinNotification } from '../dailyCheckinService';
-import { notificationService } from '../notificationService';
+import { areNotificationsGloballyEnabled } from '../notificationUtils';
 import { useDailyCheckinSettingsStore } from '../../store/dailyCheckinSettingsStore';
 import { useDailyStatusStore } from '../../store/dailyStatusStore';
 import { useEpisodeStore } from '../../store/episodeStore';
@@ -54,7 +54,7 @@ describe('dailyCheckinService', () => {
     (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('test-notification-id');
     (Notifications.cancelScheduledNotificationAsync as jest.Mock).mockResolvedValue(undefined);
     (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockResolvedValue([]);
-    (notificationService.areNotificationsGloballyEnabled as jest.Mock).mockResolvedValue(true);
+    (areNotificationsGloballyEnabled as jest.Mock).mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -242,7 +242,7 @@ describe('dailyCheckinService', () => {
     });
 
     it('should not schedule when notifications are globally disabled', async () => {
-      (notificationService.areNotificationsGloballyEnabled as jest.Mock).mockResolvedValue(false);
+      (areNotificationsGloballyEnabled as jest.Mock).mockResolvedValue(false);
 
       await dailyCheckinService.scheduleNotification();
 
