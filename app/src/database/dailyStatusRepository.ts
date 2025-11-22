@@ -2,7 +2,7 @@ import { getDatabase, generateId } from './db';
 import { DailyStatusLog } from '../models/types';
 import * as SQLite from 'expo-sqlite';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
-import { DailyStatusLogRow } from './types';
+import { DailyStatusLogRow, EpisodeRow } from './types';
 import { DailyStatusLogSchema } from '../schemas';
 import { logger } from '../utils/logger';
 
@@ -126,19 +126,63 @@ export const dailyStatusRepository = {
     const startDate = format(startOfMonth(monthDate), 'yyyy-MM-dd');
     const endDate = format(endOfMonth(monthDate), 'yyyy-MM-dd');
 
-    const results = await database.getAllAsync<{ status: string; count: number }>(
-      `SELECT status, COUNT(*) as count
-       FROM daily_status_logs
-       WHERE date >= ? AND date <= ?
-       GROUP BY status`,
+    // Get manual statuses from daily_status_logs
+    const manualStatuses = await database.getAllAsync<DailyStatusLogRow>(
+      `SELECT * FROM daily_status_logs WHERE date >= ? AND date <= ?`,
       [startDate, endDate]
     );
 
+    // Get episodes in this date range - episodes make a day red regardless of manual status
+    const startTimestamp = new Date(startDate + 'T00:00:00').getTime();
+    const endTimestamp = new Date(endDate + 'T23:59:59.999').getTime();
+
+    const episodes = await database.getAllAsync<EpisodeRow>(
+      `SELECT * FROM episodes WHERE start_time <= ? AND (end_time IS NULL OR end_time >= ?)`,
+      [endTimestamp, startTimestamp]
+    );
+
+    // Build a set of dates that have episodes (these are red days regardless of manual status)
+    const episodeDates = new Set<string>();
+    episodes.forEach(episode => {
+      // Get all dates this episode spans within our range
+      const episodeStart = new Date(episode.start_time);
+      const episodeEnd = episode.end_time ? new Date(episode.end_time) : new Date();
+
+      let currentDate = new Date(episodeStart);
+      currentDate.setHours(0, 0, 0, 0);
+
+      const lastDate = new Date(episodeEnd);
+      lastDate.setHours(0, 0, 0, 0);
+
+      while (currentDate <= lastDate) {
+        const dateStr = format(currentDate, 'yyyy-MM-dd');
+        // Only count if within our month range
+        if (dateStr >= startDate && dateStr <= endDate) {
+          episodeDates.add(dateStr);
+        }
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+    });
+
+    // Build a map of manual status by date
+    const manualStatusMap = new Map<string, string>();
+    manualStatuses.forEach(row => {
+      manualStatusMap.set(row.date, row.status);
+    });
+
+    // Calculate stats: episodes take precedence over manual status
     const stats = { green: 0, yellow: 0, red: 0 };
-    results.forEach(row => {
-      if (row.status === 'green') stats.green = row.count;
-      else if (row.status === 'yellow') stats.yellow = row.count;
-      else if (row.status === 'red') stats.red = row.count;
+
+    // Count episode dates as red
+    stats.red = episodeDates.size;
+
+    // Count manual statuses, excluding dates that have episodes
+    manualStatuses.forEach(row => {
+      if (!episodeDates.has(row.date)) {
+        if (row.status === 'green') stats.green++;
+        else if (row.status === 'yellow') stats.yellow++;
+        else if (row.status === 'red') stats.red++;
+      }
     });
 
     return stats;

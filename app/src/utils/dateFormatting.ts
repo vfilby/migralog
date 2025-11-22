@@ -5,7 +5,7 @@
  * that handle edge cases like multi-day episodes and ongoing episodes.
  */
 
-import { format, isSameDay } from 'date-fns';
+import { format, isSameDay, isToday, isYesterday } from 'date-fns';
 
 /**
  * Format episode time range with intelligent date display
@@ -100,5 +100,123 @@ export function formatEpisodeDuration(
     return `${minutes}m`;
   } catch {
     return 'Unknown duration';
+  }
+}
+
+/**
+ * Format duration in hours to a human-readable string with days
+ *
+ * For durations >= 24 hours, shows days and hours (e.g., "1 day, 2 hours")
+ * For durations < 24 hours, shows just hours (e.g., "5 hours")
+ * Useful for episode summary cards where a more verbose format is preferred.
+ *
+ * @param hours - Duration in hours (can be fractional, will be rounded)
+ * @returns Formatted duration like "1 day, 2 hours" or "5 hours"
+ */
+export function formatDurationLong(hours: number): string {
+  // Handle edge cases
+  if (isNaN(hours) || hours < 0) {
+    return 'Unknown duration';
+  }
+
+  const roundedHours = Math.round(hours);
+
+  if (roundedHours >= 24) {
+    const days = Math.floor(roundedHours / 24);
+    const remainingHours = roundedHours % 24;
+    if (remainingHours === 0) {
+      return `${days} ${days === 1 ? 'day' : 'days'}`;
+    }
+    return `${days} ${days === 1 ? 'day' : 'days'}, ${remainingHours} ${remainingHours === 1 ? 'hour' : 'hours'}`;
+  }
+
+  return `${roundedHours} ${roundedHours === 1 ? 'hour' : 'hours'}`;
+}
+
+/**
+ * Format a timestamp with relative date labels (Today, Yesterday, or full date)
+ *
+ * Provides user-friendly relative formatting for recent dates while
+ * showing full dates for older timestamps.
+ *
+ * @param timestamp - Unix timestamp in milliseconds
+ * @param timeFormat - Time format string (default: 'h:mm a')
+ * @returns Formatted string like "Today, 2:30 PM", "Yesterday, 10:00 AM", or "Jan 15, 2024 2:30 PM"
+ */
+export function formatRelativeDate(
+  timestamp: number,
+  timeFormat: string = 'h:mm a'
+): string {
+  try {
+    const date = new Date(timestamp);
+
+    // Validate date is valid
+    if (isNaN(date.getTime())) {
+      return 'Unknown time';
+    }
+
+    const timeStr = format(date, timeFormat);
+
+    if (isToday(date)) {
+      return `Today, ${timeStr}`;
+    } else if (isYesterday(date)) {
+      return `Yesterday, ${timeStr}`;
+    } else {
+      return format(date, `MMM d, yyyy ${timeFormat}`);
+    }
+  } catch {
+    return 'Unknown time';
+  }
+}
+
+/**
+ * Format a timestamp to a simple time string
+ *
+ * Convenience wrapper for consistent time formatting across the app.
+ *
+ * @param timestamp - Unix timestamp in milliseconds or Date object
+ * @param formatStr - Format string (default: 'h:mm a' for "2:30 PM")
+ * @returns Formatted time string
+ */
+export function formatTime(
+  timestamp: number | Date,
+  formatStr: string = 'h:mm a'
+): string {
+  try {
+    const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+
+    if (isNaN(date.getTime())) {
+      return 'Unknown time';
+    }
+
+    return format(date, formatStr);
+  } catch {
+    return 'Unknown time';
+  }
+}
+
+/**
+ * Format a timestamp to a date-time string
+ *
+ * Convenience wrapper for consistent date-time formatting across the app.
+ *
+ * @param timestamp - Unix timestamp in milliseconds or Date object
+ * @param formatStr - Format string (default: 'MMM d, yyyy h:mm a')
+ * @returns Formatted date-time string like "Jan 15, 2024 2:30 PM"
+ */
+export function formatDateTime(
+  timestamp: number | Date,
+  formatStr: string = 'MMM d, yyyy h:mm a'
+): string {
+  try {
+    const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+
+    if (isNaN(date.getTime())) {
+      return 'Unknown time';
+    }
+
+    return format(date, formatStr);
+  } catch {
+    return 'Unknown time';
   }
 }

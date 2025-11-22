@@ -2,11 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { format } from 'date-fns';
 import { Episode, IntensityReading } from '../models/types';
-// Removed unused imports: getPainColor, getPainLevel (peak intensity feature removed)
 import { locationService } from '../services/locationService';
 import { useTheme, ThemeColors } from '../theme';
 import { intensityRepository } from '../database/episodeRepository';
 import IntensitySparkline from './IntensitySparkline';
+import { formatDurationLong } from '../utils/dateFormatting';
 
 interface EpisodeCardProps {
   episode: Episode;
@@ -15,23 +15,6 @@ interface EpisodeCardProps {
   isLast?: boolean;
   testID?: string;
 }
-
-/**
- * Format duration in hours to a human-readable string
- * For durations >= 24 hours, shows days and hours (e.g., "1 day, 2 hours")
- * For durations < 24 hours, shows just hours (e.g., "5 hours")
- */
-const formatDuration = (hours: number): string => {
-  if (hours >= 24) {
-    const days = Math.floor(hours / 24);
-    const remainingHours = hours % 24;
-    if (remainingHours === 0) {
-      return `${days} ${days === 1 ? 'day' : 'days'}`;
-    }
-    return `${days} ${days === 1 ? 'day' : 'days'}, ${remainingHours} ${remainingHours === 1 ? 'hour' : 'hours'}`;
-  }
-  return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
-};
 
 const createStyles = (theme: ThemeColors) => StyleSheet.create({
   // Compact styles (for Dashboard Recent Episodes)
@@ -182,7 +165,7 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
       {/* Row 3: Duration on left, Sparkline on right */}
       <View style={styles.cardSecondRow}>
         <Text style={styles.cardDuration}>
-          {formatDuration(durationHours)}
+          {formatDurationLong(durationHours)}
         </Text>
         {intensityReadings.length > 0 && (
           <View style={styles.cardSparklineContainer}>
