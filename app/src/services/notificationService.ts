@@ -4,6 +4,7 @@ import { logger } from '../utils/logger';
 import { Medication, MedicationSchedule } from '../models/types';
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../database/medicationRepository';
 import { useNotificationSettingsStore } from '../store/notificationSettingsStore';
+import { handleDailyCheckinNotification } from './dailyCheckinService';
 
 // AsyncStorage key for global notification toggle
 const NOTIFICATIONS_ENABLED_KEY = '@notifications_enabled';
@@ -13,6 +14,12 @@ const NOTIFICATIONS_ENABLED_KEY = '@notifications_enabled';
  * Exported for testing purposes
  */
 export async function handleIncomingNotification(notification: Notifications.Notification): Promise<Notifications.NotificationBehavior> {
+  // Check if this is a daily check-in notification
+  const dailyCheckinResult = await handleDailyCheckinNotification(notification);
+  if (dailyCheckinResult !== null) {
+    return dailyCheckinResult;
+  }
+
   // Check if this is a medication reminder
   const data = notification.request.content.data as {
     medicationId?: string;
