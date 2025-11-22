@@ -74,7 +74,7 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
   const handleImportBackup = async () => {
     Alert.alert(
       'Import Backup',
-      'Select a backup file to import and restore. This will replace all current data and require an app restart.\n\nSupports both .db (snapshot) and .json (export) formats.',
+      'Select a snapshot (.db) backup file to import and restore. This will replace all current data and require an app restart.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -217,20 +217,12 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
 
     const date = backupService.formatDate(backup.timestamp);
     const size = backupService.formatFileSize(backup.fileSize);
-    const isSnapshot = backup.backupType === 'snapshot';
 
     return (
       <View style={styles.backupCard}>
         <View style={styles.backupHeader}>
           <View style={styles.backupInfo}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={styles.backupDate}>{date}</Text>
-              <View style={[styles.badge, isSnapshot ? styles.snapshotBadge : styles.jsonBadge]}>
-                <Text style={[styles.badgeText, isSnapshot ? styles.snapshotBadgeText : styles.jsonBadgeText]}>
-                  {isSnapshot ? 'Snapshot' : 'JSON'}
-                </Text>
-              </View>
-            </View>
+            <Text style={styles.backupDate}>{date}</Text>
             <Text style={styles.backupStats}>
               {backup.episodeCount} episodes • {backup.medicationCount} medications • {size}
             </Text>
@@ -565,26 +557,5 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     color: theme.textTertiary,
     marginTop: 4,
     textAlign: 'center',
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  snapshotBadge: {
-    backgroundColor: theme.primary + '20', // 20% opacity
-  },
-  jsonBadge: {
-    backgroundColor: theme.textTertiary + '20',
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  snapshotBadgeText: {
-    color: theme.primary,
-  },
-  jsonBadgeText: {
-    color: theme.textSecondary,
   },
 });

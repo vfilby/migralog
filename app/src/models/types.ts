@@ -190,7 +190,9 @@ export interface BackupMetadata {
   medicationCount: number;
   fileSize: number;
   fileName: string;
-  backupType: 'snapshot' | 'json'; // DB file snapshot or JSON export
+  // Note: JSON restore was removed in Issue #185, but JSON creation still exists
+  // for pre-migration backups and data exports. Only snapshot backups can be restored.
+  backupType: 'snapshot' | 'json';
 }
 
 export interface BackupData {

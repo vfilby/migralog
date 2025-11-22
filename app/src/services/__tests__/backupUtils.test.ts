@@ -1,7 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import {
   validateBackupMetadata,
-  validateBackupData,
   formatFileSize,
   formatDate,
   generateBackupId,
@@ -11,7 +10,7 @@ import {
   initializeBackupDirectory,
   BACKUP_DIR,
 } from '../backupUtils';
-import { BackupData, BackupMetadata } from '../../models/types';
+import { BackupMetadata } from '../../models/types';
 
 // Mock dependencies
 jest.mock('expo-file-system/legacy', () => ({
@@ -165,138 +164,7 @@ describe('backupUtils', () => {
     });
   });
 
-  describe('validateBackupData', () => {
-    const validMetadata = {
-      id: 'test-backup',
-      timestamp: Date.now(),
-      version: '1.0.0',
-      schemaVersion: 1,
-      episodeCount: 0,
-      medicationCount: 0,
-    };
-
-    const validBackupData: BackupData = {
-      metadata: validMetadata,
-      episodes: [],
-      episodeNotes: [],
-      medications: [],
-      medicationDoses: [],
-      medicationSchedules: [],
-    };
-
-    it('should accept valid backup data', () => {
-      expect(validateBackupData(validBackupData)).toBe(true);
-    });
-
-    it('should accept valid backup data with items', () => {
-      const backupWithData: BackupData = {
-        ...validBackupData,
-        episodes: [
-          {
-            id: 'ep-1',
-            startTime: Date.now(),
-            endTime: undefined,
-            locations: ['left_head'],
-            qualities: [],
-            symptoms: [],
-            triggers: [],
-            notes: undefined,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-          },
-        ],
-        medications: [
-          {
-            id: 'med-1',
-            name: 'Test Med',
-            type: 'rescue',
-            dosageAmount: 100,
-            dosageUnit: 'mg',
-            defaultQuantity: undefined,
-            scheduleFrequency: undefined,
-            photoUri: undefined,
-            schedule: [],
-            active: true,
-            notes: undefined,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-          },
-        ],
-      };
-
-      expect(validateBackupData(backupWithData)).toBe(true);
-    });
-
-    describe('array field validation', () => {
-      it('should reject backup with missing episodes array', () => {
-        const invalid = { ...validBackupData };
-        delete (invalid as any).episodes;
-        expect(validateBackupData(invalid)).toBe(false);
-      });
-
-      it('should reject backup with non-array episodes', () => {
-        const invalid = { ...validBackupData, episodes: 'not an array' as any };
-        expect(validateBackupData(invalid)).toBe(false);
-      });
-
-      it('should reject backup with missing medications array', () => {
-        const invalid = { ...validBackupData };
-        delete (invalid as any).medications;
-        expect(validateBackupData(invalid)).toBe(false);
-      });
-
-      it('should reject backup with non-array medications', () => {
-        const invalid = { ...validBackupData, medications: {} as any };
-        expect(validateBackupData(invalid)).toBe(false);
-      });
-
-      it('should reject backup with missing medicationDoses array', () => {
-        const invalid = { ...validBackupData };
-        delete (invalid as any).medicationDoses;
-        expect(validateBackupData(invalid)).toBe(false);
-      });
-
-      it('should reject backup with non-array medicationDoses', () => {
-        const invalid = { ...validBackupData, medicationDoses: null as any };
-        expect(validateBackupData(invalid)).toBe(false);
-      });
-
-      it('should reject backup with missing medicationSchedules array', () => {
-        const invalid = { ...validBackupData };
-        delete (invalid as any).medicationSchedules;
-        expect(validateBackupData(invalid)).toBe(false);
-      });
-
-      it('should reject backup with non-array medicationSchedules', () => {
-        const invalid = { ...validBackupData, medicationSchedules: 123 as any };
-        expect(validateBackupData(invalid)).toBe(false);
-      });
-    });
-
-    describe('metadata validation within backup data', () => {
-      it('should reject backup with invalid metadata', () => {
-        const invalid = {
-          ...validBackupData,
-          metadata: { ...validMetadata, id: '' }, // Invalid: empty id
-        };
-        expect(validateBackupData(invalid)).toBe(false);
-      });
-
-      it('should reject backup with missing metadata', () => {
-        const invalid = { ...validBackupData };
-        delete (invalid as any).metadata;
-        expect(validateBackupData(invalid)).toBe(false);
-      });
-    });
-
-    it('should reject non-object backup data', () => {
-      expect(validateBackupData(null)).toBe(false);
-      expect(validateBackupData(undefined)).toBe(false);
-      expect(validateBackupData('string')).toBe(false);
-      expect(validateBackupData(123)).toBe(false);
-      expect(validateBackupData([])).toBe(false);
-    });
-  });
+  // Note: validateBackupData tests removed in Issue #185 - JSON restore functionality removed
 
   describe('formatFileSize', () => {
     it('should format 0 bytes correctly', () => {
@@ -477,43 +345,24 @@ describe('backupUtils', () => {
       );
     });
 
-    it('should return metadata from JSON backup if .meta.json does not exist', async () => {
-      const backupData: BackupData = {
-        metadata: {
-          id: 'test-backup',
-          timestamp: Date.now(),
-          version: '1.0.0',
-          schemaVersion: 1,
-          episodeCount: 2,
-          medicationCount: 1,
-        },
-        episodes: [],
-        episodeNotes: [],
-        medications: [],
-        medicationDoses: [],
-        medicationSchedules: [],
-      };
-
+    // Note: JSON backup metadata test removed in Issue #185 - JSON restore functionality removed
+    // getBackupMetadata now only returns snapshot backups
+    it('should return null if only JSON backup exists (JSON restore removed)', async () => {
       // Mock: .meta.json doesn't exist, but .json does
       (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
         if (path.includes('.meta.json')) {
           return Promise.resolve({ exists: false });
         }
-        return Promise.resolve({ exists: true, size: 2048 });
+        if (path.includes('.json')) {
+          return Promise.resolve({ exists: true, size: 2048 });
+        }
+        return Promise.resolve({ exists: false });
       });
-
-      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
-        JSON.stringify(backupData)
-      );
 
       const result = await getBackupMetadata('test-backup');
 
-      expect(result).toEqual({
-        ...backupData.metadata,
-        fileName: 'test-backup.json',
-        fileSize: 2048,
-        backupType: 'json',
-      });
+      // JSON backups are no longer supported for restore
+      expect(result).toBeNull();
     });
 
     it('should return null if backup does not exist', async () => {
@@ -544,38 +393,8 @@ describe('backupUtils', () => {
       expect(result).toBeNull();
     });
 
-    it('should handle missing size field in file info', async () => {
-      const backupData: BackupData = {
-        metadata: {
-          id: 'test-backup',
-          timestamp: Date.now(),
-          version: '1.0.0',
-          schemaVersion: 1,
-          episodeCount: 0,
-          medicationCount: 0,
-        },
-        episodes: [],
-        episodeNotes: [],
-        medications: [],
-        medicationDoses: [],
-        medicationSchedules: [],
-      };
-
-      (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
-        if (path.includes('.meta.json')) {
-          return Promise.resolve({ exists: false });
-        }
-        return Promise.resolve({ exists: true }); // No size field
-      });
-
-      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
-        JSON.stringify(backupData)
-      );
-
-      const result = await getBackupMetadata('test-backup');
-
-      expect(result?.fileSize).toBe(0);
-    });
+    // Note: Test for JSON backup with missing size field removed in Issue #185
+    // JSON restore functionality removed - only snapshot backups are supported
   });
 
   describe('initializeBackupDirectory', () => {
