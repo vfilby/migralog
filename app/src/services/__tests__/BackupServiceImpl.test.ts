@@ -14,6 +14,7 @@ import {
 } from '../../database/medicationRepository';
 import { dailyStatusRepository } from '../../database/dailyStatusRepository';
 import { migrationRunner } from '../../database/migrations';
+import { getBackupMetadata } from '../backupUtils';
 
 // Mock dependencies
 jest.mock('expo-file-system/legacy', () => ({
@@ -401,7 +402,7 @@ describe('BackupServiceImpl', () => {
         JSON.stringify(mockMetadata)
       );
 
-      const metadata = await backupServiceImpl.getBackupMetadata('snapshot-1');
+      const metadata = await getBackupMetadata('snapshot-1');
 
       expect(metadata).toBeDefined();
       expect(metadata?.id).toBe('snapshot-1');

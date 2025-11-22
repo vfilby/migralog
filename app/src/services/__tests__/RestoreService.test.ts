@@ -12,6 +12,7 @@ import {
 } from '../../database/medicationRepository';
 import { migrationRunner } from '../../database/migrations';
 import { BackupData } from '../../models/types';
+import { getBackupMetadata } from '../backupUtils';
 
 // Mock dependencies
 jest.mock('expo-file-system/legacy', () => ({
@@ -33,6 +34,15 @@ jest.mock('../../database/episodeRepository');
 jest.mock('../../database/medicationRepository');
 jest.mock('../../database/dailyStatusRepository');
 jest.mock('../../database/migrations');
+jest.mock('../errorLogger', () => ({
+  errorLogger: {
+    log: jest.fn(() => Promise.resolve()),
+    getLogs: jest.fn(() => Promise.resolve([])),
+    clearLogs: jest.fn(() => Promise.resolve()),
+    getRecentLogs: jest.fn(() => Promise.resolve([])),
+    getLogsByType: jest.fn(() => Promise.resolve([])),
+  },
+}));
 
 // Mock db module
 const mockDatabase = {
@@ -80,7 +90,7 @@ describe('RestoreService', () => {
         JSON.stringify(mockMetadata)
       );
 
-      const metadata = await restoreService.getBackupMetadata('snapshot-1');
+      const metadata = await getBackupMetadata('snapshot-1');
 
       expect(metadata).toBeDefined();
       expect(metadata?.id).toBe('snapshot-1');
@@ -114,7 +124,7 @@ describe('RestoreService', () => {
         JSON.stringify(mockBackupData)
       );
 
-      const metadata = await restoreService.getBackupMetadata('json-backup');
+      const metadata = await getBackupMetadata('json-backup');
 
       expect(metadata).toBeDefined();
       expect(metadata?.id).toBe('json-backup');
@@ -125,7 +135,7 @@ describe('RestoreService', () => {
     it('should return null if backup does not exist', async () => {
       (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: false });
 
-      const metadata = await restoreService.getBackupMetadata('nonexistent');
+      const metadata = await getBackupMetadata('nonexistent');
 
       expect(metadata).toBeNull();
     });
@@ -133,7 +143,7 @@ describe('RestoreService', () => {
     it('should return null on error', async () => {
       (FileSystem.getInfoAsync as jest.Mock).mockRejectedValue(new Error('File error'));
 
-      const metadata = await restoreService.getBackupMetadata('backup-1');
+      const metadata = await getBackupMetadata('backup-1');
 
       expect(metadata).toBeNull();
     });

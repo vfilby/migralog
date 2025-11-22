@@ -29,6 +29,7 @@ export {
 // Import the actual service implementations
 import { backupServiceImpl } from './BackupServiceImpl';
 import { restoreService } from './RestoreService';
+import { getBackupMetadata } from './backupUtils';
 import * as SQLite from 'expo-sqlite';
 
 /**
@@ -50,7 +51,7 @@ class BackupService {
   }
 
   async getBackupMetadata(backupId: string) {
-    return await backupServiceImpl.getBackupMetadata(backupId);
+    return await getBackupMetadata(backupId);
   }
 
   async deleteBackup(backupId: string) {

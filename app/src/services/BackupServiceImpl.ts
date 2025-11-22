@@ -30,6 +30,7 @@ import {
   generateBackupId,
   getBackupPath,
   getMetadataPath,
+  getBackupMetadata,
   initializeBackupDirectory,
   validateBackupData,
   validateBackupMetadata,
@@ -38,19 +39,6 @@ import {
 } from './backupUtils';
 
 class BackupServiceImpl {
-  private generateBackupId(): string {
-    return `backup_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  }
-
-  private getBackupPath(backupId: string, backupType: 'snapshot' | 'json'): string {
-    const extension = backupType === 'snapshot' ? 'db' : 'json';
-    return `${BACKUP_DIR}${backupId}.${extension}`;
-  }
-
-  private getMetadataPath(backupId: string): string {
-    return `${BACKUP_DIR}${backupId}.meta.json`;
-  }
-
   /**
    * Create a database snapshot backup (DB file copy)
    * This is the preferred method for automatic backups (pre-migration, weekly)
@@ -354,47 +342,12 @@ class BackupServiceImpl {
     }
   }
 
-  async getBackupMetadata(backupId: string): Promise<BackupMetadata | null> {
-    try {
-      // Try snapshot first (.meta.json)
-      const metadataPath = getMetadataPath(backupId);
-      const metadataInfo = await FileSystem.getInfoAsync(metadataPath);
-
-      if (metadataInfo.exists) {
-        const content = await FileSystem.readAsStringAsync(metadataPath);
-        return JSON.parse(content);
-      }
-
-      // Try JSON backup
-      const jsonPath = getBackupPath(backupId, 'json');
-      const jsonInfo = await FileSystem.getInfoAsync(jsonPath);
-
-      if (jsonInfo.exists) {
-        const content = await FileSystem.readAsStringAsync(jsonPath);
-        const backupData: BackupData = JSON.parse(content);
-        const fileSize = 'size' in jsonInfo ? jsonInfo.size : 0;
-
-        return {
-          ...backupData.metadata,
-          fileName: `${backupId}.json`,
-          fileSize,
-          backupType: 'json',
-        };
-      }
-
-      return null;
-    } catch (error) {
-      logger.error('Failed to get backup metadata:', error);
-      return null;
-    }
-  }
-
   async restoreBackup(backupId: string): Promise<void> {
     try {
       logger.log('[Restore] Starting backup restore:', backupId);
 
       // Get metadata to determine backup type
-      const metadata = await this.getBackupMetadata(backupId);
+      const metadata = await getBackupMetadata(backupId);
       if (!metadata) {
         throw new Error('Backup not found');
       }
@@ -908,7 +861,7 @@ class BackupServiceImpl {
       // Note: schemaSQL omitted because this is for data sharing, not backup/restore
       const exportData: BackupData = {
         metadata: {
-          id: `export_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          id: `export_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
           timestamp: Date.now(),
           version: buildInfo.version,
           schemaVersion,
@@ -957,7 +910,7 @@ class BackupServiceImpl {
   async exportBackup(backupId: string): Promise<void> {
     try {
       // Get metadata to determine backup type
-      const metadata = await this.getBackupMetadata(backupId);
+      const metadata = await getBackupMetadata(backupId);
       if (!metadata) {
         throw new Error('Backup not found');
       }
