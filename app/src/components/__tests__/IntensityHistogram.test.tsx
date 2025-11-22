@@ -1,13 +1,14 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react-native';
 import IntensityHistogram from '../IntensityHistogram';
-import { useEpisodeStore } from '../../store/episodeStore';
-import { intensityRepository } from '../../database/episodeRepository';
+import { episodeRepository, intensityRepository } from '../../database/episodeRepository';
 import { ThemeProvider } from '../../theme/ThemeContext';
 import { Episode, IntensityReading } from '../../models/types';
 
-jest.mock('../../store/episodeStore');
 jest.mock('../../database/episodeRepository', () => ({
+  episodeRepository: {
+    getByDateRange: jest.fn(),
+  },
   intensityRepository: {
     getAll: jest.fn(),
   },
@@ -109,8 +110,11 @@ describe('IntensityHistogram', () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2024-01-25T12:00:00'));
 
-    (useEpisodeStore as unknown as jest.Mock).mockReturnValue({
-      episodes: mockEpisodes,
+    // Mock episodeRepository.getByDateRange to return episodes filtered by date range
+    (episodeRepository.getByDateRange as jest.Mock).mockImplementation((startTime: number, endTime: number) => {
+      return Promise.resolve(
+        mockEpisodes.filter(ep => ep.startTime >= startTime && ep.startTime <= endTime)
+      );
     });
 
     (intensityRepository.getAll as jest.Mock).mockResolvedValue(mockIntensityReadings);
@@ -194,13 +198,19 @@ describe('IntensityHistogram', () => {
         expect(intensityRepository.getAll).toHaveBeenCalled();
       });
     });
+
+    it('should load episodes by date range from repository', async () => {
+      renderWithTheme(<IntensityHistogram selectedRange={30} />);
+
+      await waitFor(() => {
+        expect(episodeRepository.getByDateRange).toHaveBeenCalled();
+      });
+    });
   });
 
   describe('Empty State', () => {
     beforeEach(() => {
-      (useEpisodeStore as unknown as jest.Mock).mockReturnValue({
-        episodes: [],
-      });
+      (episodeRepository.getByDateRange as jest.Mock).mockResolvedValue([]);
       (intensityRepository.getAll as jest.Mock).mockResolvedValue([]);
     });
 
@@ -232,9 +242,8 @@ describe('IntensityHistogram', () => {
 
   describe('Episodes Without Intensity Readings', () => {
     beforeEach(() => {
-      (useEpisodeStore as unknown as jest.Mock).mockReturnValue({
-        episodes: mockEpisodes,
-      });
+      // Mock to return episodes but no intensity readings
+      (episodeRepository.getByDateRange as jest.Mock).mockResolvedValue(mockEpisodes);
       // No intensity readings for any episode
       (intensityRepository.getAll as jest.Mock).mockResolvedValue([]);
     });

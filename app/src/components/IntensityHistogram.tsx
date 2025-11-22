@@ -1,9 +1,8 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme, ThemeColors } from '../theme';
-import { useEpisodeStore } from '../store/episodeStore';
-import { intensityRepository } from '../database/episodeRepository';
-import { IntensityReading } from '../models/types';
+import { episodeRepository, intensityRepository } from '../database/episodeRepository';
+import { Episode, IntensityReading } from '../models/types';
 import {
   getDateRangeForDays,
   calculateIntensityHistogram,
@@ -78,24 +77,39 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
 export default function IntensityHistogram({ selectedRange }: IntensityHistogramProps) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const { episodes } = useEpisodeStore();
+  const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [intensityReadings, setIntensityReadings] = useState<IntensityReading[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Load all intensity readings from the repository
-  // Re-fetch when episodes change to ensure we have readings for any new episodes
+  // Load episodes by date range and all intensity readings
+  // This ensures we get ALL episodes in the selected range, not just the first 50
   useEffect(() => {
     const loadData = async () => {
-      const readings = await intensityRepository.getAll();
-      setIntensityReadings(readings);
+      setIsLoading(true);
+      try {
+        const { startDate, endDate } = getDateRangeForDays(selectedRange);
+        const [rangeEpisodes, readings] = await Promise.all([
+          episodeRepository.getByDateRange(startDate.getTime(), endDate.getTime()),
+          intensityRepository.getAll(),
+        ]);
+        setEpisodes(rangeEpisodes);
+        setIntensityReadings(readings);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     loadData();
-  }, [episodes]);
+  }, [selectedRange]);
 
   const histogramData = useMemo(() => {
+    // Don't calculate until data is loaded
+    if (isLoading) {
+      return Array.from({ length: 10 }, (_, i) => ({ intensity: i + 1, count: 0 }));
+    }
     const { startDate, endDate } = getDateRangeForDays(selectedRange);
     return calculateIntensityHistogram(episodes, intensityReadings, startDate, endDate);
-  }, [selectedRange, episodes, intensityReadings]);
+  }, [selectedRange, episodes, intensityReadings, isLoading]);
 
   // Calculate max count for scaling bars
   const maxCount = useMemo(() => {
