@@ -106,6 +106,7 @@ export default function IntensityHistogram({ selectedRange }: IntensityHistogram
   const [intensityReadings, setIntensityReadings] = useState<IntensityReading[]>([]);
 
   // Load all intensity readings from the repository
+  // Re-fetch when episodes change to ensure we have readings for any new episodes
   useEffect(() => {
     const loadData = async () => {
       const readings = await intensityRepository.getAll();
@@ -113,7 +114,7 @@ export default function IntensityHistogram({ selectedRange }: IntensityHistogram
     };
 
     loadData();
-  }, []);
+  }, [episodes]);
 
   const histogramData = useMemo(() => {
     const { startDate, endDate } = getDateRangeForDays(selectedRange);

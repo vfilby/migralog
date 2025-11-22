@@ -2,6 +2,8 @@
  * Analytics utility functions for date range filtering and duration formatting
  */
 
+import { IntensityReading } from '../models/types';
+
 /**
  * Formats a date as YYYY-MM-DD string in local timezone
  *
@@ -442,7 +444,8 @@ export function calculatePreventativeCompliance(
   const totalTakenDoses = takenDoses.length;
 
   // Calculate compliance percentage
-  if (totalScheduledDoses === 0) {
+  // Handle invalid cases: zero or negative scheduled doses (e.g., invalid date range)
+  if (totalScheduledDoses <= 0) {
     return 0;
   }
 
@@ -601,13 +604,6 @@ export function calculatePerMedicationStats(
 /**
  * Intensity Histogram Analytics Functions
  */
-
-export interface IntensityReading {
-  id: string;
-  episodeId: string;
-  timestamp: number;
-  intensity: number; // 1-10 scale
-}
 
 export interface IntensityHistogramData {
   intensity: number; // 1-10

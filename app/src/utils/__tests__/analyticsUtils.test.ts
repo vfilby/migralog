@@ -10,8 +10,8 @@ import {
   calculateNSAIDUsage,
   calculatePerMedicationStats,
   calculateIntensityHistogram,
-  IntensityReading,
 } from '../analyticsUtils';
+import { IntensityReading } from '../../models/types';
 
 describe('analyticsUtils', () => {
   describe('getDateRangeForDays', () => {
@@ -857,6 +857,25 @@ describe('analyticsUtils', () => {
 
       expect(result).toBe(100);
     });
+
+    it('should return 0% when date range results in zero scheduled doses', () => {
+      const medications = createTestMedications();
+      const schedules = [
+        { id: 's1', medicationId: '1', time: '08:00', timezone: 'America/New_York', dosage: 1, enabled: true },
+      ];
+      const doses: any[] = [];
+
+      // Invalid date range where end is before start (results in 0 or negative days)
+      const result = calculatePreventativeCompliance(
+        medications,
+        doses,
+        schedules,
+        new Date('2024-01-20'),
+        new Date('2024-01-15') // End before start
+      );
+
+      expect(result).toBe(0);
+    });
   });
 
   describe('calculateNSAIDUsage', () => {
@@ -1197,6 +1216,8 @@ describe('analyticsUtils', () => {
       episodeId,
       timestamp: Date.now(),
       intensity,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     });
 
     it('should return array with 10 intensity levels', () => {
@@ -1423,6 +1444,35 @@ describe('analyticsUtils', () => {
       expect(result[2].count).toBe(0); // 3
       expect(result[4].count).toBe(0); // 5
       expect(result[5].count).toBe(0); // 6
+    });
+
+    it('should skip episodes without startTime', () => {
+      const episodes = [
+        { id: 'ep-1', startTime: 0 }, // Falsy startTime
+        { id: 'ep-2', startTime: undefined as any }, // Undefined startTime
+        createEpisode('ep-3', new Date('2024-01-15')), // Valid episode
+      ];
+
+      const readings = [
+        createReading('r-1', 'ep-1', 8),
+        createReading('r-2', 'ep-2', 9),
+        createReading('r-3', 'ep-3', 5),
+      ];
+
+      const result = calculateIntensityHistogram(
+        episodes,
+        readings,
+        new Date('2024-01-01'),
+        new Date('2024-01-31')
+      );
+
+      // Only ep-3 (intensity 5) should be counted
+      expect(result[4].intensity).toBe(5);
+      expect(result[4].count).toBe(1);
+
+      // ep-1 and ep-2 should be skipped
+      expect(result[7].count).toBe(0); // intensity 8
+      expect(result[8].count).toBe(0); // intensity 9
     });
   });
 });
