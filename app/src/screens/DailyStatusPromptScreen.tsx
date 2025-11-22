@@ -15,7 +15,7 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { useDailyStatusStore } from '../store/dailyStatusStore';
-import { YellowDayType, Episode, DayStatus } from '../models/types';
+import { YellowDayType, Episode } from '../models/types';
 import { useTheme, ThemeColors } from '../theme';
 import { format, subDays, isSameDay } from 'date-fns';
 
@@ -222,11 +222,9 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     marginTop: 6,
     fontWeight: '500',
   },
-  redDayNotesSection: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: theme.border,
+  notesSection: {
+    marginTop: 24,
+    marginBottom: 16,
   },
   loadingContainer: {
     padding: 40,
@@ -242,7 +240,7 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
   const styles = createStyles(theme);
   const { logDayStatus, getEpisodesForDate, getDayStatus } = useDailyStatusStore();
 
-  const [selectedStatus, setSelectedStatus] = useState<DayStatus | null>(null);
+  const [selectedStatus, setSelectedStatus] = useState<'green' | 'yellow' | null>(null);
   const [selectedType, setSelectedType] = useState<YellowDayType | null>(null);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
@@ -288,9 +286,8 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
   const handleStatusSelect = (status: 'green' | 'yellow') => {
     setSelectedStatus(status);
     if (status === 'green') {
-      // Clear yellow-specific fields
+      // Clear yellow-specific field (type), but keep notes
       setSelectedType(null);
-      setNotes('');
     }
   };
 
@@ -468,21 +465,23 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
             <Text style={[styles.episodeInfoText, { marginTop: 12, marginBottom: 0 }]}>
               This day is automatically marked as red based on your episode data.
             </Text>
+          </View>
+        )}
 
-            {/* Notes section for red days */}
-            <View style={styles.redDayNotesSection}>
-              <Text style={styles.sectionTitle}>Notes (optional)</Text>
-              <TextInput
-                style={styles.notesInput}
-                multiline
-                numberOfLines={4}
-                placeholder="Any additional details about this day..."
-                placeholderTextColor={theme.textTertiary}
-                value={notes}
-                onChangeText={setNotes}
-                testID="red-day-notes-input"
-              />
-            </View>
+        {/* Notes section for red days - outside the red bubble */}
+        {episodes.length > 0 && (
+          <View style={styles.notesSection}>
+            <Text style={styles.sectionTitle}>Notes (optional)</Text>
+            <TextInput
+              style={styles.notesInput}
+              multiline
+              numberOfLines={4}
+              placeholder="Any additional details about this day..."
+              placeholderTextColor={theme.textTertiary}
+              value={notes}
+              onChangeText={setNotes}
+              testID="red-day-notes-input"
+            />
           </View>
         )}
 
@@ -528,6 +527,23 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
                 </View>
               </View>
             </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Expanded Green Day Details - notes only */}
+        {episodes.length === 0 && selectedStatus === 'green' && (
+          <View style={styles.expandedSection}>
+            <Text style={styles.sectionTitle}>Notes (optional)</Text>
+            <TextInput
+              style={styles.notesInput}
+              multiline
+              numberOfLines={4}
+              placeholder="Any additional details..."
+              placeholderTextColor={theme.textTertiary}
+              value={notes}
+              onChangeText={setNotes}
+              testID="green-day-notes-input"
+            />
           </View>
         )}
 
