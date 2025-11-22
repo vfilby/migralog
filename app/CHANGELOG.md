@@ -410,6 +410,9 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ##### 🔧 Technical Changes
 
+- 🔧 Chore: bump softprops/action-gh-release from 1 to 2 [`#162`](https://github.com/vfilby/migralog/pull/162)
+- 🔧 Chore: bump actions/setup-node from 4 to 6 [`#163`](https://github.com/vfilby/migralog/pull/163)
+- 🔧 Chore: bump actions/checkout from 4 to 5 [`#164`](https://github.com/vfilby/migralog/pull/164)
 - 🔧 Chore: fix npm audit vulnerability and add audit to precommit [`#170`](https://github.com/vfilby/migralog/pull/170)
 - 🔧 Chore: Upgrade Expo SDK to 54.0.23 and fix dependency compatibility [`#139`](https://github.com/vfilby/migralog/pull/139)
 - 🔧 Chore: update minor/patch dependencies [`#102`](https://github.com/vfilby/migralog/pull/102)
@@ -435,6 +438,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - 🔧 Chore: bump version to 1.1.2 [`5223d28`](https://github.com/vfilby/MigraineTracker/commit/5223d28cc250b34ac7fb3327b3c5a3d1f816fb96)
 - 🔧 Chore: bump version to 1.1.7 [`fd20692`](https://github.com/vfilby/MigraineTracker/commit/fd2069244c73c94dd51bdf39f741f3151677a268)
 - 🔧 Chore: update CHANGELOG.md for alpha-v1.1.2 [`0fc21c5`](https://github.com/vfilby/MigraineTracker/commit/0fc21c568a4e003901c37d44bdd815b267e99b06)
+- 🔧 Chore: bump version to 1.1.11 [`a01d933`](https://github.com/vfilby/MigraineTracker/commit/a01d93395261728d115b35ac13c6ecf20907083b)
 - ♻️ Refactor: change ingredients to structured array format [`67cb769`](https://github.com/vfilby/MigraineTracker/commit/67cb7696c6f1ff6d3cb2acd647452b0ec6633c71)
 - 🔧 Chore: bump version to 1.1.6 [`41b39e5`](https://github.com/vfilby/MigraineTracker/commit/41b39e5411701815a364f2fc8bc6c2b725add54e)
 - 🔧 Chore: bump version to 1.1.3 [`9746c7e`](https://github.com/vfilby/MigraineTracker/commit/9746c7e38fba2ddcb5efefe8e2bf325e1c4c6c05)
@@ -442,7 +446,6 @@ All notable changes to this project will be documented in this file. Dates are d
 - 🔧 Chore: update CHANGELOG.md for alpha-v1.1.4 [`dcdbf38`](https://github.com/vfilby/MigraineTracker/commit/dcdbf38080a8e0e36321917ac89143830ea816ac)
 - 🔧 Chore: bump version to 1.1.5 [`67ef1b6`](https://github.com/vfilby/MigraineTracker/commit/67ef1b6b0c1e8935ecc98f628dbe94f910da0463)
 - 🔧 Chore: update CHANGELOG.md for alpha-v1.1.8 [`0780004`](https://github.com/vfilby/MigraineTracker/commit/07800045431794d1f5e6a3c5e95ddcaadb2a86a5)
-- 🔧 Chore: bump actions/checkout from 4 to 5 [`dd91777`](https://github.com/vfilby/MigraineTracker/commit/dd917778ab1eaf55f34c0f977ab9c14f7595383d)
 - 🔧 Chore: update CHANGELOG.md for alpha-v1.1.0-rc.2 [`cbabdb8`](https://github.com/vfilby/MigraineTracker/commit/cbabdb82ac631388579f1bd493ed871c61314989)
 - ♻️ Refactor: add complete Sentry env config for production builds [`0a6c078`](https://github.com/vfilby/MigraineTracker/commit/0a6c0782e8e6c789c85a5628dc6581c5aae01643)
 - 🔧 Chore: update dependencies to match Expo SDK 54 requirements [`06a4927`](https://github.com/vfilby/MigraineTracker/commit/06a49270e577b4151274e5beedeecf333f179fbd)
