@@ -163,6 +163,11 @@ export interface MedicationReminder {
 
 export type DayStatus = 'green' | 'yellow' | 'red';
 
+// Time range options for analytics filtering
+// Define as const array first, then derive type - enables iteration at runtime
+export const TIME_RANGE_OPTIONS = [7, 30, 90] as const;
+export type TimeRangeDays = (typeof TIME_RANGE_OPTIONS)[number];
+
 export type YellowDayType =
   | 'prodrome'      // Warning signs before episode
   | 'postdrome'     // Recovery period after episode
