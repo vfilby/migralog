@@ -25,49 +25,47 @@ export function formatEpisodeTimeRange(
 ): string {
   try {
     const startDate = new Date(startTime);
-    // Validate the date is valid
+    // Validate start date is valid
     if (isNaN(startDate.getTime())) {
       return 'Unknown time';
     }
 
     const targetDateObj = new Date(targetDate + 'T00:00:00');
-
-    // Check if start date is on the target date
     const startIsOnTargetDate = isSameDay(startDate, targetDateObj);
 
-    if (endTime) {
-      const endDate = new Date(endTime);
-      // Validate end date is valid
-      if (isNaN(endDate.getTime())) {
-        // Just show start time if end is invalid
-        return startIsOnTargetDate
-          ? `Started at ${format(startDate, 'h:mm a')}`
-          : `Started ${format(startDate, 'MMM d, h:mm a')}`;
-      }
+    // Helper to format start time for ongoing episodes
+    const formatOngoingStart = () =>
+      startIsOnTargetDate
+        ? `Started at ${format(startDate, 'h:mm a')}`
+        : `Started ${format(startDate, 'MMM d, h:mm a')}`;
 
-      const endIsOnTargetDate = isSameDay(endDate, targetDateObj);
-
-      // If both start and end are on the same day, just show times
-      if (startIsOnTargetDate && endIsOnTargetDate) {
-        return `${format(startDate, 'h:mm a')} - ${format(endDate, 'h:mm a')}`;
-      }
-
-      // Multi-day episode - show dates with times
-      const startStr = startIsOnTargetDate
-        ? format(startDate, 'h:mm a')
-        : format(startDate, 'MMM d, h:mm a');
-      const endStr = endIsOnTargetDate
-        ? format(endDate, 'h:mm a')
-        : format(endDate, 'MMM d, h:mm a');
-
-      return `${startStr} - ${endStr}`;
+    // Check if we have a valid end time
+    if (!endTime) {
+      return formatOngoingStart();
     }
 
-    // Ongoing episode
-    if (startIsOnTargetDate) {
-      return `Started at ${format(startDate, 'h:mm a')}`;
+    const endDate = new Date(endTime);
+    if (isNaN(endDate.getTime())) {
+      return formatOngoingStart();
     }
-    return `Started ${format(startDate, 'MMM d, h:mm a')}`;
+
+    // Completed episode - format time range
+    const endIsOnTargetDate = isSameDay(endDate, targetDateObj);
+
+    // If both start and end are on the target date, just show times
+    if (startIsOnTargetDate && endIsOnTargetDate) {
+      return `${format(startDate, 'h:mm a')} - ${format(endDate, 'h:mm a')}`;
+    }
+
+    // Multi-day episode - show dates with times
+    const startStr = startIsOnTargetDate
+      ? format(startDate, 'h:mm a')
+      : format(startDate, 'MMM d, h:mm a');
+    const endStr = endIsOnTargetDate
+      ? format(endDate, 'h:mm a')
+      : format(endDate, 'MMM d, h:mm a');
+
+    return `${startStr} - ${endStr}`;
   } catch {
     return 'Unknown time';
   }
