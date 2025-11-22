@@ -286,6 +286,68 @@ describe('MonthlyCalendarView', () => {
       const nextButton = screen.getByTestId('next-month-button');
       expect(nextButton.props.accessibilityState?.disabled).toBe(true);
     });
+
+    it('should not change month when pressing disabled next button', async () => {
+      // System time is January 2024, so next button should be disabled
+      renderWithTheme(<MonthlyCalendarView initialDate={testDate} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('January 2024')).toBeTruthy();
+      });
+
+      // Try pressing the disabled next button
+      fireEvent.press(screen.getByTestId('next-month-button'));
+
+      // Should still be January 2024 (not February)
+      await waitFor(() => {
+        expect(screen.getByText('January 2024')).toBeTruthy();
+      });
+      expect(screen.queryByText('February 2024')).toBeNull();
+    });
+
+    it('should show correct accessibility hint based on navigation state', async () => {
+      // Start from December 2023 (can navigate forward)
+      const pastMonthDate = new Date('2023-12-15T10:00:00');
+      renderWithTheme(<MonthlyCalendarView initialDate={pastMonthDate} />);
+
+      await waitFor(() => {
+        const nextButton = screen.getByTestId('next-month-button');
+        expect(nextButton.props.accessibilityHint).toBe('Double tap to view the next month');
+      });
+
+      // Navigate to January 2024 (current month, cannot navigate forward)
+      fireEvent.press(screen.getByTestId('next-month-button'));
+
+      await waitFor(() => {
+        const nextButton = screen.getByTestId('next-month-button');
+        expect(nextButton.props.accessibilityHint).toBe('Cannot navigate beyond current month');
+      });
+    });
+
+    it('should apply disabled styling to next button on current month', async () => {
+      renderWithTheme(<MonthlyCalendarView initialDate={testDate} />);
+
+      await waitFor(() => {
+        const nextButton = screen.getByTestId('next-month-button');
+        // The button should have the disabled style applied (opacity: 0.3)
+        const styles = nextButton.props.style;
+        const flatStyles = Array.isArray(styles) ? Object.assign({}, ...styles.filter(Boolean)) : styles;
+        expect(flatStyles.opacity).toBe(0.3);
+      });
+    });
+
+    it('should not apply disabled styling to next button when viewing past month', async () => {
+      const pastMonthDate = new Date('2023-12-15T10:00:00');
+      renderWithTheme(<MonthlyCalendarView initialDate={pastMonthDate} />);
+
+      await waitFor(() => {
+        const nextButton = screen.getByTestId('next-month-button');
+        // The button should NOT have reduced opacity
+        const styles = nextButton.props.style;
+        const flatStyles = Array.isArray(styles) ? Object.assign({}, ...styles.filter(Boolean)) : styles;
+        expect(flatStyles.opacity).not.toBe(0.3);
+      });
+    });
   });
 
   describe('Day Selection', () => {
