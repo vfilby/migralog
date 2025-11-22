@@ -7,6 +7,7 @@ import AppNavigator from './src/navigation/AppNavigator';
 import { ThemeProvider } from './src/theme';
 import { getDatabase } from './src/database/db';
 import { notificationService } from './src/services/notificationService';
+import { dailyCheckinService } from './src/services/dailyCheckinService';
 import { logger } from './src/utils/logger';
 import { performanceMonitor } from './src/utils/performance';
 import ErrorBoundary from './src/components/ErrorBoundary';
@@ -64,6 +65,11 @@ function App() {
       await notificationService.initialize();
       performanceMonitor.mark('notifications-ready');
       logger.log('Notification service initialized');
+
+      // Initialize daily check-in service
+      await dailyCheckinService.initialize();
+      await dailyCheckinService.scheduleNotification();
+      logger.log('Daily check-in service initialized');
 
       // Initialize test deep links (dev only)
       if (__DEV__) {

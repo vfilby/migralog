@@ -9,6 +9,7 @@ import {
   Alert,
   Linking,
   Switch,
+  Platform,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -17,13 +18,16 @@ import { useTheme, ThemeColors } from '../theme';
 import { buildInfo } from '../buildInfo';
 import { errorLogger, ErrorLog } from '../services/errorLogger';
 import { notificationService, NotificationPermissions } from '../services/notificationService';
+import { dailyCheckinService } from '../services/dailyCheckinService';
 import { locationService } from '../services/locationService';
 import { backupService } from '../services/backupService';
+import { useDailyCheckinSettingsStore } from '../store/dailyCheckinSettingsStore';
 import * as SQLite from 'expo-sqlite';
 import * as Notifications from 'expo-notifications';
 import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import NotificationSettings from '../components/NotificationSettings';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
@@ -31,7 +35,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 const DEVELOPER_MODE_KEY = '@settings_developer_mode';
 
 export default function SettingsScreen({ navigation }: Props) {
-  const { theme, themeMode, setThemeMode } = useTheme();
+  const { theme, themeMode, setThemeMode, isDark } = useTheme();
   const styles = createStyles(theme);
   const [errorLogs, setErrorLogs] = useState<ErrorLog[]>([]);
   const [dbStatus, setDbStatus] = useState<'checking' | 'healthy' | 'error'>('checking');
@@ -41,6 +45,14 @@ export default function SettingsScreen({ navigation }: Props) {
   const [versionTapCount, setVersionTapCount] = useState(0);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [isTogglingNotifications, setIsTogglingNotifications] = useState(false);
+  const [showCheckinTimePicker, setShowCheckinTimePicker] = useState(false);
+
+  // Daily check-in settings
+  const dailyCheckinSettings = useDailyCheckinSettingsStore((state) => state.settings);
+  const updateDailyCheckinSettings = useDailyCheckinSettingsStore((state) => state.updateSettings);
+  const loadDailyCheckinSettings = useDailyCheckinSettingsStore((state) => state.loadSettings);
+  const isDailyCheckinLoaded = useDailyCheckinSettingsStore((state) => state.isLoaded);
+
   const [sentryStatus, setSentryStatus] = useState<{
     isConfigured: boolean;
     isEnabled: boolean;
@@ -57,6 +69,9 @@ export default function SettingsScreen({ navigation }: Props) {
     loadDiagnostics();
     loadDeveloperMode();
     loadNotificationsEnabled();
+    if (!isDailyCheckinLoaded) {
+      loadDailyCheckinSettings();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -405,6 +420,60 @@ export default function SettingsScreen({ navigation }: Props) {
     }
   };
 
+  // Daily check-in handlers
+  const handleToggleDailyCheckin = async (enabled: boolean) => {
+    try {
+      await updateDailyCheckinSettings({ enabled });
+      // Reschedule or cancel notification based on new setting
+      if (enabled) {
+        await dailyCheckinService.scheduleNotification();
+        Alert.alert('Success', 'Daily check-in reminders have been enabled');
+      } else {
+        await dailyCheckinService.cancelNotification();
+        Alert.alert('Success', 'Daily check-in reminders have been disabled');
+      }
+    } catch (error) {
+      logger.error('Failed to toggle daily check-in:', error);
+      Alert.alert('Error', 'Failed to update daily check-in settings');
+    }
+  };
+
+  const handleCheckinTimeChange = async (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowCheckinTimePicker(false);
+    }
+
+    if (selectedDate) {
+      const hours = selectedDate.getHours().toString().padStart(2, '0');
+      const minutes = selectedDate.getMinutes().toString().padStart(2, '0');
+      const newTime = `${hours}:${minutes}`;
+
+      try {
+        await updateDailyCheckinSettings({ checkInTime: newTime });
+        // Reschedule notification with new time
+        await dailyCheckinService.rescheduleNotification();
+        logger.log('[Settings] Updated daily check-in time to:', newTime);
+      } catch (error) {
+        logger.error('Failed to update check-in time:', error);
+        Alert.alert('Error', 'Failed to update check-in time');
+      }
+    }
+  };
+
+  const formatCheckinTime = (time: string): string => {
+    const [hours, minutes] = time.split(':').map(Number);
+    const date = new Date();
+    date.setHours(hours, minutes);
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  };
+
+  const getCheckinTimeAsDate = (): Date => {
+    const [hours, minutes] = dailyCheckinSettings.checkInTime.split(':').map(Number);
+    const date = new Date();
+    date.setHours(hours, minutes);
+    return date;
+  };
+
   const handleResetDatabase = async () => {
     Alert.alert(
       'Reset Database (Testing)',
@@ -733,6 +802,81 @@ export default function SettingsScreen({ navigation }: Props) {
                 <View style={styles.settingsSection}>
                   <NotificationSettings showTitle={false} />
                 </View>
+              )}
+
+              {/* Daily Check-in (within Notifications section, only when enabled) */}
+              {notificationsEnabled && (
+                <>
+                  <View style={styles.sectionDivider} />
+                  <Text style={styles.subsectionTitle}>Daily Check-in</Text>
+                  <Text style={styles.sectionDescription}>
+                    Get a reminder to log how your day went
+                  </Text>
+
+                  <View style={[styles.settingsSection, styles.notificationToggleSection]}>
+                    <View style={styles.settingRow}>
+                      <View style={styles.settingInfo}>
+                        <Text style={styles.settingLabel}>Enable Daily Check-in</Text>
+                        <Text style={styles.settingDescription}>
+                          {dailyCheckinSettings.enabled
+                            ? `Reminder at ${formatCheckinTime(dailyCheckinSettings.checkInTime)}`
+                            : 'Daily reminders disabled'}
+                        </Text>
+                      </View>
+                      <Switch
+                        value={dailyCheckinSettings.enabled}
+                        onValueChange={handleToggleDailyCheckin}
+                        trackColor={{ false: theme.borderLight, true: theme.primary }}
+                        thumbColor={theme.card}
+                        accessibilityRole="switch"
+                        accessibilityLabel="Enable daily check-in"
+                        accessibilityHint="Toggles daily check-in reminders on or off"
+                      />
+                    </View>
+                  </View>
+
+                  {dailyCheckinSettings.enabled && (
+                    <View style={styles.settingsSection}>
+                      <TouchableOpacity
+                        style={[styles.diagnosticCard, { marginBottom: 0 }]}
+                        onPress={() => setShowCheckinTimePicker(!showCheckinTimePicker)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Check-in time: ${formatCheckinTime(dailyCheckinSettings.checkInTime)}`}
+                        accessibilityHint="Tap to change the daily check-in reminder time"
+                      >
+                        <View style={styles.diagnosticRow}>
+                          <View style={styles.diagnosticLeft}>
+                            <Ionicons
+                              name="time-outline"
+                              size={20}
+                              color={theme.textSecondary}
+                            />
+                            <Text style={styles.diagnosticLabel}>Check-in Time</Text>
+                          </View>
+                          <View style={styles.diagnosticRight}>
+                            <Text style={[styles.diagnosticValueSecondary, { color: theme.primary, fontWeight: '600' }]}>
+                              {formatCheckinTime(dailyCheckinSettings.checkInTime)}
+                            </Text>
+                            <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+
+                      {showCheckinTimePicker && (
+                        <View style={styles.timePickerContainer}>
+                          <DateTimePicker
+                            value={getCheckinTimeAsDate()}
+                            mode="time"
+                            is24Hour={false}
+                            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                            onChange={handleCheckinTimeChange}
+                            themeVariant={isDark ? 'dark' : 'light'}
+                          />
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </>
               )}
             </>
           ) : (
@@ -1163,6 +1307,17 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     marginBottom: 16,
     lineHeight: 20,
   },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: theme.borderLight,
+    marginVertical: 20,
+  },
+  subsectionTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: theme.text,
+    marginBottom: 4,
+  },
   aboutCard: {
     backgroundColor: theme.card,
     borderRadius: 12,
@@ -1366,5 +1521,11 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   settingDescription: {
     fontSize: 14,
     color: theme.textSecondary,
+  },
+  timePickerContainer: {
+    marginTop: 8,
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    padding: 8,
   },
 });
