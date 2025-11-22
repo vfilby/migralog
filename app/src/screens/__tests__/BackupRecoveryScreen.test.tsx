@@ -75,11 +75,14 @@ describe('BackupRecoveryScreen', () => {
         <BackupRecoveryScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
         { wrapper: TestWrapper }
       );
-      
+
       await waitFor(() => {
         expect(getByText('No backups yet')).toBeTruthy();
       }, { timeout: 3000 });
     });
+
+    // Note: Backup list rendering covered by E2E tests
+    // UI changes in Issue #185 removed badge - visual change only
   });
 
   describe('Accessibility', () => {
