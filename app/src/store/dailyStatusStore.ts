@@ -73,16 +73,17 @@ export const useDailyStatusStore = create<DailyStatusState>((set, get) => ({
       // Merge: episode-based red days take precedence over manual statuses
       const mergedStatuses: DailyStatusLog[] = [];
 
-      // Add all episode-based red days
+      // Add all episode-based red days, preserving any saved notes
       episodeDateMap.forEach((episodes, dateStr) => {
+        const savedStatus = manualStatusMap.get(dateStr);
         mergedStatuses.push({
-          id: `calculated-${dateStr}`,
+          id: savedStatus?.id || `calculated-${dateStr}`,
           date: dateStr,
           status: 'red' as DayStatus,
-          notes: `${episodes.length} episode${episodes.length > 1 ? 's' : ''}`,
-          prompted: false,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          notes: savedStatus?.notes || undefined,
+          prompted: savedStatus?.prompted || false,
+          createdAt: savedStatus?.createdAt || Date.now(),
+          updatedAt: savedStatus?.updatedAt || Date.now(),
         });
       });
 
@@ -199,15 +200,18 @@ export const useDailyStatusStore = create<DailyStatusState>((set, get) => ({
       // First check if there's an episode on this date (auto red day)
       const episodes = await episodeRepository.getEpisodesForDate(date);
       if (episodes.length > 0) {
-        // Return a calculated red day status based on episodes
+        // Check if there's a saved status with notes for this red day
+        const savedLog = await dailyStatusRepository.getByDate(date);
+
+        // Return a calculated red day status, preserving any saved notes
         return {
-          id: `calculated-${date}`,
+          id: savedLog?.id || `calculated-${date}`,
           date,
           status: 'red' as DayStatus,
-          notes: `${episodes.length} episode${episodes.length > 1 ? 's' : ''}`,
-          prompted: false,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          notes: savedLog?.notes || undefined,
+          prompted: savedLog?.prompted || false,
+          createdAt: savedLog?.createdAt || Date.now(),
+          updatedAt: savedLog?.updatedAt || Date.now(),
         };
       }
 
