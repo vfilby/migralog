@@ -18,6 +18,7 @@ import { useDailyStatusStore } from '../store/dailyStatusStore';
 import { YellowDayType, Episode } from '../models/types';
 import { useTheme, ThemeColors } from '../theme';
 import { format, subDays } from 'date-fns';
+import { formatEpisodeTimeRange, formatEpisodeDuration } from '../utils/dateFormatting';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DailyStatusPrompt'>;
 
@@ -216,6 +217,16 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     fontSize: 13,
     color: theme.textSecondary,
   },
+  tapToViewText: {
+    fontSize: 12,
+    color: theme.primary,
+    marginTop: 6,
+    fontWeight: '500',
+  },
+  notesSection: {
+    marginTop: 24,
+    marginBottom: 16,
+  },
   loadingContainer: {
     padding: 40,
     alignItems: 'center',
@@ -228,38 +239,60 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
 
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const { logDayStatus, getEpisodesForDate } = useDailyStatusStore();
+  const { logDayStatus, getEpisodesForDate, getDayStatus } = useDailyStatusStore();
 
   const [selectedStatus, setSelectedStatus] = useState<'green' | 'yellow' | null>(null);
   const [selectedType, setSelectedType] = useState<YellowDayType | null>(null);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
-  const [loadingEpisodes, setLoadingEpisodes] = useState(true);
+  const [loadingData, setLoadingData] = useState(true);
+
+  // Computed values for readability
+  const hasEpisodes = episodes.length > 0;
+  const isRedDay = hasEpisodes;
 
   useEffect(() => {
-    loadEpisodes();
+    loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetDate]);
 
-  const loadEpisodes = async () => {
-    setLoadingEpisodes(true);
+  const loadData = async () => {
+    setLoadingData(true);
     try {
-      const episodesForDate = await getEpisodesForDate(targetDate);
+      // Load episodes and existing status in parallel
+      const [episodesForDate, existingStatus] = await Promise.all([
+        getEpisodesForDate(targetDate),
+        getDayStatus(targetDate),
+      ]);
+
       setEpisodes(episodesForDate);
+
+      // Pre-populate form with existing status data
+      if (existingStatus) {
+        // Only pre-populate green/yellow statuses (red is calculated from episodes)
+        if (existingStatus.status === 'green' || existingStatus.status === 'yellow') {
+          setSelectedStatus(existingStatus.status);
+          if (existingStatus.statusType) {
+            setSelectedType(existingStatus.statusType);
+          }
+        }
+        if (existingStatus.notes) {
+          setNotes(existingStatus.notes);
+        }
+      }
     } catch (error) {
-      logger.error('[DailyStatusPrompt] Failed to load episodes:', error);
+      logger.error('[DailyStatusPrompt] Failed to load data:', error);
     } finally {
-      setLoadingEpisodes(false);
+      setLoadingData(false);
     }
   };
 
   const handleStatusSelect = (status: 'green' | 'yellow') => {
     setSelectedStatus(status);
     if (status === 'green') {
-      // Clear yellow-specific fields
+      // Clear yellow-specific field (type), but keep notes
       setSelectedType(null);
-      setNotes('');
     }
   };
 
@@ -292,6 +325,31 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
     navigation.goBack();
   };
 
+  const handleSaveRedDayNotes = async () => {
+    // If no notes, just close
+    if (!notes.trim()) {
+      navigation.goBack();
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // Save notes for red day using logDayStatus with 'red' status
+      await logDayStatus(
+        targetDate,
+        'red',
+        undefined,
+        notes.trim(),
+        true // prompted = true
+      );
+      navigation.goBack();
+    } catch (error) {
+      logger.error('[DailyStatusPrompt] Failed to save red day notes:', error);
+      Alert.alert('Error', 'Failed to save notes. Please try again.');
+      setSaving(false);
+    }
+  };
+
   const formatDate = (dateStr: string) => {
     try {
       const date = new Date(dateStr + 'T00:00:00');
@@ -301,28 +359,8 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
     }
   };
 
-  const formatEpisodeTime = (startTime: number, endTime?: number) => {
-    const start = format(new Date(startTime), 'h:mm a');
-    if (endTime) {
-      const end = format(new Date(endTime), 'h:mm a');
-      return `${start} - ${end}`;
-    }
-    return `Started at ${start}`;
-  };
 
-  const formatEpisodeDuration = (startTime: number, endTime?: number) => {
-    const end = endTime || Date.now();
-    const durationMs = end - startTime;
-    const hours = Math.floor(durationMs / (1000 * 60 * 60));
-    const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
-
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    }
-    return `${minutes}m`;
-  };
-
-  if (loadingEpisodes) {
+  if (loadingData) {
     return (
       <View style={styles.container} testID="daily-status-prompt-screen">
         <View style={styles.header}>
@@ -355,7 +393,7 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
         </Text>
 
         {/* Show episode info if there are episodes on this date */}
-        {episodes.length > 0 && (
+        {isRedDay && (
           <View style={styles.episodeInfo}>
             <Text style={styles.episodeInfoTitle}>
               🔴 Episode Day
@@ -366,15 +404,23 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
                 : `You had ${episodes.length} episodes on this day:`}
             </Text>
             {episodes.map((episode) => (
-              <View key={episode.id} style={styles.episodeItem}>
+              <TouchableOpacity
+                key={episode.id}
+                style={styles.episodeItem}
+                onPress={() => navigation.navigate('EpisodeDetail', { episodeId: episode.id })}
+                testID={`episode-card-${episode.id}`}
+                accessibilityRole="button"
+                accessibilityLabel={`View episode details`}
+              >
                 <Text style={styles.episodeTime}>
-                  {formatEpisodeTime(episode.startTime, episode.endTime)}
+                  {formatEpisodeTimeRange(episode.startTime, episode.endTime, targetDate)}
                 </Text>
                 <Text style={styles.episodeDetails}>
                   Duration: {formatEpisodeDuration(episode.startTime, episode.endTime)}
                   {episode.notes ? ` • ${episode.notes}` : ''}
                 </Text>
-              </View>
+                <Text style={styles.tapToViewText}>Tap to view details →</Text>
+              </TouchableOpacity>
             ))}
             <Text style={[styles.episodeInfoText, { marginTop: 12, marginBottom: 0 }]}>
               This day is automatically marked as red based on your episode data.
@@ -382,8 +428,25 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
           </View>
         )}
 
+        {/* Notes section for red days - outside the red bubble */}
+        {isRedDay && (
+          <View style={styles.notesSection}>
+            <Text style={styles.sectionTitle}>Notes (optional)</Text>
+            <TextInput
+              style={styles.notesInput}
+              multiline
+              numberOfLines={4}
+              placeholder="Any additional details about this day..."
+              placeholderTextColor={theme.textTertiary}
+              value={notes}
+              onChangeText={setNotes}
+              testID="red-day-notes-input"
+            />
+          </View>
+        )}
+
         {/* Only show status buttons if there are no episodes */}
-        {episodes.length === 0 && (
+        {!isRedDay && (
           <View style={styles.statusButtonContainer}>
             {/* Green Day Button */}
             <TouchableOpacity
@@ -427,8 +490,25 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
           </View>
         )}
 
+        {/* Expanded Green Day Details - notes only */}
+        {!isRedDay && selectedStatus === 'green' && (
+          <View style={styles.expandedSection}>
+            <Text style={styles.sectionTitle}>Notes (optional)</Text>
+            <TextInput
+              style={styles.notesInput}
+              multiline
+              numberOfLines={4}
+              placeholder="Any additional details..."
+              placeholderTextColor={theme.textTertiary}
+              value={notes}
+              onChangeText={setNotes}
+              testID="green-day-notes-input"
+            />
+          </View>
+        )}
+
         {/* Expanded Yellow Day Details - only if no episodes */}
-        {episodes.length === 0 && selectedStatus === 'yellow' && (
+        {!isRedDay && selectedStatus === 'yellow' && (
           <View style={styles.expandedSection}>
             <Text style={styles.sectionTitle}>Why wasn't it clear? (optional)</Text>
             <View style={styles.typeChipContainer}>
@@ -469,8 +549,8 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
         )}
       </ScrollView>
 
-      {/* Save Button Footer - only show if no episodes */}
-      {episodes.length === 0 && (
+      {/* Save Button Footer for green/yellow days */}
+      {!isRedDay && (
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={0}
@@ -493,6 +573,27 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
               testID="skip-button"
             >
               <Text style={styles.skipButtonText}>Skip for now</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      )}
+
+      {/* Save Button Footer for red days - to save notes */}
+      {isRedDay && (
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={0}
+        >
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+              onPress={handleSaveRedDayNotes}
+              disabled={saving}
+              testID="save-red-day-notes-button"
+            >
+              <Text style={styles.saveButtonText}>
+                {saving ? 'Saving...' : (notes.trim() ? 'Save Notes' : 'Close')}
+              </Text>
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
