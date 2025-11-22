@@ -355,49 +355,76 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
   };
 
   const formatEpisodeTime = (startTime: number, endTime?: number | null) => {
-    const startDate = new Date(startTime);
-    const targetDateObj = new Date(targetDate + 'T00:00:00');
-
-    // Check if start date is on the target date
-    const startIsOnTargetDate = isSameDay(startDate, targetDateObj);
-
-    if (endTime) {
-      const endDate = new Date(endTime);
-      const endIsOnTargetDate = isSameDay(endDate, targetDateObj);
-
-      // If both start and end are on the same day, just show times
-      if (startIsOnTargetDate && endIsOnTargetDate) {
-        return `${format(startDate, 'h:mm a')} - ${format(endDate, 'h:mm a')}`;
+    try {
+      const startDate = new Date(startTime);
+      // Validate the date is valid
+      if (isNaN(startDate.getTime())) {
+        return 'Unknown time';
       }
 
-      // Multi-day episode - show dates with times
-      const startStr = startIsOnTargetDate
-        ? format(startDate, 'h:mm a')
-        : format(startDate, 'MMM d, h:mm a');
-      const endStr = endIsOnTargetDate
-        ? format(endDate, 'h:mm a')
-        : format(endDate, 'MMM d, h:mm a');
+      const targetDateObj = new Date(targetDate + 'T00:00:00');
 
-      return `${startStr} - ${endStr}`;
-    }
+      // Check if start date is on the target date
+      const startIsOnTargetDate = isSameDay(startDate, targetDateObj);
 
-    // Ongoing episode
-    if (startIsOnTargetDate) {
-      return `Started at ${format(startDate, 'h:mm a')}`;
+      if (endTime) {
+        const endDate = new Date(endTime);
+        // Validate end date is valid
+        if (isNaN(endDate.getTime())) {
+          // Just show start time if end is invalid
+          return startIsOnTargetDate
+            ? `Started at ${format(startDate, 'h:mm a')}`
+            : `Started ${format(startDate, 'MMM d, h:mm a')}`;
+        }
+
+        const endIsOnTargetDate = isSameDay(endDate, targetDateObj);
+
+        // If both start and end are on the same day, just show times
+        if (startIsOnTargetDate && endIsOnTargetDate) {
+          return `${format(startDate, 'h:mm a')} - ${format(endDate, 'h:mm a')}`;
+        }
+
+        // Multi-day episode - show dates with times
+        const startStr = startIsOnTargetDate
+          ? format(startDate, 'h:mm a')
+          : format(startDate, 'MMM d, h:mm a');
+        const endStr = endIsOnTargetDate
+          ? format(endDate, 'h:mm a')
+          : format(endDate, 'MMM d, h:mm a');
+
+        return `${startStr} - ${endStr}`;
+      }
+
+      // Ongoing episode
+      if (startIsOnTargetDate) {
+        return `Started at ${format(startDate, 'h:mm a')}`;
+      }
+      return `Started ${format(startDate, 'MMM d, h:mm a')}`;
+    } catch {
+      return 'Unknown time';
     }
-    return `Started ${format(startDate, 'MMM d, h:mm a')}`;
   };
 
   const formatEpisodeDuration = (startTime: number, endTime?: number) => {
-    const end = endTime || Date.now();
-    const durationMs = end - startTime;
-    const hours = Math.floor(durationMs / (1000 * 60 * 60));
-    const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+    try {
+      const end = endTime || Date.now();
+      const durationMs = end - startTime;
 
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
+      // Handle invalid or negative duration
+      if (isNaN(durationMs) || durationMs < 0) {
+        return 'Unknown duration';
+      }
+
+      const hours = Math.floor(durationMs / (1000 * 60 * 60));
+      const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+
+      if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+      }
+      return `${minutes}m`;
+    } catch {
+      return 'Unknown duration';
     }
-    return `${minutes}m`;
   };
 
   if (loadingData) {

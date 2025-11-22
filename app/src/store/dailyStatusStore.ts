@@ -73,16 +73,17 @@ export const useDailyStatusStore = create<DailyStatusState>((set, get) => ({
       // Merge: episode-based red days take precedence over manual statuses
       const mergedStatuses: DailyStatusLog[] = [];
 
-      // Add all episode-based red days
+      // Add all episode-based red days, preserving any saved notes
       episodeDateMap.forEach((episodes, dateStr) => {
+        const savedStatus = manualStatusMap.get(dateStr);
         mergedStatuses.push({
-          id: `calculated-${dateStr}`,
+          id: savedStatus?.id || `calculated-${dateStr}`,
           date: dateStr,
           status: 'red' as DayStatus,
-          notes: `${episodes.length} episode${episodes.length > 1 ? 's' : ''}`,
-          prompted: false,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          notes: savedStatus?.notes || undefined,
+          prompted: savedStatus?.prompted || false,
+          createdAt: savedStatus?.createdAt || Date.now(),
+          updatedAt: savedStatus?.updatedAt || Date.now(),
         });
       });
 
