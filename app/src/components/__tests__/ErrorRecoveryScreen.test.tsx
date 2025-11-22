@@ -1,6 +1,10 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 import ErrorRecoveryScreen from '../ErrorRecoveryScreen';
+
+// Mock Alert
+jest.spyOn(Alert, 'alert');
 
 // Mock theme hook
 jest.mock('../../theme', () => ({
@@ -19,12 +23,54 @@ jest.mock('../../theme', () => ({
   })),
 }));
 
+// Mock expo-file-system
+const mockGetInfoAsync = jest.fn();
+const mockCopyAsync = jest.fn();
+const mockDeleteAsync = jest.fn();
+
+jest.mock('expo-file-system/legacy', () => ({
+  getInfoAsync: (...args: unknown[]) => mockGetInfoAsync(...args),
+  copyAsync: (...args: unknown[]) => mockCopyAsync(...args),
+  deleteAsync: (...args: unknown[]) => mockDeleteAsync(...args),
+  cacheDirectory: 'file:///cache/',
+  documentDirectory: 'file:///documents/',
+}));
+
+// Mock expo-sharing
+const mockIsAvailableAsync = jest.fn();
+const mockShareAsync = jest.fn();
+
+jest.mock('expo-sharing', () => ({
+  isAvailableAsync: () => mockIsAvailableAsync(),
+  shareAsync: (...args: unknown[]) => mockShareAsync(...args),
+}));
+
+// Mock backupUtils
+jest.mock('../../services/backupUtils', () => ({
+  DB_PATH: 'file:///documents/SQLite/migralog.db',
+}));
+
+// Mock logger
+jest.mock('../../utils/logger', () => ({
+  logger: {
+    log: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+  },
+}));
+
 describe('ErrorRecoveryScreen', () => {
   const mockError = new Error('Test error message');
   const mockOnReset = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Reset mocks to default successful states
+    mockGetInfoAsync.mockResolvedValue({ exists: true });
+    mockCopyAsync.mockResolvedValue(undefined);
+    mockDeleteAsync.mockResolvedValue(undefined);
+    mockIsAvailableAsync.mockResolvedValue(true);
+    mockShareAsync.mockResolvedValue(undefined);
   });
 
   describe('Rendering', () => {
@@ -66,10 +112,18 @@ describe('ErrorRecoveryScreen', () => {
     it('displays help text', () => {
       const { getByText } = render(
         <ErrorRecoveryScreen error={mockError} onReset={mockOnReset} />,
-        
+
       );
 
-      expect(getByText('If this problem persists, try restarting the app.')).toBeTruthy();
+      expect(getByText('If this problem persists, try exporting your data first, then restart the app.')).toBeTruthy();
+    });
+
+    it('displays Export Database button', () => {
+      const { getByText } = render(
+        <ErrorRecoveryScreen error={mockError} onReset={mockOnReset} />,
+      );
+
+      expect(getByText('Export Database')).toBeTruthy();
     });
 
     it('hides error details in production mode', () => {
@@ -238,11 +292,128 @@ describe('ErrorRecoveryScreen', () => {
 
       const { getByText } = render(
         <ErrorRecoveryScreen error={longError} onReset={mockOnReset} />,
-        
+
       );
 
       expect(getByText('Something Went Wrong')).toBeTruthy();
       expect(getByText('Try Again')).toBeTruthy();
+    });
+  });
+
+  describe('Database Export', () => {
+    it('has proper testID for the export button', () => {
+      const { getByTestId } = render(
+        <ErrorRecoveryScreen error={mockError} onReset={mockOnReset} />,
+      );
+
+      expect(getByTestId('error-recovery-export')).toBeTruthy();
+    });
+
+    it('successfully exports database when all operations succeed', async () => {
+      const { getByTestId } = render(
+        <ErrorRecoveryScreen error={mockError} onReset={mockOnReset} />,
+      );
+
+      const exportButton = getByTestId('error-recovery-export');
+      fireEvent.press(exportButton);
+
+      await waitFor(() => {
+        expect(mockGetInfoAsync).toHaveBeenCalled();
+        expect(mockIsAvailableAsync).toHaveBeenCalled();
+        expect(mockCopyAsync).toHaveBeenCalled();
+        expect(mockShareAsync).toHaveBeenCalled();
+        expect(mockDeleteAsync).toHaveBeenCalled();
+      });
+    });
+
+    it('shows alert when database file not found', async () => {
+      mockGetInfoAsync.mockResolvedValueOnce({ exists: false });
+
+      const { getByTestId } = render(
+        <ErrorRecoveryScreen error={mockError} onReset={mockOnReset} />,
+      );
+
+      const exportButton = getByTestId('error-recovery-export');
+      fireEvent.press(exportButton);
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Database Not Found',
+          'The database file could not be found. There may be no data to export.',
+          [{ text: 'OK' }]
+        );
+      });
+    });
+
+    it('shows alert when sharing is not available', async () => {
+      mockIsAvailableAsync.mockResolvedValueOnce(false);
+
+      const { getByTestId } = render(
+        <ErrorRecoveryScreen error={mockError} onReset={mockOnReset} />,
+      );
+
+      const exportButton = getByTestId('error-recovery-export');
+      fireEvent.press(exportButton);
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Sharing Not Available',
+          'Sharing is not available on this device. The database cannot be exported.',
+          [{ text: 'OK' }]
+        );
+      });
+    });
+
+    it('shows alert when export fails', async () => {
+      mockCopyAsync.mockRejectedValueOnce(new Error('Copy failed'));
+
+      const { getByTestId } = render(
+        <ErrorRecoveryScreen error={mockError} onReset={mockOnReset} />,
+      );
+
+      const exportButton = getByTestId('error-recovery-export');
+      fireEvent.press(exportButton);
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Export Failed',
+          'Failed to export the database. Please try again or contact support.',
+          [{ text: 'OK' }]
+        );
+      });
+    });
+
+    it('shows loading indicator while exporting', async () => {
+      // Make shareAsync take time to simulate loading
+      mockShareAsync.mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)));
+
+      const { getByTestId, queryByText } = render(
+        <ErrorRecoveryScreen error={mockError} onReset={mockOnReset} />,
+      );
+
+      const exportButton = getByTestId('error-recovery-export');
+      fireEvent.press(exportButton);
+
+      // During export, the button text should be replaced by ActivityIndicator
+      await waitFor(() => {
+        expect(queryByText('Export Database')).toBeNull();
+      });
+    });
+
+    it('cleans up temporary file after sharing', async () => {
+      const { getByTestId } = render(
+        <ErrorRecoveryScreen error={mockError} onReset={mockOnReset} />,
+      );
+
+      const exportButton = getByTestId('error-recovery-export');
+      fireEvent.press(exportButton);
+
+      await waitFor(() => {
+        expect(mockDeleteAsync).toHaveBeenCalledWith(
+          expect.stringContaining('migralog_recovery_'),
+          { idempotent: true }
+        );
+      });
     });
   });
 });

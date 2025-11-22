@@ -1,7 +1,11 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useColorScheme } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useColorScheme, Alert, ActivityIndicator } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { useTheme } from '../theme';
 import { ThemeColors, lightColors, darkColors } from '../theme/colors';
+import { DB_PATH } from '../services/backupUtils';
+import { logger } from '../utils/logger';
 
 interface ErrorRecoveryScreenProps {
   error: Error;
@@ -17,6 +21,7 @@ interface ErrorRecoveryScreenProps {
  */
 const ErrorRecoveryScreen: React.FC<ErrorRecoveryScreenProps> = ({ error, onReset }) => {
   const systemColorScheme = useColorScheme();
+  const [isExporting, setIsExporting] = useState(false);
 
   // Try to get theme from context, but fallback to system color scheme if not available
   let theme: ThemeColors;
@@ -29,6 +34,67 @@ const ErrorRecoveryScreen: React.FC<ErrorRecoveryScreenProps> = ({ error, onRese
   }
 
   const styles = createStyles(theme);
+
+  /**
+   * Export the database file so users can save a copy before losing data
+   * This is critical for data recovery when the app fails to initialize
+   */
+  const handleExportDatabase = async () => {
+    setIsExporting(true);
+    try {
+      // Check if database file exists
+      const dbInfo = await FileSystem.getInfoAsync(DB_PATH);
+      if (!dbInfo.exists) {
+        Alert.alert(
+          'Database Not Found',
+          'The database file could not be found. There may be no data to export.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // Check if sharing is available
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (!isAvailable) {
+        Alert.alert(
+          'Sharing Not Available',
+          'Sharing is not available on this device. The database cannot be exported.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // Create a timestamped copy for export in the cache directory
+      const timestamp = Date.now();
+      const exportPath = `${FileSystem.cacheDirectory}migralog_recovery_${timestamp}.db`;
+
+      await FileSystem.copyAsync({
+        from: DB_PATH,
+        to: exportPath,
+      });
+
+      // Share the file (user can save to Files, email, etc.)
+      await Sharing.shareAsync(exportPath, {
+        mimeType: 'application/x-sqlite3',
+        dialogTitle: 'Export MigraLog Database',
+        UTI: 'public.database',
+      });
+
+      // Clean up the temporary copy
+      await FileSystem.deleteAsync(exportPath, { idempotent: true });
+
+      logger.log('[ErrorRecovery] Database exported successfully');
+    } catch (exportError) {
+      logger.error('[ErrorRecovery] Failed to export database:', exportError);
+      Alert.alert(
+        'Export Failed',
+        'Failed to export the database. Please try again or contact support.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -65,8 +131,24 @@ const ErrorRecoveryScreen: React.FC<ErrorRecoveryScreenProps> = ({ error, onRese
           <Text style={styles.primaryButtonText}>Try Again</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          onPress={handleExportDatabase}
+          disabled={isExporting}
+          testID="error-recovery-export"
+          accessibilityRole="button"
+          accessibilityLabel="Export Database"
+          accessibilityHint="Double tap to save a copy of your data before restarting"
+        >
+          {isExporting ? (
+            <ActivityIndicator size="small" color={theme.primary} />
+          ) : (
+            <Text style={styles.secondaryButtonText}>Export Database</Text>
+          )}
+        </TouchableOpacity>
+
         <Text style={styles.helpText}>
-          If this problem persists, try restarting the app.
+          If this problem persists, try exporting your data first, then restart the app.
         </Text>
       </ScrollView>
     </View>
@@ -140,6 +222,24 @@ const createStyles = (theme: ThemeColors) =>
     },
     primaryButtonText: {
       color: theme.primaryText,
+      fontSize: 17,
+      fontWeight: '600',
+    },
+    secondaryButton: {
+      backgroundColor: 'transparent',
+      paddingHorizontal: 32,
+      paddingVertical: 14,
+      borderRadius: 8,
+      minWidth: 200,
+      minHeight: 48,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: theme.primary,
+    },
+    secondaryButtonText: {
+      color: theme.primary,
       fontSize: 17,
       fontWeight: '600',
     },
