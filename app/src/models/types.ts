@@ -163,6 +163,9 @@ export interface MedicationReminder {
 
 export type DayStatus = 'green' | 'yellow' | 'red';
 
+// Time range for analytics filtering
+export type TimeRangeDays = 7 | 30 | 90;
+
 export type YellowDayType =
   | 'prodrome'      // Warning signs before episode
   | 'postdrome'     // Recovery period after episode

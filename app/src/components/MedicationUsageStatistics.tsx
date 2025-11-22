@@ -2,13 +2,14 @@ import React, { useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme, ThemeColors } from '../theme';
 import { useMedicationStore } from '../store/medicationStore';
+import { TimeRangeDays } from '../models/types';
 import {
   getDateRangeForDays,
   calculatePerMedicationStats,
 } from '../utils/analyticsUtils';
 
 interface MedicationUsageStatisticsProps {
-  selectedRange: 7 | 30 | 90;
+  selectedRange: TimeRangeDays;
 }
 
 const createStyles = (theme: ThemeColors) => StyleSheet.create({

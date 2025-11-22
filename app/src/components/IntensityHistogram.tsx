@@ -2,7 +2,7 @@ import React, { useMemo, useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme, ThemeColors } from '../theme';
 import { episodeRepository, intensityRepository } from '../database/episodeRepository';
-import { Episode, IntensityReading } from '../models/types';
+import { Episode, IntensityReading, TimeRangeDays } from '../models/types';
 import {
   getDateRangeForDays,
   calculateIntensityHistogram,
@@ -11,7 +11,7 @@ import {
 import { getPainColor } from '../utils/painScale';
 
 interface IntensityHistogramProps {
-  selectedRange: 7 | 30 | 90;
+  selectedRange: TimeRangeDays;
 }
 
 const createStyles = (theme: ThemeColors) => StyleSheet.create({

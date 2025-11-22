@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useTheme, ThemeColors } from '../theme';
 import { useEpisodeStore } from '../store/episodeStore';
 import { dailyStatusRepository } from '../database/dailyStatusRepository';
-import { DailyStatusLog } from '../models/types';
+import { DailyStatusLog, TimeRangeDays } from '../models/types';
 import {
   getDateRangeForDays,
   calculateEpisodeFrequency,
@@ -13,7 +13,7 @@ import {
 } from '../utils/analyticsUtils';
 
 interface EpisodeStatisticsProps {
-  selectedRange: 7 | 30 | 90;
+  selectedRange: TimeRangeDays;
 }
 
 const createStyles = (theme: ThemeColors) => StyleSheet.create({

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useTheme, ThemeColors } from '../theme';
+import { TimeRangeDays } from '../models/types';
 import MonthlyCalendarView from '../components/MonthlyCalendarView';
 import TimeRangeSelector from '../components/TimeRangeSelector';
 import EpisodeStatistics from '../components/EpisodeStatistics';
@@ -43,7 +44,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
 export default function AnalyticsScreen() {
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const [selectedTimeRange, setSelectedTimeRange] = useState<7 | 30 | 90>(30);
+  const [selectedTimeRange, setSelectedTimeRange] = useState<TimeRangeDays>(30);
 
   return (
     <View style={styles.container} testID="analytics-screen">

@@ -1,10 +1,11 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, AccessibilityRole } from 'react-native';
 import { useTheme, ThemeColors } from '../theme';
+import { TimeRangeDays } from '../models/types';
 
 interface TimeRangeSelectorProps {
-  selectedRange: 7 | 30 | 90;
-  onRangeChange: (range: 7 | 30 | 90) => void;
+  selectedRange: TimeRangeDays;
+  onRangeChange: (range: TimeRangeDays) => void;
 }
 
 const createStyles = (theme: ThemeColors) => StyleSheet.create({
@@ -46,7 +47,7 @@ export default function TimeRangeSelector({ selectedRange, onRangeChange }: Time
   const { theme } = useTheme();
   const styles = createStyles(theme);
 
-  const ranges: Array<{ value: 7 | 30 | 90; label: string; accessibilityLabel: string }> = [
+  const ranges: Array<{ value: TimeRangeDays; label: string; accessibilityLabel: string }> = [
     { value: 7, label: '7 Days', accessibilityLabel: 'Select 7 days time range' },
     { value: 30, label: '30 Days', accessibilityLabel: 'Select 30 days time range' },
     { value: 90, label: '90 Days', accessibilityLabel: 'Select 90 days time range' },
