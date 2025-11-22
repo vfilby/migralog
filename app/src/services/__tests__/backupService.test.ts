@@ -1,5 +1,5 @@
 import { backupService, BackupData } from '../backupService';
-import { initializeBackupDirectory, validateBackupMetadata, validateBackupData } from '../backupUtils';
+import { initializeBackupDirectory, validateBackupMetadata } from '../backupUtils';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
@@ -27,6 +27,10 @@ jest.mock('expo-file-system/legacy', () => ({
   writeAsStringAsync: jest.fn(),
   deleteAsync: jest.fn(),
   copyAsync: jest.fn(),
+  EncodingType: {
+    Base64: 'base64',
+    UTF8: 'utf8',
+  },
 }));
 jest.mock('expo-sharing');
 jest.mock('expo-document-picker');
@@ -57,10 +61,12 @@ const mockDatabase = {
   closeAsync: jest.fn(),
 };
 
-jest.mock('../../database/db', () => ({
+const mockDbModule = {
   getDatabase: jest.fn(() => Promise.resolve(mockDatabase)),
   closeDatabase: jest.fn(() => Promise.resolve()),
-}));
+};
+
+jest.mock('../../database/db', () => mockDbModule);
 
 describe('backupService', () => {
   const BACKUP_DIR = `${FileSystem.documentDirectory}backups/`;
@@ -218,6 +224,7 @@ describe('backupService', () => {
     });
 
     it('should clean up old automatic backups', async () => {
+      // Issue #185: Updated to use snapshot backups instead of JSON
       // Mock 8 existing backups (more than MAX_AUTO_BACKUPS = 7)
       const mockBackups = Array.from({ length: 8 }, (_, i) => ({
         id: `backup_${i}`,
@@ -226,27 +233,40 @@ describe('backupService', () => {
         schemaVersion: 1,
         episodeCount: 0,
         medicationCount: 0,
-        fileSize: 100,
-        fileName: `backup_${i}.json`,
+        fileSize: 5000,
+        fileName: `backup_${i}.db`,
+        backupType: 'snapshot',
       }));
 
-      (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue(
-        mockBackups.map(b => b.fileName)
-      );
+      // Return both .db files and .meta.json files
+      const files: string[] = [];
+      mockBackups.forEach(b => {
+        files.push(b.fileName);
+        files.push(`backup_${b.id.split('_')[1]}.meta.json`);
+      });
+      (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue(files);
+
+      (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
+        if (path.includes('.meta.json')) {
+          return Promise.resolve({ exists: true, size: 200 });
+        }
+        return Promise.resolve({ exists: true, size: 5000 });
+      });
 
       (FileSystem.readAsStringAsync as jest.Mock).mockImplementation((path: string) => {
         const fileName = path.split('/').pop();
-        const backup = mockBackups.find(b => b.fileName === fileName);
-        return Promise.resolve(
-          JSON.stringify({
-            metadata: backup,
-            episodes: [],
-            medications: [],
-            medicationDoses: [],
-            medicationSchedules: [],
-          })
-        );
+        // Extract backup ID from meta.json filename
+        if (fileName?.endsWith('.meta.json')) {
+          const backupId = fileName.replace('.meta.json', '');
+          const backup = mockBackups.find(b => b.id === backupId);
+          if (backup) {
+            return Promise.resolve(JSON.stringify(backup));
+          }
+        }
+        return Promise.resolve('{}');
       });
+
+      (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
 
       await backupService.createBackup(true);
 
@@ -266,52 +286,64 @@ describe('backupService', () => {
   });
 
   describe('listBackups', () => {
-    it('should list all backups sorted by timestamp', async () => {
-      const mockBackups = [
-        {
-          metadata: {
-            id: 'backup-1',
-            timestamp: 2000,
-            version: '1.0.0',
-            schemaVersion: 1,
-            episodeCount: 5,
-            medicationCount: 3,
-          },
-          episodes: [],
-          medications: [],
-          medicationDoses: [],
-          medicationSchedules: [],
-        },
-        {
-          metadata: {
-            id: 'backup-2',
-            timestamp: 1000,
-            version: '1.0.0',
-            schemaVersion: 1,
-            episodeCount: 2,
-            medicationCount: 1,
-          },
-          episodes: [],
-          medications: [],
-          medicationDoses: [],
-          medicationSchedules: [],
-        },
-      ];
+    it('should list all snapshot backups sorted by timestamp', async () => {
+      // Issue #185: listBackups now only lists snapshot (.db) backups, not JSON
+      const mockMetadata1 = {
+        id: 'backup-1',
+        timestamp: 2000,
+        version: '1.0.0',
+        schemaVersion: 1,
+        episodeCount: 5,
+        medicationCount: 3,
+        backupType: 'snapshot',
+        fileName: 'backup-1.db',
+        fileSize: 5000,
+      };
+      const mockMetadata2 = {
+        id: 'backup-2',
+        timestamp: 1000,
+        version: '1.0.0',
+        schemaVersion: 1,
+        episodeCount: 2,
+        medicationCount: 1,
+        backupType: 'snapshot',
+        fileName: 'backup-2.db',
+        fileSize: 3000,
+      };
 
-      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true, size: 500 });
+      (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
+        if (path.endsWith('.meta.json')) {
+          return Promise.resolve({ exists: true, size: 200 });
+        }
+        return Promise.resolve({ exists: true, size: 5000 });
+      });
       (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue([
-        'backup-1.json',
-        'backup-2.json',
+        'backup-1.db',
+        'backup-1.meta.json',
+        'backup-2.db',
+        'backup-2.meta.json',
       ]);
       (FileSystem.readAsStringAsync as jest.Mock)
-        .mockResolvedValueOnce(JSON.stringify(mockBackups[0]))
-        .mockResolvedValueOnce(JSON.stringify(mockBackups[1]));
+        .mockResolvedValueOnce(JSON.stringify(mockMetadata1))
+        .mockResolvedValueOnce(JSON.stringify(mockMetadata2));
 
       const backups = await backupService.listBackups();
 
       expect(backups).toHaveLength(2);
       expect(backups[0].id).toBe('backup-1'); // Newest first
       expect(backups[1].id).toBe('backup-2');
+    });
+
+    it('should skip legacy JSON backups (Issue #185)', async () => {
+      // JSON backups are no longer listed - they're skipped
+      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true, size: 500 });
+      (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue([
+        'legacy-backup.json', // Should be skipped
+      ]);
+
+      const backups = await backupService.listBackups();
+
+      expect(backups).toHaveLength(0);
     });
 
     it('should return empty array if backup directory does not exist', async () => {
@@ -322,20 +354,32 @@ describe('backupService', () => {
       expect(backups).toEqual([]);
     });
 
-    it('should skip invalid backup files', async () => {
-      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true, size: 100 });
+    it('should skip snapshot backups with invalid metadata', async () => {
+      // Issue #185: Updated to test snapshot backups with invalid metadata
+      (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
+        if (path.endsWith('.meta.json')) {
+          return Promise.resolve({ exists: true, size: 100 });
+        }
+        return Promise.resolve({ exists: true, size: 5000 });
+      });
       (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue([
-        'valid.json',
-        'invalid.json',
+        'valid.db',
+        'valid.meta.json',
+        'invalid.db',
+        'invalid.meta.json',
       ]);
       (FileSystem.readAsStringAsync as jest.Mock)
         .mockResolvedValueOnce(
           JSON.stringify({
-            metadata: { id: 'valid', timestamp: 1000, version: '1.0.0', schemaVersion: 1, episodeCount: 0, medicationCount: 0 },
-            episodes: [],
-            medications: [],
-            medicationDoses: [],
-            medicationSchedules: [],
+            id: 'valid',
+            timestamp: 1000,
+            version: '1.0.0',
+            schemaVersion: 1,
+            episodeCount: 0,
+            medicationCount: 0,
+            backupType: 'snapshot',
+            fileName: 'valid.db',
+            fileSize: 5000,
           })
         )
         .mockResolvedValueOnce('invalid json');
@@ -458,39 +502,54 @@ describe('backupService', () => {
   });
 
   describe('getBackupMetadata', () => {
-    it('should return backup metadata for JSON backup if backup exists', async () => {
-      const mockBackup = {
-        metadata: {
-          id: 'backup-123',
-          timestamp: Date.now(),
-          version: '1.0.0',
-          schemaVersion: 1,
-          episodeCount: 5,
-          medicationCount: 3,
-        },
-        episodes: [],
-        medications: [],
-        medicationDoses: [],
-        medicationSchedules: [],
+    it('should return backup metadata for snapshot backup if backup exists', async () => {
+      // Issue #185: Updated to test snapshot backups only
+      const mockMetadata = {
+        id: 'backup-123',
+        timestamp: Date.now(),
+        version: '1.0.0',
+        schemaVersion: 1,
+        episodeCount: 5,
+        medicationCount: 3,
+        backupType: 'snapshot',
+        fileName: 'backup-123.db',
+        fileSize: 5000,
       };
 
-      // Mock: .meta.json doesn't exist (not a snapshot), but .json exists
+      // Mock: .meta.json exists (snapshot backup)
       (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
         if (path.includes('.meta.json')) {
-          return Promise.resolve({ exists: false });
+          return Promise.resolve({ exists: true, size: 200 });
         }
-        return Promise.resolve({ exists: true, size: 1000 });
+        return Promise.resolve({ exists: true, size: 5000 });
       });
       (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
-        JSON.stringify(mockBackup)
+        JSON.stringify(mockMetadata)
       );
 
       const metadata = await backupService.getBackupMetadata('backup-123');
 
       expect(metadata).not.toBeUndefined();
       expect(metadata?.id).toBe('backup-123');
-      expect(metadata?.fileSize).toBe(1000);
-      expect(metadata?.backupType).toBe('json');
+      expect(metadata?.fileSize).toBe(5000);
+      expect(metadata?.backupType).toBe('snapshot');
+    });
+
+    it('should return null for legacy JSON backups (Issue #185)', async () => {
+      // JSON backups are no longer supported - getBackupMetadata returns null
+      (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
+        if (path.includes('.meta.json')) {
+          return Promise.resolve({ exists: false }); // No metadata sidecar
+        }
+        if (path.includes('.json')) {
+          return Promise.resolve({ exists: true, size: 1000 }); // JSON file exists
+        }
+        return Promise.resolve({ exists: false });
+      });
+
+      const metadata = await backupService.getBackupMetadata('legacy-backup');
+
+      expect(metadata).toBeNull(); // JSON backups return null now
     });
 
     it('should return null if backup does not exist', async () => {
@@ -511,110 +570,72 @@ describe('backupService', () => {
   });
 
   describe('restoreBackup', () => {
-    const mockBackupData: BackupData = {
-      metadata: {
-        id: 'backup-123',
-        timestamp: Date.now(),
-        version: '1.0.0',
-        schemaVersion: 1,
-        episodeCount: 1,
-        medicationCount: 1,
-      },
-      schemaSQL: 'CREATE TABLE episodes (...);',
-      episodes: [
-        {
-          id: 'ep-1',
-          startTime: Date.now(),
-          endTime: undefined,
-          locations: [],
-          qualities: [],
-          symptoms: [],
-          triggers: [],
-          notes: undefined,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        },
-      ],
-      episodeNotes: [],
-      medications: [
-        {
-          id: 'med-1',
-          name: 'Test',
-          type: 'rescue',
-          dosageAmount: 100,
-          dosageUnit: 'mg',
-          defaultQuantity: undefined,
-          scheduleFrequency: undefined,
-          photoUri: undefined,
-          schedule: [],
-          active: true,
-          notes: undefined,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        },
-      ],
-      medicationDoses: [],
-      medicationSchedules: [],
+    // Issue #185: Updated tests to use snapshot backups instead of JSON
+    const mockSnapshotMetadata = {
+      id: 'backup-123',
+      timestamp: Date.now(),
+      version: '1.0.0',
+      schemaVersion: 1,
+      episodeCount: 1,
+      medicationCount: 1,
+      backupType: 'snapshot',
+      fileName: 'backup-123.db',
+      fileSize: 5000,
     };
 
     beforeEach(() => {
-      // Mock getInfoAsync to simulate JSON backup (not snapshot)
-      (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
-        if (path.includes('.meta.json')) {
-          return Promise.resolve({ exists: false });
-        }
-        return Promise.resolve({ exists: true, size: 1000 });
-      });
-      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
-        JSON.stringify(mockBackupData)
-      );
       (migrationRunner.getCurrentVersion as jest.Mock).mockResolvedValue(1);
-      (episodeRepository.create as jest.Mock).mockResolvedValue(undefined);
-      (medicationRepository.create as jest.Mock).mockResolvedValue(undefined);
-      (medicationDoseRepository.create as jest.Mock).mockResolvedValue(undefined);
-      (medicationScheduleRepository.create as jest.Mock).mockResolvedValue(undefined);
       (mockDatabase.getAllAsync as jest.Mock).mockResolvedValue([]);
       (mockDatabase.execAsync as jest.Mock).mockResolvedValue(undefined);
       (mockDatabase.runAsync as jest.Mock).mockResolvedValue(undefined);
+      mockDbModule.closeDatabase.mockResolvedValue(undefined);
+      mockDbModule.getDatabase.mockResolvedValue(mockDatabase);
     });
 
-    it('should restore backup with schema migration', async () => {
+    it('should restore snapshot backup with file copy', async () => {
+      // Mock: .meta.json exists (snapshot backup), .db file exists
+      (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
+        if (path.includes('.meta.json')) {
+          return Promise.resolve({ exists: true, size: 200 });
+        }
+        // For WAL/SHM files, return not exists
+        if (path.includes('-wal') || path.includes('-shm')) {
+          return Promise.resolve({ exists: false });
+        }
+        return Promise.resolve({ exists: true, size: 5000 });
+      });
+      (FileSystem.readAsStringAsync as jest.Mock).mockImplementation((path: string, options?: any) => {
+        // Handle base64 encoding for the .db file read
+        if (options?.encoding) {
+          return Promise.resolve('base64encodeddata');
+        }
+        // Handle JSON metadata file read
+        return Promise.resolve(JSON.stringify(mockSnapshotMetadata));
+      });
+      (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
+      (FileSystem.copyAsync as jest.Mock).mockResolvedValue(undefined);
+      (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
+
       await backupService.restoreBackup('backup-123');
 
-      expect(mockDatabase.execAsync).toHaveBeenCalledWith(mockBackupData.schemaSQL);
-      // Should use raw SQL inserts to preserve IDs
-      expect(mockDatabase.runAsync).toHaveBeenCalled();
+      // Snapshot restore writes the file (after reading as base64)
+      expect(FileSystem.writeAsStringAsync).toHaveBeenCalled();
     });
 
-    it('should restore old backup without schemaSQL using legacy method', async () => {
-      const oldBackup = { ...mockBackupData };
-      delete (oldBackup as any).schemaSQL;
-
-      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
-        JSON.stringify(oldBackup)
-      );
-      (episodeRepository.deleteAll as jest.Mock).mockResolvedValue(undefined);
-      (episodeNoteRepository.deleteAll as jest.Mock).mockResolvedValue(undefined);
-      (medicationRepository.deleteAll as jest.Mock).mockResolvedValue(undefined);
-      (medicationDoseRepository.deleteAll as jest.Mock).mockResolvedValue(undefined);
-      (medicationScheduleRepository.deleteAll as jest.Mock).mockResolvedValue(undefined);
-
-      await backupService.restoreBackup('backup-123');
-
-      expect(episodeRepository.deleteAll).toHaveBeenCalled();
-      expect(medicationRepository.deleteAll).toHaveBeenCalled();
-      // Should use raw SQL inserts to preserve IDs
-      expect(mockDatabase.runAsync).toHaveBeenCalled();
-    });
-
-    it('should reject restoring backup from newer schema version', async () => {
-      const newerBackup = {
-        ...mockBackupData,
-        metadata: { ...mockBackupData.metadata, schemaVersion: 5 },
+    it('should reject restoring snapshot backup from newer schema version', async () => {
+      const newerMetadata = {
+        ...mockSnapshotMetadata,
+        schemaVersion: 5,
       };
 
+      (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
+        if (path.includes('.meta.json')) {
+          return Promise.resolve({ exists: true, size: 200 });
+        }
+        return Promise.resolve({ exists: true, size: 5000 });
+      });
       (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
-        JSON.stringify(newerBackup)
+        JSON.stringify(newerMetadata)
       );
       (migrationRunner.getCurrentVersion as jest.Mock).mockResolvedValue(1);
 
@@ -623,35 +644,29 @@ describe('backupService', () => {
       );
     });
 
-    it('should run migrations after restoring old schema version', async () => {
-      const oldBackup = {
-        ...mockBackupData,
-        metadata: { ...mockBackupData.metadata, schemaVersion: 0 },
-      };
+    it('should reject legacy JSON backups (Issue #185)', async () => {
+      // Mock: no .meta.json (not a snapshot), JSON file exists but returns null from getBackupMetadata
+      (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
+        if (path.includes('.meta.json')) {
+          return Promise.resolve({ exists: false });
+        }
+        if (path.includes('.json')) {
+          return Promise.resolve({ exists: true, size: 1000 });
+        }
+        return Promise.resolve({ exists: false });
+      });
 
-      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
-        JSON.stringify(oldBackup)
+      // JSON backups now return "Backup not found" because getBackupMetadata returns null
+      await expect(backupService.restoreBackup('legacy-backup')).rejects.toThrow(
+        'Backup not found'
       );
-      (migrationRunner.getCurrentVersion as jest.Mock).mockResolvedValue(1);
-      (migrationRunner.runMigrations as jest.Mock).mockResolvedValue(undefined);
-
-      await backupService.restoreBackup('backup-123');
-
-      expect(migrationRunner.runMigrations).toHaveBeenCalled();
     });
 
-    it('should validate backup structure', async () => {
-      const invalidBackup = {
-        metadata: { id: 'test', timestamp: Date.now() },
-        // Missing episodes and medications
-      };
+    it('should throw error if backup does not exist', async () => {
+      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: false });
 
-      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
-        JSON.stringify(invalidBackup)
-      );
-
-      await expect(backupService.restoreBackup('backup-123')).rejects.toThrow(
-        'Invalid backup file format'
+      await expect(backupService.restoreBackup('nonexistent')).rejects.toThrow(
+        'Backup not found'
       );
     });
 
@@ -667,31 +682,29 @@ describe('backupService', () => {
   });
 
   describe('exportBackup', () => {
-    it('should export JSON backup via sharing', async () => {
-      const mockBackup = {
-        metadata: {
-          id: 'backup-123',
-          timestamp: Date.now(),
-          version: '1.0.0',
-          schemaVersion: 1,
-          episodeCount: 5,
-          medicationCount: 3,
-        },
-        episodes: [],
-        medications: [],
-        medicationDoses: [],
-        medicationSchedules: [],
+    // Issue #185: Updated tests to use snapshot backups instead of JSON
+    it('should export snapshot backup via sharing', async () => {
+      const mockMetadata = {
+        id: 'backup-123',
+        timestamp: Date.now(),
+        version: '1.0.0',
+        schemaVersion: 1,
+        episodeCount: 5,
+        medicationCount: 3,
+        backupType: 'snapshot',
+        fileName: 'backup-123.db',
+        fileSize: 5000,
       };
 
-      // Mock: .meta.json doesn't exist (not a snapshot), but .json exists
+      // Mock: .meta.json exists (snapshot backup)
       (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
         if (path.includes('.meta.json')) {
-          return Promise.resolve({ exists: false });
+          return Promise.resolve({ exists: true, size: 200 });
         }
-        return Promise.resolve({ exists: true, size: 1000 });
+        return Promise.resolve({ exists: true, size: 5000 });
       });
       (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
-        JSON.stringify(mockBackup)
+        JSON.stringify(mockMetadata)
       );
       (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true);
       (Sharing.shareAsync as jest.Mock).mockResolvedValue(undefined);
@@ -701,7 +714,7 @@ describe('backupService', () => {
       expect(Sharing.shareAsync).toHaveBeenCalled();
     });
 
-    it('should throw error if backup file does not exist', async () => {
+    it('should throw error if backup does not exist', async () => {
       (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: false });
 
       await expect(backupService.exportBackup('nonexistent')).rejects.toThrow(
@@ -709,31 +722,45 @@ describe('backupService', () => {
       );
     });
 
-    it('should throw error if sharing is not available', async () => {
-      const mockBackup = {
-        metadata: {
-          id: 'backup-123',
-          timestamp: Date.now(),
-          version: '1.0.0',
-          schemaVersion: 1,
-          episodeCount: 5,
-          medicationCount: 3,
-        },
-        episodes: [],
-        medications: [],
-        medicationDoses: [],
-        medicationSchedules: [],
-      };
-
-      // Mock: .meta.json doesn't exist (not a snapshot), but .json exists
+    it('should throw error for legacy JSON backups (Issue #185)', async () => {
+      // JSON backups are no longer supported - getBackupMetadata returns null
       (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
         if (path.includes('.meta.json')) {
-          return Promise.resolve({ exists: false });
+          return Promise.resolve({ exists: false }); // No metadata sidecar
         }
-        return Promise.resolve({ exists: true, size: 1000 });
+        if (path.includes('.json')) {
+          return Promise.resolve({ exists: true, size: 1000 }); // JSON file exists
+        }
+        return Promise.resolve({ exists: false });
+      });
+
+      await expect(backupService.exportBackup('legacy-backup')).rejects.toThrow(
+        'Backup not found'
+      );
+    });
+
+    it('should throw error if sharing is not available', async () => {
+      const mockMetadata = {
+        id: 'backup-123',
+        timestamp: Date.now(),
+        version: '1.0.0',
+        schemaVersion: 1,
+        episodeCount: 5,
+        medicationCount: 3,
+        backupType: 'snapshot',
+        fileName: 'backup-123.db',
+        fileSize: 5000,
+      };
+
+      // Mock: .meta.json exists (snapshot backup)
+      (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
+        if (path.includes('.meta.json')) {
+          return Promise.resolve({ exists: true, size: 200 });
+        }
+        return Promise.resolve({ exists: true, size: 5000 });
       });
       (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
-        JSON.stringify(mockBackup)
+        JSON.stringify(mockMetadata)
       );
       (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(false);
 
@@ -925,143 +952,26 @@ describe('backupService', () => {
     });
   });
 
-  describe('validateBackupData', () => {
-    it('should reject backup with missing episodes array', () => {
-      const invalidBackup = {
-        metadata: {
-          id: 'test',
-          timestamp: Date.now(),
-          version: '1.0.0',
-          schemaVersion: 1,
-          episodeCount: 0,
-          medicationCount: 0,
-        },
-        medications: [],
-        medicationDoses: [],
-        medicationSchedules: [],
-      };
-
-      const result = validateBackupData(invalidBackup);
-      expect(result).toBe(false);
-    });
-
-    it('should reject backup with non-array episodes field', () => {
-      const invalidBackup = {
-        metadata: {
-          id: 'test',
-          timestamp: Date.now(),
-          version: '1.0.0',
-          schemaVersion: 1,
-          episodeCount: 0,
-          medicationCount: 0,
-        },
-        episodes: 'not an array',
-        medications: [],
-        medicationDoses: [],
-        medicationSchedules: [],
-      };
-
-      const result = validateBackupData(invalidBackup);
-      expect(result).toBe(false);
-    });
-
-    it('should reject backup with invalid metadata', () => {
-      const invalidBackup = {
-        metadata: {
-          id: '',  // Invalid: empty string
-          timestamp: Date.now(),
-          version: '1.0.0',
-          schemaVersion: 1,
-          episodeCount: 0,
-          medicationCount: 0,
-        },
-        episodes: [],
-        medications: [],
-        medicationDoses: [],
-        medicationSchedules: [],
-      };
-
-      const result = validateBackupData(invalidBackup);
-      expect(result).toBe(false);
-    });
-
-    it('should accept valid backup data', () => {
-      const validBackup = {
-        metadata: {
-          id: 'test',
-          timestamp: Date.now(),
-          version: '1.0.0',
-          schemaVersion: 1,
-          episodeCount: 0,
-          medicationCount: 0,
-        },
-        episodes: [],
-        medications: [],
-        medicationDoses: [],
-        medicationSchedules: [],
-      };
-
-      const result = validateBackupData(validBackup);
-      expect(result).toBe(true);
-    });
-  });
+  // Note: validateBackupData tests removed in Issue #185 - JSON restore functionality removed
 
   describe('importBackup', () => {
-    const mockBackupData: BackupData = {
-      metadata: {
-        id: 'imported-backup',
-        timestamp: Date.now(),
-        version: '1.0.0',
-        schemaVersion: 1,
-        episodeCount: 1,
-        medicationCount: 1,
-      },
-      schemaSQL: 'CREATE TABLE episodes (...);',
-      episodes: [],
-      medications: [],
-      medicationDoses: [],
-      medicationSchedules: [],
-    };
-
-    it('should import backup successfully', async () => {
+    // Issue #185: Updated tests - JSON import is no longer supported, only .db files
+    it('should import snapshot (.db) backup successfully', async () => {
       (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValue({
         canceled: false,
-        assets: [{ uri: 'file:///path/to/backup.json' }],
+        assets: [{ uri: 'file:///path/to/backup.db', name: 'backup.db' }],
       });
-      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
-        JSON.stringify(mockBackupData)
-      );
+      (FileSystem.copyAsync as jest.Mock).mockResolvedValue(undefined);
       (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
-      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true, size: 1000 });
+      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true, size: 5000 });
+      (migrationRunner.getCurrentVersion as jest.Mock).mockResolvedValue(6);
 
       const metadata = await backupService.importBackup();
 
       expect(metadata).toBeDefined();
-      expect(metadata.episodeCount).toBe(1);
-      expect(FileSystem.writeAsStringAsync).toHaveBeenCalled();
-    });
-
-    it('should upgrade old backup format during import', async () => {
-      const oldBackup = { ...mockBackupData };
-      delete (oldBackup as any).schemaSQL;
-
-      (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValue({
-        canceled: false,
-        assets: [{ uri: 'file:///path/to/backup.json' }],
-      });
-      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
-        JSON.stringify(oldBackup)
-      );
-      (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
-      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true, size: 1000 });
-      (mockDatabase.getAllAsync as jest.Mock).mockResolvedValue([
-        { sql: 'CREATE TABLE episodes (...)' },
-      ]);
-      (migrationRunner.getCurrentVersion as jest.Mock).mockResolvedValue(1);
-
-      const metadata = await backupService.importBackup();
-
-      expect(metadata).toBeDefined();
+      expect(metadata.backupType).toBe('snapshot');
+      expect(FileSystem.copyAsync).toHaveBeenCalled();
+      expect(FileSystem.writeAsStringAsync).toHaveBeenCalled(); // Metadata file
     });
 
     it('should throw error if import is cancelled', async () => {
@@ -1072,177 +982,26 @@ describe('backupService', () => {
       await expect(backupService.importBackup()).rejects.toThrow('Import cancelled');
     });
 
-    it('should validate imported backup structure', async () => {
-      const invalidBackup = { metadata: { id: 'test' } };
-
+    it('should reject JSON files (Issue #185)', async () => {
       (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValue({
         canceled: false,
         assets: [{ uri: 'file:///path/to/backup.json', name: 'backup.json' }],
       });
-      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
-        JSON.stringify(invalidBackup)
-      );
 
       await expect(backupService.importBackup()).rejects.toThrow(
-        'Invalid backup file format'
+        'JSON backup files are no longer supported for import'
       );
     });
 
-    it('should reject backup with missing metadata.id', async () => {
-      const invalidBackup = {
-        metadata: {
-          timestamp: Date.now(),
-          version: '1.0.0',
-          schemaVersion: 1,
-          episodeCount: 0,
-          medicationCount: 0,
-        },
-        episodes: [],
-        medications: [],
-        medicationDoses: [],
-        medicationSchedules: [],
-      };
-
+    it('should reject files without extension as JSON files', async () => {
+      // Files without a .db extension are treated as JSON and rejected
       (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValue({
         canceled: false,
-        assets: [{ uri: 'file:///path/to/backup.json', name: 'backup.json' }],
+        assets: [{ uri: 'file:///path/to/backup', name: 'backup' }],
       });
-      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
-        JSON.stringify(invalidBackup)
-      );
 
       await expect(backupService.importBackup()).rejects.toThrow(
-        'Invalid backup file format'
-      );
-    });
-
-    it('should reject backup with undefined metadata.id', async () => {
-      const invalidBackup = {
-        metadata: {
-          id: undefined,
-          timestamp: Date.now(),
-          version: '1.0.0',
-          schemaVersion: 1,
-          episodeCount: 0,
-          medicationCount: 0,
-        },
-        episodes: [],
-        medications: [],
-        medicationDoses: [],
-        medicationSchedules: [],
-      };
-
-      (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValue({
-        canceled: false,
-        assets: [{ uri: 'file:///path/to/backup.json', name: 'backup.json' }],
-      });
-      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
-        JSON.stringify(invalidBackup)
-      );
-
-      await expect(backupService.importBackup()).rejects.toThrow(
-        'Invalid backup file format'
-      );
-    });
-
-    it('should reject backup with null metadata.id', async () => {
-      const invalidBackup = {
-        metadata: {
-          id: null,
-          timestamp: Date.now(),
-          version: '1.0.0',
-          schemaVersion: 1,
-          episodeCount: 0,
-          medicationCount: 0,
-        },
-        episodes: [],
-        medications: [],
-        medicationDoses: [],
-        medicationSchedules: [],
-      };
-
-      (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValue({
-        canceled: false,
-        assets: [{ uri: 'file:///path/to/backup.json', name: 'backup.json' }],
-      });
-      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
-        JSON.stringify(invalidBackup)
-      );
-
-      await expect(backupService.importBackup()).rejects.toThrow(
-        'Invalid backup file format'
-      );
-    });
-
-    it('should reject backup with empty string metadata.id', async () => {
-      const invalidBackup = {
-        metadata: {
-          id: '',
-          timestamp: Date.now(),
-          version: '1.0.0',
-          schemaVersion: 1,
-          episodeCount: 0,
-          medicationCount: 0,
-        },
-        episodes: [],
-        medications: [],
-        medicationDoses: [],
-        medicationSchedules: [],
-      };
-
-      (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValue({
-        canceled: false,
-        assets: [{ uri: 'file:///path/to/backup.json', name: 'backup.json' }],
-      });
-      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
-        JSON.stringify(invalidBackup)
-      );
-
-      await expect(backupService.importBackup()).rejects.toThrow(
-        'Invalid backup file format'
-      );
-    });
-
-    it('should reject backup with numeric metadata.id', async () => {
-      const invalidBackup = {
-        metadata: {
-          id: 12345,
-          timestamp: Date.now(),
-          version: '1.0.0',
-          schemaVersion: 1,
-          episodeCount: 0,
-          medicationCount: 0,
-        },
-        episodes: [],
-        medications: [],
-        medicationDoses: [],
-        medicationSchedules: [],
-      };
-
-      (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValue({
-        canceled: false,
-        assets: [{ uri: 'file:///path/to/backup.json', name: 'backup.json' }],
-      });
-      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
-        JSON.stringify(invalidBackup)
-      );
-
-      await expect(backupService.importBackup()).rejects.toThrow(
-        'Invalid backup file format'
-      );
-    });
-
-    it('should reject corrupted JSON file', async () => {
-      (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValue({
-        canceled: false,
-        assets: [{ uri: 'file:///path/to/backup.json', name: 'backup.json' }],
-      });
-      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
-        'invalid json {{{['
-      );
-
-      await expect(backupService.importBackup()).rejects.toThrow(
-        'Invalid backup file: corrupted or not valid JSON'
+        'JSON backup files are no longer supported for import'
       );
     });
   });
@@ -1318,42 +1077,54 @@ describe('backupService', () => {
       expect(FileSystem.writeAsStringAsync).toHaveBeenCalled();
     });
 
+    // Note: Updated for Issue #185 - JSON restore no longer supported
+    // This test now uses a snapshot backup (with .meta.json metadata file)
     it('should delegate restoreBackup to RestoreService', async () => {
-      const mockBackup = {
-        metadata: {
-          id: 'test-backup',
-          timestamp: Date.now(),
-          version: '1.0.0',
-          schemaVersion: 1,
-          episodeCount: 0,
-          medicationCount: 0,
-        },
-        schemaSQL: 'CREATE TABLE episodes (...);',
-        episodes: [],
-        medications: [],
-        medicationDoses: [],
-        medicationSchedules: [],
-        episodeNotes: [],
+      const mockMetadata = {
+        id: 'test-backup',
+        timestamp: Date.now(),
+        version: '1.0.0',
+        schemaVersion: 1,
+        episodeCount: 0,
+        medicationCount: 0,
+        fileSize: 5000,
+        fileName: 'test-backup.db',
+        backupType: 'snapshot',
       };
 
-      // Mock JSON backup (not snapshot)
+      // Mock snapshot backup with .meta.json
       (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
         if (path.includes('.meta.json')) {
+          return Promise.resolve({ exists: true, size: 200 });
+        }
+        // For WAL/SHM files, return not exists
+        if (path.includes('-wal') || path.includes('-shm')) {
           return Promise.resolve({ exists: false });
         }
-        return Promise.resolve({ exists: true, size: 1000 });
+        return Promise.resolve({ exists: true, size: 5000 });
       });
-      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
-        JSON.stringify(mockBackup)
-      );
+      (FileSystem.readAsStringAsync as jest.Mock).mockImplementation((path: string, options?: any) => {
+        // Handle base64 encoding for the .db file read
+        if (options?.encoding) {
+          return Promise.resolve('base64encodeddata');
+        }
+        // Handle JSON metadata file read
+        return Promise.resolve(JSON.stringify(mockMetadata));
+      });
+      (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
+      (FileSystem.copyAsync as jest.Mock).mockResolvedValue(undefined);
+      (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
       (migrationRunner.getCurrentVersion as jest.Mock).mockResolvedValue(1);
       (mockDatabase.execAsync as jest.Mock).mockResolvedValue(undefined);
       (mockDatabase.runAsync as jest.Mock).mockResolvedValue(undefined);
       (mockDatabase.getAllAsync as jest.Mock).mockResolvedValue([]);
+      mockDbModule.closeDatabase.mockResolvedValue(undefined);
+      mockDbModule.getDatabase.mockResolvedValue(mockDatabase);
 
       await backupService.restoreBackup('test-backup');
 
-      expect(mockDatabase.execAsync).toHaveBeenCalled();
+      // Snapshot restore writes the file (after reading as base64)
+      expect(FileSystem.writeAsStringAsync).toHaveBeenCalled();
     });
 
     it('should delegate importDatabaseFile to RestoreService', async () => {
@@ -1373,30 +1144,31 @@ describe('backupService', () => {
       // importDatabaseFile doesn't run migrations - it requires app reload
     });
 
+    // Note: Updated for Issue #185 - now uses snapshot backup metadata
     it('should delegate exportBackup to BackupServiceImpl', async () => {
-      const mockBackup = {
-        metadata: {
-          id: 'test-export',
-          timestamp: Date.now(),
-          version: '1.0.0',
-          schemaVersion: 1,
-          episodeCount: 0,
-          medicationCount: 0,
-        },
-        episodes: [],
-        medications: [],
-        medicationDoses: [],
-        medicationSchedules: [],
+      const mockMetadata = {
+        id: 'test-export',
+        timestamp: Date.now(),
+        version: '1.0.0',
+        schemaVersion: 1,
+        episodeCount: 0,
+        medicationCount: 0,
+        fileSize: 5000,
+        fileName: 'test-export.db',
+        backupType: 'snapshot',
       };
 
       (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
         if (path.includes('.meta.json')) {
-          return Promise.resolve({ exists: false });
+          return Promise.resolve({ exists: true, size: 200 });
         }
-        return Promise.resolve({ exists: true, size: 1000 });
+        if (path.includes('.db')) {
+          return Promise.resolve({ exists: true, size: 5000 });
+        }
+        return Promise.resolve({ exists: false });
       });
       (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
-        JSON.stringify(mockBackup)
+        JSON.stringify(mockMetadata)
       );
       (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true);
       (Sharing.shareAsync as jest.Mock).mockResolvedValue(undefined);
@@ -1624,15 +1396,16 @@ describe('backupService', () => {
       it('should keep only 7 most recent automatic backups', async () => {
         // Mock 9 existing snapshot backups (more than MAX_AUTO_BACKUPS = 7)
         // This ensures cleanup is triggered even if the new backup isn't immediately visible
+        const baseTimestamp = Date.now();
         const mockBackups = Array.from({ length: 9 }, (_, i) => ({
-          id: `backup_${Date.now() - i * 1000}_${i}`,
-          timestamp: Date.now() - (i * 24 * 60 * 60 * 1000), // i days old
+          id: `backup_${baseTimestamp - i * 1000}_${i}`,
+          timestamp: baseTimestamp - (i * 24 * 60 * 60 * 1000), // i days old
           version: '1.0.0',
           schemaVersion: 6,
           episodeCount: 0,
           medicationCount: 0,
           fileSize: 100,
-          fileName: `backup_${Date.now() - i * 1000}_${i}.db`,
+          fileName: `backup_${baseTimestamp - i * 1000}_${i}.db`,
           backupType: 'snapshot' as const,
         }));
 
@@ -1644,24 +1417,532 @@ describe('backupService', () => {
 
         (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue(files);
 
+        // Mock getInfoAsync to return exists:true and size for both db and meta files
+        (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
+          const fileName = path.split('/').pop() || '';
+          if (fileName.endsWith('.meta.json') || fileName.endsWith('.db')) {
+            return Promise.resolve({ exists: true, size: 1000 });
+          }
+          if (path.includes('backups')) {
+            return Promise.resolve({ exists: true });
+          }
+          return Promise.resolve({ exists: true, size: 1000 });
+        });
+
         // Mock readAsStringAsync for metadata files
         (FileSystem.readAsStringAsync as jest.Mock).mockImplementation((path: string) => {
           const fileName = path.split('/').pop();
           if (fileName?.endsWith('.meta.json')) {
             const backupId = fileName.replace('.meta.json', '');
             const backup = mockBackups.find(b => b.id === backupId);
-            return Promise.resolve(JSON.stringify(backup));
+            if (backup) {
+              return Promise.resolve(JSON.stringify(backup));
+            }
           }
           return Promise.resolve('{}');
         });
 
+        (FileSystem.copyAsync as jest.Mock).mockResolvedValue(undefined);
+        (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
+        (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
+        mockDbModule.closeDatabase.mockResolvedValue(undefined);
+        mockDbModule.getDatabase.mockResolvedValue(mockDatabase);
+        (migrationRunner.getCurrentVersion as jest.Mock).mockResolvedValue(6);
         AsyncStorage.getItem.mockResolvedValue(null);
+        AsyncStorage.setItem.mockResolvedValue(undefined);
 
         // Create a new backup (should trigger cleanup)
         await backupService.checkAndCreateWeeklyBackup();
 
         // Should trigger cleanup and delete old backups
+        // With 9 backups + 1 new = 10, should delete 3 (keeping 7)
         expect(FileSystem.deleteAsync).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('additional edge cases for coverage', () => {
+    describe('createSnapshotBackup error logging failure', () => {
+      it('should handle error logging failure gracefully', async () => {
+        // Setup: Make database copy fail
+        (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true });
+        (FileSystem.copyAsync as jest.Mock).mockRejectedValue(new Error('Copy failed'));
+
+        // Mock errorLogger to fail as well
+        const { errorLogger } = require('../errorLogger');
+        errorLogger.log.mockRejectedValueOnce(new Error('Error logging failed'));
+
+        await expect(backupService.createSnapshotBackup()).rejects.toThrow(
+          'Failed to create snapshot backup'
+        );
+      });
+    });
+
+    describe('listBackups edge cases', () => {
+      it('should handle legacy snapshot without metadata sidecar', async () => {
+        const legacyDbFile = 'legacy_backup_123.db';
+
+        (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
+          if (path.includes('backups') && !path.includes('.')) {
+            return Promise.resolve({ exists: true });
+          }
+          if (path.includes('.meta.json')) {
+            return Promise.resolve({ exists: false }); // No metadata file
+          }
+          if (path.includes('.db')) {
+            return Promise.resolve({ exists: true, size: 5000 });
+          }
+          return Promise.resolve({ exists: true });
+        });
+
+        (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue([legacyDbFile]);
+
+        const backups = await backupService.listBackups();
+
+        expect(backups).toHaveLength(1);
+        expect(backups[0].id).toBe('legacy_backup_123');
+        expect(backups[0].timestamp).toBe(0); // Unknown for legacy
+        expect(backups[0].backupType).toBe('snapshot');
+        expect(backups[0].fileSize).toBe(5000);
+      });
+
+      it('should filter out backups with undefined IDs', async () => {
+        const dbFile = 'test_backup.db';
+        const metaContent = JSON.stringify({
+          // Missing id field
+          timestamp: Date.now(),
+          version: '1.0.0',
+          schemaVersion: 6,
+          episodeCount: 0,
+          medicationCount: 0,
+          backupType: 'snapshot',
+        });
+
+        (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
+          if (path.includes('.meta.json') || path.includes('.db')) {
+            return Promise.resolve({ exists: true, size: 1000 });
+          }
+          return Promise.resolve({ exists: true });
+        });
+
+        (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue([dbFile]);
+        (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(metaContent);
+
+        const backups = await backupService.listBackups();
+
+        // Should still include it because we set id from filename when missing
+        expect(backups).toHaveLength(1);
+        expect(backups[0].id).toBe('test_backup');
+      });
+
+      it('should return empty array on directory listing error', async () => {
+        (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true });
+        (FileSystem.readDirectoryAsync as jest.Mock).mockRejectedValue(
+          new Error('Permission denied')
+        );
+
+        const backups = await backupService.listBackups();
+
+        expect(backups).toEqual([]);
+      });
+
+      it('should continue processing other backups when one fails to read', async () => {
+        const files = ['good_backup.db', 'bad_backup.db'];
+
+        (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
+          if (path.includes('backups') && !path.includes('.')) {
+            return Promise.resolve({ exists: true });
+          }
+          if (path.includes('.meta.json')) {
+            if (path.includes('bad_backup')) {
+              return Promise.resolve({ exists: true }); // Meta exists but will fail to read
+            }
+            return Promise.resolve({ exists: true });
+          }
+          return Promise.resolve({ exists: true, size: 1000 });
+        });
+
+        (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue(files);
+        (FileSystem.readAsStringAsync as jest.Mock).mockImplementation((path: string) => {
+          if (path.includes('bad_backup')) {
+            throw new Error('Read failed');
+          }
+          return Promise.resolve(
+            JSON.stringify({
+              id: 'good_backup',
+              timestamp: Date.now(),
+              version: '1.0.0',
+              schemaVersion: 6,
+              episodeCount: 0,
+              medicationCount: 0,
+              backupType: 'snapshot',
+            })
+          );
+        });
+
+        const backups = await backupService.listBackups();
+
+        // Should have at least the good backup
+        expect(backups.length).toBeGreaterThanOrEqual(1);
+        expect(backups.some(b => b.id === 'good_backup')).toBe(true);
+      });
+    });
+
+    describe('checkForBrokenBackups edge cases', () => {
+      it('should return 0 when backup directory does not exist', async () => {
+        (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: false });
+
+        const count = await backupService.checkForBrokenBackups();
+
+        expect(count).toBe(0);
+      });
+
+      it('should count corrupted JSON files', async () => {
+        (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true });
+        (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue(['corrupted.json']);
+        (FileSystem.readAsStringAsync as jest.Mock).mockRejectedValue(
+          new Error('Invalid JSON')
+        );
+
+        const count = await backupService.checkForBrokenBackups();
+
+        expect(count).toBe(1);
+      });
+
+      it('should return 0 on general error', async () => {
+        (FileSystem.getInfoAsync as jest.Mock).mockRejectedValue(new Error('Permission denied'));
+
+        const count = await backupService.checkForBrokenBackups();
+
+        expect(count).toBe(0);
+      });
+    });
+
+    describe('cleanupBrokenBackups edge cases', () => {
+      it('should return 0 when backup directory does not exist', async () => {
+        (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: false });
+
+        const count = await backupService.cleanupBrokenBackups();
+
+        expect(count).toBe(0);
+      });
+
+      it('should delete corrupted JSON files that throw on parse', async () => {
+        (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true });
+        (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue(['corrupted.json']);
+        (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue('not valid json {{{');
+        (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
+
+        const count = await backupService.cleanupBrokenBackups();
+
+        expect(count).toBe(1);
+        expect(FileSystem.deleteAsync).toHaveBeenCalled();
+      });
+
+      it('should handle delete failure gracefully', async () => {
+        (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true });
+        (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue(['corrupted.json']);
+        (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue('not valid json');
+        (FileSystem.deleteAsync as jest.Mock).mockRejectedValue(new Error('Delete failed'));
+
+        // Should not throw, just log error
+        const count = await backupService.cleanupBrokenBackups();
+
+        // Count should be 0 since delete failed
+        expect(count).toBe(0);
+      });
+
+      it('should throw on general error', async () => {
+        (FileSystem.getInfoAsync as jest.Mock).mockRejectedValue(new Error('Permission denied'));
+
+        await expect(backupService.cleanupBrokenBackups()).rejects.toThrow(
+          'Failed to cleanup broken backups'
+        );
+      });
+    });
+
+    describe('exportBackup edge cases', () => {
+      it('should throw error when backup file not found', async () => {
+        const mockMetadata = {
+          id: 'test-backup',
+          backupType: 'snapshot' as const,
+          timestamp: Date.now(),
+          version: '1.0.0',
+          schemaVersion: 6,
+          episodeCount: 0,
+          medicationCount: 0,
+          fileSize: 1000,
+          fileName: 'test-backup.db',
+        };
+
+        (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
+          if (path.includes('.meta.json')) {
+            return Promise.resolve({ exists: true });
+          }
+          if (path.includes('.db')) {
+            return Promise.resolve({ exists: false }); // Backup file missing
+          }
+          return Promise.resolve({ exists: true });
+        });
+
+        (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
+          JSON.stringify(mockMetadata)
+        );
+
+        await expect(backupService.exportBackup('test-backup')).rejects.toThrow(
+          'Backup file not found'
+        );
+      });
+    });
+
+    describe('getEpisodeCount and getMedicationCount error handling', () => {
+      it('should return 0 when episode count query fails', async () => {
+        // Reset mocks completely
+        mockDatabase.getAllAsync.mockReset();
+
+        (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true, size: 1000 });
+        (FileSystem.copyAsync as jest.Mock).mockResolvedValue(undefined);
+        (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
+        (migrationRunner.getCurrentVersion as jest.Mock).mockResolvedValue(6);
+
+        // Episode count fails, medication count succeeds
+        mockDatabase.getAllAsync
+          .mockRejectedValueOnce(new Error('Episode count failed'))
+          .mockResolvedValueOnce([{ count: 5 }]);
+
+        const result = await backupService.createSnapshotBackup();
+
+        expect(result.episodeCount).toBe(0); // Falls back to 0 on error
+        expect(result.medicationCount).toBe(5);
+      });
+
+      it('should return 0 when medication count query fails', async () => {
+        // Reset mocks completely
+        mockDatabase.getAllAsync.mockReset();
+
+        (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true, size: 1000 });
+        (FileSystem.copyAsync as jest.Mock).mockResolvedValue(undefined);
+        (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
+        (migrationRunner.getCurrentVersion as jest.Mock).mockResolvedValue(6);
+
+        // Episode count succeeds, medication count fails
+        mockDatabase.getAllAsync
+          .mockResolvedValueOnce([{ count: 3 }])
+          .mockRejectedValueOnce(new Error('Medication count failed'));
+
+        const result = await backupService.createSnapshotBackup();
+
+        expect(result.episodeCount).toBe(3);
+        expect(result.medicationCount).toBe(0); // Falls back to 0 on error
+      });
+    });
+
+    describe('cleanupOldAutoBackups error handling', () => {
+      it('should log error but not throw when cleanup fails', async () => {
+        // Reset mocks completely
+        mockDatabase.getAllAsync.mockReset();
+
+        // Setup for createBackup to trigger cleanup
+        (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true, size: 1000 });
+        (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
+
+        // Mock repositories
+        (episodeRepository.getAll as jest.Mock).mockResolvedValue([]);
+        (medicationRepository.getAll as jest.Mock).mockResolvedValue([]);
+        (medicationDoseRepository.getAll as jest.Mock).mockResolvedValue([]);
+        (episodeNoteRepository.getByEpisodeId as jest.Mock).mockResolvedValue([]);
+        (intensityRepository.getByEpisodeId as jest.Mock).mockResolvedValue([]);
+        (dailyStatusRepository.getDateRange as jest.Mock).mockResolvedValue([]);
+        (medicationScheduleRepository.getByMedicationId as jest.Mock).mockResolvedValue([]);
+        (migrationRunner.getCurrentVersion as jest.Mock).mockResolvedValue(6);
+
+        // Mock exportSchemaSQL to succeed (getAllAsync for schema)
+        mockDatabase.getAllAsync.mockResolvedValue([{ sql: 'CREATE TABLE test;' }]);
+
+        // Mock readDirectoryAsync to succeed for initial write, then fail during cleanup
+        let callCount = 0;
+        (FileSystem.readDirectoryAsync as jest.Mock).mockImplementation(() => {
+          callCount++;
+          if (callCount > 1) {
+            // Fail on cleanup (second call)
+            return Promise.reject(new Error('Cleanup failed'));
+          }
+          return Promise.resolve([]);
+        });
+
+        // Should complete without throwing (cleanup error is caught internally)
+        const result = await backupService.createBackup(true);
+
+        expect(result).toBeDefined();
+        expect(result.id).toBeDefined();
+      });
+    });
+
+    describe('getDaysUntilNextWeeklyBackup error handling', () => {
+      const AsyncStorage = require('@react-native-async-storage/async-storage');
+
+      it('should return 0 on error', async () => {
+        AsyncStorage.getItem.mockRejectedValue(new Error('Storage error'));
+
+        const days = await backupService.getDaysUntilNextWeeklyBackup();
+
+        expect(days).toBe(0);
+      });
+
+      it('should return 0 when backup is needed now (time elapsed)', async () => {
+        // Last backup was 8 days ago (past the 7-day threshold)
+        const eightDaysAgo = Date.now() - 8 * 24 * 60 * 60 * 1000;
+        AsyncStorage.getItem.mockResolvedValue(eightDaysAgo.toString());
+
+        const days = await backupService.getDaysUntilNextWeeklyBackup();
+
+        expect(days).toBe(0);
+      });
+    });
+
+    describe('exportDataForSharing', () => {
+      it('should gather all data and share JSON file', async () => {
+        const mockEpisode = {
+          id: 'ep-1',
+          startTime: Date.now(),
+          endTime: null,
+          locations: [],
+          qualities: [],
+          symptoms: [],
+          triggers: [],
+          notes: undefined,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+
+        const mockMedication = {
+          id: 'med-1',
+          name: 'Test Med',
+          type: 'rescue',
+          dosageAmount: 100,
+          dosageUnit: 'mg',
+          active: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+
+        (episodeRepository.getAll as jest.Mock).mockResolvedValue([mockEpisode]);
+        (medicationRepository.getAll as jest.Mock).mockResolvedValue([mockMedication]);
+        (medicationDoseRepository.getAll as jest.Mock).mockResolvedValue([]);
+        (episodeNoteRepository.getByEpisodeId as jest.Mock).mockResolvedValue([
+          { id: 'note-1', episodeId: 'ep-1', timestamp: Date.now(), note: 'Test note' },
+        ]);
+        (intensityRepository.getByEpisodeId as jest.Mock).mockResolvedValue([
+          { id: 'reading-1', episodeId: 'ep-1', timestamp: Date.now(), intensity: 5 },
+        ]);
+        (dailyStatusRepository.getDateRange as jest.Mock).mockResolvedValue([]);
+        (medicationScheduleRepository.getByMedicationId as jest.Mock).mockResolvedValue([
+          { id: 'sched-1', medicationId: 'med-1', time: '08:00', daysOfWeek: [1, 2, 3, 4, 5] },
+        ]);
+        (migrationRunner.getCurrentVersion as jest.Mock).mockResolvedValue(6);
+
+        (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
+        (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true);
+        (Sharing.shareAsync as jest.Mock).mockResolvedValue(undefined);
+
+        await backupService.exportDataForSharing();
+
+        // Verify data was written
+        expect(FileSystem.writeAsStringAsync).toHaveBeenCalledWith(
+          expect.stringContaining('migralog_export_'),
+          expect.stringContaining('"episodes"')
+        );
+
+        // Verify sharing was called
+        expect(Sharing.shareAsync).toHaveBeenCalledWith(
+          expect.stringContaining('migralog_export_'),
+          expect.objectContaining({
+            mimeType: 'application/json',
+            dialogTitle: 'Export MigraLog Data',
+          })
+        );
+      });
+
+      it('should throw when sharing is not available', async () => {
+        (episodeRepository.getAll as jest.Mock).mockResolvedValue([]);
+        (medicationRepository.getAll as jest.Mock).mockResolvedValue([]);
+        (medicationDoseRepository.getAll as jest.Mock).mockResolvedValue([]);
+        (dailyStatusRepository.getDateRange as jest.Mock).mockResolvedValue([]);
+        (migrationRunner.getCurrentVersion as jest.Mock).mockResolvedValue(6);
+        (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
+        (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(false);
+
+        await expect(backupService.exportDataForSharing()).rejects.toThrow(
+          'Sharing is not available on this device'
+        );
+      });
+    });
+
+    describe('exportSchemaSQL error handling', () => {
+      it('should throw error when schema export fails', async () => {
+        mockDatabase.getAllAsync.mockRejectedValue(new Error('Schema query failed'));
+
+        // This is tested through createBackup which calls exportSchemaSQL
+        (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true });
+        (episodeRepository.getAll as jest.Mock).mockResolvedValue([]);
+        (medicationRepository.getAll as jest.Mock).mockResolvedValue([]);
+        (medicationDoseRepository.getAll as jest.Mock).mockResolvedValue([]);
+        (dailyStatusRepository.getDateRange as jest.Mock).mockResolvedValue([]);
+        (migrationRunner.getCurrentVersion as jest.Mock).mockResolvedValue(6);
+
+        await expect(backupService.createBackup()).rejects.toThrow();
+      });
+    });
+
+    describe('restoreSnapshotBackup WAL checkpoint handling', () => {
+      it('should continue restore when WAL checkpoint fails', async () => {
+        const mockMetadata = {
+          id: 'snapshot-1',
+          timestamp: Date.now(),
+          version: '1.0.0',
+          schemaVersion: 6,
+          episodeCount: 5,
+          medicationCount: 3,
+          fileSize: 5000,
+          fileName: 'snapshot-1.db',
+          backupType: 'snapshot' as const,
+        };
+
+        (FileSystem.getInfoAsync as jest.Mock).mockImplementation((path: string) => {
+          if (path.includes('.meta.json')) {
+            return Promise.resolve({ exists: true });
+          }
+          if (path.includes('snapshot-1.db')) {
+            return Promise.resolve({ exists: true, size: 5000 });
+          }
+          if (path.includes('-wal') || path.includes('-shm')) {
+            return Promise.resolve({ exists: true });
+          }
+          return Promise.resolve({ exists: true });
+        });
+
+        (FileSystem.readAsStringAsync as jest.Mock).mockImplementation((path: string) => {
+          if (path.includes('.meta.json')) {
+            return Promise.resolve(JSON.stringify(mockMetadata));
+          }
+          return Promise.resolve('base64data');
+        });
+
+        (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
+        (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
+        (FileSystem.copyAsync as jest.Mock).mockResolvedValue(undefined);
+
+        // WAL checkpoint fails
+        mockDatabase.execAsync.mockRejectedValueOnce(new Error('WAL checkpoint failed'));
+
+        mockDbModule.closeDatabase.mockResolvedValue(undefined);
+        mockDbModule.getDatabase.mockResolvedValue(mockDatabase);
+        (migrationRunner.getCurrentVersion as jest.Mock).mockResolvedValue(6);
+        (migrationRunner.initialize as jest.Mock).mockResolvedValue(undefined);
+        (migrationRunner.runMigrations as jest.Mock).mockResolvedValue(undefined);
+
+        // Should not throw - WAL checkpoint failure is not fatal
+        await expect(backupService.restoreBackup('snapshot-1')).resolves.not.toThrow();
       });
     });
   });

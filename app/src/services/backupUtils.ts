@@ -1,5 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import { BackupMetadata, BackupData } from '../models/types';
+import { BackupMetadata } from '../models/types';
 import { logger } from '../utils/logger';
 
 // Re-export formatting utilities from their dedicated module
@@ -64,48 +64,6 @@ export function validateBackupMetadata(metadata: unknown): metadata is Omit<Back
 }
 
 /**
- * Validate backup data structure
- * Ensures critical fields are present and valid
- */
-export function validateBackupData(backupData: unknown): backupData is BackupData {
-  if (!backupData || typeof backupData !== 'object') {
-    logger.error('[Validation] Backup data is missing or not an object');
-    return false;
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const b = backupData as any;
-
-  // Validate metadata
-  if (!validateBackupMetadata(b.metadata)) {
-    return false;
-  }
-
-  // Validate arrays are present and are actually arrays
-  if (!Array.isArray(b.episodes)) {
-    logger.error('[Validation] episodes field is missing or not an array');
-    return false;
-  }
-
-  if (!Array.isArray(b.medications)) {
-    logger.error('[Validation] medications field is missing or not an array');
-    return false;
-  }
-
-  if (!Array.isArray(b.medicationDoses)) {
-    logger.error('[Validation] medicationDoses field is missing or not an array');
-    return false;
-  }
-
-  if (!Array.isArray(b.medicationSchedules)) {
-    logger.error('[Validation] medicationSchedules field is missing or not an array');
-    return false;
-  }
-
-  return true;
-}
-
-/**
  * Generate a unique backup ID
  */
 export function generateBackupId(): string {
@@ -153,21 +111,14 @@ export async function getBackupMetadata(backupId: string): Promise<BackupMetadat
       return JSON.parse(content);
     }
 
-    // Try JSON backup
+    // JSON backup support removed in Issue #185
+    // Only snapshot backups are supported now
     const jsonPath = getBackupPath(backupId, 'json');
     const jsonInfo = await FileSystem.getInfoAsync(jsonPath);
 
     if (jsonInfo.exists) {
-      const content = await FileSystem.readAsStringAsync(jsonPath);
-      const backupData: BackupData = JSON.parse(content);
-      const fileSize = 'size' in jsonInfo ? jsonInfo.size : 0;
-
-      return {
-        ...backupData.metadata,
-        fileName: `${backupId}.json`,
-        fileSize,
-        backupType: 'json',
-      };
+      // Log that we found a legacy JSON backup but can't restore it
+      logger.warn(`[Backup] Found legacy JSON backup ${backupId} but JSON restore is no longer supported`);
     }
 
     return null;

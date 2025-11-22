@@ -75,7 +75,7 @@ describe('BackupRecoveryScreen', () => {
         <BackupRecoveryScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
         { wrapper: TestWrapper }
       );
-      
+
       await waitFor(() => {
         expect(getByText('No backups yet')).toBeTruthy();
       }, { timeout: 3000 });
