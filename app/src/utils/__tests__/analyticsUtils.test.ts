@@ -8,7 +8,9 @@ import {
   calculateDurationMetrics,
   calculatePreventativeCompliance,
   calculateNSAIDUsage,
-  calculatePerMedicationStats
+  calculatePerMedicationStats,
+  calculateIntensityHistogram,
+  IntensityReading,
 } from '../analyticsUtils';
 
 describe('analyticsUtils', () => {
@@ -1180,6 +1182,247 @@ describe('analyticsUtils', () => {
 
       expect(result).toHaveLength(3);
       expect(result.map(r => r.medicationName).sort()).toEqual(['Ibuprofen', 'Sumatriptan', 'Topiramate']);
+    });
+  });
+
+  describe('calculateIntensityHistogram', () => {
+    const createEpisode = (id: string, startTime: Date) => ({
+      id,
+      startTime: startTime.getTime(),
+      endTime: startTime.getTime() + 4 * 60 * 60 * 1000, // 4 hours later
+    });
+
+    const createReading = (id: string, episodeId: string, intensity: number): IntensityReading => ({
+      id,
+      episodeId,
+      timestamp: Date.now(),
+      intensity,
+    });
+
+    it('should return array with 10 intensity levels', () => {
+      const result = calculateIntensityHistogram(
+        [],
+        [],
+        new Date('2024-01-01'),
+        new Date('2024-01-31')
+      );
+
+      expect(result).toHaveLength(10);
+      expect(result[0].intensity).toBe(1);
+      expect(result[9].intensity).toBe(10);
+    });
+
+    it('should return all zeros when no episodes', () => {
+      const result = calculateIntensityHistogram(
+        [],
+        [],
+        new Date('2024-01-01'),
+        new Date('2024-01-31')
+      );
+
+      result.forEach(item => {
+        expect(item.count).toBe(0);
+      });
+    });
+
+    it('should return all zeros when episodes have no intensity readings', () => {
+      const episodes = [
+        createEpisode('ep-1', new Date('2024-01-15')),
+        createEpisode('ep-2', new Date('2024-01-16')),
+      ];
+
+      const result = calculateIntensityHistogram(
+        episodes,
+        [],
+        new Date('2024-01-01'),
+        new Date('2024-01-31')
+      );
+
+      result.forEach(item => {
+        expect(item.count).toBe(0);
+      });
+    });
+
+    it('should count episodes by max intensity', () => {
+      const episodes = [
+        createEpisode('ep-1', new Date('2024-01-15')),
+        createEpisode('ep-2', new Date('2024-01-16')),
+      ];
+
+      const readings = [
+        // Episode 1: readings 5 and 7, max is 7
+        createReading('r-1', 'ep-1', 5),
+        createReading('r-2', 'ep-1', 7),
+        // Episode 2: reading 8
+        createReading('r-3', 'ep-2', 8),
+      ];
+
+      const result = calculateIntensityHistogram(
+        episodes,
+        readings,
+        new Date('2024-01-01'),
+        new Date('2024-01-31')
+      );
+
+      // Intensity 7 should have 1 count (ep-1)
+      expect(result[6].intensity).toBe(7);
+      expect(result[6].count).toBe(1);
+
+      // Intensity 8 should have 1 count (ep-2)
+      expect(result[7].intensity).toBe(8);
+      expect(result[7].count).toBe(1);
+
+      // All other intensities should be 0
+      expect(result[0].count).toBe(0); // intensity 1
+      expect(result[4].count).toBe(0); // intensity 5 (not max for ep-1)
+    });
+
+    it('should filter episodes by date range', () => {
+      const episodes = [
+        createEpisode('ep-1', new Date('2024-01-15')), // In range
+        createEpisode('ep-2', new Date('2024-02-15')), // Out of range
+      ];
+
+      const readings = [
+        createReading('r-1', 'ep-1', 6),
+        createReading('r-2', 'ep-2', 9),
+      ];
+
+      const result = calculateIntensityHistogram(
+        episodes,
+        readings,
+        new Date('2024-01-01'),
+        new Date('2024-01-31')
+      );
+
+      // Only ep-1 should be counted (intensity 6)
+      expect(result[5].intensity).toBe(6);
+      expect(result[5].count).toBe(1);
+
+      // ep-2 is out of range so intensity 9 should be 0
+      expect(result[8].intensity).toBe(9);
+      expect(result[8].count).toBe(0);
+    });
+
+    it('should handle multiple episodes with same max intensity', () => {
+      const episodes = [
+        createEpisode('ep-1', new Date('2024-01-15')),
+        createEpisode('ep-2', new Date('2024-01-16')),
+        createEpisode('ep-3', new Date('2024-01-17')),
+      ];
+
+      const readings = [
+        createReading('r-1', 'ep-1', 7),
+        createReading('r-2', 'ep-2', 7),
+        createReading('r-3', 'ep-3', 7),
+      ];
+
+      const result = calculateIntensityHistogram(
+        episodes,
+        readings,
+        new Date('2024-01-01'),
+        new Date('2024-01-31')
+      );
+
+      expect(result[6].intensity).toBe(7);
+      expect(result[6].count).toBe(3);
+    });
+
+    it('should handle intensity at boundaries (1 and 10)', () => {
+      const episodes = [
+        createEpisode('ep-1', new Date('2024-01-15')),
+        createEpisode('ep-2', new Date('2024-01-16')),
+      ];
+
+      const readings = [
+        createReading('r-1', 'ep-1', 1),
+        createReading('r-2', 'ep-2', 10),
+      ];
+
+      const result = calculateIntensityHistogram(
+        episodes,
+        readings,
+        new Date('2024-01-01'),
+        new Date('2024-01-31')
+      );
+
+      expect(result[0].intensity).toBe(1);
+      expect(result[0].count).toBe(1);
+
+      expect(result[9].intensity).toBe(10);
+      expect(result[9].count).toBe(1);
+    });
+
+    it('should ignore readings for episodes outside date range', () => {
+      const episodes = [
+        createEpisode('ep-1', new Date('2024-02-15')), // Out of range
+      ];
+
+      const readings = [
+        createReading('r-1', 'ep-1', 8),
+      ];
+
+      const result = calculateIntensityHistogram(
+        episodes,
+        readings,
+        new Date('2024-01-01'),
+        new Date('2024-01-31')
+      );
+
+      // All should be zero since episode is out of range
+      result.forEach(item => {
+        expect(item.count).toBe(0);
+      });
+    });
+
+    it('should handle episode with single reading', () => {
+      const episodes = [
+        createEpisode('ep-1', new Date('2024-01-15')),
+      ];
+
+      const readings = [
+        createReading('r-1', 'ep-1', 5),
+      ];
+
+      const result = calculateIntensityHistogram(
+        episodes,
+        readings,
+        new Date('2024-01-01'),
+        new Date('2024-01-31')
+      );
+
+      expect(result[4].intensity).toBe(5);
+      expect(result[4].count).toBe(1);
+    });
+
+    it('should handle episode with many readings correctly finding max', () => {
+      const episodes = [
+        createEpisode('ep-1', new Date('2024-01-15')),
+      ];
+
+      const readings = [
+        createReading('r-1', 'ep-1', 3),
+        createReading('r-2', 'ep-1', 5),
+        createReading('r-3', 'ep-1', 8),
+        createReading('r-4', 'ep-1', 6),
+        createReading('r-5', 'ep-1', 4),
+      ];
+
+      const result = calculateIntensityHistogram(
+        episodes,
+        readings,
+        new Date('2024-01-01'),
+        new Date('2024-01-31')
+      );
+
+      // Max is 8
+      expect(result[7].intensity).toBe(8);
+      expect(result[7].count).toBe(1);
+
+      // Other readings should not be counted
+      expect(result[2].count).toBe(0); // 3
+      expect(result[4].count).toBe(0); // 5
+      expect(result[5].count).toBe(0); // 6
     });
   });
 });

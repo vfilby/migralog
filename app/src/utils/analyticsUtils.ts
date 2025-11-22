@@ -597,3 +597,94 @@ export function calculatePerMedicationStats(
 
   return stats;
 }
+
+/**
+ * Intensity Histogram Analytics Functions
+ */
+
+export interface IntensityReading {
+  id: string;
+  episodeId: string;
+  timestamp: number;
+  intensity: number; // 1-10 scale
+}
+
+export interface IntensityHistogramData {
+  intensity: number; // 1-10
+  count: number;
+}
+
+/**
+ * Calculates the distribution of episodes by their peak (maximum) intensity level.
+ * Returns an array of counts for each intensity level (1-10).
+ *
+ * @param episodes - Array of episodes to analyze
+ * @param intensityReadings - Array of all intensity readings
+ * @param startDate - Start of the date range (inclusive)
+ * @param endDate - End of the date range (inclusive)
+ * @returns Array of histogram data with intensity level and count for each level 1-10
+ *
+ * @example
+ * const episodes = [
+ *   { id: '1', startTime: new Date('2024-01-15').getTime() },
+ *   { id: '2', startTime: new Date('2024-01-16').getTime() },
+ * ];
+ * const readings = [
+ *   { id: 'r1', episodeId: '1', timestamp: Date.now(), intensity: 7 },
+ *   { id: 'r2', episodeId: '1', timestamp: Date.now(), intensity: 5 },
+ *   { id: 'r3', episodeId: '2', timestamp: Date.now(), intensity: 8 },
+ * ];
+ * calculateIntensityHistogram(episodes, readings, startDate, endDate);
+ * // Returns: [
+ * //   { intensity: 1, count: 0 },
+ * //   { intensity: 2, count: 0 },
+ * //   ...
+ * //   { intensity: 7, count: 1 },  // Episode 1 had max intensity 7
+ * //   { intensity: 8, count: 1 },  // Episode 2 had max intensity 8
+ * //   ...
+ * // ]
+ */
+export function calculateIntensityHistogram(
+  episodes: Episode[],
+  intensityReadings: IntensityReading[],
+  startDate: Date,
+  endDate: Date
+): IntensityHistogramData[] {
+  const startTime = startDate.getTime();
+  const endTime = endDate.getTime();
+
+  // Filter episodes within date range
+  const relevantEpisodes = episodes.filter(episode => {
+    if (!episode.startTime) {
+      return false;
+    }
+    return episode.startTime >= startTime && episode.startTime <= endTime;
+  });
+
+  // Group intensity readings by episode ID
+  const readingsByEpisode = new Map<string, number[]>();
+  intensityReadings.forEach(reading => {
+    const existing = readingsByEpisode.get(reading.episodeId) || [];
+    existing.push(reading.intensity);
+    readingsByEpisode.set(reading.episodeId, existing);
+  });
+
+  // Initialize histogram with all intensity levels (1-10)
+  const histogram: IntensityHistogramData[] = [];
+  for (let i = 1; i <= 10; i++) {
+    histogram.push({ intensity: i, count: 0 });
+  }
+
+  // Calculate max intensity for each relevant episode and update histogram
+  relevantEpisodes.forEach(episode => {
+    const readings = readingsByEpisode.get(episode.id);
+    if (readings && readings.length > 0) {
+      const maxIntensity = Math.max(...readings);
+      // Ensure intensity is within bounds (1-10)
+      const boundedIntensity = Math.min(Math.max(Math.round(maxIntensity), 1), 10);
+      histogram[boundedIntensity - 1].count++;
+    }
+  });
+
+  return histogram;
+}
