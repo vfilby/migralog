@@ -174,17 +174,6 @@ describe('IntensityHistogram', () => {
       });
     });
 
-    it('should render legend', async () => {
-      renderWithTheme(<IntensityHistogram selectedRange={30} />);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('histogram-legend')).toBeTruthy();
-        expect(screen.getByText('Mild (1-3)')).toBeTruthy();
-        expect(screen.getByText('Moderate (4-6)')).toBeTruthy();
-        expect(screen.getByText('Severe (7-10)')).toBeTruthy();
-      });
-    });
-
     it('should display count labels for bars with data', async () => {
       renderWithTheme(<IntensityHistogram selectedRange={30} />);
 

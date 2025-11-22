@@ -73,30 +73,6 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     color: theme.textSecondary,
     textAlign: 'center',
   },
-  legendContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: theme.border,
-    justifyContent: 'center',
-    gap: 8,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 4,
-  },
-  legendText: {
-    fontSize: 10,
-    color: theme.textSecondary,
-  },
 });
 
 export default function IntensityHistogram({ selectedRange }: IntensityHistogramProps) {
@@ -131,12 +107,6 @@ export default function IntensityHistogram({ selectedRange }: IntensityHistogram
     return histogramData.some(d => d.count > 0);
   }, [histogramData]);
 
-  // Group intensity levels for legend
-  const legendItems = [
-    { label: 'Mild (1-3)', color: getPainColor(2) },
-    { label: 'Moderate (4-6)', color: getPainColor(5) },
-    { label: 'Severe (7-10)', color: getPainColor(8) },
-  ];
 
   return (
     <View style={styles.container} testID="intensity-histogram">
@@ -184,15 +154,6 @@ export default function IntensityHistogram({ selectedRange }: IntensityHistogram
                   </View>
                 );
               })}
-            </View>
-
-            <View style={styles.legendContainer} testID="histogram-legend">
-              {legendItems.map((item, index) => (
-                <View key={index} style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: item.color }]} />
-                  <Text style={styles.legendText}>{item.label}</Text>
-                </View>
-              ))}
             </View>
           </>
         )}
