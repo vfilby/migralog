@@ -3,6 +3,18 @@
  *
  * These functions provide episode-specific date/time formatting operations
  * that handle edge cases like multi-day episodes and ongoing episodes.
+ *
+ * TODO: [Localization] This module needs i18n support. See docs/features/localization-tracking.md
+ * Key areas requiring localization:
+ * - Time format strings ('h:mm a') should respect 12h/24h locale preferences
+ * - Date format strings ('MMM d') should use locale-aware ordering
+ * - Hardcoded English text ("Today", "Yesterday", "Started at", etc.) needs i18n
+ * - Duration text ("hour", "day", etc.) needs i18n with proper pluralization
+ *
+ * Recommended approach:
+ * - Use date-fns locale support: format(date, pattern, { locale: userLocale })
+ * - Add i18n library (react-i18next) for static text
+ * - Create centralized locale-aware formatting service
  */
 
 import { format, isSameDay, isToday, isYesterday } from 'date-fns';
@@ -34,6 +46,8 @@ export function formatEpisodeTimeRange(
     const startIsOnTargetDate = isSameDay(startDate, targetDateObj);
 
     // Helper to format start time for ongoing episodes
+    // TODO: [Localization] "Started at" and "Started" need i18n translation
+    // TODO: [Localization] 'h:mm a' format should respect user's 12h/24h preference
     const formatOngoingStart = () =>
       startIsOnTargetDate
         ? `Started at ${format(startDate, 'h:mm a')}`
@@ -94,6 +108,7 @@ export function formatEpisodeDuration(
     const hours = Math.floor(durationMs / (1000 * 60 * 60));
     const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
 
+    // TODO: [Localization] Duration abbreviations "h" and "m" need i18n
     if (hours > 0) {
       return `${hours}h ${minutes}m`;
     }
@@ -121,6 +136,8 @@ export function formatDurationLong(hours: number): string {
 
   const roundedHours = Math.round(hours);
 
+  // TODO: [Localization] "day/days" and "hour/hours" need i18n with proper pluralization rules
+  // Note: English has simple singular/plural, but other languages have complex plural forms
   if (roundedHours >= 24) {
     const days = Math.floor(roundedHours / 24);
     const remainingHours = roundedHours % 24;
@@ -157,6 +174,7 @@ export function formatRelativeDate(
 
     const timeStr = format(date, timeFormat);
 
+    // TODO: [Localization] "Today" and "Yesterday" need i18n translation
     if (isToday(date)) {
       return `Today, ${timeStr}`;
     } else if (isYesterday(date)) {
