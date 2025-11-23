@@ -401,6 +401,38 @@ export const intensityRepository = {
       updatedAt: row.updated_at,
     }));
   },
+
+  /**
+   * Get intensity readings for multiple episodes at once
+   * More efficient than fetching all readings when we know which episodes we need
+   *
+   * @param episodeIds - Array of episode IDs to fetch readings for
+   * @param db - Optional database instance
+   * @returns Array of intensity readings for the specified episodes
+   */
+  async getByEpisodeIds(episodeIds: string[], db?: SQLite.SQLiteDatabase): Promise<IntensityReading[]> {
+    if (episodeIds.length === 0) {
+      return [];
+    }
+
+    const database = db || await getDatabase();
+
+    // Build placeholders for IN clause
+    const placeholders = episodeIds.map(() => '?').join(', ');
+    const results = await database.getAllAsync<IntensityReadingRow>(
+      `SELECT * FROM intensity_readings WHERE episode_id IN (${placeholders}) ORDER BY timestamp ASC`,
+      episodeIds
+    );
+
+    return results.map(row => ({
+      id: row.id,
+      episodeId: row.episode_id,
+      timestamp: row.timestamp,
+      intensity: row.intensity,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  },
 };
 
 export const symptomLogRepository = {

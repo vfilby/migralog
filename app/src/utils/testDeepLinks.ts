@@ -147,6 +147,11 @@ async function handleTestDeepLink(event: { url: string }) {
 
           logger.log('[TestDeepLinks] Reset result:', result);
 
+          // Invalidate analytics cache so next fetch gets fresh data
+          const { useAnalyticsStore } = await import('../store/analyticsStore');
+          useAnalyticsStore.getState().invalidateCache();
+          logger.log('[TestDeepLinks] Analytics cache invalidated');
+
           // Force Dashboard to reload by navigating away and back
           // This ensures useFocusEffect runs and UI re-renders with fresh data
           logger.log('[TestDeepLinks] Forcing Dashboard reload...', new Date().toISOString());

@@ -1,13 +1,15 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react-native';
 import EpisodeStatistics from '../EpisodeStatistics';
-import { useEpisodeStore } from '../../store/episodeStore';
+import { useAnalyticsStore } from '../../store/analyticsStore';
 import { dailyStatusRepository } from '../../database/dailyStatusRepository';
 import { ThemeProvider } from '../../theme/ThemeContext';
 import { DailyStatusLog, Episode } from '../../models/types';
 
-jest.mock('../../store/episodeStore');
+jest.mock('../../store/analyticsStore');
 jest.mock('../../database/dailyStatusRepository');
+
+const mockUseAnalyticsStore = useAnalyticsStore as unknown as jest.Mock;
 
 const renderWithTheme = (component: React.ReactElement) => {
   return render(
@@ -81,14 +83,28 @@ describe('EpisodeStatistics', () => {
     },
   ];
 
+  const mockSetDateRange = jest.fn();
+
+  const createMockStoreState = (episodes: Episode[] = mockEpisodes) => ({
+    episodes,
+    dateRange: {
+      startDate: new Date('2024-01-19'),
+      endDate: new Date('2024-01-25'),
+    },
+    setDateRange: mockSetDateRange,
+    selectedDays: 7,
+    intensityReadings: [],
+    isLoading: false,
+    lastFetched: Date.now(),
+    error: null,
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2024-01-25T12:00:00'));
 
-    (useEpisodeStore as unknown as jest.Mock).mockReturnValue({
-      episodes: mockEpisodes,
-    });
+    mockUseAnalyticsStore.mockReturnValue(createMockStoreState());
 
     (dailyStatusRepository.getDateRange as jest.Mock).mockResolvedValue(mockDailyStatuses);
   });
@@ -165,45 +181,79 @@ describe('EpisodeStatistics', () => {
       });
     });
 
-    it('should load daily statuses for the correct date range', async () => {
+    it('should call setDateRange when component mounts', async () => {
+      renderWithTheme(<EpisodeStatistics selectedRange={7} />);
+
+      await waitFor(() => {
+        expect(mockSetDateRange).toHaveBeenCalledWith(7);
+      });
+    });
+
+    it('should load daily statuses for the date range', async () => {
       renderWithTheme(<EpisodeStatistics selectedRange={7} />);
 
       await waitFor(() => {
         expect(dailyStatusRepository.getDateRange).toHaveBeenCalled();
-        const [startDate, endDate] = (dailyStatusRepository.getDateRange as jest.Mock).mock.calls[0];
-        expect(startDate).toMatch(/2024-01-19/); // 6 full days before Jan 25 + today = 7 days
-        expect(endDate).toMatch(/2024-01-25/);
       });
     });
   });
 
   describe('Day Statistics - 30 Day Range', () => {
+    beforeEach(() => {
+      mockUseAnalyticsStore.mockReturnValue({
+        ...createMockStoreState(),
+        dateRange: {
+          startDate: new Date('2023-12-27'),
+          endDate: new Date('2024-01-25'),
+        },
+        selectedDays: 30,
+      });
+    });
+
     it('should load daily statuses for 30 day range', async () => {
       renderWithTheme(<EpisodeStatistics selectedRange={30} />);
 
       await waitFor(() => {
         expect(dailyStatusRepository.getDateRange).toHaveBeenCalled();
-        const [startDate, endDate] = (dailyStatusRepository.getDateRange as jest.Mock).mock.calls[0];
-        expect(startDate).toMatch(/2023-12-27/); // 29 full days before Jan 25 + today = 30 days
-        expect(endDate).toMatch(/2024-01-25/);
+        expect(mockSetDateRange).toHaveBeenCalledWith(30);
       });
     });
   });
 
   describe('Day Statistics - 90 Day Range', () => {
+    beforeEach(() => {
+      mockUseAnalyticsStore.mockReturnValue({
+        ...createMockStoreState(),
+        dateRange: {
+          startDate: new Date('2023-10-28'),
+          endDate: new Date('2024-01-25'),
+        },
+        selectedDays: 90,
+      });
+    });
+
     it('should load daily statuses for 90 day range', async () => {
       renderWithTheme(<EpisodeStatistics selectedRange={90} />);
 
       await waitFor(() => {
         expect(dailyStatusRepository.getDateRange).toHaveBeenCalled();
-        const [startDate, endDate] = (dailyStatusRepository.getDateRange as jest.Mock).mock.calls[0];
-        expect(startDate).toMatch(/2023-10-28/); // 89 full days before Jan 25 + today = 90 days
-        expect(endDate).toMatch(/2024-01-25/);
+        expect(mockSetDateRange).toHaveBeenCalledWith(90);
       });
     });
   });
 
   describe('Episode Statistics - With Episodes', () => {
+    beforeEach(() => {
+      mockUseAnalyticsStore.mockReturnValue({
+        ...createMockStoreState(),
+        dateRange: {
+          startDate: new Date('2023-12-27'),
+          endDate: new Date('2024-01-25'),
+        },
+        selectedDays: 30,
+      });
+    });
+
     it('should display total episodes count', async () => {
       renderWithTheme(<EpisodeStatistics selectedRange={30} />);
 
@@ -259,9 +309,7 @@ describe('EpisodeStatistics', () => {
 
   describe('Episode Statistics - Without Episodes', () => {
     beforeEach(() => {
-      (useEpisodeStore as unknown as jest.Mock).mockReturnValue({
-        episodes: [],
-      });
+      mockUseAnalyticsStore.mockReturnValue(createMockStoreState([]));
     });
 
     it('should display empty state when no episodes', async () => {
@@ -298,8 +346,13 @@ describe('EpisodeStatistics', () => {
         },
       ];
 
-      (useEpisodeStore as unknown as jest.Mock).mockReturnValue({
-        episodes: ongoingEpisodes,
+      mockUseAnalyticsStore.mockReturnValue({
+        ...createMockStoreState(ongoingEpisodes),
+        dateRange: {
+          startDate: new Date('2023-12-27'),
+          endDate: new Date('2024-01-25'),
+        },
+        selectedDays: 30,
       });
     });
 
@@ -335,8 +388,13 @@ describe('EpisodeStatistics', () => {
         },
       ];
 
-      (useEpisodeStore as unknown as jest.Mock).mockReturnValue({
-        episodes: ongoingEpisode,
+      mockUseAnalyticsStore.mockReturnValue({
+        ...createMockStoreState(ongoingEpisode),
+        dateRange: {
+          startDate: new Date('2024-01-19'),
+          endDate: new Date('2024-01-25T23:59:59.999'),
+        },
+        selectedDays: 7,
       });
 
       (dailyStatusRepository.getDateRange as jest.Mock).mockResolvedValue([]);
@@ -372,8 +430,13 @@ describe('EpisodeStatistics', () => {
         },
       ];
 
-      (useEpisodeStore as unknown as jest.Mock).mockReturnValue({
-        episodes: ongoingEpisode,
+      mockUseAnalyticsStore.mockReturnValue({
+        ...createMockStoreState(ongoingEpisode),
+        dateRange: {
+          startDate: new Date('2024-01-19'),
+          endDate: new Date('2024-01-25T23:59:59.999'),
+        },
+        selectedDays: 7,
       });
 
       (dailyStatusRepository.getDateRange as jest.Mock).mockResolvedValue([]);
@@ -420,8 +483,13 @@ describe('EpisodeStatistics', () => {
         },
       ];
 
-      (useEpisodeStore as unknown as jest.Mock).mockReturnValue({
-        episodes: mixedEpisodes,
+      mockUseAnalyticsStore.mockReturnValue({
+        ...createMockStoreState(mixedEpisodes),
+        dateRange: {
+          startDate: new Date('2024-01-19'),
+          endDate: new Date('2024-01-25T23:59:59.999'),
+        },
+        selectedDays: 7,
       });
 
       (dailyStatusRepository.getDateRange as jest.Mock).mockResolvedValue([]);
@@ -487,8 +555,13 @@ describe('EpisodeStatistics', () => {
         // Jan 23-25 have ongoing episode - should be migraine days
       ];
 
-      (useEpisodeStore as unknown as jest.Mock).mockReturnValue({
-        episodes: ongoingEpisode,
+      mockUseAnalyticsStore.mockReturnValue({
+        ...createMockStoreState(ongoingEpisode),
+        dateRange: {
+          startDate: new Date('2024-01-19'),
+          endDate: new Date('2024-01-25T23:59:59.999'),
+        },
+        selectedDays: 7,
       });
 
       (dailyStatusRepository.getDateRange as jest.Mock).mockResolvedValue(dailyStatuses);
@@ -517,11 +590,11 @@ describe('EpisodeStatistics', () => {
   });
 
   describe('Date Range Changes', () => {
-    it('should reload data when selectedRange changes from 7 to 30', async () => {
+    it('should call setDateRange when selectedRange changes from 7 to 30', async () => {
       const { rerender } = renderWithTheme(<EpisodeStatistics selectedRange={7} />);
 
       await waitFor(() => {
-        expect(dailyStatusRepository.getDateRange).toHaveBeenCalledTimes(1);
+        expect(mockSetDateRange).toHaveBeenCalledWith(7);
       });
 
       jest.clearAllMocks();
@@ -533,15 +606,15 @@ describe('EpisodeStatistics', () => {
       );
 
       await waitFor(() => {
-        expect(dailyStatusRepository.getDateRange).toHaveBeenCalledTimes(1);
+        expect(mockSetDateRange).toHaveBeenCalledWith(30);
       });
     });
 
-    it('should reload data when selectedRange changes from 30 to 90', async () => {
+    it('should call setDateRange when selectedRange changes from 30 to 90', async () => {
       const { rerender } = renderWithTheme(<EpisodeStatistics selectedRange={30} />);
 
       await waitFor(() => {
-        expect(dailyStatusRepository.getDateRange).toHaveBeenCalled();
+        expect(mockSetDateRange).toHaveBeenCalledWith(30);
       });
 
       jest.clearAllMocks();
@@ -553,7 +626,7 @@ describe('EpisodeStatistics', () => {
       );
 
       await waitFor(() => {
-        expect(dailyStatusRepository.getDateRange).toHaveBeenCalled();
+        expect(mockSetDateRange).toHaveBeenCalledWith(90);
       });
     });
   });
@@ -578,6 +651,15 @@ describe('EpisodeStatistics', () => {
     });
 
     it('should have accessibility labels for episode statistics', async () => {
+      mockUseAnalyticsStore.mockReturnValue({
+        ...createMockStoreState(),
+        dateRange: {
+          startDate: new Date('2023-12-27'),
+          endDate: new Date('2024-01-25'),
+        },
+        selectedDays: 30,
+      });
+
       renderWithTheme(<EpisodeStatistics selectedRange={30} />);
 
       await waitFor(() => {
@@ -613,9 +695,7 @@ describe('EpisodeStatistics', () => {
         },
       ];
 
-      (useEpisodeStore as unknown as jest.Mock).mockReturnValue({
-        episodes: multiDayEpisode,
-      });
+      mockUseAnalyticsStore.mockReturnValue(createMockStoreState(multiDayEpisode));
 
       renderWithTheme(<EpisodeStatistics selectedRange={7} />);
 
@@ -627,8 +707,13 @@ describe('EpisodeStatistics', () => {
     it('should handle single episode', async () => {
       const singleEpisode: Episode[] = [mockEpisodes[0]];
 
-      (useEpisodeStore as unknown as jest.Mock).mockReturnValue({
-        episodes: singleEpisode,
+      mockUseAnalyticsStore.mockReturnValue({
+        ...createMockStoreState(singleEpisode),
+        dateRange: {
+          startDate: new Date('2023-12-27'),
+          endDate: new Date('2024-01-25'),
+        },
+        selectedDays: 30,
       });
 
       renderWithTheme(<EpisodeStatistics selectedRange={30} />);
