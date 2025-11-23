@@ -96,8 +96,11 @@ export async function resetDatabaseForTesting(options: {
       logger.log('[TestHelpers] Reloading stores with fixture data...');
       const { useMedicationStore } = await import('../store/medicationStore');
       const { useEpisodeStore } = await import('../store/episodeStore');
+      const { useAnalyticsStore } = await import('../store/analyticsStore');
       await useMedicationStore.getState().loadMedications();
       await useEpisodeStore.getState().loadEpisodes();
+      // Refresh analytics store to pick up new fixture data
+      await useAnalyticsStore.getState().refreshData();
       logger.log('[TestHelpers] Stores reloaded with fixture data');
     }
 

@@ -1,11 +1,10 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme, ThemeColors } from '../theme';
-import { useEpisodeStore } from '../store/episodeStore';
+import { useAnalyticsStore } from '../store/analyticsStore';
 import { dailyStatusRepository } from '../database/dailyStatusRepository';
 import { DailyStatusLog, TimeRangeDays } from '../models/types';
 import {
-  getDateRangeForDays,
   calculateEpisodeFrequency,
   calculateDurationMetrics,
   formatDuration,
@@ -102,27 +101,32 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
 export default function EpisodeStatistics({ selectedRange }: EpisodeStatisticsProps) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const { episodes } = useEpisodeStore();
+
+  // Use the analytics store for episodes (follows Components → Stores → Repositories pattern)
+  const { episodes, dateRange, setDateRange } = useAnalyticsStore();
   const [dailyStatuses, setDailyStatuses] = useState<DailyStatusLog[]>([]);
+
+  // Update the store's date range when the selected range changes
+  useEffect(() => {
+    setDateRange(selectedRange);
+  }, [selectedRange, setDateRange]);
 
   // Load daily statuses directly from repository for the date range
   // This prevents issues with the shared store being overwritten by the calendar
   useEffect(() => {
     const loadData = async () => {
-      const { startDate, endDate } = getDateRangeForDays(selectedRange);
-
-      const startDateStr = formatDateToYYYYMMDD(startDate);
-      const endDateStr = formatDateToYYYYMMDD(endDate);
+      const startDateStr = formatDateToYYYYMMDD(dateRange.startDate);
+      const endDateStr = formatDateToYYYYMMDD(dateRange.endDate);
 
       const statuses = await dailyStatusRepository.getDateRange(startDateStr, endDateStr);
       setDailyStatuses(statuses);
     };
 
     loadData();
-  }, [selectedRange]);
+  }, [dateRange]);
 
   const statistics = useMemo(() => {
-    const { startDate, endDate } = getDateRangeForDays(selectedRange);
+    const { startDate, endDate } = dateRange;
 
     // Calculate actual total days in range (inclusive)
     // Normalize dates to midnight for accurate day counting
@@ -237,7 +241,7 @@ export default function EpisodeStatistics({ selectedRange }: EpisodeStatisticsPr
       episodeFrequency,
       durationMetrics,
     };
-  }, [selectedRange, episodes, dailyStatuses]);
+  }, [dateRange, episodes, dailyStatuses]);
 
   const hasEpisodes = statistics.episodeFrequency > 0;
 

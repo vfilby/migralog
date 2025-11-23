@@ -1,10 +1,9 @@
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme, ThemeColors } from '../theme';
-import { episodeRepository, intensityRepository } from '../database/episodeRepository';
-import { Episode, IntensityReading, TimeRangeDays } from '../models/types';
+import { useAnalyticsStore } from '../store/analyticsStore';
+import { TimeRangeDays } from '../models/types';
 import {
-  getDateRangeForDays,
   calculateIntensityHistogram,
   IntensityHistogramData,
 } from '../utils/analyticsUtils';
@@ -77,39 +76,29 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
 export default function IntensityHistogram({ selectedRange }: IntensityHistogramProps) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const [episodes, setEpisodes] = useState<Episode[]>([]);
-  const [intensityReadings, setIntensityReadings] = useState<IntensityReading[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
 
-  // Load episodes by date range and all intensity readings
-  // This ensures we get ALL episodes in the selected range, not just the first 50
+  // Use the analytics store for episodes and intensity readings
+  // This follows the Components → Stores → Repositories pattern
+  const {
+    episodes,
+    intensityReadings,
+    isLoading,
+    dateRange,
+    setDateRange,
+  } = useAnalyticsStore();
+
+  // Update the store's date range when the selected range changes
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      try {
-        const { startDate, endDate } = getDateRangeForDays(selectedRange);
-        const [rangeEpisodes, readings] = await Promise.all([
-          episodeRepository.getByDateRange(startDate.getTime(), endDate.getTime()),
-          intensityRepository.getAll(),
-        ]);
-        setEpisodes(rangeEpisodes);
-        setIntensityReadings(readings);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadData();
-  }, [selectedRange]);
+    setDateRange(selectedRange);
+  }, [selectedRange, setDateRange]);
 
   const histogramData = useMemo(() => {
     // Don't calculate until data is loaded
     if (isLoading) {
       return Array.from({ length: 10 }, (_, i) => ({ intensity: i + 1, count: 0 }));
     }
-    const { startDate, endDate } = getDateRangeForDays(selectedRange);
-    return calculateIntensityHistogram(episodes, intensityReadings, startDate, endDate);
-  }, [selectedRange, episodes, intensityReadings, isLoading]);
+    return calculateIntensityHistogram(episodes, intensityReadings, dateRange.startDate, dateRange.endDate);
+  }, [episodes, intensityReadings, dateRange, isLoading]);
 
   // Calculate max count for scaling bars
   const maxCount = useMemo(() => {

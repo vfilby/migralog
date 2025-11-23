@@ -1,18 +1,16 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react-native';
 import IntensityHistogram from '../IntensityHistogram';
-import { episodeRepository, intensityRepository } from '../../database/episodeRepository';
+import { useAnalyticsStore } from '../../store/analyticsStore';
 import { ThemeProvider } from '../../theme/ThemeContext';
 import { Episode, IntensityReading } from '../../models/types';
+import { cacheManager } from '../../utils/cacheManager';
 
-jest.mock('../../database/episodeRepository', () => ({
-  episodeRepository: {
-    getByDateRange: jest.fn(),
-  },
-  intensityRepository: {
-    getAll: jest.fn(),
-  },
-}));
+// Mock the analytics store
+jest.mock('../../store/analyticsStore');
+jest.mock('../../database/episodeRepository');
+
+const mockUseAnalyticsStore = useAnalyticsStore as unknown as jest.Mock;
 
 const renderWithTheme = (component: React.ReactElement) => {
   return render(
@@ -105,19 +103,34 @@ describe('IntensityHistogram', () => {
     },
   ];
 
+  const mockSetDateRange = jest.fn();
+
+  const createMockStoreState = (options: {
+    episodes?: Episode[];
+    intensityReadings?: IntensityReading[];
+    isLoading?: boolean;
+  } = {}) => ({
+    episodes: options.episodes ?? mockEpisodes,
+    intensityReadings: options.intensityReadings ?? mockIntensityReadings,
+    isLoading: options.isLoading ?? false,
+    dateRange: {
+      startDate: new Date('2023-12-26'),
+      endDate: new Date('2024-01-25'),
+    },
+    setDateRange: mockSetDateRange,
+    selectedDays: 30,
+    lastFetched: Date.now(),
+    error: null,
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2024-01-25T12:00:00'));
+    cacheManager.clear();
 
-    // Mock episodeRepository.getByDateRange to return episodes filtered by date range
-    (episodeRepository.getByDateRange as jest.Mock).mockImplementation((startTime: number, endTime: number) => {
-      return Promise.resolve(
-        mockEpisodes.filter(ep => ep.startTime >= startTime && ep.startTime <= endTime)
-      );
-    });
-
-    (intensityRepository.getAll as jest.Mock).mockResolvedValue(mockIntensityReadings);
+    // Default mock implementation
+    mockUseAnalyticsStore.mockReturnValue(createMockStoreState());
   });
 
   afterEach(() => {
@@ -191,27 +204,21 @@ describe('IntensityHistogram', () => {
       });
     });
 
-    it('should load intensity readings from repository', async () => {
+    it('should call setDateRange when component mounts', async () => {
       renderWithTheme(<IntensityHistogram selectedRange={30} />);
 
       await waitFor(() => {
-        expect(intensityRepository.getAll).toHaveBeenCalled();
-      });
-    });
-
-    it('should load episodes by date range from repository', async () => {
-      renderWithTheme(<IntensityHistogram selectedRange={30} />);
-
-      await waitFor(() => {
-        expect(episodeRepository.getByDateRange).toHaveBeenCalled();
+        expect(mockSetDateRange).toHaveBeenCalledWith(30);
       });
     });
   });
 
   describe('Empty State', () => {
     beforeEach(() => {
-      (episodeRepository.getByDateRange as jest.Mock).mockResolvedValue([]);
-      (intensityRepository.getAll as jest.Mock).mockResolvedValue([]);
+      mockUseAnalyticsStore.mockReturnValue(createMockStoreState({
+        episodes: [],
+        intensityReadings: [],
+      }));
     });
 
     it('should display empty state when no data', async () => {
@@ -242,10 +249,10 @@ describe('IntensityHistogram', () => {
 
   describe('Episodes Without Intensity Readings', () => {
     beforeEach(() => {
-      // Mock to return episodes but no intensity readings
-      (episodeRepository.getByDateRange as jest.Mock).mockResolvedValue(mockEpisodes);
-      // No intensity readings for any episode
-      (intensityRepository.getAll as jest.Mock).mockResolvedValue([]);
+      mockUseAnalyticsStore.mockReturnValue(createMockStoreState({
+        episodes: mockEpisodes,
+        intensityReadings: [],
+      }));
     });
 
     it('should display empty state when episodes have no intensity readings', async () => {
@@ -258,28 +265,19 @@ describe('IntensityHistogram', () => {
   });
 
   describe('Date Range Filtering', () => {
-    it('should filter episodes by 7-day range', async () => {
-      // Mock current time is Jan 25, so 7-day range is Jan 18-25
-      // Only episode-3 (Jan 20) is in this range
+    it('should call setDateRange with 7 days', async () => {
       renderWithTheme(<IntensityHistogram selectedRange={7} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('histogram-bars')).toBeTruthy();
-        // Episode 3 has max intensity 6
-        expect(screen.getByTestId('histogram-bar-6')).toBeTruthy();
+        expect(mockSetDateRange).toHaveBeenCalledWith(7);
       });
     });
 
-    it('should filter episodes by 30-day range', async () => {
+    it('should call setDateRange with 30 days', async () => {
       renderWithTheme(<IntensityHistogram selectedRange={30} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('histogram-bars')).toBeTruthy();
-        // All 3 episodes are within 30 days (Jan 15, 17, 20)
-        // Episode 1 max: 7, Episode 2 max: 8, Episode 3 max: 6
-        expect(screen.getByTestId('histogram-bar-6')).toBeTruthy();
-        expect(screen.getByTestId('histogram-bar-7')).toBeTruthy();
-        expect(screen.getByTestId('histogram-bar-8')).toBeTruthy();
+        expect(mockSetDateRange).toHaveBeenCalledWith(30);
       });
     });
 
@@ -287,7 +285,7 @@ describe('IntensityHistogram', () => {
       const { rerender } = renderWithTheme(<IntensityHistogram selectedRange={7} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('intensity-histogram')).toBeTruthy();
+        expect(mockSetDateRange).toHaveBeenCalledWith(7);
       });
 
       rerender(
@@ -297,6 +295,23 @@ describe('IntensityHistogram', () => {
       );
 
       await waitFor(() => {
+        expect(mockSetDateRange).toHaveBeenCalledWith(30);
+      });
+    });
+  });
+
+  describe('Loading State', () => {
+    it('should show empty histogram when loading', async () => {
+      mockUseAnalyticsStore.mockReturnValue(createMockStoreState({
+        episodes: [],
+        intensityReadings: [],
+        isLoading: true,
+      }));
+
+      renderWithTheme(<IntensityHistogram selectedRange={30} />);
+
+      await waitFor(() => {
+        // During loading, shows empty state or placeholder bars
         expect(screen.getByTestId('intensity-histogram')).toBeTruthy();
       });
     });
