@@ -3,15 +3,25 @@
  *
  * These functions provide episode-specific date/time formatting operations
  * that handle edge cases like multi-day episodes and ongoing episodes.
+ *
+ * All functions support locale-aware formatting using the device's locale
+ * settings for 12/24 hour time format and locale-specific date formats.
  */
 
 import { format, isSameDay, isToday, isYesterday } from 'date-fns';
+import {
+  getDeviceLocale,
+  getTimeFormatString,
+  getDateTimeFormatString,
+  getShortDateTimeFormatString,
+} from './localeUtils';
 
 /**
  * Format episode time range with intelligent date display
  *
  * Shows just times when start/end are on the target date,
  * or includes dates when the episode spans multiple days.
+ * Automatically uses 12-hour or 24-hour format based on device locale.
  *
  * @param startTime - Episode start timestamp (milliseconds)
  * @param endTime - Episode end timestamp (milliseconds), null/undefined for ongoing
@@ -30,14 +40,17 @@ export function formatEpisodeTimeRange(
       return 'Unknown time';
     }
 
+    const locale = getDeviceLocale();
+    const timeFormat = getTimeFormatString();
+    const shortDateTimeFormat = getShortDateTimeFormatString();
     const targetDateObj = new Date(targetDate + 'T00:00:00');
     const startIsOnTargetDate = isSameDay(startDate, targetDateObj);
 
     // Helper to format start time for ongoing episodes
     const formatOngoingStart = () =>
       startIsOnTargetDate
-        ? `Started at ${format(startDate, 'h:mm a')}`
-        : `Started ${format(startDate, 'MMM d, h:mm a')}`;
+        ? `Started at ${format(startDate, timeFormat, { locale })}`
+        : `Started ${format(startDate, shortDateTimeFormat, { locale })}`;
 
     // Check if we have a valid end time
     if (!endTime) {
@@ -54,16 +67,16 @@ export function formatEpisodeTimeRange(
 
     // If both start and end are on the target date, just show times
     if (startIsOnTargetDate && endIsOnTargetDate) {
-      return `${format(startDate, 'h:mm a')} - ${format(endDate, 'h:mm a')}`;
+      return `${format(startDate, timeFormat, { locale })} - ${format(endDate, timeFormat, { locale })}`;
     }
 
     // Multi-day episode - show dates with times
     const startStr = startIsOnTargetDate
-      ? format(startDate, 'h:mm a')
-      : format(startDate, 'MMM d, h:mm a');
+      ? format(startDate, timeFormat, { locale })
+      : format(startDate, shortDateTimeFormat, { locale });
     const endStr = endIsOnTargetDate
-      ? format(endDate, 'h:mm a')
-      : format(endDate, 'MMM d, h:mm a');
+      ? format(endDate, timeFormat, { locale })
+      : format(endDate, shortDateTimeFormat, { locale });
 
     return `${startStr} - ${endStr}`;
   } catch {
@@ -138,14 +151,15 @@ export function formatDurationLong(hours: number): string {
  *
  * Provides user-friendly relative formatting for recent dates while
  * showing full dates for older timestamps.
+ * Automatically uses 12-hour or 24-hour format based on device locale.
  *
  * @param timestamp - Unix timestamp in milliseconds
- * @param timeFormat - Time format string (default: 'h:mm a')
+ * @param timeFormat - Optional time format string override (default: auto-detected from locale)
  * @returns Formatted string like "Today, 2:30 PM", "Yesterday, 10:00 AM", or "Jan 15, 2024 2:30 PM"
  */
 export function formatRelativeDate(
   timestamp: number,
-  timeFormat: string = 'h:mm a'
+  timeFormat?: string
 ): string {
   try {
     const date = new Date(timestamp);
@@ -155,14 +169,20 @@ export function formatRelativeDate(
       return 'Unknown time';
     }
 
-    const timeStr = format(date, timeFormat);
+    const locale = getDeviceLocale();
+    const effectiveTimeFormat = timeFormat ?? getTimeFormatString();
+    const timeStr = format(date, effectiveTimeFormat, { locale });
 
     if (isToday(date)) {
       return `Today, ${timeStr}`;
     } else if (isYesterday(date)) {
       return `Yesterday, ${timeStr}`;
     } else {
-      return format(date, `MMM d, yyyy ${timeFormat}`);
+      // For older dates, use the full date-time format but with custom time format if provided
+      const dateTimeFormat = timeFormat
+        ? `MMM d, yyyy ${timeFormat}`
+        : getDateTimeFormatString();
+      return format(date, dateTimeFormat, { locale });
     }
   } catch {
     return 'Unknown time';
@@ -173,14 +193,15 @@ export function formatRelativeDate(
  * Format a timestamp to a simple time string
  *
  * Convenience wrapper for consistent time formatting across the app.
+ * Automatically uses 12-hour or 24-hour format based on device locale.
  *
  * @param timestamp - Unix timestamp in milliseconds or Date object
- * @param formatStr - Format string (default: 'h:mm a' for "2:30 PM")
+ * @param formatStr - Optional format string override (default: auto-detected from locale)
  * @returns Formatted time string
  */
 export function formatTime(
   timestamp: number | Date,
-  formatStr: string = 'h:mm a'
+  formatStr?: string
 ): string {
   try {
     const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
@@ -189,7 +210,9 @@ export function formatTime(
       return 'Unknown time';
     }
 
-    return format(date, formatStr);
+    const locale = getDeviceLocale();
+    const effectiveFormat = formatStr ?? getTimeFormatString();
+    return format(date, effectiveFormat, { locale });
   } catch {
     return 'Unknown time';
   }
@@ -199,14 +222,15 @@ export function formatTime(
  * Format a timestamp to a date-time string
  *
  * Convenience wrapper for consistent date-time formatting across the app.
+ * Automatically uses 12-hour or 24-hour format based on device locale.
  *
  * @param timestamp - Unix timestamp in milliseconds or Date object
- * @param formatStr - Format string (default: 'MMM d, yyyy h:mm a')
+ * @param formatStr - Optional format string override (default: auto-detected from locale)
  * @returns Formatted date-time string like "Jan 15, 2024 2:30 PM"
  */
 export function formatDateTime(
   timestamp: number | Date,
-  formatStr: string = 'MMM d, yyyy h:mm a'
+  formatStr?: string
 ): string {
   try {
     const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
@@ -215,8 +239,20 @@ export function formatDateTime(
       return 'Unknown time';
     }
 
-    return format(date, formatStr);
+    const locale = getDeviceLocale();
+    const effectiveFormat = formatStr ?? getDateTimeFormatString();
+    return format(date, effectiveFormat, { locale });
   } catch {
     return 'Unknown time';
   }
 }
+
+/**
+ * Check if the current locale uses 12-hour time format
+ *
+ * Exported for cases where consumers need to know the time format preference
+ * without formatting a specific time.
+ *
+ * @returns true if 12-hour format, false if 24-hour format
+ */
+export { uses12HourClock } from './localeUtils';

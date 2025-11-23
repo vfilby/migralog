@@ -5,7 +5,24 @@ import {
   formatRelativeDate,
   formatTime,
   formatDateTime,
+  uses12HourClock,
 } from '../dateFormatting';
+
+// Mock the localeUtils module to ensure consistent test behavior
+// Tests expect 12-hour format (US locale)
+jest.mock('../localeUtils', () => {
+  const { enUS } = require('date-fns/locale');
+  return {
+    getDeviceLocale: jest.fn(() => enUS),
+    getDeviceLocaleCode: jest.fn(() => 'en-US'),
+    uses12HourClock: jest.fn(() => true),
+    getTimeFormatString: jest.fn(() => 'h:mm a'),
+    getDateTimeFormatString: jest.fn(() => 'MMM d, yyyy h:mm a'),
+    getShortDateTimeFormatString: jest.fn(() => 'MMM d, h:mm a'),
+    clearLocaleCache: jest.fn(),
+    getFormatLocaleOptions: jest.fn(() => ({ locale: enUS })),
+  };
+});
 
 describe('formatEpisodeTimeRange', () => {
   const targetDate = '2024-01-15';
@@ -126,7 +143,7 @@ describe('formatEpisodeDuration', () => {
   describe('ongoing episodes', () => {
     it('uses current time when end is null', () => {
       const now = Date.now();
-      const start = now - (2 * 60 * 60 * 1000); // 2 hours ago
+      const start = now - 2 * 60 * 60 * 1000; // 2 hours ago
 
       const result = formatEpisodeDuration(start, null);
 
@@ -136,7 +153,7 @@ describe('formatEpisodeDuration', () => {
 
     it('uses current time when end is undefined', () => {
       const now = Date.now();
-      const start = now - (30 * 60 * 1000); // 30 minutes ago
+      const start = now - 30 * 60 * 1000; // 30 minutes ago
 
       const result = formatEpisodeDuration(start);
 
@@ -295,7 +312,9 @@ describe('formatDateTime', () => {
 
     it('accepts custom format string', () => {
       const timestamp = new Date('2024-01-15T14:30:00').getTime();
-      expect(formatDateTime(timestamp, 'yyyy-MM-dd HH:mm')).toBe('2024-01-15 14:30');
+      expect(formatDateTime(timestamp, 'yyyy-MM-dd HH:mm')).toBe(
+        '2024-01-15 14:30'
+      );
     });
   });
 
@@ -314,5 +333,16 @@ describe('formatDateTime', () => {
     it('returns "Unknown time" for invalid Date object', () => {
       expect(formatDateTime(new Date('invalid'))).toBe('Unknown time');
     });
+  });
+});
+
+describe('uses12HourClock export', () => {
+  it('is exported from dateFormatting module', () => {
+    expect(typeof uses12HourClock).toBe('function');
+  });
+
+  it('returns a boolean', () => {
+    const result = uses12HourClock();
+    expect(typeof result).toBe('boolean');
   });
 });
