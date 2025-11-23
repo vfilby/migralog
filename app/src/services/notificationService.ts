@@ -962,6 +962,73 @@ class NotificationService {
   }
 
   /**
+   * Cancel scheduled medication reminder for a specific schedule
+   * This is used when medication is logged before the scheduled reminder time
+   * to prevent the notification from firing after the dose was already taken
+   *
+   * Handles both single and grouped notifications:
+   * - Single: medicationId and scheduleId in data
+   * - Grouped: medicationIds[] and scheduleIds[] arrays in data
+   */
+  async cancelScheduledMedicationReminder(medicationId: string, scheduleId?: string): Promise<void> {
+    try {
+      const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+      let cancelledCount = 0;
+
+      for (const notif of scheduled) {
+        const data = notif.content.data as {
+          medicationId?: string;
+          medicationIds?: string[];
+          scheduleId?: string;
+          scheduleIds?: string[];
+        };
+
+        let shouldCancel = false;
+
+        // Single medication notification
+        if (data.medicationId === medicationId) {
+          if (scheduleId) {
+            // Only cancel if scheduleId matches (for medications with multiple daily schedules)
+            shouldCancel = data.scheduleId === scheduleId;
+          } else {
+            shouldCancel = true;
+          }
+        }
+
+        // Grouped notification - check if this medication/schedule is in the group
+        if (data.medicationIds && data.scheduleIds) {
+          for (let i = 0; i < data.medicationIds.length; i++) {
+            if (data.medicationIds[i] === medicationId) {
+              if (scheduleId) {
+                shouldCancel = data.scheduleIds[i] === scheduleId;
+              } else {
+                shouldCancel = true;
+              }
+              break;
+            }
+          }
+        }
+
+        if (shouldCancel) {
+          await Notifications.cancelScheduledNotificationAsync(notif.identifier);
+          cancelledCount++;
+          logger.log('[Notification] Cancelled scheduled reminder:', {
+            notificationId: notif.identifier,
+            medicationId,
+            scheduleId,
+          });
+        }
+      }
+
+      if (cancelledCount > 0) {
+        logger.log('[Notification] Cancelled', cancelledCount, 'scheduled reminders for medication');
+      }
+    } catch (error) {
+      logger.error('[Notification] Error cancelling scheduled medication reminder:', error);
+    }
+  }
+
+  /**
    * Get all scheduled notifications
    */
   async getAllScheduledNotifications(): Promise<Notifications.NotificationRequest[]> {

@@ -656,6 +656,143 @@ describe('notificationService', () => {
     });
   });
 
+  describe('cancelScheduledMedicationReminder', () => {
+    it('should cancel single medication notification matching medicationId and scheduleId', async () => {
+      const mockScheduledNotifs = [
+        {
+          identifier: 'notif-1',
+          content: { data: { medicationId: 'med-123', scheduleId: 'sched-1' } },
+        },
+        {
+          identifier: 'notif-2',
+          content: { data: { medicationId: 'med-123', scheduleId: 'sched-2' } },
+        },
+        {
+          identifier: 'notif-3',
+          content: { data: { medicationId: 'med-456', scheduleId: 'sched-3' } },
+        },
+      ];
+
+      (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockResolvedValue(
+        mockScheduledNotifs
+      );
+      (Notifications.cancelScheduledNotificationAsync as jest.Mock).mockResolvedValue(undefined);
+
+      await notificationService.cancelScheduledMedicationReminder('med-123', 'sched-1');
+
+      // Should only cancel the notification matching both medicationId and scheduleId
+      expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledTimes(1);
+      expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('notif-1');
+    });
+
+    it('should cancel all notifications for medication when scheduleId not provided', async () => {
+      const mockScheduledNotifs = [
+        {
+          identifier: 'notif-1',
+          content: { data: { medicationId: 'med-123', scheduleId: 'sched-1' } },
+        },
+        {
+          identifier: 'notif-2',
+          content: { data: { medicationId: 'med-123', scheduleId: 'sched-2' } },
+        },
+        {
+          identifier: 'notif-3',
+          content: { data: { medicationId: 'med-456', scheduleId: 'sched-3' } },
+        },
+      ];
+
+      (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockResolvedValue(
+        mockScheduledNotifs
+      );
+      (Notifications.cancelScheduledNotificationAsync as jest.Mock).mockResolvedValue(undefined);
+
+      await notificationService.cancelScheduledMedicationReminder('med-123');
+
+      // Should cancel both notifications for med-123
+      expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledTimes(2);
+      expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('notif-1');
+      expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('notif-2');
+    });
+
+    it('should cancel grouped notification containing medicationId and scheduleId', async () => {
+      const mockScheduledNotifs = [
+        {
+          identifier: 'notif-group-1',
+          content: {
+            data: {
+              medicationIds: ['med-123', 'med-456'],
+              scheduleIds: ['sched-1', 'sched-2'],
+            },
+          },
+        },
+      ];
+
+      (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockResolvedValue(
+        mockScheduledNotifs
+      );
+      (Notifications.cancelScheduledNotificationAsync as jest.Mock).mockResolvedValue(undefined);
+
+      await notificationService.cancelScheduledMedicationReminder('med-123', 'sched-1');
+
+      // Should cancel the grouped notification
+      expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledTimes(1);
+      expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('notif-group-1');
+    });
+
+    it('should not cancel grouped notification if scheduleId does not match', async () => {
+      const mockScheduledNotifs = [
+        {
+          identifier: 'notif-group-1',
+          content: {
+            data: {
+              medicationIds: ['med-123', 'med-456'],
+              scheduleIds: ['sched-1', 'sched-2'],
+            },
+          },
+        },
+      ];
+
+      (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockResolvedValue(
+        mockScheduledNotifs
+      );
+      (Notifications.cancelScheduledNotificationAsync as jest.Mock).mockResolvedValue(undefined);
+
+      // Try to cancel med-123 but with wrong scheduleId
+      await notificationService.cancelScheduledMedicationReminder('med-123', 'sched-99');
+
+      // Should NOT cancel since scheduleId doesn't match
+      expect(Notifications.cancelScheduledNotificationAsync).not.toHaveBeenCalled();
+    });
+
+    it('should not cancel any notifications if medication not found', async () => {
+      const mockScheduledNotifs = [
+        {
+          identifier: 'notif-1',
+          content: { data: { medicationId: 'med-456', scheduleId: 'sched-1' } },
+        },
+      ];
+
+      (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockResolvedValue(
+        mockScheduledNotifs
+      );
+      (Notifications.cancelScheduledNotificationAsync as jest.Mock).mockResolvedValue(undefined);
+
+      await notificationService.cancelScheduledMedicationReminder('med-123', 'sched-1');
+
+      expect(Notifications.cancelScheduledNotificationAsync).not.toHaveBeenCalled();
+    });
+
+    it('should handle errors gracefully', async () => {
+      (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockRejectedValue(
+        new Error('Failed to get notifications')
+      );
+
+      await expect(
+        notificationService.cancelScheduledMedicationReminder('med-123', 'sched-1')
+      ).resolves.not.toThrow();
+    });
+  });
+
   describe('getAllScheduledNotifications', () => {
     it('should return all scheduled notifications', async () => {
       const mockNotifs = [
