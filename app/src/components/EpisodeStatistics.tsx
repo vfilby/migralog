@@ -140,13 +140,14 @@ export default function EpisodeStatistics({ selectedRange }: EpisodeStatisticsPr
     // This ensures mutually exclusive categories that sum to 100%
 
     // Filter episodes to only those that touch the date range
+    // Use endDate (end of day) for filtering, not normalizedEnd (midnight)
     const relevantEpisodes = episodes.filter(episode => {
       const episodeStart = new Date(episode.startTime);
       // For ongoing episodes (no endTime), use current time to include all days up to now
       const episodeEnd = episode.endTime ? new Date(episode.endTime) : new Date();
 
       // Episode touches range if it starts before range ends AND ends after range starts
-      return episodeEnd >= normalizedStart && episodeStart <= normalizedEnd;
+      return episodeEnd >= startDate && episodeStart <= endDate;
     });
 
     // Create maps for fast lookup
@@ -157,9 +158,11 @@ export default function EpisodeStatistics({ selectedRange }: EpisodeStatisticsPr
       const episodeEnd = episode.endTime ? new Date(episode.endTime) : new Date();
 
       // Mark all days this episode spans (but only within the date range)
+      // Use normalizedStart for start boundary, but endDate for end boundary
+      // to ensure episodes on the current day are included
       const current = new Date(Math.max(episodeStart.getTime(), normalizedStart.getTime()));
       current.setHours(0, 0, 0, 0);
-      const end = new Date(Math.min(episodeEnd.getTime(), normalizedEnd.getTime()));
+      const end = new Date(Math.min(episodeEnd.getTime(), endDate.getTime()));
       end.setHours(0, 0, 0, 0);
 
       while (current <= end) {

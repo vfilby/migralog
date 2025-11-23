@@ -43,9 +43,9 @@ describe('analyticsUtils', () => {
 
     it('should calculate correct date range for 7 days', () => {
       const result = getDateRangeForDays(7);
-      // Verify start date is 7 days before end date's day
+      // 7 days = today + 6 previous days, so start is 6 days before end
       const expectedStart = new Date(result.endDate);
-      expectedStart.setDate(expectedStart.getDate() - 7);
+      expectedStart.setDate(expectedStart.getDate() - 6);
       expectedStart.setHours(0, 0, 0, 0);
 
       expect(result.startDate.toDateString()).toBe(expectedStart.toDateString());
@@ -53,9 +53,9 @@ describe('analyticsUtils', () => {
 
     it('should calculate correct date range for 30 days', () => {
       const result = getDateRangeForDays(30);
-      // Verify start date is 30 days before end date's day
+      // 30 days = today + 29 previous days, so start is 29 days before end
       const expectedStart = new Date(result.endDate);
-      expectedStart.setDate(expectedStart.getDate() - 30);
+      expectedStart.setDate(expectedStart.getDate() - 29);
       expectedStart.setHours(0, 0, 0, 0);
 
       expect(result.startDate.toDateString()).toBe(expectedStart.toDateString());
@@ -63,26 +63,20 @@ describe('analyticsUtils', () => {
 
     it('should calculate correct date range for 90 days', () => {
       const result = getDateRangeForDays(90);
-      // Verify start date is 90 days before end date's day
+      // 90 days = today + 89 previous days, so start is 89 days before end
       const expectedStart = new Date(result.endDate);
-      expectedStart.setDate(expectedStart.getDate() - 90);
+      expectedStart.setDate(expectedStart.getDate() - 89);
       expectedStart.setHours(0, 0, 0, 0);
 
       expect(result.startDate.toDateString()).toBe(expectedStart.toDateString());
     });
 
-    it('should handle 1 day range', () => {
+    it('should handle 1 day range (today only)', () => {
       const result = getDateRangeForDays(1);
+      // 1 day = today only, so start and end are same day
       expect(result.startDate).toBeInstanceOf(Date);
       expect(result.endDate).toBeInstanceOf(Date);
-    });
-
-    it('should handle 0 days (today only)', () => {
-      const result = getDateRangeForDays(0);
-      const startDate = result.startDate;
-      const endDate = result.endDate;
-      // Both should be today
-      expect(startDate.toDateString()).toBe(endDate.toDateString());
+      expect(result.startDate.toDateString()).toBe(result.endDate.toDateString());
     });
   });
 

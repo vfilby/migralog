@@ -22,15 +22,15 @@ export function formatDateToYYYYMMDD(date: Date): string {
 }
 
 /**
- * Gets the start and end dates for a time range going back N days from today
+ * Gets the start and end dates for a trailing N-day range ending today
  *
- * @param days - Number of days to go back from today (e.g., 7, 30, 90)
- * @returns Object containing startDate (N days ago at 00:00:00) and endDate (today at 23:59:59.999)
+ * @param days - Total number of days in the range (e.g., 7 = 6 full days + today)
+ * @returns Object containing startDate ((days-1) days ago at 00:00:00) and endDate (today at 23:59:59.999)
  *
  * @example
- * // Get date range for last 7 days
+ * // Get date range for last 7 days (today + 6 previous days)
  * const range = getDateRangeForDays(7);
- * console.log(range.startDate); // 7 days ago at midnight
+ * console.log(range.startDate); // 6 days ago at midnight
  * console.log(range.endDate);   // Today at end of day
  */
 export function getDateRangeForDays(days: number): { startDate: Date; endDate: Date } {
@@ -38,7 +38,7 @@ export function getDateRangeForDays(days: number): { startDate: Date; endDate: D
   endDate.setHours(23, 59, 59, 999);
 
   const startDate = new Date();
-  startDate.setDate(startDate.getDate() - days);
+  startDate.setDate(startDate.getDate() - (days - 1));
   startDate.setHours(0, 0, 0, 0);
 
   return { startDate, endDate };
