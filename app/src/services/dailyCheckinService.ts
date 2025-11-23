@@ -93,8 +93,54 @@ class DailyCheckinService {
     // Set up notification response listener
     this.setupResponseHandler();
 
+    // Handle any pending notification response that arrived before app initialized
+    // This is critical for notification actions (like "Clear Day") that are tapped
+    // while the app is in the background or killed
+    await this.processPendingResponse();
+
     this.initialized = true;
     logger.log('[DailyCheckin] Service initialized');
+  }
+
+  /**
+   * Process any pending notification response from before app initialization
+   * This handles the case where user tapped a notification action while the app was killed/backgrounded
+   */
+  private async processPendingResponse(): Promise<void> {
+    try {
+      const lastResponse = await Notifications.getLastNotificationResponseAsync();
+      if (!lastResponse) return;
+
+      const data = lastResponse.notification.request.content.data as {
+        type?: string;
+        date?: string;
+      };
+
+      // Only handle daily check-in notifications
+      if (data.type !== 'daily_checkin') return;
+
+      const { actionIdentifier } = lastResponse;
+      const date = data.date || format(new Date(), 'yyyy-MM-dd');
+
+      logger.log('[DailyCheckin] Processing pending response from before app init:', {
+        actionIdentifier,
+        date,
+      });
+
+      switch (actionIdentifier) {
+        case 'CLEAR_DAY':
+          await this.handleClearDay(date);
+          break;
+        case 'NOT_CLEAR':
+          logger.log('[DailyCheckin] Pending "Not clear" action - app is now open');
+          break;
+        default:
+          logger.log('[DailyCheckin] Pending notification tap - app is now open');
+          break;
+      }
+    } catch (error) {
+      logger.error('[DailyCheckin] Error processing pending notification response:', error);
+    }
   }
 
   /**
@@ -295,6 +341,39 @@ class DailyCheckinService {
     } catch (error) {
       logger.error('[DailyCheckin] Error checking scheduled notifications:', error);
       return false;
+    }
+  }
+
+  /**
+   * Cancel scheduled notification and dismiss any presented notifications for daily check-in
+   * Called when a day status is logged to prevent the notification from showing
+   * after the user has already logged their day
+   */
+  async cancelAndDismissForDate(date: string): Promise<void> {
+    const today = format(new Date(), 'yyyy-MM-dd');
+
+    // Only cancel if logging today's status
+    if (date !== today) {
+      logger.log('[DailyCheckin] Not cancelling notification - logged date is not today:', date);
+      return;
+    }
+
+    try {
+      // Cancel the scheduled notification
+      await this.cancelNotification();
+      logger.log('[DailyCheckin] Cancelled scheduled notification for today');
+
+      // Dismiss any presented notifications
+      const presentedNotifications = await Notifications.getPresentedNotificationsAsync();
+      for (const notification of presentedNotifications) {
+        const data = notification.request.content.data as { type?: string };
+        if (data.type === 'daily_checkin') {
+          await Notifications.dismissNotificationAsync(notification.request.identifier);
+          logger.log('[DailyCheckin] Dismissed presented notification:', notification.request.identifier);
+        }
+      }
+    } catch (error) {
+      logger.error('[DailyCheckin] Error cancelling/dismissing notifications:', error);
     }
   }
 }

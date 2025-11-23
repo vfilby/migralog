@@ -8,6 +8,16 @@ jest.mock('../../store/dailyStatusStore');
 jest.mock('../../store/episodeStore');
 jest.mock('../../services/errorLogger');
 
+// Mock date-fns format function to control "today" in tests
+jest.mock('date-fns', () => ({
+  ...jest.requireActual('date-fns'),
+  format: jest.fn((date, formatStr) => {
+    // Use actual format for most cases, but allow tests to control it
+    const actual = jest.requireActual('date-fns');
+    return actual.format(date, formatStr);
+  }),
+}));
+
 // Add required enum values and methods to mocked Notifications
 (Notifications as jest.Mocked<typeof Notifications>).AndroidNotificationPriority = {
   MIN: -2,
@@ -28,6 +38,9 @@ jest.mock('../../services/errorLogger');
 (Notifications.scheduleNotificationAsync as jest.Mock) = jest.fn();
 (Notifications.cancelScheduledNotificationAsync as jest.Mock) = jest.fn();
 (Notifications.getAllScheduledNotificationsAsync as jest.Mock) = jest.fn();
+(Notifications as any).getLastNotificationResponseAsync = jest.fn();
+(Notifications as any).getPresentedNotificationsAsync = jest.fn();
+(Notifications as any).dismissNotificationAsync = jest.fn();
 
 // Import service and mocked stores AFTER mocks are set up
 import { dailyCheckinService, handleDailyCheckinNotification } from '../dailyCheckinService';
@@ -54,6 +67,9 @@ describe('dailyCheckinService', () => {
     (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('test-notification-id');
     (Notifications.cancelScheduledNotificationAsync as jest.Mock).mockResolvedValue(undefined);
     (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockResolvedValue([]);
+    (Notifications.getLastNotificationResponseAsync as jest.Mock).mockResolvedValue(null);
+    (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue([]);
+    (Notifications.dismissNotificationAsync as jest.Mock).mockResolvedValue(undefined);
     (areNotificationsGloballyEnabled as jest.Mock).mockResolvedValue(true);
   });
 
@@ -322,6 +338,161 @@ describe('dailyCheckinService', () => {
       const result = await dailyCheckinService.isNotificationScheduled();
 
       expect(result).toBe(false);
+    });
+  });
+
+  describe('initialize - processPendingResponse', () => {
+    it('should process pending CLEAR_DAY response when app starts', async () => {
+      const mockLogDayStatus = jest.fn().mockResolvedValue({});
+      (useDailyStatusStore.getState as jest.Mock).mockReturnValue({
+        logDayStatus: mockLogDayStatus,
+        getDayStatus: jest.fn().mockResolvedValue(null),
+      });
+
+      const pendingResponse = {
+        actionIdentifier: 'CLEAR_DAY',
+        notification: {
+          request: {
+            content: {
+              data: { type: 'daily_checkin', date: '2024-01-15' },
+            },
+          },
+        },
+      };
+
+      (Notifications.getLastNotificationResponseAsync as jest.Mock).mockResolvedValue(pendingResponse);
+
+      await dailyCheckinService.initialize();
+
+      // Verify logDayStatus was called with the correct date and 'green' status
+      expect(mockLogDayStatus).toHaveBeenCalledWith('2024-01-15', 'green', undefined, undefined, true);
+    });
+
+    it('should not process pending response if not daily_checkin type', async () => {
+      const mockLogDayStatus = jest.fn();
+      (useDailyStatusStore.getState as jest.Mock).mockReturnValue({
+        logDayStatus: mockLogDayStatus,
+        getDayStatus: jest.fn().mockResolvedValue(null),
+      });
+
+      const pendingResponse = {
+        actionIdentifier: 'TAKE_NOW',
+        notification: {
+          request: {
+            content: {
+              data: { type: 'medication_reminder' },
+            },
+          },
+        },
+      };
+
+      (Notifications.getLastNotificationResponseAsync as jest.Mock).mockResolvedValue(pendingResponse);
+
+      await dailyCheckinService.initialize();
+
+      // Should not call logDayStatus for non-daily-checkin notifications
+      expect(mockLogDayStatus).not.toHaveBeenCalled();
+    });
+
+    it('should handle NOT_CLEAR action without logging status', async () => {
+      const mockLogDayStatus = jest.fn();
+      (useDailyStatusStore.getState as jest.Mock).mockReturnValue({
+        logDayStatus: mockLogDayStatus,
+        getDayStatus: jest.fn().mockResolvedValue(null),
+      });
+
+      const pendingResponse = {
+        actionIdentifier: 'NOT_CLEAR',
+        notification: {
+          request: {
+            content: {
+              data: { type: 'daily_checkin', date: '2024-01-15' },
+            },
+          },
+        },
+      };
+
+      (Notifications.getLastNotificationResponseAsync as jest.Mock).mockResolvedValue(pendingResponse);
+
+      await dailyCheckinService.initialize();
+
+      // NOT_CLEAR should not log status - user will log manually in app
+      expect(mockLogDayStatus).not.toHaveBeenCalled();
+    });
+
+    it('should handle no pending response gracefully', async () => {
+      (Notifications.getLastNotificationResponseAsync as jest.Mock).mockResolvedValue(null);
+
+      await expect(dailyCheckinService.initialize()).resolves.not.toThrow();
+    });
+  });
+
+  describe('cancelAndDismissForDate', () => {
+    beforeEach(() => {
+      // Reset initialization to allow calling cancelAndDismissForDate
+      (dailyCheckinService as any).initialized = true;
+    });
+
+    it('should cancel scheduled notification and dismiss presented when logging today', async () => {
+      // Mock today's date
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+      const mockPresentedNotifs = [
+        {
+          request: {
+            identifier: 'notif-1',
+            content: { data: { type: 'daily_checkin' } },
+          },
+        },
+        {
+          request: {
+            identifier: 'notif-2',
+            content: { data: { type: 'medication_reminder' } },
+          },
+        },
+      ];
+
+      (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue(mockPresentedNotifs);
+      (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockResolvedValue([
+        { identifier: 'scheduled-1', content: { data: { type: 'daily_checkin' } } },
+      ]);
+
+      await dailyCheckinService.cancelAndDismissForDate(todayStr);
+
+      // Should cancel scheduled notifications
+      expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('scheduled-1');
+
+      // Should dismiss only daily_checkin presented notifications
+      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledTimes(1);
+      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith('notif-1');
+    });
+
+    it('should not cancel notifications when logging a past date', async () => {
+      await dailyCheckinService.cancelAndDismissForDate('2020-01-01');
+
+      // Should not cancel anything for past dates
+      expect(Notifications.cancelScheduledNotificationAsync).not.toHaveBeenCalled();
+      expect(Notifications.dismissNotificationAsync).not.toHaveBeenCalled();
+    });
+
+    it('should not cancel notifications when logging a future date', async () => {
+      await dailyCheckinService.cancelAndDismissForDate('2099-12-31');
+
+      // Should not cancel anything for future dates
+      expect(Notifications.cancelScheduledNotificationAsync).not.toHaveBeenCalled();
+      expect(Notifications.dismissNotificationAsync).not.toHaveBeenCalled();
+    });
+
+    it('should handle errors gracefully', async () => {
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+      (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockRejectedValue(
+        new Error('Failed to get notifications')
+      );
+
+      await expect(dailyCheckinService.cancelAndDismissForDate(todayStr)).resolves.not.toThrow();
     });
   });
 });

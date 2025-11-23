@@ -4,6 +4,7 @@ import { dailyStatusRepository } from '../database/dailyStatusRepository';
 import { episodeRepository } from '../database/episodeRepository';
 import { errorLogger } from '../services/errorLogger';
 import { toastService } from '../services/toastService';
+import { dailyCheckinService } from '../services/dailyCheckinService';
 import { format, subDays } from 'date-fns';
 
 interface DailyStatusState {
@@ -133,6 +134,10 @@ export const useDailyStatusStore = create<DailyStatusState>((set, get) => ({
         notes,
         prompted,
       });
+
+      // Cancel any scheduled daily check-in notification for today
+      // This prevents the notification from showing after the user has logged their day
+      await dailyCheckinService.cancelAndDismissForDate(date);
 
       // Update local state - replace or add
       const existingIndex = get().dailyStatuses.findIndex(log => log.date === date);
