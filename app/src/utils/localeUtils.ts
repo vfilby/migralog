@@ -5,44 +5,65 @@
  * locale-aware date/time formatting throughout the app.
  */
 
-import { enUS, enGB, enAU, enCA, de, fr, es, it, ja, ko, zhCN, pt, nl } from 'date-fns/locale';
+import {
+  enUS,
+  enGB,
+  de,
+  fr,
+  es,
+  ja,
+  zhCN,
+  zhTW,
+} from 'date-fns/locale';
 import type { Locale } from 'date-fns';
 
 /**
+ * Time format string constants
+ */
+export const TIME_FORMAT_12H = 'h:mm a';
+export const TIME_FORMAT_24H = 'HH:mm';
+export const DATETIME_FORMAT_12H = 'MMM d, yyyy h:mm a';
+export const DATETIME_FORMAT_24H = 'MMM d, yyyy HH:mm';
+export const SHORT_DATETIME_FORMAT_12H = 'MMM d, h:mm a';
+export const SHORT_DATETIME_FORMAT_24H = 'MMM d, HH:mm';
+
+/**
  * Map of supported locale codes to date-fns Locale objects
+ *
+ * We include the most commonly used locales to balance bundle size
+ * with coverage. Other locales fall back to en-US which provides
+ * correct formatting behavior (the locale primarily affects things
+ * like month/day names which are still readable in English).
  *
  * Add new locales here as needed. The key should match the
  * language code or language-region code returned by the device.
  */
 const LOCALE_MAP: Record<string, Locale> = {
-  // English variants
+  // English variants (en-GB uses different date ordering)
   'en': enUS,
   'en-US': enUS,
   'en-GB': enGB,
-  'en-AU': enAU,
-  'en-CA': enCA,
+  'en-AU': enGB, // Australia uses UK-style formatting
+  'en-CA': enUS, // Canada uses US-style formatting
   // European languages
   'de': de,
   'de-DE': de,
+  'de-AT': de,
+  'de-CH': de,
   'fr': fr,
   'fr-FR': fr,
+  'fr-CA': fr,
   'es': es,
   'es-ES': es,
-  'it': it,
-  'it-IT': it,
-  'nl': nl,
-  'nl-NL': nl,
-  'pt': pt,
-  'pt-PT': pt,
-  'pt-BR': pt,
+  'es-MX': es,
   // Asian languages
   'ja': ja,
   'ja-JP': ja,
-  'ko': ko,
-  'ko-KR': ko,
   'zh': zhCN,
   'zh-CN': zhCN,
   'zh-Hans': zhCN,
+  'zh-TW': zhTW,
+  'zh-Hant': zhTW,
 };
 
 /**
@@ -124,8 +145,9 @@ export function uses12HourClock(): boolean {
 
   try {
     const resolved = Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions();
-    // hour12 can be undefined in some implementations, default to true (US-style)
-    cachedHour12 = resolved.hour12 !== false;
+    // hour12 can be undefined in some Intl implementations.
+    // We explicitly check for true or undefined (defaulting to 12-hour US-style)
+    cachedHour12 = resolved.hour12 === true || resolved.hour12 === undefined;
     return cachedHour12;
   } catch {
     cachedHour12 = true;
@@ -136,28 +158,28 @@ export function uses12HourClock(): boolean {
 /**
  * Get the appropriate time format string based on device locale preferences
  *
- * @returns 'h:mm a' for 12-hour format, 'HH:mm' for 24-hour format
+ * @returns TIME_FORMAT_12H for 12-hour format, TIME_FORMAT_24H for 24-hour format
  */
 export function getTimeFormatString(): string {
-  return uses12HourClock() ? 'h:mm a' : 'HH:mm';
+  return uses12HourClock() ? TIME_FORMAT_12H : TIME_FORMAT_24H;
 }
 
 /**
  * Get the appropriate date-time format string based on device locale preferences
  *
- * @returns Format string like 'MMM d, yyyy h:mm a' or 'MMM d, yyyy HH:mm'
+ * @returns DATETIME_FORMAT_12H or DATETIME_FORMAT_24H based on locale
  */
 export function getDateTimeFormatString(): string {
-  return uses12HourClock() ? 'MMM d, yyyy h:mm a' : 'MMM d, yyyy HH:mm';
+  return uses12HourClock() ? DATETIME_FORMAT_12H : DATETIME_FORMAT_24H;
 }
 
 /**
  * Get the appropriate short date-time format string
  *
- * @returns Format string like 'MMM d, h:mm a' or 'MMM d, HH:mm'
+ * @returns SHORT_DATETIME_FORMAT_12H or SHORT_DATETIME_FORMAT_24H based on locale
  */
 export function getShortDateTimeFormatString(): string {
-  return uses12HourClock() ? 'MMM d, h:mm a' : 'MMM d, HH:mm';
+  return uses12HourClock() ? SHORT_DATETIME_FORMAT_12H : SHORT_DATETIME_FORMAT_24H;
 }
 
 /**
