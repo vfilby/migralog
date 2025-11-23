@@ -7,6 +7,12 @@ import {
   getShortDateTimeFormatString,
   clearLocaleCache,
   getFormatLocaleOptions,
+  TIME_FORMAT_12H,
+  TIME_FORMAT_24H,
+  DATETIME_FORMAT_12H,
+  DATETIME_FORMAT_24H,
+  SHORT_DATETIME_FORMAT_12H,
+  SHORT_DATETIME_FORMAT_24H,
 } from '../localeUtils';
 
 describe('localeUtils', () => {
@@ -191,6 +197,49 @@ describe('localeUtils', () => {
       expect(typeof locale.localize?.day).toBe('function');
       expect(typeof locale.formatLong?.date).toBe('function');
       expect(typeof locale.formatLong?.time).toBe('function');
+    });
+  });
+
+  describe('format string constants', () => {
+    it('exports 12-hour time format constant', () => {
+      expect(TIME_FORMAT_12H).toBe('h:mm a');
+    });
+
+    it('exports 24-hour time format constant', () => {
+      expect(TIME_FORMAT_24H).toBe('HH:mm');
+    });
+
+    it('exports 12-hour datetime format constant', () => {
+      expect(DATETIME_FORMAT_12H).toBe('MMM d, yyyy h:mm a');
+    });
+
+    it('exports 24-hour datetime format constant', () => {
+      expect(DATETIME_FORMAT_24H).toBe('MMM d, yyyy HH:mm');
+    });
+
+    it('exports 12-hour short datetime format constant', () => {
+      expect(SHORT_DATETIME_FORMAT_12H).toBe('MMM d, h:mm a');
+    });
+
+    it('exports 24-hour short datetime format constant', () => {
+      expect(SHORT_DATETIME_FORMAT_24H).toBe('MMM d, HH:mm');
+    });
+
+    it('getTimeFormatString returns one of the format constants', () => {
+      const format = getTimeFormatString();
+      expect([TIME_FORMAT_12H, TIME_FORMAT_24H]).toContain(format);
+    });
+
+    it('getDateTimeFormatString returns one of the format constants', () => {
+      const format = getDateTimeFormatString();
+      expect([DATETIME_FORMAT_12H, DATETIME_FORMAT_24H]).toContain(format);
+    });
+
+    it('getShortDateTimeFormatString returns one of the format constants', () => {
+      const format = getShortDateTimeFormatString();
+      expect([SHORT_DATETIME_FORMAT_12H, SHORT_DATETIME_FORMAT_24H]).toContain(
+        format
+      );
     });
   });
 });

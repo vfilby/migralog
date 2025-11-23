@@ -10,19 +10,9 @@ import {
 
 // Mock the localeUtils module to ensure consistent test behavior
 // Tests expect 12-hour format (US locale)
-jest.mock('../localeUtils', () => {
-  const { enUS } = require('date-fns/locale');
-  return {
-    getDeviceLocale: jest.fn(() => enUS),
-    getDeviceLocaleCode: jest.fn(() => 'en-US'),
-    uses12HourClock: jest.fn(() => true),
-    getTimeFormatString: jest.fn(() => 'h:mm a'),
-    getDateTimeFormatString: jest.fn(() => 'MMM d, yyyy h:mm a'),
-    getShortDateTimeFormatString: jest.fn(() => 'MMM d, h:mm a'),
-    clearLocaleCache: jest.fn(),
-    getFormatLocaleOptions: jest.fn(() => ({ locale: enUS })),
-  };
-});
+jest.mock('../localeUtils', () =>
+  require('../testUtils/localeUtilsMock').createUSLocaleMock()
+);
 
 describe('formatEpisodeTimeRange', () => {
   const targetDate = '2024-01-15';
