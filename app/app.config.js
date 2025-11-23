@@ -26,6 +26,7 @@ module.exports = {
       },
       entitlements: {
         "com.apple.developer.usernotifications.time-sensitive": true,
+        "com.apple.developer.usernotifications.critical-alerts": true,
         "com.apple.developer.healthkit": true,
         "com.apple.developer.healthkit.access": [
           "health-records"
