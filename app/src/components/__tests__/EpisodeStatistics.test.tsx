@@ -171,7 +171,7 @@ describe('EpisodeStatistics', () => {
       await waitFor(() => {
         expect(dailyStatusRepository.getDateRange).toHaveBeenCalled();
         const [startDate, endDate] = (dailyStatusRepository.getDateRange as jest.Mock).mock.calls[0];
-        expect(startDate).toMatch(/2024-01-18/); // 7 days before Jan 25
+        expect(startDate).toMatch(/2024-01-19/); // 6 full days before Jan 25 + today = 7 days
         expect(endDate).toMatch(/2024-01-25/);
       });
     });
@@ -184,7 +184,7 @@ describe('EpisodeStatistics', () => {
       await waitFor(() => {
         expect(dailyStatusRepository.getDateRange).toHaveBeenCalled();
         const [startDate, endDate] = (dailyStatusRepository.getDateRange as jest.Mock).mock.calls[0];
-        expect(startDate).toMatch(/2023-12-26/); // 30 days before Jan 25
+        expect(startDate).toMatch(/2023-12-27/); // 29 full days before Jan 25 + today = 30 days
         expect(endDate).toMatch(/2024-01-25/);
       });
     });
@@ -197,7 +197,7 @@ describe('EpisodeStatistics', () => {
       await waitFor(() => {
         expect(dailyStatusRepository.getDateRange).toHaveBeenCalled();
         const [startDate, endDate] = (dailyStatusRepository.getDateRange as jest.Mock).mock.calls[0];
-        expect(startDate).toMatch(/2023-10-27/); // 90 days before Jan 25
+        expect(startDate).toMatch(/2023-10-28/); // 89 full days before Jan 25 + today = 90 days
         expect(endDate).toMatch(/2024-01-25/);
       });
     });
@@ -348,10 +348,10 @@ describe('EpisodeStatistics', () => {
         expect(migraineDaysRow).toBeTruthy();
       });
 
-      // Date range for last 7 days: Jan 19-25 (8 days total)
+      // Date range for last 7 days: Jan 19-25 (7 days total)
       // Episode started Jan 20, ongoing through Jan 25 = 6 days
-      // 6 migraine days out of 8 total = 75%
-      expect(screen.getByText(/6 \(75%\)/)).toBeTruthy();
+      // 6 migraine days out of 7 total = 86%
+      expect(screen.getByText(/6 \(86%\)/)).toBeTruthy();
     });
 
     it('should count ongoing episode that spans entire range', async () => {
@@ -385,10 +385,10 @@ describe('EpisodeStatistics', () => {
         expect(migraineDaysRow).toBeTruthy();
       });
 
-      // Date range for last 7 days: Jan 19-25 (8 days total)
-      // Episode started Jan 10, covers entire range = 8 days
-      // 8 migraine days out of 8 total = 100%
-      expect(screen.getByText(/8 \(100%\)/)).toBeTruthy();
+      // Date range for last 7 days: Jan 19-25 (7 days total)
+      // Episode started Jan 10, covers entire range = 7 days
+      // 7 migraine days out of 7 total = 100%
+      expect(screen.getByText(/7 \(100%\)/)).toBeTruthy();
     });
 
     it('should handle mix of completed and ongoing episodes', async () => {
@@ -433,11 +433,11 @@ describe('EpisodeStatistics', () => {
         expect(migraineDaysRow).toBeTruthy();
       });
 
-      // Date range for last 7 days: Jan 18-25 (8 days total)
+      // Date range for last 7 days: Jan 19-25 (7 days total)
       // Completed episode: Jan 19, 20 = 2 days
       // Ongoing episode: Jan 23, 24, 25 = 3 days
-      // Total unique migraine days: 5 out of 8 = 62.5% (rounds to 63)
-      expect(screen.getByText(/5 \(6[23]%\)/)).toBeTruthy(); // Accept 62% or 63% due to rounding
+      // Total unique migraine days: 5 out of 7 = 71%
+      expect(screen.getByText(/5 \(71%\)/)).toBeTruthy();
     });
 
     it('should correctly categorize days with ongoing episode and daily statuses', async () => {
@@ -500,15 +500,15 @@ describe('EpisodeStatistics', () => {
         expect(migraineDaysRow).toBeTruthy();
       });
 
-      // Date range for last 7 days: Jan 18-25 (8 days total)
-      // Migraine days: Jan 23, 24, 25 = 3 days (37.5% rounds to 38%)
-      // Not clear days: Jan 20 = 1 day (12.5% rounds to 12% or 13%)
-      // Clear days: Jan 19, 21 = 2 days (25%)
-      // Unknown days: Jan 18, 22 = 2 days (25%)
+      // Date range for last 7 days: Jan 19-25 (7 days total)
+      // Migraine days: Jan 23, 24, 25 = 3 days (43%)
+      // Not clear days: Jan 20 = 1 day (14%)
+      // Clear days: Jan 19, 21 = 2 days (29%)
+      // Unknown days: Jan 22 = 1 day (14%)
       expect(screen.getByTestId('migraine-days-row')).toBeTruthy();
-      expect(screen.getByText(/3 \(38%\)/)).toBeTruthy(); // Migraine days
+      expect(screen.getByText(/3 \(43%\)/)).toBeTruthy(); // Migraine days
 
-      // Check that clear days and unknown days both show 2 (25%)
+      // Check that clear days and unknown days show correct values
       const clearDaysRow = screen.getByTestId('clear-days-row');
       const unknownDaysRow = screen.getByTestId('unknown-days-row');
       expect(clearDaysRow).toBeTruthy();

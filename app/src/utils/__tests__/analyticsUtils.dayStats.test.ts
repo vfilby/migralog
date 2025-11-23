@@ -34,7 +34,9 @@ describe('Day Statistics Calculations', () => {
       end.setHours(0, 0, 0, 0);
 
       const diffDays = Math.round((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
-      expect(diffDays).toBe(30); // getDateRangeForDays(30) goes back 30 days, creating a 31-day range (inclusive)
+      // getDateRangeForDays(30) gives exactly 30 days: today + 29 previous days
+      // So the difference between start and end (at midnight) is 29 days
+      expect(diffDays).toBe(29);
     });
   });
 
