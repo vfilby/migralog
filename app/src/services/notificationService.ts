@@ -622,7 +622,7 @@ class NotificationService {
         allowAlert: true,
         allowSound: true,
         allowBadge: true,
-        allowCriticalAlerts: false, // Will request separately when implementing critical alerts
+        allowCriticalAlerts: true, // Requires com.apple.developer.usernotifications.critical-alerts entitlement
       },
     });
 
