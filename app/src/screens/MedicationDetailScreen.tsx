@@ -13,6 +13,7 @@ import {
   Modal,
   TextInput,
   KeyboardAvoidingView,
+  Image,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -272,7 +273,17 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
         >
           <Text style={[styles.backButton, { color: theme.primary }]}>← Back</Text>
         </TouchableOpacity>
-        {!largeTextMode && <Text style={[styles.headerTitle, { color: theme.text }]}>Medication Details</Text>}
+        <View style={styles.headerContent}>
+          {!largeTextMode && <Text style={[styles.headerTitle, { color: theme.text }]}>Medication Details</Text>}
+          {medication?.photoUri && (
+            <Image
+              source={{ uri: medication.photoUri }}
+              style={styles.headerThumbnail}
+              resizeMode="cover"
+              accessibilityLabel={`Photo of ${medication.name}`}
+            />
+          )}
+        </View>
         <TouchableOpacity
           onPress={() => navigation.navigate('EditMedication', { medicationId })}
           accessibilityRole="button"
@@ -650,6 +661,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flexShrink: 1,
     textAlign: 'center',
+  },
+  headerContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  headerThumbnail: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   editButton: {
     fontSize: 17,

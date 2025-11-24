@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { logger } from '../utils/logger';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useMedicationStore } from '../store/medicationStore';
 import { useEpisodeStore } from '../store/episodeStore';
@@ -77,9 +77,22 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   },
   medicationHeader: {
     marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  medicationTitleContainer: {
+    flex: 1,
     flexDirection: 'column',
     alignItems: 'flex-start',
     gap: 8,
+  },
+  medicationThumbnail: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   medicationName: {
     fontSize: 18,
@@ -491,21 +504,31 @@ export default function MedicationsScreen() {
                 accessibilityLabel={`${med.name} preventative medication`}
                 accessibilityHint="Opens details and history for this medication"
               >
-                <View style={styles.medicationHeader}>
-                  <Text style={styles.medicationName}>{med.name}</Text>
-                  <View style={styles.badgeContainer}>
-                    <View style={[styles.typeBadge, { backgroundColor: theme.success + '20' }]}>
-                      <Text style={[styles.typeBadgeText, { color: theme.success }]}>Preventative</Text>
-                    </View>
-                    {med.category && (
-                      <View style={[styles.typeBadge, { backgroundColor: theme.textSecondary + '20' }]}>
-                        <Text style={[styles.typeBadgeText, { color: theme.textSecondary }]}>
-                          {getCategoryName(med.category)}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
+                 <View style={styles.medicationHeader}>
+                   <View style={styles.medicationTitleContainer}>
+                     <Text style={styles.medicationName}>{med.name}</Text>
+                     <View style={styles.badgeContainer}>
+                       <View style={[styles.typeBadge, { backgroundColor: theme.success + '20' }]}>
+                         <Text style={[styles.typeBadgeText, { color: theme.success }]}>Preventative</Text>
+                       </View>
+                       {med.category && (
+                         <View style={[styles.typeBadge, { backgroundColor: theme.textSecondary + '20' }]}>
+                           <Text style={[styles.typeBadgeText, { color: theme.textSecondary }]}>
+                             {getCategoryName(med.category)}
+                           </Text>
+                         </View>
+                       )}
+                     </View>
+                   </View>
+                   {med.photoUri && (
+                     <Image
+                       source={{ uri: med.photoUri }}
+                       style={styles.medicationThumbnail}
+                       resizeMode="cover"
+                       accessibilityLabel={`Photo of ${med.name}`}
+                     />
+                   )}
+                 </View>
                 <View style={styles.medicationDetails}>
                   <Text style={styles.dosageText}>
                     {formatMedicationDosage(med.defaultQuantity || 1, med.dosageAmount, med.dosageUnit)}
@@ -630,21 +653,31 @@ export default function MedicationsScreen() {
                 accessibilityLabel={`${med.name} rescue medication`}
                 accessibilityHint="Opens details and history for this medication"
               >
-                <View style={styles.medicationHeader}>
-                  <Text style={styles.medicationName}>{med.name}</Text>
-                  <View style={styles.badgeContainer}>
-                    <View style={[styles.typeBadge, { backgroundColor: theme.primary + '20' }]}>
-                      <Text style={[styles.typeBadgeText, { color: theme.primary }]}>Rescue</Text>
-                    </View>
-                    {med.category && (
-                      <View style={[styles.typeBadge, { backgroundColor: theme.textSecondary + '20' }]}>
-                        <Text style={[styles.typeBadgeText, { color: theme.textSecondary }]}>
-                          {getCategoryName(med.category)}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
+                 <View style={styles.medicationHeader}>
+                   <View style={styles.medicationTitleContainer}>
+                     <Text style={styles.medicationName}>{med.name}</Text>
+                     <View style={styles.badgeContainer}>
+                       <View style={[styles.typeBadge, { backgroundColor: theme.primary + '20' }]}>
+                         <Text style={[styles.typeBadgeText, { color: theme.primary }]}>Rescue</Text>
+                       </View>
+                       {med.category && (
+                         <View style={[styles.typeBadge, { backgroundColor: theme.textSecondary + '20' }]}>
+                           <Text style={[styles.typeBadgeText, { color: theme.textSecondary }]}>
+                             {getCategoryName(med.category)}
+                           </Text>
+                         </View>
+                       )}
+                     </View>
+                   </View>
+                   {med.photoUri && (
+                     <Image
+                       source={{ uri: med.photoUri }}
+                       style={styles.medicationThumbnail}
+                       resizeMode="cover"
+                       accessibilityLabel={`Photo of ${med.name}`}
+                     />
+                   )}
+                 </View>
                 <View style={styles.medicationDetails}>
                   <Text style={styles.dosageText}>
                     {formatMedicationDosage(med.defaultQuantity || 1, med.dosageAmount, med.dosageUnit)}
@@ -703,21 +736,31 @@ export default function MedicationsScreen() {
                 accessibilityLabel={`${med.name} other medication`}
                 accessibilityHint="Opens details and history for this medication"
               >
-                <View style={styles.medicationHeader}>
-                  <Text style={styles.medicationName}>{med.name}</Text>
-                  <View style={styles.badgeContainer}>
-                    <View style={[styles.typeBadge, { backgroundColor: theme.textSecondary + '20' }]}>
-                      <Text style={[styles.typeBadgeText, { color: theme.textSecondary }]}>Other</Text>
-                    </View>
-                    {med.category && (
-                      <View style={[styles.typeBadge, { backgroundColor: theme.textSecondary + '20' }]}>
-                        <Text style={[styles.typeBadgeText, { color: theme.textSecondary }]}>
-                          {getCategoryName(med.category)}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
+                 <View style={styles.medicationHeader}>
+                   <View style={styles.medicationTitleContainer}>
+                     <Text style={styles.medicationName}>{med.name}</Text>
+                     <View style={styles.badgeContainer}>
+                       <View style={[styles.typeBadge, { backgroundColor: theme.textSecondary + '20' }]}>
+                         <Text style={[styles.typeBadgeText, { color: theme.textSecondary }]}>Other</Text>
+                       </View>
+                       {med.category && (
+                         <View style={[styles.typeBadge, { backgroundColor: theme.textSecondary + '20' }]}>
+                           <Text style={[styles.typeBadgeText, { color: theme.textSecondary }]}>
+                             {getCategoryName(med.category)}
+                           </Text>
+                         </View>
+                       )}
+                     </View>
+                   </View>
+                   {med.photoUri && (
+                     <Image
+                       source={{ uri: med.photoUri }}
+                       style={styles.medicationThumbnail}
+                       resizeMode="cover"
+                       accessibilityLabel={`Photo of ${med.name}`}
+                     />
+                   )}
+                 </View>
                 <View style={styles.medicationDetails}>
                   <Text style={styles.dosageText}>
                     {formatMedicationDosage(med.defaultQuantity || 1, med.dosageAmount, med.dosageUnit)}
