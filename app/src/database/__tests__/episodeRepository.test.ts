@@ -1,5 +1,5 @@
-import { episodeRepository, intensityRepository, symptomLogRepository, episodeNoteRepository } from '../episodeRepository';
-import { Episode, IntensityReading, SymptomLog, EpisodeNote } from '../../models/types';
+import { episodeRepository, intensityRepository, symptomLogRepository, episodeNoteRepository, painLocationLogRepository } from '../episodeRepository';
+import { Episode, IntensityReading, SymptomLog, EpisodeNote, PainLocationLog } from '../../models/types';
 import * as db from '../db';
 
 // Mock the database module
@@ -183,6 +183,30 @@ describe('episodeRepository', () => {
       expect(call[0]).toContain('notes = ?');
       expect(call[0]).toContain('updated_at = ?');
       expect(call[0]).not.toContain('end_time = ?');
+    });
+
+    it('should allow setting endTime to null to reopen episode', async () => {
+      await episodeRepository.update('episode-123', { endTime: null } as any);
+
+      expect(mockDatabase.runAsync).toHaveBeenCalledTimes(1);
+      const call = mockDatabase.runAsync.mock.calls[0];
+      expect(call[0]).toContain('UPDATE episodes SET');
+      expect(call[0]).toContain('end_time = ?');
+      // Verify that null is passed for end_time
+      expect(call[1]).toContain(null);
+      expect(call[1]).toContain('episode-123');
+    });
+
+    it('should allow setting endTime to undefined to reopen episode', async () => {
+      await episodeRepository.update('episode-123', { endTime: undefined });
+
+      expect(mockDatabase.runAsync).toHaveBeenCalledTimes(1);
+      const call = mockDatabase.runAsync.mock.calls[0];
+      expect(call[0]).toContain('UPDATE episodes SET');
+      expect(call[0]).toContain('end_time = ?');
+      // Verify that null is passed for end_time (undefined is converted to null)
+      expect(call[1]).toContain(null);
+      expect(call[1]).toContain('episode-123');
     });
   });
 
@@ -1026,6 +1050,62 @@ describe('episodeNoteRepository', () => {
         };
 
         await expect(episodeNoteRepository.create(invalidNote)).rejects.toThrow('Note must be <= 5000 characters');
+      });
+    });
+  });
+
+  describe('painLocationLogRepository', () => {
+    describe('create', () => {
+      it('should allow creating pain location log with empty painLocations array', async () => {
+        const newLog: Omit<PainLocationLog, 'id' | 'createdAt'> = {
+          episodeId: 'episode-123',
+          timestamp: 1000,
+          painLocations: [], // This should be allowed - user removed all pain locations
+          updatedAt: 1000,
+        };
+
+        const result = await painLocationLogRepository.create(newLog);
+
+        expect(result.id).toBeDefined();
+        expect(result.episodeId).toBe('episode-123');
+        expect(result.painLocations).toEqual([]);
+        // Verify that the database insert was called with empty pain locations
+        expect(mockDatabase.runAsync).toHaveBeenCalledWith(
+          'INSERT INTO pain_location_logs (id, episode_id, timestamp, pain_locations, created_at) VALUES (?, ?, ?, ?, ?)',
+          expect.arrayContaining([
+            expect.any(String), // ID can be any string
+            'episode-123',
+            1000,
+            '[]', // Empty JSON array - this is the key validation!
+            expect.any(Number),
+          ])
+        );
+      });
+
+      it('should allow creating pain location log with valid painLocations', async () => {
+        const newLog: Omit<PainLocationLog, 'id' | 'createdAt'> = {
+          episodeId: 'episode-123',
+          timestamp: 1000,
+          painLocations: ['left_temple', 'right_eye'],
+          updatedAt: 1000,
+        };
+
+        const result = await painLocationLogRepository.create(newLog);
+
+        expect(result.id).toBeDefined();
+        expect(result.episodeId).toBe('episode-123');
+        expect(result.painLocations).toEqual(['left_temple', 'right_eye']);
+        // Verify that the database insert was called with the correct pain locations  
+        expect(mockDatabase.runAsync).toHaveBeenCalledWith(
+          'INSERT INTO pain_location_logs (id, episode_id, timestamp, pain_locations, created_at) VALUES (?, ?, ?, ?, ?)',
+          expect.arrayContaining([
+            expect.any(String), // ID can be any string
+            'episode-123',
+            1000,
+            '["left_temple","right_eye"]',
+            expect.any(Number),
+          ])
+        );
       });
     });
   });
