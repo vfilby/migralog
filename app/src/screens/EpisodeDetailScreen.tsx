@@ -541,7 +541,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   const { getStatusStyle } = useMedicationStatusStyles();
   const styles = createStyles(theme);
   const { width: screenWidth } = useWindowDimensions();
-  const { endEpisode, updateEpisode } = useEpisodeStore();
+  const { endEpisode } = useEpisodeStore();
   const [episode, setEpisode] = useState<Episode | null>(null);
   const [intensityReadings, setIntensityReadings] = useState<IntensityReading[]>([]);
   const [symptomLogs, setSymptomLogs] = useState<SymptomLog[]>([]);
@@ -618,16 +618,9 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
         return;
       }
 
-      if (episode.endTime) {
-        // Episode is already ended - we're editing the end time
-        await updateEpisode(episode.id, { endTime: customEndTime });
-        await loadEpisodeData(); // Reload to reflect changes
-      } else {
-        // Episode is ongoing - we're ending it
-        await endEpisode(episode.id, customEndTime);
-        navigation.goBack();
-      }
+      await endEpisode(episode.id, customEndTime);
       setShowEndTimePicker(false);
+      navigation.goBack();
     }
   };
 
@@ -951,94 +944,6 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     }
   };
 
-  const handleEpisodeEndLongPress = () => {
-    if (!episode) return;
-
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ['Cancel', 'Edit End Time', 'Reopen Episode'],
-          destructiveButtonIndex: 2, // Make "Reopen Episode" destructive since it changes episode state
-          cancelButtonIndex: 0,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 1) {
-            // Edit End Time - show date/time picker with current end time
-            if (episode.endTime) {
-              setCustomEndTime(episode.endTime);
-              setShowEndTimePicker(true);
-            }
-          } else if (buttonIndex === 2) {
-            // Reopen Episode - confirm and set endTime to null
-            Alert.alert(
-              'Reopen Episode',
-              'This will mark the episode as ongoing. Are you sure?',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                { 
-                  text: 'Reopen', 
-                  style: 'destructive',
-                  onPress: async () => {
-                    try {
-                      await updateEpisode(episode.id, { endTime: undefined });
-                      await loadEpisodeData(); // Reload to reflect changes
-                    } catch (error) {
-                      logger.error('Failed to reopen episode:', error);
-                      Alert.alert('Error', 'Failed to reopen episode. Please try again.');
-                    }
-                  }
-                }
-              ]
-            );
-          }
-        }
-      );
-    } else {
-      Alert.alert(
-        'Episode End Actions',
-        episode.endTime ? format(new Date(episode.endTime), 'MMM d, yyyy h:mm a') : '',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Edit End Time', 
-            onPress: () => {
-              if (episode.endTime) {
-                setCustomEndTime(episode.endTime);
-                setShowEndTimePicker(true);
-              }
-            }
-          },
-          { 
-            text: 'Reopen Episode', 
-            style: 'destructive',
-            onPress: () => {
-              Alert.alert(
-                'Reopen Episode',
-                'This will mark the episode as ongoing. Are you sure?',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  { 
-                    text: 'Reopen', 
-                    style: 'destructive',
-                    onPress: async () => {
-                      try {
-                        await updateEpisode(episode.id, { endTime: undefined });
-                        await loadEpisodeData(); // Reload to reflect changes
-                      } catch (error) {
-                        logger.error('Failed to reopen episode:', error);
-                        Alert.alert('Error', 'Failed to reopen episode. Please try again.');
-                      }
-                    }
-                  }
-                ]
-              );
-            }
-          }
-        ]
-      );
-    }
-  };
-
   const renderEventContent = (event: TimelineEvent) => {
     switch (event.type) {
       case 'intensity':
@@ -1123,15 +1028,9 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
 
       case 'end':
         return (
-          <TouchableOpacity
-            key={event.id}
-            style={{ marginBottom: 12 }}
-            activeOpacity={0.7}
-            onLongPress={handleEpisodeEndLongPress}
-            delayLongPress={500}
-          >
+          <View key={event.id} style={{ marginBottom: 12 }}>
             <Text style={styles.timelineEventTitle}>Episode Ended</Text>
-          </TouchableOpacity>
+          </View>
         );
 
       default:
@@ -1629,16 +1528,16 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
               onPress={() => setShowEndTimePicker(false)}
               accessibilityRole="button"
               accessibilityLabel="Cancel"
-              accessibilityHint={episode.endTime ? "Closes the time picker without changing the end time" : "Closes the time picker without ending the episode"}
+              accessibilityHint="Closes the time picker without ending the episode"
             >
               <Text style={styles.modalCloseButton}>Cancel</Text>
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>{episode.endTime ? 'Edit End Time' : 'Set End Time'}</Text>
+            <Text style={styles.modalTitle}>Set End Time</Text>
             <TouchableOpacity
               onPress={endEpisodeWithCustomTime}
               accessibilityRole="button"
               accessibilityLabel="Done"
-              accessibilityHint={episode.endTime ? "Updates the episode end time" : "Ends the episode with the selected time"}
+              accessibilityHint="Ends the episode with the selected time"
             >
               <Text style={styles.modalCloseButton}>Done</Text>
             </TouchableOpacity>
