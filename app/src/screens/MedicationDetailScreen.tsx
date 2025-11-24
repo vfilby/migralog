@@ -273,17 +273,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
         >
           <Text style={[styles.backButton, { color: theme.primary }]}>← Back</Text>
         </TouchableOpacity>
-        <View style={styles.headerContent}>
-          {!largeTextMode && <Text style={[styles.headerTitle, { color: theme.text }]}>Medication Details</Text>}
-          {medication?.photoUri && (
-            <Image
-              source={{ uri: medication.photoUri }}
-              style={styles.headerThumbnail}
-              resizeMode="cover"
-              accessibilityLabel={`Photo of ${medication.name}`}
-            />
-          )}
-        </View>
+        {!largeTextMode && <Text style={[styles.headerTitle, { color: theme.text }]}>Medication Details</Text>}
         <TouchableOpacity
           onPress={() => navigation.navigate('EditMedication', { medicationId })}
           accessibilityRole="button"
@@ -298,37 +288,47 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
         {/* Medication Info */}
         <View style={[styles.section, { backgroundColor: theme.card }]}>
           <View style={styles.medicationHeader}>
-            <Text style={[styles.medicationName, { color: theme.text }]}>{medication.name}</Text>
-            <View style={styles.badgeContainer}>
-              <View style={[styles.typeBadge, {
-                backgroundColor: medication.type === 'preventative'
-                  ? theme.success + '20'
-                  : medication.type === 'rescue'
-                  ? theme.primary + '20'
-                  : theme.textSecondary + '20'
-              }]}>
-                <Text style={[styles.typeBadgeText, {
-                  color: medication.type === 'preventative'
-                    ? theme.success
-                    : medication.type === 'rescue'
-                    ? theme.primary
-                    : theme.textSecondary
-                }]}>
-                  {medication.type === 'preventative' ? 'Preventative' : medication.type === 'rescue' ? 'Rescue' : 'Other'}
-                </Text>
-              </View>
-              {medication.category && (
+            <View style={styles.medicationTitleContainer}>
+              <Text style={[styles.medicationName, { color: theme.text }]}>{medication.name}</Text>
+              <View style={styles.badgeContainer}>
                 <View style={[styles.typeBadge, {
-                  backgroundColor: theme.textSecondary + '20'
+                  backgroundColor: medication.type === 'preventative'
+                    ? theme.success + '20'
+                    : medication.type === 'rescue'
+                    ? theme.primary + '20'
+                    : theme.textSecondary + '20'
                 }]}>
                   <Text style={[styles.typeBadgeText, {
-                    color: theme.textSecondary
+                    color: medication.type === 'preventative'
+                      ? theme.success
+                      : medication.type === 'rescue'
+                      ? theme.primary
+                      : theme.textSecondary
                   }]}>
-                    {getCategoryName(medication.category)}
+                    {medication.type === 'preventative' ? 'Preventative' : medication.type === 'rescue' ? 'Rescue' : 'Other'}
                   </Text>
                 </View>
-              )}
+                {medication.category && (
+                  <View style={[styles.typeBadge, {
+                    backgroundColor: theme.textSecondary + '20'
+                  }]}>
+                    <Text style={[styles.typeBadgeText, {
+                      color: theme.textSecondary
+                    }]}>
+                      {getCategoryName(medication.category)}
+                    </Text>
+                  </View>
+                )}
+              </View>
             </View>
+            {medication.photoUri && (
+              <Image
+                source={{ uri: medication.photoUri }}
+                style={styles.medicationThumbnail}
+                resizeMode="cover"
+                accessibilityLabel={`Photo of ${medication.name}`}
+              />
+            )}
           </View>
 
           <View style={styles.infoRow}>
@@ -662,19 +662,6 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     textAlign: 'center',
   },
-  headerContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  headerThumbnail: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-  },
   editButton: {
     fontSize: 17,
     fontWeight: '400',
@@ -704,10 +691,23 @@ const styles = StyleSheet.create({
     paddingBottom: 0,
   },
   medicationHeader: {
-    flexDirection: 'column',
+    flexDirection: 'row',
     alignItems: 'flex-start',
+    justifyContent: 'space-between',
     marginBottom: 16,
     gap: 12,
+  },
+  medicationTitleContainer: {
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  medicationThumbnail: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   medicationName: {
     fontSize: 28,
