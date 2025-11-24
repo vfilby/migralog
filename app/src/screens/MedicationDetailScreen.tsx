@@ -13,6 +13,7 @@ import {
   Modal,
   TextInput,
   KeyboardAvoidingView,
+  Image,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -287,37 +288,47 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
         {/* Medication Info */}
         <View style={[styles.section, { backgroundColor: theme.card }]}>
           <View style={styles.medicationHeader}>
-            <Text style={[styles.medicationName, { color: theme.text }]}>{medication.name}</Text>
-            <View style={styles.badgeContainer}>
-              <View style={[styles.typeBadge, {
-                backgroundColor: medication.type === 'preventative'
-                  ? theme.success + '20'
-                  : medication.type === 'rescue'
-                  ? theme.primary + '20'
-                  : theme.textSecondary + '20'
-              }]}>
-                <Text style={[styles.typeBadgeText, {
-                  color: medication.type === 'preventative'
-                    ? theme.success
-                    : medication.type === 'rescue'
-                    ? theme.primary
-                    : theme.textSecondary
-                }]}>
-                  {medication.type === 'preventative' ? 'Preventative' : medication.type === 'rescue' ? 'Rescue' : 'Other'}
-                </Text>
-              </View>
-              {medication.category && (
+            <View style={styles.medicationTitleContainer}>
+              <Text style={[styles.medicationName, { color: theme.text }]}>{medication.name}</Text>
+              <View style={styles.badgeContainer}>
                 <View style={[styles.typeBadge, {
-                  backgroundColor: theme.textSecondary + '20'
+                  backgroundColor: medication.type === 'preventative'
+                    ? theme.success + '20'
+                    : medication.type === 'rescue'
+                    ? theme.primary + '20'
+                    : theme.textSecondary + '20'
                 }]}>
                   <Text style={[styles.typeBadgeText, {
-                    color: theme.textSecondary
+                    color: medication.type === 'preventative'
+                      ? theme.success
+                      : medication.type === 'rescue'
+                      ? theme.primary
+                      : theme.textSecondary
                   }]}>
-                    {getCategoryName(medication.category)}
+                    {medication.type === 'preventative' ? 'Preventative' : medication.type === 'rescue' ? 'Rescue' : 'Other'}
                   </Text>
                 </View>
-              )}
+                {medication.category && (
+                  <View style={[styles.typeBadge, {
+                    backgroundColor: theme.textSecondary + '20'
+                  }]}>
+                    <Text style={[styles.typeBadgeText, {
+                      color: theme.textSecondary
+                    }]}>
+                      {getCategoryName(medication.category)}
+                    </Text>
+                  </View>
+                )}
+              </View>
             </View>
+            {medication.photoUri && (
+              <Image
+                source={{ uri: medication.photoUri }}
+                style={styles.medicationThumbnail}
+                resizeMode="cover"
+                accessibilityLabel={`Photo of ${medication.name}`}
+              />
+            )}
           </View>
 
           <View style={styles.infoRow}>
@@ -680,10 +691,23 @@ const styles = StyleSheet.create({
     paddingBottom: 0,
   },
   medicationHeader: {
-    flexDirection: 'column',
+    flexDirection: 'row',
     alignItems: 'flex-start',
+    justifyContent: 'space-between',
     marginBottom: 16,
     gap: 12,
+  },
+  medicationTitleContainer: {
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  medicationThumbnail: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   medicationName: {
     fontSize: 28,
