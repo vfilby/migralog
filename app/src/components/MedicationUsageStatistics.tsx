@@ -113,7 +113,9 @@ export default function MedicationUsageStatistics({ selectedRange }: MedicationU
     rescueMedicationStats.sort((a, b) => b.totalDoses - a.totalDoses);
 
     // Calculate preventative medication compliance
-    const preventativeMedications = medications.filter(m => m.type === 'preventative');
+    const preventativeMedications = medications.filter(m =>
+      m.type === 'preventative' && m.scheduleFrequency !== 'quarterly'
+    );
 
     // Pre-filter doses once for the date range to improve performance
     const dosesInRange = doses.filter(d =>

@@ -258,7 +258,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
 export default function NewEpisodeScreen({ navigation, route }: Props) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const { startEpisode, updateEpisode } = useEpisodeStore();
+  const { startEpisode, updateEpisode, deleteEpisode } = useEpisodeStore();
   const episodeId = route.params?.episodeId;
   const isEditing = !!episodeId;
 
@@ -476,6 +476,32 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
     }
   };
 
+  const handleDeleteEpisode = () => {
+    if (!episodeId) return;
+
+    Alert.alert(
+      'Delete Episode',
+      'Are you sure you want to delete this episode? This will permanently remove all episode-specific data including notes, pain locations, and symptom logs. Medication logs will be preserved.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteEpisode(episodeId);
+              // Go back two screens to skip the now-nonexistent episode detail screen
+              navigation.pop(2);
+            } catch (error) {
+              logger.error('Failed to delete episode:', error);
+              Alert.alert('Error', 'Failed to delete episode');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={styles.container} testID="new-episode-screen">
       <View style={styles.header}>
@@ -488,7 +514,19 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
           <Text style={styles.cancelButton}>Cancel</Text>
         </TouchableOpacity>
         <Text style={styles.title}>{isEditing ? 'Edit Episode' : 'Start Episode'}</Text>
-        <View style={{ width: 60 }} />
+        {isEditing ? (
+          <TouchableOpacity
+            onPress={handleDeleteEpisode}
+            testID="delete-episode-button"
+            accessibilityRole="button"
+            accessibilityLabel="Delete episode"
+            accessibilityHint="Permanently deletes this episode and all associated data"
+          >
+            <Text style={[styles.cancelButton, { color: theme.danger }]}>Delete</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 60 }} />
+        )}
       </View>
 
       <ScrollView

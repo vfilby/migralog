@@ -647,6 +647,8 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     );
   };
 
+
+
   const handleOpenMap = () => {
     setShowMapModal(true);
   };
