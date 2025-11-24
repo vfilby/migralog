@@ -243,13 +243,10 @@ describe('Episode Validation Schemas', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should reject pain location log with empty locations', () => {
+    it('should accept pain location log with empty locations', () => {
       const log = { ...validLocationLog, painLocations: [] };
       const result = PainLocationLogSchema.safeParse(log);
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.errors[0].message).toContain('At least one pain location');
-      }
+      expect(result.success).toBe(true);
     });
 
     it('should reject pain location log with invalid location', () => {

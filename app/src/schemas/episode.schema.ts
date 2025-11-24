@@ -160,8 +160,7 @@ export const PainLocationLogSchema = z.object({
   id: z.string().min(1, 'ID is required'),
   episodeId: z.string().min(1, 'Episode ID is required'),
   timestamp: TimestampSchema,
-  painLocations: z.array(PainLocationSchema)
-    .min(1, 'At least one pain location is required'),
+  painLocations: z.array(PainLocationSchema), // Allow empty array - user can remove all pain locations
   createdAt: TimestampSchema,
 });
 
