@@ -593,24 +593,44 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   };
 
   const endEpisodeWithCustomTime = async () => {
-    if (episode) {
-      // Validate that end time is not before episode start
-      const validation = validateEpisodeEndTime(episode.startTime, customEndTime);
-      if (!validation.isValid) {
-        Alert.alert('Invalid Time', validation.error!);
-        return;
-      }
+    if (!episode) return;
 
-      if (episode.endTime) {
-        // Episode is already ended - we're editing the end time
-        await updateEpisode(episode.id, { endTime: customEndTime });
-        await loadEpisodeData(); // Reload to reflect changes
-      } else {
-        // Episode is ongoing - we're ending it
-        await endEpisode(episode.id, customEndTime);
-        navigation.goBack();
-      }
-      setShowEndTimePicker(false);
+    // Validate that end time is not before episode start
+    const validation = validateEpisodeEndTime(episode.startTime, customEndTime);
+    if (!validation.isValid) {
+      Alert.alert('Invalid Time', validation.error!);
+      return;
+    }
+
+    // End the ongoing episode
+    await endEpisode(episode.id, customEndTime);
+    navigation.goBack();
+    setShowEndTimePicker(false);
+  };
+
+  const editEpisodeEndTime = async () => {
+    if (!episode) return;
+
+    // Validate that end time is not before episode start
+    const validation = validateEpisodeEndTime(episode.startTime, customEndTime);
+    if (!validation.isValid) {
+      Alert.alert('Invalid Time', validation.error!);
+      return;
+    }
+
+    // Edit the end time of completed episode
+    await updateEpisode(episode.id, { endTime: customEndTime });
+    await loadEpisodeData(); // Reload to reflect changes
+    setShowEndTimePicker(false);
+  };
+
+  const handleCustomTimeAction = async () => {
+    if (episode?.endTime) {
+      // Episode is already ended - we're editing the end time
+      await editEpisodeEndTime();
+    } else {
+      // Episode is ongoing - we're ending it
+      await endEpisodeWithCustomTime();
     }
   };
 
@@ -1590,7 +1610,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
             </TouchableOpacity>
             <Text style={styles.modalTitle}>{episode.endTime ? 'Edit End Time' : 'Set End Time'}</Text>
             <TouchableOpacity
-              onPress={endEpisodeWithCustomTime}
+              onPress={handleCustomTimeAction}
               accessibilityRole="button"
               accessibilityLabel="Done"
               accessibilityHint={episode.endTime ? "Updates the episode end time" : "Ends the episode with the selected time"}
