@@ -200,24 +200,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     color: '#C62828', // Dark red text for removed symptoms
     fontWeight: '600',
   },
-  locationGrid: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  locationSide: {
-    flex: 1,
-  },
-  locationSideLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: theme.textSecondary,
-    marginBottom: 8,
-  },
-  locationItem: {
-    fontSize: 15,
-    color: theme.text,
-    marginBottom: 4,
-  },
+
   notesText: {
     fontSize: 15,
     color: theme.text,
@@ -1411,34 +1394,6 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
           )}
         </View>
 
-        {/* Pain Locations */}
-        {episode.locations.length > 0 && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Pain Locations</Text>
-            <View style={styles.locationGrid}>
-              <View style={styles.locationSide}>
-                <Text style={styles.locationSideLabel}>Left Side</Text>
-                {episode.locations
-                  .filter(loc => loc.startsWith('left_'))
-                  .map(location => (
-                    <Text key={location} style={styles.locationItem}>
-                      • {location.replace('left_', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                    </Text>
-                  ))}
-              </View>
-              <View style={styles.locationSide}>
-                <Text style={styles.locationSideLabel}>Right Side</Text>
-                {episode.locations
-                  .filter(loc => loc.startsWith('right_'))
-                  .map(location => (
-                    <Text key={location} style={styles.locationItem}>
-                      • {location.replace('right_', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                    </Text>
-                  ))}
-              </View>
-            </View>
-          </View>
-        )}
 
         {/* Pain Qualities */}
         {episode.qualities.length > 0 && (
