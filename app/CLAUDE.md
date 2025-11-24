@@ -15,6 +15,19 @@ Welcome! This document provides clear guidelines for AI agents (like Claude Code
 
 ## Git Workflow
 
+### ⚠️ CRITICAL RULE: NEVER PUSH TO MAIN ⚠️
+
+**ABSOLUTELY FORBIDDEN:**
+- ❌ NEVER commit directly to `main`
+- ❌ NEVER push directly to `main` 
+- ❌ NEVER merge directly to `main`
+
+**ALWAYS follow this process:**
+- ✅ Create feature/bugfix branches
+- ✅ Push to feature branches only
+- ✅ Use pull requests for all changes to main
+- ✅ Get code review before merging
+
 ### Branch Strategy
 
 **ALWAYS** use feature or bugfix branches. **NEVER** commit directly to `main`.

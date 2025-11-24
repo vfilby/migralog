@@ -84,8 +84,8 @@ export const episodeRepository = {
     const now = Date.now();
 
     // Validate individual update fields
-    if (updates.startTime !== undefined && updates.endTime !== undefined) {
-      // Validate that endTime > startTime if both are being updated
+    if (updates.startTime !== undefined && updates.endTime !== undefined && updates.endTime !== null) {
+      // Validate that endTime > startTime if both are being updated and endTime is not null
       if (updates.endTime <= updates.startTime) {
         const errorMessage = 'End time must be after start time';
         logger.error('[EpisodeRepository] Validation failed:', errorMessage);
@@ -93,7 +93,7 @@ export const episodeRepository = {
       }
     }
 
-    if (updates.notes !== undefined && updates.notes !== null && updates.notes.length > 5000) {
+    if ('notes' in updates && updates.notes !== null && updates.notes && updates.notes.length > 5000) {
       const errorMessage = 'Notes must be <= 5000 characters';
       logger.error('[EpisodeRepository] Validation failed:', errorMessage);
       throw new Error(errorMessage);
@@ -106,9 +106,9 @@ export const episodeRepository = {
       fields.push('start_time = ?');
       values.push(updates.startTime);
     }
-    if (updates.endTime !== undefined) {
+    if ('endTime' in updates) {
       fields.push('end_time = ?');
-      values.push(updates.endTime);
+      values.push(updates.endTime || null);
     }
     if (updates.locations) {
       fields.push('locations = ?');
@@ -126,9 +126,9 @@ export const episodeRepository = {
       fields.push('triggers = ?');
       values.push(JSON.stringify(updates.triggers));
     }
-    if (updates.notes !== undefined) {
+    if ('notes' in updates) {
       fields.push('notes = ?');
-      values.push(updates.notes);
+      values.push(updates.notes || null);
     }
 
     fields.push('updated_at = ?');

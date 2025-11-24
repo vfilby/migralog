@@ -541,7 +541,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   const { getStatusStyle } = useMedicationStatusStyles();
   const styles = createStyles(theme);
   const { width: screenWidth } = useWindowDimensions();
-  const { endEpisode, updateEpisode } = useEpisodeStore();
+  const { endEpisode, updateEpisode, reopenEpisode } = useEpisodeStore();
   const [episode, setEpisode] = useState<Episode | null>(null);
   const [intensityReadings, setIntensityReadings] = useState<IntensityReading[]>([]);
   const [symptomLogs, setSymptomLogs] = useState<SymptomLog[]>([]);
@@ -980,7 +980,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
                   style: 'destructive',
                   onPress: async () => {
                     try {
-                      await updateEpisode(episode.id, { endTime: undefined });
+                      await reopenEpisode(episode.id);
                       await loadEpisodeData(); // Reload to reflect changes
                     } catch (error) {
                       logger.error('Failed to reopen episode:', error);
@@ -1022,7 +1022,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
                     style: 'destructive',
                     onPress: async () => {
                       try {
-                        await updateEpisode(episode.id, { endTime: undefined });
+                        await reopenEpisode(episode.id);
                         await loadEpisodeData(); // Reload to reflect changes
                       } catch (error) {
                         logger.error('Failed to reopen episode:', error);
