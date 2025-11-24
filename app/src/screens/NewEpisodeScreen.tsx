@@ -253,12 +253,33 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
   },
+  endTimeRow: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+  },
+  endTimeButton: {
+    flex: 1,
+  },
+  reopenButton: {
+    backgroundColor: theme.danger,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  reopenButtonText: {
+    color: theme.primaryText,
+    fontSize: 15,
+    fontWeight: '600',
+  },
 });
 
 export default function NewEpisodeScreen({ navigation, route }: Props) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const { startEpisode, updateEpisode, deleteEpisode } = useEpisodeStore();
+  const { startEpisode, updateEpisode, deleteEpisode, reopenEpisode } = useEpisodeStore();
   const episodeId = route.params?.episodeId;
   const isEditing = !!episodeId;
 
@@ -565,15 +586,50 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
         {isEditing && endTime && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>End Time</Text>
-            <TouchableOpacity
-              style={styles.timeButton}
-              onPress={() => setShowEndDatePicker(true)}
-              accessibilityRole="button"
-              accessibilityLabel={`Episode end time, ${format(endTime, 'MMM d, yyyy h:mm a')}`}
-              accessibilityHint="Opens date and time picker to change the episode end time"
-            >
-              <Text style={styles.timeText}>{format(endTime, 'MMM d, yyyy h:mm a')}</Text>
-            </TouchableOpacity>
+            <View style={styles.endTimeRow}>
+              <TouchableOpacity
+                style={[styles.timeButton, styles.endTimeButton]}
+                onPress={() => setShowEndDatePicker(true)}
+                accessibilityRole="button"
+                accessibilityLabel={`Episode end time, ${format(endTime, 'MMM d, yyyy h:mm a')}`}
+                accessibilityHint="Opens date and time picker to change the episode end time"
+              >
+                <Text style={styles.timeText}>{format(endTime, 'MMM d, yyyy h:mm a')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.reopenButton}
+                onPress={async () => {
+                  Alert.alert(
+                    'Reopen Episode',
+                    'This will mark the episode as ongoing. Are you sure?',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Reopen',
+                        style: 'destructive',
+                        onPress: async () => {
+                          try {
+                            if (!episodeId) {
+                              throw new Error('Episode ID is required for reopening');
+                            }
+                            await reopenEpisode(episodeId);
+                            navigation.goBack();
+                          } catch (error) {
+                            logger.error('Failed to reopen episode:', error);
+                            Alert.alert('Error', 'Failed to reopen episode. Please try again.');
+                          }
+                        }
+                      }
+                    ]
+                  );
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Reopen episode"
+                accessibilityHint="Marks the episode as ongoing by removing the end time"
+              >
+                <Text style={styles.reopenButtonText}>Reopen</Text>
+              </TouchableOpacity>
+            </View>
             {showEndDatePicker && (
               <DateTimePicker
                 value={endTime || new Date()}

@@ -1,5 +1,9 @@
 # CLAUDE.md - AI Agent Guidelines for MigraLog
 
+**Note**: This project uses [bd (beads)](https://github.com/steveyegge/beads)
+for issue tracking. Use `bd` commands instead of markdown TODOs.
+See AGENTS.md for workflow details.
+
 Welcome! This document provides clear guidelines for AI agents (like Claude Code) working on the MigraLog codebase. Following these guidelines ensures code quality, maintains consistency, and protects user data.
 
 ## Table of Contents
@@ -14,6 +18,19 @@ Welcome! This document provides clear guidelines for AI agents (like Claude Code
 ---
 
 ## Git Workflow
+
+### ⚠️ CRITICAL RULE: NEVER PUSH TO MAIN ⚠️
+
+**ABSOLUTELY FORBIDDEN:**
+- ❌ NEVER commit directly to `main`
+- ❌ NEVER push directly to `main` 
+- ❌ NEVER merge directly to `main`
+
+**ALWAYS follow this process:**
+- ✅ Create feature/bugfix branches
+- ✅ Push to feature branches only
+- ✅ Use pull requests for all changes to main
+- ✅ Get code review before merging
 
 ### Branch Strategy
 

@@ -16,6 +16,7 @@ interface EpisodeState {
   loadCurrentEpisode: () => Promise<void>;
   startEpisode: (episode: Omit<Episode, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Episode>;
   endEpisode: (episodeId: string, endTime: number) => Promise<void>;
+  reopenEpisode: (episodeId: string) => Promise<void>;
   updateEpisode: (episodeId: string, updates: Partial<Episode>) => Promise<void>;
   addIntensityReading: (episodeId: string, intensity: number) => Promise<void>;
   addSymptomLog: (log: Omit<SymptomLog, 'id' | 'createdAt'>) => Promise<void>;
@@ -118,6 +119,37 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       // Show error toast
       toastService.error('Failed to end episode');
 
+      throw error;
+    }
+  },
+
+  reopenEpisode: async (episodeId) => {
+    try {
+      // Set endTime to undefined to reopen the episode
+      await episodeRepository.update(episodeId, { endTime: undefined });
+
+      // Invalidate cache when reopening episode
+      cacheManager.invalidate('episodes');
+      cacheManager.invalidate('currentEpisode');
+
+      // Update local state - reopened episode becomes current episode
+      const updatedEpisodes = get().episodes.map(ep =>
+        ep.id === episodeId ? { ...ep, endTime: undefined } : ep
+      );
+
+      // Find the reopened episode and set it as current
+      const reopenedEpisode = updatedEpisodes.find(ep => ep.id === episodeId) || null;
+
+      set({
+        episodes: updatedEpisodes,
+        currentEpisode: reopenedEpisode,
+      });
+    } catch (error) {
+      set({ error: (error as Error).message });
+      
+      // Show error toast
+      toastService.error('Failed to reopen episode');
+      
       throw error;
     }
   },

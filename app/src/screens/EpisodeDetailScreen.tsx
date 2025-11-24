@@ -200,24 +200,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     color: '#C62828', // Dark red text for removed symptoms
     fontWeight: '600',
   },
-  locationGrid: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  locationSide: {
-    flex: 1,
-  },
-  locationSideLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: theme.textSecondary,
-    marginBottom: 8,
-  },
-  locationItem: {
-    fontSize: 15,
-    color: theme.text,
-    marginBottom: 4,
-  },
+
   notesText: {
     fontSize: 15,
     color: theme.text,
@@ -541,7 +524,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   const { getStatusStyle } = useMedicationStatusStyles();
   const styles = createStyles(theme);
   const { width: screenWidth } = useWindowDimensions();
-  const { endEpisode } = useEpisodeStore();
+  const { endEpisode, updateEpisode, reopenEpisode } = useEpisodeStore();
   const [episode, setEpisode] = useState<Episode | null>(null);
   const [intensityReadings, setIntensityReadings] = useState<IntensityReading[]>([]);
   const [symptomLogs, setSymptomLogs] = useState<SymptomLog[]>([]);
@@ -610,17 +593,44 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   };
 
   const endEpisodeWithCustomTime = async () => {
-    if (episode) {
-      // Validate that end time is not before episode start
-      const validation = validateEpisodeEndTime(episode.startTime, customEndTime);
-      if (!validation.isValid) {
-        Alert.alert('Invalid Time', validation.error!);
-        return;
-      }
+    if (!episode) return;
 
-      await endEpisode(episode.id, customEndTime);
-      setShowEndTimePicker(false);
-      navigation.goBack();
+    // Validate that end time is not before episode start
+    const validation = validateEpisodeEndTime(episode.startTime, customEndTime);
+    if (!validation.isValid) {
+      Alert.alert('Invalid Time', validation.error!);
+      return;
+    }
+
+    // End the ongoing episode
+    await endEpisode(episode.id, customEndTime);
+    navigation.goBack();
+    setShowEndTimePicker(false);
+  };
+
+  const editEpisodeEndTime = async () => {
+    if (!episode) return;
+
+    // Validate that end time is not before episode start
+    const validation = validateEpisodeEndTime(episode.startTime, customEndTime);
+    if (!validation.isValid) {
+      Alert.alert('Invalid Time', validation.error!);
+      return;
+    }
+
+    // Edit the end time of completed episode
+    await updateEpisode(episode.id, { endTime: customEndTime });
+    await loadEpisodeData(); // Reload to reflect changes
+    setShowEndTimePicker(false);
+  };
+
+  const handleCustomTimeAction = async () => {
+    if (episode?.endTime) {
+      // Episode is already ended - we're editing the end time
+      await editEpisodeEndTime();
+    } else {
+      // Episode is ongoing - we're ending it
+      await endEpisodeWithCustomTime();
     }
   };
 
@@ -944,6 +954,94 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     }
   };
 
+  const handleEpisodeEndLongPress = () => {
+    if (!episode) return;
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Edit End Time', 'Reopen Episode'],
+          destructiveButtonIndex: 2, // Make "Reopen Episode" destructive since it changes episode state
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            // Edit End Time - show date/time picker with current end time
+            if (episode.endTime) {
+              setCustomEndTime(episode.endTime);
+              setShowEndTimePicker(true);
+            }
+          } else if (buttonIndex === 2) {
+            // Reopen Episode - confirm and set endTime to null
+            Alert.alert(
+              'Reopen Episode',
+              'This will mark the episode as ongoing. Are you sure?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { 
+                  text: 'Reopen', 
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      await reopenEpisode(episode.id);
+                      await loadEpisodeData(); // Reload to reflect changes
+                    } catch (error) {
+                      logger.error('Failed to reopen episode:', error);
+                      Alert.alert('Error', 'Failed to reopen episode. Please try again.');
+                    }
+                  }
+                }
+              ]
+            );
+          }
+        }
+      );
+    } else {
+      Alert.alert(
+        'Episode End Actions',
+        episode.endTime ? format(new Date(episode.endTime), 'MMM d, yyyy h:mm a') : '',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Edit End Time', 
+            onPress: () => {
+              if (episode.endTime) {
+                setCustomEndTime(episode.endTime);
+                setShowEndTimePicker(true);
+              }
+            }
+          },
+          { 
+            text: 'Reopen Episode', 
+            style: 'destructive',
+            onPress: () => {
+              Alert.alert(
+                'Reopen Episode',
+                'This will mark the episode as ongoing. Are you sure?',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { 
+                    text: 'Reopen', 
+                    style: 'destructive',
+                    onPress: async () => {
+                      try {
+                        await reopenEpisode(episode.id);
+                        await loadEpisodeData(); // Reload to reflect changes
+                      } catch (error) {
+                        logger.error('Failed to reopen episode:', error);
+                        Alert.alert('Error', 'Failed to reopen episode. Please try again.');
+                      }
+                    }
+                  }
+                ]
+              );
+            }
+          }
+        ]
+      );
+    }
+  };
+
   const renderEventContent = (event: TimelineEvent) => {
     switch (event.type) {
       case 'intensity':
@@ -1028,9 +1126,15 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
 
       case 'end':
         return (
-          <View key={event.id} style={{ marginBottom: 12 }}>
+          <TouchableOpacity
+            key={event.id}
+            style={{ marginBottom: 12 }}
+            activeOpacity={0.7}
+            onLongPress={handleEpisodeEndLongPress}
+            delayLongPress={500}
+          >
             <Text style={styles.timelineEventTitle}>Episode Ended</Text>
-          </View>
+          </TouchableOpacity>
         );
 
       default:
@@ -1310,34 +1414,6 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
           )}
         </View>
 
-        {/* Pain Locations */}
-        {episode.locations.length > 0 && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Pain Locations</Text>
-            <View style={styles.locationGrid}>
-              <View style={styles.locationSide}>
-                <Text style={styles.locationSideLabel}>Left Side</Text>
-                {episode.locations
-                  .filter(loc => loc.startsWith('left_'))
-                  .map(location => (
-                    <Text key={location} style={styles.locationItem}>
-                      • {location.replace('left_', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                    </Text>
-                  ))}
-              </View>
-              <View style={styles.locationSide}>
-                <Text style={styles.locationSideLabel}>Right Side</Text>
-                {episode.locations
-                  .filter(loc => loc.startsWith('right_'))
-                  .map(location => (
-                    <Text key={location} style={styles.locationItem}>
-                      • {location.replace('right_', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                    </Text>
-                  ))}
-              </View>
-            </View>
-          </View>
-        )}
 
         {/* Pain Qualities */}
         {episode.qualities.length > 0 && (
@@ -1528,16 +1604,16 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
               onPress={() => setShowEndTimePicker(false)}
               accessibilityRole="button"
               accessibilityLabel="Cancel"
-              accessibilityHint="Closes the time picker without ending the episode"
+              accessibilityHint={episode.endTime ? "Closes the time picker without changing the end time" : "Closes the time picker without ending the episode"}
             >
               <Text style={styles.modalCloseButton}>Cancel</Text>
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Set End Time</Text>
+            <Text style={styles.modalTitle}>{episode.endTime ? 'Edit End Time' : 'Set End Time'}</Text>
             <TouchableOpacity
-              onPress={endEpisodeWithCustomTime}
+              onPress={handleCustomTimeAction}
               accessibilityRole="button"
               accessibilityLabel="Done"
-              accessibilityHint="Ends the episode with the selected time"
+              accessibilityHint={episode.endTime ? "Updates the episode end time" : "Ends the episode with the selected time"}
             >
               <Text style={styles.modalCloseButton}>Done</Text>
             </TouchableOpacity>
