@@ -26,7 +26,7 @@ if (enableTestDeepLinks) {
 }
 
 // Dynamic import to prevent bundling in production
-let testHelpers: typeof import('./testHelpers') | null = null;
+let devTestHelpers: typeof import('./devTestHelpers') | null = null;
 
 // Layer 2: Session Token Security
 // Test mode must be explicitly activated and requires a valid session token
@@ -129,8 +129,8 @@ async function handleTestDeepLink(event: { url: string }) {
     }
 
     // Lazy load test helpers
-    if (!testHelpers) {
-      testHelpers = await import('./testHelpers');
+    if (!devTestHelpers) {
+      devTestHelpers = await import('./devTestHelpers');
     }
 
     // Execute authorized commands
@@ -140,7 +140,7 @@ async function handleTestDeepLink(event: { url: string }) {
           const loadFixtures = params.get('fixtures') === 'true';
           logger.log('[TestDeepLinks] ✅ Authorized: Resetting database, fixtures:', loadFixtures);
 
-          const result = await testHelpers.resetDatabaseForTesting({
+          const result = await devTestHelpers.resetDatabaseForTesting({
             createBackup: true,
             loadFixtures,
           });
@@ -194,7 +194,7 @@ async function handleTestDeepLink(event: { url: string }) {
       case '/state':
         {
           logger.log('[TestDeepLinks] ✅ Authorized: Getting database state');
-          const state = await testHelpers.getDatabaseState();
+          const state = await devTestHelpers.getDatabaseState();
           logger.log('[TestDeepLinks] Current database state:', state);
         }
         break;
@@ -218,7 +218,7 @@ async function handleTestDeepLink(event: { url: string }) {
       case '/corrupt':
         {
           logger.log('[TestDeepLinks] ✅ Authorized: Loading corrupted database');
-          const result = await testHelpers.loadCorruptedDatabase();
+          const result = await devTestHelpers.loadCorruptedDatabase();
           logger.log('[TestDeepLinks] Corrupt database result:', result);
         }
         break;
@@ -249,14 +249,14 @@ async function handleTestDeepLink(event: { url: string }) {
           logger.log('[TestDeepLinks] ✅ Authorized: Loading skipped doses fixtures for GH #116');
 
           // Reset database first
-          const resetResult = await testHelpers.resetDatabaseForTesting({
+          const resetResult = await devTestHelpers.resetDatabaseForTesting({
             createBackup: false,
             loadFixtures: false,
           });
           logger.log('[TestDeepLinks] Database reset:', resetResult);
 
           // Load skipped doses fixtures
-          await testHelpers.loadSkippedDosesFixtures();
+          await devTestHelpers.loadSkippedDosesFixtures();
           logger.log('[TestDeepLinks] Skipped doses fixtures loaded');
 
           // Reload stores
