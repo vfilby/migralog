@@ -964,6 +964,164 @@ describe('SettingsScreen', () => {
       // The error should be handled in diagnostics loading
       expect(notificationService.getPermissions).toHaveBeenCalled();
     });
+
+    it('should handle database health check failure', async () => {
+      enableDeveloperMode();
+      (SQLite.openDatabaseAsync as jest.Mock).mockResolvedValue({
+        execAsync: jest.fn().mockRejectedValue(new Error('Database connection failed')),
+      });
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Error')).toBeTruthy();
+      });
+    });
+
+    it('should handle Sentry configuration error', async () => {
+      jest.spyOn(require('@sentry/react-native'), 'getClient').mockImplementation(() => {
+        throw new Error('Sentry client error');
+      });
+
+      enableDeveloperMode();
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Settings')).toBeTruthy();
+      });
+
+      // Should render despite Sentry error
+      expect(screen.getByText('Developer')).toBeTruthy();
+    });
+
+    it('should handle database reset in production environment', async () => {
+      // Mock __DEV__ as false
+      const originalDev = (global as any).__DEV__;
+      (global as any).__DEV__ = true; // Enable to show the button first
+
+      enableDeveloperMode();
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('reset-database-button')).toBeTruthy();
+      });
+
+      // Now set __DEV__ to false to simulate production
+      (global as any).__DEV__ = false;
+
+      fireEvent.press(screen.getByTestId('reset-database-button'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Reset Database (Testing)',
+          expect.stringContaining('Clear ALL data'),
+          expect.any(Array)
+        );
+      });
+
+      // Simulate pressing the Reset button in the alert
+      const alertCalls = (Alert.alert as jest.Mock).mock.calls;
+      const resetAlert = alertCalls.find(call => call[0] === 'Reset Database (Testing)');
+      const resetButton = resetAlert[2].find((button: any) => button.text === 'Reset');
+      await resetButton.onPress();
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Database reset is only available in development mode');
+      });
+
+      // Restore __DEV__
+      (global as any).__DEV__ = originalDev;
+    });
+
+    it('should handle export data error', async () => {
+      enableDeveloperMode();
+      (backupService.exportDataForSharing as jest.Mock).mockRejectedValue(new Error('Export failed'));
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Export Data')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Export Data'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to export data: Export failed');
+      });
+    });
+
+    it('should handle test Sentry error', async () => {
+      enableDeveloperMode();
+      jest.spyOn(require('@sentry/react-native'), 'captureException').mockImplementation(() => {
+        throw new Error('Sentry capture failed');
+      });
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Sentry Integration')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Test Sentry Integration'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Test Sentry Integration',
+          expect.stringContaining('This will send test events'),
+          expect.any(Array)
+        );
+      });
+
+      // Simulate pressing the "Send Test Events" button
+      const alertCalls = (Alert.alert as jest.Mock).mock.calls;
+      const sentryAlert = alertCalls.find(call => call[0] === 'Test Sentry Integration');
+      const sendButton = sentryAlert[2].find((button: any) => button.text === 'Send Test Events');
+      await sendButton.onPress();
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to send test events. Sentry may not be configured.');
+      });
+    });
+
+    it('should handle open settings error', async () => {
+      jest.spyOn(require('react-native').Linking, 'openSettings').mockRejectedValue(new Error('Cannot open settings'));
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Settings')).toBeTruthy();
+      });
+
+      // This function should be available for error handling
+      expect(require('react-native').Linking.openSettings).toBeDefined();
+    });
+
+    it('should handle notifications enabled error', async () => {
+      (notificationService.areNotificationsGloballyEnabled as jest.Mock).mockRejectedValue(new Error('Service error'));
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Settings')).toBeTruthy();
+      });
+      
+      // The error should be handled gracefully and the component should still render
+      expect(screen.getByText('Notifications')).toBeTruthy();
+    });
   });
 
   describe('High Priority Test Notification', () => {

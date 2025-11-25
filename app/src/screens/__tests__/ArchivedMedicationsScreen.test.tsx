@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, waitFor, fireEvent } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 import ArchivedMedicationsScreen from '../ArchivedMedicationsScreen';
 import { ThemeProvider } from '../../theme/ThemeContext';
 
@@ -40,6 +41,9 @@ const mockRoute = {
   key: 'archived-medications',
   name: 'ArchivedMedications' as const,
 };
+
+// Mock Alert
+jest.spyOn(Alert, 'alert');
 
 describe('ArchivedMedicationsScreen', () => {
   beforeEach(() => {
@@ -156,6 +160,30 @@ describe('ArchivedMedicationsScreen', () => {
       fireEvent.press(getByText('Back'));
 
       expect(mockGoBack).toHaveBeenCalled();
+    });
+  });
+
+  describe('Error Handling', () => {
+    it('handles loading error gracefully', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      
+      // Override the mock for this specific test
+      mockMedicationRepository.getArchived.mockImplementation(() => {
+        return Promise.reject(new Error('Network error'));
+      });
+
+      const { getByText, queryByText } = render(
+        <ArchivedMedicationsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        { wrapper: TestWrapper }
+      );
+
+      await waitFor(() => {
+        // Should show empty state even on error
+        expect(getByText('No archived medications')).toBeTruthy();
+        expect(queryByText('Loading...')).toBeNull();
+      });
+
+      consoleSpy.mockRestore();
     });
   });
 
