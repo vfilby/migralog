@@ -27,7 +27,38 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
   const [brokenBackupCount, setBrokenBackupCount] = useState(0);
 
   useEffect(() => {
-    loadBackups();
+    let mounted = true;
+    
+    const loadBackupsWithCleanup = async () => {
+      try {
+        const backupList = await backupService.listBackups();
+        if (mounted) {
+          setBackups(backupList);
+        }
+
+        // Check for broken backups
+        const brokenCount = await backupService.checkForBrokenBackups();
+        if (mounted) {
+          setBrokenBackupCount(brokenCount);
+        }
+      } catch (error) {
+        if (mounted) {
+          logger.error('Failed to load backups:', error);
+          Alert.alert('Error', 'Failed to load backups');
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+          setRefreshing(false);
+        }
+      }
+    };
+
+    loadBackupsWithCleanup();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const loadBackups = async () => {

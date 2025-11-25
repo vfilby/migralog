@@ -7,6 +7,7 @@ import { renderWithProviders } from '../../utils/screenTestHelpers';
 import { useMedicationStore } from '../../store/medicationStore';
 import { medicationScheduleRepository } from '../../database/medicationRepository';
 import { notificationService } from '../../services/notificationService';
+import { pressAlertButtonByText } from '../../utils/testUtils/alertHelpers';
 import { errorLogger } from '../../services/errorLogger';
 
 jest.mock('../../store/medicationStore');
@@ -31,8 +32,8 @@ jest.mock('../../services/notificationService', () => ({
   },
 }));
 jest.mock('expo-image-picker', () => ({
-  requestMediaLibraryPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
-  requestCameraPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
+  requestMediaLibraryPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted', granted: true }),
+  requestCameraPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted', granted: true }),
   launchImageLibraryAsync: jest.fn().mockResolvedValue({ canceled: true }),
   launchCameraAsync: jest.fn().mockResolvedValue({ canceled: true }),
 }));
@@ -310,23 +311,23 @@ describe('AddMedicationScreen', () => {
         <AddMedicationScreen navigation={mockNavigation as any} route={mockRoute as any} />
       );
 
-      // Switch to scheduled mode first
-      const scheduledButton = screen.getByText('Scheduled');
-      fireEvent.press(scheduledButton);
-
       await waitFor(() => {
+        // Switch to scheduled mode first
+        const scheduledButton = screen.getByText('Scheduled');
+        fireEvent.press(scheduledButton);
+        
         expect(screen.getByText('Daily')).toBeTruthy();
+
+        // Test monthly frequency
+        const monthlyButton = screen.getByText('Monthly');
+        fireEvent.press(monthlyButton);
+
+        // Test quarterly frequency
+        const quarterlyButton = screen.getByText('Quarterly');
+        fireEvent.press(quarterlyButton);
+
+        expect(screen.getByText('Quarterly')).toBeTruthy();
       });
-
-      // Test monthly frequency
-      const monthlyButton = screen.getByText('Monthly');
-      fireEvent.press(monthlyButton);
-
-      // Test quarterly frequency
-      const quarterlyButton = screen.getByText('Quarterly');
-      fireEvent.press(quarterlyButton);
-
-      expect(screen.getByText('Quarterly')).toBeTruthy();
     });
 
     it('should show schedule manager in scheduled mode', async () => {
@@ -336,9 +337,11 @@ describe('AddMedicationScreen', () => {
         <AddMedicationScreen navigation={mockNavigation as any} route={mockRoute as any} />
       );
 
-      // Switch to scheduled mode
-      const scheduledButton = screen.getByText('Scheduled');
-      fireEvent.press(scheduledButton);
+      await waitFor(() => {
+        // Switch to scheduled mode
+        const scheduledButton = screen.getByText('Scheduled');
+        fireEvent.press(scheduledButton);
+      });
 
       // Should show the schedule manager
       await waitFor(() => {
@@ -396,8 +399,10 @@ describe('AddMedicationScreen', () => {
         <AddMedicationScreen navigation={mockNavigation as any} route={mockRoute as any} />
       );
 
-      const addPhotoButton = screen.getByText('+ Add Photo');
-      fireEvent.press(addPhotoButton);
+      await waitFor(() => {
+        const addPhotoButton = screen.getByText('+ Add Photo');
+        fireEvent.press(addPhotoButton);
+      });
 
       // Simulate selecting "Choose from Library"
       const alertCall = (Alert.alert as jest.Mock).mock.calls[0];
@@ -421,13 +426,17 @@ describe('AddMedicationScreen', () => {
         <AddMedicationScreen navigation={mockNavigation as any} route={mockRoute as any} />
       );
 
-      const addPhotoButton = screen.getByText('+ Add Photo');
-      fireEvent.press(addPhotoButton);
+      await waitFor(() => {
+        const addPhotoButton = screen.getByText('+ Add Photo');
+        fireEvent.press(addPhotoButton);
+      });
 
       // Simulate selecting "Choose from Library"
-      const alertCall = (Alert.alert as jest.Mock).mock.calls[0];
-      const chooseFromLibraryHandler = alertCall[2][1].onPress;
-      await chooseFromLibraryHandler();
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalled();
+      });
+      
+      pressAlertButtonByText('Choose from Library');
 
       await waitFor(() => {
         expect(screen.getByText('Change Photo')).toBeTruthy();
@@ -445,13 +454,19 @@ describe('AddMedicationScreen', () => {
         <AddMedicationScreen navigation={mockNavigation as any} route={mockRoute as any} />
       );
 
+      await waitFor(() => {
+        expect(screen.getByText('+ Add Photo')).toBeTruthy();
+      });
+
       const addPhotoButton = screen.getByText('+ Add Photo');
       fireEvent.press(addPhotoButton);
 
       // Simulate selecting "Take Photo"
-      const alertCall = (Alert.alert as jest.Mock).mock.calls[0];
-      const takePhotoHandler = alertCall[2][0].onPress;
-      await takePhotoHandler();
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalled();
+      });
+      
+      pressAlertButtonByText('Take Photo');
 
       await waitFor(() => {
         expect(screen.getByText('Change Photo')).toBeTruthy();
@@ -699,15 +714,17 @@ describe('AddMedicationScreen', () => {
         <AddMedicationScreen navigation={mockNavigation as any} route={mockRoute as any} />
       );
 
-      // Fill required fields
-      const nameInput = screen.getByTestId('medication-name-input');
-      fireEvent.changeText(nameInput, 'Test Med');
+      await waitFor(() => {
+        // Fill required fields
+        const nameInput = screen.getByTestId('medication-name-input');
+        fireEvent.changeText(nameInput, 'Test Med');
 
-      const dosageInput = screen.getByPlaceholderText('200');
-      fireEvent.changeText(dosageInput, '100');
+        const dosageInput = screen.getByPlaceholderText('200');
+        fireEvent.changeText(dosageInput, '100');
 
-      const saveButton = screen.getByText('Save Medication');
-      fireEvent.press(saveButton);
+        const saveButton = screen.getByText('Save Medication');
+        fireEvent.press(saveButton);
+      });
 
       // Button should show "Saving..." and be disabled
       await waitFor(() => {
@@ -734,23 +751,17 @@ describe('AddMedicationScreen', () => {
         <AddMedicationScreen navigation={mockNavigation as any} route={mockRoute as any} />
       );
 
-      // Fill required fields and set up scheduled mode
-      const nameInput = screen.getByTestId('medication-name-input');
-      fireEvent.changeText(nameInput, 'Test Med');
-
-      const dosageInput = screen.getByPlaceholderText('200');
-      fireEvent.changeText(dosageInput, '100');
-
-      const scheduledButton = screen.getByText('Scheduled');
-      fireEvent.press(scheduledButton);
-
       await waitFor(() => {
-        const scheduleCallback = screen.getByTestId('schedules-change-callback');
-        fireEvent.press(scheduleCallback);
-      });
+        // Fill required fields
+        const nameInput = screen.getByTestId('medication-name-input');
+        fireEvent.changeText(nameInput, 'Test Med');
 
-      const saveButton = screen.getByText('Save Medication');
-      fireEvent.press(saveButton);
+        const dosageInput = screen.getByPlaceholderText('200');
+        fireEvent.changeText(dosageInput, '100');
+
+        const saveButton = screen.getByText('Save Medication');
+        fireEvent.press(saveButton);
+      });
 
       // Should still complete successfully despite notification error
       await waitFor(() => {
@@ -765,19 +776,21 @@ describe('AddMedicationScreen', () => {
         <AddMedicationScreen navigation={mockNavigation as any} route={mockRoute as any} />
       );
 
-      // Fill required fields
-      const nameInput = screen.getByTestId('medication-name-input');
-      fireEvent.changeText(nameInput, 'Test Med');
+      await waitFor(() => {
+        // Fill required fields
+        const nameInput = screen.getByTestId('medication-name-input');
+        fireEvent.changeText(nameInput, 'Test Med');
 
-      const dosageInput = screen.getByPlaceholderText('200');
-      fireEvent.changeText(dosageInput, '100');
+        const dosageInput = screen.getByPlaceholderText('200');
+        fireEvent.changeText(dosageInput, '100');
 
-      // Switch to scheduled mode but don't add schedules
-      const scheduledButton = screen.getByText('Scheduled');
-      fireEvent.press(scheduledButton);
+        // Switch to scheduled mode but don't add schedules
+        const scheduledButton = screen.getByText('Scheduled');
+        fireEvent.press(scheduledButton);
 
-      const saveButton = screen.getByText('Save Medication');
-      fireEvent.press(saveButton);
+        const saveButton = screen.getByText('Save Medication');
+        fireEvent.press(saveButton);
+      });
 
       await waitFor(() => {
         expect(mockAddMedication).toHaveBeenCalledWith(
@@ -821,22 +834,26 @@ describe('AddMedicationScreen', () => {
         <AddMedicationScreen navigation={mockNavigation as any} route={mockRoute as any} />
       );
 
-      // Switch to scheduled mode and add a schedule
-      const scheduledButton = screen.getByText('Scheduled');
-      fireEvent.press(scheduledButton);
+      await waitFor(() => {
+        // Switch to scheduled mode and add a schedule
+        const scheduledButton = screen.getByText('Scheduled');
+        fireEvent.press(scheduledButton);
+      });
 
       await waitFor(() => {
         const scheduleCallback = screen.getByTestId('schedules-change-callback');
         fireEvent.press(scheduleCallback);
       });
 
-      // Switch back to as-needed
-      const asNeededButton = screen.getByText('As Needed');
-      fireEvent.press(asNeededButton);
+      await waitFor(() => {
+        // Switch back to as-needed
+        const asNeededButton = screen.getByText('As Needed');
+        fireEvent.press(asNeededButton);
 
-      // Fill required fields and save
-      const nameInput = screen.getByTestId('medication-name-input');
-      fireEvent.changeText(nameInput, 'Test Med');
+        // Fill required fields and save
+        const nameInput = screen.getByTestId('medication-name-input');
+        fireEvent.changeText(nameInput, 'Test Med');
+      });
 
       const dosageInput = screen.getByPlaceholderText('200');
       fireEvent.changeText(dosageInput, '100');
