@@ -16,13 +16,13 @@ This document describes the testing patterns, practices, and conventions used in
 
 MigraLog uses a comprehensive testing strategy with:
 - **Unit tests**: Component and function testing with Jest and React Native Testing Library
-- **Integration tests**: Cross-component workflow testing (planned)
+- **Integration tests**: Multi-component workflow testing with real stores
 - **E2E tests**: Full user journey testing with Detox
 
 ### Test Statistics
-- **Total tests**: 1,996
-- **Passing**: 1,989
-- **Skipped**: 7 (documented with reasons)
+- **Total tests**: 2,009
+- **Passing**: 1,996
+- **Skipped**: 13 (7 documented unit tests + 6 integration tests covered by E2E)
 - **Coverage target**: >70% for all screens
 
 ## Test Types
@@ -60,6 +60,46 @@ describe('AddMedicationScreen', () => {
 });
 ```
 
+### Integration Tests (`src/__tests__/integration/*.integration.test.ts`)
+
+Test complete workflows across multiple stores and repositories with mocked databases:
+
+```typescript
+describe('Integration: Medication Workflow', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Reset stores and mock repositories
+  });
+
+  it('should complete create -> load -> log -> verify workflow', async () => {
+    const store = useMedicationStore.getState();
+    
+    // Mock repository responses
+    (medicationRepository.create as jest.Mock).mockResolvedValue(mockMedication);
+    
+    // Test full workflow
+    const medication = await store.addMedication({ ... });
+    await store.loadMedications();
+    await store.logDose({ ... });
+    await store.loadRecentDoses();
+    
+    // Verify end-to-end data flow
+    expect(useMedicationStore.getState().doses[0].medicationId).toBe(medication.id);
+  });
+});
+```
+
+**When to write integration tests:**
+- Testing workflows across multiple store actions
+- Verifying data consistency between stores (e.g., medication doses linked to episodes)
+- Testing complex state management scenarios
+- When E2E tests would be too slow but unit tests too isolated
+
+**When NOT to write integration tests:**
+- Simple single-operation workflows (use unit tests)
+- Full user journeys with UI interactions (use E2E tests)
+- Testing that duplicates comprehensive E2E coverage
+
 ### E2E Tests (`e2e/*.test.js`)
 
 Test complete user workflows in a real device environment:
@@ -79,18 +119,23 @@ describe('Medication Logging Flow', () => {
 
 ```
 src/
+  __tests__/
+    integration/
+      medicationFlow.integration.test.ts   # Medication workflow integration tests
+      episodeFlow.integration.test.ts      # Episode workflow integration tests
+      crossStoreFlow.integration.test.ts   # Cross-store integration tests
   screens/
     __tests__/
-      ScreenName.test.tsx       # Screen component tests
+      ScreenName.test.tsx                  # Screen component tests
   components/
     __tests__/
-      ComponentName.test.tsx    # Component tests
+      ComponentName.test.tsx               # Component tests
   utils/
     __tests__/
-      utilName.test.ts          # Utility function tests
+      utilName.test.ts                     # Utility function tests
   services/
     __tests__/
-      serviceName.test.ts       # Service tests
+      serviceName.test.ts                  # Service tests
 ```
 
 ### Test Structure Pattern
