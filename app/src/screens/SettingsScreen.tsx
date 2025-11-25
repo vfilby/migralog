@@ -487,7 +487,7 @@ export default function SettingsScreen({ navigation }: Props) {
             try {
               // Dynamically import test helper (only available in __DEV__)
               if (__DEV__) {
-                const { resetDatabaseForTesting } = await import('../utils/testHelpers');
+                const { resetDatabaseForTesting } = await import('../utils/devTestHelpers');
                 const result = await resetDatabaseForTesting({
                   createBackup: true,
                   loadFixtures: false,
@@ -519,7 +519,7 @@ export default function SettingsScreen({ navigation }: Props) {
             try {
               // Dynamically import test helper (only available in __DEV__)
               if (__DEV__) {
-                const { resetDatabaseForTesting } = await import('../utils/testHelpers');
+                const { resetDatabaseForTesting } = await import('../utils/devTestHelpers');
                 await resetDatabaseForTesting({ // Intentionally unused - tracks operation for future features
                   createBackup: true,
                   loadFixtures: true,

@@ -8,6 +8,7 @@ import { useMedicationStore } from '../../store/medicationStore';
 import { medicationScheduleRepository } from '../../database/medicationRepository';
 import { notificationService } from '../../services/notificationService';
 import { pressAlertButtonByText } from '../../utils/testUtils/alertHelpers';
+import { createMockNavigation } from '../../utils/testUtils/fixtures';
 import { errorLogger } from '../../services/errorLogger';
 
 jest.mock('../../store/medicationStore');
@@ -57,12 +58,7 @@ jest.mock('../../components/MedicationScheduleManager', () => {
 // Mock Alert
 jest.spyOn(Alert, 'alert');
 
-const mockNavigation = {
-  navigate: jest.fn(),
-  goBack: jest.fn(),
-  setOptions: jest.fn(),
-  addListener: jest.fn(() => jest.fn()),
-};
+const mockNavigation = createMockNavigation();
 
 describe('AddMedicationScreen', () => {
   const mockAddMedication = jest.fn();
@@ -405,9 +401,7 @@ describe('AddMedicationScreen', () => {
       });
 
       // Simulate selecting "Choose from Library"
-      const alertCall = (Alert.alert as jest.Mock).mock.calls[0];
-      const chooseFromLibraryHandler = alertCall[2][1].onPress;
-      await chooseFromLibraryHandler();
+      await pressAlertButtonByText('Choose from Library');
 
       expect(Alert.alert).toHaveBeenCalledWith(
         'Permission Required', 

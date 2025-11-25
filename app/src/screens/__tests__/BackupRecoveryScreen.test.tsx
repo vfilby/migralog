@@ -176,6 +176,17 @@ describe('BackupRecoveryScreen', () => {
   });
 
   describe('Backup Display', () => {
+    // SKIPPED: These backup display tests have React Test Renderer async lifecycle issues
+    // that cause "Unable to find node on unmounted component" errors. The component
+    // unmounts during async state updates in useEffect, even with proper cleanup.
+    //
+    // Root cause: React Test Renderer has limitations with async component lifecycle
+    // that are difficult to work around in unit tests.
+    //
+    // Recommendation: These scenarios are better tested with E2E tests where the full
+    // component lifecycle is properly managed. See e2e/ directory for backup testing.
+    //
+    // Tracked in: MigraineTracker-a1bd
     it.skip('should display backup list when backups available', async () => {
       const mockBackups = [
         {
@@ -206,6 +217,7 @@ describe('BackupRecoveryScreen', () => {
       });
     });
 
+    // See comment above - same async lifecycle issue
     it.skip('should display backup actions for each backup', async () => {
       const mockBackups = [
         {
@@ -233,6 +245,7 @@ describe('BackupRecoveryScreen', () => {
       });
     });
 
+    // See comment above - same async lifecycle issue
     it.skip('should not render backups with invalid IDs', async () => {
       const mockBackups = [
         {
@@ -287,6 +300,13 @@ describe('BackupRecoveryScreen', () => {
       version: '1.0.0'
     };
 
+    // SKIPPED: These backup action tests have the same React Test Renderer async lifecycle
+    // issues as the display tests above. They fail with unmounted component errors when
+    // trying to interact with the backup list after it loads asynchronously.
+    //
+    // These user interactions are better tested in E2E tests. See e2e/ directory.
+    //
+    // Tracked in: MigraineTracker-a1bd
     it.skip('should call restore backup when restore button pressed', async () => {
       backupService.listBackups.mockResolvedValue([mockBackup]);
       backupService.checkForBrokenBackups.mockResolvedValue(0);
@@ -315,6 +335,7 @@ describe('BackupRecoveryScreen', () => {
       });
     });
 
+    // See comment above - same async lifecycle issue
     it.skip('should call export backup when export button pressed', async () => {
       backupService.listBackups.mockResolvedValue([mockBackup]);
       backupService.checkForBrokenBackups.mockResolvedValue(0);
@@ -335,6 +356,7 @@ describe('BackupRecoveryScreen', () => {
       });
     });
 
+    // See comment above - same async lifecycle issue
     it.skip('should show error when export fails', async () => {
       backupService.listBackups.mockResolvedValue([mockBackup]);
       backupService.checkForBrokenBackups.mockResolvedValue(0);
@@ -358,6 +380,7 @@ describe('BackupRecoveryScreen', () => {
       });
     });
 
+    // See comment above - same async lifecycle issue
     it.skip('should show delete confirmation when delete button pressed', async () => {
       backupService.listBackups.mockResolvedValue([mockBackup]);
       backupService.checkForBrokenBackups.mockResolvedValue(0);
