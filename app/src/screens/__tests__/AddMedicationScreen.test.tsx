@@ -401,9 +401,7 @@ describe('AddMedicationScreen', () => {
       });
 
       // Simulate selecting "Choose from Library"
-      const alertCall = (Alert.alert as jest.Mock).mock.calls[0];
-      const chooseFromLibraryHandler = alertCall[2][1].onPress;
-      await chooseFromLibraryHandler();
+      await pressAlertButtonByText('Choose from Library');
 
       expect(Alert.alert).toHaveBeenCalledWith(
         'Permission Required', 

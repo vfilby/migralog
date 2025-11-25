@@ -6,6 +6,7 @@ import EditMedicationDoseScreen from '../EditMedicationDoseScreen';
 import { renderWithProviders } from '../../utils/screenTestHelpers';
 import { medicationDoseRepository, medicationRepository } from '../../database/medicationRepository';
 import { MedicationDose, Medication } from '../../models/types';
+import { pressAlertButtonByText } from '../../utils/testUtils/alertHelpers';
 
 jest.mock('../../database/medicationRepository', () => ({
   medicationDoseRepository: {
@@ -517,10 +518,7 @@ describe('EditMedicationDoseScreen', () => {
     });
 
     // Simulate pressing Delete in the confirmation dialog
-    const alertCalls = (Alert.alert as jest.Mock).mock.calls;
-    const deleteAlert = alertCalls.find(call => call[0] === 'Delete Dose');
-    const deleteConfirmButton = deleteAlert[2].find((button: any) => button.text === 'Delete');
-    await deleteConfirmButton.onPress();
+    await pressAlertButtonByText('Delete');
 
     await waitFor(() => {
       expect(medicationDoseRepository.delete).toHaveBeenCalledWith('test-dose-123');
@@ -546,10 +544,7 @@ describe('EditMedicationDoseScreen', () => {
     fireEvent.press(deleteButton);
 
     // Simulate pressing Delete in the confirmation dialog
-    const alertCalls = (Alert.alert as jest.Mock).mock.calls;
-    const deleteAlert = alertCalls.find(call => call[0] === 'Delete Dose');
-    const deleteConfirmButton = deleteAlert[2].find((button: any) => button.text === 'Delete');
-    await deleteConfirmButton.onPress();
+    await pressAlertButtonByText('Delete');
 
     await waitFor(() => {
       expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to delete medication dose');
