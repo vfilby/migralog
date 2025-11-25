@@ -19,7 +19,7 @@ import type { NavigationProp } from '@react-navigation/native';
  * expect(navigate).toHaveBeenCalledWith('ScreenName', { id: '123' });
  * ```
  */
-export function createMockNavigation<T extends {} = any>(): NavigationProp<T> {
+export function createMockNavigation<T extends Record<string, unknown> = Record<string, unknown>>(): NavigationProp<T> {
   return {
     navigate: jest.fn(),
     goBack: jest.fn(),
@@ -41,7 +41,9 @@ export function createMockNavigation<T extends {} = any>(): NavigationProp<T> {
       stale: false,
     })),
     setParams: jest.fn(),
-  } as any;
+    navigateDeprecated: jest.fn(),
+    preload: jest.fn(),
+  } as unknown as NavigationProp<T>;
 }
 
 /**
@@ -56,7 +58,7 @@ export function createMockNavigation<T extends {} = any>(): NavigationProp<T> {
  * expect(route.params.episodeId).toBe('ep-123');
  * ```
  */
-export function createMockRoute<T = any>(
+export function createMockRoute<T = Record<string, unknown>>(
   name: string = 'TestRoute',
   params?: T
 ): { key: string; name: string; params?: T } {
@@ -104,7 +106,19 @@ export function createMockTheme(isDark: boolean = false) {
  * expect(medication.dosageAmount).toBe(400); // Default value
  * ```
  */
-export function createMockMedication(overrides: Partial<any> = {}) {
+interface MockMedication {
+  id: string;
+  name: string;
+  type: 'rescue' | 'preventative';
+  dosageAmount: number;
+  dosageUnit: string;
+  defaultQuantity: number;
+  active: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export function createMockMedication(overrides: Partial<MockMedication> = {}): MockMedication {
   return {
     id: `med-${Date.now()}`,
     name: 'Test Medication',
@@ -130,7 +144,20 @@ export function createMockMedication(overrides: Partial<any> = {}) {
  * expect(episode.endTime).toBeDefined();
  * ```
  */
-export function createMockEpisode(overrides: Partial<any> = {}) {
+interface MockEpisode {
+  id: string;
+  startTime: number;
+  endTime: number | null;
+  locations: string[];
+  qualities: string[];
+  symptoms: string[];
+  triggers: string[];
+  notes: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export function createMockEpisode(overrides: Partial<MockEpisode> = {}): MockEpisode {
   const now = Date.now();
   return {
     id: `ep-${Date.now()}`,
@@ -165,8 +192,8 @@ export function createMockEpisode(overrides: Partial<any> = {}) {
  */
 export function createMockList<T>(
   count: number,
-  factory: (overrides?: any) => T,
-  getOverrides?: (index: number) => any
+  factory: (overrides?: Record<string, unknown>) => T,
+  getOverrides?: (index: number) => Record<string, unknown>
 ): T[] {
   return Array.from({ length: count }, (_, i) => 
     factory(getOverrides ? getOverrides(i) : {})
