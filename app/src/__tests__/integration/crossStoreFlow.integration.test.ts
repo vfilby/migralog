@@ -21,6 +21,10 @@ describe('Integration: Cross-Store Workflows', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
+    // Clear cache to prevent data bleed between tests
+    const { cacheManager } = require('../../utils/cacheManager');
+    cacheManager.clear();
+    
     // Reset both stores
     useMedicationStore.setState({
       medications: [],
@@ -41,8 +45,8 @@ describe('Integration: Cross-Store Workflows', () => {
     });
   });
 
-  // Skipped: Dose-episode linking tested extensively in E2E tests
-  // Mock complexity for findEpisodeByTimestamp doesn't justify value
+  // Skipped: Episode-dose auto-linking requires complex mock setup with findEpisodeByTimestamp
+  // This workflow is comprehensively tested in E2E tests with real database
   it.skip('should link medication doses to episodes', async () => {
     const medStore = useMedicationStore.getState();
     const epStore = useEpisodeStore.getState();
@@ -166,8 +170,8 @@ describe('Integration: Cross-Store Workflows', () => {
     expect(medState.doses[0].medicationId).toBe('med-1');
   });
 
-  // Skipped: CASCADE delete behavior tested in migration integration tests
-  // E2E tests also cover this scenario comprehensively
+  // Skipped: CASCADE delete referential integrity is thoroughly tested in migration integration tests
+  // Mocking complex multi-store delete cascades doesn't add value over migration tests + E2E tests
   it.skip('should maintain referential integrity when deleting episodes', async () => {
     const medStore = useMedicationStore.getState();
     const epStore = useEpisodeStore.getState();

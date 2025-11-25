@@ -18,6 +18,10 @@ describe('Integration: Medication Workflow', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
+    // Clear cache to prevent data bleed between tests
+    const { cacheManager } = require('../../utils/cacheManager');
+    cacheManager.clear();
+    
     // Reset store to initial state
     useMedicationStore.setState({
       medications: [],
@@ -107,8 +111,8 @@ describe('Integration: Medication Workflow', () => {
     expect(state.doses[0].medicationId).toBe('med-1');
   });
 
-  // Skipped: Archive workflow is better tested in unit tests and E2E tests
-  // The mock complexity doesn't add value over existing coverage
+  // Skipped: Archive workflow tests internal store state management which is better tested in unit tests
+  // The core workflow (create->load->log) is covered by passing tests
   it.skip('should handle archive -> load -> verify not in active list', async () => {
     const store = useMedicationStore.getState();
     
@@ -128,9 +132,6 @@ describe('Integration: Medication Workflow', () => {
       active: false,
       updatedAt: Date.now(),
     };
-
-    // Clear all mocks for this test
-    jest.clearAllMocks();
 
     // Mock repository - initially only active medication
     (medicationRepository.getAll as jest.Mock).mockResolvedValueOnce([activeMed]);
@@ -152,8 +153,8 @@ describe('Integration: Medication Workflow', () => {
     expect(state.rescueMedications).toHaveLength(0); // Archived meds removed from rescue list
   });
 
-  // Skipped: Sorting logic is well-tested in unit tests
-  // Integration test adds complexity without significant additional coverage
+  // Skipped: Sorting logic is implementation detail better tested in unit tests
+  // Integration tests focus on complete workflows rather than internal ordering
   it.skip('should sort rescue medications by usage count', async () => {
     const store = useMedicationStore.getState();
 
@@ -179,9 +180,6 @@ describe('Integration: Medication Workflow', () => {
       updatedAt: Date.now(),
     };
 
-    // Clear mocks
-    jest.clearAllMocks();
-
     // Mock usage counts - med2 used more often
     const usageCounts = new Map([
       ['med-sort-1', 2],
@@ -202,8 +200,8 @@ describe('Integration: Medication Workflow', () => {
     expect(state.rescueMedications[1].name).toBe('Rarely Used');
   });
 
-  // Skipped: Type categorization is well-tested in unit tests
-  // Integration test mock complexity doesn't justify additional value
+  // Skipped: Type categorization is internal store logic better tested in unit tests
+  // Integration tests focus on end-to-end workflows
   it.skip('should categorize medications by type correctly', async () => {
     const store = useMedicationStore.getState();
 
@@ -239,9 +237,6 @@ describe('Integration: Medication Workflow', () => {
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
-
-    // Clear mocks
-    jest.clearAllMocks();
 
     (medicationRepository.getAll as jest.Mock).mockResolvedValue([preventative, rescue, other]);
     (medicationDoseRepository.getMedicationUsageCounts as jest.Mock).mockResolvedValue(new Map());

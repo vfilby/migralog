@@ -18,6 +18,10 @@ describe('Integration: Episode Workflow', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
+    // Clear cache to prevent data bleed between tests
+    const { cacheManager } = require('../../utils/cacheManager');
+    cacheManager.clear();
+    
     // Reset store to initial state
     useEpisodeStore.setState({
       currentEpisode: null,
@@ -25,6 +29,10 @@ describe('Integration: Episode Workflow', () => {
       loading: false,
       error: null,
     });
+  });
+
+  afterEach(() => {
+    // Additional cleanup if needed
   });
 
   it('should complete start -> update -> end workflow', async () => {
@@ -116,9 +124,7 @@ describe('Integration: Episode Workflow', () => {
     expect(state.episodes[0].endTime).toBe(endTime);
   });
 
-  // Skipped: Multiple episodes are well-covered in E2E tests
-  // Mock state bleed between tests creates false complexity
-  it.skip('should handle multiple episodes correctly', async () => {
+  it('should handle multiple episodes correctly', async () => {
     const store = useEpisodeStore.getState();
 
     const episode1: Episode = {
