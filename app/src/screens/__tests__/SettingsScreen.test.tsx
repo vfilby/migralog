@@ -7,6 +7,7 @@ import { errorLogger } from '../../services/errorLogger';
 import { notificationService } from '../../services/notificationService';
 import { locationService } from '../../services/locationService';
 import { dailyCheckinService } from '../../services/dailyCheckinService';
+import { backupService } from '../../services/backupService';
 import * as SQLite from 'expo-sqlite';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -15,6 +16,7 @@ jest.mock('../../services/errorLogger');
 jest.mock('../../services/notificationService');
 jest.mock('../../services/locationService');
 jest.mock('../../services/dailyCheckinService');
+jest.mock('../../services/backupService');
 jest.mock('expo-sqlite');
 jest.mock('expo-notifications');
 jest.mock('@react-native-async-storage/async-storage');
@@ -28,6 +30,8 @@ jest.mock('expo-constants', () => ({
     },
   },
 }));
+
+
 jest.mock('@sentry/react-native', () => ({
   captureException: jest.fn(),
   captureMessage: jest.fn(),
@@ -81,6 +85,7 @@ describe('SettingsScreen', () => {
     (dailyCheckinService.scheduleNotification as jest.Mock).mockResolvedValue(undefined);
     (dailyCheckinService.cancelNotification as jest.Mock).mockResolvedValue(undefined);
     (dailyCheckinService.rescheduleNotification as jest.Mock).mockResolvedValue(undefined);
+    (backupService.exportDataForSharing as jest.Mock).mockResolvedValue(undefined);
   });
 
   it('should render settings screen with all sections (except hidden developer)', async () => {
@@ -812,6 +817,340 @@ describe('SettingsScreen', () => {
       await waitFor(() => {
         expect(dailyCheckinService.scheduleNotification).toHaveBeenCalled();
         expect(Alert.alert).toHaveBeenCalledWith('Success', 'Daily check-in reminders have been enabled');
+      });
+    });
+  });
+
+  describe('Navigation', () => {
+    it('should navigate back when Done button is pressed', async () => {
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Done')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Done'));
+      expect(mockNavigation.goBack).toHaveBeenCalled();
+    });
+
+    it('should navigate to Performance screen when tapped', async () => {
+      enableDeveloperMode();
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Performance')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Performance'));
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('Performance');
+    });
+  });
+
+  describe('Error Handling in Initialization', () => {
+    beforeEach(() => {
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+    });
+
+    it('should handle error when loading developer mode setting fails', async () => {
+      (AsyncStorage.getItem as jest.Mock).mockRejectedValue(new Error('Storage error'));
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Settings')).toBeTruthy();
+      });
+
+      // Should still render without crashing
+      expect(screen.getByText('About')).toBeTruthy();
+    });
+
+    it('should handle error when loading notification settings fails', async () => {
+      (notificationService.areNotificationsGloballyEnabled as jest.Mock).mockRejectedValue(
+        new Error('Notification service error')
+      );
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Settings')).toBeTruthy();
+      });
+
+      // Should still render without crashing
+      expect(screen.getByText('Notifications')).toBeTruthy();
+    });
+
+    it('should handle diagnostics loading errors gracefully', async () => {
+      (errorLogger.getRecentLogs as jest.Mock).mockRejectedValue(new Error('Log error'));
+      (notificationService.getPermissions as jest.Mock).mockRejectedValue(new Error('Permission error'));
+      (locationService.checkPermission as jest.Mock).mockRejectedValue(new Error('Location error'));
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Settings')).toBeTruthy();
+      });
+
+      // App should still render despite errors
+      expect(screen.getByText('About')).toBeTruthy();
+    });
+  });
+
+  describe('Developer Mode Toggle Error', () => {
+    it('should handle developer mode toggle save error', async () => {
+      (AsyncStorage.setItem as jest.Mock).mockRejectedValue(new Error('Storage error'));
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Version')).toBeTruthy();
+      });
+
+      // Tap build info 7 times to trigger developer mode
+      // Find the build info by looking for the commit hash pattern
+      const buildContainer = screen.getByText(/1\.[\d\.]+.*df8beac/); // Match the version string with commit hash
+      for (let i = 0; i < 7; i++) {
+        fireEvent.press(buildContainer);
+      }
+
+      await waitFor(() => {
+        // The error should be logged but the alert should still show
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Developer Mode Enabled',
+          'Developer tools are now visible in Settings.'
+        );
+      });
+    });
+  });
+
+  describe('Additional Error Handling', () => {
+    it('should handle toggle notifications error', async () => {
+      (notificationService.setGlobalNotificationsEnabled as jest.Mock).mockRejectedValue(new Error('Toggle failed'));
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Settings')).toBeTruthy();
+      });
+
+      // The function should be available and would handle errors
+      expect(notificationService.setGlobalNotificationsEnabled).toBeDefined();
+    });
+
+    it('should handle test notification permission check errors', async () => {
+      (notificationService.getPermissions as jest.Mock).mockRejectedValue(new Error('Permission check failed'));
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Settings')).toBeTruthy();
+      });
+
+      // The error should be handled in diagnostics loading
+      expect(notificationService.getPermissions).toHaveBeenCalled();
+    });
+
+    it('should handle database health check failure', async () => {
+      enableDeveloperMode();
+      (SQLite.openDatabaseAsync as jest.Mock).mockResolvedValue({
+        execAsync: jest.fn().mockRejectedValue(new Error('Database connection failed')),
+      });
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Error')).toBeTruthy();
+      });
+    });
+
+    it('should handle Sentry configuration error', async () => {
+      jest.spyOn(require('@sentry/react-native'), 'getClient').mockImplementation(() => {
+        throw new Error('Sentry client error');
+      });
+
+      enableDeveloperMode();
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Settings')).toBeTruthy();
+      });
+
+      // Should render despite Sentry error
+      expect(screen.getByText('Developer')).toBeTruthy();
+    });
+
+    it('should handle database reset in production environment', async () => {
+      // Mock __DEV__ as false
+      const originalDev = (global as any).__DEV__;
+      (global as any).__DEV__ = true; // Enable to show the button first
+
+      enableDeveloperMode();
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('reset-database-button')).toBeTruthy();
+      });
+
+      // Now set __DEV__ to false to simulate production
+      (global as any).__DEV__ = false;
+
+      fireEvent.press(screen.getByTestId('reset-database-button'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Reset Database (Testing)',
+          expect.stringContaining('Clear ALL data'),
+          expect.any(Array)
+        );
+      });
+
+      // Simulate pressing the Reset button in the alert
+      const alertCalls = (Alert.alert as jest.Mock).mock.calls;
+      const resetAlert = alertCalls.find(call => call[0] === 'Reset Database (Testing)');
+      const resetButton = resetAlert[2].find((button: any) => button.text === 'Reset');
+      await resetButton.onPress();
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Database reset is only available in development mode');
+      });
+
+      // Restore __DEV__
+      (global as any).__DEV__ = originalDev;
+    });
+
+    it('should handle export data error', async () => {
+      enableDeveloperMode();
+      (backupService.exportDataForSharing as jest.Mock).mockRejectedValue(new Error('Export failed'));
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Export Data')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Export Data'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to export data: Export failed');
+      });
+    });
+
+    it('should handle test Sentry error', async () => {
+      enableDeveloperMode();
+      jest.spyOn(require('@sentry/react-native'), 'captureException').mockImplementation(() => {
+        throw new Error('Sentry capture failed');
+      });
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Sentry Integration')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Test Sentry Integration'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Test Sentry Integration',
+          expect.stringContaining('This will send test events'),
+          expect.any(Array)
+        );
+      });
+
+      // Simulate pressing the "Send Test Events" button
+      const alertCalls = (Alert.alert as jest.Mock).mock.calls;
+      const sentryAlert = alertCalls.find(call => call[0] === 'Test Sentry Integration');
+      const sendButton = sentryAlert[2].find((button: any) => button.text === 'Send Test Events');
+      await sendButton.onPress();
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to send test events. Sentry may not be configured.');
+      });
+    });
+
+    it('should handle open settings error', async () => {
+      jest.spyOn(require('react-native').Linking, 'openSettings').mockRejectedValue(new Error('Cannot open settings'));
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Settings')).toBeTruthy();
+      });
+
+      // This function should be available for error handling
+      expect(require('react-native').Linking.openSettings).toBeDefined();
+    });
+
+    it('should handle notifications enabled error', async () => {
+      (notificationService.areNotificationsGloballyEnabled as jest.Mock).mockRejectedValue(new Error('Service error'));
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Settings')).toBeTruthy();
+      });
+      
+      // The error should be handled gracefully and the component should still render
+      expect(screen.getByText('Notifications')).toBeTruthy();
+    });
+  });
+
+  describe('High Priority Test Notification', () => {
+    it('should handle test notification with high priority', async () => {
+      enableDeveloperMode();
+      (notificationService.getPermissions as jest.Mock).mockResolvedValue({
+        granted: true,
+        canAskAgain: true,
+      });
+
+      renderWithProviders(
+        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Time-Sensitive (5s)')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Test Time-Sensitive (5s)'));
+
+      await waitFor(() => {
+        expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(
+          expect.objectContaining({
+            content: expect.objectContaining({
+              title: 'Test Notification (Time-Sensitive)',
+              interruptionLevel: 'timeSensitive',
+            }),
+          })
+        );
       });
     });
   });

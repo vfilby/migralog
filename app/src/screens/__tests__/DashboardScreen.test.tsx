@@ -669,7 +669,7 @@ describe('DashboardScreen', () => {
       });
     });
 
-    it('should sort medications by scheduled time', async () => {
+    it('should sort medications by scheduled time and handle empty doses array', async () => {
       const morningMed = {
         id: 'med-1',
         name: 'Morning Med',
@@ -740,4 +740,6 @@ describe('DashboardScreen', () => {
       });
     });
   });
+
+
 });
