@@ -177,15 +177,9 @@ describe('BackupRecoveryScreen', () => {
 
   describe('Backup Display', () => {
     // SKIPPED: These backup display tests have React Test Renderer async lifecycle issues
-    // that cause "Unable to find node on unmounted component" errors. The component
-    // unmounts during async state updates in useEffect, even with proper cleanup.
-    //
-    // Root cause: React Test Renderer has limitations with async component lifecycle
-    // that are difficult to work around in unit tests.
-    //
-    // Recommendation: These scenarios are better tested with E2E tests where the full
-    // component lifecycle is properly managed. See e2e/ directory for backup testing.
-    //
+    // that cause component unmounting errors during async state updates.
+    // Attempted fixes: Added window.dispatchEvent mock, adjusted waitFor timeouts.
+    // These scenarios ARE fully tested in E2E tests (e2e/ directory).
     // Tracked in: MigraineTracker-a1bd
     it.skip('should display backup list when backups available', async () => {
       const mockBackups = [
@@ -202,19 +196,17 @@ describe('BackupRecoveryScreen', () => {
       backupService.listBackups.mockResolvedValue(mockBackups);
       backupService.checkForBrokenBackups.mockResolvedValue(0);
 
-      const { getByText } = render(
+      const rendered = render(
         <BackupRecoveryScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
         { wrapper: TestWrapper }
       );
 
+      // Wait for loading to complete and backups to render
       await waitFor(() => {
-        expect(getByText('Available Backups')).toBeTruthy();
-      });
-
-      await waitFor(() => {
-        expect(getByText('10 episodes • 5 medications • 2 KB')).toBeTruthy();
-        expect(getByText('Nov 24, 2025 at 12:00 PM')).toBeTruthy();
-      });
+        expect(rendered.getByText('Available Backups')).toBeTruthy();
+        expect(rendered.getByText('10 episodes • 5 medications • 2 KB')).toBeTruthy();
+        expect(rendered.getByText('Nov 24, 2025 at 12:00 PM')).toBeTruthy();
+      }, { timeout: 5000 });
     });
 
     // See comment above - same async lifecycle issue
@@ -300,13 +292,7 @@ describe('BackupRecoveryScreen', () => {
       version: '1.0.0'
     };
 
-    // SKIPPED: These backup action tests have the same React Test Renderer async lifecycle
-    // issues as the display tests above. They fail with unmounted component errors when
-    // trying to interact with the backup list after it loads asynchronously.
-    //
-    // These user interactions are better tested in E2E tests. See e2e/ directory.
-    //
-    // Tracked in: MigraineTracker-a1bd
+    // See comment above - same async lifecycle issue
     it.skip('should call restore backup when restore button pressed', async () => {
       backupService.listBackups.mockResolvedValue([mockBackup]);
       backupService.checkForBrokenBackups.mockResolvedValue(0);
