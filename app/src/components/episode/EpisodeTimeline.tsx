@@ -9,11 +9,21 @@ type MedicationDoseWithDetails = MedicationDose & {
   medication?: Medication;
 };
 
+type SymptomChange = {
+  symptom: string;
+  changeType: 'added' | 'removed';
+};
+
+type PainLocationChange = {
+  location: string;
+  changeType: 'added' | 'removed' | 'unchanged';
+};
+
 interface TimelineEvent {
   id: string;
   type: 'intensity' | 'note' | 'symptom' | 'symptom_initial' | 'pain_location' | 'pain_location_initial' | 'medication' | 'end';
   timestamp: number;
-  data: any;
+  data: IntensityReading | EpisodeNote | MedicationDoseWithDetails | SymptomChange[] | PainLocationChange[] | null;
 }
 
 interface GroupedTimelineEvent {

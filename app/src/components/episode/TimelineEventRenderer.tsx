@@ -11,7 +11,6 @@ import {
 } from '../../models/types';
 import { getPainColor, getPainLevel } from '../../utils/painScale';
 import { formatMedicationDoseDisplay } from '../../utils/medicationFormatting';
-import { useTheme } from '../../theme';
 import { useMedicationStatusStyles } from '../../utils/medicationStyling';
 
 // Type definitions
@@ -37,7 +36,7 @@ interface TimelineEvent {
   id: string;
   type: 'intensity' | 'note' | 'symptom' | 'symptom_initial' | 'pain_location' | 'pain_location_initial' | 'medication' | 'end';
   timestamp: number;
-  data: any;
+  data: IntensityReading | EpisodeNote | MedicationDoseWithDetails | SymptomChange[] | PainLocationChange[] | null;
 }
 
 interface GroupedTimelineEvent {
