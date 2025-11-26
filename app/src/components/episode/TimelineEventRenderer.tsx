@@ -8,6 +8,8 @@ import {
   MedicationDose,
   Medication,
   PainLocation,
+  SymptomLog,
+  PainLocationLog,
 } from '../../models/types';
 import { useTheme, ThemeColors } from '../../theme';
 import { getPainColor, getPainLevel } from '../../utils/painScale';
@@ -33,26 +35,36 @@ const PAIN_LOCATIONS: { value: PainLocation; label: string; side: 'left' | 'righ
   { value: 'right_teeth', label: 'Teeth/Jaw', side: 'right' },
 ];
 
-interface TimelineEvent {
-  id: string;
-  type: 'intensity' | 'note' | 'symptom' | 'symptom_initial' | 'pain_location' | 'pain_location_initial' | 'medication' | 'end';
-  timestamp: number;
-  data: IntensityReading | EpisodeNote | MedicationDoseWithDetails | SymptomChange[] | PainLocationChange[] | null;
-}
-
-interface GroupedTimelineEvent {
-  timestamp: number;
-  events: TimelineEvent[];
-}
-
 interface SymptomChange {
   symptom: string;
   changeType: 'added' | 'removed';
 }
 
+interface SymptomEventData {
+  log?: SymptomLog;
+  changes: SymptomChange[];
+}
+
 interface PainLocationChange {
-  location: string;
+  location: PainLocation;
   changeType: 'added' | 'removed' | 'unchanged';
+}
+
+interface PainLocationEventData {
+  log?: PainLocationLog;
+  changes: PainLocationChange[];
+}
+
+interface TimelineEvent {
+  id: string;
+  type: 'intensity' | 'note' | 'symptom' | 'symptom_initial' | 'pain_location' | 'pain_location_initial' | 'medication' | 'end';
+  timestamp: number;
+  data: IntensityReading | EpisodeNote | MedicationDoseWithDetails | SymptomEventData | PainLocationEventData | null;
+}
+
+interface GroupedTimelineEvent {
+  timestamp: number;
+  events: TimelineEvent[];
 }
 
 interface TimelineEventRendererProps {
@@ -64,6 +76,8 @@ interface TimelineEventRendererProps {
   onIntensityLongPress: (reading: IntensityReading) => void;
   onNoteLongPress: (note: EpisodeNote) => void;
   onMedicationLongPress: (dose: MedicationDoseWithDetails) => void;
+  onSymptomLongPress: (log: SymptomLog) => void;
+  onPainLocationLongPress: (log: PainLocationLog) => void;
   onEpisodeEndLongPress: () => void;
 }
 
@@ -75,6 +89,8 @@ export const TimelineEventRenderer: React.FC<TimelineEventRendererProps> = ({
   onIntensityLongPress,
   onNoteLongPress,
   onMedicationLongPress,
+  onSymptomLongPress,
+  onPainLocationLongPress,
   onEpisodeEndLongPress,
 }) => {
   const { theme } = useTheme();
@@ -221,38 +237,54 @@ export const TimelineEventRenderer: React.FC<TimelineEventRendererProps> = ({
             <Text style={styles.timelineEventTitle}>
               {symptomEvents[0].type === 'symptom_initial' ? 'Initial Symptoms' : 'Symptom Changes'}
             </Text>
-            <View style={styles.chipContainer}>
-              {symptomEvents.map(event => {
-                const symptomChanges = event.data as SymptomChange[];
-                const isInitial = event.type === 'symptom_initial';
+            {symptomEvents.map(event => {
+              const eventData = event.data as SymptomEventData;
+              const isInitial = event.type === 'symptom_initial';
+              const log = eventData.log;
+              const chips = eventData.changes.map((change, idx) => {
+                const isAdded = change.changeType === 'added';
+                const chipStyle = isAdded ? styles.symptomAddedChip : styles.symptomRemovedChip;
+                const textStyle = isAdded ? styles.symptomAddedText : styles.symptomRemovedText;
+                const indicator = isAdded ? '+ ' : '− ';
+                const label = change.symptom.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 
-                return symptomChanges.map((change, idx) => {
-                  const isAdded = change.changeType === 'added';
-
-                  if (isInitial) {
-                    return (
-                      <View key={`${event.id}-${idx}`} style={styles.chip}>
-                        <Text style={styles.chipText}>
-                          {change.symptom.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                        </Text>
-                      </View>
-                    );
-                  }
-
-                  const chipStyle = isAdded ? styles.symptomAddedChip : styles.symptomRemovedChip;
-                  const textStyle = isAdded ? styles.symptomAddedText : styles.symptomRemovedText;
-                  const indicator = isAdded ? '+ ' : '− ';
-
+                if (isInitial) {
                   return (
-                    <View key={`${event.id}-${idx}`} style={[styles.chip, chipStyle]}>
-                      <Text style={[styles.chipText, textStyle]}>
-                        {indicator}{change.symptom.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      </Text>
+                    <View key={`${event.id}-${idx}`} style={styles.chip}>
+                      <Text style={styles.chipText}>{label}</Text>
                     </View>
                   );
-                });
-              })}
-            </View>
+                }
+
+                return (
+                  <View key={`${event.id}-${idx}`} style={[styles.chip, chipStyle]}>
+                    <Text style={[styles.chipText, textStyle]}>
+                      {indicator}{label}
+                    </Text>
+                  </View>
+                );
+              });
+
+              if (!isInitial && log) {
+                return (
+                  <TouchableOpacity
+                    key={event.id}
+                    style={styles.chipGroup}
+                    activeOpacity={0.7}
+                    delayLongPress={500}
+                    onLongPress={() => onSymptomLongPress(log)}
+                  >
+                    <View style={styles.chipContainer}>{chips}</View>
+                  </TouchableOpacity>
+                );
+              }
+
+              return (
+                <View key={event.id} style={styles.chipGroup}>
+                  <View style={styles.chipContainer}>{chips}</View>
+                </View>
+              );
+            })}
           </View>
         )}
 
@@ -262,41 +294,57 @@ export const TimelineEventRenderer: React.FC<TimelineEventRendererProps> = ({
             <Text style={styles.timelineEventTitle}>
               {painLocationEvents[0].type === 'pain_location_initial' ? 'Initial Pain Locations' : 'Pain Location Changes'}
             </Text>
-            <View style={styles.chipContainer}>
-              {painLocationEvents.map(event => {
-                const locationChanges = event.data as PainLocationChange[];
-                const isInitial = event.type === 'pain_location_initial';
+            {painLocationEvents.map(event => {
+              const eventData = event.data as PainLocationEventData;
+              const isInitial = event.type === 'pain_location_initial';
+              const log = eventData.log;
+              const chips = eventData.changes.map((change, idx) => {
+                const location = PAIN_LOCATIONS.find(l => l.value === change.location);
+                const sideLabel = location?.side === 'left' ? 'Left' : 'Right';
+                const locationLabel = location ? `${sideLabel} ${location.label}` : change.location;
 
-                return locationChanges.map((change, idx) => {
-                  const location = PAIN_LOCATIONS.find(l => l.value === change.location);
-                  const sideLabel = location?.side === 'left' ? 'Left' : 'Right';
-                  const locationLabel = location ? `${sideLabel} ${location.label}` : change.location;
-
-                  if (isInitial || change.changeType === 'unchanged') {
-                    return (
-                      <View key={`${event.id}-${idx}`} style={styles.chip}>
-                        <Text style={styles.chipText}>
-                          {locationLabel}
-                        </Text>
-                      </View>
-                    );
-                  }
-
-                  const isAdded = change.changeType === 'added';
-                  const chipStyle = isAdded ? styles.symptomAddedChip : styles.symptomRemovedChip;
-                  const textStyle = isAdded ? styles.symptomAddedText : styles.symptomRemovedText;
-                  const indicator = isAdded ? '+ ' : '− ';
-
+                if (isInitial || change.changeType === 'unchanged') {
                   return (
-                    <View key={`${event.id}-${idx}`} style={[styles.chip, chipStyle]}>
-                      <Text style={[styles.chipText, textStyle]}>
-                        {indicator}{locationLabel}
-                      </Text>
+                    <View key={`${event.id}-${idx}`} style={styles.chip}>
+                      <Text style={styles.chipText}>{locationLabel}</Text>
                     </View>
                   );
-                });
-              })}
-            </View>
+                }
+
+                const isAdded = change.changeType === 'added';
+                const chipStyle = isAdded ? styles.symptomAddedChip : styles.symptomRemovedChip;
+                const textStyle = isAdded ? styles.symptomAddedText : styles.symptomRemovedText;
+                const indicator = isAdded ? '+ ' : '− ';
+
+                return (
+                  <View key={`${event.id}-${idx}`} style={[styles.chip, chipStyle]}>
+                    <Text style={[styles.chipText, textStyle]}>
+                      {indicator}{locationLabel}
+                    </Text>
+                  </View>
+                );
+              });
+
+              if (!isInitial && log) {
+                return (
+                  <TouchableOpacity
+                    key={event.id}
+                    style={styles.chipGroup}
+                    activeOpacity={0.7}
+                    delayLongPress={500}
+                    onLongPress={() => onPainLocationLongPress(log)}
+                  >
+                    <View style={styles.chipContainer}>{chips}</View>
+                  </TouchableOpacity>
+                );
+              }
+
+              return (
+                <View key={event.id} style={styles.chipGroup}>
+                  <View style={styles.chipContainer}>{chips}</View>
+                </View>
+              );
+            })}
           </View>
         )}
       </View>
@@ -372,11 +420,13 @@ const createStyles = (theme: ThemeColors) =>
       fontWeight: '600',
       color: theme.text,
     },
+    chipGroup: {
+      marginTop: 4,
+    },
     chipContainer: {
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: 6,
-      marginTop: 4,
     },
     chip: {
       backgroundColor: theme.borderLight,

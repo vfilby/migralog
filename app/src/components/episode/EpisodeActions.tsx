@@ -52,10 +52,6 @@ export const EpisodeActions: React.FC<EpisodeActionsProps> = ({
 const createStyles = (theme: ThemeColors) =>
   StyleSheet.create({
     footer: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
       backgroundColor: theme.card,
       paddingHorizontal: 16,
       paddingTop: 16,

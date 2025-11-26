@@ -34,17 +34,29 @@ type SymptomChange = {
   changeType: 'added' | 'removed';
 };
 
+type SymptomEventData = {
+  log?: SymptomLog;
+  changes: SymptomChange[];
+};
+
 type PainLocationChange = {
   location: PainLocation;
   changeType: 'added' | 'removed' | 'unchanged';
+};
+
+type PainLocationEventData = {
+  log?: PainLocationLog;
+  changes: PainLocationChange[];
 };
 
 type TimelineEvent = {
   id: string;
   timestamp: number;
   type: 'intensity' | 'note' | 'medication' | 'symptom' | 'symptom_initial' | 'pain_location' | 'pain_location_initial' | 'end';
-  data: IntensityReading | EpisodeNote | MedicationDoseWithDetails | SymptomLog | SymptomChange[] | PainLocationLog | PainLocationChange[] | null;
+  data: IntensityReading | EpisodeNote | MedicationDoseWithDetails | SymptomEventData | PainLocationEventData | null;
 };
+
+
 
 
 
@@ -228,25 +240,44 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   };
 
   const handleIntensityLongPress = (reading: IntensityReading) => {
+    const confirmDelete = () => {
+      Alert.alert(
+        'Delete Intensity Reading',
+        `Delete this intensity reading of ${reading.intensity}?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await intensityRepository.delete(reading.id);
+                await loadEpisodeData();
+              } catch (error) {
+                logger.error('Failed to delete intensity reading:', error);
+                Alert.alert('Error', 'Failed to delete intensity reading');
+              }
+            },
+          },
+        ]
+      );
+    };
+
     Alert.alert(
-      'Delete Intensity Reading',
-      `Delete this intensity reading of ${reading.intensity}?`,
+      'Intensity Options',
+      format(new Date(reading.timestamp), 'MMM d, yyyy h:mm a'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Edit',
+          onPress: () => navigation.navigate('EditIntensityReading', { readingId: reading.id }),
+        },
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: async () => {
-            try {
-              await intensityRepository.delete(reading.id);
-              await loadEpisodeData();
-            } catch (error) {
-              logger.error('Failed to delete intensity reading:', error);
-              Alert.alert('Error', 'Failed to delete intensity reading');
-            }
-          },
+          onPress: confirmDelete,
         },
-      ]
+      ],
+      { cancelable: true }
     );
   };
 
@@ -296,7 +327,89 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     );
   };
 
+  const handleSymptomLongPress = (log: SymptomLog) => {
+    const confirmDelete = () => {
+      Alert.alert(
+        'Delete Symptom Change',
+        'Are you sure you want to delete this symptom change?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await symptomLogRepository.delete(log.id);
+                await loadEpisodeData();
+              } catch (error) {
+                logger.error('Failed to delete symptom change:', error);
+                Alert.alert('Error', 'Failed to delete symptom change');
+              }
+            },
+          },
+        ]
+      );
+    };
 
+    Alert.alert(
+      'Symptom Options',
+      format(new Date(log.onsetTime), 'MMM d, yyyy h:mm a'),
+      [
+        {
+          text: 'Edit',
+          onPress: () => navigation.navigate('EditSymptomLog', { symptomLogId: log.id }),
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: confirmDelete,
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const handlePainLocationLongPress = (log: PainLocationLog) => {
+    const confirmDelete = () => {
+      Alert.alert(
+        'Delete Pain Location Update',
+        'Are you sure you want to delete this pain location update?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await painLocationLogRepository.delete(log.id);
+                await loadEpisodeData();
+              } catch (error) {
+                logger.error('Failed to delete pain location update:', error);
+                Alert.alert('Error', 'Failed to delete pain location update');
+              }
+            },
+          },
+        ]
+      );
+    };
+
+    Alert.alert(
+      'Pain Location Options',
+      format(new Date(log.timestamp), 'MMM d, yyyy h:mm a'),
+      [
+        {
+          text: 'Edit',
+          onPress: () => navigation.navigate('EditPainLocationLog', { painLocationLogId: log.id }),
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: confirmDelete,
+        },
+      ],
+      { cancelable: true }
+    );
+  };
 
   const handleOpenMap = () => {
     setShowMapModal(true);
@@ -317,7 +430,9 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
         id: 'symptoms-initial',
         timestamp: episode.startTime,
         type: 'symptom_initial',
-        data: initialSymptomChanges,
+        data: {
+          changes: initialSymptomChanges,
+        },
       });
     }
 
@@ -382,7 +497,10 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
         id: `symptom-${symptomLog.id}`,
         timestamp: symptomLog.onsetTime,
         type: 'symptom',
-        data: symptomChanges,
+        data: {
+          log: symptomLog,
+          changes: symptomChanges,
+        },
       });
     });
 
@@ -397,7 +515,9 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
         id: 'pain-locations-initial',
         timestamp: episode.startTime,
         type: 'pain_location_initial',
-        data: initialPainLocationChanges,
+        data: {
+          changes: initialPainLocationChanges,
+        },
       });
     }
 
@@ -448,7 +568,10 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
           id: `pain-location-${painLoc.id}`,
           timestamp: painLoc.timestamp,
           type: 'pain_location',
-          data: locationChanges,
+          data: {
+            log: painLoc,
+            changes: locationChanges,
+          },
         });
       }
 
@@ -646,6 +769,8 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
           onIntensityLongPress={handleIntensityLongPress}
           onNoteLongPress={handleNoteLongPress}
           onMedicationLongPress={handleMedicationLongPress}
+          onSymptomLongPress={handleSymptomLongPress}
+          onPainLocationLongPress={handlePainLocationLongPress}
           onEpisodeEndLongPress={handleEpisodeEndLongPress}
         />
 

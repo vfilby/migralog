@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Episode, IntensityReading, EpisodeNote, MedicationDose, Medication } from '../../models/types';
+import { Episode, IntensityReading, EpisodeNote, MedicationDose, Medication, SymptomLog, PainLocationLog, PainLocation } from '../../models/types';
 import { useTheme, ThemeColors } from '../../theme';
 import IntensitySparkline from '../IntensitySparkline';
 import { TimelineEventRenderer } from './TimelineEventRenderer';
@@ -15,16 +15,26 @@ type SymptomChange = {
   changeType: 'added' | 'removed';
 };
 
+type SymptomEventData = {
+  log?: SymptomLog;
+  changes: SymptomChange[];
+};
+
 type PainLocationChange = {
-  location: string;
+  location: PainLocation;
   changeType: 'added' | 'removed' | 'unchanged';
+};
+
+type PainLocationEventData = {
+  log?: PainLocationLog;
+  changes: PainLocationChange[];
 };
 
 interface TimelineEvent {
   id: string;
   type: 'intensity' | 'note' | 'symptom' | 'symptom_initial' | 'pain_location' | 'pain_location_initial' | 'medication' | 'end';
   timestamp: number;
-  data: IntensityReading | EpisodeNote | MedicationDoseWithDetails | SymptomChange[] | PainLocationChange[] | null;
+  data: IntensityReading | EpisodeNote | MedicationDoseWithDetails | SymptomEventData | PainLocationEventData | null;
 }
 
 interface GroupedTimelineEvent {
@@ -46,6 +56,8 @@ interface EpisodeTimelineProps {
   onIntensityLongPress: (reading: IntensityReading) => void;
   onNoteLongPress: (note: EpisodeNote) => void;
   onMedicationLongPress: (dose: MedicationDoseWithDetails) => void;
+  onSymptomLongPress: (log: SymptomLog) => void;
+  onPainLocationLongPress: (log: PainLocationLog) => void;
   onEpisodeEndLongPress: () => void;
 }
 
@@ -57,6 +69,8 @@ export const EpisodeTimeline: React.FC<EpisodeTimelineProps> = ({
   onIntensityLongPress,
   onNoteLongPress,
   onMedicationLongPress,
+  onSymptomLongPress,
+  onPainLocationLongPress,
   onEpisodeEndLongPress,
 }) => {
   const { theme } = useTheme();
@@ -162,6 +176,8 @@ export const EpisodeTimeline: React.FC<EpisodeTimelineProps> = ({
                   onIntensityLongPress={onIntensityLongPress}
                   onNoteLongPress={onNoteLongPress}
                   onMedicationLongPress={onMedicationLongPress}
+                  onSymptomLongPress={onSymptomLongPress}
+                  onPainLocationLongPress={onPainLocationLongPress}
                   onEpisodeEndLongPress={onEpisodeEndLongPress}
                 />
               ))}
