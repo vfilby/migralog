@@ -361,15 +361,12 @@ export default function SettingsScreen({ navigation }: Props) {
 
   const handleTestNotification = async (timeSensitive: boolean) => {
     try {
+      // Check if notifications are enabled
       const permissions = await notificationService.getPermissions();
-
       if (!permissions.granted) {
-        Alert.alert('Permission Required', 'Please enable notifications first');
+        Alert.alert('Notifications Disabled', 'Please enable notifications in Settings.');
         return;
       }
-
-      // Ensure notification service is initialized
-      await notificationService.initialize();
 
       // Schedule a test notification for 5 seconds from now
       const testTime = new Date(Date.now() + 5000);
@@ -382,22 +379,65 @@ export default function SettingsScreen({ navigation }: Props) {
           ...(Notifications.AndroidNotificationPriority && {
             priority: Notifications.AndroidNotificationPriority.HIGH,
           }),
+          // Only set time-sensitive interruption level if enabled
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ...(timeSensitive && { interruptionLevel: 'timeSensitive' } as any),
         },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DATE,
-          date: testTime,
-        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        trigger: testTime as any,
       });
 
       Alert.alert(
         'Test Scheduled',
-        `A ${timeSensitive ? 'time-sensitive' : 'regular'} notification will appear in ~5 seconds. ${timeSensitive ? 'It should break through Focus mode.' : 'It should respect Focus mode.'}`
+        `A${timeSensitive ? ' time-sensitive' : ' regular'} notification will appear in 5 seconds.${
+          timeSensitive
+            ? ' Time-sensitive notifications break through Focus modes on iOS.'
+            : ''
+        }`
       );
     } catch (error) {
+      Alert.alert('Error', 'Failed to schedule test notification');
       logger.error('Failed to schedule test notification:', error);
-      Alert.alert('Error', `Failed to schedule test: ${(error as Error).message}`);
+    }
+  };
+
+  const handleTestCriticalNotification = async () => {
+    try {
+      // Check if notifications are enabled
+      const permissions = await notificationService.getPermissions();
+      if (!permissions.granted) {
+        Alert.alert('Notifications Disabled', 'Please enable notifications in Settings.');
+        return;
+      }
+
+      // Schedule a test critical notification for 5 seconds from now
+      const testTime = new Date(Date.now() + 5000);
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Test Critical Notification',
+          body: 'This notification shows as time-sensitive with critical priority. On iOS with entitlement, it can break through silent mode.',
+          sound: true,
+          // Critical alert properties (requires entitlement on iOS)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...({ critical: true } as any),
+          ...(Notifications.AndroidNotificationPriority && {
+            priority: Notifications.AndroidNotificationPriority.MAX,
+          }),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...({ interruptionLevel: 'critical' } as any),
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        trigger: testTime as any,
+      });
+
+      Alert.alert(
+        'Critical Test Scheduled',
+        'A critical notification will appear in 5 seconds.\n\nThis notification shows as time-sensitive on the build. Critical alerts that break through silent mode require Apple entitlement.'
+      );
+    } catch (error) {
+      Alert.alert('Error', 'Failed to schedule test notification');
+      logger.error('Failed to schedule test critical notification:', error);
     }
   };
 
@@ -755,6 +795,17 @@ export default function SettingsScreen({ navigation }: Props) {
                 >
                   <Ionicons name="flash-outline" size={24} color={theme.primary} />
                   <Text style={styles.developerButtonText}>Test Time-Sensitive (5s)</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.developerButton}
+                  onPress={handleTestCriticalNotification}
+                  accessibilityRole="button"
+                  accessibilityLabel="Test critical notification"
+                  accessibilityHint="Schedules a critical priority test notification in 5 seconds"
+                >
+                  <Ionicons name="notifications-outline" size={24} color={theme.primary} />
+                  <Text style={styles.developerButtonText}>Test Critical (5s)</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
