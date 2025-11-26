@@ -998,8 +998,8 @@ describe('notificationService', () => {
 
       const notificationIds = await notificationService.scheduleGroupedNotifications(items);
 
-      // Should create one grouped notification
-      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+      // Should create one grouped notification + one follow-up
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(2);
       expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(
         expect.objectContaining({
           content: expect.objectContaining({
@@ -1023,7 +1023,9 @@ describe('notificationService', () => {
     it('should create separate notifications for different times', async () => {
       (Notifications.scheduleNotificationAsync as jest.Mock)
         .mockResolvedValueOnce('notif-1')
-        .mockResolvedValueOnce('notif-2');
+        .mockResolvedValueOnce('follow-1')
+        .mockResolvedValueOnce('notif-2')
+        .mockResolvedValueOnce('follow-2');
 
       const items = [
         { medication: mockMedication1, schedule: mockSchedule1 },
@@ -1032,8 +1034,8 @@ describe('notificationService', () => {
 
       const notificationIds = await notificationService.scheduleGroupedNotifications(items);
 
-      // Should create two separate notifications
-      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(2);
+      // Should create two separate notifications + two follow-ups
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(4);
       expect(notificationIds.size).toBe(2);
       expect(notificationIds.get('sched-1')).toBe('notif-1');
       expect(notificationIds.get('sched-3')).toBe('notif-2');
@@ -1064,8 +1066,8 @@ describe('notificationService', () => {
 
       const notificationIds = await notificationService.scheduleGroupedNotifications(items);
 
-      // Should create one grouped notification
-      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+      // Should create one grouped notification + one follow-up
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(2);
       expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(
         expect.objectContaining({
           content: expect.objectContaining({
@@ -2434,8 +2436,8 @@ describe('notificationService', () => {
 
       await notificationService.rescheduleAllMedicationNotifications();
 
-      // Should create one grouped notification
-      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+      // Should create one grouped notification + one follow-up
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(2);
       expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(
         expect.objectContaining({
           content: expect.objectContaining({
