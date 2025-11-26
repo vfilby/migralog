@@ -738,6 +738,7 @@ class NotificationService {
 
       logger.log('[Notification] Scheduling single medication for', hours, ':', minutes, {
         timeSensitive: effectiveSettings.timeSensitiveEnabled,
+        followUpDelay: effectiveSettings.followUpDelay,
       });
 
       const notificationId = await Notifications.scheduleNotificationAsync({
@@ -766,6 +767,17 @@ class NotificationService {
       });
 
       logger.log('[Notification] Scheduled for', medication.name, 'at', schedule.time);
+
+      // Schedule follow-up reminder if enabled
+      if (effectiveSettings.followUpDelay !== 'off') {
+        await this.scheduleFollowUpForScheduledNotification(
+          medication,
+          schedule,
+          effectiveSettings.followUpDelay,
+          effectiveSettings.criticalAlertsEnabled
+        );
+      }
+
       return notificationId;
     } catch (error) {
       logger.error('[Notification] Error scheduling single notification:', error);
@@ -828,6 +840,30 @@ class NotificationService {
       });
 
       logger.log('[Notification] Scheduled combined notification for', medicationCount, 'medications at', time);
+
+      // Schedule follow-up reminder if enabled for any medication in the group
+      // Use the most conservative setting (longest delay, enable critical if any has it)
+      const delays = items.map(({ medication }) => {
+        const settings = settingsStore.getEffectiveSettings(medication.id);
+        return settings.followUpDelay;
+      }).filter(d => d !== 'off') as number[];
+
+      const anyCritical = items.some(({ medication }) => {
+        const settings = settingsStore.getEffectiveSettings(medication.id);
+        return settings.criticalAlertsEnabled;
+      });
+
+      if (delays.length > 0) {
+        // Use the maximum delay from all medications in the group
+        const maxDelay = Math.max(...delays);
+        await this.scheduleFollowUpForScheduledMultipleNotification(
+          items,
+          time,
+          maxDelay,
+          anyCritical
+        );
+      }
+
       return notificationId;
     } catch (error) {
       logger.error('[Notification] Error scheduling combined notification:', error);
@@ -836,11 +872,14 @@ class NotificationService {
   }
 
   /**
-   * Schedule a follow-up reminder 30 minutes after the initial notification
-   * Uses critical alert to ensure it plays even when phone is silenced
-   *
+   * Schedule a follow-up reminder after the initial notification (immediate, not recurring)
+   * This is used when a notification is received while the app is in the foreground
+   * 
    * Note: Critical alerts require special entitlement from Apple
    * Request at: https://developer.apple.com/contact/request/notifications-critical-alerts-entitlement/
+   * 
+   * @deprecated This method is only used for foreground notifications. Scheduled notifications
+   * should use scheduleFollowUpForScheduledNotification instead.
    */
   private async scheduleFollowUpReminder(
     medicationId: string | string[],
@@ -849,10 +888,44 @@ class NotificationService {
     time?: string
   ): Promise<void> {
     try {
-      // Schedule follow-up notification 30 minutes from now
-      const followUpTime = new Date(Date.now() + 30 * 60 * 1000);
-
       const isSingle = typeof medicationId === 'string';
+      
+      // Get settings to determine delay and critical alert preference
+      const settingsStore = useNotificationSettingsStore.getState();
+      let delayMinutes: number;
+      let useCriticalAlerts: boolean;
+
+      if (isSingle) {
+        const settings = settingsStore.getEffectiveSettings(medicationId as string);
+        if (settings.followUpDelay === 'off') {
+          logger.log('[Notification] Follow-up disabled for medication, skipping');
+          return;
+        }
+        delayMinutes = settings.followUpDelay;
+        useCriticalAlerts = settings.criticalAlertsEnabled;
+      } else {
+        // For multiple medications, use maximum delay and enable critical if any has it
+        const medicationIds = medicationId as string[];
+        const delays = medicationIds.map(id => {
+          const settings = settingsStore.getEffectiveSettings(id);
+          return settings.followUpDelay;
+        }).filter(d => d !== 'off') as number[];
+
+        if (delays.length === 0) {
+          logger.log('[Notification] Follow-up disabled for all medications, skipping');
+          return;
+        }
+
+        delayMinutes = Math.max(...delays);
+        useCriticalAlerts = medicationIds.some(id => {
+          const settings = settingsStore.getEffectiveSettings(id);
+          return settings.criticalAlertsEnabled;
+        });
+      }
+
+      // Schedule follow-up notification
+      const followUpTime = new Date(Date.now() + delayMinutes * 60 * 1000);
+
       const key = isSingle
         ? `${medicationId}:${scheduleId}`
         : `multi:${time}`;
@@ -860,6 +933,12 @@ class NotificationService {
       const title = isSingle
         ? `Reminder: ${medicationName}`
         : `Reminder: ${medicationName} (${Array.isArray(medicationId) ? medicationId.length : 1} medications)`;
+
+      logger.log('[Notification] Scheduling immediate follow-up for', medicationName, {
+        delayMinutes,
+        useCriticalAlerts,
+        at: followUpTime.toLocaleTimeString(),
+      });
 
       const notificationId = await Notifications.scheduleNotificationAsync({
         content: {
@@ -872,15 +951,17 @@ class NotificationService {
             ? MEDICATION_REMINDER_CATEGORY
             : MULTIPLE_MEDICATION_REMINDER_CATEGORY,
           sound: true,
-          // Critical alert properties (requires entitlement)
+          // Critical alert properties (only if enabled and entitlement is granted)
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ...({ critical: true } as any), // iOS: plays even when phone is silenced
+          ...(useCriticalAlerts && { critical: true } as any),
           // Time-sensitive notification settings
           ...(Notifications.AndroidNotificationPriority && {
-            priority: Notifications.AndroidNotificationPriority.MAX,
+            priority: useCriticalAlerts 
+              ? Notifications.AndroidNotificationPriority.MAX
+              : Notifications.AndroidNotificationPriority.HIGH,
           }),
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ...({ interruptionLevel: 'critical' } as any), // iOS: critical interruption level
+          ...(useCriticalAlerts && { interruptionLevel: 'critical' } as any),
         },
         // Date trigger type is not exported by expo-notifications
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -890,9 +971,149 @@ class NotificationService {
       // Store the follow-up notification ID for later cancellation
       this.followUpNotifications.set(key, notificationId);
 
-      logger.log('[Notification] Scheduled follow-up reminder for', medicationName, 'at', followUpTime.toLocaleTimeString());
+      logger.log('[Notification] Scheduled immediate follow-up reminder for', medicationName, 'at', followUpTime.toLocaleTimeString());
     } catch (error) {
-      logger.error('[Notification] Error scheduling follow-up reminder:', error);
+      logger.error('[Notification] Error scheduling immediate follow-up reminder:', error);
+    }
+  }
+
+  /**
+   * Schedule a follow-up reminder for a scheduled notification (daily trigger)
+   * This schedules follow-up reminders that fire every day after the main notification
+   */
+  private async scheduleFollowUpForScheduledNotification(
+    medication: Medication,
+    schedule: MedicationSchedule,
+    delayMinutes: number,
+    useCriticalAlerts: boolean
+  ): Promise<void> {
+    try {
+      // Parse the scheduled time
+      const [hours, minutes] = schedule.time.split(':').map(Number);
+      
+      // Calculate follow-up time (add delay to scheduled time)
+      const followUpDate = new Date();
+      followUpDate.setHours(hours, minutes + delayMinutes, 0, 0);
+      
+      // If follow-up crosses midnight, adjust accordingly
+      let followUpHour = followUpDate.getHours();
+      let followUpMinute = followUpDate.getMinutes();
+
+      const key = `${medication.id}:${schedule.id}:followup`;
+
+      logger.log('[Notification] Scheduling daily follow-up for', medication.name, 'at', `${followUpHour}:${followUpMinute}`, {
+        delayMinutes,
+        useCriticalAlerts,
+      });
+
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `Reminder: ${medication.name}`,
+          body: 'Did you take your medication?',
+          data: {
+            medicationId: medication.id,
+            scheduleId: schedule.id,
+            isFollowUp: true,
+          },
+          categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
+          sound: true,
+          // Critical alert properties (only if enabled and entitlement is granted)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...(useCriticalAlerts && { critical: true } as any),
+          // Time-sensitive notification settings
+          ...(Notifications.AndroidNotificationPriority && {
+            priority: useCriticalAlerts 
+              ? Notifications.AndroidNotificationPriority.MAX
+              : Notifications.AndroidNotificationPriority.HIGH,
+          }),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...(useCriticalAlerts && { interruptionLevel: 'critical' } as any),
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour: followUpHour,
+          minute: followUpMinute,
+        },
+      });
+
+      // Store the follow-up notification ID for later cancellation
+      this.followUpNotifications.set(key, notificationId);
+
+      logger.log('[Notification] Scheduled daily follow-up reminder for', medication.name, 'at', `${followUpHour}:${followUpMinute}`);
+    } catch (error) {
+      logger.error('[Notification] Error scheduling daily follow-up reminder:', error);
+    }
+  }
+
+  /**
+   * Schedule a follow-up reminder for a scheduled multiple medication notification
+   */
+  private async scheduleFollowUpForScheduledMultipleNotification(
+    items: Array<{ medication: Medication; schedule: MedicationSchedule }>,
+    time: string,
+    delayMinutes: number,
+    useCriticalAlerts: boolean
+  ): Promise<void> {
+    try {
+      // Parse the scheduled time
+      const [hours, minutes] = time.split(':').map(Number);
+      
+      // Calculate follow-up time
+      const followUpDate = new Date();
+      followUpDate.setHours(hours, minutes + delayMinutes, 0, 0);
+      
+      const followUpHour = followUpDate.getHours();
+      const followUpMinute = followUpDate.getMinutes();
+
+      const medicationCount = items.length;
+      const medicationNames = items.map(({ medication }) => medication.name).join(', ');
+      const medicationIds = items.map(({ medication }) => medication.id);
+      const scheduleIds = items.map(({ schedule }) => schedule.id);
+
+      const key = `multi:${time}:followup`;
+
+      logger.log('[Notification] Scheduling daily follow-up for', medicationCount, 'medications at', `${followUpHour}:${followUpMinute}`, {
+        delayMinutes,
+        useCriticalAlerts,
+      });
+
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `Reminder: ${medicationCount} Medications`,
+          body: `Did you take: ${medicationNames}?`,
+          data: {
+            medicationIds,
+            scheduleIds,
+            time,
+            isFollowUp: true,
+          },
+          categoryIdentifier: MULTIPLE_MEDICATION_REMINDER_CATEGORY,
+          sound: true,
+          // Critical alert properties (only if enabled and entitlement is granted)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...(useCriticalAlerts && { critical: true } as any),
+          // Time-sensitive notification settings
+          ...(Notifications.AndroidNotificationPriority && {
+            priority: useCriticalAlerts 
+              ? Notifications.AndroidNotificationPriority.MAX
+              : Notifications.AndroidNotificationPriority.HIGH,
+          }),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...(useCriticalAlerts && { interruptionLevel: 'critical' } as any),
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour: followUpHour,
+          minute: followUpMinute,
+        },
+      });
+
+      // Store the follow-up notification ID for later cancellation
+      this.followUpNotifications.set(key, notificationId);
+
+      logger.log('[Notification] Scheduled daily follow-up reminder for', medicationCount, 'medications at', `${followUpHour}:${followUpMinute}`);
+    } catch (error) {
+      logger.error('[Notification] Error scheduling daily follow-up reminder for multiple medications:', error);
     }
   }
 
