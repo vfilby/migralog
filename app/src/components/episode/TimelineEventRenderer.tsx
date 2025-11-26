@@ -5,11 +5,9 @@ import {
   Episode,
   IntensityReading,
   EpisodeNote,
-  MedicationDose,
-  Medication,
-  PainLocation,
   SymptomLog,
   PainLocationLog,
+  PainLocation,
 } from '../../models/types';
 import { useTheme, ThemeColors } from '../../theme';
 import { getPainColor, getPainLevel } from '../../utils/painScale';
@@ -17,7 +15,9 @@ import { formatMedicationDoseDisplay } from '../../utils/medicationFormatting';
 import { useMedicationStatusStyles } from '../../utils/medicationStyling';
 import { 
   MedicationDoseWithDetails, 
+  SymptomChange,
   SymptomEventData, 
+  PainLocationChange,
   PainLocationEventData, 
   TimelineEvent, 
   GroupedTimelineEvent,
@@ -194,16 +194,16 @@ export const TimelineEventRenderer: React.FC<TimelineEventRendererProps> = ({
             <Text style={styles.timelineEventTitle}>
               {symptomEvents[0].type === 'symptom_initial' ? 'Initial Symptoms' : 'Symptom Changes'}
             </Text>
-            {symptomEvents.map(event => {
+{symptomEvents.map(event => {
               const eventData = event.data as SymptomEventData;
               const isInitial = event.type === 'symptom_initial';
               const log = eventData.log;
-              const chips = eventData.changes.map((change, idx) => {
+              const chips = eventData.changes.map((change: SymptomChange, idx: number) => {
                 const isAdded = change.changeType === 'added';
                 const chipStyle = isAdded ? styles.symptomAddedChip : styles.symptomRemovedChip;
                 const textStyle = isAdded ? styles.symptomAddedText : styles.symptomRemovedText;
                 const indicator = isAdded ? '+ ' : '− ';
-                const label = change.symptom.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                const label = change.symptom.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
 
                 if (isInitial) {
                   return (
@@ -251,12 +251,12 @@ export const TimelineEventRenderer: React.FC<TimelineEventRendererProps> = ({
             <Text style={styles.timelineEventTitle}>
               {painLocationEvents[0].type === 'pain_location_initial' ? 'Initial Pain Locations' : 'Pain Location Changes'}
             </Text>
-            {painLocationEvents.map(event => {
+{painLocationEvents.map(event => {
               const eventData = event.data as PainLocationEventData;
               const isInitial = event.type === 'pain_location_initial';
               const log = eventData.log;
-              const chips = eventData.changes.map((change, idx) => {
-                const location = PAIN_LOCATIONS.find(l => l.value === change.location);
+              const chips = eventData.changes.map((change: PainLocationChange, idx: number) => {
+                const location = PAIN_LOCATIONS.find((l: { value: PainLocation; }) => l.value === change.location);
                 const sideLabel = location?.side === 'left' ? 'Left' : 'Right';
                 const locationLabel = location ? `${sideLabel} ${location.label}` : change.location;
 

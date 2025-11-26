@@ -8,7 +8,7 @@ import { RootStackParamList } from '../navigation/types';
 import { useEpisodeStore } from '../store/episodeStore';
 import { episodeRepository, intensityRepository, symptomLogRepository, episodeNoteRepository, painLocationLogRepository } from '../database/episodeRepository';
 import { medicationDoseRepository, medicationRepository } from '../database/medicationRepository';
-import { Episode, IntensityReading, SymptomLog, MedicationDose, Medication, EpisodeNote, PainLocationLog, PainLocation } from '../models/types';
+import { Episode, IntensityReading, SymptomLog, EpisodeNote, PainLocationLog } from '../models/types';
 import { format, differenceInMinutes } from 'date-fns';
 import { locationService } from '../services/locationService';
 import { useTheme, ThemeColors } from '../theme';
@@ -24,8 +24,6 @@ import {
 } from '../components/episode';
 import { 
   MedicationDoseWithDetails, 
-  SymptomEventData, 
-  PainLocationEventData, 
   TimelineEvent,
   SymptomChange,
   PainLocationChange
