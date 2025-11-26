@@ -32,6 +32,10 @@ export async function handleDailyCheckinNotification(
     const dailyStatusStore = useDailyStatusStore.getState();
     const episodeStore = useEpisodeStore.getState();
 
+    // Load current episode if not already loaded
+    // This will use cache if available (5 second TTL) or query database
+    await episodeStore.loadCurrentEpisode();
+
     // Don't show if user is currently in an active episode
     if (episodeStore.currentEpisode) {
       logger.log('[DailyCheckin] User has active episode, suppressing notification');

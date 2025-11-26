@@ -92,8 +92,11 @@ describe('dailyCheckinService', () => {
     });
 
     it('should suppress notification when user has active episode', async () => {
+      const mockLoadCurrentEpisode = jest.fn().mockResolvedValue(undefined);
+      
       (useEpisodeStore.getState as jest.Mock).mockReturnValue({
-        currentEpisode: { id: 'test-episode' },
+        currentEpisode: { id: 'test-episode', startTime: Date.now(), endTime: undefined },
+        loadCurrentEpisode: mockLoadCurrentEpisode,
       });
 
       (useDailyStatusStore.getState as jest.Mock).mockReturnValue({
@@ -110,6 +113,7 @@ describe('dailyCheckinService', () => {
 
       const result = await handleDailyCheckinNotification(notification);
 
+      expect(mockLoadCurrentEpisode).toHaveBeenCalled();
       expect(result).toEqual({
         shouldPlaySound: false,
         shouldSetBadge: false,
@@ -119,8 +123,11 @@ describe('dailyCheckinService', () => {
     });
 
     it('should suppress notification when day already has status', async () => {
+      const mockLoadCurrentEpisode = jest.fn().mockResolvedValue(undefined);
+      
       (useEpisodeStore.getState as jest.Mock).mockReturnValue({
         currentEpisode: null,
+        loadCurrentEpisode: mockLoadCurrentEpisode,
       });
 
       (useDailyStatusStore.getState as jest.Mock).mockReturnValue({
@@ -137,6 +144,7 @@ describe('dailyCheckinService', () => {
 
       const result = await handleDailyCheckinNotification(notification);
 
+      expect(mockLoadCurrentEpisode).toHaveBeenCalled();
       expect(result).toEqual({
         shouldPlaySound: false,
         shouldSetBadge: false,
@@ -146,8 +154,11 @@ describe('dailyCheckinService', () => {
     });
 
     it('should show notification when no episode and no status logged', async () => {
+      const mockLoadCurrentEpisode = jest.fn().mockResolvedValue(undefined);
+      
       (useEpisodeStore.getState as jest.Mock).mockReturnValue({
         currentEpisode: null,
+        loadCurrentEpisode: mockLoadCurrentEpisode,
       });
 
       (useDailyStatusStore.getState as jest.Mock).mockReturnValue({
@@ -164,6 +175,7 @@ describe('dailyCheckinService', () => {
 
       const result = await handleDailyCheckinNotification(notification);
 
+      expect(mockLoadCurrentEpisode).toHaveBeenCalled();
       expect(result).toEqual({
         shouldPlaySound: true,
         shouldSetBadge: true,
