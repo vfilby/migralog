@@ -174,6 +174,11 @@ global.console = {
   warn: jest.fn(),
 };
 
+// Mock window.dispatchEvent for React Test Renderer
+if (typeof window !== 'undefined' && !window.dispatchEvent) {
+  window.dispatchEvent = jest.fn();
+}
+
 // Mock Sentry to prevent calls during tests
 jest.mock('@sentry/react-native', () => ({
   init: jest.fn(),

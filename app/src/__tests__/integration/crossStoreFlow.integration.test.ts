@@ -21,6 +21,10 @@ describe('Integration: Cross-Store Workflows', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
+    // Clear cache to prevent data bleed between tests
+    const { cacheManager } = require('../../utils/cacheManager');
+    cacheManager.clear();
+    
     // Reset both stores
     useMedicationStore.setState({
       medications: [],
@@ -41,9 +45,7 @@ describe('Integration: Cross-Store Workflows', () => {
     });
   });
 
-  // Skipped: Dose-episode linking tested extensively in E2E tests
-  // Mock complexity for findEpisodeByTimestamp doesn't justify value
-  it.skip('should link medication doses to episodes', async () => {
+  it('should link medication doses to episodes', async () => {
     const medStore = useMedicationStore.getState();
     const epStore = useEpisodeStore.getState();
 
@@ -70,55 +72,32 @@ describe('Integration: Cross-Store Workflows', () => {
       updatedAt: Date.now() - 3600000,
     };
 
+    const timestamp = Date.now();
     const mockDose: MedicationDose = {
       id: 'dose-1',
       medicationId: 'med-1',
       episodeId: 'episode-1',
-      timestamp: Date.now(),
+      timestamp,
       quantity: 1,
       dosageAmount: 100,
       dosageUnit: 'mg',
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      status: 'taken',
+      createdAt: timestamp,
+      updatedAt: timestamp,
     };
 
     // Setup mocks
     (medicationRepository.create as jest.Mock).mockResolvedValue(mockMedication);
-    (medicationRepository.getAll as jest.Mock).mockImplementation(
-      async (_db?: any) => [mockMedication]
-    );
+    (medicationRepository.getActive as jest.Mock).mockResolvedValue([mockMedication]);
     (medicationDoseRepository.getMedicationUsageCounts as jest.Mock).mockResolvedValue(new Map());
-    (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([]);
     
     (episodeRepository.create as jest.Mock).mockResolvedValue(mockEpisode);
-    (episodeRepository.getCurrentEpisode as jest.Mock).mockImplementation(
-      async (_db?: any) => mockEpisode
-    );
-    (episodeRepository.findEpisodeByTimestamp as jest.Mock).mockImplementation(
-      async (_timestamp: number, _db?: any) => mockEpisode
-    );
-    (medicationDoseRepository.create as jest.Mock).mockResolvedValue(mockDose);
-    (medicationDoseRepository.getAll as jest.Mock).mockImplementation(
-      async (_limit?: number, _db?: any) => [mockDose]
-    );
-    (medicationDoseRepository.getByMedicationId as jest.Mock).mockImplementation(
-      async (medicationId: string, _limit?: number, _db?: any) => 
-        medicationId === 'med-1' ? [mockDose] : []
-    );
-    (medicationDoseRepository.getMedicationUsageCounts as jest.Mock).mockResolvedValue(new Map());
-    (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([]);
+    (episodeRepository.getCurrentEpisode as jest.Mock).mockResolvedValue(mockEpisode);
+    (episodeRepository.findEpisodeByTimestamp as jest.Mock).mockResolvedValue(mockEpisode);
     
-    (episodeRepository.create as jest.Mock).mockResolvedValue(mockEpisode);
-    (episodeRepository.getCurrentEpisode as jest.Mock).mockImplementation(
-      async (_db?: any) => mockEpisode
-    );
-    (episodeRepository.findEpisodeByTimestamp as jest.Mock).mockImplementation(
-      async (_timestamp: number, _db?: any) => mockEpisode
-    );
     (medicationDoseRepository.create as jest.Mock).mockResolvedValue(mockDose);
-    (medicationDoseRepository.getAll as jest.Mock).mockImplementation(
-      async (_limit?: number, _db?: any) => [mockDose]
-    );
+    (medicationDoseRepository.getAll as jest.Mock).mockResolvedValue([mockDose]);
+    (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([mockDose]);
 
     // Workflow: Start episode -> Add medication -> Log dose linked to episode
 
@@ -144,8 +123,7 @@ describe('Integration: Cross-Store Workflows', () => {
 
     expect(episode.id).toBe('episode-1');
 
-    // Step 3: Log dose during episode (episodeId will be auto-linked)
-    const timestamp = Date.now();
+    // Step 3: Log dose during episode (episodeId will be auto-linked via findEpisodeByTimestamp)
     const dose = await medStore.logDose({
       medicationId: medication.id,
       timestamp,
@@ -155,6 +133,8 @@ describe('Integration: Cross-Store Workflows', () => {
       updatedAt: timestamp,
     });
 
+    // Verify that findEpisodeByTimestamp was called to link the dose
+    expect(episodeRepository.findEpisodeByTimestamp).toHaveBeenCalledWith(timestamp);
     expect(dose.episodeId).toBe('episode-1');
 
     // Step 4: Load recent doses
@@ -166,9 +146,7 @@ describe('Integration: Cross-Store Workflows', () => {
     expect(medState.doses[0].medicationId).toBe('med-1');
   });
 
-  // Skipped: CASCADE delete behavior tested in migration integration tests
-  // E2E tests also cover this scenario comprehensively
-  it.skip('should maintain referential integrity when deleting episodes', async () => {
+  it('should maintain referential integrity when deleting episodes', async () => {
     const medStore = useMedicationStore.getState();
     const epStore = useEpisodeStore.getState();
 
@@ -201,6 +179,9 @@ describe('Integration: Cross-Store Workflows', () => {
       episodeId: 'episode-1',
       timestamp: Date.now() - 5400000,
       quantity: 2,
+      dosageAmount: 200,
+      dosageUnit: 'mg',
+      status: 'taken',
       createdAt: Date.now() - 5400000,
       updatedAt: Date.now() - 5400000,
     };
@@ -211,31 +192,29 @@ describe('Integration: Cross-Store Workflows', () => {
       episodeId: undefined,
       timestamp: Date.now() - 86400000, // 1 day ago
       quantity: 1,
+      dosageAmount: 200,
+      dosageUnit: 'mg',
+      status: 'taken',
       createdAt: Date.now() - 86400000,
       updatedAt: Date.now() - 86400000,
     };
 
     // Setup mocks
-    (medicationRepository.getAll as jest.Mock).mockImplementation(
-      async (_db?: any) => [medication]
-    );
+    (medicationRepository.getActive as jest.Mock).mockResolvedValue([medication]);
     (medicationDoseRepository.getMedicationUsageCounts as jest.Mock).mockResolvedValue(new Map());
     
-    let episodeList = [episode];
-    (episodeRepository.getAll as jest.Mock).mockImplementation(
-      async (_db?: any) => episodeList
-    );
-    (episodeRepository.delete as jest.Mock).mockImplementation(
-      async (id: string, _db?: any) => {
-        episodeList = episodeList.filter(e => e.id !== id);
-        return undefined;
-      }
-    );
+    // Mock episode repository for initial load and after delete
+    (episodeRepository.getAll as jest.Mock)
+      .mockResolvedValueOnce([episode])  // Initial load
+      .mockResolvedValueOnce([]);         // After delete
 
-    // After delete, doses linked to episode should also be deleted (CASCADE)
+    (episodeRepository.delete as jest.Mock).mockResolvedValue(undefined);
+
+    // Mock dose repository: Before delete returns both doses, after delete only unlinked dose
+    // Note: In real DB, CASCADE delete would remove linked dose automatically
     (medicationDoseRepository.getByMedicationId as jest.Mock)
-      .mockResolvedValueOnce([linkedDose, unlinkedDose])
-      .mockResolvedValueOnce([unlinkedDose]);
+      .mockResolvedValueOnce([linkedDose, unlinkedDose])  // Initial load for med-1
+      .mockResolvedValueOnce([unlinkedDose]);              // After cascade delete for med-1
 
     // Load medications first (required for loadRecentDoses)
     await medStore.loadMedications();
@@ -247,10 +226,10 @@ describe('Integration: Cross-Store Workflows', () => {
     expect(useEpisodeStore.getState().episodes).toHaveLength(1);
     expect(useMedicationStore.getState().doses).toHaveLength(2);
 
-    // Delete episode - should cascade delete linked doses
+    // Delete episode - in real DB, CASCADE constraint deletes linked doses automatically
     await epStore.deleteEpisode('episode-1');
 
-    // Reload both stores
+    // Reload both stores to see the cascade effect
     await epStore.loadEpisodes();
     await medStore.loadRecentDoses();
 
@@ -260,7 +239,7 @@ describe('Integration: Cross-Store Workflows', () => {
     // Episode should be deleted
     expect(epState.episodes).toHaveLength(0);
 
-    // Only unlinked dose should remain
+    // Only unlinked dose should remain (linked dose was cascade deleted)
     expect(medState.doses).toHaveLength(1);
     expect(medState.doses[0].id).toBe('dose-2');
     expect(medState.doses[0].episodeId).toBeUndefined();

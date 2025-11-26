@@ -18,6 +18,10 @@ describe('Integration: Medication Workflow', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
+    // Clear cache to prevent data bleed between tests
+    const { cacheManager } = require('../../utils/cacheManager');
+    cacheManager.clear();
+    
     // Reset store to initial state
     useMedicationStore.setState({
       medications: [],
@@ -107,9 +111,7 @@ describe('Integration: Medication Workflow', () => {
     expect(state.doses[0].medicationId).toBe('med-1');
   });
 
-  // Skipped: Archive workflow is better tested in unit tests and E2E tests
-  // The mock complexity doesn't add value over existing coverage
-  it.skip('should handle archive -> load -> verify not in active list', async () => {
+  it('should handle archive -> load -> verify not in active list', async () => {
     const store = useMedicationStore.getState();
     
     const activeMed: Medication = {
@@ -123,38 +125,31 @@ describe('Integration: Medication Workflow', () => {
       updatedAt: Date.now(),
     };
 
-    const archivedMed: Medication = {
-      ...activeMed,
-      active: false,
-      updatedAt: Date.now(),
-    };
-
-    // Clear all mocks for this test
-    jest.clearAllMocks();
-
     // Mock repository - initially only active medication
-    (medicationRepository.getAll as jest.Mock).mockResolvedValueOnce([activeMed]);
+    (medicationRepository.getActive as jest.Mock).mockResolvedValueOnce([activeMed]);
     (medicationDoseRepository.getMedicationUsageCounts as jest.Mock).mockResolvedValue(new Map());
-    (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([]);
 
     await store.loadMedications();
     expect(useMedicationStore.getState().medications).toHaveLength(1);
     expect(useMedicationStore.getState().medications[0].active).toBe(true);
+    expect(useMedicationStore.getState().rescueMedications).toHaveLength(1);
+
+    // Mock notification service reschedule (called by archiveMedication)
+    const { notificationService } = require('../../services/notificationService');
+    notificationService.rescheduleAllMedicationNotifications = jest.fn().mockResolvedValue(undefined);
 
     // Archive the medication
     (medicationRepository.update as jest.Mock).mockResolvedValue(undefined);
-    (medicationRepository.getAll as jest.Mock).mockResolvedValueOnce([archivedMed]);
 
     await store.archiveMedication('med-archive-test');
 
     // The store updates internally, verify the state changed
     const state = useMedicationStore.getState();
     expect(state.rescueMedications).toHaveLength(0); // Archived meds removed from rescue list
+    expect(state.medications.find(m => m.id === 'med-archive-test')?.active).toBe(false);
   });
 
-  // Skipped: Sorting logic is well-tested in unit tests
-  // Integration test adds complexity without significant additional coverage
-  it.skip('should sort rescue medications by usage count', async () => {
+  it('should sort rescue medications by usage count', async () => {
     const store = useMedicationStore.getState();
 
     const med1: Medication = {
@@ -179,18 +174,14 @@ describe('Integration: Medication Workflow', () => {
       updatedAt: Date.now(),
     };
 
-    // Clear mocks
-    jest.clearAllMocks();
-
     // Mock usage counts - med2 used more often
     const usageCounts = new Map([
       ['med-sort-1', 2],
       ['med-sort-2', 10],
     ]);
 
-    (medicationRepository.getAll as jest.Mock).mockResolvedValue([med1, med2]);
+    (medicationRepository.getActive as jest.Mock).mockResolvedValue([med1, med2]);
     (medicationDoseRepository.getMedicationUsageCounts as jest.Mock).mockResolvedValue(usageCounts);
-    (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([]);
 
     await store.loadMedications();
 
@@ -202,9 +193,7 @@ describe('Integration: Medication Workflow', () => {
     expect(state.rescueMedications[1].name).toBe('Rarely Used');
   });
 
-  // Skipped: Type categorization is well-tested in unit tests
-  // Integration test mock complexity doesn't justify additional value
-  it.skip('should categorize medications by type correctly', async () => {
+  it('should categorize medications by type correctly', async () => {
     const store = useMedicationStore.getState();
 
     const preventative: Medication = {
@@ -240,12 +229,8 @@ describe('Integration: Medication Workflow', () => {
       updatedAt: Date.now(),
     };
 
-    // Clear mocks
-    jest.clearAllMocks();
-
-    (medicationRepository.getAll as jest.Mock).mockResolvedValue([preventative, rescue, other]);
+    (medicationRepository.getActive as jest.Mock).mockResolvedValue([preventative, rescue, other]);
     (medicationDoseRepository.getMedicationUsageCounts as jest.Mock).mockResolvedValue(new Map());
-    (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([]);
 
     await store.loadMedications();
 
