@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { format } from 'date-fns';
 import {
@@ -9,6 +9,7 @@ import {
   Medication,
   PainLocation,
 } from '../../models/types';
+import { useTheme, ThemeColors } from '../../theme';
 import { getPainColor, getPainLevel } from '../../utils/painScale';
 import { formatMedicationDoseDisplay } from '../../utils/medicationFormatting';
 import { useMedicationStatusStyles } from '../../utils/medicationStyling';
@@ -76,6 +77,8 @@ export const TimelineEventRenderer: React.FC<TimelineEventRendererProps> = ({
   onMedicationLongPress,
   onEpisodeEndLongPress,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { getStatusStyle } = useMedicationStatusStyles();
 
   const renderEventContent = (event: TimelineEvent) => {
@@ -301,104 +304,102 @@ export const TimelineEventRenderer: React.FC<TimelineEventRendererProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  timelineItem: {
-    flexDirection: 'row',
-    marginBottom: 24,
-  },
-  timelineLeft: {
-    width: 70,
-    alignItems: 'flex-end',
-    paddingRight: 12,
-  },
-  timelineTime: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 4,
-  },
-  timelineCenter: {
-    width: 20,
-    alignItems: 'center',
-  },
-  timelineDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginTop: 2,
-  },
-  timelineLine: {
-    width: 1,
-    flex: 1,
-    backgroundColor: '#E0E0E0',
-    marginTop: 4,
-  },
-  timelineRight: {
-    flex: 1,
-    paddingLeft: 12,
-  },
-  timelineEventTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  timelineEventContent: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
-  },
-  timelineNoteText: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
-  },
-  timelineIntensityBar: {
-    height: 8,
-    backgroundColor: '#F0F0F0',
-    borderRadius: 4,
-    marginBottom: 4,
-    overflow: 'hidden',
-  },
-  timelineIntensityBarFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  timelineIntensityValue: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  chipContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 4,
-  },
-  chip: {
-    backgroundColor: '#F0F0F0',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  chipText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  symptomAddedChip: {
-    backgroundColor: '#E8F5E9',
-    borderWidth: 1,
-    borderColor: '#4CAF50',
-  },
-  symptomAddedText: {
-    color: '#2E7D32',
-    fontWeight: '500',
-  },
-  symptomRemovedChip: {
-    backgroundColor: '#FFEBEE',
-    borderWidth: 1,
-    borderColor: '#F44336',
-  },
-  symptomRemovedText: {
-    color: '#C62828',
-    fontWeight: '500',
-  },
-});
+const createStyles = (theme: ThemeColors) =>
+  StyleSheet.create({
+    timelineItem: {
+      flexDirection: 'row',
+      marginBottom: 24,
+    },
+    timelineLeft: {
+      width: 70,
+      alignItems: 'flex-end',
+      paddingRight: 12,
+    },
+    timelineTime: {
+      fontSize: 12,
+      color: theme.textSecondary,
+      marginBottom: 4,
+    },
+    timelineCenter: {
+      width: 20,
+      alignItems: 'center',
+    },
+    timelineDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      marginTop: 2,
+    },
+    timelineLine: {
+      width: 1,
+      flex: 1,
+      backgroundColor: theme.borderLight,
+      marginTop: 4,
+    },
+    timelineRight: {
+      flex: 1,
+      paddingLeft: 12,
+    },
+    timelineEventTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.text,
+      marginBottom: 4,
+    },
+    timelineEventContent: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      marginBottom: 4,
+    },
+    timelineNoteText: {
+      fontSize: 14,
+      color: theme.text,
+      lineHeight: 20,
+    },
+    timelineIntensityBar: {
+      height: 8,
+      backgroundColor: theme.borderLight,
+      borderRadius: 4,
+      marginBottom: 4,
+      overflow: 'hidden',
+    },
+    timelineIntensityBarFill: {
+      height: '100%',
+      borderRadius: 4,
+    },
+    timelineIntensityValue: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.text,
+    },
+    chipContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 6,
+      marginTop: 4,
+    },
+    chip: {
+      backgroundColor: theme.borderLight,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    chipText: {
+      fontSize: 12,
+      color: theme.text,
+    },
+    symptomAddedChip: {
+      backgroundColor: '#E8F5E9',
+    },
+    symptomAddedText: {
+      color: '#2E7D32',
+      fontWeight: '600',
+    },
+    symptomRemovedChip: {
+      backgroundColor: '#FFEBEE',
+    },
+    symptomRemovedText: {
+      color: '#C62828',
+      fontWeight: '600',
+    },
+  });

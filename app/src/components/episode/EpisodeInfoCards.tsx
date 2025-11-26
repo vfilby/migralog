@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useTheme, ThemeColors } from '../../theme';
 
 interface EpisodeInfoCardsProps {
   qualities: string[];
@@ -10,6 +11,9 @@ export const EpisodeInfoCards: React.FC<EpisodeInfoCardsProps> = ({
   qualities,
   triggers,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   const formatQuality = (quality: string): string => {
     return quality.charAt(0).toUpperCase() + quality.slice(1);
   };
@@ -55,38 +59,39 @@ export const EpisodeInfoCards: React.FC<EpisodeInfoCardsProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: 'white',
-    marginHorizontal: 16,
-    marginTop: 16,
-    padding: 16,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111',
-    marginBottom: 12,
-  },
-  chipContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    backgroundColor: '#F0F0F0',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  chipText: {
-    fontSize: 14,
-    color: '#333',
-  },
-});
+const createStyles = (theme: ThemeColors) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: theme.card,
+      marginHorizontal: 16,
+      marginTop: 16,
+      padding: 16,
+      borderRadius: 8,
+      shadowColor: theme.shadow,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 2,
+    },
+    cardTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: theme.text,
+      marginBottom: 12,
+    },
+    chipContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    chip: {
+      backgroundColor: theme.borderLight,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 16,
+    },
+    chipText: {
+      fontSize: 14,
+      color: theme.text,
+    },
+  });

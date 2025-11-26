@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Episode } from '../../models/types';
+import { useTheme, ThemeColors } from '../../theme';
 
 interface EpisodeActionsProps {
   episode: Episode;
@@ -13,6 +14,9 @@ export const EpisodeActions: React.FC<EpisodeActionsProps> = ({
   onEndEpisodeNow,
   onShowCustomEndTime,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   if (episode.endTime) {
     return null;
   }
@@ -45,50 +49,53 @@ export const EpisodeActions: React.FC<EpisodeActionsProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'white',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 32,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5E5',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  endButtonsContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  endButton: {
-    flex: 1,
-    backgroundColor: '#FF6B6B',
-    paddingVertical: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  endButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  endCustomButton: {
-    flex: 1,
-    backgroundColor: '#F0F0F0',
-    paddingVertical: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  endCustomButtonText: {
-    color: '#333',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});
+const createStyles = (theme: ThemeColors) =>
+  StyleSheet.create({
+    footer: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: theme.card,
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      paddingBottom: 32,
+      borderTopWidth: 1,
+      borderTopColor: theme.border,
+      shadowColor: theme.shadow,
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 5,
+    },
+    endButtonsContainer: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    endButton: {
+      flex: 1,
+      backgroundColor: theme.danger,
+      paddingVertical: 16,
+      borderRadius: 8,
+      alignItems: 'center',
+    },
+    endButtonText: {
+      color: theme.dangerText,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    endCustomButton: {
+      flex: 1,
+      backgroundColor: theme.backgroundSecondary,
+      paddingVertical: 16,
+      borderRadius: 8,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    endCustomButtonText: {
+      color: theme.text,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+  });

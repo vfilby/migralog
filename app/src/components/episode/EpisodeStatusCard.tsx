@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { format } from 'date-fns';
 import { Episode } from '../../models/types';
+import { useTheme, ThemeColors } from '../../theme';
 
 interface EpisodeStatusCardProps {
   episode: Episode;
@@ -20,6 +21,9 @@ export const EpisodeStatusCard: React.FC<EpisodeStatusCardProps> = ({
   onNavigateToLogUpdate,
   onNavigateToLogMedication,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   return (
     <View style={styles.card}>
       <View style={styles.statusHeader}>
@@ -101,74 +105,78 @@ export const EpisodeStatusCard: React.FC<EpisodeStatusCardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: 'white',
-    marginHorizontal: 16,
-    marginTop: 16,
-    padding: 16,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  statusHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111',
-    flex: 1,
-  },
-  ongoingBadge: {
-    backgroundColor: '#FF6B6B',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  ongoingText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  detailLabel: {
-    fontSize: 14,
-    color: '#666',
-  },
-  detailValue: {
-    fontSize: 14,
-    color: '#111',
-    fontWeight: '500',
-  },
-  locationLink: {
-    color: '#007AFF',
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    marginTop: 16,
-    gap: 8,
-  },
-  actionButton: {
-    flex: 1,
-    backgroundColor: '#F0F0F0',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  actionButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-  },
-});
+const createStyles = (theme: ThemeColors) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: theme.card,
+      marginHorizontal: 16,
+      marginTop: 16,
+      padding: 16,
+      borderRadius: 8,
+      shadowColor: theme.shadow,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 2,
+    },
+    statusHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+      gap: 12,
+    },
+    cardTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: theme.text,
+      flex: 1,
+    },
+    ongoingBadge: {
+      backgroundColor: theme.ongoing,
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    ongoingText: {
+      color: theme.ongoingText,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    detailRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: 8,
+    },
+    detailLabel: {
+      fontSize: 14,
+      color: theme.textSecondary,
+    },
+    detailValue: {
+      fontSize: 14,
+      color: theme.text,
+      fontWeight: '500',
+    },
+    locationLink: {
+      color: theme.primary,
+    },
+    actionButtons: {
+      flexDirection: 'row',
+      marginTop: 16,
+      gap: 8,
+    },
+    actionButton: {
+      flex: 1,
+      backgroundColor: theme.backgroundSecondary,
+      paddingVertical: 12,
+      borderRadius: 8,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    actionButtonText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.text,
+    },
+  });

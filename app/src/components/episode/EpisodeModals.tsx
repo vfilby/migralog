@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
 import { Episode } from '../../models/types';
+import { useTheme, ThemeColors } from '../../theme';
 
 interface EpisodeModalsProps {
   showMapModal: boolean;
@@ -28,6 +29,9 @@ export const EpisodeModals: React.FC<EpisodeModalsProps> = ({
   onCustomTimeChange,
   onCustomTimeAction,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   return (
     <>
       {/* Map Modal */}
@@ -39,7 +43,7 @@ export const EpisodeModals: React.FC<EpisodeModalsProps> = ({
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <View style={{ width: 60 }} />
+            <View style={styles.modalHeaderSpacer} />
             <Text style={styles.modalTitle}>Episode Location</Text>
             <TouchableOpacity
               onPress={onCloseMapModal}
@@ -99,9 +103,9 @@ export const EpisodeModals: React.FC<EpisodeModalsProps> = ({
               accessibilityRole="button"
               accessibilityLabel="Cancel"
               accessibilityHint={
-                episode.endTime 
-                  ? "Closes the time picker without changing the end time" 
-                  : "Closes the time picker without ending the episode"
+                episode.endTime
+                  ? 'Closes the time picker without changing the end time'
+                  : 'Closes the time picker without ending the episode'
               }
             >
               <Text style={styles.modalCloseButton}>Cancel</Text>
@@ -114,16 +118,16 @@ export const EpisodeModals: React.FC<EpisodeModalsProps> = ({
               accessibilityRole="button"
               accessibilityLabel="Done"
               accessibilityHint={
-                episode.endTime 
-                  ? "Updates the episode end time" 
-                  : "Ends the episode with the selected time"
+                episode.endTime
+                  ? 'Updates the episode end time'
+                  : 'Ends the episode with the selected time'
               }
             >
               <Text style={styles.modalCloseButton}>Done</Text>
             </TouchableOpacity>
           </View>
 
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <View style={styles.datePickerContainer}>
             <DateTimePicker
               value={customEndTime && customEndTime > 0 ? new Date(customEndTime) : new Date()}
               mode="datetime"
@@ -143,46 +147,58 @@ export const EpisodeModals: React.FC<EpisodeModalsProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  modalContainer: {
-    flex: 1,
-    backgroundColor: 'white',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
-  },
-  modalTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#111',
-  },
-  modalCloseButton: {
-    fontSize: 17,
-    color: '#007AFF',
-    fontWeight: '500',
-  },
-  modalMap: {
-    flex: 1,
-  },
-  modalInfo: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5E5',
-  },
-  modalLocationText: {
-    fontSize: 16,
-    color: '#333',
-    marginBottom: 4,
-  },
-  modalAccuracyText: {
-    fontSize: 14,
-    color: '#666',
-  },
-});
+const createStyles = (theme: ThemeColors) =>
+  StyleSheet.create({
+    modalContainer: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+      backgroundColor: theme.card,
+    },
+    modalHeaderSpacer: {
+      width: 60,
+    },
+    modalTitle: {
+      fontSize: 17,
+      fontWeight: '600',
+      color: theme.text,
+    },
+    modalCloseButton: {
+      fontSize: 17,
+      color: theme.primary,
+      fontWeight: '500',
+    },
+    modalMap: {
+      flex: 1,
+    },
+    modalInfo: {
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderTopWidth: 1,
+      borderTopColor: theme.border,
+      backgroundColor: theme.card,
+    },
+    modalLocationText: {
+      fontSize: 16,
+      color: theme.text,
+      marginBottom: 4,
+    },
+    modalAccuracyText: {
+      fontSize: 14,
+      color: theme.textSecondary,
+    },
+    datePickerContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: theme.background,
+    },
+  });

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Episode, IntensityReading, EpisodeNote, MedicationDose, Medication } from '../../models/types';
+import { useTheme, ThemeColors } from '../../theme';
 import IntensitySparkline from '../IntensitySparkline';
 import { TimelineEventRenderer } from './TimelineEventRenderer';
 
@@ -58,6 +59,9 @@ export const EpisodeTimeline: React.FC<EpisodeTimelineProps> = ({
   onMedicationLongPress,
   onEpisodeEndLongPress,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   const groupEventsByTimestamp = (events: TimelineEvent[]): GroupedTimelineEvent[] => {
     const grouped = new Map<number, TimelineEvent[]>();
     
@@ -113,7 +117,7 @@ export const EpisodeTimeline: React.FC<EpisodeTimelineProps> = ({
 
       {/* Intensity Graph */}
       {intensityReadings.length > 0 && (
-        <View style={{ marginTop: 8, marginBottom: 16 }}>
+        <View style={styles.sparklineContainer}>
           <IntensitySparkline
             readings={intensityReadings}
             episodeEndTime={episode.endTime}
@@ -140,7 +144,7 @@ export const EpisodeTimeline: React.FC<EpisodeTimelineProps> = ({
           return (
             <View key={dayGroup.date}>
               {/* Show gap indicator if there are missing days */}
-              {dayGap && renderDayGap(dayGap, false)}
+              {dayGap && renderDayGap(dayGap, dayIndex === timeline.length - 1)}
 
               {/* Render events for this day */}
               {groupedEvents.map((group, eventIndex) => (
@@ -150,8 +154,8 @@ export const EpisodeTimeline: React.FC<EpisodeTimelineProps> = ({
                   index={eventIndex}
                   isLast={eventIndex === groupedEvents.length - 1 && dayIndex === timeline.length - 1}
                   dateLabel={
-                    eventIndex === 0 && (timeline.length > 1 || dayIndex > 0) 
-                      ? renderDateLabel(dayGroup) 
+                    eventIndex === 0 && (timeline.length > 1 || dayIndex > 0)
+                      ? renderDateLabel(dayGroup)
                       : undefined
                   }
                   episode={episode}
@@ -169,71 +173,76 @@ export const EpisodeTimeline: React.FC<EpisodeTimelineProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: 'white',
-    marginHorizontal: 16,
-    marginTop: 16,
-    padding: 16,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111',
-    marginBottom: 12,
-  },
-  timelineContainer: {
-    marginTop: 8,
-  },
-  timelineItem: {
-    flexDirection: 'row',
-    marginBottom: 24,
-  },
-  timelineLeft: {
-    width: 70,
-    alignItems: 'flex-end',
-    paddingRight: 12,
-  },
-  timelineCenter: {
-    width: 20,
-    alignItems: 'center',
-  },
-  timelineRight: {
-    flex: 1,
-    paddingLeft: 12,
-  },
-  timelineLine: {
-    width: 1,
-    flex: 1,
-    backgroundColor: '#E0E0E0',
-    marginTop: 4,
-  },
-  timelineDate: {
-    fontSize: 11,
-    color: '#999',
-    fontWeight: '600',
-  },
-  timelineGapDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#E0E0E0',
-    marginTop: 2,
-  },
-  timelineGapText: {
-    fontSize: 13,
-    color: '#999',
-    fontStyle: 'italic',
-  },
-  timelineGapDescription: {
-    fontSize: 11,
-    color: '#BBB',
-    marginTop: 2,
-  },
-});
+const createStyles = (theme: ThemeColors) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: theme.card,
+      marginHorizontal: 16,
+      marginTop: 16,
+      padding: 16,
+      borderRadius: 8,
+      shadowColor: theme.shadow,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 2,
+    },
+    cardTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: theme.text,
+      marginBottom: 12,
+    },
+    sparklineContainer: {
+      marginTop: 8,
+      marginBottom: 16,
+    },
+    timelineContainer: {
+      marginTop: 8,
+    },
+    timelineItem: {
+      flexDirection: 'row',
+      marginBottom: 24,
+    },
+    timelineLeft: {
+      width: 70,
+      alignItems: 'flex-end',
+      paddingRight: 12,
+    },
+    timelineCenter: {
+      width: 20,
+      alignItems: 'center',
+    },
+    timelineRight: {
+      flex: 1,
+      paddingLeft: 12,
+    },
+    timelineLine: {
+      width: 1,
+      flex: 1,
+      backgroundColor: theme.borderLight,
+      marginTop: 4,
+    },
+    timelineDate: {
+      fontSize: 11,
+      color: theme.textSecondary,
+      fontWeight: '600',
+    },
+    timelineGapDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: theme.border,
+      marginTop: 2,
+    },
+    timelineGapText: {
+      fontSize: 13,
+      color: theme.textSecondary,
+      fontStyle: 'italic',
+    },
+    timelineGapDescription: {
+      fontSize: 11,
+      color: theme.textTertiary,
+      marginTop: 2,
+    },
+  });
