@@ -189,7 +189,7 @@ describe('LogUpdateScreen', () => {
 
   describe('Loading Latest Data', () => {
     it('should load latest intensity from readings', async () => {
-      const { intensityRepository, episodeRepository } = require('../../database/episodeRepository');
+      const { intensityRepository } = require('../../database/episodeRepository');
       
       intensityRepository.getByEpisodeId.mockResolvedValueOnce([
         { id: '1', episodeId: 'episode-123', timestamp: Date.now() - 2000, intensity: 5 },
@@ -234,7 +234,7 @@ describe('LogUpdateScreen', () => {
     });
 
     it('should load pain locations from logs', async () => {
-      const { painLocationLogRepository, episodeRepository } = require('../../database/episodeRepository');
+      const { painLocationLogRepository } = require('../../database/episodeRepository');
       
       painLocationLogRepository.getByEpisodeId.mockResolvedValueOnce([
         {
@@ -321,7 +321,7 @@ describe('LogUpdateScreen', () => {
     });
 
     it('should allow toggling symptoms off', async () => {
-      const { symptomLogRepository, episodeRepository } = require('../../database/episodeRepository');
+      const { episodeRepository } = require('../../database/episodeRepository');
       
       episodeRepository.getById.mockResolvedValueOnce({
         id: 'episode-123',

@@ -435,4 +435,254 @@ describe('NewEpisodeScreen', () => {
       });
     });
   });
+
+  describe('Pain Location Selection', () => {
+    const { fireEvent } = require('@testing-library/react-native');
+
+    it('should display pain location columns', async () => {
+      const mockRoute = { params: {} };
+      
+      renderWithProviders(
+        <NewEpisodeScreen 
+          navigation={mockNavigation as any} 
+          route={mockRoute as any} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Pain Location')).toBeTruthy();
+        expect(screen.getByText('Left Side')).toBeTruthy();
+        expect(screen.getByText('Right Side')).toBeTruthy();
+      });
+    });
+
+    it('should toggle pain location selection', async () => {
+      const mockRoute = { params: {} };
+      
+      renderWithProviders(
+        <NewEpisodeScreen 
+          navigation={mockNavigation as any} 
+          route={mockRoute as any} 
+        />
+      );
+
+      await waitFor(() => {
+        const temples = screen.getAllByText('Temple');
+        expect(temples.length).toBeGreaterThan(0);
+      });
+
+      // Toggle left temple
+      const temples = screen.getAllByText('Temple');
+      fireEvent.press(temples[0]);
+      
+      fireEvent.press(screen.getByTestId('save-episode-button'));
+      
+      await waitFor(() => {
+        expect(mockStartEpisode).toHaveBeenCalledWith(
+          expect.objectContaining({
+            locations: expect.arrayContaining(['left_temple']),
+          })
+        );
+      });
+    });
+
+    it('should deselect pain location when pressed twice', async () => {
+      const mockRoute = { params: {} };
+      
+      renderWithProviders(
+        <NewEpisodeScreen 
+          navigation={mockNavigation as any} 
+          route={mockRoute as any} 
+        />
+      );
+
+      await waitFor(() => {
+        const temples = screen.getAllByText('Temple');
+        expect(temples.length).toBeGreaterThan(0);
+      });
+
+      // Toggle on then off
+      const temples = screen.getAllByText('Temple');
+      fireEvent.press(temples[0]); // Select
+      fireEvent.press(temples[0]); // Deselect
+      
+      fireEvent.press(screen.getByTestId('save-episode-button'));
+      
+      await waitFor(() => {
+        expect(mockStartEpisode).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('Intensity Slider', () => {
+    const { fireEvent } = require('@testing-library/react-native');
+
+    it('should change intensity value', async () => {
+      const mockRoute = { params: {} };
+      
+      renderWithProviders(
+        <NewEpisodeScreen 
+          navigation={mockNavigation as any} 
+          route={mockRoute as any} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('intensity-slider')).toBeTruthy();
+      });
+
+      const slider = screen.getByTestId('intensity-slider');
+      fireEvent(slider, 'onValueChange', 7);
+      
+      fireEvent.press(screen.getByTestId('save-episode-button'));
+      
+      await waitFor(() => {
+        expect(mockStartEpisode).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('Location Capture', () => {
+    it('should attempt to capture GPS location for new episodes', async () => {
+      const { locationService } = require('../../services/locationService');
+      
+      const mockRoute = { params: {} };
+      
+      renderWithProviders(
+        <NewEpisodeScreen 
+          navigation={mockNavigation as any} 
+          route={mockRoute as any} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(locationService.getCurrentLocation).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('Saving State', () => {
+    const { fireEvent } = require('@testing-library/react-native');
+
+    it('should show "Starting Episode..." when saving new episode', async () => {
+      mockStartEpisode.mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)));
+      
+      const mockRoute = { params: {} };
+      
+      renderWithProviders(
+        <NewEpisodeScreen 
+          navigation={mockNavigation as any} 
+          route={mockRoute as any} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('save-episode-button')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByTestId('save-episode-button'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Starting Episode...')).toBeTruthy();
+      });
+    });
+
+    it('should show "Saving Changes..." when updating episode', async () => {
+      mockUpdateEpisode.mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)));
+      
+      const mockRoute = { 
+        params: { episodeId: 'episode-123' } 
+      };
+
+      (useEpisodeStore as unknown as jest.Mock).mockReturnValue({
+        startEpisode: mockStartEpisode,
+        addIntensityReading: mockAddIntensityReading,
+        updateEpisode: mockUpdateEpisode,
+        episodes: [],
+      });
+      
+      renderWithProviders(
+        <NewEpisodeScreen 
+          navigation={mockNavigation as any} 
+          route={mockRoute as any} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('save-episode-button')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByTestId('save-episode-button'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Saving Changes...')).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Edit Mode', () => {
+    const { fireEvent } = require('@testing-library/react-native');
+
+    it('should show delete button when editing', async () => {
+      const mockRoute = { 
+        params: { episodeId: 'episode-123' } 
+      };
+
+      (useEpisodeStore as unknown as jest.Mock).mockReturnValue({
+        startEpisode: mockStartEpisode,
+        addIntensityReading: mockAddIntensityReading,
+        updateEpisode: mockUpdateEpisode,
+        episodes: [],
+        deleteEpisode: jest.fn(),
+      });
+      
+      renderWithProviders(
+        <NewEpisodeScreen 
+          navigation={mockNavigation as any} 
+          route={mockRoute as any} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Delete')).toBeTruthy();
+      });
+    });
+
+    it('should show confirmation alert when delete is pressed', async () => {
+      const Alert = require('react-native').Alert;
+      jest.spyOn(Alert, 'alert');
+
+      const mockDeleteEpisode = jest.fn();
+      const mockRoute = { 
+        params: { episodeId: 'episode-123' } 
+      };
+
+      (useEpisodeStore as unknown as jest.Mock).mockReturnValue({
+        startEpisode: mockStartEpisode,
+        addIntensityReading: mockAddIntensityReading,
+        updateEpisode: mockUpdateEpisode,
+        episodes: [],
+        deleteEpisode: mockDeleteEpisode,
+      });
+      
+      renderWithProviders(
+        <NewEpisodeScreen 
+          navigation={mockNavigation as any} 
+          route={mockRoute as any} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Delete')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Delete'));
+
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Delete Episode',
+        expect.stringContaining('Are you sure'),
+        expect.any(Array)
+      );
+    });
+  });
 });
