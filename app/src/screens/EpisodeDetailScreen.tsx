@@ -22,39 +22,16 @@ import {
   EpisodeActions,
   EpisodeModals,
 } from '../components/episode';
+import { 
+  MedicationDoseWithDetails, 
+  SymptomEventData, 
+  PainLocationEventData, 
+  TimelineEvent,
+  SymptomChange,
+  PainLocationChange
+} from '../components/episode/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EpisodeDetail'>;
-
-type MedicationDoseWithDetails = MedicationDose & {
-  medication?: Medication;
-};
-
-type SymptomChange = {
-  symptom: string;
-  changeType: 'added' | 'removed';
-};
-
-type SymptomEventData = {
-  log?: SymptomLog;
-  changes: SymptomChange[];
-};
-
-type PainLocationChange = {
-  location: PainLocation;
-  changeType: 'added' | 'removed' | 'unchanged';
-};
-
-type PainLocationEventData = {
-  log?: PainLocationLog;
-  changes: PainLocationChange[];
-};
-
-type TimelineEvent = {
-  id: string;
-  timestamp: number;
-  type: 'intensity' | 'note' | 'medication' | 'symptom' | 'symptom_initial' | 'pain_location' | 'pain_location_initial' | 'end';
-  data: IntensityReading | EpisodeNote | MedicationDoseWithDetails | SymptomEventData | PainLocationEventData | null;
-};
 
 
 

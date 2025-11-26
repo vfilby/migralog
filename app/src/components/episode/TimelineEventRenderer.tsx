@@ -15,57 +15,14 @@ import { useTheme, ThemeColors } from '../../theme';
 import { getPainColor, getPainLevel } from '../../utils/painScale';
 import { formatMedicationDoseDisplay } from '../../utils/medicationFormatting';
 import { useMedicationStatusStyles } from '../../utils/medicationStyling';
-
-// Type definitions
-type MedicationDoseWithDetails = MedicationDose & {
-  medication?: Medication;
-};
-
-// Constants
-const PAIN_LOCATIONS: { value: PainLocation; label: string; side: 'left' | 'right' }[] = [
-  { value: 'left_eye', label: 'Eye', side: 'left' },
-  { value: 'left_temple', label: 'Temple', side: 'left' },
-  { value: 'left_neck', label: 'Neck', side: 'left' },
-  { value: 'left_head', label: 'Head', side: 'left' },
-  { value: 'left_teeth', label: 'Teeth/Jaw', side: 'left' },
-  { value: 'right_eye', label: 'Eye', side: 'right' },
-  { value: 'right_temple', label: 'Temple', side: 'right' },
-  { value: 'right_neck', label: 'Neck', side: 'right' },
-  { value: 'right_head', label: 'Head', side: 'right' },
-  { value: 'right_teeth', label: 'Teeth/Jaw', side: 'right' },
-];
-
-interface SymptomChange {
-  symptom: string;
-  changeType: 'added' | 'removed';
-}
-
-interface SymptomEventData {
-  log?: SymptomLog;
-  changes: SymptomChange[];
-}
-
-interface PainLocationChange {
-  location: PainLocation;
-  changeType: 'added' | 'removed' | 'unchanged';
-}
-
-interface PainLocationEventData {
-  log?: PainLocationLog;
-  changes: PainLocationChange[];
-}
-
-interface TimelineEvent {
-  id: string;
-  type: 'intensity' | 'note' | 'symptom' | 'symptom_initial' | 'pain_location' | 'pain_location_initial' | 'medication' | 'end';
-  timestamp: number;
-  data: IntensityReading | EpisodeNote | MedicationDoseWithDetails | SymptomEventData | PainLocationEventData | null;
-}
-
-interface GroupedTimelineEvent {
-  timestamp: number;
-  events: TimelineEvent[];
-}
+import { 
+  MedicationDoseWithDetails, 
+  SymptomEventData, 
+  PainLocationEventData, 
+  TimelineEvent, 
+  GroupedTimelineEvent,
+  PAIN_LOCATIONS
+} from './types';
 
 interface TimelineEventRendererProps {
   group: GroupedTimelineEvent;

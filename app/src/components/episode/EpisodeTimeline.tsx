@@ -4,49 +4,14 @@ import { Episode, IntensityReading, EpisodeNote, MedicationDose, Medication, Sym
 import { useTheme, ThemeColors } from '../../theme';
 import IntensitySparkline from '../IntensitySparkline';
 import { TimelineEventRenderer } from './TimelineEventRenderer';
-
-// Type definitions from the main screen
-type MedicationDoseWithDetails = MedicationDose & {
-  medication?: Medication;
-};
-
-type SymptomChange = {
-  symptom: string;
-  changeType: 'added' | 'removed';
-};
-
-type SymptomEventData = {
-  log?: SymptomLog;
-  changes: SymptomChange[];
-};
-
-type PainLocationChange = {
-  location: PainLocation;
-  changeType: 'added' | 'removed' | 'unchanged';
-};
-
-type PainLocationEventData = {
-  log?: PainLocationLog;
-  changes: PainLocationChange[];
-};
-
-interface TimelineEvent {
-  id: string;
-  type: 'intensity' | 'note' | 'symptom' | 'symptom_initial' | 'pain_location' | 'pain_location_initial' | 'medication' | 'end';
-  timestamp: number;
-  data: IntensityReading | EpisodeNote | MedicationDoseWithDetails | SymptomEventData | PainLocationEventData | null;
-}
-
-interface GroupedTimelineEvent {
-  timestamp: number;
-  events: TimelineEvent[];
-}
-
-interface DayGroup {
-  date: number;
-  dateLabel: string;
-  events: TimelineEvent[];
-}
+import { 
+  MedicationDoseWithDetails, 
+  SymptomEventData, 
+  PainLocationEventData, 
+  TimelineEvent, 
+  GroupedTimelineEvent, 
+  DayGroup 
+} from './types';
 
 interface EpisodeTimelineProps {
   timeline: DayGroup[];
@@ -131,7 +96,7 @@ export const EpisodeTimeline: React.FC<EpisodeTimelineProps> = ({
 
       {/* Intensity Graph */}
       {intensityReadings.length > 0 && (
-        <View style={styles.sparklineContainer}>
+        <View style={styles.sparklineContainer} testID="intensity-sparkline-container">
           <IntensitySparkline
             readings={intensityReadings}
             episodeEndTime={episode.endTime}
