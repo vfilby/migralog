@@ -1,66 +1,41 @@
 import React, { useState } from 'react';
 import { logger } from '../utils/logger';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert, Platform, ActionSheetIOS, useWindowDimensions } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import MapView, { Marker } from 'react-native-maps';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform, ActionSheetIOS, useWindowDimensions } from 'react-native';
+
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/types';
 import { useEpisodeStore } from '../store/episodeStore';
 import { episodeRepository, intensityRepository, symptomLogRepository, episodeNoteRepository, painLocationLogRepository } from '../database/episodeRepository';
 import { medicationDoseRepository, medicationRepository } from '../database/medicationRepository';
-import { Episode, IntensityReading, SymptomLog, MedicationDose, Medication, EpisodeNote, PainLocationLog, PainLocation } from '../models/types';
+import { Episode, IntensityReading, SymptomLog, EpisodeNote, PainLocationLog } from '../models/types';
 import { format, differenceInMinutes } from 'date-fns';
-import { getPainColor, getPainLevel } from '../utils/painScale';
-import { validateEpisodeEndTime } from '../utils/episodeValidation';
-import { shouldShowMedicationInTimeline } from '../utils/timelineFilters';
-import { groupEventsByDay, groupEventsByTimestamp, DayGroup } from '../utils/timelineGrouping';
 import { locationService } from '../services/locationService';
 import { useTheme, ThemeColors } from '../theme';
-import IntensitySparkline from '../components/IntensitySparkline';
-import { formatMedicationDoseDisplay } from '../utils/medicationFormatting';
-import { useMedicationStatusStyles } from '../utils/medicationStyling';
+import { validateEpisodeEndTime } from '../utils/episodeValidation';
+import { shouldShowMedicationInTimeline } from '../utils/timelineFilters';
+import { groupEventsByDay, DayGroup } from '../utils/timelineGrouping';
+import {
+  EpisodeStatusCard,
+  EpisodeInfoCards,
+  EpisodeTimeline,
+  EpisodeActions,
+  EpisodeModals,
+} from '../components/episode';
+import { 
+  MedicationDoseWithDetails, 
+  TimelineEvent,
+  SymptomChange,
+  PainLocationChange
+} from '../components/episode/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EpisodeDetail'>;
 
-type MedicationDoseWithDetails = MedicationDose & {
-  medication?: Medication;
-};
 
-type SymptomChange = {
-  symptom: string;
-  changeType: 'added' | 'removed';
-};
 
-type PainLocationChange = {
-  location: PainLocation;
-  changeType: 'added' | 'removed' | 'unchanged';
-};
 
-type TimelineEvent = {
-  id: string;
-  timestamp: number;
-  type: 'intensity' | 'note' | 'medication' | 'symptom' | 'symptom_initial' | 'pain_location' | 'pain_location_initial' | 'end';
-  data: IntensityReading | EpisodeNote | MedicationDoseWithDetails | SymptomLog | SymptomChange[] | PainLocationLog | PainLocationChange[] | null;
-};
 
-type GroupedTimelineEvent = {
-  timestamp: number;
-  events: TimelineEvent[];
-};
 
-const PAIN_LOCATIONS: { value: PainLocation; label: string; side: 'left' | 'right' }[] = [
-  { value: 'left_eye', label: 'Eye', side: 'left' },
-  { value: 'left_temple', label: 'Temple', side: 'left' },
-  { value: 'left_neck', label: 'Neck', side: 'left' },
-  { value: 'left_head', label: 'Head', side: 'left' },
-  { value: 'left_teeth', label: 'Teeth', side: 'left' },
-  { value: 'right_eye', label: 'Eye', side: 'right' },
-  { value: 'right_temple', label: 'Temple', side: 'right' },
-  { value: 'right_neck', label: 'Neck', side: 'right' },
-  { value: 'right_head', label: 'Head', side: 'right' },
-  { value: 'right_teeth', label: 'Teeth', side: 'right' },
-];
 
 const createStyles = (theme: ThemeColors) => StyleSheet.create({
   container: {
@@ -106,422 +81,11 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   content: {
     flex: 1,
   },
-  card: {
-    backgroundColor: theme.card,
-    marginHorizontal: 16,
-    marginTop: 16,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: theme.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  statusHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: theme.text,
-    marginBottom: 12,
-  },
-  ongoingBadge: {
-    backgroundColor: theme.ongoing,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  ongoingText: {
-    color: theme.ongoingText,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.borderLight,
-  },
-  detailLabel: {
-    fontSize: 15,
-    color: theme.textSecondary,
-  },
-  detailValue: {
-    fontSize: 15,
-    color: theme.text,
-    fontWeight: '500',
-  },
-  locationLink: {
-    color: theme.primary,
-    fontWeight: '600',
-  },
-  intensityValue: {
-    color: theme.danger,
-    fontWeight: '600',
-  },
-  intensityUpdateSection: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: theme.border,
-  },
-  chipContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: theme.borderLight,
-  },
-  chipText: {
-    fontSize: 14,
-    color: theme.text,
-  },
-  symptomAddedChip: {
-    backgroundColor: '#E8F5E9', // Light green background for added symptoms
-  },
-  symptomAddedText: {
-    color: '#2E7D32', // Dark green text for added symptoms
-    fontWeight: '600',
-  },
-  symptomRemovedChip: {
-    backgroundColor: '#FFEBEE', // Light red background for removed symptoms
-  },
-  symptomRemovedText: {
-    color: '#C62828', // Dark red text for removed symptoms
-    fontWeight: '600',
-  },
-
-  notesText: {
-    fontSize: 15,
-    color: theme.text,
-    lineHeight: 22,
-  },
-  sliderHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  intensityLabel: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: theme.text,
-  },
-  slider: {
-    width: '100%',
-    height: 40,
-  },
-  sliderLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  sliderLabelText: {
-    fontSize: 13,
-    color: theme.textSecondary,
-  },
-  painDescription: {
-    marginTop: 12,
-    fontSize: 15,
-    color: theme.textSecondary,
-    textAlign: 'center',
-  },
-  updateActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 16,
-  },
-  cancelButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    backgroundColor: 'transparent',
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    color: theme.primary,
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  saveIntensityButton: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 12,
-    backgroundColor: theme.primary,
-    alignItems: 'center',
-  },
-  saveIntensityButtonText: {
-    color: theme.primaryText,
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  footer: {
-    backgroundColor: theme.card,
-    padding: 16,
-    paddingBottom: 34,
-    borderTopWidth: 1,
-    borderTopColor: theme.border,
-  },
-  endButtonsContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  endButton: {
-    flex: 1,
-    backgroundColor: theme.danger,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  endButtonText: {
-    color: theme.dangerText,
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  endCustomButton: {
-    backgroundColor: 'transparent',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: theme.danger,
-  },
-  endCustomButtonText: {
-    color: theme.danger,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: theme.background,
-  },
-  modalHeader: {
-    backgroundColor: theme.card,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 60,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.border,
-  },
-  modalTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: theme.text,
-  },
-  modalCloseButton: {
-    fontSize: 17,
-    color: theme.primary,
-    fontWeight: '600',
-  },
-  modalMap: {
-    flex: 1,
-  },
-  modalInfo: {
-    backgroundColor: theme.card,
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: theme.border,
-  },
-  modalLocationText: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: theme.text,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  modalAccuracyText: {
-    fontSize: 14,
-    color: theme.textSecondary,
-    textAlign: 'center',
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 16,
-  },
-  actionButton: {
-    flex: 1,
-    backgroundColor: theme.card,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: theme.primary,
-  },
-  actionButtonText: {
-    color: theme.primary,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  timelineContainer: {
-    paddingLeft: 16,
-  },
-  timelineItem: {
-    flexDirection: 'row',
-    paddingBottom: 24,
-  },
-  timelineLeft: {
-    width: 80,
-    paddingRight: 16,
-    alignItems: 'flex-end',
-  },
-  timelineTime: {
-    fontSize: 13,
-    color: theme.textSecondary,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  timelineDate: {
-    fontSize: 11,
-    color: theme.textTertiary,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  timelineGapText: {
-    fontSize: 12,
-    color: theme.textTertiary,
-    fontStyle: 'italic',
-    marginTop: 2,
-  },
-  timelineGapDescription: {
-    fontSize: 14,
-    color: theme.textTertiary,
-    fontStyle: 'italic',
-  },
-  timelineCenter: {
-    width: 32,
-    alignItems: 'center',
-  },
-  timelineDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: theme.primary,
-    marginTop: 4,
-  },
-  timelineLine: {
-    width: 2,
-    flex: 1,
-    backgroundColor: theme.borderLight,
-    marginTop: 4,
-  },
-  timelineRight: {
-    flex: 1,
-    paddingLeft: 16,
-  },
-  timelineEventTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.text,
-    marginBottom: 4,
-  },
-  timelineEventContent: {
-    fontSize: 15,
-    color: theme.textSecondary,
-    lineHeight: 20,
-  },
-  timelineNoteText: {
-    fontSize: 15,
-    color: theme.text,
-    lineHeight: 20,
-    marginTop: 4,
-  },
-  timelineIntensityBar: {
-    height: 24,
-    backgroundColor: theme.borderLight,
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  timelineIntensityBarFill: {
-    height: '100%',
-  },
-  timelineIntensityValue: {
-    fontSize: 15,
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  noteInput: {
-    backgroundColor: theme.borderLight,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 15,
-    color: theme.text,
-    minHeight: 80,
-    textAlignVertical: 'top',
-    marginBottom: 12,
-  },
-  // Multi-day timeline styles
-  daySeparator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    marginTop: 8,
-  },
-  daySeparatorLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: theme.border,
-  },
-  daySeparatorContent: {
-    paddingHorizontal: 12,
-  },
-  daySeparatorIcon: {
-    fontSize: 16,
-    marginRight: 6,
-  },
-  daySeparatorText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: theme.text,
-  },
-  dayStatsContainer: {
-    backgroundColor: theme.backgroundSecondary,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  dayStatItem: {
-    alignItems: 'center',
-    minWidth: 80,
-  },
-  dayStatValue: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: theme.text,
-    marginBottom: 2,
-  },
-  dayStatLabel: {
-    fontSize: 12,
-    color: theme.textSecondary,
-    textAlign: 'center',
-  },
 });
 
 export default function EpisodeDetailScreen({ route, navigation }: Props) {
   const { episodeId } = route.params;
   const { theme } = useTheme();
-  const { getStatusStyle } = useMedicationStatusStyles();
   const styles = createStyles(theme);
   const { width: screenWidth } = useWindowDimensions();
   const { endEpisode, updateEpisode, reopenEpisode } = useEpisodeStore();
@@ -592,21 +156,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     }
   };
 
-  const endEpisodeWithCustomTime = async () => {
-    if (!episode) return;
 
-    // Validate that end time is not before episode start
-    const validation = validateEpisodeEndTime(episode.startTime, customEndTime);
-    if (!validation.isValid) {
-      Alert.alert('Invalid Time', validation.error!);
-      return;
-    }
-
-    // End the ongoing episode
-    await endEpisode(episode.id, customEndTime);
-    navigation.goBack();
-    setShowEndTimePicker(false);
-  };
 
   const editEpisodeEndTime = async () => {
     if (!episode) return;
@@ -657,7 +207,184 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     );
   };
 
+  const endEpisodeWithCustomTime = async () => {
+    if (episode) {
+      await endEpisode(episode.id, customEndTime);
+      navigation.goBack();
+    }
+  };
 
+  const handleIntensityLongPress = (reading: IntensityReading) => {
+    const confirmDelete = () => {
+      Alert.alert(
+        'Delete Intensity Reading',
+        `Delete this intensity reading of ${reading.intensity}?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await intensityRepository.delete(reading.id);
+                await loadEpisodeData();
+              } catch (error) {
+                logger.error('Failed to delete intensity reading:', error);
+                Alert.alert('Error', 'Failed to delete intensity reading');
+              }
+            },
+          },
+        ]
+      );
+    };
+
+    Alert.alert(
+      'Intensity Options',
+      format(new Date(reading.timestamp), 'MMM d, yyyy h:mm a'),
+      [
+        {
+          text: 'Edit',
+          onPress: () => navigation.navigate('EditIntensityReading', { readingId: reading.id }),
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: confirmDelete,
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const handleNoteLongPress = (note: EpisodeNote) => {
+    Alert.alert(
+      'Note Options',
+      '',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Edit',
+          onPress: () => navigation.navigate('EditEpisodeNote', { noteId: note.id }),
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => handleDeleteNote(note.id),
+        },
+      ]
+    );
+  };
+
+  const handleMedicationLongPress = (dose: MedicationDoseWithDetails) => {
+    Alert.alert(
+      'Medication Options',
+      '',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Edit',
+          onPress: () => navigation.navigate('EditMedicationDose', { doseId: dose.id }),
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await medicationDoseRepository.delete(dose.id);
+              await loadEpisodeData();
+            } catch (error) {
+              logger.error('Failed to delete medication dose:', error);
+              Alert.alert('Error', 'Failed to delete medication dose');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleSymptomLongPress = (log: SymptomLog) => {
+    const confirmDelete = () => {
+      Alert.alert(
+        'Delete Symptom Change',
+        'Are you sure you want to delete this symptom change?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await symptomLogRepository.delete(log.id);
+                await loadEpisodeData();
+              } catch (error) {
+                logger.error('Failed to delete symptom change:', error);
+                Alert.alert('Error', 'Failed to delete symptom change');
+              }
+            },
+          },
+        ]
+      );
+    };
+
+    Alert.alert(
+      'Symptom Options',
+      format(new Date(log.onsetTime), 'MMM d, yyyy h:mm a'),
+      [
+        {
+          text: 'Edit',
+          onPress: () => navigation.navigate('EditSymptomLog', { symptomLogId: log.id }),
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: confirmDelete,
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const handlePainLocationLongPress = (log: PainLocationLog) => {
+    const confirmDelete = () => {
+      Alert.alert(
+        'Delete Pain Location Update',
+        'Are you sure you want to delete this pain location update?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await painLocationLogRepository.delete(log.id);
+                await loadEpisodeData();
+              } catch (error) {
+                logger.error('Failed to delete pain location update:', error);
+                Alert.alert('Error', 'Failed to delete pain location update');
+              }
+            },
+          },
+        ]
+      );
+    };
+
+    Alert.alert(
+      'Pain Location Options',
+      format(new Date(log.timestamp), 'MMM d, yyyy h:mm a'),
+      [
+        {
+          text: 'Edit',
+          onPress: () => navigation.navigate('EditPainLocationLog', { painLocationLogId: log.id }),
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: confirmDelete,
+        },
+      ],
+      { cancelable: true }
+    );
+  };
 
   const handleOpenMap = () => {
     setShowMapModal(true);
@@ -678,7 +405,9 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
         id: 'symptoms-initial',
         timestamp: episode.startTime,
         type: 'symptom_initial',
-        data: initialSymptomChanges,
+        data: {
+          changes: initialSymptomChanges,
+        },
       });
     }
 
@@ -743,7 +472,10 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
         id: `symptom-${symptomLog.id}`,
         timestamp: symptomLog.onsetTime,
         type: 'symptom',
-        data: symptomChanges,
+        data: {
+          log: symptomLog,
+          changes: symptomChanges,
+        },
       });
     });
 
@@ -758,7 +490,9 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
         id: 'pain-locations-initial',
         timestamp: episode.startTime,
         type: 'pain_location_initial',
-        data: initialPainLocationChanges,
+        data: {
+          changes: initialPainLocationChanges,
+        },
       });
     }
 
@@ -809,7 +543,10 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
           id: `pain-location-${painLoc.id}`,
           timestamp: painLoc.timestamp,
           type: 'pain_location',
-          data: locationChanges,
+          data: {
+            log: painLoc,
+            changes: locationChanges,
+          },
         });
       }
 
@@ -847,112 +584,26 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     return groupEventsByDay(events, episode.startTime, episode.endTime || null);
   };
 
-  // Render date label for first event of each day
-  const renderDateLabel = (dayGroup: DayGroup) => {
-    // Format as short date (e.g., "Oct 15")
-    const shortDate = format(dayGroup.date, 'MMM d');
-    return (
-      <Text style={styles.timelineDate}>{shortDate}</Text>
-    );
-  };
+  // Computed values
+  const duration = episode ? differenceInMinutes(episode.endTime || Date.now(), episode.startTime) : 0;
+  const timeline = episode ? buildTimeline() : [];
+  const sparklineWidth = screenWidth - 64; // Match original card padding and margins
 
-  // Render gap indicator for days without entries
-  const renderDayGap = (dayCount: number, isLast: boolean) => {
-    const gapText = dayCount === 1 ? '1 day' : `${dayCount} days`;
+  if (loading || !episode) {
     return (
-      <View key={`gap-${dayCount}`} style={styles.timelineItem}>
-        <View style={styles.timelineLeft}>
-          <Text style={styles.timelineGapText}>{gapText}</Text>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Text style={styles.backButton}>Back</Text>
+          </TouchableOpacity>
+          <Text style={styles.title}>Episode</Text>
+          <View style={{ width: 60 }} />
         </View>
-        <View style={styles.timelineCenter}>
-          <View style={[styles.timelineDot, { backgroundColor: theme.borderLight }]} />
-          {!isLast && <View style={styles.timelineLine} />}
-        </View>
-        <View style={styles.timelineRight}>
-          <Text style={styles.timelineGapDescription}>No activity logged</Text>
-        </View>
+        <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
-  };
-
-  const handleIntensityLongPress = (reading: IntensityReading) => {
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ['Cancel', 'Edit'],
-          cancelButtonIndex: 0,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 1) {
-            navigation.navigate('EditIntensityReading', { readingId: reading.id });
-          }
-        }
-      );
-    } else {
-      Alert.alert(
-        'Intensity Actions',
-        `${format(new Date(reading.timestamp), 'MMM d, yyyy h:mm a')}`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Edit', onPress: () => navigation.navigate('EditIntensityReading', { readingId: reading.id }) },
-        ]
-      );
-    }
-  };
-
-  const handleNoteLongPress = (note: EpisodeNote) => {
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ['Cancel', 'Edit', 'Delete'],
-          destructiveButtonIndex: 2,
-          cancelButtonIndex: 0,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 1) {
-            navigation.navigate('EditEpisodeNote', { noteId: note.id });
-          } else if (buttonIndex === 2) {
-            handleDeleteNote(note.id);
-          }
-        }
-      );
-    } else {
-      Alert.alert(
-        'Note Actions',
-        `${format(new Date(note.timestamp), 'MMM d, yyyy h:mm a')}`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Edit', onPress: () => navigation.navigate('EditEpisodeNote', { noteId: note.id }) },
-          { text: 'Delete', style: 'destructive', onPress: () => handleDeleteNote(note.id) },
-        ]
-      );
-    }
-  };
-
-  const handleMedicationLongPress = (dose: MedicationDoseWithDetails) => {
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ['Cancel', 'Edit'],
-          cancelButtonIndex: 0,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 1) {
-            navigation.navigate('EditMedicationDose', { doseId: dose.id });
-          }
-        }
-      );
-    } else {
-      Alert.alert(
-        'Medication Actions',
-        `${format(new Date(dose.timestamp), 'MMM d, yyyy h:mm a')}`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Edit', onPress: () => navigation.navigate('EditMedicationDose', { doseId: dose.id }) },
-        ]
-      );
-    }
-  };
+  }
+  
 
   const handleEpisodeEndLongPress = () => {
     if (!episode) return;
@@ -961,7 +612,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
       ActionSheetIOS.showActionSheetWithOptions(
         {
           options: ['Cancel', 'Edit End Time', 'Reopen Episode'],
-          destructiveButtonIndex: 2, // Make "Reopen Episode" destructive since it changes episode state
+          destructiveButtonIndex: 2,
           cancelButtonIndex: 0,
         },
         (buttonIndex) => {
@@ -983,8 +634,8 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
                   style: 'destructive',
                   onPress: async () => {
                     try {
-                      await reopenEpisode(episode.id);
-                      await loadEpisodeData(); // Reload to reflect changes
+                        await reopenEpisode(episode.id);
+                        await loadEpisodeData(); // Reload to reflect changes
                     } catch (error) {
                       logger.error('Failed to reopen episode:', error);
                       Alert.alert('Error', 'Failed to reopen episode. Please try again.');
@@ -1042,274 +693,6 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     }
   };
 
-  const renderEventContent = (event: TimelineEvent) => {
-    switch (event.type) {
-      case 'intensity':
-        const reading = event.data as IntensityReading;
-        // Check if this is the initial intensity (same timestamp as episode start)
-        const isInitialIntensity = episode && reading.timestamp === episode.startTime;
-        return (
-          <TouchableOpacity
-            key={event.id}
-            style={{ marginBottom: 12 }}
-            activeOpacity={isInitialIntensity ? 1 : 0.7}
-            onLongPress={!isInitialIntensity ? () => handleIntensityLongPress(reading) : undefined}
-            delayLongPress={500}
-          >
-            {/* Only show "Intensity Update" label for non-initial readings */}
-            {!isInitialIntensity && (
-              <Text style={styles.timelineEventTitle}>Intensity Update</Text>
-            )}
-            <View style={styles.timelineIntensityBar}>
-              <View
-                style={[
-                  styles.timelineIntensityBarFill,
-                  {
-                    width: `${(reading.intensity / 10) * 100}%`,
-                    backgroundColor: getPainColor(reading.intensity),
-                  },
-                ]}
-              />
-            </View>
-            <Text style={[styles.timelineIntensityValue, { color: getPainColor(reading.intensity) }]}>
-              {reading.intensity} - {getPainLevel(reading.intensity).label}
-            </Text>
-          </TouchableOpacity>
-        );
-
-      case 'note':
-        const note = event.data as EpisodeNote;
-        const isEpisodeSummary = note.id === 'episode-summary';
-        return (
-          <TouchableOpacity
-            key={event.id}
-            style={{ marginBottom: 12 }}
-            activeOpacity={isEpisodeSummary ? 1 : 0.7}
-            onLongPress={!isEpisodeSummary ? () => handleNoteLongPress(note) : undefined}
-            delayLongPress={500}
-          >
-            {/* Only show "Note" title for user-added notes, not episode summary */}
-            {!isEpisodeSummary && (
-              <Text style={styles.timelineEventTitle}>Note</Text>
-            )}
-            <Text style={styles.timelineNoteText}>{note.note}</Text>
-          </TouchableOpacity>
-        );
-
-      case 'symptom':
-      case 'symptom_initial':
-        // Symptoms are now rendered grouped in renderGroupedTimelineEvent
-        return null;
-
-      case 'pain_location':
-      case 'pain_location_initial':
-        // Pain locations are now rendered grouped in renderGroupedTimelineEvent
-        return null;
-
-      case 'medication':
-        const dose = event.data as MedicationDoseWithDetails;
-        const isSkipped = dose.status === 'skipped';
-        return (
-          <TouchableOpacity
-            key={event.id}
-            style={{ marginBottom: 12 }}
-            activeOpacity={0.7}
-            onLongPress={() => handleMedicationLongPress(dose)}
-            delayLongPress={500}
-          >
-            <Text style={styles.timelineEventTitle}>{isSkipped ? 'Medication Skipped' : 'Medication Taken'}</Text>
-            <Text style={[styles.timelineEventContent, getStatusStyle(dose.status)]}>
-              {dose.medication?.name || 'Unknown Medication'} • {formatMedicationDoseDisplay(dose, dose.medication)}
-            </Text>
-          </TouchableOpacity>
-        );
-
-      case 'end':
-        return (
-          <TouchableOpacity
-            key={event.id}
-            style={{ marginBottom: 12 }}
-            activeOpacity={0.7}
-            onLongPress={handleEpisodeEndLongPress}
-            delayLongPress={500}
-          >
-            <Text style={styles.timelineEventTitle}>Episode Ended</Text>
-          </TouchableOpacity>
-        );
-
-      default:
-        return null;
-    }
-  };
-
-  const renderGroupedTimelineEvent = (group: GroupedTimelineEvent, index: number, isLast: boolean, dateLabel?: React.ReactNode) => {
-    const time = format(group.timestamp, 'h:mm a');
-
-    // Separate symptom events and pain location events from other events
-    const symptomEvents = group.events.filter(e => e.type === 'symptom' || e.type === 'symptom_initial');
-    const painLocationEvents = group.events.filter(e => e.type === 'pain_location' || e.type === 'pain_location_initial');
-    const otherEvents = group.events.filter(e =>
-      e.type !== 'symptom' &&
-      e.type !== 'symptom_initial' &&
-      e.type !== 'pain_location' &&
-      e.type !== 'pain_location_initial'
-    );
-
-    // Get the primary color for the dot (intensity > medication > note)
-    const intensityEvent = group.events.find(e => e.type === 'intensity');
-    const endEvent = group.events.find(e => e.type === 'end');
-
-    let dotColor = theme.textSecondary; // Default neutral gray
-    if (intensityEvent) {
-      const reading = intensityEvent.data as IntensityReading;
-      dotColor = getPainColor(reading.intensity);
-    } else if (endEvent) {
-      dotColor = theme.textSecondary;
-    }
-    // Medication and note events keep neutral gray
-
-    return (
-      <View key={`group-${group.timestamp}`} style={styles.timelineItem}>
-        <View style={styles.timelineLeft}>
-          <Text style={styles.timelineTime}>{time}</Text>
-          {dateLabel}
-        </View>
-        <View style={styles.timelineCenter}>
-          <View style={[styles.timelineDot, { backgroundColor: dotColor }]} />
-          {!isLast && <View style={styles.timelineLine} />}
-        </View>
-        <View style={styles.timelineRight}>
-          {/* Render non-symptom events */}
-          {otherEvents.map(event => renderEventContent(event))}
-
-          {/* Render symptom changes with +/- indicators */}
-          {symptomEvents.length > 0 && (
-            <View style={{ marginBottom: 12 }}>
-              <Text style={styles.timelineEventTitle}>
-                {symptomEvents[0].type === 'symptom_initial' ? 'Initial Symptoms' : 'Symptom Changes'}
-              </Text>
-              <View style={styles.chipContainer}>
-                {symptomEvents.map(event => {
-                  const symptomChanges = event.data as SymptomChange[];
-                  const isInitial = event.type === 'symptom_initial';
-
-                  return symptomChanges.map((change, idx) => {
-                    const isAdded = change.changeType === 'added';
-
-                    // For initial symptoms, use neutral styling without indicators
-                    if (isInitial) {
-                      return (
-                        <View key={`${event.id}-${idx}`} style={styles.chip}>
-                          <Text style={styles.chipText}>
-                            {change.symptom.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                          </Text>
-                        </View>
-                      );
-                    }
-
-                    // For symptom changes, show +/- with color coding
-                    const chipStyle = isAdded ? styles.symptomAddedChip : styles.symptomRemovedChip;
-                    const textStyle = isAdded ? styles.symptomAddedText : styles.symptomRemovedText;
-                    const indicator = isAdded ? '+ ' : '− ';
-
-                    return (
-                      <View key={`${event.id}-${idx}`} style={[styles.chip, chipStyle]}>
-                        <Text style={[styles.chipText, textStyle]}>
-                          {indicator}{change.symptom.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                        </Text>
-                      </View>
-                    );
-                  });
-                })}
-              </View>
-            </View>
-          )}
-
-          {/* Render pain location changes with +/- indicators */}
-          {painLocationEvents.length > 0 && (
-            <View style={{ marginBottom: 12 }}>
-              <Text style={styles.timelineEventTitle}>
-                {painLocationEvents[0].type === 'pain_location_initial' ? 'Initial Pain Locations' : 'Pain Location Changes'}
-              </Text>
-              <View style={styles.chipContainer}>
-                {painLocationEvents.map(event => {
-                  const locationChanges = event.data as PainLocationChange[];
-                  const isInitial = event.type === 'pain_location_initial';
-
-                  return locationChanges.map((change, idx) => {
-                    const location = PAIN_LOCATIONS.find(l => l.value === change.location);
-                    const sideLabel = location?.side === 'left' ? 'Left' : 'Right';
-                    const locationLabel = location ? `${sideLabel} ${location.label}` : change.location;
-
-                    // For initial pain locations, use neutral styling without indicators
-                    if (isInitial) {
-                      return (
-                        <View key={`${event.id}-${idx}`} style={styles.chip}>
-                          <Text style={styles.chipText}>
-                            {locationLabel}
-                          </Text>
-                        </View>
-                      );
-                    }
-
-                    // For unchanged locations, use neutral styling without indicators
-                    if (change.changeType === 'unchanged') {
-                      return (
-                        <View key={`${event.id}-${idx}`} style={styles.chip}>
-                          <Text style={styles.chipText}>
-                            {locationLabel}
-                          </Text>
-                        </View>
-                      );
-                    }
-
-                    // For pain location changes, show +/- with color coding
-                    const isAdded = change.changeType === 'added';
-                    const chipStyle = isAdded ? styles.symptomAddedChip : styles.symptomRemovedChip;
-                    const textStyle = isAdded ? styles.symptomAddedText : styles.symptomRemovedText;
-                    const indicator = isAdded ? '+ ' : '− ';
-
-                    return (
-                      <View key={`${event.id}-${idx}`} style={[styles.chip, chipStyle]}>
-                        <Text style={[styles.chipText, textStyle]}>
-                          {indicator}{locationLabel}
-                        </Text>
-                      </View>
-                    );
-                  });
-                })}
-              </View>
-            </View>
-          )}
-        </View>
-      </View>
-    );
-  };
-
-  if (loading || !episode) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.backButton}>Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>Episode</Text>
-          <View style={{ width: 60 }} />
-        </View>
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
-    );
-  }
-
-  const duration = episode.endTime
-    ? differenceInMinutes(episode.endTime, episode.startTime)
-    : differenceInMinutes(Date.now(), episode.startTime);
-
-  const timeline = buildTimeline();
-
-  // Calculate sparkline width: screen width minus card margins (32px) and padding (32px)
-  const sparklineWidth = screenWidth - 64;
-
   return (
     <View style={styles.container} testID="episode-detail-screen">
       <View style={styles.header}>
@@ -1335,306 +718,62 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
 
       <ScrollView style={styles.content} testID="episode-detail-scroll-view">
         {/* Status Card */}
-        <View style={styles.card}>
-          <View style={styles.statusHeader}>
-            <Text style={styles.cardTitle}>
-              {format(episode.startTime, 'EEEE, MMM d, yyyy')}
-            </Text>
-            {!episode.endTime && (
-              <View style={styles.ongoingBadge}>
-                <Text style={styles.ongoingText}>Ongoing</Text>
-              </View>
-            )}
-          </View>
-
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Started:</Text>
-            <Text style={styles.detailValue}>
-              {format(episode.startTime, 'h:mm a')}
-            </Text>
-          </View>
-
-          {episode.endTime && (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Ended:</Text>
-              <Text style={styles.detailValue}>
-                {format(episode.endTime, 'h:mm a')}
-              </Text>
-            </View>
-          )}
-
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Duration:</Text>
-            <Text style={styles.detailValue}>
-              {Math.floor(duration / 60)}h {duration % 60}m
-            </Text>
-          </View>
-
-
-          {/* Location Link */}
-          {episode.location && (
-            <TouchableOpacity
-              style={styles.detailRow}
-              onPress={handleOpenMap}
-              accessibilityRole="button"
-              accessibilityLabel={`Episode location: ${locationAddress || 'View on map'}`}
-              accessibilityHint="Opens a map showing where this episode started"
-            >
-              <Text style={styles.detailLabel}>Location:</Text>
-              <Text style={[styles.detailValue, styles.locationLink]}>
-                {locationAddress || 'View on Map'} →
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Action Buttons - Only for ongoing episodes */}
-          {!episode.endTime && (
-            <View style={styles.actionButtons}>
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => navigation.navigate('LogUpdate', { episodeId })}
-                testID="log-update-button"
-                accessibilityRole="button"
-                accessibilityLabel="Log update"
-                accessibilityHint="Opens screen to log pain intensity updates, symptoms, or notes"
-              >
-                <Text style={styles.actionButtonText}>Log Update</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => navigation.navigate('LogMedication', { episodeId })}
-                testID="log-medication-from-episode-button"
-                accessibilityRole="button"
-                accessibilityLabel="Log medication"
-                accessibilityHint="Opens screen to record medications taken for this episode"
-              >
-                <Text style={styles.actionButtonText}>Log Medication</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
+        <EpisodeStatusCard
+          episode={episode}
+          duration={duration}
+          locationAddress={locationAddress}
+          onOpenMap={handleOpenMap}
+          onNavigateToLogUpdate={() => navigation.navigate('LogUpdate', { episodeId })}
+          onNavigateToLogMedication={() => navigation.navigate('LogMedication', { episodeId })}
+        />
 
 
         {/* Pain Qualities */}
-        {episode.qualities.length > 0 && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Pain Quality</Text>
-            <View style={styles.chipContainer}>
-              {episode.qualities.map(quality => (
-                <View key={quality} style={styles.chip}>
-                  <Text style={styles.chipText}>
-                    {quality.charAt(0).toUpperCase() + quality.slice(1)}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* Triggers */}
-        {episode.triggers.length > 0 && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Possible Triggers</Text>
-            <View style={styles.chipContainer}>
-              {episode.triggers.map(trigger => (
-                <View key={trigger} style={styles.chip}>
-                  <Text style={styles.chipText}>
-                    {trigger.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
+        {/* Episode Info Cards - Qualities and Triggers */}
+        <EpisodeInfoCards
+          qualities={episode.qualities}
+          triggers={episode.triggers}
+        />
 
         {/* Timeline */}
-        {timeline.length > 0 && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Timeline</Text>
-
-            {/* Intensity Graph */}
-            {intensityReadings.length > 0 && (
-              <View style={{ marginTop: 8, marginBottom: 16 }}>
-                <IntensitySparkline
-                  readings={intensityReadings}
-                  episodeEndTime={episode.endTime}
-                  width={sparklineWidth}
-                  height={80}
-                />
-              </View>
-            )}
-
-            <View style={styles.timelineContainer}>
-              {timeline.map((dayGroup, dayIndex) => {
-                // Group events by timestamp within each day
-                const groupedEvents = groupEventsByTimestamp(dayGroup.events);
-
-                // Calculate gap from previous day
-                let dayGap = null;
-                if (dayIndex > 0) {
-                  const prevDayGroup = timeline[dayIndex - 1];
-                  const daysDiff = Math.floor((dayGroup.date - prevDayGroup.date) / (24 * 60 * 60 * 1000));
-                  if (daysDiff > 1) {
-                    // There's a gap of more than 1 day
-                    dayGap = daysDiff - 1; // Subtract 1 because we're counting the empty days
-                  }
-                }
-
-                return (
-                  <View key={dayGroup.date}>
-                    {/* Show gap indicator if there are missing days */}
-                    {dayGap && renderDayGap(dayGap, false)}
-
-                    {/* Render events for this day */}
-                    {groupedEvents.map((group, eventIndex) =>
-                      renderGroupedTimelineEvent(
-                        group,
-                        eventIndex,
-                        eventIndex === groupedEvents.length - 1 && dayIndex === timeline.length - 1,
-                        // Show date label for first event of each day (except first day for single-day episodes)
-                        eventIndex === 0 && (timeline.length > 1 || dayIndex > 0) ? renderDateLabel(dayGroup) : undefined
-                      )
-                    )}
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-        )}
+        <EpisodeTimeline
+          timeline={timeline}
+          intensityReadings={intensityReadings}
+          episode={episode}
+          sparklineWidth={sparklineWidth}
+          onIntensityLongPress={handleIntensityLongPress}
+          onNoteLongPress={handleNoteLongPress}
+          onMedicationLongPress={handleMedicationLongPress}
+          onSymptomLongPress={handleSymptomLongPress}
+          onPainLocationLongPress={handlePainLocationLongPress}
+          onEpisodeEndLongPress={handleEpisodeEndLongPress}
+        />
 
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* End Episode Buttons */}
-      {!episode.endTime && (
-        <View style={styles.footer}>
-          <View style={styles.endButtonsContainer}>
-            <TouchableOpacity
-              style={styles.endButton}
-              onPress={endEpisodeNow}
-              testID="end-now-button"
-              accessibilityRole="button"
-              accessibilityLabel="End episode now"
-              accessibilityHint="Ends this episode with the current time"
-            >
-              <Text style={styles.endButtonText}>End Now</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.endCustomButton}
-              onPress={() => {
-                setCustomEndTime(Date.now());
-                setShowEndTimePicker(true);
-              }}
-              testID="end-custom-button"
-              accessibilityRole="button"
-              accessibilityLabel="End episode with custom time"
-              accessibilityHint="Opens date picker to choose when the episode ended"
-            >
-              <Text style={styles.endCustomButtonText}>End...</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
+      {/* End Episode Actions */}
+      <EpisodeActions
+        episode={episode}
+        onEndEpisodeNow={endEpisodeNow}
+        onShowCustomEndTime={() => {
+          setCustomEndTime(Date.now());
+          setShowEndTimePicker(true);
+        }}
+      />
 
-      {/* Map Modal */}
-      <Modal
-        visible={showMapModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowMapModal(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <View style={{ width: 60 }} />
-            <Text style={styles.modalTitle}>Episode Location</Text>
-            <TouchableOpacity
-              onPress={() => setShowMapModal(false)}
-              accessibilityRole="button"
-              accessibilityLabel="Done"
-              accessibilityHint="Closes the map and returns to episode details"
-            >
-              <Text style={styles.modalCloseButton}>Done</Text>
-            </TouchableOpacity>
-          </View>
-
-          {episode.location && (
-            <MapView
-              style={styles.modalMap}
-              initialRegion={{
-                latitude: episode.location.latitude,
-                longitude: episode.location.longitude,
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
-              }}
-            >
-              <Marker
-                coordinate={{
-                  latitude: episode.location.latitude,
-                  longitude: episode.location.longitude,
-                }}
-                title="Episode Started Here"
-                description={locationAddress || format(episode.startTime, 'MMM d, yyyy h:mm a')}
-              />
-            </MapView>
-          )}
-
-          <View style={styles.modalInfo}>
-            {locationAddress && (
-              <Text style={styles.modalLocationText}>{locationAddress}</Text>
-            )}
-            {episode.location?.accuracy && (
-              <Text style={styles.modalAccuracyText}>
-                Accuracy: ±{Math.round(episode.location.accuracy)}m
-              </Text>
-            )}
-          </View>
-        </View>
-      </Modal>
-
-      {/* End Time Picker Modal */}
-      <Modal
-        visible={showEndTimePicker}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowEndTimePicker(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity
-              onPress={() => setShowEndTimePicker(false)}
-              accessibilityRole="button"
-              accessibilityLabel="Cancel"
-              accessibilityHint={episode.endTime ? "Closes the time picker without changing the end time" : "Closes the time picker without ending the episode"}
-            >
-              <Text style={styles.modalCloseButton}>Cancel</Text>
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>{episode.endTime ? 'Edit End Time' : 'Set End Time'}</Text>
-            <TouchableOpacity
-              onPress={handleCustomTimeAction}
-              accessibilityRole="button"
-              accessibilityLabel="Done"
-              accessibilityHint={episode.endTime ? "Updates the episode end time" : "Ends the episode with the selected time"}
-            >
-              <Text style={styles.modalCloseButton}>Done</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <DateTimePicker
-              value={customEndTime && customEndTime > 0 ? new Date(customEndTime) : new Date()}
-              mode="datetime"
-              display="spinner"
-              onChange={(event, selectedDate) => {
-                if (selectedDate) {
-                  setCustomEndTime(selectedDate.getTime());
-                }
-              }}
-              maximumDate={new Date()}
-              minimumDate={new Date(episode.startTime)}
-            />
-          </View>
-        </View>
-      </Modal>
+      {/* Modals */}
+      <EpisodeModals
+        showMapModal={showMapModal}
+        showEndTimePicker={showEndTimePicker}
+        episode={episode}
+        locationAddress={locationAddress}
+        customEndTime={customEndTime}
+        onCloseMapModal={() => setShowMapModal(false)}
+        onCloseEndTimePicker={() => setShowEndTimePicker(false)}
+        onCustomTimeChange={setCustomEndTime}
+        onCustomTimeAction={handleCustomTimeAction}
+      />
     </View>
   );
 }
