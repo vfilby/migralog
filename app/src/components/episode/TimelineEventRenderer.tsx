@@ -321,7 +321,7 @@ const createStyles = (theme: ThemeColors) =>
       paddingRight: 12,
     },
     timelineTime: {
-      fontSize: 12,
+      fontSize: 14,
       color: theme.textSecondary,
       marginBottom: 4,
     },
@@ -330,9 +330,9 @@ const createStyles = (theme: ThemeColors) =>
       alignItems: 'center',
     },
     timelineDot: {
-      width: 10,
-      height: 10,
-      borderRadius: 5,
+      width: 12,
+      height: 12,
+      borderRadius: 6,
       marginTop: 2,
     },
     timelineLine: {
