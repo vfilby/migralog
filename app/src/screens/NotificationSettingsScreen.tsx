@@ -1,0 +1,642 @@
+import React, { useState, useEffect } from 'react';
+import { logger } from '../utils/logger';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  Switch,
+  Platform,
+} from 'react-native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/types';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme, ThemeColors } from '../theme';
+import { notificationService, NotificationPermissions } from '../services/notificationService';
+import { dailyCheckinService } from '../services/dailyCheckinService';
+import { useDailyCheckinSettingsStore } from '../store/dailyCheckinSettingsStore';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import NotificationSettings from '../components/NotificationSettings';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'NotificationSettingsScreen'>;
+
+const DEVELOPER_MODE_KEY = '@settings_developer_mode';
+
+const createStyles = (theme: ThemeColors) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.background,
+  },
+  header: {
+    backgroundColor: theme.card,
+    paddingHorizontal: 16,
+    paddingTop: 60,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border,
+    minHeight: 80,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  headerSide: {
+    minWidth: 60,
+    alignItems: 'flex-start',
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: theme.text,
+    flexShrink: 1,
+    flexGrow: 1,
+    textAlign: 'center',
+  },
+  backButton: {
+    fontSize: 17,
+    color: theme.primary,
+    paddingVertical: 4,
+  },
+  section: {
+    marginTop: 24,
+    marginBottom: 12,
+    paddingHorizontal: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 8,
+    color: theme.text,
+  },
+  sectionDescription: {
+    fontSize: 14,
+    color: theme.textSecondary,
+    marginBottom: 12,
+  },
+  subsectionTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    marginBottom: 8,
+    marginTop: 8,
+    color: theme.text,
+  },
+  diagnosticCard: {
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  diagnosticRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+  },
+  diagnosticLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  diagnosticLabel: {
+    fontSize: 15,
+    color: theme.textSecondary,
+  },
+  diagnosticRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  diagnosticValueSecondary: {
+    fontSize: 15,
+    color: theme.textSecondary,
+  },
+  diagnosticValueSuccess: {
+    fontSize: 15,
+    color: theme.success,
+    fontWeight: '500',
+  },
+  diagnosticValueError: {
+    fontSize: 15,
+    color: theme.error,
+    fontWeight: '500',
+  },
+  developerActions: {
+    marginTop: 8,
+    gap: 8,
+  },
+  developerButton: {
+    backgroundColor: theme.card,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  developerButtonText: {
+    fontSize: 15,
+    color: theme.text,
+    flex: 1,
+  },
+  settingsSection: {
+    marginTop: 16,
+  },
+  notificationToggleSection: {
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  settingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+    minHeight: 44,
+  },
+  settingInfo: {
+    flex: 1,
+  },
+  settingLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: theme.text,
+    marginBottom: 4,
+  },
+  settingDescription: {
+    fontSize: 13,
+    color: theme.textSecondary,
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: theme.border,
+    marginVertical: 16,
+  },
+  timePickerContainer: {
+    marginTop: 12,
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+});
+
+export default function NotificationSettingsScreen({ navigation }: Props) {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
+  const [notificationPermissions, setNotificationPermissions] = useState<NotificationPermissions | null>(null);
+  const [developerMode, setDeveloperMode] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [isTogglingNotifications, setIsTogglingNotifications] = useState(false);
+  const [showCheckinTimePicker, setShowCheckinTimePicker] = useState(false);
+
+  // Daily check-in settings
+  const dailyCheckinSettings = useDailyCheckinSettingsStore((state) => state.settings);
+  const updateDailyCheckinSettings = useDailyCheckinSettingsStore((state) => state.updateSettings);
+  const loadDailyCheckinSettings = useDailyCheckinSettingsStore((state) => state.loadSettings);
+  const isDailyCheckinLoaded = useDailyCheckinSettingsStore((state) => state.isLoaded);
+
+  useEffect(() => {
+    loadNotificationStatus();
+    loadDeveloperMode();
+    loadNotificationsEnabled();
+    if (!isDailyCheckinLoaded) {
+      loadDailyCheckinSettings();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const loadDeveloperMode = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(DEVELOPER_MODE_KEY);
+      if (stored !== null) {
+        setDeveloperMode(stored === 'true');
+      }
+    } catch (error) {
+      logger.error('Failed to load developer mode setting:', error);
+    }
+  };
+
+  const loadNotificationStatus = async () => {
+    try {
+      const permissions = await notificationService.getPermissions();
+      setNotificationPermissions(permissions);
+    } catch (error) {
+      logger.error('Failed to load notification permissions:', error);
+    }
+  };
+
+  const loadNotificationsEnabled = async () => {
+    try {
+      const enabled = await notificationService.areNotificationsGloballyEnabled();
+      setNotificationsEnabled(enabled);
+    } catch (error) {
+      logger.error('Failed to load notifications enabled setting:', error);
+    }
+  };
+
+  const handleRequestNotifications = async () => {
+    try {
+      const permissions = await notificationService.requestPermissions();
+      setNotificationPermissions(permissions);
+
+      // Only show alert if permission was denied and can't ask again (need to go to Settings)
+      if (!permissions.granted && !permissions.canAskAgain) {
+        Alert.alert(
+          'Permission Denied',
+          'Please enable notifications in Settings to receive medication reminders.',
+          [{ text: 'OK', style: 'cancel' }]
+        );
+      }
+      // UI already shows permission status, no need for success alert
+    } catch (error) {
+      logger.error('Failed to request notification permissions:', error);
+      Alert.alert('Error', 'Failed to request notification permissions');
+    }
+  };
+
+  const handleToggleNotifications = async (enabled: boolean) => {
+    try {
+      setIsTogglingNotifications(true);
+      await notificationService.setGlobalNotificationsEnabled(enabled);
+      setNotificationsEnabled(enabled);
+
+      const message = enabled
+        ? 'All medication reminders have been enabled'
+        : 'All medication reminders have been disabled. Your schedules are preserved.';
+
+      Alert.alert('Success', message);
+    } catch (error) {
+      logger.error('Failed to toggle notifications:', error);
+      Alert.alert('Error', 'Failed to update notification settings');
+    } finally {
+      setIsTogglingNotifications(false);
+    }
+  };
+
+  const handleToggleDailyCheckin = async (enabled: boolean) => {
+    try {
+      await updateDailyCheckinSettings({ enabled });
+      // Reschedule or cancel notification based on new setting
+      if (enabled) {
+        await dailyCheckinService.scheduleNotification();
+        Alert.alert('Success', 'Daily check-in reminders have been enabled');
+      } else {
+        await dailyCheckinService.cancelNotification();
+        Alert.alert('Success', 'Daily check-in reminders have been disabled');
+      }
+    } catch (error) {
+      logger.error('Failed to toggle daily check-in:', error);
+      Alert.alert('Error', 'Failed to update daily check-in settings');
+    }
+  };
+
+  const handleCheckinTimeChange = async (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowCheckinTimePicker(false);
+    }
+
+    if (selectedDate) {
+      const hours = selectedDate.getHours().toString().padStart(2, '0');
+      const minutes = selectedDate.getMinutes().toString().padStart(2, '0');
+      const newTime = `${hours}:${minutes}`;
+
+      try {
+        await updateDailyCheckinSettings({ checkInTime: newTime });
+        // Reschedule notification with new time
+        await dailyCheckinService.rescheduleNotification();
+        logger.log('[NotificationSettings] Updated daily check-in time to:', newTime);
+      } catch (error) {
+        logger.error('Failed to update check-in time:', error);
+        Alert.alert('Error', 'Failed to update check-in time');
+      }
+    }
+  };
+
+  const getCheckinTimeAsDate = (): Date => {
+    const [hours, minutes] = dailyCheckinSettings.checkInTime.split(':').map(Number);
+    const date = new Date();
+    date.setHours(hours, minutes);
+    return date;
+  };
+
+  const formatCheckinTime = (time: string): string => {
+    const [hours, minutes] = time.split(':').map(Number);
+    const date = new Date();
+    date.setHours(hours, minutes);
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  };
+
+  const handleViewScheduledNotifications = async () => {
+    try {
+      const scheduled = await notificationService.getAllScheduledNotifications();
+
+      if (scheduled.length === 0) {
+        Alert.alert('No Notifications', 'No notifications are currently scheduled');
+        return;
+      }
+
+      const message = scheduled.map((notif, index) => {
+        // Trigger types vary (calendar/time/date) - use dynamic access
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const trigger = notif.trigger as any;
+        let timeInfo = 'Unknown trigger';
+
+        if (trigger.type === 'calendar' || (trigger.hour !== undefined && trigger.minute !== undefined)) {
+          timeInfo = `Daily at ${trigger.hour}:${String(trigger.minute).padStart(2, '0')}`;
+        } else if (trigger.date) {
+          timeInfo = `At ${new Date(trigger.date).toLocaleString()}`;
+        } else if (trigger.seconds) {
+          timeInfo = `In ${trigger.seconds} seconds`;
+        }
+
+        return `${index + 1}. ${notif.content.title}\n   ${timeInfo}\n   ID: ${notif.identifier}`;
+      }).join('\n\n');
+
+      Alert.alert(
+        `Scheduled Notifications (${scheduled.length})`,
+        message,
+        [{ text: 'OK' }],
+        { cancelable: true }
+      );
+    } catch (error) {
+      logger.error('Failed to get scheduled notifications:', error);
+      Alert.alert('Error', 'Failed to get scheduled notifications');
+    }
+  };
+
+  const handleTestNotification = async (timeSensitive: boolean) => {
+    try {
+      // Check if notifications are enabled
+      const permissions = await notificationService.getPermissions();
+      if (!permissions.granted) {
+        Alert.alert('Notifications Disabled', 'Please enable notifications in Settings.');
+        return;
+      }
+
+      // Schedule a test notification for 5 seconds from now
+      const testTime = new Date(Date.now() + 5000);
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `Test Notification${timeSensitive ? ' (Time-Sensitive)' : ''}`,
+          body: 'This is a test notification from MigraLog',
+          sound: true,
+          ...(Notifications.AndroidNotificationPriority && {
+            priority: Notifications.AndroidNotificationPriority.HIGH,
+          }),
+          // Only set time-sensitive interruption level if enabled
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...(timeSensitive && { interruptionLevel: 'timeSensitive' } as any),
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        trigger: testTime as any,
+      });
+
+      Alert.alert(
+        'Test Scheduled',
+        `A${timeSensitive ? ' time-sensitive' : ' regular'} notification will appear in 5 seconds.${
+          timeSensitive
+            ? ' Time-sensitive notifications break through Focus modes on iOS.'
+            : ''
+        }`
+      );
+    } catch (error) {
+      Alert.alert('Error', 'Failed to schedule test notification');
+      logger.error('Failed to schedule test notification:', error);
+    }
+  };
+
+  const handleTestCriticalNotification = async () => {
+    try {
+      // Check if notifications are enabled
+      const permissions = await notificationService.getPermissions();
+      if (!permissions.granted) {
+        Alert.alert('Notifications Disabled', 'Please enable notifications in Settings.');
+        return;
+      }
+
+      // Schedule a test critical notification for 5 seconds from now
+      const testTime = new Date(Date.now() + 5000);
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Test Critical Notification',
+          body: 'This notification shows as time-sensitive with critical priority. On iOS with entitlement, it can break through silent mode.',
+          sound: true,
+          // Critical alert properties (requires entitlement on iOS)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...({ critical: true } as any),
+          ...(Notifications.AndroidNotificationPriority && {
+            priority: Notifications.AndroidNotificationPriority.MAX,
+          }),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...({ interruptionLevel: 'critical' } as any),
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        trigger: testTime as any,
+      });
+
+      Alert.alert(
+        'Critical Test Scheduled',
+        'A critical notification will appear in 5 seconds.\n\nThis notification shows as time-sensitive on the build. Critical alerts that break through silent mode require Apple entitlement.'
+      );
+    } catch (error) {
+      Alert.alert('Error', 'Failed to schedule test notification');
+      logger.error('Failed to schedule test critical notification:', error);
+    }
+  };
+
+  return (
+    <View style={styles.container} testID="notification-settings-screen">
+      <View style={styles.header}>
+        <View style={styles.headerRow}>
+          <View style={styles.headerSide}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              accessibilityRole="button"
+              accessibilityLabel="Back"
+              accessibilityHint="Returns to settings"
+            >
+              <Text style={styles.backButton}>Back</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.title}>Notification Settings</Text>
+          <View style={styles.headerSide} />
+        </View>
+      </View>
+
+      <ScrollView>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Medication Reminders</Text>
+          <Text style={styles.sectionDescription}>
+            Manage notification permissions for medication reminders
+          </Text>
+
+          <View style={styles.diagnosticCard}>
+            <View style={styles.diagnosticRow}>
+              <View style={styles.diagnosticLeft}>
+                <Ionicons
+                  name="notifications-outline"
+                  size={20}
+                  color={theme.textSecondary}
+                />
+                <Text style={styles.diagnosticLabel}>Status</Text>
+              </View>
+              <View style={styles.diagnosticRight}>
+                {!notificationPermissions ? (
+                  <Text style={styles.diagnosticValueSecondary}>Checking...</Text>
+                ) : notificationPermissions.granted ? (
+                  <>
+                    <Ionicons name="checkmark-circle" size={18} color={theme.success} />
+                    <Text style={styles.diagnosticValueSuccess}>Enabled</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="close-circle" size={18} color={theme.error} />
+                    <Text style={styles.diagnosticValueError}>Disabled</Text>
+                  </>
+                )}
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.developerActions}>
+            {!notificationPermissions?.granted && (
+              <TouchableOpacity
+                style={styles.developerButton}
+                onPress={handleRequestNotifications}
+                accessibilityRole="button"
+                accessibilityLabel="Enable notifications"
+                accessibilityHint="Requests permission to send medication reminder notifications"
+              >
+                <Ionicons name="notifications-outline" size={24} color={theme.primary} />
+                <Text style={styles.developerButtonText}>Enable Notifications</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {notificationPermissions?.granted && (
+            <>
+              {/* Global Notification Toggle */}
+              <View style={[styles.settingsSection, styles.notificationToggleSection]}>
+                <View style={styles.settingRow}>
+                  <View style={styles.settingInfo}>
+                    <Text style={styles.settingLabel}>Enable Medication Reminders</Text>
+                    <Text style={styles.settingDescription}>
+                      {notificationsEnabled
+                        ? 'Notifications are enabled'
+                        : 'All reminders disabled. Schedules are preserved.'}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={notificationsEnabled}
+                    onValueChange={handleToggleNotifications}
+                    disabled={isTogglingNotifications}
+                    trackColor={{ false: theme.borderLight, true: theme.primary }}
+                    thumbColor={theme.card}
+                    accessibilityRole="switch"
+                    accessibilityLabel="Enable medication reminders"
+                    accessibilityHint="Toggles all medication reminder notifications on or off"
+                  />
+                </View>
+              </View>
+
+              {/* Per-Medication Settings */}
+              {notificationsEnabled && (
+                <View style={styles.settingsSection}>
+                  <NotificationSettings showTitle={false} />
+                </View>
+              )}
+
+              {/* Daily Check-in */}
+              {notificationsEnabled && (
+                <>
+                  <View style={styles.sectionDivider} />
+                  <Text style={styles.subsectionTitle}>Daily Check-in</Text>
+                  <Text style={styles.sectionDescription}>
+                    Get a reminder to log how your day went
+                  </Text>
+
+                  <View style={[styles.settingsSection, styles.notificationToggleSection]}>
+                    <View style={styles.settingRow}>
+                      <View style={styles.settingInfo}>
+                        <Text style={styles.settingLabel}>Enable Daily Check-in</Text>
+                        <Text style={styles.settingDescription}>
+                          {dailyCheckinSettings.enabled
+                            ? `Reminder at ${formatCheckinTime(dailyCheckinSettings.checkInTime)}`
+                            : 'Daily reminders disabled'}
+                        </Text>
+                      </View>
+                      <Switch
+                        value={dailyCheckinSettings.enabled}
+                        onValueChange={handleToggleDailyCheckin}
+                        trackColor={{ false: theme.borderLight, true: theme.primary }}
+                        thumbColor={theme.card}
+                        accessibilityRole="switch"
+                        accessibilityLabel="Enable daily check-in"
+                        accessibilityHint="Toggles daily check-in reminders on or off"
+                      />
+                    </View>
+                  </View>
+
+                  {dailyCheckinSettings.enabled && (
+                    <View style={styles.settingsSection}>
+                      <TouchableOpacity
+                        style={[styles.diagnosticCard, { marginBottom: 0 }]}
+                        onPress={() => setShowCheckinTimePicker(!showCheckinTimePicker)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Check-in time: ${formatCheckinTime(dailyCheckinSettings.checkInTime)}`}
+                        accessibilityHint="Tap to change the daily check-in reminder time"
+                      >
+                        <View style={styles.diagnosticRow}>
+                          <View style={styles.diagnosticLeft}>
+                            <Ionicons
+                              name="time-outline"
+                              size={20}
+                              color={theme.textSecondary}
+                            />
+                            <Text style={styles.diagnosticLabel}>Check-in Time</Text>
+                          </View>
+                          <View style={styles.diagnosticRight}>
+                            <Text style={[styles.diagnosticValueSecondary, { color: theme.primary, fontWeight: '600' }]}>
+                              {formatCheckinTime(dailyCheckinSettings.checkInTime)}
+                            </Text>
+                            <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+
+                      {showCheckinTimePicker && (
+                        <View style={styles.timePickerContainer}>
+                          <DateTimePicker
+                            value={getCheckinTimeAsDate()}
+                            mode="time"
+                            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                            onChange={handleCheckinTimeChange}
+                            testID="checkin-time-picker"
+                          />
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </>
+              )}
+            </>
+          )}
+        </View>
+
+        <View style={{ height: 100 }} />
+      </ScrollView>
+    </View>
+  );
+}

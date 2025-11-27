@@ -18,6 +18,8 @@ export type RootStackParamList = {
   EditEpisodeNote: { noteId: string };
   ArchivedMedications: undefined;
   Settings: undefined;
+  NotificationSettingsScreen: undefined;
+  DeveloperToolsScreen: undefined;
   BackupRecovery: undefined;
   ErrorLogs: undefined;
   Performance: undefined;

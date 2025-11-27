@@ -727,226 +727,28 @@ export default function SettingsScreen({ navigation }: Props) {
         {/* Notifications Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Notifications</Text>
-          <Text style={styles.sectionDescription}>
-            Manage notification permissions for medication reminders
-          </Text>
-
-          <View style={styles.diagnosticCard}>
-            <View style={styles.diagnosticRow}>
-              <View style={styles.diagnosticLeft}>
-                <Ionicons
-                  name="notifications-outline"
-                  size={20}
-                  color={theme.textSecondary}
-                />
-                <Text style={styles.diagnosticLabel}>Status</Text>
-              </View>
-              <View style={styles.diagnosticRight}>
-                {!notificationPermissions ? (
-                  <Text style={styles.diagnosticValueSecondary}>Checking...</Text>
-                ) : notificationPermissions.granted ? (
-                  <>
-                    <Ionicons name="checkmark-circle" size={18} color={theme.success} />
-                    <Text style={styles.diagnosticValueSuccess}>Enabled</Text>
-                  </>
-                ) : (
-                  <>
-                    <Ionicons name="close-circle" size={18} color={theme.error} />
-                    <Text style={styles.diagnosticValueError}>Disabled</Text>
-                  </>
-                )}
+          <TouchableOpacity
+            style={styles.navigationItem}
+            onPress={() => navigation.navigate('NotificationSettingsScreen')}
+            accessibilityRole="button"
+            accessibilityLabel="Notification settings"
+            accessibilityHint="Opens notification and medication reminder settings"
+          >
+            <View style={styles.navigationItemContent}>
+              <Ionicons name="notifications-outline" size={24} color={theme.primary} />
+              <View style={styles.navigationItemText}>
+                <Text style={styles.navigationItemTitle}>Medication Reminders</Text>
+                <Text style={styles.navigationItemDescription}>
+                  {!notificationPermissions
+                    ? 'Loading...'
+                    : notificationPermissions.granted
+                    ? 'Manage reminder settings'
+                    : 'Enable notifications for reminders'}
+                </Text>
               </View>
             </View>
-          </View>
-
-          <View style={styles.developerActions}>
-            {!notificationPermissions?.granted && (
-              <TouchableOpacity
-                style={styles.developerButton}
-                onPress={handleRequestNotifications}
-                accessibilityRole="button"
-                accessibilityLabel="Enable notifications"
-                accessibilityHint="Requests permission to send medication reminder notifications"
-              >
-                <Ionicons name="notifications-outline" size={24} color={theme.primary} />
-                <Text style={styles.developerButtonText}>Enable Notifications</Text>
-              </TouchableOpacity>
-            )}
-
-            {notificationPermissions?.granted && developerMode && (
-              <>
-                <TouchableOpacity
-                  style={styles.developerButton}
-                  onPress={() => handleTestNotification(false)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Test regular notification"
-                  accessibilityHint="Schedules a test notification to appear in 5 seconds"
-                >
-                  <Ionicons name="flask-outline" size={24} color={theme.primary} />
-                  <Text style={styles.developerButtonText}>Test Regular Notification (5s)</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.developerButton}
-                  onPress={() => handleTestNotification(true)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Test time-sensitive notification"
-                  accessibilityHint="Schedules a time-sensitive test notification that breaks through Focus mode in 5 seconds"
-                >
-                  <Ionicons name="flash-outline" size={24} color={theme.primary} />
-                  <Text style={styles.developerButtonText}>Test Time-Sensitive (5s)</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.developerButton}
-                  onPress={handleTestCriticalNotification}
-                  accessibilityRole="button"
-                  accessibilityLabel="Test critical notification"
-                  accessibilityHint="Schedules a critical priority test notification in 5 seconds"
-                >
-                  <Ionicons name="notifications-outline" size={24} color={theme.primary} />
-                  <Text style={styles.developerButtonText}>Test Critical (5s)</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.developerButton}
-                  onPress={handleViewScheduledNotifications}
-                  accessibilityRole="button"
-                  accessibilityLabel="View scheduled notifications"
-                  accessibilityHint="Shows a list of all currently scheduled notifications"
-                >
-                  <Ionicons name="list-outline" size={24} color={theme.primary} />
-                  <Text style={styles.developerButtonText}>View Scheduled Notifications</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-
-          {notificationPermissions?.granted ? (
-            <>
-              {/* Global Notification Toggle */}
-              <View style={[styles.settingsSection, styles.notificationToggleSection]}>
-                <View style={styles.settingRow}>
-                  <View style={styles.settingInfo}>
-                    <Text style={styles.settingLabel}>Enable Medication Reminders</Text>
-                    <Text style={styles.settingDescription}>
-                      {notificationsEnabled
-                        ? 'Notifications are enabled'
-                        : 'All reminders disabled. Schedules are preserved.'}
-                    </Text>
-                  </View>
-                  <Switch
-                    value={notificationsEnabled}
-                    onValueChange={handleToggleNotifications}
-                    disabled={isTogglingNotifications}
-                    trackColor={{ false: theme.borderLight, true: theme.primary }}
-                    thumbColor={theme.card}
-                    accessibilityRole="switch"
-                    accessibilityLabel="Enable medication reminders"
-                    accessibilityHint="Toggles all medication reminder notifications on or off"
-                  />
-                </View>
-              </View>
-
-              {/* Per-Medication Settings */}
-              {notificationsEnabled && (
-                <View style={styles.settingsSection}>
-                  <NotificationSettings showTitle={false} />
-                </View>
-              )}
-
-              {/* Daily Check-in (within Notifications section, only when enabled) */}
-              {notificationsEnabled && (
-                <>
-                  <View style={styles.sectionDivider} />
-                  <Text style={styles.subsectionTitle}>Daily Check-in</Text>
-                  <Text style={styles.sectionDescription}>
-                    Get a reminder to log how your day went
-                  </Text>
-
-                  <View style={[styles.settingsSection, styles.notificationToggleSection]}>
-                    <View style={styles.settingRow}>
-                      <View style={styles.settingInfo}>
-                        <Text style={styles.settingLabel}>Enable Daily Check-in</Text>
-                        <Text style={styles.settingDescription}>
-                          {dailyCheckinSettings.enabled
-                            ? `Reminder at ${formatCheckinTime(dailyCheckinSettings.checkInTime)}`
-                            : 'Daily reminders disabled'}
-                        </Text>
-                      </View>
-                      <Switch
-                        value={dailyCheckinSettings.enabled}
-                        onValueChange={handleToggleDailyCheckin}
-                        trackColor={{ false: theme.borderLight, true: theme.primary }}
-                        thumbColor={theme.card}
-                        accessibilityRole="switch"
-                        accessibilityLabel="Enable daily check-in"
-                        accessibilityHint="Toggles daily check-in reminders on or off"
-                      />
-                    </View>
-                  </View>
-
-                  {dailyCheckinSettings.enabled && (
-                    <View style={styles.settingsSection}>
-                      <TouchableOpacity
-                        style={[styles.diagnosticCard, { marginBottom: 0 }]}
-                        onPress={() => setShowCheckinTimePicker(!showCheckinTimePicker)}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Check-in time: ${formatCheckinTime(dailyCheckinSettings.checkInTime)}`}
-                        accessibilityHint="Tap to change the daily check-in reminder time"
-                      >
-                        <View style={styles.diagnosticRow}>
-                          <View style={styles.diagnosticLeft}>
-                            <Ionicons
-                              name="time-outline"
-                              size={20}
-                              color={theme.textSecondary}
-                            />
-                            <Text style={styles.diagnosticLabel}>Check-in Time</Text>
-                          </View>
-                          <View style={styles.diagnosticRight}>
-                            <Text style={[styles.diagnosticValueSecondary, { color: theme.primary, fontWeight: '600' }]}>
-                              {formatCheckinTime(dailyCheckinSettings.checkInTime)}
-                            </Text>
-                            <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
-                          </View>
-                        </View>
-                      </TouchableOpacity>
-
-                      {showCheckinTimePicker && (
-                        <View style={styles.timePickerContainer}>
-                          <DateTimePicker
-                            value={getCheckinTimeAsDate()}
-                            mode="time"
-                            is24Hour={false}
-                            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                            onChange={handleCheckinTimeChange}
-                            themeVariant={isDark ? 'dark' : 'light'}
-                          />
-                        </View>
-                      )}
-                    </View>
-                  )}
-                </>
-              )}
-            </>
-          ) : (
-            <View style={styles.disabledNotificationsCard}>
-              <Text style={styles.disabledNotificationsText}>
-                Notifications are currently disabled. Enable notifications in Settings to customize notification behavior.
-              </Text>
-              <TouchableOpacity
-                style={styles.settingsLinkButton}
-                onPress={handleOpenSystemSettings}
-                accessibilityRole="button"
-                accessibilityLabel="Open system settings"
-                accessibilityHint="Opens the device settings app to enable notifications"
-              >
-                <Text style={styles.settingsLinkButtonText}>Open Settings</Text>
-                <Ionicons name="chevron-forward" size={18} color={theme.primary} />
-              </TouchableOpacity>
-            </View>
-          )}
+            <Ionicons name="chevron-forward" size={24} color={theme.textTertiary} />
+          </TouchableOpacity>
         </View>
 
         {/* Location Section */}
@@ -1050,260 +852,24 @@ export default function SettingsScreen({ navigation }: Props) {
               Diagnostic tools for troubleshooting issues
             </Text>
 
-          {/* Database Status */}
-          <View style={styles.diagnosticCard}>
-            <View style={styles.diagnosticRow}>
-              <View style={styles.diagnosticLeft}>
-                <Ionicons
-                  name="server-outline"
-                  size={20}
-                  color={theme.textSecondary}
-                />
-                <Text style={styles.diagnosticLabel}>Database</Text>
-              </View>
-              <View style={styles.diagnosticRight}>
-                {dbStatus === 'checking' && (
-                  <Text style={styles.diagnosticValueSecondary}>Checking...</Text>
-                )}
-                {dbStatus === 'healthy' && (
-                  <>
-                    <Ionicons name="checkmark-circle" size={18} color={theme.success} />
-                    <Text style={styles.diagnosticValueSuccess}>Healthy</Text>
-                  </>
-                )}
-                {dbStatus === 'error' && (
-                  <>
-                    <Ionicons name="close-circle" size={18} color={theme.error} />
-                    <Text style={styles.diagnosticValueError}>Error</Text>
-                  </>
-                )}
-              </View>
-            </View>
-
-            <View style={styles.divider} />
-
-            <View style={styles.diagnosticRow}>
-              <View style={styles.diagnosticLeft}>
-                <Ionicons
-                  name="bug-outline"
-                  size={20}
-                  color={theme.textSecondary}
-                />
-                <Text style={styles.diagnosticLabel}>Error Logs</Text>
-              </View>
-              <View style={styles.diagnosticRight}>
-                <Text style={styles.diagnosticValueSecondary}>
-                  {errorLogs.length} recent
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Action Buttons */}
-          <View style={styles.developerActions}>
             <TouchableOpacity
-              style={styles.developerButton}
-              onPress={viewErrorLogs}
+              style={styles.navigationItem}
+              onPress={() => navigation.navigate('DeveloperToolsScreen')}
               accessibilityRole="button"
-              accessibilityLabel="View error logs"
-              accessibilityHint="Opens the error logs screen to view recent app errors"
+              accessibilityLabel="Developer tools"
+              accessibilityHint="Opens the developer tools screen with diagnostics and debugging options"
             >
-              <Ionicons name="list-outline" size={24} color={theme.primary} />
-              <Text style={styles.developerButtonText}>View Error Logs</Text>
-            </TouchableOpacity>
-
-            {__DEV__ && (
-              <TouchableOpacity
-                style={styles.developerButton}
-                onPress={viewPerformance}
-                testID="view-performance-button"
-                accessibilityRole="button"
-                accessibilityLabel="Performance"
-                accessibilityHint="Opens the performance monitoring screen"
-              >
-                <Ionicons name="speedometer-outline" size={24} color={theme.primary} />
-                <Text style={styles.developerButtonText}>Performance</Text>
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity
-              style={styles.developerButton}
-              onPress={testErrorLogging}
-              accessibilityRole="button"
-              accessibilityLabel="Test error logging"
-              accessibilityHint="Creates a test error entry in the error logs"
-            >
-              <Ionicons name="flask-outline" size={24} color={theme.primary} />
-              <Text style={styles.developerButtonText}>Test Error Logging</Text>
-            </TouchableOpacity>
-
-            {sentryStatus && (
-              <View>
-                <View
-                  style={[
-                    styles.developerButton,
-                    sentryStatus.isConfigured
-                      ? { backgroundColor: theme.background }
-                      : { backgroundColor: theme.background, borderColor: theme.danger, borderWidth: 1 },
-                  ]}
-                >
-                  <Ionicons
-                    name={sentryStatus.isConfigured ? 'checkmark-circle' : 'alert-circle'}
-                    size={24}
-                    color={sentryStatus.isConfigured ? '#34C759' : theme.danger}
-                  />
-                  <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text style={styles.developerButtonText}>
-                      Sentry: {sentryStatus.isConfigured ? '✅ Active' : '❌ Not Configured'}
-                    </Text>
-                    <Text style={{ fontSize: 12, color: theme.textTertiary, marginTop: 4 }}>
-                      {sentryStatus.environment}
-                    </Text>
-                  </View>
+              <View style={styles.navigationItemContent}>
+                <Ionicons name="code-slash-outline" size={24} color={theme.primary} />
+                <View style={styles.navigationItemText}>
+                  <Text style={styles.navigationItemTitle}>Developer Tools</Text>
+                  <Text style={styles.navigationItemDescription}>
+                    System diagnostics and debugging tools
+                  </Text>
                 </View>
-
-                {!sentryStatus.isConfigured && sentryStatus.reason && (
-                  <View
-                    style={{
-                      backgroundColor: theme.card,
-                      borderRadius: 8,
-                      padding: 12,
-                      marginHorizontal: 16,
-                      marginTop: 8,
-                      marginBottom: 12,
-                      borderLeftWidth: 4,
-                      borderLeftColor: theme.danger,
-                    }}
-                  >
-                    <Text style={{ fontSize: 13, color: theme.text, lineHeight: 20 }}>
-                      {sentryStatus.reason}
-                    </Text>
-                  </View>
-                )}
-
-                {sentryStatus && (
-                  <View
-                    style={{
-                      backgroundColor: theme.card,
-                      borderRadius: 8,
-                      padding: 12,
-                      marginHorizontal: 16,
-                      marginTop: 8,
-                      marginBottom: 12,
-                    }}
-                  >
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: theme.textSecondary, marginBottom: 8 }}>
-                      Configuration
-                    </Text>
-
-                    {sentryStatus.org && (
-                      <View style={{ marginBottom: 6 }}>
-                        <Text style={{ fontSize: 11, color: theme.textTertiary }}>Org</Text>
-                        <Text style={{ fontSize: 13, color: theme.text, fontFamily: 'Menlo' }}>
-                          {sentryStatus.org}
-                        </Text>
-                      </View>
-                    )}
-
-                    {sentryStatus.project && (
-                      <View style={{ marginBottom: 6 }}>
-                        <Text style={{ fontSize: 11, color: theme.textTertiary }}>Project</Text>
-                        <Text style={{ fontSize: 13, color: theme.text, fontFamily: 'Menlo' }}>
-                          {sentryStatus.project}
-                        </Text>
-                      </View>
-                    )}
-
-                    {sentryStatus.slug && (
-                      <View style={{ marginBottom: 6 }}>
-                        <Text style={{ fontSize: 11, color: theme.textTertiary }}>Slug</Text>
-                        <Text style={{ fontSize: 13, color: theme.text, fontFamily: 'Menlo' }}>
-                          {sentryStatus.slug}
-                        </Text>
-                      </View>
-                    )}
-
-                    {sentryStatus.bundleId && (
-                      <View style={{ marginBottom: 6 }}>
-                        <Text style={{ fontSize: 11, color: theme.textTertiary }}>Bundle ID</Text>
-                        <Text style={{ fontSize: 13, color: theme.text, fontFamily: 'Menlo' }}>
-                          {sentryStatus.bundleId}
-                        </Text>
-                      </View>
-                    )}
-
-                    {sentryStatus.dsn && (
-                      <View>
-                        <Text style={{ fontSize: 11, color: theme.textTertiary }}>DSN</Text>
-                        <Text style={{ fontSize: 11, color: theme.text, fontFamily: 'Menlo' }}>
-                          {sentryStatus.dsn === 'not configured'
-                            ? 'not configured'
-                            : `${sentryStatus.dsn.substring(0, 20)}...`}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                )}
               </View>
-            )}
-
-            <TouchableOpacity
-              style={styles.developerButton}
-              onPress={testSentry}
-              testID="test-sentry-button"
-              accessibilityRole="button"
-              accessibilityLabel="Test Sentry integration"
-              accessibilityHint="Sends test events to Sentry to verify error tracking is working"
-            >
-              <Ionicons name="bug-outline" size={24} color={theme.primary} />
-              <Text style={styles.developerButtonText}>Test Sentry Integration</Text>
+              <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
             </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.developerButton, styles.developerButtonDanger]}
-              onPress={clearAllLogs}
-              accessibilityRole="button"
-              accessibilityLabel="Clear logs"
-              accessibilityHint="Deletes all error logs from the database"
-            >
-              <Ionicons name="trash-outline" size={20} color={theme.error} />
-              <Text style={[styles.developerButtonText, styles.developerButtonTextDanger]}>
-                Clear Logs
-              </Text>
-            </TouchableOpacity>
-
-            {__DEV__ && (
-              <>
-                <TouchableOpacity
-                  style={[styles.developerButton, styles.developerButtonDanger]}
-                  onPress={handleResetDatabase}
-                  testID="reset-database-button"
-                  accessibilityRole="button"
-                  accessibilityLabel="Reset database"
-                  accessibilityHint="Creates a backup then clears all data from the database for testing purposes"
-                >
-                  <Ionicons name="refresh-outline" size={24} color={theme.error} />
-                  <Text style={[styles.developerButtonText, styles.developerButtonTextDanger]}>
-                    Reset Database (Testing)
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.developerButton]}
-                  onPress={handleResetDatabaseWithFixtures}
-                  testID="reset-database-with-fixtures-button"
-                  accessibilityRole="button"
-                  accessibilityLabel="Reset with test data"
-                  accessibilityHint="Creates a backup, clears the database, and loads sample medications and episodes for testing"
-                >
-                  <Ionicons name="flask-outline" size={24} color={theme.primary} />
-                  <Text style={[styles.developerButtonText]}>
-                    Reset with Test Data
-                  </Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
           </View>
         )}
 
