@@ -7,7 +7,7 @@ import * as db from '../db';
 
 // Mock dependencies
 jest.mock('../db');
-jest.mock('../../services/notificationService');
+jest.mock('../../services/notifications/notificationService');
 
 describe('medicationRepository', () => {
   let mockDatabase: any;

@@ -1,8 +1,8 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import { logger } from '../utils/logger';
-import { errorLogger } from './errorLogger';
-import { migrationRunner } from '../database/migrations';
-import { BackupMetadata } from '../models/types';
+import { logger } from '../../utils/logger';
+import { errorLogger } from '../errorLogger';
+import { migrationRunner } from '../../database/migrations';
+import { BackupMetadata } from '../../models/types';
 import {
   DB_PATH,
   getBackupPath,
@@ -71,7 +71,7 @@ class RestoreService {
       // This prevents data loss when we delete the WAL file
       logger.log('[Restore] Checkpointing WAL file');
       try {
-        const { getDatabase } = await import('../database/db');
+        const { getDatabase } = await import('../../database/db');
         const currentDb = await getDatabase();
         await currentDb.execAsync('PRAGMA wal_checkpoint(TRUNCATE);');
         logger.log('[Restore] WAL checkpointed successfully');
@@ -80,7 +80,7 @@ class RestoreService {
       }
 
       // Close current database connection
-      const { closeDatabase } = await import('../database/db');
+      const { closeDatabase } = await import('../../database/db');
       await closeDatabase();
 
       // Create a safety backup of current database before replacing
@@ -135,7 +135,7 @@ class RestoreService {
 
       // Re-open database and run migrations if needed
       logger.log('[Restore] Reopening database');
-      const { getDatabase } = await import('../database/db');
+      const { getDatabase } = await import('../../database/db');
       const restoredDb = await getDatabase();
 
       // Reinitialize migration runner with new database connection
@@ -185,7 +185,7 @@ class RestoreService {
       const fileUri = result.assets[0].uri;
 
       // Close the current database connection
-      const { closeDatabase } = await import('../database/db');
+      const { closeDatabase } = await import('../../database/db');
       await closeDatabase();
 
       // Backup the current database before replacing it

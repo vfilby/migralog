@@ -2,7 +2,7 @@ import * as Notifications from 'expo-notifications';
 
 // Mock dependencies BEFORE importing the service
 jest.mock('expo-notifications');
-jest.mock('../notificationUtils');
+jest.mock('../notifications/notificationUtils');
 jest.mock('../../store/dailyCheckinSettingsStore');
 jest.mock('../../store/dailyStatusStore');
 jest.mock('../../store/episodeStore');
@@ -43,8 +43,8 @@ jest.mock('date-fns', () => ({
 (Notifications as any).dismissNotificationAsync = jest.fn();
 
 // Import service and mocked stores AFTER mocks are set up
-import { dailyCheckinService, handleDailyCheckinNotification } from '../dailyCheckinService';
-import { areNotificationsGloballyEnabled } from '../notificationUtils';
+import { dailyCheckinService, handleDailyCheckinNotification } from '../notifications/dailyCheckinService';
+import { areNotificationsGloballyEnabled } from '../notifications/notificationUtils';
 import { useDailyCheckinSettingsStore } from '../../store/dailyCheckinSettingsStore';
 import { useDailyStatusStore } from '../../store/dailyStatusStore';
 import { useEpisodeStore } from '../../store/episodeStore';

@@ -46,7 +46,7 @@ jest.mock('expo-sharing', () => ({
 }));
 
 // Mock backupUtils
-jest.mock('../../services/backupUtils', () => ({
+jest.mock('../../services/backup/backupUtils', () => ({
   DB_PATH: 'file:///documents/SQLite/migralog.db',
 }));
 

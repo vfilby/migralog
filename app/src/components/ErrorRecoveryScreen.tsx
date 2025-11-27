@@ -4,7 +4,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { useTheme } from '../theme';
 import { ThemeColors, lightColors, darkColors } from '../theme/colors';
-import { DB_PATH } from '../services/backupUtils';
+import { DB_PATH } from '../services/backup/backupUtils';
 import { logger } from '../utils/logger';
 
 interface ErrorRecoveryScreenProps {

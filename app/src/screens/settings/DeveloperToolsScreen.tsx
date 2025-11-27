@@ -13,7 +13,7 @@ import { RootStackParamList } from '../../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, ThemeColors } from '../../theme';
 import { errorLogger, ErrorLog } from '../../services/errorLogger';
-import { notificationService } from '../../services/notificationService';
+import { notificationService } from '../../services/notifications/notificationService';
 import * as SQLite from 'expo-sqlite';
 import * as Sentry from '@sentry/react-native';
 import * as Notifications from 'expo-notifications';

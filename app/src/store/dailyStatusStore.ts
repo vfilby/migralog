@@ -8,7 +8,7 @@ import { format, subDays } from 'date-fns';
 
 // Lazy import to avoid require cycle with dailyCheckinService
 const getDailyCheckinService = () =>
-  require('../services/dailyCheckinService').dailyCheckinService;
+  require('../services/notifications/dailyCheckinService').dailyCheckinService;
 
 interface DailyStatusState {
   dailyStatuses: DailyStatusLog[];

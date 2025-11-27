@@ -18,7 +18,7 @@ jest.mock('../../database/medicationRepository', () => ({
     delete: jest.fn().mockResolvedValue(undefined),
   },
 }));
-jest.mock('../../services/notificationService', () => ({
+jest.mock('../../services/notifications/notificationService', () => ({
   notificationService: {
     scheduleNotification: jest.fn(),
     cancelScheduledNotification: jest.fn(),

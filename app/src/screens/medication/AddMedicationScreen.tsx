@@ -20,7 +20,7 @@ import MedicationAutocomplete from '../../components/MedicationAutocomplete';
 import { medicationScheduleRepository } from '../../database/medicationRepository';
 import { useTheme, ThemeColors } from '../../theme';
 import { errorLogger } from '../../services/errorLogger';
-import { notificationService } from '../../services/notificationService';
+import { notificationService } from '../../services/notifications/notificationService';
 import { PresetMedication, formatIngredientsAsNotes } from '../../utils/presetMedications';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AddMedication'>;

@@ -13,7 +13,7 @@
  */
 
 // Re-export types (now in models/types.ts)
-export type { BackupMetadata, BackupData } from '../models/types';
+export type { BackupMetadata, BackupData } from '../../models/types';
 
 // Re-export utilities and constants
 export {

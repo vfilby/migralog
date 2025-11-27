@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
-import { backupService, BackupMetadata } from '../../services/backupService';
+import { backupService, BackupMetadata } from '../../services/backup/backupService';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, ThemeColors } from '../../theme';
 
