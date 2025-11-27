@@ -44,33 +44,45 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   },
   header: {
     backgroundColor: theme.card,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
     paddingHorizontal: 16,
     paddingTop: 60,
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: theme.border,
-    gap: 8,
+    minHeight: 80,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  headerSide: {
+    minWidth: 60,
+    alignItems: 'flex-start',
+  },
+  headerSideRight: {
+    minWidth: 60,
+    alignItems: 'flex-end',
   },
   title: {
     fontSize: 17,
     fontWeight: '600',
     color: theme.text,
     flexShrink: 1,
+    flexGrow: 1,
     textAlign: 'center',
   },
   backButton: {
     fontSize: 17,
     color: theme.primary,
-    minWidth: 60,
+    paddingVertical: 4,
   },
   editButton: {
     fontSize: 17,
     color: theme.primary,
     fontWeight: '600',
+    paddingVertical: 4,
   },
   loadingText: {
     textAlign: 'center',
@@ -593,11 +605,15 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.backButton}>Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>Episode</Text>
-          <View style={{ width: 60 }} />
+          <View style={styles.headerRow}>
+            <View style={styles.headerSide}>
+              <TouchableOpacity onPress={() => navigation.goBack()}>
+                <Text style={styles.backButton}>Back</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.title}>Episode</Text>
+            <View style={styles.headerSideRight} />
+          </View>
         </View>
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
@@ -696,24 +712,30 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   return (
     <View style={styles.container} testID="episode-detail-screen">
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          accessibilityHint="Returns to the previous screen"
-        >
-          <Text style={styles.backButton}>Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Episode Details</Text>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('NewEpisode', { episodeId })}
-          testID="edit-episode-button"
-          accessibilityRole="button"
-          accessibilityLabel="Edit episode"
-          accessibilityHint="Opens the edit screen to modify episode details"
-        >
-          <Text style={styles.editButton}>Edit</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRow}>
+          <View style={styles.headerSide}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              accessibilityRole="button"
+              accessibilityLabel="Back"
+              accessibilityHint="Returns to the previous screen"
+            >
+              <Text style={styles.backButton}>Back</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.title}>Episode Details</Text>
+          <View style={styles.headerSideRight}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('NewEpisode', { episodeId })}
+              testID="edit-episode-button"
+              accessibilityRole="button"
+              accessibilityLabel="Edit episode"
+              accessibilityHint="Opens the edit screen to modify episode details"
+            >
+              <Text style={styles.editButton}>Edit</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
 
       <ScrollView style={styles.content} testID="episode-detail-scroll-view">

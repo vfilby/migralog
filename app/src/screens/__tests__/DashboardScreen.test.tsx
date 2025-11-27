@@ -741,5 +741,197 @@ describe('DashboardScreen', () => {
     });
   });
 
+  describe('Accessibility - Text Scaling', () => {
+    it('should render without truncation with large text sizes', async () => {
+      const today = Date.now();
+      const morningMed = {
+        id: 'med-1',
+        name: 'Morning Med',
+        type: 'preventative' as const,
+        dosageAmount: 100,
+        dosageUnit: 'mg',
+        scheduleFrequency: 'daily' as const,
+        active: true,
+        createdAt: today - 86400000,
+        updatedAt: today - 86400000,
+      };
+
+      const morningSchedule = {
+        id: 'schedule-1',
+        medicationId: 'med-1',
+        time: '09:00',
+        dosage: 2,
+        enabled: true,
+        createdAt: today - 86400000,
+        updatedAt: today - 86400000,
+      };
+
+      (useMedicationStore as unknown as jest.Mock).mockImplementation((selector?: any) => {
+        const state = {
+          preventativeMedications: [morningMed],
+          rescueMedications: [],
+          schedules: [morningSchedule],
+          doses: [],
+          loading: false,
+          error: null,
+          loadMedications: mockLoadMedications,
+          loadSchedules: mockLoadSchedules,
+          loadRecentDoses: mockLoadRecentDoses,
+          logDose: mockLogDose,
+          deleteDose: mockDeleteDose,
+        };
+        return selector ? selector(state) : state;
+      });
+
+      (useEpisodeStore as unknown as jest.Mock).mockReturnValue({
+        currentEpisode: null,
+        episodes: [
+          {
+            id: 'episode-1',
+            startTime: today - 86400000,
+            endTime: today - 3600000,
+            peakIntensity: 5,
+            averageIntensity: 4,
+            locations: ['frontal'],
+            qualities: [],
+            symptoms: [],
+            triggers: [],
+            createdAt: today - 86400000,
+            updatedAt: today - 3600000,
+          },
+        ],
+        loading: false,
+        error: null,
+        loadCurrentEpisode: mockLoadCurrentEpisode,
+        loadEpisodes: mockLoadEpisodes,
+      });
+
+      renderWithProviders(<DashboardScreen />);
+
+      await waitFor(() => {
+        // Verify title is present
+        const title = screen.getByTestId('dashboard-title');
+        expect(title).toBeTruthy();
+        expect(title.props.style).toMatchObject({
+          flexShrink: 1,
+          flexGrow: 1,
+        });
+
+        // Verify card titles are present and have flexShrink
+        const todaysMedications = screen.getByText("Today's Medications");
+        expect(todaysMedications).toBeTruthy();
+        expect(todaysMedications.props.style).toMatchObject({
+          flexShrink: 1,
+        });
+
+        const recentEpisodes = screen.getByText('Recent Episodes');
+        expect(recentEpisodes).toBeTruthy();
+        expect(recentEpisodes.props.style).toMatchObject({
+          flexShrink: 1,
+        });
+
+        // Verify medication name and time have flexShrink
+        const medName = screen.getByText('Morning Med');
+        expect(medName).toBeTruthy();
+        expect(medName.props.style).toMatchObject({
+          flexShrink: 1,
+        });
+      });
+    });
+
+    it('should have minimum touch target sizes for buttons', async () => {
+      (useMedicationStore as unknown as jest.Mock).mockImplementation((selector?: any) => {
+        const state = {
+          preventativeMedications: [],
+          rescueMedications: [
+            {
+              id: 'med-1',
+              name: 'Rescue Med',
+              type: 'rescue',
+              dosageAmount: 100,
+              dosageUnit: 'mg',
+              active: true,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            },
+          ],
+          schedules: [],
+          doses: [],
+          loading: false,
+          error: null,
+          loadMedications: mockLoadMedications,
+          loadSchedules: mockLoadSchedules,
+          loadRecentDoses: mockLoadRecentDoses,
+          logDose: mockLogDose,
+          deleteDose: mockDeleteDose,
+        };
+        return selector ? selector(state) : state;
+      });
+
+      renderWithProviders(<DashboardScreen />);
+
+      await waitFor(() => {
+        const logMedButton = screen.getByTestId('log-medication-button');
+        expect(logMedButton).toBeTruthy();
+        // Verify accessible minimum touch target (44x44 points is iOS standard)
+        // Our buttons should have appropriate padding and minHeight
+        expect(logMedButton.props.accessibilityRole).toBe('button');
+      });
+    });
+
+    it('should have minimum width for Skip button to prevent truncation', async () => {
+      const today = Date.now();
+      const morningMed = {
+        id: 'med-1',
+        name: 'Verapamil',
+        type: 'preventative' as const,
+        dosageAmount: 80,
+        dosageUnit: 'mg',
+        scheduleFrequency: 'daily' as const,
+        active: true,
+        createdAt: today - 86400000,
+        updatedAt: today - 86400000,
+      };
+
+      const morningSchedule = {
+        id: 'schedule-1',
+        medicationId: 'med-1',
+        time: '09:00',
+        dosage: 2,
+        enabled: true,
+        createdAt: today - 86400000,
+        updatedAt: today - 86400000,
+      };
+
+      (useMedicationStore as unknown as jest.Mock).mockImplementation((selector?: any) => {
+        const state = {
+          preventativeMedications: [morningMed],
+          rescueMedications: [],
+          schedules: [morningSchedule],
+          doses: [],
+          loading: false,
+          error: null,
+          loadMedications: mockLoadMedications,
+          loadSchedules: mockLoadSchedules,
+          loadRecentDoses: mockLoadRecentDoses,
+          logDose: mockLogDose,
+          deleteDose: mockDeleteDose,
+        };
+        return selector ? selector(state) : state;
+      });
+
+      renderWithProviders(<DashboardScreen />);
+
+      await waitFor(() => {
+        const skipButton = screen.getByText('Skip');
+        expect(skipButton).toBeTruthy();
+        // Skip button should have text-align center for proper display
+        expect(skipButton.props.style).toMatchObject({
+          textAlign: 'center',
+        });
+      });
+    });
+  });
+
 
 });

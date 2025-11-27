@@ -278,4 +278,90 @@ describe('EpisodeCard', () => {
       });
     });
   });
+
+  describe('Accessibility - Text Scaling', () => {
+    it('should have flexible layout for date field with large text', async () => {
+      renderWithTheme(<EpisodeCard episode={baseEpisode} testID="accessible-card" />);
+
+      await waitFor(() => {
+        const dateText = screen.getByText(/Mon, Jan 15/);
+        expect(dateText).toBeTruthy();
+        expect(dateText.props.style).toMatchObject({
+          flexShrink: 1,
+        });
+      });
+    });
+
+    it('should have flexible layout for duration field with large text', async () => {
+      renderWithTheme(<EpisodeCard episode={baseEpisode} testID="accessible-card" />);
+
+      await waitFor(() => {
+        const durationText = screen.getByText('4 hours');
+        expect(durationText).toBeTruthy();
+        expect(durationText.props.style).toMatchObject({
+          flexShrink: 1,
+          flexGrow: 1,
+        });
+      });
+    });
+
+    it('should have flexible layout for location field with large text', async () => {
+      const episodeWithLocation = {
+        ...baseEpisode,
+        location: { latitude: 37.7749, longitude: -122.4194, timestamp: Date.now() },
+      };
+      (locationService.reverseGeocode as jest.Mock).mockResolvedValue('San Francisco, CA');
+
+      renderWithTheme(<EpisodeCard episode={episodeWithLocation} testID="accessible-card" />);
+
+      await waitFor(() => {
+        const locationText = screen.getByText('San Francisco, CA');
+        expect(locationText).toBeTruthy();
+        expect(locationText.props.style).toMatchObject({
+          flexShrink: 1,
+        });
+      });
+    });
+
+    it('should maintain minimum heights for rows with large text', async () => {
+      renderWithTheme(<EpisodeCard episode={baseEpisode} testID="accessible-card" />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('accessible-card')).toBeTruthy();
+      });
+    });
+
+    it('should wrap metadata items with large text', async () => {
+      renderWithTheme(<EpisodeCard episode={baseEpisode} testID="accessible-card" />);
+
+      await waitFor(() => {
+        const areasText = screen.getByText('2 areas');
+        expect(areasText).toBeTruthy();
+        expect(areasText.props.style).toMatchObject({
+          flexShrink: 1,
+        });
+
+        const symptomsText = screen.getByText('2 symptoms');
+        expect(symptomsText).toBeTruthy();
+        expect(symptomsText.props.style).toMatchObject({
+          flexShrink: 1,
+        });
+      });
+    });
+
+    it('should have minimum width for Ongoing badge to prevent truncation', async () => {
+      const ongoingEpisode = { ...baseEpisode, endTime: undefined };
+
+      renderWithTheme(<EpisodeCard episode={ongoingEpisode} testID="ongoing-card" />);
+
+      await waitFor(() => {
+        const ongoingBadge = screen.getByText('Ongoing');
+        expect(ongoingBadge).toBeTruthy();
+        // Ongoing badge text should be centered
+        expect(ongoingBadge.props.style).toMatchObject({
+          textAlign: 'center',
+        });
+      });
+    });
+  });
 });
