@@ -11,7 +11,7 @@ interface MedicationBadgesProps {
   testID?: string;
 }
 
-const createStyles = (theme: ThemeColors) => StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   container: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -53,7 +53,7 @@ const getBadgeConfig = (type: MedicationType, theme: ThemeColors) => {
 
 export default function MedicationBadges({ type, category, testID }: MedicationBadgesProps) {
   const { theme } = useTheme();
-  const styles = createStyles(theme);
+  const styles = createStyles();
   const badgeConfig = getBadgeConfig(type, theme);
 
   return (
