@@ -62,10 +62,14 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
   const checkSentryConfiguration = () => {
     try {
       const client = Sentry.getClient();
-      const dsn = client?.getOptions().dsn;
+      const clientDsn = client?.getOptions().dsn;
       const enabled = client?.getOptions().enabled ?? false;
       const environment = client?.getOptions().environment ?? 'unknown';
-      const isConfigured = !!dsn && enabled;
+      
+      // Use the same DSN logic as displayed to user - check environment variable as fallback
+      const envDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
+      const effectiveDsn = clientDsn || envDsn;
+      const isConfigured = !!effectiveDsn && enabled;
 
       // Get configuration values from Constants and environment
       const expoConfig = Constants.expoConfig || {};
@@ -74,7 +78,7 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
 
       let reason: string | undefined;
       if (!isConfigured) {
-        if (!dsn) {
+        if (!effectiveDsn) {
           reason = 'DSN not configured\n\nCheck EXPO_PUBLIC_SENTRY_DSN environment variable in GitHub Actions secrets';
         } else if (!enabled) {
           reason = 'Sentry is disabled\n\nCheck EXPO_PUBLIC_SENTRY_ENABLED environment variable in GitHub Actions secrets';
@@ -86,7 +90,7 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
         isEnabled: enabled,
         environment,
         reason,
-        dsn: dsn || 'not configured',
+        dsn: effectiveDsn || 'not configured',
         org: process.env.SENTRY_ORG || 'eff3',
         project: process.env.SENTRY_PROJECT || 'migralog',
         slug: typeof slug === 'string' ? slug : undefined,
