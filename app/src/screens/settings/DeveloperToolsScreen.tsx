@@ -75,9 +75,9 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
       let reason: string | undefined;
       if (!isConfigured) {
         if (!dsn) {
-          reason = 'DSN not configured\n\nCheck EXPO_PUBLIC_SENTRY_DSN environment variable in build configuration';
+          reason = 'DSN not configured\n\nCheck EXPO_PUBLIC_SENTRY_DSN environment variable in GitHub Actions secrets';
         } else if (!enabled) {
-          reason = 'Sentry is disabled\n\nCheck EXPO_PUBLIC_SENTRY_ENABLED environment variable in build configuration';
+          reason = 'Sentry is disabled\n\nCheck EXPO_PUBLIC_SENTRY_ENABLED environment variable in GitHub Actions secrets';
         }
       }
 
