@@ -2,7 +2,7 @@ import React from 'react';
 import { Alert } from 'react-native';
 import { screen, fireEvent, waitFor } from '@testing-library/react-native';
 import * as ImagePicker from 'expo-image-picker';
-import AddMedicationScreen from '../AddMedicationScreen';
+import AddMedicationScreen from '../medication/AddMedicationScreen';
 import { renderWithProviders } from '../../utils/screenTestHelpers';
 import { useMedicationStore } from '../../store/medicationStore';
 import { medicationScheduleRepository } from '../../database/medicationRepository';

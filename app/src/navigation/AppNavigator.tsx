@@ -7,34 +7,40 @@ import { RootStackParamList, MainTabsParamList } from './types';
 import { useTheme } from '../theme';
 import { navigationRef } from './NavigationService';
 
-// Screens
+// Main screens (stay at root level)
 import DashboardScreen from '../screens/DashboardScreen';
-import EpisodesScreen from '../screens/EpisodesScreen';
-import MedicationsScreen from '../screens/MedicationsScreen';
 import AnalyticsScreen from '../screens/AnalyticsScreen';
-import NewEpisodeScreen from '../screens/NewEpisodeScreen';
-import EpisodeDetailScreen from '../screens/EpisodeDetailScreen';
 import LogUpdateScreen from '../screens/LogUpdateScreen';
-import AddMedicationScreen from '../screens/AddMedicationScreen';
-import EditMedicationScreen from '../screens/EditMedicationScreen';
-import MedicationDetailScreen from '../screens/MedicationDetailScreen';
-import LogMedicationScreen from '../screens/LogMedicationScreen';
-import MedicationLogScreen from '../screens/MedicationLogScreen';
-import EditMedicationDoseScreen from '../screens/EditMedicationDoseScreen';
-import EditIntensityReadingScreen from '../screens/EditIntensityReadingScreen';
-import EditEpisodeNoteScreen from '../screens/EditEpisodeNoteScreen';
-import EditSymptomLogScreen from '../screens/EditSymptomLogScreen';
-import EditPainLocationLogScreen from '../screens/EditPainLocationLogScreen';
-import ArchivedMedicationsScreen from '../screens/ArchivedMedicationsScreen';
-import SettingsScreen from '../screens/SettingsScreen';
-import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
-import LocationSettingsScreen from '../screens/LocationSettingsScreen';
-import DataSettingsScreen from '../screens/DataSettingsScreen';
-import DeveloperToolsScreen from '../screens/DeveloperToolsScreen';
-import BackupRecoveryScreen from '../screens/BackupRecoveryScreen';
-import ErrorLogsScreen from '../screens/ErrorLogsScreen';
-import PerformanceScreen from '../screens/PerformanceScreen';
 import DailyStatusPromptScreen from '../screens/DailyStatusPromptScreen';
+
+// Episode screens
+import EpisodesScreen from '../screens/episode/EpisodesScreen';
+import NewEpisodeScreen from '../screens/episode/NewEpisodeScreen';
+import EpisodeDetailScreen from '../screens/episode/EpisodeDetailScreen';
+import EditIntensityReadingScreen from '../screens/episode/EditIntensityReadingScreen';
+import EditEpisodeNoteScreen from '../screens/episode/EditEpisodeNoteScreen';
+import EditSymptomLogScreen from '../screens/episode/EditSymptomLogScreen';
+import EditPainLocationLogScreen from '../screens/episode/EditPainLocationLogScreen';
+
+// Medication screens
+import MedicationsScreen from '../screens/medication/MedicationsScreen';
+import AddMedicationScreen from '../screens/medication/AddMedicationScreen';
+import EditMedicationScreen from '../screens/medication/EditMedicationScreen';
+import MedicationDetailScreen from '../screens/medication/MedicationDetailScreen';
+import LogMedicationScreen from '../screens/medication/LogMedicationScreen';
+import MedicationLogScreen from '../screens/medication/MedicationLogScreen';
+import EditMedicationDoseScreen from '../screens/medication/EditMedicationDoseScreen';
+import ArchivedMedicationsScreen from '../screens/medication/ArchivedMedicationsScreen';
+
+// Settings screens
+import SettingsScreen from '../screens/settings/SettingsScreen';
+import NotificationSettingsScreen from '../screens/settings/NotificationSettingsScreen';
+import LocationSettingsScreen from '../screens/settings/LocationSettingsScreen';
+import DataSettingsScreen from '../screens/settings/DataSettingsScreen';
+import DeveloperToolsScreen from '../screens/settings/DeveloperToolsScreen';
+import BackupRecoveryScreen from '../screens/settings/BackupRecoveryScreen';
+import ErrorLogsScreen from '../screens/settings/ErrorLogsScreen';
+import PerformanceScreen from '../screens/settings/PerformanceScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabsParamList>();

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { logger } from '../utils/logger';
+import { logger } from '../../utils/logger';
 import {
   View,
   Text,
@@ -9,11 +9,11 @@ import {
   Alert,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/types';
-import { medicationRepository } from '../database/medicationRepository';
-import { useMedicationStore } from '../store/medicationStore';
-import { Medication } from '../models/types';
-import { useTheme, ThemeColors } from '../theme';
+import { RootStackParamList } from '../../navigation/types';
+import { medicationRepository } from '../../database/medicationRepository';
+import { useMedicationStore } from '../../store/medicationStore';
+import { Medication } from '../../models/types';
+import { useTheme, ThemeColors } from '../../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ArchivedMedications'>;
 

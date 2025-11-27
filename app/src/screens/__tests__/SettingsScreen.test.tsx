@@ -1,7 +1,7 @@
 import React from 'react';
 import { screen, waitFor, fireEvent } from '@testing-library/react-native';
 import { Alert } from 'react-native';
-import SettingsScreen from '../SettingsScreen';
+import SettingsScreen from '../settings/SettingsScreen';
 import { renderWithProviders } from '../../utils/screenTestHelpers';
 import { errorLogger } from '../../services/errorLogger';
 import { notificationService } from '../../services/notificationService';

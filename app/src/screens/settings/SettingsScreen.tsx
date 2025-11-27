@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect } from 'react';
-import { logger } from '../utils/logger';
+import { logger } from '../../utils/logger';
 import {
   View,
   Text,
@@ -12,15 +12,15 @@ import {
   Platform,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/types';
+import { RootStackParamList } from '../../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme, ThemeColors } from '../theme';
-import { buildInfo } from '../buildInfo';
-import { errorLogger, ErrorLog } from '../services/errorLogger';
-import { notificationService, NotificationPermissions } from '../services/notificationService';
-import { dailyCheckinService } from '../services/dailyCheckinService';
-import { locationService } from '../services/locationService';
-import { useDailyCheckinSettingsStore } from '../store/dailyCheckinSettingsStore';
+import { useTheme, ThemeColors } from '../../theme';
+import { buildInfo } from '../../buildInfo';
+import { errorLogger, ErrorLog } from '../../services/errorLogger';
+import { notificationService, NotificationPermissions } from '../../services/notificationService';
+import { dailyCheckinService } from '../../services/dailyCheckinService';
+import { locationService } from '../../services/locationService';
+import { useDailyCheckinSettingsStore } from '../../store/dailyCheckinSettingsStore';
 import * as SQLite from 'expo-sqlite';
 import * as Notifications from 'expo-notifications';
 import * as Sentry from '@sentry/react-native';
@@ -528,7 +528,7 @@ export default function SettingsScreen({ navigation }: Props) {
             try {
               // Dynamically import test helper (only available in __DEV__)
               if (__DEV__) {
-                const { resetDatabaseForTesting } = await import('../utils/devTestHelpers');
+                const { resetDatabaseForTesting } = await import('../../utils/devTestHelpers');
                 const result = await resetDatabaseForTesting({
                   createBackup: true,
                   loadFixtures: false,
@@ -560,7 +560,7 @@ export default function SettingsScreen({ navigation }: Props) {
             try {
               // Dynamically import test helper (only available in __DEV__)
               if (__DEV__) {
-                const { resetDatabaseForTesting } = await import('../utils/devTestHelpers');
+                const { resetDatabaseForTesting } = await import('../../utils/devTestHelpers');
                 await resetDatabaseForTesting({ // Intentionally unused - tracks operation for future features
                   createBackup: true,
                   loadFixtures: true,

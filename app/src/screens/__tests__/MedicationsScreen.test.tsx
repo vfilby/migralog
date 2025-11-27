@@ -1,6 +1,6 @@
 import React from 'react';
 import { screen, waitFor } from '@testing-library/react-native';
-import MedicationsScreen from '../MedicationsScreen';
+import MedicationsScreen from '../medication/MedicationsScreen';
 import { renderWithProviders } from '../../utils/screenTestHelpers';
 import { useMedicationStore } from '../../store/medicationStore';
 import { useEpisodeStore } from '../../store/episodeStore';

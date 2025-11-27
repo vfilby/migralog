@@ -1,7 +1,7 @@
 import React from 'react';
 import { Alert } from 'react-native';
 import { screen } from '@testing-library/react-native';
-import EpisodeDetailScreen from '../EpisodeDetailScreen';
+import EpisodeDetailScreen from '../episode/EpisodeDetailScreen';
 import { renderWithProviders } from '../../utils/screenTestHelpers';
 import { useEpisodeStore } from '../../store/episodeStore';
 import { episodeRepository, intensityRepository, symptomLogRepository, episodeNoteRepository, painLocationLogRepository } from '../../database/episodeRepository';

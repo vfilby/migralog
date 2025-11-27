@@ -2,7 +2,7 @@ import React from 'react';
 import { screen, waitFor, fireEvent } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 
-import EditIntensityReadingScreen from '../EditIntensityReadingScreen';
+import EditIntensityReadingScreen from '../episode/EditIntensityReadingScreen';
 import { renderWithProviders } from '../../utils/screenTestHelpers';
 import { intensityRepository } from '../../database/episodeRepository';
 import { IntensityReading } from '../../models/types';

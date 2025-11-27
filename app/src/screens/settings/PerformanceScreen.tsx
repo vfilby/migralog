@@ -9,15 +9,15 @@ import {
   Share,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/types';
+import { RootStackParamList } from '../../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme, ThemeColors } from '../theme';
+import { useTheme, ThemeColors } from '../../theme';
 import {
   getPerformanceStats,
   clearPerformanceStats,
   PerformanceStats,
   PerformanceMetric,
-} from '../utils/performance';
+} from '../../utils/performance';
 import { format } from 'date-fns';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Performance'>;

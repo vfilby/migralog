@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { logger } from '../utils/logger';
+import { logger } from '../../utils/logger';
 import {
   View,
   Text,
@@ -9,10 +9,10 @@ import {
   Alert,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/types';
+import { RootStackParamList } from '../../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme, ThemeColors } from '../theme';
-import { locationService } from '../services/locationService';
+import { useTheme, ThemeColors } from '../../theme';
+import { locationService } from '../../services/locationService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LocationSettingsScreen'>;
 

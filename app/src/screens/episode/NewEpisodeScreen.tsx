@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { logger } from '../utils/logger';
+import { logger } from '../../utils/logger';
 import {
   View,
   Text,
@@ -14,15 +14,15 @@ import {
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/types';
-import { useEpisodeStore } from '../store/episodeStore';
-import { PainLocation, PainQuality, Symptom, Trigger, EpisodeLocation } from '../models/types';
+import { RootStackParamList } from '../../navigation/types';
+import { useEpisodeStore } from '../../store/episodeStore';
+import { PainLocation, PainQuality, Symptom, Trigger, EpisodeLocation } from '../../models/types';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
-import { getPainLevel } from '../utils/painScale';
-import { locationService } from '../services/locationService';
-import { validateEpisodeEndTime } from '../utils/episodeValidation';
-import { useTheme, ThemeColors } from '../theme';
+import { getPainLevel } from '../../utils/painScale';
+import { locationService } from '../../services/locationService';
+import { validateEpisodeEndTime } from '../../utils/episodeValidation';
+import { useTheme, ThemeColors } from '../../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'NewEpisode'>;
 
@@ -307,7 +307,7 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
       if (!episodeId) return;
 
       try {
-        const { episodeRepository, intensityRepository } = await import('../database/episodeRepository');
+        const { episodeRepository, intensityRepository } = await import('../../database/episodeRepository');
         const episode = await episodeRepository.getById(episodeId);
 
         if (episode) {
@@ -426,7 +426,7 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
         // Update all timeline entries with matching timestamp if start time changed
         if (startTimeChanged) {
           logger.log('[NewEpisode] Start time changed, updating all timeline entries with original start time...');
-          const { intensityRepository, episodeNoteRepository } = await import('../database/episodeRepository');
+          const { intensityRepository, episodeNoteRepository } = await import('../../database/episodeRepository');
 
           // Update intensity readings
           const intensityChanges = await intensityRepository.updateTimestampsForEpisode(
@@ -448,7 +448,7 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
         // Update initial intensity reading if it changed
         if (initialReadingId && intensity !== initialIntensity) {
           logger.log('[NewEpisode] Updating intensity reading...');
-          const { intensityRepository } = await import('../database/episodeRepository');
+          const { intensityRepository } = await import('../../database/episodeRepository');
           await intensityRepository.update(initialReadingId, { intensity });
 
           logger.log('[NewEpisode] Intensity updated');
@@ -474,7 +474,7 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
         // Add initial intensity reading with the same timestamp as episode start
         if (intensity > 0) {
           logger.log('[NewEpisode] Adding intensity reading...');
-          const { intensityRepository } = await import('../database/episodeRepository');
+          const { intensityRepository } = await import('../../database/episodeRepository');
           await intensityRepository.create({
             episodeId: episode.id,
             timestamp: episode.startTime, // Use episode start time for initial reading

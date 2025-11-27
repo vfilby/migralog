@@ -2,7 +2,7 @@ import React from 'react';
 import { screen, waitFor, fireEvent } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 
-import EditEpisodeNoteScreen from '../EditEpisodeNoteScreen';
+import EditEpisodeNoteScreen from '../episode/EditEpisodeNoteScreen';
 import { renderWithProviders } from '../../utils/screenTestHelpers';
 import { episodeNoteRepository } from '../../database/episodeRepository';
 import { EpisodeNote } from '../../models/types';

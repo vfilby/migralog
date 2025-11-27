@@ -2,7 +2,7 @@ import React from 'react';
 import { screen, waitFor, fireEvent } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 
-import LogMedicationScreen from '../LogMedicationScreen';
+import LogMedicationScreen from '../medication/LogMedicationScreen';
 import { renderWithProviders } from '../../utils/screenTestHelpers';
 import { useMedicationStore } from '../../store/medicationStore';
 import { medicationRepository } from '../../database/medicationRepository';

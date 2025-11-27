@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { logger } from '../utils/logger';
+import { logger } from '../../utils/logger';
 import {
   View,
   Text,
@@ -12,16 +12,16 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/types';
-import { useMedicationStore } from '../store/medicationStore';
-import { MedicationType, ScheduleFrequency, MedicationSchedule, MedicationCategory } from '../models/types';
-import MedicationScheduleManager from '../components/MedicationScheduleManager';
-import MedicationAutocomplete from '../components/MedicationAutocomplete';
-import { medicationScheduleRepository } from '../database/medicationRepository';
-import { useTheme, ThemeColors } from '../theme';
-import { errorLogger } from '../services/errorLogger';
-import { notificationService } from '../services/notificationService';
-import { PresetMedication, formatIngredientsAsNotes } from '../utils/presetMedications';
+import { RootStackParamList } from '../../navigation/types';
+import { useMedicationStore } from '../../store/medicationStore';
+import { MedicationType, ScheduleFrequency, MedicationSchedule, MedicationCategory } from '../../models/types';
+import MedicationScheduleManager from '../../components/MedicationScheduleManager';
+import MedicationAutocomplete from '../../components/MedicationAutocomplete';
+import { medicationScheduleRepository } from '../../database/medicationRepository';
+import { useTheme, ThemeColors } from '../../theme';
+import { errorLogger } from '../../services/errorLogger';
+import { notificationService } from '../../services/notificationService';
+import { PresetMedication, formatIngredientsAsNotes } from '../../utils/presetMedications';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AddMedication'>;
 

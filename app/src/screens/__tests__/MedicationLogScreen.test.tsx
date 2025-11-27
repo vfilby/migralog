@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, waitFor } from '@testing-library/react-native';
-import MedicationLogScreen from '../MedicationLogScreen';
+import MedicationLogScreen from '../medication/MedicationLogScreen';
 import { ThemeProvider } from '../../theme/ThemeContext';
 
 const mockMedicationDoseRepository = {

@@ -1,33 +1,33 @@
 import React, { useState } from 'react';
-import { logger } from '../utils/logger';
+import { logger } from '../../utils/logger';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform, ActionSheetIOS, useWindowDimensions } from 'react-native';
 
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import { RootStackParamList } from '../navigation/types';
-import { useEpisodeStore } from '../store/episodeStore';
-import { episodeRepository, intensityRepository, symptomLogRepository, episodeNoteRepository, painLocationLogRepository } from '../database/episodeRepository';
-import { medicationDoseRepository, medicationRepository } from '../database/medicationRepository';
-import { Episode, IntensityReading, SymptomLog, EpisodeNote, PainLocationLog } from '../models/types';
+import { RootStackParamList } from '../../navigation/types';
+import { useEpisodeStore } from '../../store/episodeStore';
+import { episodeRepository, intensityRepository, symptomLogRepository, episodeNoteRepository, painLocationLogRepository } from '../../database/episodeRepository';
+import { medicationDoseRepository, medicationRepository } from '../../database/medicationRepository';
+import { Episode, IntensityReading, SymptomLog, EpisodeNote, PainLocationLog } from '../../models/types';
 import { format, differenceInMinutes } from 'date-fns';
-import { locationService } from '../services/locationService';
-import { useTheme, ThemeColors } from '../theme';
-import { validateEpisodeEndTime } from '../utils/episodeValidation';
-import { shouldShowMedicationInTimeline } from '../utils/timelineFilters';
-import { groupEventsByDay, DayGroup } from '../utils/timelineGrouping';
+import { locationService } from '../../services/locationService';
+import { useTheme, ThemeColors } from '../../theme';
+import { validateEpisodeEndTime } from '../../utils/episodeValidation';
+import { shouldShowMedicationInTimeline } from '../../utils/timelineFilters';
+import { groupEventsByDay, DayGroup } from '../../utils/timelineGrouping';
 import {
   EpisodeStatusCard,
   EpisodeInfoCards,
   EpisodeTimeline,
   EpisodeActions,
   EpisodeModals,
-} from '../components/episode';
+} from '../../components/episode';
 import { 
   MedicationDoseWithDetails, 
   TimelineEvent,
   SymptomChange,
   PainLocationChange
-} from '../components/episode/types';
+} from '../../components/episode/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EpisodeDetail'>;
 

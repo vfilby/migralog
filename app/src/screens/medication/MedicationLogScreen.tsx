@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { logger } from '../utils/logger';
+import { logger } from '../../utils/logger';
 import {
   View,
   Text,
@@ -8,11 +8,11 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/types';
-import { medicationDoseRepository, medicationRepository } from '../database/medicationRepository';
-import { MedicationDose, Medication } from '../models/types';
-import { formatDoseWithSnapshot, formatDosageWithUnit } from '../utils/medicationFormatting';
-import { formatRelativeDate } from '../utils/dateFormatting';
+import { RootStackParamList } from '../../navigation/types';
+import { medicationDoseRepository, medicationRepository } from '../../database/medicationRepository';
+import { MedicationDose, Medication } from '../../models/types';
+import { formatDoseWithSnapshot, formatDosageWithUnit } from '../../utils/medicationFormatting';
+import { formatRelativeDate } from '../../utils/dateFormatting';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MedicationLog'>;
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { logger } from '../utils/logger';
+import { logger } from '../../utils/logger';
 import {
   View,
   Text,
@@ -11,10 +11,10 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/types';
-import { backupService, BackupMetadata } from '../services/backupService';
+import { RootStackParamList } from '../../navigation/types';
+import { backupService, BackupMetadata } from '../../services/backupService';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme, ThemeColors } from '../theme';
+import { useTheme, ThemeColors } from '../../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BackupRecovery'>;
 
