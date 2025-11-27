@@ -45,7 +45,7 @@ describe('Notification Settings UI', () => {
     await waitForAnimation(500);
 
     // ======================
-    // Verify Notifications Section Exists
+    // Navigate to Notification Settings Screen
     // ======================
     await waitFor(element(by.text('Notifications')))
       .toBeVisible()
@@ -53,15 +53,20 @@ describe('Notification Settings UI', () => {
 
     console.log('✅ Notifications section is visible');
 
+    // Tap on Notifications to navigate to NotificationSettingsScreen
+    await element(by.text('Notifications')).tap();
+    await waitForAnimation(1000);
+
+    console.log('Navigated to Notification Settings screen');
+
     // ======================
-    // Verify Notifications Permission Section
+    // Verify we're on the Notification Settings Screen
     // ======================
-    // Check for the description text that explains notification permissions
-    await waitFor(element(by.text('Manage notification permissions for medication reminders')))
+    await waitFor(element(by.text('Notification Settings')))
       .toBeVisible()
       .withTimeout(5000);
 
-    console.log('✅ Notification permission description is visible');
+    console.log('✅ On Notification Settings screen');
 
     // ======================
     // Check if Notification Settings UI exists (permissions granted)

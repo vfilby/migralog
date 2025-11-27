@@ -389,7 +389,7 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
         </View>
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} testID="developer-tools-scroll-view">
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Diagnostics</Text>
           <Text style={styles.sectionDescription}>
