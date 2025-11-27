@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { logger } from '../../utils/logger';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useMedicationStore } from '../../store/medicationStore';
 import { useEpisodeStore } from '../../store/episodeStore';
@@ -8,11 +8,10 @@ import { medicationScheduleRepository, medicationDoseRepository } from '../../da
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
-import { Medication, MedicationSchedule } from '../../models/types';
+import { MedicationSchedule } from '../../models/types';
 import { useTheme, ThemeColors } from '../../theme';
-import { format, isToday } from 'date-fns';
-import { formatMedicationDosage } from '../../utils/medicationFormatting';
-import { getCategoryName } from '../../utils/presetMedications';
+import { isToday } from 'date-fns';
+import MedicationCard from '../../components/medication/MedicationCard';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -351,39 +350,6 @@ export default function MedicationsScreen() {
     }
   };
 
-  const formatScheduleDetails = (medication: Medication): string | null => {
-    const schedules = medicationSchedules[medication.id];
-    if (!schedules || schedules.length === 0) return null;
-
-    if (medication.scheduleFrequency === 'daily') {
-      // Format times: "at 9:00 AM, 6:00 PM"
-      const times = schedules
-        .map(s => {
-          try {
-            const [hours, minutes] = s.time.split(':');
-            const date = new Date();
-            date.setHours(parseInt(hours, 10), parseInt(minutes, 10));
-            return format(date, 'h:mm a');
-          } catch {
-            return s.time;
-          }
-        })
-        .join(', ');
-      return `at ${times}`;
-    } else if (medication.scheduleFrequency === 'monthly' || medication.scheduleFrequency === 'quarterly') {
-      // Format date: "— Last taken: Jan 15, 2025"
-      const lastSchedule = schedules[0];
-      if (lastSchedule && lastSchedule.time) {
-        try {
-          const date = new Date(lastSchedule.time);
-          return `— Last taken: ${format(date, 'MMM d, yyyy')}`;
-        } catch {
-          return `— Last taken: ${lastSchedule.time}`;
-        }
-      }
-    }
-    return null;
-  };
 
   const handleQuickLog = async (medicationId: string, scheduleId: string, dosage: number, _scheduleTime?: string) => {
     try {
@@ -496,142 +462,18 @@ export default function MedicationsScreen() {
             </View>
           ) : (
             preventativeMedications.map((med) => (
-              <TouchableOpacity
+              <MedicationCard
                 key={med.id}
-                style={styles.medicationCard}
+                medication={med}
+                type="preventative"
+                schedules={medicationSchedules[med.id] || []}
+                scheduleLogStates={scheduleLogStates}
                 onPress={() => navigation.navigate('MedicationDetail', { medicationId: med.id })}
-                accessibilityRole="button"
-                accessibilityLabel={`${med.name} preventative medication`}
-                accessibilityHint="Opens details and history for this medication"
-              >
-                 <View style={styles.medicationHeader}>
-                   <View style={styles.medicationTitleContainer}>
-                     <Text style={styles.medicationName}>{med.name}</Text>
-                     <View style={styles.badgeContainer}>
-                       <View style={[styles.typeBadge, { backgroundColor: theme.success + '20' }]}>
-                         <Text style={[styles.typeBadgeText, { color: theme.success }]}>Preventative</Text>
-                       </View>
-                       {med.category && (
-                         <View style={[styles.typeBadge, { backgroundColor: theme.textSecondary + '20' }]}>
-                           <Text style={[styles.typeBadgeText, { color: theme.textSecondary }]}>
-                             {getCategoryName(med.category)}
-                           </Text>
-                         </View>
-                       )}
-                     </View>
-                   </View>
-                   {med.photoUri && (
-                     <Image
-                       source={{ uri: med.photoUri }}
-                       style={styles.medicationThumbnail}
-                       resizeMode="cover"
-                       accessibilityLabel={`Photo of ${med.name}`}
-                     />
-                   )}
-                 </View>
-                <View style={styles.medicationDetails}>
-                  <Text style={styles.dosageText}>
-                    {formatMedicationDosage(med.defaultQuantity || 1, med.dosageAmount, med.dosageUnit)}
-                  </Text>
-                  {med.scheduleFrequency && (
-                    <Text style={styles.frequencyText}>
-                      {med.scheduleFrequency.charAt(0).toUpperCase() + med.scheduleFrequency.slice(1)}
-                      {formatScheduleDetails(med) && ` ${formatScheduleDetails(med)}`}
-                    </Text>
-                  )}
-                </View>
-                {med.notes && (
-                  <View style={{ width: '100%' }}>
-                    <Text style={styles.notes} numberOfLines={2} ellipsizeMode="tail">{med.notes}</Text>
-                  </View>
-                )}
-                {med.scheduleFrequency === 'daily' && medicationSchedules[med.id]?.length > 0 && (
-                  <View>
-                    {/* Show logged/skipped notifications first */}
-                    {medicationSchedules[med.id].some(schedule => {
-                      const stateKey = `${med.id}-${schedule.id}`;
-                      return scheduleLogStates[stateKey]?.logged || scheduleLogStates[stateKey]?.skipped;
-                    }) && (
-                      <View style={styles.loggedNotificationsContainer}>
-                        {medicationSchedules[med.id].map((schedule) => {
-                          const stateKey = `${med.id}-${schedule.id}`;
-                          const logState = scheduleLogStates[stateKey];
-
-                          if (!logState?.logged && !logState?.skipped) return null;
-
-                          const [hours, minutes] = schedule.time.split(':');
-                          const date = new Date();
-                          date.setHours(parseInt(hours, 10), parseInt(minutes, 10));
-                          const scheduleTimeStr = format(date, 'h:mm a');
-
-                          return (
-                            <View key={schedule.id} style={styles.loggedNotification}>
-                              <Ionicons
-                                name={logState.logged ? "checkmark-circle" : "close-circle"}
-                                size={16}
-                                color={logState.logged ? theme.success : theme.textSecondary}
-                              />
-                              <Text style={[
-                                styles.loggedNotificationText,
-                                logState.skipped && { color: theme.textSecondary }
-                              ]}>
-                                {logState.logged && `${scheduleTimeStr} dose taken at ${logState.loggedAt && format(logState.loggedAt, 'h:mm a')}`}
-                                {logState.skipped && `${scheduleTimeStr} dose skipped`}
-                              </Text>
-                              {logState.doseId && (
-                                <TouchableOpacity
-                                  style={styles.undoButton}
-                                  onPress={(e) => {
-                                    e.stopPropagation();
-                                    handleUndoLog(med.id, schedule.id, logState.doseId!);
-                                  }}
-                                  accessibilityRole="button"
-                                  accessibilityLabel="Undo"
-                                  accessibilityHint="Removes this logged dose"
-                                >
-                                  <Text style={styles.undoButtonText}>Undo</Text>
-                                </TouchableOpacity>
-                              )}
-                            </View>
-                          );
-                        })}
-                      </View>
-                    )}
-
-                    {/* Show log buttons for unlogged schedules */}
-                    <View style={styles.scheduleLogContainer}>
-                      {medicationSchedules[med.id].map((schedule) => {
-                        const [hours, minutes] = schedule.time.split(':');
-                        const date = new Date();
-                        date.setHours(parseInt(hours, 10), parseInt(minutes, 10));
-                        const timeStr = format(date, 'h:mm a');
-                        const stateKey = `${med.id}-${schedule.id}`;
-                        const logState = scheduleLogStates[stateKey];
-
-                        if (logState?.logged || logState?.skipped) {
-                          return null; // Don't show button if already logged or skipped
-                        }
-
-                        return (
-                          <TouchableOpacity
-                            key={schedule.id}
-                            style={styles.scheduleLogButton}
-                            onPress={(e) => {
-                              e.stopPropagation();
-                              handleQuickLog(med.id, schedule.id, schedule.dosage, timeStr);
-                            }}
-                            accessibilityRole="button"
-                            accessibilityLabel={`Log ${timeStr} dose`}
-                            accessibilityHint={`Records that you took your ${timeStr} dose of ${med.name}`}
-                          >
-                            <Text style={styles.scheduleLogButtonText}>Log {timeStr}</Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  </View>
-                )}
-              </TouchableOpacity>
+                onScheduleLog={handleQuickLog}
+                onUndoLog={handleUndoLog}
+                showScheduleButtons={true}
+                testID={`preventative-medication-${med.id}`}
+              />
             ))
           )}
         </View>
@@ -645,76 +487,16 @@ export default function MedicationsScreen() {
             </View>
           ) : (
             rescueMedications.map((med) => (
-              <TouchableOpacity
+              <MedicationCard
                 key={med.id}
-                style={styles.medicationCard}
+                medication={med}
+                type="rescue"
                 onPress={() => navigation.navigate('MedicationDetail', { medicationId: med.id })}
-                accessibilityRole="button"
-                accessibilityLabel={`${med.name} rescue medication`}
-                accessibilityHint="Opens details and history for this medication"
-              >
-                 <View style={styles.medicationHeader}>
-                   <View style={styles.medicationTitleContainer}>
-                     <Text style={styles.medicationName}>{med.name}</Text>
-                     <View style={styles.badgeContainer}>
-                       <View style={[styles.typeBadge, { backgroundColor: theme.primary + '20' }]}>
-                         <Text style={[styles.typeBadgeText, { color: theme.primary }]}>Rescue</Text>
-                       </View>
-                       {med.category && (
-                         <View style={[styles.typeBadge, { backgroundColor: theme.textSecondary + '20' }]}>
-                           <Text style={[styles.typeBadgeText, { color: theme.textSecondary }]}>
-                             {getCategoryName(med.category)}
-                           </Text>
-                         </View>
-                       )}
-                     </View>
-                   </View>
-                   {med.photoUri && (
-                     <Image
-                       source={{ uri: med.photoUri }}
-                       style={styles.medicationThumbnail}
-                       resizeMode="cover"
-                       accessibilityLabel={`Photo of ${med.name}`}
-                     />
-                   )}
-                 </View>
-                <View style={styles.medicationDetails}>
-                  <Text style={styles.dosageText}>
-                    {formatMedicationDosage(med.defaultQuantity || 1, med.dosageAmount, med.dosageUnit)}
-                  </Text>
-                </View>
-                {med.notes && (
-                  <View style={{ width: '100%' }}>
-                    <Text style={styles.notes} numberOfLines={2} ellipsizeMode="tail">{med.notes}</Text>
-                  </View>
-                )}
-                <View style={styles.medicationActions}>
-                  <TouchableOpacity
-                    style={styles.quickLogButton}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      handleRescueQuickLog(med.id, med.defaultQuantity || 1);
-                    }}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Quick log ${med.name}`}
-                    accessibilityHint={`Logs ${med.defaultQuantity || 1} dose of ${med.name} at the current time`}
-                  >
-                    <Text style={styles.quickLogButtonText}>Quick Log</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.detailedLogButton}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      navigation.navigate('LogMedication', { medicationId: med.id });
-                    }}
-                    accessibilityRole="button"
-                    accessibilityLabel="Log details"
-                    accessibilityHint="Opens detailed logging screen to specify time, dosage, and notes"
-                  >
-                    <Text style={styles.detailedLogButtonText}>Log Details</Text>
-                  </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
+                onQuickLog={handleRescueQuickLog}
+                onDetailedLog={(medicationId) => navigation.navigate('LogMedication', { medicationId })}
+                showQuickActions={true}
+                testID={`rescue-medication-${med.id}`}
+              />
             ))
           )}
         </View>
@@ -728,50 +510,13 @@ export default function MedicationsScreen() {
             </View>
           ) : (
             otherMedications.map((med) => (
-              <TouchableOpacity
+              <MedicationCard
                 key={med.id}
-                style={styles.medicationCard}
+                medication={med}
+                type="other"
                 onPress={() => navigation.navigate('MedicationDetail', { medicationId: med.id })}
-                accessibilityRole="button"
-                accessibilityLabel={`${med.name} other medication`}
-                accessibilityHint="Opens details and history for this medication"
-              >
-                 <View style={styles.medicationHeader}>
-                   <View style={styles.medicationTitleContainer}>
-                     <Text style={styles.medicationName}>{med.name}</Text>
-                     <View style={styles.badgeContainer}>
-                       <View style={[styles.typeBadge, { backgroundColor: theme.textSecondary + '20' }]}>
-                         <Text style={[styles.typeBadgeText, { color: theme.textSecondary }]}>Other</Text>
-                       </View>
-                       {med.category && (
-                         <View style={[styles.typeBadge, { backgroundColor: theme.textSecondary + '20' }]}>
-                           <Text style={[styles.typeBadgeText, { color: theme.textSecondary }]}>
-                             {getCategoryName(med.category)}
-                           </Text>
-                         </View>
-                       )}
-                     </View>
-                   </View>
-                   {med.photoUri && (
-                     <Image
-                       source={{ uri: med.photoUri }}
-                       style={styles.medicationThumbnail}
-                       resizeMode="cover"
-                       accessibilityLabel={`Photo of ${med.name}`}
-                     />
-                   )}
-                 </View>
-                <View style={styles.medicationDetails}>
-                  <Text style={styles.dosageText}>
-                    {formatMedicationDosage(med.defaultQuantity || 1, med.dosageAmount, med.dosageUnit)}
-                  </Text>
-                </View>
-                {med.notes && (
-                  <View style={{ width: '100%' }}>
-                    <Text style={styles.notes} numberOfLines={2} ellipsizeMode="tail">{med.notes}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
+                testID={`other-medication-${med.id}`}
+              />
             ))
           )}
         </View>
