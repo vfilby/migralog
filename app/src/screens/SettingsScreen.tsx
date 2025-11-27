@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import { logger } from '../utils/logger';
 import {
@@ -8,7 +9,6 @@ import {
   TouchableOpacity,
   Alert,
   Linking,
-  Switch,
   Platform,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -20,15 +20,14 @@ import { errorLogger, ErrorLog } from '../services/errorLogger';
 import { notificationService, NotificationPermissions } from '../services/notificationService';
 import { dailyCheckinService } from '../services/dailyCheckinService';
 import { locationService } from '../services/locationService';
-import { backupService } from '../services/backupService';
 import { useDailyCheckinSettingsStore } from '../store/dailyCheckinSettingsStore';
 import * as SQLite from 'expo-sqlite';
 import * as Notifications from 'expo-notifications';
 import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import NotificationSettings from '../components/NotificationSettings';
+import { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
@@ -36,6 +35,8 @@ const DEVELOPER_MODE_KEY = '@settings_developer_mode';
 
 export default function SettingsScreen({ navigation }: Props) {
   const { theme, themeMode, setThemeMode, isDark } = useTheme();
+  
+   
   const styles = createStyles(theme);
   const [errorLogs, setErrorLogs] = useState<ErrorLog[]>([]);
   const [dbStatus, setDbStatus] = useState<'checking' | 'healthy' | 'error'>('checking');

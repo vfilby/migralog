@@ -23,6 +23,7 @@ describe('dailyCheckinSettingsStore', () => {
       const storedSettings = {
         enabled: false,
         checkInTime: '20:30',
+        timeSensitive: false,
       };
 
       (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(storedSettings));
@@ -127,7 +128,7 @@ describe('dailyCheckinSettingsStore', () => {
   describe('getCheckInTimeComponents', () => {
     it('should return correct hours and minutes for 21:00', () => {
       useDailyCheckinSettingsStore.setState({
-        settings: { enabled: true, checkInTime: '21:00' },
+        settings: { enabled: true, checkInTime: '21:00', timeSensitive: false },
         isLoaded: true,
       });
 
@@ -139,7 +140,7 @@ describe('dailyCheckinSettingsStore', () => {
 
     it('should return correct hours and minutes for 08:30', () => {
       useDailyCheckinSettingsStore.setState({
-        settings: { enabled: true, checkInTime: '08:30' },
+        settings: { enabled: true, checkInTime: '08:30', timeSensitive: false },
         isLoaded: true,
       });
 
@@ -151,7 +152,7 @@ describe('dailyCheckinSettingsStore', () => {
 
     it('should return correct hours and minutes for 12:45', () => {
       useDailyCheckinSettingsStore.setState({
-        settings: { enabled: true, checkInTime: '12:45' },
+        settings: { enabled: true, checkInTime: '12:45', timeSensitive: false },
         isLoaded: true,
       });
 
@@ -163,7 +164,7 @@ describe('dailyCheckinSettingsStore', () => {
 
     it('should return correct hours and minutes for 00:00 (midnight)', () => {
       useDailyCheckinSettingsStore.setState({
-        settings: { enabled: true, checkInTime: '00:00' },
+        settings: { enabled: true, checkInTime: '00:00', timeSensitive: false },
         isLoaded: true,
       });
 
