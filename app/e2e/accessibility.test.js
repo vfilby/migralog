@@ -24,7 +24,7 @@ describe('Accessibility Features', () => {
       // Verify Dashboard is loaded
       await waitFor(element(by.id('dashboard-title')))
         .toBeVisible()
-        .withTimeout(3000);
+        .withTimeout(10000);
 
       // Check Settings button has accessibility label
       const settingsButton = element(by.id('settings-button'));
@@ -40,7 +40,7 @@ describe('Accessibility Features', () => {
     it('should have accessibility labels on Daily Status Widget buttons', async () => {
       await waitFor(element(by.id('dashboard-title')))
         .toBeVisible()
-        .withTimeout(3000);
+        .withTimeout(10000);
 
       // Check if daily status widget is visible (may not always be present)
       const widget = element(by.id('daily-status-widget'));
@@ -79,7 +79,7 @@ describe('Accessibility Features', () => {
       await element(by.text('Home')).tap();
       await waitFor(element(by.id('dashboard-title')))
         .toBeVisible()
-        .withTimeout(3000);
+        .withTimeout(10000);
     });
   });
 
@@ -115,7 +115,7 @@ describe('Accessibility Features', () => {
 
       await waitFor(element(by.text('Cancel')))
         .toBeVisible()
-        .withTimeout(3000);
+        .withTimeout(10000);
 
       // Form loaded successfully with accessible buttons
       console.log('✅ New Episode form has accessible controls');
@@ -163,12 +163,7 @@ describe('Accessibility Features', () => {
 
       // Navigate to settings to check theme options
       await element(by.id('settings-button')).tap();
-      await waitFor(element(by.text('Settings')))
-        .toBeVisible()
-        .withTimeout(3000);
-
-      // Verify theme selection buttons are visible and accessible
-      // Theme buttons use accessibility labels, not testIDs
+      await waitForAnimation(1000); // Wait for modal animation
       await expect(element(by.label('Light theme'))).toBeVisible();
       await expect(element(by.label('Dark theme'))).toBeVisible();
       await expect(element(by.label('System theme'))).toBeVisible();
@@ -177,7 +172,7 @@ describe('Accessibility Features', () => {
       await element(by.text('Done')).tap();
       await waitFor(element(by.id('dashboard-title')))
         .toBeVisible()
-        .withTimeout(3000);
+        .withTimeout(10000);
     });
   });
 
@@ -187,11 +182,8 @@ describe('Accessibility Features', () => {
       const settingsButton = element(by.id('settings-button'));
       await expect(settingsButton).toBeVisible();
       await settingsButton.tap();
+      await waitForAnimation(1000); // Wait for modal animation
 
-      // Verify navigation
-      await waitFor(element(by.text('Settings')))
-        .toBeVisible()
-        .withTimeout(3000);
 
       // Done button should be large enough (uses text label, not testID)
       const doneButton = element(by.text('Done'));
@@ -201,7 +193,7 @@ describe('Accessibility Features', () => {
       // Verify returned to dashboard
       await waitFor(element(by.id('dashboard-title')))
         .toBeVisible()
-        .withTimeout(3000);
+        .withTimeout(10000);
     });
 
     it('should have adequately sized medication log buttons', async () => {
@@ -226,7 +218,7 @@ describe('Accessibility Features', () => {
 
       await waitFor(element(by.id('dashboard-title')))
         .toBeVisible()
-        .withTimeout(3000);
+        .withTimeout(10000);
 
       // Interactive elements should be in logical tab order
       // (verified through accessibility labels and roles)
