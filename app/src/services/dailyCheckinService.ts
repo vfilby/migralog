@@ -281,8 +281,19 @@ class DailyCheckinService {
           categoryIdentifier: DAILY_CHECKIN_CATEGORY,
           sound: true,
           // Time-sensitive notification settings
+          ...(settings.timeSensitive && {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            interruptionLevel: 'timeSensitive' as any,
+          }),
           ...(Notifications.AndroidNotificationPriority && {
-            priority: Notifications.AndroidNotificationPriority.DEFAULT,
+            priority: settings.timeSensitive 
+              ? Notifications.AndroidNotificationPriority.HIGH
+              : Notifications.AndroidNotificationPriority.DEFAULT,
+          }),
+          ...(Notifications.AndroidNotificationPriority && {
+            priority: settings.timeSensitive 
+              ? Notifications.AndroidNotificationPriority.HIGH
+              : Notifications.AndroidNotificationPriority.DEFAULT,
           }),
         },
         trigger: {

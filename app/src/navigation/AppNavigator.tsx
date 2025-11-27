@@ -27,6 +27,10 @@ import EditSymptomLogScreen from '../screens/EditSymptomLogScreen';
 import EditPainLocationLogScreen from '../screens/EditPainLocationLogScreen';
 import ArchivedMedicationsScreen from '../screens/ArchivedMedicationsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
+import LocationSettingsScreen from '../screens/LocationSettingsScreen';
+import DataSettingsScreen from '../screens/DataSettingsScreen';
+import DeveloperToolsScreen from '../screens/DeveloperToolsScreen';
 import BackupRecoveryScreen from '../screens/BackupRecoveryScreen';
 import ErrorLogsScreen from '../screens/ErrorLogsScreen';
 import PerformanceScreen from '../screens/PerformanceScreen';
@@ -210,6 +214,26 @@ export default function AppNavigator() {
           name="Settings"
           component={SettingsScreen}
           options={{ headerShown: false, presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="NotificationSettingsScreen"
+          component={NotificationSettingsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="LocationSettingsScreen"
+          component={LocationSettingsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="DataSettingsScreen"
+          component={DataSettingsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="DeveloperToolsScreen"
+          component={DeveloperToolsScreen}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="BackupRecovery"

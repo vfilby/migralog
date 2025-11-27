@@ -134,12 +134,26 @@ async function resetDatabaseViaUI(withFixtures = false) {
     .toBeVisible()
     .withTimeout(5000);
 
-  // Scroll to reset button
+  // Navigate to Developer Tools screen where reset buttons are located
+  await waitFor(element(by.text('Developer Tools')))
+    .toBeVisible()
+    .whileElement(by.id('settings-scroll-view'))
+    .scroll(400, 'down');
+
+  await element(by.text('Developer Tools')).tap();
+  await waitForAnimation(1000);
+
+  // Wait for Developer Tools screen
+  await waitFor(element(by.text('Developer Tools')))
+    .toBeVisible()
+    .withTimeout(5000);
+
+  // Scroll to reset button on Developer Tools screen
   const buttonId = withFixtures ? 'reset-database-with-fixtures-button' : 'reset-database-button';
   try {
     await waitFor(element(by.id(buttonId)))
       .toBeVisible()
-      .whileElement(by.id('settings-scroll-view'))
+      .whileElement(by.id('developer-tools-scroll-view'))
       .scroll(400, 'down');
   } catch (e) {
     await waitFor(element(by.id(buttonId)))
