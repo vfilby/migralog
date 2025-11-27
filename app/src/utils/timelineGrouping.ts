@@ -62,7 +62,7 @@ export function groupEventsByDay(
 
       return {
         date: dayStart,
-        dateLabel: format(dayStart, 'EEEE, MMM d'),
+        dateLabel: format(dayStart, 'EEE, MMM d'),
         events: dayEvents.sort((a, b) => a.timestamp - b.timestamp),
         stats,
       };

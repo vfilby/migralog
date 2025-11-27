@@ -59,11 +59,30 @@ export const EpisodeTimeline: React.FC<EpisodeTimelineProps> = ({
     const isYesterday = new Date(dayGroup.date).toDateString() === 
       new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString();
 
-    let dateText = dayGroup.dateLabel;
-    if (isToday) dateText = 'Today';
-    else if (isYesterday) dateText = 'Yesterday';
+    if (isToday || isYesterday) {
+      const dateText = isToday ? 'Today' : 'Yesterday';
+      return <Text style={styles.timelineDate}>{dateText}</Text>;
+    }
 
-    return <Text style={styles.timelineDate}>{dateText}</Text>;
+    // Split the dateLabel (e.g., "Mon, Nov 6") into two lines
+    // Expected format: "Mon, Nov 6" -> "Mon" + "Nov 6"
+    const dateParts = dayGroup.dateLabel.split(' ');
+    if (dateParts.length >= 3) {
+      // Extract day name without comma: "Mon," -> "Mon"
+      const dayName = dateParts[0].replace(',', '');
+      // Extract month and day number: "Nov" + "6" -> "Nov 6"
+      const monthAndDay = `${dateParts[1]} ${dateParts[2]}`;
+      
+      return (
+        <View style={styles.timelineDateContainer}>
+          <Text style={styles.timelineDate}>{dayName}</Text>
+          <Text style={styles.timelineDate}>{monthAndDay}</Text>
+        </View>
+      );
+    }
+
+    // Fallback to original single line if parsing fails
+    return <Text style={styles.timelineDate}>{dayGroup.dateLabel}</Text>;
   };
 
   const renderDayGap = (dayCount: number, isLast: boolean) => {
@@ -184,7 +203,7 @@ const createStyles = (theme: ThemeColors) =>
       marginBottom: 24,
     },
     timelineLeft: {
-      width: 70,
+      width: 80,
       alignItems: 'flex-end',
       paddingRight: 12,
     },
@@ -203,24 +222,27 @@ const createStyles = (theme: ThemeColors) =>
       marginTop: 4,
     },
     timelineDate: {
-      fontSize: 11,
+      fontSize: 14,
       color: theme.textSecondary,
       fontWeight: '600',
     },
+    timelineDateContainer: {
+      alignItems: 'flex-end',
+    },
     timelineGapDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
+      width: 12,
+      height: 12,
+      borderRadius: 6,
       backgroundColor: theme.border,
       marginTop: 2,
     },
     timelineGapText: {
-      fontSize: 13,
+      fontSize: 16,
       color: theme.textSecondary,
       fontStyle: 'italic',
     },
     timelineGapDescription: {
-      fontSize: 11,
+      fontSize: 14,
       color: theme.textTertiary,
       marginTop: 2,
     },
