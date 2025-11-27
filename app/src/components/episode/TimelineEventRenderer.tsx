@@ -177,7 +177,14 @@ export const TimelineEventRenderer: React.FC<TimelineEventRendererProps> = ({
   return (
     <View style={styles.timelineItem}>
       <View style={styles.timelineLeft}>
-        <Text style={styles.timelineTime}>{time}</Text>
+        <Text 
+          style={styles.timelineTime}
+          numberOfLines={1}
+          adjustsFontSizeToFit={true}
+          minimumFontScale={0.8}
+        >
+          {time}
+        </Text>
         {dateLabel}
       </View>
       <View style={styles.timelineCenter}>
@@ -316,7 +323,7 @@ const createStyles = (theme: ThemeColors) =>
       marginBottom: 24,
     },
     timelineLeft: {
-      width: 70,
+      width: 80,
       alignItems: 'flex-end',
       paddingRight: 12,
     },
@@ -324,6 +331,7 @@ const createStyles = (theme: ThemeColors) =>
       fontSize: 14,
       color: theme.textSecondary,
       marginBottom: 4,
+      textAlign: 'right',
     },
     timelineCenter: {
       width: 20,
