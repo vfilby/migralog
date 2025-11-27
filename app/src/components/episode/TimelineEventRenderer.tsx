@@ -373,7 +373,7 @@ const createStyles = (theme: ThemeColors) =>
       borderRadius: 10,
     },
     timelineIntensityValue: {
-      fontSize: 14,
+      fontSize: 16,
       fontWeight: '600',
       color: theme.text,
     },
