@@ -19,6 +19,8 @@ export type RootStackParamList = {
   ArchivedMedications: undefined;
   Settings: undefined;
   NotificationSettingsScreen: undefined;
+  LocationSettingsScreen: undefined;
+  DataSettingsScreen: undefined;
   DeveloperToolsScreen: undefined;
   BackupRecovery: undefined;
   ErrorLogs: undefined;

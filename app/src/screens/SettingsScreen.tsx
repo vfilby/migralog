@@ -578,14 +578,7 @@ export default function SettingsScreen({ navigation }: Props) {
     );
   };
 
-  const handleExportData = async () => {
-    try {
-      await backupService.exportDataForSharing();
-    } catch (error) {
-      logger.error('Failed to export data:', error);
-      Alert.alert('Error', 'Failed to export data: ' + (error as Error).message);
-    }
-  };
+
 
   return (
     <View style={styles.container} testID="settings-screen">
@@ -632,6 +625,30 @@ export default function SettingsScreen({ navigation }: Props) {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Developer Tools */}
+        {developerMode && (
+          <View style={styles.navigationSection}>
+            <TouchableOpacity
+              style={[styles.navigationItem, styles.navigationItemDanger]}
+              onPress={() => navigation.navigate('DeveloperToolsScreen')}
+              accessibilityRole="button"
+              accessibilityLabel="Developer tools"
+              accessibilityHint="Opens the developer tools screen with diagnostics and debugging options"
+            >
+              <View style={styles.navigationItemContent}>
+                <Ionicons name="code-slash-outline" size={24} color={theme.error} />
+                <View style={styles.navigationItemText}>
+                  <Text style={[styles.navigationItemTitle, styles.navigationItemTitleDanger]}>Developer Tools</Text>
+                  <Text style={styles.navigationItemDescription}>
+                    System diagnostics and debugging tools
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Appearance Section */}
         <View style={styles.section}>
@@ -724,9 +741,13 @@ export default function SettingsScreen({ navigation }: Props) {
           </View>
         </View>
 
-        {/* Notifications Section */}
+        {/* Settings Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notifications</Text>
+          <Text style={styles.sectionTitle}>Settings</Text>
+        </View>
+
+        {/* Notifications Section */}
+        <View style={styles.navigationSection}>
           <TouchableOpacity
             style={styles.navigationItem}
             onPress={() => navigation.navigate('NotificationSettingsScreen')}
@@ -737,12 +758,12 @@ export default function SettingsScreen({ navigation }: Props) {
             <View style={styles.navigationItemContent}>
               <Ionicons name="notifications-outline" size={24} color={theme.primary} />
               <View style={styles.navigationItemText}>
-                <Text style={styles.navigationItemTitle}>Medication Reminders</Text>
+                <Text style={styles.navigationItemTitle}>Notifications</Text>
                 <Text style={styles.navigationItemDescription}>
                   {!notificationPermissions
                     ? 'Loading...'
                     : notificationPermissions.granted
-                    ? 'Manage reminder settings'
+                    ? 'Manage medication reminders and daily check-ins'
                     : 'Enable notifications for reminders'}
                 </Text>
               </View>
@@ -752,126 +773,54 @@ export default function SettingsScreen({ navigation }: Props) {
         </View>
 
         {/* Location Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Location</Text>
-          <Text style={styles.sectionDescription}>
-            Allow the app to capture your location when starting episodes (optional)
-          </Text>
-
-          <View style={styles.diagnosticCard}>
-            <View style={styles.diagnosticRow}>
-              <View style={styles.diagnosticLeft}>
-                <Ionicons
-                  name="location-outline"
-                  size={20}
-                  color={theme.textSecondary}
-                />
-                <Text style={styles.diagnosticLabel}>Status</Text>
-              </View>
-              <View style={styles.diagnosticRight}>
-                {locationPermission === null ? (
-                  <Text style={styles.diagnosticValueSecondary}>Checking...</Text>
-                ) : locationPermission ? (
-                  <>
-                    <Ionicons name="checkmark-circle" size={18} color={theme.success} />
-                    <Text style={styles.diagnosticValueSuccess}>Enabled</Text>
-                  </>
-                ) : (
-                  <>
-                    <Ionicons name="close-circle" size={18} color={theme.error} />
-                    <Text style={styles.diagnosticValueError}>Disabled</Text>
-                  </>
-                )}
+        <View style={styles.navigationSection}>
+          <TouchableOpacity
+            style={styles.navigationItem}
+            onPress={() => navigation.navigate('LocationSettingsScreen')}
+            accessibilityRole="button"
+            accessibilityLabel="Location settings"
+            accessibilityHint="Opens location permission settings"
+          >
+            <View style={styles.navigationItemContent}>
+              <Ionicons name="location-outline" size={24} color={theme.primary} />
+              <View style={styles.navigationItemText}>
+                <Text style={styles.navigationItemTitle}>Location</Text>
+                <Text style={styles.navigationItemDescription}>
+                  {locationPermission === null
+                    ? 'Loading...'
+                    : locationPermission
+                    ? 'Location access enabled for episode tracking'
+                    : 'Enable location capture for episodes (optional)'}
+                </Text>
               </View>
             </View>
-          </View>
-
-          {!locationPermission && (
-            <View style={styles.developerActions}>
-              <TouchableOpacity
-                style={styles.developerButton}
-                onPress={handleRequestLocationPermission}
-                accessibilityRole="button"
-                accessibilityLabel="Enable location"
-                accessibilityHint="Requests permission to access your location when starting episodes"
-              >
-                <Ionicons name="location-outline" size={24} color={theme.primary} />
-                <Text style={styles.developerButtonText}>Enable Location</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+            <Ionicons name="chevron-forward" size={24} color={theme.textTertiary} />
+          </TouchableOpacity>
         </View>
 
         {/* Data Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Data</Text>
+        <View style={styles.navigationSection}>
           <TouchableOpacity
             style={styles.navigationItem}
-            onPress={handleExportData}
+            onPress={() => navigation.navigate('DataSettingsScreen')}
             accessibilityRole="button"
-            accessibilityLabel="Export data"
-            accessibilityHint="Exports your migraine data as JSON to share with healthcare providers"
+            accessibilityLabel="Data management"
+            accessibilityHint="Opens data management settings for export and backup"
           >
             <View style={styles.navigationItemContent}>
-              <Ionicons name="document-text-outline" size={24} color={theme.primary} />
+              <Ionicons name="folder-outline" size={24} color={theme.primary} />
               <View style={styles.navigationItemText}>
-                <Text style={styles.navigationItemTitle}>Export Data</Text>
+                <Text style={styles.navigationItemTitle}>Data</Text>
                 <Text style={styles.navigationItemDescription}>
-                  Share your data as JSON with healthcare providers
+                  Export data and manage backups
                 </Text>
               </View>
             </View>
-            <Ionicons name="share-outline" size={20} color={theme.textTertiary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.navigationItem}
-            onPress={() => navigation.navigate('BackupRecovery')}
-            accessibilityRole="button"
-            accessibilityLabel="Backup and recovery"
-            accessibilityHint="Opens the backup and recovery screen to create and manage backups"
-          >
-            <View style={styles.navigationItemContent}>
-              <Ionicons name="cloud-upload-outline" size={24} color={theme.primary} />
-              <View style={styles.navigationItemText}>
-                <Text style={styles.navigationItemTitle}>Backup & Recovery</Text>
-                <Text style={styles.navigationItemDescription}>
-                  Create and manage backups
-                </Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
+            <Ionicons name="chevron-forward" size={24} color={theme.textTertiary} />
           </TouchableOpacity>
         </View>
 
-        {/* Developer Section */}
-        {developerMode && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Developer</Text>
-            <Text style={styles.sectionDescription}>
-              Diagnostic tools for troubleshooting issues
-            </Text>
 
-            <TouchableOpacity
-              style={styles.navigationItem}
-              onPress={() => navigation.navigate('DeveloperToolsScreen')}
-              accessibilityRole="button"
-              accessibilityLabel="Developer tools"
-              accessibilityHint="Opens the developer tools screen with diagnostics and debugging options"
-            >
-              <View style={styles.navigationItemContent}>
-                <Ionicons name="code-slash-outline" size={24} color={theme.primary} />
-                <View style={styles.navigationItemText}>
-                  <Text style={styles.navigationItemTitle}>Developer Tools</Text>
-                  <Text style={styles.navigationItemDescription}>
-                    System diagnostics and debugging tools
-                  </Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
-            </TouchableOpacity>
-          </View>
-        )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -910,6 +859,10 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   },
   section: {
     marginTop: 24,
+    paddingHorizontal: 16,
+  },
+  navigationSection: {
+    marginTop: 12,
     paddingHorizontal: 16,
   },
   sectionTitle: {
@@ -974,6 +927,11 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 12,
   },
+  navigationItemDanger: {
+    borderWidth: 1,
+    borderColor: theme.error + '40', // 40% opacity
+    backgroundColor: theme.error + '10', // 10% opacity
+  },
   navigationItemContent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -988,6 +946,9 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     fontWeight: '600',
     color: theme.text,
     marginBottom: 2,
+  },
+  navigationItemTitleDanger: {
+    color: theme.error,
   },
   navigationItemDescription: {
     fontSize: 13,

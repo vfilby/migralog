@@ -9,11 +9,14 @@ export interface DailyCheckinSettings {
   enabled: boolean;
   // Time of day to send the check-in notification (24-hour format HH:mm)
   checkInTime: string;
+  // Whether the daily check-in notification should be time-sensitive (breaks through focus modes)
+  timeSensitive: boolean;
 }
 
 export const DEFAULT_DAILY_CHECKIN_SETTINGS: DailyCheckinSettings = {
   enabled: true,
   checkInTime: '21:00', // Default to 9pm
+  timeSensitive: false, // Default to regular notifications
 };
 
 interface DailyCheckinSettingsState {
@@ -39,6 +42,7 @@ export const useDailyCheckinSettingsStore = create<DailyCheckinSettingsState>((s
         const settings: DailyCheckinSettings = {
           enabled: parsed.enabled ?? DEFAULT_DAILY_CHECKIN_SETTINGS.enabled,
           checkInTime: parsed.checkInTime ?? DEFAULT_DAILY_CHECKIN_SETTINGS.checkInTime,
+          timeSensitive: parsed.timeSensitive ?? DEFAULT_DAILY_CHECKIN_SETTINGS.timeSensitive,
         };
         set({ settings, isLoaded: true });
         logger.log('[DailyCheckinSettings] Loaded settings from storage:', settings);

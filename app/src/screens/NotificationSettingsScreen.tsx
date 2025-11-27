@@ -162,8 +162,9 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 12,
-    minHeight: 44,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    minHeight: 60,
   },
   settingInfo: {
     flex: 1,
@@ -187,6 +188,31 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     marginTop: 12,
     alignItems: 'center',
     paddingVertical: 12,
+  },
+  settingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+    paddingRight: 16,
+  },
+  settingText: {
+    flex: 1,
+  },
+  settingRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  settingValue: {
+    fontSize: 15,
+    color: theme.textSecondary,
+    fontWeight: '500',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: theme.borderLight,
+    marginLeft: 48, // Align with text (icon width + gap)
   },
 });
 
@@ -527,108 +553,139 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
 
           {notificationPermissions?.granted && (
             <>
-              {/* Global Notification Toggle */}
+              {/* Unified Medication Settings Block */}
               <View style={[styles.settingsSection, styles.notificationToggleSection]}>
+                {/* Global Enable/Disable Toggle */}
                 <View style={styles.settingRow}>
-                  <View style={styles.settingInfo}>
-                    <Text style={styles.settingLabel}>Enable Medication Reminders</Text>
-                    <Text style={styles.settingDescription}>
-                      {notificationsEnabled
-                        ? 'Notifications are enabled'
-                        : 'All reminders disabled. Schedules are preserved.'}
-                    </Text>
+                  <View style={styles.settingLeft}>
+                    <Ionicons name="notifications-outline" size={20} color={theme.textSecondary} />
+                    <View style={styles.settingText}>
+                      <Text style={styles.settingLabel}>Enable Medication Reminders</Text>
+                      <Text style={styles.settingDescription}>
+                        {notificationsEnabled
+                          ? 'All medication notifications are enabled'
+                          : 'All medication notifications are disabled'}
+                      </Text>
+                    </View>
                   </View>
                   <Switch
                     value={notificationsEnabled}
                     onValueChange={handleToggleNotifications}
                     disabled={isTogglingNotifications}
-                    trackColor={{ false: theme.borderLight, true: theme.primary }}
-                    thumbColor={theme.card}
+                    trackColor={{ false: theme.border, true: theme.primary }}
+                    ios_backgroundColor={theme.border}
                     accessibilityRole="switch"
                     accessibilityLabel="Enable medication reminders"
                     accessibilityHint="Toggles all medication reminder notifications on or off"
                   />
                 </View>
+
+                {/* Per-Medication Settings - Integrated */}
+                {notificationsEnabled && (
+                  <>
+                    <View style={styles.divider} />
+                    <NotificationSettings showTitle={false} />
+                  </>
+                )}
               </View>
 
-              {/* Per-Medication Settings */}
-              {notificationsEnabled && (
-                <View style={styles.settingsSection}>
-                  <NotificationSettings showTitle={false} />
-                </View>
-              )}
-
-              {/* Daily Check-in */}
-              {notificationsEnabled && (
+              {/* Daily Check-in - Independent of medication reminders */}
+              {notificationPermissions?.granted && (
                 <>
-                  <View style={styles.sectionDivider} />
-                  <Text style={styles.subsectionTitle}>Daily Check-in</Text>
-                  <Text style={styles.sectionDescription}>
-                    Get a reminder to log how your day went
-                  </Text>
 
+                  {/* Unified Daily Check-in Settings Card */}
                   <View style={[styles.settingsSection, styles.notificationToggleSection]}>
+                    {/* Enable/Disable Toggle */}
                     <View style={styles.settingRow}>
-                      <View style={styles.settingInfo}>
-                        <Text style={styles.settingLabel}>Enable Daily Check-in</Text>
-                        <Text style={styles.settingDescription}>
-                          {dailyCheckinSettings.enabled
-                            ? `Reminder at ${formatCheckinTime(dailyCheckinSettings.checkInTime)}`
-                            : 'Daily reminders disabled'}
-                        </Text>
+                      <View style={styles.settingLeft}>
+                        <Ionicons name="checkmark-circle-outline" size={20} color={theme.textSecondary} />
+                        <View style={styles.settingText}>
+                          <Text style={styles.settingLabel}>Enable Daily Check-in</Text>
+                          <Text style={styles.settingDescription}>
+                            {dailyCheckinSettings.enabled
+                              ? 'Daily reminders are enabled'
+                              : 'Daily reminders are disabled'}
+                          </Text>
+                        </View>
                       </View>
                       <Switch
                         value={dailyCheckinSettings.enabled}
                         onValueChange={handleToggleDailyCheckin}
-                        trackColor={{ false: theme.borderLight, true: theme.primary }}
-                        thumbColor={theme.card}
+                        trackColor={{ false: theme.border, true: theme.primary }}
+                        ios_backgroundColor={theme.border}
                         accessibilityRole="switch"
                         accessibilityLabel="Enable daily check-in"
                         accessibilityHint="Toggles daily check-in reminders on or off"
                       />
                     </View>
-                  </View>
 
-                  {dailyCheckinSettings.enabled && (
-                    <View style={styles.settingsSection}>
-                      <TouchableOpacity
-                        style={[styles.diagnosticCard, { marginBottom: 0 }]}
-                        onPress={() => setShowCheckinTimePicker(!showCheckinTimePicker)}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Check-in time: ${formatCheckinTime(dailyCheckinSettings.checkInTime)}`}
-                        accessibilityHint="Tap to change the daily check-in reminder time"
-                      >
-                        <View style={styles.diagnosticRow}>
-                          <View style={styles.diagnosticLeft}>
-                            <Ionicons
-                              name="time-outline"
-                              size={20}
-                              color={theme.textSecondary}
-                            />
-                            <Text style={styles.diagnosticLabel}>Check-in Time</Text>
+                    {dailyCheckinSettings.enabled && (
+                      <>
+                        <View style={styles.divider} />
+
+                        {/* Check-in Time Setting */}
+                        <TouchableOpacity
+                          style={styles.settingRow}
+                          onPress={() => setShowCheckinTimePicker(!showCheckinTimePicker)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Check-in time: ${formatCheckinTime(dailyCheckinSettings.checkInTime)}`}
+                          accessibilityHint="Tap to change the daily check-in reminder time"
+                        >
+                          <View style={styles.settingLeft}>
+                            <Ionicons name="time-outline" size={20} color={theme.textSecondary} />
+                            <View style={styles.settingText}>
+                              <Text style={styles.settingLabel}>Check-in Time</Text>
+                              <Text style={styles.settingDescription}>
+                                When to send the daily reminder
+                              </Text>
+                            </View>
                           </View>
-                          <View style={styles.diagnosticRight}>
-                            <Text style={[styles.diagnosticValueSecondary, { color: theme.primary, fontWeight: '600' }]}>
+                          <View style={styles.settingRight}>
+                            <Text style={styles.settingValue}>
                               {formatCheckinTime(dailyCheckinSettings.checkInTime)}
                             </Text>
-                            <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
+                            <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
                           </View>
-                        </View>
-                      </TouchableOpacity>
+                        </TouchableOpacity>
 
-                      {showCheckinTimePicker && (
-                        <View style={styles.timePickerContainer}>
-                          <DateTimePicker
-                            value={getCheckinTimeAsDate()}
-                            mode="time"
-                            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                            onChange={handleCheckinTimeChange}
-                            testID="checkin-time-picker"
+                        {showCheckinTimePicker && (
+                          <View style={styles.timePickerContainer}>
+                            <DateTimePicker
+                              value={getCheckinTimeAsDate()}
+                              mode="time"
+                              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                              onChange={handleCheckinTimeChange}
+                              testID="checkin-time-picker"
+                            />
+                          </View>
+                        )}
+
+                        <View style={styles.divider} />
+
+                        {/* Time-sensitive Toggle */}
+                        <View style={styles.settingRow}>
+                          <View style={styles.settingLeft}>
+                            <Ionicons name="flash-outline" size={20} color={theme.textSecondary} />
+                            <View style={styles.settingText}>
+                              <Text style={styles.settingLabel}>Time-Sensitive</Text>
+                              <Text style={styles.settingDescription}>
+                                Show notifications even in Focus mode
+                              </Text>
+                            </View>
+                          </View>
+                          <Switch
+                            value={dailyCheckinSettings.timeSensitive}
+                            onValueChange={(value) => updateDailyCheckinSettings({ timeSensitive: value })}
+                            trackColor={{ false: theme.border, true: theme.primary }}
+                            ios_backgroundColor={theme.border}
+                            accessibilityRole="switch"
+                            accessibilityLabel="Time-sensitive daily check-in"
+                            accessibilityHint="Toggles whether daily check-in notifications break through focus modes"
                           />
                         </View>
-                      )}
-                    </View>
-                  )}
+                      </>
+                    )}
+                  </View>
                 </>
               )}
             </>
