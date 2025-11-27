@@ -382,8 +382,8 @@ describe('SettingsScreen', () => {
       });
 
       // Tap build info 7 times to trigger developer mode
-      // Find the build info by looking for the commit hash pattern
-      const buildContainer = screen.getByText(/1\.[\d\.]+.*df8beac/); // Match the version string with commit hash
+      // Use testID to find the version button instead of matching text content
+      const buildContainer = screen.getByTestId('version-info-button');
       for (let i = 0; i < 7; i++) {
         fireEvent.press(buildContainer);
       }

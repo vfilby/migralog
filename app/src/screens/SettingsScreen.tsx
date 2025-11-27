@@ -610,6 +610,7 @@ export default function SettingsScreen({ navigation }: Props) {
               style={styles.aboutRow}
               onPress={handleVersionTap}
               activeOpacity={0.6}
+              testID="version-info-button"
               accessibilityRole="button"
               accessibilityLabel={`App version ${buildInfo.version} build ${buildInfo.buildNumber}`}
               accessibilityHint="Tap 7 times to toggle developer mode"
