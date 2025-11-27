@@ -26,11 +26,13 @@ const createStyles = (theme: ThemeColors) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       marginBottom: 12,
+      flexWrap: 'wrap',
     },
     title: {
       fontSize: 17,
       fontWeight: '600',
       color: theme.text,
+      flexShrink: 1,
     },
     subtitle: {
       fontSize: 14,
@@ -40,14 +42,17 @@ const createStyles = (theme: ThemeColors) =>
     buttonRow: {
       flexDirection: 'row',
       gap: 12,
+      flexWrap: 'wrap',
     },
     button: {
       flex: 1,
+      minWidth: 100,
       alignItems: 'center',
       justifyContent: 'center',
       paddingVertical: 16,
       paddingHorizontal: 12,
       borderRadius: 12,
+      minHeight: 44,
     },
     greenButton: {
       backgroundColor: theme.success,
@@ -65,18 +70,23 @@ const createStyles = (theme: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
+      flexWrap: 'wrap',
+      gap: 8,
     },
     loggedText: {
       flex: 1,
+      minWidth: 150,
       fontSize: 15,
       color: theme.text,
       marginRight: 12,
     },
     undoButton: {
-      paddingVertical: 6,
+      paddingVertical: 8,
       paddingHorizontal: 12,
       borderRadius: 8,
       backgroundColor: theme.backgroundSecondary,
+      minHeight: 32,
+      justifyContent: 'center',
     },
     undoButtonText: {
       fontSize: 14,

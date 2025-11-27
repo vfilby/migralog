@@ -44,42 +44,51 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     flexWrap: 'wrap',
     marginBottom: 8,
     gap: 8,
+    minHeight: 28,
   },
   cardDate: {
     fontSize: 17,
     fontWeight: '600',
     color: theme.text,
     flex: 1,
+    flexShrink: 1,
   },
   cardSecondRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flexWrap: 'wrap',
     marginBottom: 4,
     gap: 8,
+    minHeight: 24,
   },
   cardDuration: {
     fontSize: 15,
     color: theme.textSecondary,
+    flexShrink: 1,
+    flexGrow: 1,
   },
   cardSparklineContainer: {
     alignItems: 'flex-end',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   cardLocation: {
     fontSize: 14,
     color: theme.textSecondary,
     marginBottom: 8,
+    flexShrink: 1,
   },
   cardMetaRow: {
     flexDirection: 'row',
     gap: 12,
     marginTop: 4,
+    flexWrap: 'wrap',
   },
   cardMetaItem: {
     fontSize: 14,
     color: theme.textSecondary,
+    flexShrink: 1,
   },
   notes: {
     marginTop: 12,
@@ -93,11 +102,15 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 6,
     flexShrink: 0,
+    minWidth: 70,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   ongoingText: {
     color: theme.ongoingText,
     fontSize: 12,
     fontWeight: '600',
+    textAlign: 'center',
   },
 });
 
