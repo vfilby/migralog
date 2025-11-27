@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { logger } from '../utils/logger';
+import { logger } from '../../utils/logger';
 import {
   View,
   Text,
@@ -11,13 +11,13 @@ import {
   Alert,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/types';
-import { useMedicationStore } from '../store/medicationStore';
-import { medicationRepository } from '../database/medicationRepository';
-import { Medication } from '../models/types';
+import { RootStackParamList } from '../../navigation/types';
+import { useMedicationStore } from '../../store/medicationStore';
+import { medicationRepository } from '../../database/medicationRepository';
+import { Medication } from '../../models/types';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
-import { useTheme, ThemeColors } from '../theme';
+import { useTheme, ThemeColors } from '../../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LogMedication'>;
 

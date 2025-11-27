@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { logger } from '../utils/logger';
+import { logger } from '../../utils/logger';
 import {
   View,
   Text,
@@ -12,14 +12,14 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/types';
-import { useMedicationStore } from '../store/medicationStore';
-import { medicationRepository, medicationScheduleRepository } from '../database/medicationRepository';
-import { MedicationType, ScheduleFrequency, MedicationSchedule } from '../models/types';
-import MedicationScheduleManager from '../components/MedicationScheduleManager';
-import { useTheme, ThemeColors } from '../theme';
-import { notificationService } from '../services/notificationService';
-import { isLargeTextModeEnabled } from '../utils/textScaling';
+import { RootStackParamList } from '../../navigation/types';
+import { useMedicationStore } from '../../store/medicationStore';
+import { medicationRepository, medicationScheduleRepository } from '../../database/medicationRepository';
+import { MedicationType, ScheduleFrequency, MedicationSchedule } from '../../models/types';
+import MedicationScheduleManager from '../../components/MedicationScheduleManager';
+import { useTheme, ThemeColors } from '../../theme';
+import { notificationService } from '../../services/notificationService';
+import { isLargeTextModeEnabled } from '../../utils/textScaling';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditMedication'>;
 

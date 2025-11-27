@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { logger } from '../utils/logger';
-import { toastService } from '../services/toastService';
+import { logger } from '../../utils/logger';
+import { toastService } from '../../services/toastService';
 import {
   View,
   Text,
@@ -17,19 +17,19 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/types';
-import { Medication, MedicationDose, MedicationSchedule } from '../models/types';
-import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../database/medicationRepository';
+import { RootStackParamList } from '../../navigation/types';
+import { Medication, MedicationDose, MedicationSchedule } from '../../models/types';
+import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../../database/medicationRepository';
 import { format } from 'date-fns';
-import { useTheme } from '../theme';
-import { useMedicationStore } from '../store/medicationStore';
-import { useEpisodeStore } from '../store/episodeStore';
-import { formatDosageWithUnit, formatMedicationDoseDisplay } from '../utils/medicationFormatting';
-import { useMedicationStatusStyles } from '../utils/medicationStyling';
-import { getLast7DaysTimeline as calculateLast7DaysTimeline } from '../utils/medicationTimeline';
-import { getCategoryName } from '../utils/presetMedications';
-import NotificationSettings from '../components/NotificationSettings';
-import { isLargeTextModeEnabled } from '../utils/textScaling';
+import { useTheme } from '../../theme';
+import { useMedicationStore } from '../../store/medicationStore';
+import { useEpisodeStore } from '../../store/episodeStore';
+import { formatDosageWithUnit, formatMedicationDoseDisplay } from '../../utils/medicationFormatting';
+import { useMedicationStatusStyles } from '../../utils/medicationStyling';
+import { getLast7DaysTimeline as calculateLast7DaysTimeline } from '../../utils/medicationTimeline';
+import { getCategoryName } from '../../utils/presetMedications';
+import NotificationSettings from '../../components/NotificationSettings';
+import { isLargeTextModeEnabled } from '../../utils/textScaling';
 import { Ionicons } from '@expo/vector-icons';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MedicationDetail'>;

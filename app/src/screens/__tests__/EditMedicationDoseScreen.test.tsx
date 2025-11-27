@@ -2,7 +2,7 @@ import React from 'react';
 import { screen, waitFor, fireEvent } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 
-import EditMedicationDoseScreen from '../EditMedicationDoseScreen';
+import EditMedicationDoseScreen from '../medication/EditMedicationDoseScreen';
 import { renderWithProviders } from '../../utils/screenTestHelpers';
 import { medicationDoseRepository, medicationRepository } from '../../database/medicationRepository';
 import { MedicationDose, Medication } from '../../models/types';

@@ -1,18 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { logger } from '../utils/logger';
+import { logger } from '../../utils/logger';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useMedicationStore } from '../store/medicationStore';
-import { useEpisodeStore } from '../store/episodeStore';
-import { medicationScheduleRepository, medicationDoseRepository } from '../database/medicationRepository';
+import { useMedicationStore } from '../../store/medicationStore';
+import { useEpisodeStore } from '../../store/episodeStore';
+import { medicationScheduleRepository, medicationDoseRepository } from '../../database/medicationRepository';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/types';
-import { Medication, MedicationSchedule } from '../models/types';
-import { useTheme, ThemeColors } from '../theme';
+import { RootStackParamList } from '../../navigation/types';
+import { Medication, MedicationSchedule } from '../../models/types';
+import { useTheme, ThemeColors } from '../../theme';
 import { format, isToday } from 'date-fns';
-import { formatMedicationDosage } from '../utils/medicationFormatting';
-import { getCategoryName } from '../utils/presetMedications';
+import { formatMedicationDosage } from '../../utils/medicationFormatting';
+import { getCategoryName } from '../../utils/presetMedications';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 

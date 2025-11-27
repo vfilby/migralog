@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { logger } from '../utils/logger';
+import { logger } from '../../utils/logger';
 import {
   View,
   Text,
@@ -9,11 +9,11 @@ import {
   Alert,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/types';
+import { RootStackParamList } from '../../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme, ThemeColors } from '../theme';
-import { errorLogger, ErrorLog } from '../services/errorLogger';
-import { notificationService } from '../services/notificationService';
+import { useTheme, ThemeColors } from '../../theme';
+import { errorLogger, ErrorLog } from '../../services/errorLogger';
+import { notificationService } from '../../services/notificationService';
 import * as SQLite from 'expo-sqlite';
 import * as Sentry from '@sentry/react-native';
 import * as Notifications from 'expo-notifications';
@@ -197,7 +197,7 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
             try {
               // Dynamically import test helper (only available in __DEV__)
               if (__DEV__) {
-                const { resetDatabaseForTesting } = await import('../utils/devTestHelpers');
+                const { resetDatabaseForTesting } = await import('../../utils/devTestHelpers');
                 const result = await resetDatabaseForTesting({
                   createBackup: true,
                   loadFixtures: false,
@@ -229,7 +229,7 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
             try {
               // Dynamically import test helper (only available in __DEV__)
               if (__DEV__) {
-                const { resetDatabaseForTesting } = await import('../utils/devTestHelpers');
+                const { resetDatabaseForTesting } = await import('../../utils/devTestHelpers');
                 await resetDatabaseForTesting({
                   createBackup: true,
                   loadFixtures: true,

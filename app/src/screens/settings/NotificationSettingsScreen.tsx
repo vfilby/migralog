@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect } from 'react';
-import { logger } from '../utils/logger';
+import { logger } from '../../utils/logger';
 import {
   View,
   Text,
@@ -12,14 +12,14 @@ import {
   Platform,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/types';
+import { RootStackParamList } from '../../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme, ThemeColors } from '../theme';
-import { notificationService, NotificationPermissions } from '../services/notificationService';
-import { dailyCheckinService } from '../services/dailyCheckinService';
-import { useDailyCheckinSettingsStore } from '../store/dailyCheckinSettingsStore';
+import { useTheme, ThemeColors } from '../../theme';
+import { notificationService, NotificationPermissions } from '../../services/notificationService';
+import { dailyCheckinService } from '../../services/dailyCheckinService';
+import { useDailyCheckinSettingsStore } from '../../store/dailyCheckinSettingsStore';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import NotificationSettings from '../components/NotificationSettings';
+import NotificationSettings from '../../components/NotificationSettings';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 

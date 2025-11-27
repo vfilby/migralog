@@ -2,7 +2,7 @@ import React from 'react';
 import { waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 
-import EditPainLocationLogScreen from '../EditPainLocationLogScreen';
+import EditPainLocationLogScreen from '../episode/EditPainLocationLogScreen';
 import { renderWithProviders } from '../../utils/screenTestHelpers';
 
 jest.spyOn(Alert, 'alert');

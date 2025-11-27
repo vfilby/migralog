@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, waitFor, fireEvent } from '@testing-library/react-native';
 import { Alert } from 'react-native';
-import ArchivedMedicationsScreen from '../ArchivedMedicationsScreen';
+import ArchivedMedicationsScreen from '../medication/ArchivedMedicationsScreen';
 import { ThemeProvider } from '../../theme/ThemeContext';
 
 const mockMedicationRepository = {

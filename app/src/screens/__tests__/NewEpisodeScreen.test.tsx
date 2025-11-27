@@ -1,6 +1,6 @@
 import React from 'react';
 import { screen, waitFor } from '@testing-library/react-native';
-import NewEpisodeScreen from '../NewEpisodeScreen';
+import NewEpisodeScreen from '../episode/NewEpisodeScreen';
 import { renderWithProviders } from '../../utils/screenTestHelpers';
 import { useEpisodeStore } from '../../store/episodeStore';
 

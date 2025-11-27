@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, waitFor } from '@testing-library/react-native';
-import EpisodesScreen from '../EpisodesScreen';
+import EpisodesScreen from '../episode/EpisodesScreen';
 import { ThemeProvider } from '../../theme/ThemeContext';
 
 jest.mock('../../store/episodeStore', () => ({

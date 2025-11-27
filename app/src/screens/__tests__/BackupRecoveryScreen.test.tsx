@@ -1,7 +1,7 @@
 import React from 'react';
 import { Alert } from 'react-native';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import BackupRecoveryScreen from '../BackupRecoveryScreen';
+import BackupRecoveryScreen from '../settings/BackupRecoveryScreen';
 import { ThemeProvider } from '../../theme/ThemeContext';
 import { pressAlertButtonByText } from '../../utils/testUtils/alertHelpers';
 

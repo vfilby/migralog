@@ -1,12 +1,12 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList } from 'react-native';
-import { useEpisodeStore } from '../store/episodeStore';
-import { Episode } from '../models/types';
+import { useEpisodeStore } from '../../store/episodeStore';
+import { Episode } from '../../models/types';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/types';
-import EpisodeCard from '../components/EpisodeCard';
-import { useTheme, ThemeColors } from '../theme';
+import { RootStackParamList } from '../../navigation/types';
+import EpisodeCard from '../../components/EpisodeCard';
+import { useTheme, ThemeColors } from '../../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 

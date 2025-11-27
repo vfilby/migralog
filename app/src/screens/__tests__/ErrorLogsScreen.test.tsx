@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, waitFor } from '@testing-library/react-native';
-import ErrorLogsScreen from '../ErrorLogsScreen';
+import ErrorLogsScreen from '../settings/ErrorLogsScreen';
 import { ThemeProvider } from '../../theme/ThemeContext';
 
 const mockErrorLogger = {
