@@ -180,4 +180,113 @@ describe('EpisodeTimeline', () => {
     // When timeline is empty, the component returns null, so nothing should be rendered
     expect(screen.queryByText('Timeline')).toBeNull();
   });
+
+  it('should render date label on two lines for regular dates', () => {
+    const timelineWithMultipleDays = [
+      {
+        date: new Date('2024-01-15T00:00:00').getTime(),
+        dateLabel: 'Mon, Jan 15',
+        events: [
+          {
+            id: 'intensity-reading-1',
+            type: 'intensity' as const,
+            timestamp: new Date('2024-01-15T11:30:00').getTime(),
+            data: baseIntensityReadings[0],
+          },
+        ],
+      },
+      {
+        date: new Date('2024-01-16T00:00:00').getTime(),
+        dateLabel: 'Tue, Jan 16',
+        events: [
+          {
+            id: 'intensity-reading-2',
+            type: 'intensity' as const,
+            timestamp: new Date('2024-01-16T09:00:00').getTime(),
+            data: {
+              ...baseIntensityReadings[0],
+              id: 'reading-2',
+              timestamp: new Date('2024-01-16T09:00:00').getTime(),
+            },
+          },
+        ],
+      },
+    ];
+
+    renderWithTheme(
+      <EpisodeTimeline
+        timeline={timelineWithMultipleDays}
+        intensityReadings={baseIntensityReadings}
+        episode={baseEpisode}
+        sparklineWidth={300}
+        onIntensityLongPress={mockOnIntensityLongPress}
+        onNoteLongPress={mockOnNoteLongPress}
+        onMedicationLongPress={mockOnMedicationLongPress}
+        onSymptomLongPress={mockOnSymptomLongPress}
+        onPainLocationLongPress={mockOnPainLocationLongPress}
+        onEpisodeEndLongPress={mockOnEpisodeEndLongPress}
+      />
+    );
+
+    // Should render the day name on first line and month/day on second line
+    expect(screen.getByText('Mon')).toBeTruthy();
+    expect(screen.getByText('Jan 15')).toBeTruthy();
+    expect(screen.getByText('Tue')).toBeTruthy();
+    expect(screen.getByText('Jan 16')).toBeTruthy();
+  });
+
+  it('should render Today and Yesterday on single line', () => {
+    const today = new Date();
+    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+    
+    const timelineWithTodayYesterday = [
+      {
+        date: yesterday.getTime(),
+        dateLabel: 'Sun, Nov 26', // This would be ignored for yesterday
+        events: [
+          {
+            id: 'intensity-reading-yesterday',
+            type: 'intensity' as const,
+            timestamp: yesterday.getTime(),
+            data: baseIntensityReadings[0],
+          },
+        ],
+      },
+      {
+        date: today.getTime(),
+        dateLabel: 'Mon, Nov 27', // This would be ignored for today
+        events: [
+          {
+            id: 'intensity-reading-today',
+            type: 'intensity' as const,
+            timestamp: today.getTime(),
+            data: {
+              ...baseIntensityReadings[0],
+              id: 'reading-today',
+              timestamp: today.getTime(),
+            },
+          },
+        ],
+      },
+    ];
+
+    renderWithTheme(
+      <EpisodeTimeline
+        timeline={timelineWithTodayYesterday}
+        intensityReadings={baseIntensityReadings}
+        episode={baseEpisode}
+        sparklineWidth={300}
+        onIntensityLongPress={mockOnIntensityLongPress}
+        onNoteLongPress={mockOnNoteLongPress}
+        onMedicationLongPress={mockOnMedicationLongPress}
+        onSymptomLongPress={mockOnSymptomLongPress}
+        onPainLocationLongPress={mockOnPainLocationLongPress}
+        onEpisodeEndLongPress={mockOnEpisodeEndLongPress}
+      />
+    );
+
+    // Should render Today and Yesterday as single line text
+    expect(screen.getByText('Yesterday')).toBeTruthy();
+    expect(screen.getByText('Today')).toBeTruthy();
+  });
 });
