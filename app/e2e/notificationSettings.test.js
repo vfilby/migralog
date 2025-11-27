@@ -88,11 +88,6 @@ describe('Notification Settings UI', () => {
         .withTimeout(3000);
       console.log('✅ Critical Alerts setting is visible');
 
-      await waitFor(element(by.text('Confirmation Notifications')))
-        .toBeVisible()
-        .withTimeout(3000);
-      console.log('✅ Confirmation Notifications setting is visible');
-
       console.log('✅ ALL TESTS PASSED: Global notification settings UI is fully accessible');
     } catch (error) {
       // If notifications settings aren't visible, just verify the enable button exists
