@@ -622,6 +622,14 @@ class NotificationService {
    */
   private async requestPermissionsOnFirstLaunch(): Promise<void> {
     try {
+      // Skip automatic permission request during E2E tests
+      // E2E tests manage permissions through their own helpers
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (typeof (global as any).isDetoxE2E !== 'undefined' && (global as any).isDetoxE2E) {
+        logger.log('[Notification] Skipping automatic permission request during E2E tests');
+        return;
+      }
+
       const { hasCriticalAlertsBeenRequested, setCriticalAlertsRequested, setNotificationsGloballyEnabled } = await import('./notificationUtils');
       
       // Check if we've ever requested critical alerts before
