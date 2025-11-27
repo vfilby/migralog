@@ -87,14 +87,14 @@ describe('SettingsScreen', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Settings')).toBeTruthy();
+      expect(screen.getAllByText('Settings')).toHaveLength(2); // Header + section title
       expect(screen.getByText('About')).toBeTruthy();
       expect(screen.getByText('Appearance')).toBeTruthy();
       expect(screen.getByText('Notifications')).toBeTruthy();
       expect(screen.getByText('Location')).toBeTruthy();
       expect(screen.getByText('Data')).toBeTruthy();
       // Developer section should be hidden by default
-      expect(screen.queryByText('Developer')).toBeNull();
+      expect(screen.queryByText('Developer Tools')).toBeNull();
     });
   });
 
@@ -134,23 +134,22 @@ describe('SettingsScreen', () => {
     );
 
     await waitFor(() => {
-      const enabledElements = screen.getAllByText('Enabled');
-      expect(enabledElements.length).toBeGreaterThan(0);
+      expect(screen.getByText(/Location access enabled for episode tracking|Enable location capture for episodes/)).toBeTruthy();
     });
   });
 
-  it('should navigate to BackupRecovery screen when tapped', async () => {
+  it('should navigate to DataSettingsScreen when tapped', async () => {
     renderWithProviders(
       <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
     );
 
     await waitFor(() => {
-      const backupButton = screen.getByText('Backup & Recovery');
-      expect(backupButton).toBeTruthy();
+      const dataButton = screen.getByText('Data');
+      expect(dataButton).toBeTruthy();
     });
 
-    fireEvent.press(screen.getByText('Backup & Recovery'));
-    expect(mockNavigation.navigate).toHaveBeenCalledWith('BackupRecovery');
+    fireEvent.press(screen.getByText('Data'));
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('DataSettingsScreen');
   });
 
   it('should navigate to NotificationSettingsScreen when tapped', async () => {
@@ -159,11 +158,11 @@ describe('SettingsScreen', () => {
     );
 
     await waitFor(() => {
-      const notificationButton = screen.getByText('Medication Reminders');
+      const notificationButton = screen.getByText('Notifications');
       expect(notificationButton).toBeTruthy();
     });
 
-    fireEvent.press(screen.getByText('Medication Reminders'));
+    fireEvent.press(screen.getByText('Notifications'));
     expect(mockNavigation.navigate).toHaveBeenCalledWith('NotificationSettingsScreen');
   });
 
@@ -188,7 +187,7 @@ describe('SettingsScreen', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Settings')).toBeTruthy();
+      expect(screen.getAllByText('Settings')).toHaveLength(2); // Header + section title
       expect(screen.getByTestId('settings-screen')).toBeTruthy();
     });
   });
@@ -244,43 +243,19 @@ describe('SettingsScreen', () => {
   });
 
   describe('Location Settings', () => {
-    it('should request location permissions when Enable Location pressed', async () => {
-      (locationService.requestPermission as jest.Mock).mockResolvedValue(true);
-
+    it('should navigate to LocationSettingsScreen when tapped', async () => {
       renderWithProviders(
         <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Enable Location')).toBeTruthy();
+        expect(screen.getByText('Location')).toBeTruthy();
       });
 
-      fireEvent.press(screen.getByText('Enable Location'));
+      fireEvent.press(screen.getByText('Location'));
 
       await waitFor(() => {
-        expect(locationService.requestPermission).toHaveBeenCalled();
-        expect(Alert.alert).toHaveBeenCalledWith('Success', 'Location permission granted. The app will now capture your location when you start a new episode.');
-      });
-    });
-
-    it('should show alert when location permission denied', async () => {
-      (locationService.requestPermission as jest.Mock).mockResolvedValue(false);
-
-      renderWithProviders(
-        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
-      );
-
-      await waitFor(() => {
-        expect(screen.getByText('Enable Location')).toBeTruthy();
-      });
-
-      fireEvent.press(screen.getByText('Enable Location'));
-
-      await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith(
-          'Permission Denied',
-          expect.stringContaining('location')
-        );
+        expect(mockNavigation.navigate).toHaveBeenCalledWith('LocationSettingsScreen');
       });
     });
   });
@@ -293,7 +268,7 @@ describe('SettingsScreen', () => {
 
       // Developer section should not be visible initially
       await waitFor(() => {
-        expect(screen.queryByText('Developer')).toBeNull();
+        expect(screen.queryByText('Developer Tools')).toBeNull();
       });
 
       // Tap build info 7 times
@@ -318,8 +293,7 @@ describe('SettingsScreen', () => {
       );
 
       await waitFor(() => {
-        // Developer section should be visible
-        expect(screen.getByText('Developer')).toBeTruthy();
+        // Developer section should be visible by the Developer Tools button
         expect(screen.getByText('Developer Tools')).toBeTruthy();
       });
     });
@@ -353,7 +327,7 @@ describe('SettingsScreen', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Settings')).toBeTruthy();
+        expect(screen.getAllByText('Settings')).toHaveLength(2); // Header + section title
       });
 
       // Should still render without crashing
@@ -370,7 +344,7 @@ describe('SettingsScreen', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Settings')).toBeTruthy();
+        expect(screen.getAllByText('Settings')).toHaveLength(2); // Header + section title
       });
 
       // Should still render without crashing
@@ -387,7 +361,7 @@ describe('SettingsScreen', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Settings')).toBeTruthy();
+        expect(screen.getAllByText('Settings')).toHaveLength(2); // Header + section title
       });
 
       // App should still render despite errors
@@ -425,44 +399,6 @@ describe('SettingsScreen', () => {
   });
 
   describe('Additional Error Handling', () => {
-    it('should handle location permission request error', async () => {
-      (locationService.requestPermission as jest.Mock).mockRejectedValue(
-        new Error('Permission error')
-      );
-
-      renderWithProviders(
-        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
-      );
-
-      await waitFor(() => {
-        expect(screen.getByText('Enable Location')).toBeTruthy();
-      });
-
-      fireEvent.press(screen.getByText('Enable Location'));
-
-      await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to request location permission');
-      });
-    });
-
-    it('should handle export data error', async () => {
-      (backupService.exportDataForSharing as jest.Mock).mockRejectedValue(new Error('Export failed'));
-
-      renderWithProviders(
-        <SettingsScreen navigation={mockNavigation as any} route={mockRoute as any} />
-      );
-
-      await waitFor(() => {
-        expect(screen.getByText('Export Data')).toBeTruthy();
-      });
-
-      fireEvent.press(screen.getByText('Export Data'));
-
-      await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to export data: Export failed');
-      });
-    });
-
     it('should handle notifications enabled error', async () => {
       (notificationService.areNotificationsGloballyEnabled as jest.Mock).mockRejectedValue(new Error('Service error'));
 
@@ -471,7 +407,7 @@ describe('SettingsScreen', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Settings')).toBeTruthy();
+        expect(screen.getAllByText('Settings')).toHaveLength(2); // Header + section title
       });
       
       // The error should be handled gracefully and the component should still render
