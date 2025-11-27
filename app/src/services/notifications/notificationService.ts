@@ -624,8 +624,10 @@ class NotificationService {
     try {
       // Skip automatic permission request during E2E tests
       // E2E tests manage permissions through their own helpers
+      // Detox sets __DEV__ to true and we can check for the presence of Detox-specific globals
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if (typeof (global as any).isDetoxE2E !== 'undefined' && (global as any).isDetoxE2E) {
+      const isDetoxTest = __DEV__ && typeof (global as any).device !== 'undefined';
+      if (isDetoxTest) {
         logger.log('[Notification] Skipping automatic permission request during E2E tests');
         return;
       }

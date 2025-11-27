@@ -1,10 +1,10 @@
 // Auto-generated file - do not edit manually
-// Generated at: 2025-11-27T03:57:59.902Z
+// Generated at: 2025-11-27T22:08:15.861Z
 
 export const buildInfo = {
-  "version": "1.1.47",
+  "version": "1.1.54",
   "buildNumber": "dev",
-  "commitHash": "86bc8e1",
-  "branch": "feature/settings-submenus",
-  "buildTime": "2025-11-27T03:57:59.902Z"
+  "commitHash": "c21aea2",
+  "branch": "fix/critical-alerts-notification-improvements",
+  "buildTime": "2025-11-27T22:08:15.861Z"
 };
