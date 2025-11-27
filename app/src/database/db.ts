@@ -95,7 +95,7 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
         // Make backup non-blocking - if it fails, log warning but continue with migration
         const createBackup = async (db: SQLite.SQLiteDatabase) => {
           try {
-            const { backupService } = await import('../services/backupService');
+            const { backupService } = await import('../services/backup/backupService');
             await backupService.createSnapshotBackup(db);
             logger.log('[DB] Automatic snapshot backup created successfully before migration');
           } catch (backupError) {
@@ -125,7 +125,7 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
 
     // Check and create weekly backup if needed (non-blocking)
     try {
-      const { backupService } = await import('../services/backupService');
+      const { backupService } = await import('../services/backup/backupService');
       logger.log('[DB] Checking for weekly backup...');
       await backupService.checkAndCreateWeeklyBackup(db);
     } catch (backupError) {

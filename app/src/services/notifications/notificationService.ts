@@ -1,8 +1,8 @@
 import * as Notifications from 'expo-notifications';
-import { logger } from '../utils/logger';
-import { Medication, MedicationSchedule } from '../models/types';
-import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../database/medicationRepository';
-import { useNotificationSettingsStore } from '../store/notificationSettingsStore';
+import { logger } from '../../utils/logger';
+import { Medication, MedicationSchedule } from '../../models/types';
+import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../../database/medicationRepository';
+import { useNotificationSettingsStore } from '../../store/notificationSettingsStore';
 import { handleDailyCheckinNotification } from './dailyCheckinService';
 import {
   areNotificationsGloballyEnabled as areNotificationsGloballyEnabledUtil,
@@ -291,7 +291,7 @@ class NotificationService {
         errorStack: error instanceof Error ? error.stack : undefined,
       });
       // Log to error logger so we can track these failures
-      const { errorLogger } = await import('./errorLogger');
+      const { errorLogger } = await import('../errorLogger');
       await errorLogger.log(
         'general',
         '[Notification] Unhandled error in notification response listener',
@@ -380,7 +380,7 @@ class NotificationService {
 
       // Use store's logDose to update both database and state
       // Dynamic import to avoid circular dependency
-      const { useMedicationStore } = await import('../store/medicationStore');
+      const { useMedicationStore } = await import('../../store/medicationStore');
       const timestamp = Date.now();
 
       // Validate dose object before passing to store
@@ -480,7 +480,7 @@ class NotificationService {
       const results: string[] = [];
 
       // Dynamic import to avoid circular dependency
-      const { useMedicationStore } = await import('../store/medicationStore');
+      const { useMedicationStore } = await import('../../store/medicationStore');
 
       for (let i = 0; i < medicationIds.length; i++) {
         const medicationId = medicationIds[i];

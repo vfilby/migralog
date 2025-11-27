@@ -12,7 +12,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, ThemeColors } from '../../theme';
-import { backupService } from '../../services/backupService';
+import { backupService } from '../../services/backup/backupService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DataSettingsScreen'>;
 

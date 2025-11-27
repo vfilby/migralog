@@ -4,7 +4,7 @@ import {
   medicationDoseRepository,
 } from '../../database/medicationRepository';
 import { episodeRepository } from '../../database/episodeRepository';
-import { notificationService } from '../../services/notificationService';
+import { notificationService } from '../../services/notifications/notificationService';
 import { Medication } from '../../models/types';
 import { cacheManager } from '../../utils/cacheManager';
 
@@ -12,7 +12,7 @@ import { cacheManager } from '../../utils/cacheManager';
 jest.mock('../../database/medicationRepository');
 jest.mock('../../database/episodeRepository');
 jest.mock('../../services/errorLogger');
-jest.mock('../../services/notificationService');
+jest.mock('../../services/notifications/notificationService');
 
 describe('medicationStore', () => {
   beforeEach(() => {

@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { logger } from '../utils/logger';
+import { logger } from '../../utils/logger';
 
 // AsyncStorage key for global notification toggle
 export const NOTIFICATIONS_ENABLED_KEY = '@notifications_enabled';

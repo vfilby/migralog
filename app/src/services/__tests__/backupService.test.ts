@@ -1,5 +1,5 @@
-import { backupService, BackupData } from '../backupService';
-import { initializeBackupDirectory, validateBackupMetadata } from '../backupUtils';
+import { backupService, BackupData } from '../backup/backupService';
+import { initializeBackupDirectory, validateBackupMetadata } from '../backup/backupUtils';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';

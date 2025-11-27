@@ -47,7 +47,7 @@ jest.mock('@react-native-async-storage/async-storage');
 };
 
 // NOW import the service after mocks are set up
-import { notificationService, handleIncomingNotification } from '../notificationService';
+import { notificationService, handleIncomingNotification } from '../notifications/notificationService';
 
 describe('notificationService', () => {
   beforeEach(() => {

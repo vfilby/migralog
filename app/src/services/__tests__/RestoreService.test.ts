@@ -1,8 +1,8 @@
-import { restoreService } from '../RestoreService';
+import { restoreService } from '../backup/RestoreService';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as DocumentPicker from 'expo-document-picker';
 import { migrationRunner } from '../../database/migrations';
-import { getBackupMetadata } from '../backupUtils';
+import { getBackupMetadata } from '../backup/backupUtils';
 
 // Mock dependencies
 jest.mock('expo-file-system/legacy', () => ({

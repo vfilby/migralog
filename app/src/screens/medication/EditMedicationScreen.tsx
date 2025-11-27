@@ -18,7 +18,7 @@ import { medicationRepository, medicationScheduleRepository } from '../../databa
 import { MedicationType, ScheduleFrequency, MedicationSchedule } from '../../models/types';
 import MedicationScheduleManager from '../../components/MedicationScheduleManager';
 import { useTheme, ThemeColors } from '../../theme';
-import { notificationService } from '../../services/notificationService';
+import { notificationService } from '../../services/notifications/notificationService';
 import { isLargeTextModeEnabled } from '../../utils/textScaling';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditMedication'>;

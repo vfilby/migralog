@@ -1,4 +1,4 @@
-import { backupServiceImpl } from '../BackupServiceImpl';
+import { backupServiceImpl } from '../backup/BackupServiceImpl';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
@@ -14,7 +14,7 @@ import {
 } from '../../database/medicationRepository';
 import { dailyStatusRepository } from '../../database/dailyStatusRepository';
 import { migrationRunner } from '../../database/migrations';
-import { getBackupMetadata } from '../backupUtils';
+import { getBackupMetadata } from '../backup/backupUtils';
 
 // Mock dependencies
 jest.mock('expo-file-system/legacy', () => ({

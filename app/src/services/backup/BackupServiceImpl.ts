@@ -3,20 +3,20 @@ import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import * as SQLite from 'expo-sqlite';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { logger } from '../utils/logger';
-import { errorLogger } from './errorLogger';
-import { episodeRepository, episodeNoteRepository, intensityRepository } from '../database/episodeRepository';
-import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../database/medicationRepository';
-import { dailyStatusRepository } from '../database/dailyStatusRepository';
-import { migrationRunner } from '../database/migrations';
-import { buildInfo } from '../buildInfo';
+import { logger } from '../../utils/logger';
+import { errorLogger } from '../errorLogger';
+import { episodeRepository, episodeNoteRepository, intensityRepository } from '../../database/episodeRepository';
+import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../../database/medicationRepository';
+import { dailyStatusRepository } from '../../database/dailyStatusRepository';
+import { migrationRunner } from '../../database/migrations';
+import { buildInfo } from '../../buildInfo';
 import {
   MedicationSchedule,
   EpisodeNote,
   IntensityReading,
   BackupMetadata,
   BackupData,
-} from '../models/types';
+} from '../../models/types';
 import {
   BACKUP_DIR,
   DB_PATH,
@@ -373,7 +373,7 @@ class BackupServiceImpl {
       // This prevents data loss when we delete the WAL file
       logger.log('[Restore] Checkpointing WAL file');
       try {
-        const { getDatabase } = await import('../database/db');
+        const { getDatabase } = await import('../../database/db');
         const currentDb = await getDatabase();
         await currentDb.execAsync('PRAGMA wal_checkpoint(TRUNCATE);');
         logger.log('[Restore] WAL checkpointed successfully');
@@ -382,7 +382,7 @@ class BackupServiceImpl {
       }
 
       // Close current database connection
-      const { closeDatabase } = await import('../database/db');
+      const { closeDatabase } = await import('../../database/db');
       await closeDatabase();
 
       // Create a safety backup of current database before replacing
@@ -437,7 +437,7 @@ class BackupServiceImpl {
 
       // Re-open database and run migrations if needed
       logger.log('[Restore] Reopening database');
-      const { getDatabase } = await import('../database/db');
+      const { getDatabase } = await import('../../database/db');
       const restoredDb = await getDatabase();
 
       // Reinitialize migration runner with new database connection
@@ -596,7 +596,7 @@ class BackupServiceImpl {
       logger.log('[Export] Creating JSON export for sharing...');
 
       // Get current database instance
-      const db = await import('../database/db').then(m => m.getDatabase());
+      const db = await import('../../database/db').then(m => m.getDatabase());
 
       // Gather all data
       logger.log('[Export] Fetching all data...');
@@ -839,7 +839,7 @@ class BackupServiceImpl {
       if (db) {
         database = db;
       } else {
-        database = await import('../database/db').then(m => m.getDatabase());
+        database = await import('../../database/db').then(m => m.getDatabase());
       }
 
       const result = await database.getAllAsync<{ count: number }>(
@@ -861,7 +861,7 @@ class BackupServiceImpl {
       if (db) {
         database = db;
       } else {
-        database = await import('../database/db').then(m => m.getDatabase());
+        database = await import('../../database/db').then(m => m.getDatabase());
       }
 
       const result = await database.getAllAsync<{ count: number }>(
@@ -881,7 +881,7 @@ class BackupServiceImpl {
       if (db) {
         database = db;
       } else {
-        database = await import('../database/db').then(m => m.getDatabase());
+        database = await import('../../database/db').then(m => m.getDatabase());
       }
 
       // Query sqlite_master to get all CREATE statements for tables and indexes
@@ -1099,7 +1099,7 @@ class BackupServiceImpl {
       const dbPath = `${FileSystem.documentDirectory}SQLite/migralog.db`;
 
       // Close the current database connection
-      const { closeDatabase } = await import('../database/db');
+      const { closeDatabase } = await import('../../database/db');
       await closeDatabase();
 
       // Backup the current database before replacing it

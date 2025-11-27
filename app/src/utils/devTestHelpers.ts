@@ -9,7 +9,7 @@
 
 import { logger } from '../utils/logger';
 import { getDatabase } from '../database/db';
-import { backupService } from '../services/backupService';
+import { backupService } from '../services/backup/backupService';
 import { useDailyStatusStore } from '../store/dailyStatusStore';
 import { Alert } from 'react-native';
 

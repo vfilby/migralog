@@ -8,8 +8,8 @@ import { pressAlertButtonByText } from '../../utils/testUtils/alertHelpers';
 // Mock the backup service module
 
 // Mock the module properly
-jest.mock('../../services/backupService', () => {
-  const actualModule = jest.requireActual('../../services/backupService');
+jest.mock('../../services/backup/backupService', () => {
+  const actualModule = jest.requireActual('../../services/backup/backupService');
   return {
     ...actualModule,
     backupService: {
@@ -30,7 +30,7 @@ jest.mock('../../services/backupService', () => {
 });
 
 // Import the mocked service
-const { backupService } = jest.requireMock('../../services/backupService');
+const { backupService } = jest.requireMock('../../services/backup/backupService');
 
 // Mock Alert
 jest.spyOn(Alert, 'alert').mockImplementation(() => {});

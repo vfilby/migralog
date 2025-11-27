@@ -9,7 +9,7 @@ import {
   getBackupMetadata,
   initializeBackupDirectory,
   BACKUP_DIR,
-} from '../backupUtils';
+} from '../backup/backupUtils';
 import { BackupMetadata } from '../../models/types';
 
 // Mock dependencies

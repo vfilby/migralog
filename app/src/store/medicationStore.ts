@@ -4,7 +4,7 @@ import { Medication, MedicationDose, MedicationSchedule } from '../models/types'
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../database/medicationRepository';
 import { episodeRepository } from '../database/episodeRepository';
 import { errorLogger } from '../services/errorLogger';
-import { notificationService } from '../services/notificationService';
+import { notificationService } from '../services/notifications/notificationService';
 import { toastService } from '../services/toastService';
 import { cacheManager } from '../utils/cacheManager';
 

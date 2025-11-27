@@ -135,7 +135,7 @@ describe('Integration: Medication Workflow', () => {
     expect(useMedicationStore.getState().rescueMedications).toHaveLength(1);
 
     // Mock notification service reschedule (called by archiveMedication)
-    const { notificationService } = require('../../services/notificationService');
+    const { notificationService } = require('../../services/notifications/notificationService');
     notificationService.rescheduleAllMedicationNotifications = jest.fn().mockResolvedValue(undefined);
 
     // Archive the medication

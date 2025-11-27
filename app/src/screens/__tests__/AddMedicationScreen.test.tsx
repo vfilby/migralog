@@ -6,7 +6,7 @@ import AddMedicationScreen from '../medication/AddMedicationScreen';
 import { renderWithProviders } from '../../utils/screenTestHelpers';
 import { useMedicationStore } from '../../store/medicationStore';
 import { medicationScheduleRepository } from '../../database/medicationRepository';
-import { notificationService } from '../../services/notificationService';
+import { notificationService } from '../../services/notifications/notificationService';
 import { pressAlertButtonByText } from '../../utils/testUtils/alertHelpers';
 import { createMockNavigation } from '../../utils/testUtils/fixtures';
 import { errorLogger } from '../../services/errorLogger';
@@ -24,7 +24,7 @@ jest.mock('../../services/errorLogger', () => ({
     log: jest.fn().mockResolvedValue(undefined),
   },
 }));
-jest.mock('../../services/notificationService', () => ({
+jest.mock('../../services/notifications/notificationService', () => ({
   notificationService: {
     scheduleNotification: jest.fn(),
     cancelScheduledNotification: jest.fn(),

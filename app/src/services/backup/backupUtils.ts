@@ -1,9 +1,9 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import { BackupMetadata } from '../models/types';
-import { logger } from '../utils/logger';
+import { BackupMetadata } from '../../models/types';
+import { logger } from '../../utils/logger';
 
 // Re-export formatting utilities from their dedicated module
-export { formatFileSize, formatDate } from '../utils/formatting';
+export { formatFileSize, formatDate } from '../../utils/formatting';
 
 // Constants
 export const BACKUP_DIR = `${FileSystem.documentDirectory}backups/`;
