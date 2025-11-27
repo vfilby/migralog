@@ -177,7 +177,14 @@ export const TimelineEventRenderer: React.FC<TimelineEventRendererProps> = ({
   return (
     <View style={styles.timelineItem}>
       <View style={styles.timelineLeft}>
-        <Text style={styles.timelineTime}>{time}</Text>
+        <Text 
+          style={styles.timelineTime}
+          numberOfLines={1}
+          adjustsFontSizeToFit={true}
+          minimumFontScale={0.8}
+        >
+          {time}
+        </Text>
         {dateLabel}
       </View>
       <View style={styles.timelineCenter}>
@@ -316,23 +323,24 @@ const createStyles = (theme: ThemeColors) =>
       marginBottom: 24,
     },
     timelineLeft: {
-      width: 70,
+      width: 80,
       alignItems: 'flex-end',
       paddingRight: 12,
     },
     timelineTime: {
-      fontSize: 12,
+      fontSize: 14,
       color: theme.textSecondary,
       marginBottom: 4,
+      textAlign: 'right',
     },
     timelineCenter: {
       width: 20,
       alignItems: 'center',
     },
     timelineDot: {
-      width: 10,
-      height: 10,
-      borderRadius: 5,
+      width: 12,
+      height: 12,
+      borderRadius: 6,
       marginTop: 2,
     },
     timelineLine: {
@@ -346,34 +354,34 @@ const createStyles = (theme: ThemeColors) =>
       paddingLeft: 12,
     },
     timelineEventTitle: {
-      fontSize: 14,
+      fontSize: 16,
       fontWeight: '600',
       color: theme.text,
       marginBottom: 4,
     },
     timelineEventContent: {
-      fontSize: 14,
+      fontSize: 16,
       color: theme.textSecondary,
       marginBottom: 4,
     },
     timelineNoteText: {
-      fontSize: 14,
+      fontSize: 16,
       color: theme.text,
-      lineHeight: 20,
+      lineHeight: 22,
     },
     timelineIntensityBar: {
-      height: 8,
+      height: 20,
       backgroundColor: theme.borderLight,
-      borderRadius: 4,
+      borderRadius: 10,
       marginBottom: 4,
       overflow: 'hidden',
     },
     timelineIntensityBarFill: {
       height: '100%',
-      borderRadius: 4,
+      borderRadius: 10,
     },
     timelineIntensityValue: {
-      fontSize: 14,
+      fontSize: 16,
       fontWeight: '600',
       color: theme.text,
     },
@@ -392,7 +400,7 @@ const createStyles = (theme: ThemeColors) =>
       borderRadius: 12,
     },
     chipText: {
-      fontSize: 12,
+      fontSize: 14,
       color: theme.text,
     },
     symptomAddedChip: {
