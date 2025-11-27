@@ -158,6 +158,9 @@ class NotificationService {
     // Set up notification response listeners
     this.setupNotificationHandlers();
 
+    // Request permissions on first app launch (including critical alerts)
+    await this.requestPermissionsOnFirstLaunch();
+
     // Handle any pending notification response that arrived before app initialized
     // This is critical for notification actions (like "Take All") that are tapped
     // while the app is in the background or not running
@@ -614,9 +617,50 @@ class NotificationService {
   }
 
   /**
+   * Request permissions on first app launch (including critical alerts)
+   * Critical alerts can only be requested once, immediately after app install
+   */
+  private async requestPermissionsOnFirstLaunch(): Promise<void> {
+    try {
+      const { hasCriticalAlertsBeenRequested, setCriticalAlertsRequested, setNotificationsGloballyEnabled } = await import('./notificationUtils');
+      
+      // Check if we've ever requested critical alerts before
+      const criticalAlertsAlreadyRequested = await hasCriticalAlertsBeenRequested();
+      
+      // Only request permissions if they haven't been requested before
+      const currentPermissions = await Notifications.getPermissionsAsync();
+      const hasNeverBeenAsked = currentPermissions.status === 'undetermined';
+      
+      if (hasNeverBeenAsked && !criticalAlertsAlreadyRequested) {
+        logger.log('[Notification] First app launch - requesting all permissions including critical alerts...');
+        
+        // Request all permissions including critical alerts on first launch
+        const permissions = await this.requestPermissions();
+        
+        logger.log('[Notification] First launch permission result:', {
+          granted: permissions.granted,
+          criticalAlerts: permissions.ios?.allowsCriticalAlerts,
+        });
+        
+        // Mark that we've requested critical alerts (can only be done once)
+        await setCriticalAlertsRequested();
+        
+        // Store that we've made the initial request
+        await setNotificationsGloballyEnabled(permissions.granted);
+      } else {
+        logger.log('[Notification] Permissions previously requested or critical alerts already requested, skipping automatic request');
+      }
+    } catch (error) {
+      logger.error('[Notification] Error during first launch permission request:', error);
+    }
+  }
+
+  /**
    * Request notification permissions from the user
    */
   async requestPermissions(): Promise<NotificationPermissions> {
+    logger.log('[Notification] Requesting permissions including critical alerts...');
+    
     const { status, canAskAgain, ios } = await Notifications.requestPermissionsAsync({
       ios: {
         allowAlert: true,
@@ -626,7 +670,7 @@ class NotificationService {
       },
     });
 
-    return {
+    const permissions: NotificationPermissions = {
       granted: status === 'granted',
       canAskAgain,
       ios: ios
@@ -638,6 +682,14 @@ class NotificationService {
           }
         : undefined,
     };
+
+    logger.log('[Notification] Permission request result:', {
+      granted: permissions.granted,
+      canAskAgain: permissions.canAskAgain,
+      criticalAlerts: permissions.ios?.allowsCriticalAlerts,
+    });
+
+    return permissions;
   }
 
   /**

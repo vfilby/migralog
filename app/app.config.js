@@ -22,7 +22,9 @@ module.exports = {
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
         NSHealthShareUsageDescription: "MigraLog needs access to your health data to correlate potential triggers with migraine episodes.",
-        NSHealthUpdateUsageDescription: "MigraLog may write related health metrics to HealthKit for a comprehensive view of your health data."
+        NSHealthUpdateUsageDescription: "MigraLog may write related health metrics to HealthKit for a comprehensive view of your health data.",
+        NSUserNotificationsUsageDescription: "MigraLog sends medication reminders and daily check-in notifications to help you stay on track with your treatment.",
+        UNNotificationCriticalAlertsEnabled: true
       },
       entitlements: {
         "com.apple.developer.usernotifications.time-sensitive": true,
@@ -60,7 +62,9 @@ module.exports = {
       [
         "expo-notifications",
         {
-          mode: "production"
+          mode: "production",
+          iosDisplayInForeground: true,
+          iosAllowCriticalAlerts: true
         }
       ],
       [

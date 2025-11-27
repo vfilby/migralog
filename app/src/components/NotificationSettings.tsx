@@ -40,6 +40,7 @@ const NotificationSettings = React.memo(({ medicationId, showTitle = true, notif
   // Use provided permissions or check internally
   const permissions = notificationPermissions !== undefined ? notificationPermissions : internalPermissions;
   const permissionsGranted = permissions?.granted ?? false;
+  const criticalAlertsGranted = permissions?.ios?.allowsCriticalAlerts ?? false;
 
   useEffect(() => {
     if (!isLoaded) {
@@ -250,26 +251,59 @@ const NotificationSettings = React.memo(({ medicationId, showTitle = true, notif
         <View style={styles.divider} />
 
         {/* Critical Alerts */}
-        <View style={styles.settingRow}>
+        <TouchableOpacity
+          style={styles.settingRow}
+          onPress={() => {
+            if (!criticalAlertsGranted) {
+              Alert.alert(
+                'Critical Alerts Not Enabled',
+                'Critical Alerts are not enabled in iOS Settings. To use this feature:\n\n1. Open iOS Settings\n2. Go to Notifications > MigraLog\n3. Enable "Critical Alerts"\n\nCritical Alerts allow notifications to break through Silent mode and Do Not Disturb.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Open Settings', onPress: handleOpenSystemSettings },
+                ]
+              );
+            }
+          }}
+          disabled={criticalAlertsGranted}
+          accessibilityRole="button"
+          accessibilityLabel="Critical Alerts"
+          accessibilityHint={criticalAlertsGranted ? "Toggle to play sound on follow-up reminders even when device is silenced" : "Tap to learn how to enable Critical Alerts in iOS Settings"}
+        >
           <View style={styles.settingLeft}>
-            <Ionicons name="volume-high-outline" size={20} color={theme.textSecondary} />
+            <Ionicons 
+              name="volume-high-outline" 
+              size={20} 
+              color={criticalAlertsGranted ? theme.textSecondary : theme.textTertiary} 
+            />
             <View style={styles.settingText}>
-              <Text style={styles.settingLabel}>Critical Alerts</Text>
-              <Text style={styles.settingDescription}>
-                Play sound on follow-up reminders even when device is silenced
+              <Text style={[
+                styles.settingLabel,
+                !criticalAlertsGranted && styles.settingLabelDisabled
+              ]}>
+                Critical Alerts
+              </Text>
+              <Text style={[
+                styles.settingDescription,
+                !criticalAlertsGranted && styles.settingDescriptionDisabled
+              ]}>
+                {criticalAlertsGranted 
+                  ? 'Play sound on follow-up reminders even when device is silenced'
+                  : 'Requires permission in iOS Settings (tap to learn more)'
+                }
               </Text>
             </View>
           </View>
           <Switch
-            value={effectiveSettings.criticalAlertsEnabled}
+            value={effectiveSettings.criticalAlertsEnabled && criticalAlertsGranted}
             onValueChange={(value) => handleToggle('criticalAlertsEnabled', value)}
+            disabled={!criticalAlertsGranted}
             trackColor={{ false: theme.border, true: theme.primary }}
             ios_backgroundColor={theme.border}
             accessibilityRole="switch"
             accessibilityLabel="Critical Alerts"
-            accessibilityHint="Toggle to play sound on follow-up reminders even when device is silenced"
           />
-        </View>
+        </TouchableOpacity>
       </View>
 
       {medicationId && isOverridden && (
@@ -361,6 +395,12 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     fontSize: 13,
     color: theme.textSecondary,
     lineHeight: 16,
+  },
+  settingLabelDisabled: {
+    color: theme.textTertiary,
+  },
+  settingDescriptionDisabled: {
+    color: theme.textTertiary,
   },
   settingRight: {
     flexDirection: 'row',
