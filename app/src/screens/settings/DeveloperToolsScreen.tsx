@@ -62,10 +62,14 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
   const checkSentryConfiguration = () => {
     try {
       const client = Sentry.getClient();
-      const dsn = client?.getOptions().dsn;
+      const clientDsn = client?.getOptions().dsn;
       const enabled = client?.getOptions().enabled ?? false;
       const environment = client?.getOptions().environment ?? 'unknown';
-      const isConfigured = !!dsn && enabled;
+      
+      // Use the same DSN logic as displayed to user - check environment variable as fallback
+      const envDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
+      const effectiveDsn = clientDsn || envDsn;
+      const isConfigured = !!effectiveDsn && enabled;
 
       // Get configuration values from Constants and environment
       const expoConfig = Constants.expoConfig || {};
@@ -74,7 +78,7 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
 
       let reason: string | undefined;
       if (!isConfigured) {
-        if (!dsn) {
+        if (!effectiveDsn) {
           reason = 'DSN not configured\n\nCheck EXPO_PUBLIC_SENTRY_DSN environment variable in GitHub Actions secrets';
         } else if (!enabled) {
           reason = 'Sentry is disabled\n\nCheck EXPO_PUBLIC_SENTRY_ENABLED environment variable in GitHub Actions secrets';
@@ -86,7 +90,7 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
         isEnabled: enabled,
         environment,
         reason,
-        dsn: dsn || 'not configured',
+        dsn: effectiveDsn || 'not configured',
         org: process.env.SENTRY_ORG || 'eff3',
         project: process.env.SENTRY_PROJECT || 'migralog',
         slug: typeof slug === 'string' ? slug : undefined,
@@ -390,10 +394,11 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
       </View>
 
       <ScrollView style={styles.content} testID="developer-tools-scroll-view">
+        {/* System Diagnostics */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Diagnostics</Text>
+          <Text style={styles.sectionTitle}>System Diagnostics</Text>
           <Text style={styles.sectionDescription}>
-            System status and diagnostic information
+            System status and health monitoring
           </Text>
 
           {/* Database Status */}
@@ -446,9 +451,12 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
           </View>
         </View>
 
-        {/* Action Buttons */}
+        {/* Logging & Debugging */}
         <View style={styles.section}>
-          <Text style={styles.subsectionTitle}>Developer Actions</Text>
+          <Text style={styles.sectionTitle}>Logging & Debugging</Text>
+          <Text style={styles.sectionDescription}>
+            Error tracking, performance monitoring, and log management
+          </Text>
 
           <View style={styles.developerActions}>
             <TouchableOpacity
@@ -468,11 +476,11 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
                 onPress={viewPerformance}
                 testID="view-performance-button"
                 accessibilityRole="button"
-                accessibilityLabel="Performance"
+                accessibilityLabel="Performance monitoring"
                 accessibilityHint="Opens the performance monitoring screen"
               >
                 <Ionicons name="speedometer-outline" size={24} color={theme.primary} />
-                <Text style={styles.developerButtonText}>Performance</Text>
+                <Text style={styles.developerButtonText}>Performance Monitoring</Text>
               </TouchableOpacity>
             )}
 
@@ -487,6 +495,29 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
               <Text style={styles.developerButtonText}>Test Error Logging</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity
+              style={[styles.developerButton, styles.developerButtonDanger]}
+              onPress={clearAllLogs}
+              accessibilityRole="button"
+              accessibilityLabel="Clear all logs"
+              accessibilityHint="Deletes all error logs from the database"
+            >
+              <Ionicons name="trash-outline" size={20} color={theme.error} />
+              <Text style={[styles.developerButtonText, styles.developerButtonTextDanger]}>
+                Clear All Error Logs
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Error Tracking (Sentry) */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Error Tracking</Text>
+          <Text style={styles.sectionDescription}>
+            Sentry integration for production error monitoring and crash reporting
+          </Text>
+
+          <View style={styles.developerActions}>
             {sentryStatus && (
               <View>
                 <View
@@ -507,7 +538,7 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
                       Sentry: {sentryStatus.isConfigured ? '✅ Active' : '❌ Not Configured'}
                     </Text>
                     <Text style={{ fontSize: 12, color: theme.textTertiary, marginTop: 4 }}>
-                      {sentryStatus.environment}
+                      Environment: {sentryStatus.environment}
                     </Text>
                   </View>
                 </View>
@@ -518,7 +549,6 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
                       backgroundColor: theme.card,
                       borderRadius: 8,
                       padding: 12,
-                      marginHorizontal: 16,
                       marginTop: 8,
                       marginBottom: 12,
                       borderLeftWidth: 4,
@@ -537,18 +567,17 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
                       backgroundColor: theme.card,
                       borderRadius: 8,
                       padding: 12,
-                      marginHorizontal: 16,
                       marginTop: 8,
                       marginBottom: 12,
                     }}
                   >
                     <Text style={{ fontSize: 12, fontWeight: '600', color: theme.textSecondary, marginBottom: 8 }}>
-                      Configuration
+                      Configuration Details
                     </Text>
 
                     {sentryStatus.org && (
                       <View style={{ marginBottom: 6 }}>
-                        <Text style={{ fontSize: 11, color: theme.textTertiary }}>Org</Text>
+                        <Text style={{ fontSize: 11, color: theme.textTertiary }}>Organization</Text>
                         <Text style={{ fontSize: 13, color: theme.text, fontFamily: 'Menlo' }}>
                           {sentryStatus.org}
                         </Text>
@@ -566,7 +595,7 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
 
                     {sentryStatus.slug && (
                       <View style={{ marginBottom: 6 }}>
-                        <Text style={{ fontSize: 11, color: theme.textTertiary }}>Slug</Text>
+                        <Text style={{ fontSize: 11, color: theme.textTertiary }}>App Slug</Text>
                         <Text style={{ fontSize: 13, color: theme.text, fontFamily: 'Menlo' }}>
                           {sentryStatus.slug}
                         </Text>
@@ -608,6 +637,27 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
               <Ionicons name="bug-outline" size={24} color={theme.primary} />
               <Text style={styles.developerButtonText}>Test Sentry Integration</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Notification Testing */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Notification Testing</Text>
+          <Text style={styles.sectionDescription}>
+            Test different notification types and view scheduled notifications
+          </Text>
+
+          <View style={styles.developerActions}>
+            <TouchableOpacity
+              style={styles.developerButton}
+              onPress={handleViewScheduledNotifications}
+              accessibilityRole="button"
+              accessibilityLabel="View scheduled notifications"
+              accessibilityHint="Shows a list of all currently scheduled notifications"
+            >
+              <Ionicons name="list-outline" size={24} color={theme.primary} />
+              <Text style={styles.developerButtonText}>View Scheduled Notifications</Text>
+            </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.developerButton}
@@ -616,7 +666,7 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
               accessibilityLabel="Test regular notification"
               accessibilityHint="Schedules a test notification to appear in 5 seconds"
             >
-              <Ionicons name="flask-outline" size={24} color={theme.primary} />
+              <Ionicons name="notifications-outline" size={24} color={theme.primary} />
               <Text style={styles.developerButtonText}>Test Regular Notification (5s)</Text>
             </TouchableOpacity>
 
@@ -638,67 +688,51 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
               accessibilityLabel="Test critical notification"
               accessibilityHint="Schedules a critical priority test notification in 5 seconds"
             >
-              <Ionicons name="notifications-outline" size={24} color={theme.primary} />
-              <Text style={styles.developerButtonText}>Test Critical (5s)</Text>
+              <Ionicons name="warning-outline" size={24} color={theme.primary} />
+              <Text style={styles.developerButtonText}>Test Critical Notification (5s)</Text>
             </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.developerButton}
-              onPress={handleViewScheduledNotifications}
-              accessibilityRole="button"
-              accessibilityLabel="View scheduled notifications"
-              accessibilityHint="Shows a list of all currently scheduled notifications"
-            >
-              <Ionicons name="list-outline" size={24} color={theme.primary} />
-              <Text style={styles.developerButtonText}>View Scheduled Notifications</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.developerButton, styles.developerButtonDanger]}
-              onPress={clearAllLogs}
-              accessibilityRole="button"
-              accessibilityLabel="Clear logs"
-              accessibilityHint="Deletes all error logs from the database"
-            >
-              <Ionicons name="trash-outline" size={20} color={theme.error} />
-              <Text style={[styles.developerButtonText, styles.developerButtonTextDanger]}>
-                Clear Logs
-              </Text>
-            </TouchableOpacity>
-
-            {__DEV__ && (
-              <>
-                <TouchableOpacity
-                  style={[styles.developerButton, styles.developerButtonDanger]}
-                  onPress={handleResetDatabase}
-                  testID="reset-database-button"
-                  accessibilityRole="button"
-                  accessibilityLabel="Reset database"
-                  accessibilityHint="Creates a backup then clears all data from the database for testing purposes"
-                >
-                  <Ionicons name="refresh-outline" size={24} color={theme.error} />
-                  <Text style={[styles.developerButtonText, styles.developerButtonTextDanger]}>
-                    Reset Database (Testing)
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.developerButton]}
-                  onPress={handleResetDatabaseWithFixtures}
-                  testID="reset-database-with-fixtures-button"
-                  accessibilityRole="button"
-                  accessibilityLabel="Reset with test data"
-                  accessibilityHint="Creates a backup, clears the database, and loads sample medications and episodes for testing"
-                >
-                  <Ionicons name="flask-outline" size={24} color={theme.primary} />
-                  <Text style={[styles.developerButtonText]}>
-                    Reset with Test Data
-                  </Text>
-                </TouchableOpacity>
-              </>
-            )}
           </View>
         </View>
+
+        {/* Database Operations - Development Only */}
+        {__DEV__ && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Database Operations</Text>
+            <Text style={styles.sectionDescription}>
+              Testing tools for database management (development builds only)
+            </Text>
+
+            <View style={styles.developerActions}>
+              <TouchableOpacity
+                style={[styles.developerButton]}
+                onPress={handleResetDatabaseWithFixtures}
+                testID="reset-database-with-fixtures-button"
+                accessibilityRole="button"
+                accessibilityLabel="Reset with test data"
+                accessibilityHint="Creates a backup, clears the database, and loads sample medications and episodes for testing"
+              >
+                <Ionicons name="flask-outline" size={24} color={theme.primary} />
+                <Text style={[styles.developerButtonText]}>
+                  Reset with Test Data
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.developerButton, styles.developerButtonDanger]}
+                onPress={handleResetDatabase}
+                testID="reset-database-button"
+                accessibilityRole="button"
+                accessibilityLabel="Reset database"
+                accessibilityHint="Creates a backup then clears all data from the database for testing purposes"
+              >
+                <Ionicons name="refresh-outline" size={24} color={theme.error} />
+                <Text style={[styles.developerButtonText, styles.developerButtonTextDanger]}>
+                  Reset Database (Empty)
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -761,12 +795,6 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     color: theme.textSecondary,
     marginBottom: 16,
     lineHeight: 20,
-  },
-  subsectionTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    marginBottom: 12,
-    color: theme.text,
   },
   diagnosticCard: {
     backgroundColor: theme.card,
