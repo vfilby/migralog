@@ -346,20 +346,20 @@ const createStyles = (theme: ThemeColors) =>
       paddingLeft: 12,
     },
     timelineEventTitle: {
-      fontSize: 14,
+      fontSize: 16,
       fontWeight: '600',
       color: theme.text,
       marginBottom: 4,
     },
     timelineEventContent: {
-      fontSize: 14,
+      fontSize: 16,
       color: theme.textSecondary,
       marginBottom: 4,
     },
     timelineNoteText: {
-      fontSize: 14,
+      fontSize: 16,
       color: theme.text,
-      lineHeight: 20,
+      lineHeight: 22,
     },
     timelineIntensityBar: {
       height: 20,
@@ -392,7 +392,7 @@ const createStyles = (theme: ThemeColors) =>
       borderRadius: 12,
     },
     chipText: {
-      fontSize: 12,
+      fontSize: 14,
       color: theme.text,
     },
     symptomAddedChip: {
