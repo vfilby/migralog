@@ -370,7 +370,7 @@ const createStyles = (theme: ThemeColors) =>
     },
     timelineIntensityBarFill: {
       height: '100%',
-      borderRadius: 4,
+      borderRadius: 10,
     },
     timelineIntensityValue: {
       fontSize: 14,
