@@ -362,9 +362,9 @@ const createStyles = (theme: ThemeColors) =>
       lineHeight: 20,
     },
     timelineIntensityBar: {
-      height: 8,
+      height: 20,
       backgroundColor: theme.borderLight,
-      borderRadius: 4,
+      borderRadius: 10,
       marginBottom: 4,
       overflow: 'hidden',
     },
