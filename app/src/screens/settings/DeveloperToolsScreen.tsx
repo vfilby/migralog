@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme, ThemeColors } from '../../theme';
 import { errorLogger, ErrorLog } from '../../services/errorLogger';
 import { notificationService } from '../../services/notifications/notificationService';
+import { dailyCheckinService } from '../../services/notifications/dailyCheckinService';
 import * as SQLite from 'expo-sqlite';
 import * as Sentry from '@sentry/react-native';
 import * as Notifications from 'expo-notifications';
@@ -404,6 +405,7 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
           onPress: async () => {
             try {
               await notificationService.rescheduleAllMedicationNotifications();
+              await dailyCheckinService.rescheduleNotification();
               Alert.alert(
                 'Success',
                 'All notification schedules have been recreated with current settings.'
