@@ -10,6 +10,7 @@ interface OnboardingState {
   checkOnboardingStatus: () => Promise<void>;
   completeOnboarding: () => Promise<void>;
   skipOnboarding: () => Promise<void>;
+  resetOnboarding: () => Promise<void>;
 }
 
 export const useOnboardingStore = create<OnboardingState>((set) => ({
@@ -72,6 +73,25 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
       });
     } catch (error) {
       logger.error('[Onboarding] Error skipping:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Reset onboarding (for development/testing)
+   * This removes the completion flag to trigger the onboarding flow
+   */
+  resetOnboarding: async () => {
+    try {
+      await AsyncStorage.removeItem(ONBOARDING_COMPLETE_KEY);
+      logger.log('[Onboarding] Reset - onboarding flow will be triggered');
+      
+      set({ 
+        isOnboardingComplete: false,
+        isLoading: false
+      });
+    } catch (error) {
+      logger.error('[Onboarding] Error resetting:', error);
       throw error;
     }
   },

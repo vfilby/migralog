@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Switch, TouchableOpacity, Alert, Linking } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Switch, TouchableOpacity, Alert, Linking, Platform, AppState, AppStateStatus } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, ThemeColors } from '../theme';
 import { useNotificationSettingsStore, FollowUpDelay } from '../store/notificationSettingsStore';
@@ -53,6 +53,30 @@ const NotificationSettings = React.memo(({ medicationId, showTitle = true, notif
     if (notificationPermissions === undefined) {
       Notifications.getPermissionsAsync().then(setInternalPermissions);
     }
+  }, [notificationPermissions]);
+
+  // Refresh permissions when app comes back from background (e.g., from Settings)
+  const appState = useRef(AppState.currentState);
+  
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      // If app is coming back to foreground and we're using internal permissions
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === 'active' &&
+        notificationPermissions === undefined
+      ) {
+        logger.log('[NotificationSettings] App returned to foreground, refreshing permissions');
+        Notifications.getPermissionsAsync().then(setInternalPermissions);
+      }
+      appState.current = nextAppState;
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription?.remove();
+    };
   }, [notificationPermissions]);
 
   const effectiveSettings = getEffectiveSettings(medicationId);
@@ -135,10 +159,21 @@ const NotificationSettings = React.memo(({ medicationId, showTitle = true, notif
 
   const handleOpenSystemSettings = async () => {
     try {
-      await Linking.openSettings();
+      // Try to open app-specific settings first (iOS only)
+      if (Platform.OS === 'ios') {
+        await Linking.openURL('app-settings:');
+      } else {
+        await Linking.openSettings();
+      }
     } catch (error) {
-      logger.error('[NotificationSettings] Failed to open system settings:', error);
-      Alert.alert('Error', 'Failed to open Settings');
+      logger.error('[NotificationSettings] Failed to open app settings, falling back to system settings:', error);
+      // Fallback to general settings if app-specific fails
+      try {
+        await Linking.openSettings();
+      } catch (fallbackError) {
+        logger.error('[NotificationSettings] Failed to open system settings:', fallbackError);
+        Alert.alert('Error', 'Failed to open Settings');
+      }
     }
   };
 

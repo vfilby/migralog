@@ -96,6 +96,7 @@ export function initializeTestDeepLinks() {
  * - migraine-tracker://test/home?token=XXX - Navigate to home/dashboard (requires token)
  * - migraine-tracker://test/corrupt?token=XXX - Load corrupted database for error testing (requires token)
  * - migraine-tracker://test/skip-onboarding?token=XXX - Skip onboarding flow for E2E tests (requires token)
+ * - migraine-tracker://test/trigger-onboarding?token=XXX - Reset onboarding to trigger welcome flow (requires token)
  */
 async function handleTestDeepLink(event: { url: string }) {
   const { url } = event;
@@ -287,6 +288,28 @@ async function handleTestDeepLink(event: { url: string }) {
           logger.log('[TestDeepLinks] Onboarding marked as complete');
           
           // Navigation will automatically update based on onboarding state
+        }
+        break;
+
+      case '/trigger-onboarding':
+        {
+          logger.log('[TestDeepLinks] ✅ Authorized: Resetting onboarding to trigger welcome flow');
+          
+          // Reset onboarding state
+          const { useOnboardingStore } = await import('../store/onboardingStore');
+          await useOnboardingStore.getState().resetOnboarding();
+          
+          logger.log('[TestDeepLinks] Onboarding reset - welcome flow will be triggered');
+          
+          // Navigate to welcome screen by resetting navigation stack
+          const { navigationRef } = await import('../navigation/NavigationService');
+          if (navigationRef.current) {
+            navigationRef.current.reset({
+              index: 0,
+              routes: [{ name: 'Welcome' }],
+            });
+            logger.log('[TestDeepLinks] Navigated to Welcome screen');
+          }
         }
         break;
 

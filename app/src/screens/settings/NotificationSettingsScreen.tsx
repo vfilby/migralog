@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { logger } from '../../utils/logger';
 import {
   View,
@@ -10,6 +10,9 @@ import {
   Alert,
   Switch,
   Platform,
+  AppState,
+  AppStateStatus,
+  Linking,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
@@ -253,6 +256,29 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Refresh permissions when app comes back from background (e.g., from Settings)
+  const appState = useRef(AppState.currentState);
+  
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      // If app is coming back to foreground, refresh permissions
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+        logger.log('[NotificationSettingsScreen] App returned to foreground, refreshing permissions');
+        loadNotificationStatus();
+      }
+      appState.current = nextAppState;
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription?.remove();
+    };
+  }, []);
+
   const loadDeveloperMode = async () => {
     try {
       const stored = await AsyncStorage.getItem(DEVELOPER_MODE_KEY);
@@ -273,6 +299,26 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
     }
   };
 
+  const openAppSettings = async () => {
+    try {
+      // Try to open app-specific settings first (iOS only)
+      if (Platform.OS === 'ios') {
+        await Linking.openURL('app-settings:');
+      } else {
+        await Linking.openSettings();
+      }
+    } catch (error) {
+      logger.error('[NotificationSettingsScreen] Failed to open app settings, falling back to system settings:', error);
+      // Fallback to general settings if app-specific fails
+      try {
+        await Linking.openSettings();
+      } catch (fallbackError) {
+        logger.error('[NotificationSettingsScreen] Failed to open system settings:', fallbackError);
+        Alert.alert('Error', 'Failed to open Settings');
+      }
+    }
+  };
+
   const loadNotificationsEnabled = async () => {
     try {
       const enabled = await notificationService.areNotificationsGloballyEnabled();
@@ -287,12 +333,25 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
       const permissions = await notificationService.requestPermissions();
       setNotificationPermissions(permissions);
 
-      // Only show alert if permission was denied and can't ask again (need to go to Settings)
+      // Show alert if permission was denied and can't ask again (need to go to Settings)
       if (!permissions.granted && !permissions.canAskAgain) {
         Alert.alert(
-          'Permission Denied',
-          'Please enable notifications in Settings to receive medication reminders.',
-          [{ text: 'OK', style: 'cancel' }]
+          'Notifications Not Enabled',
+          'Notifications are not enabled in iOS Settings. To receive medication reminders:\n\n1. Open iOS Settings\n2. Go to Notifications > MigraLog\n3. Enable "Allow Notifications"',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: openAppSettings },
+          ]
+        );
+      } else if (!permissions.granted) {
+        // Show alert for other cases where permission was denied but we might be able to ask again
+        Alert.alert(
+          'Notifications Disabled',
+          'Notifications are required for medication reminders. Please enable them in Settings.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: openAppSettings },
+          ]
         );
       }
       // UI already shows permission status, no need for success alert
@@ -302,50 +361,7 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
     }
   };
 
-  const handleRequestCriticalAlerts = async () => {
-    try {
-      // Show explanation first
-      Alert.alert(
-        'Critical Alerts',
-        'Critical Alerts allow notifications to break through Silent mode and Do Not Disturb. This requires special permission from iOS.\n\nWhen you tap "Request Permission", iOS will show a system dialog to enable Critical Alerts.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Request Permission',
-            style: 'default',
-            onPress: async () => {
-              try {
-                // Import the tracking functions
-                const { setCriticalAlertsRequested } = await import('../../services/notifications/notificationUtils');
-                
-                const permissions = await notificationService.requestPermissions();
-                setNotificationPermissions(permissions);
-                
-                // Mark that we've requested critical alerts
-                await setCriticalAlertsRequested();
-                
-                if (permissions.ios?.allowsCriticalAlerts) {
-                  Alert.alert('Success', 'Critical Alerts have been enabled! You can now use this feature in notification settings.');
-                } else {
-                  Alert.alert(
-                    'Critical Alerts Not Enabled',
-                    'Critical Alerts were not enabled. You can try again or enable them manually in iOS Settings:\n\nSettings > Notifications > MigraLog > Critical Alerts',
-                    [{ text: 'OK' }]
-                  );
-                }
-              } catch (error) {
-                logger.error('Failed to request critical alerts permission:', error);
-                Alert.alert('Error', 'Failed to request critical alerts permission');
-              }
-            },
-          },
-        ]
-      );
-    } catch (error) {
-      logger.error('Failed to request critical alerts:', error);
-      Alert.alert('Error', 'Failed to request critical alerts');
-    }
-  };
+
 
   const handleToggleNotifications = async (enabled: boolean) => {
     try {
@@ -656,19 +672,7 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
               </TouchableOpacity>
             )}
 
-            {/* Critical Alerts Permission Request - iOS Only */}
-            {Platform.OS === 'ios' && notificationPermissions?.granted && !notificationPermissions.ios?.allowsCriticalAlerts && (
-              <TouchableOpacity
-                style={styles.developerButton}
-                onPress={handleRequestCriticalAlerts}
-                accessibilityRole="button"
-                accessibilityLabel="Enable critical alerts"
-                accessibilityHint="Requests permission for critical alerts that break through silent mode"
-              >
-                <Ionicons name="volume-high-outline" size={24} color={theme.primary} />
-                <Text style={styles.developerButtonText}>Enable Critical Alerts</Text>
-              </TouchableOpacity>
-            )}
+
           </View>
 
           {notificationPermissions?.granted && (
