@@ -12,6 +12,7 @@ jest.mock('../../services/errorLogger');
 
 // Mock Linking
 jest.spyOn(Linking, 'openSettings').mockResolvedValue(undefined);
+jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
 
 // Mock Alert
 jest.spyOn(Alert, 'alert');
@@ -90,7 +91,7 @@ describe('NotificationSettings', () => {
 
       fireEvent.press(screen.getByText('Open Settings'));
 
-      expect(Linking.openSettings).toHaveBeenCalled();
+      expect(Linking.openURL).toHaveBeenCalledWith('app-settings:');
     });
 
     it('should check permissions internally when not provided as prop', async () => {

@@ -1,5 +1,8 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Image } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+
+type IoniconName = keyof typeof Ionicons.glyphMap;
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -157,7 +160,11 @@ function WelcomeStep({ colors }: StepProps) {
   return (
     <View style={styles.stepContainer}>
       <View style={styles.iconContainer}>
-        <Text style={styles.icon}>🧠</Text>
+        <Image 
+          source={require('../../assets/icon.png')} 
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
       </View>
 
       <Text style={[styles.title, { color: colors.text }]}>
@@ -170,25 +177,25 @@ function WelcomeStep({ colors }: StepProps) {
 
       <View style={styles.featuresContainer}>
         <FeatureItem
-          icon="📊"
+          icon="pulse-outline"
           title="Track Episodes"
           description="Log symptoms, intensity, triggers, and medications in real-time"
           colors={colors}
         />
         <FeatureItem
-          icon="💊"
+          icon="medical-outline"
           title="Medication Management"
           description="Set schedules, get reminders, and track what works for you"
           colors={colors}
         />
         <FeatureItem
-          icon="📈"
+          icon="trending-up-outline"
           title="Insights & Trends"
           description="Discover patterns and share reports with your healthcare provider"
           colors={colors}
         />
         <FeatureItem
-          icon="🔒"
+          icon="shield-checkmark-outline"
           title="Privacy First"
           description="Your health data stays private and secure on your device"
           colors={colors}
@@ -207,14 +214,10 @@ function DisclaimerStep({ colors }: StepProps) {
       </View>
 
       <Text style={[styles.title, { color: colors.text }]}>
-        Important Notice
+        Medical Disclaimer
       </Text>
 
       <View style={[styles.disclaimerCard, { backgroundColor: colors.card }]}>
-        <Text style={[styles.disclaimerTitle, { color: colors.text }]}>
-          Medical Disclaimer
-        </Text>
-
         <Text style={[styles.disclaimerText, { color: colors.textSecondary }]}>
           MigraLog is a <Text style={{ fontWeight: '600' }}>tracking and informational tool</Text> designed to help you monitor your migraines. It is <Text style={{ fontWeight: '600' }}>not medical advice</Text> and should not be used as a substitute for professional healthcare.
         </Text>
@@ -247,7 +250,7 @@ function PermissionsStep({ colors }: StepProps) {
   return (
     <View style={styles.stepContainer}>
       <View style={styles.iconContainer}>
-        <Text style={styles.icon}>📲</Text>
+        <Ionicons name="notifications-outline" size={72} color={colors.primary} />
       </View>
 
       <Text style={[styles.title, { color: colors.text }]}>
@@ -260,22 +263,22 @@ function PermissionsStep({ colors }: StepProps) {
 
       <View style={styles.permissionsContainer}>
         <PermissionItem
-          icon="💊"
+          icon="medical-outline"
           title="Medication Reminders"
           description="Never miss a dose with scheduled notifications"
           colors={colors}
         />
         <PermissionItem
-          icon="📝"
+          icon="calendar-outline"
           title="Daily Check-ins"
           description="Track your daily status and identify patterns"
           colors={colors}
         />
         {Platform.OS === 'ios' && (
           <PermissionItem
-            icon="🚨"
+            icon="warning"
             title="Critical Alerts"
-            description="Important medication reminders that break through Do Not Disturb mode"
+            description="Important follow-up reminders for missed medication doses"
             colors={colors}
           />
         )}
@@ -283,9 +286,12 @@ function PermissionsStep({ colors }: StepProps) {
 
       {Platform.OS === 'ios' && (
         <View style={[styles.infoBox, { backgroundColor: colors.card }]}>
-          <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-            ℹ️ You'll see two permission requests: one for standard notifications and one for critical alerts.
-          </Text>
+          <View style={styles.infoTextContainer}>
+            <Ionicons name="information-circle-outline" size={16} color={colors.primary} style={styles.infoIcon} />
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>
+              You'll see two permission requests: one for standard notifications and one for critical follow-up alerts.
+            </Text>
+          </View>
         </View>
       )}
     </View>
@@ -301,9 +307,20 @@ interface FeatureItemProps {
 }
 
 function FeatureItem({ icon, title, description, colors }: FeatureItemProps) {
+  const { theme } = useTheme();
+  
+  // Define which icons are Ionicons vs emojis
+  const isIonicon = ['pulse-outline', 'medical-outline', 'trending-up-outline', 'shield-checkmark-outline'].includes(icon);
+  
   return (
     <View style={styles.featureItem}>
-      <Text style={styles.featureIcon}>{icon}</Text>
+      <View style={styles.featureIconContainer}>
+        {isIonicon ? (
+          <Ionicons name={icon as IoniconName} size={28} color={theme.primary} />
+        ) : (
+          <Text style={styles.featureIcon}>{icon}</Text>
+        )}
+      </View>
       <View style={styles.featureText}>
         <Text style={[styles.featureTitle, { color: colors.text }]}>
           {title}
@@ -324,9 +341,34 @@ interface PermissionItemProps {
 }
 
 function PermissionItem({ icon, title, description, colors }: PermissionItemProps) {
+  const { theme } = useTheme();
+  
+  // Define which icons are Ionicons vs emojis
+  const isIonicon = ['warning', 'medical-outline', 'calendar-outline'].includes(icon);
+  
+  // Choose appropriate color for each icon
+  const getIconColor = () => {
+    switch (icon) {
+      case 'warning':
+        return theme.warning;
+      case 'medical-outline':
+        return theme.primary;
+      case 'calendar-outline':
+        return theme.primary;
+      default:
+        return theme.primary;
+    }
+  };
+  
   return (
     <View style={styles.permissionItem}>
-      <Text style={styles.permissionIcon}>{icon}</Text>
+      <View style={styles.permissionIconContainer}>
+        {isIonicon ? (
+          <Ionicons name={icon as IoniconName} size={32} color={getIconColor()} />
+        ) : (
+          <Text style={styles.permissionIcon}>{icon}</Text>
+        )}
+      </View>
       <View style={styles.permissionText}>
         <Text style={[styles.permissionTitle, { color: colors.text }]}>
           {title}
@@ -383,6 +425,10 @@ const styles = StyleSheet.create({
   icon: {
     fontSize: 72,
   },
+  logoImage: {
+    width: 72,
+    height: 72,
+  },
   title: {
     fontSize: 32,
     fontWeight: '700',
@@ -405,6 +451,11 @@ const styles = StyleSheet.create({
   featureIcon: {
     fontSize: 28,
     marginRight: 16,
+  },
+  featureIconContainer: {
+    marginRight: 16,
+    width: 28,
+    alignItems: 'center',
   },
   featureText: {
     flex: 1,
@@ -454,6 +505,11 @@ const styles = StyleSheet.create({
     fontSize: 32,
     marginRight: 16,
   },
+  permissionIconContainer: {
+    marginRight: 16,
+    width: 32,
+    alignItems: 'center',
+  },
   permissionText: {
     flex: 1,
   },
@@ -473,6 +529,15 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: 14,
     lineHeight: 20,
+    flex: 1,
+  },
+  infoTextContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  infoIcon: {
+    marginRight: 8,
+    marginTop: 2,
   },
   buttonContainer: {
     flexDirection: 'row',
