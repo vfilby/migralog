@@ -141,8 +141,19 @@ export default function WelcomeScreen() {
   );
 }
 
+interface StepProps {
+  colors: {
+    text: string;
+    textSecondary: string;
+    textTertiary: string;
+    card: string;
+    border: string;
+    primary: string;
+  };
+}
+
 // Step 1: Welcome and Introduction
-function WelcomeStep({ colors }: { colors: any }) {
+function WelcomeStep({ colors }: StepProps) {
   return (
     <View style={styles.stepContainer}>
       <View style={styles.iconContainer}>
@@ -188,7 +199,7 @@ function WelcomeStep({ colors }: { colors: any }) {
 }
 
 // Step 2: Medical Disclaimer
-function DisclaimerStep({ colors }: { colors: any }) {
+function DisclaimerStep({ colors }: StepProps) {
   return (
     <View style={styles.stepContainer}>
       <View style={styles.iconContainer}>
@@ -232,7 +243,7 @@ function DisclaimerStep({ colors }: { colors: any }) {
 }
 
 // Step 3: Notification Permissions
-function PermissionsStep({ colors }: { colors: any }) {
+function PermissionsStep({ colors }: StepProps) {
   return (
     <View style={styles.stepContainer}>
       <View style={styles.iconContainer}>
@@ -282,7 +293,14 @@ function PermissionsStep({ colors }: { colors: any }) {
 }
 
 // Helper Components
-function FeatureItem({ icon, title, description, colors }: any) {
+interface FeatureItemProps {
+  icon: string;
+  title: string;
+  description: string;
+  colors: StepProps['colors'];
+}
+
+function FeatureItem({ icon, title, description, colors }: FeatureItemProps) {
   return (
     <View style={styles.featureItem}>
       <Text style={styles.featureIcon}>{icon}</Text>
@@ -298,7 +316,14 @@ function FeatureItem({ icon, title, description, colors }: any) {
   );
 }
 
-function PermissionItem({ icon, title, description, colors }: any) {
+interface PermissionItemProps {
+  icon: string;
+  title: string;
+  description: string;
+  colors: StepProps['colors'];
+}
+
+function PermissionItem({ icon, title, description, colors }: PermissionItemProps) {
   return (
     <View style={styles.permissionItem}>
       <Text style={styles.permissionIcon}>{icon}</Text>

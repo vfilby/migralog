@@ -1,4 +1,4 @@
-const { waitForAnimation, skipOnboarding, resetDatabase } = require('./helpers');
+const { waitForAnimation, resetDatabase } = require('./helpers');
 
 /**
  * Database Error Toast E2E Test
