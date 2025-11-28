@@ -95,6 +95,7 @@ export function initializeTestDeepLinks() {
  * - migraine-tracker://test/state?token=XXX - Log current database state (requires token)
  * - migraine-tracker://test/home?token=XXX - Navigate to home/dashboard (requires token)
  * - migraine-tracker://test/corrupt?token=XXX - Load corrupted database for error testing (requires token)
+ * - migraine-tracker://test/skip-onboarding?token=XXX - Skip onboarding flow for E2E tests (requires token)
  */
 async function handleTestDeepLink(event: { url: string }) {
   const { url } = event;
@@ -272,6 +273,20 @@ async function handleTestDeepLink(event: { url: string }) {
             await new Promise(resolve => setTimeout(resolve, 500));
             logger.log('[TestDeepLinks] Navigated to Dashboard');
           }
+        }
+        break;
+
+      case '/skip-onboarding':
+        {
+          logger.log('[TestDeepLinks] ✅ Authorized: Skipping onboarding for E2E tests');
+          
+          // Mark onboarding as complete
+          const { useOnboardingStore } = await import('../store/onboardingStore');
+          await useOnboardingStore.getState().skipOnboarding();
+          
+          logger.log('[TestDeepLinks] Onboarding marked as complete');
+          
+          // Navigation will automatically update based on onboarding state
         }
         break;
 

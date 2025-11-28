@@ -158,6 +158,10 @@ class NotificationService {
     // Set up notification response listeners
     this.setupNotificationHandlers();
 
+    // NOTE: Permission request has been moved to WelcomeScreen onboarding flow
+    // This prevents blocking iOS permission dialogs during E2E tests
+    // and provides better UX by explaining permissions before requesting them
+
     // Handle any pending notification response that arrived before app initialized
     // This is critical for notification actions (like "Take All") that are tapped
     // while the app is in the background or not running
@@ -614,9 +618,25 @@ class NotificationService {
   }
 
   /**
+   * Request permissions on first app launch (including critical alerts)
+   * 
+   * @deprecated This method is no longer called automatically during initialization.
+   * Permission requests now happen in the WelcomeScreen onboarding flow.
+   * This method is kept for backwards compatibility and can be called manually
+   * from the WelcomeScreen or Settings.
+   */
+  private async requestPermissionsOnFirstLaunch(): Promise<void> {
+    logger.log('[Notification] requestPermissionsOnFirstLaunch() is deprecated - permissions now requested via WelcomeScreen');
+    // This method intentionally does nothing now
+    // Permission flow has been moved to WelcomeScreen for better UX and E2E test compatibility
+  }
+
+  /**
    * Request notification permissions from the user
    */
   async requestPermissions(): Promise<NotificationPermissions> {
+    logger.log('[Notification] Requesting permissions including critical alerts...');
+    
     const { status, canAskAgain, ios } = await Notifications.requestPermissionsAsync({
       ios: {
         allowAlert: true,
@@ -626,7 +646,7 @@ class NotificationService {
       },
     });
 
-    return {
+    const permissions: NotificationPermissions = {
       granted: status === 'granted',
       canAskAgain,
       ios: ios
@@ -638,6 +658,14 @@ class NotificationService {
           }
         : undefined,
     };
+
+    logger.log('[Notification] Permission request result:', {
+      granted: permissions.granted,
+      canAskAgain: permissions.canAskAgain,
+      criticalAlerts: permissions.ios?.allowsCriticalAlerts,
+    });
+
+    return permissions;
   }
 
   /**

@@ -1,4 +1,4 @@
-const { waitForAnimation } = require('./helpers');
+const { waitForAnimation, resetDatabase } = require('./helpers');
 
 /**
  * Database Error Toast E2E Test
@@ -14,6 +14,8 @@ const { waitForAnimation } = require('./helpers');
 describe('Database Error Toast', () => {
   beforeAll(async () => {
     await device.launchApp();
+    // Skip onboarding to access the main app
+    await resetDatabase(false); // This includes skipOnboarding
   });
 
   it('should display error toast when database operation fails', async () => {

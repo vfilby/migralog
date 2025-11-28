@@ -130,6 +130,17 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     color: theme.error,
     fontWeight: '500',
   },
+  diagnosticValueWarning: {
+    fontSize: 15,
+    color: theme.warning,
+    fontWeight: '500',
+  },
+  diagnosticDivider: {
+    height: 1,
+    backgroundColor: theme.borderLight,
+    marginVertical: 8,
+    marginHorizontal: -4,
+  },
   developerActions: {
     marginTop: 8,
     gap: 8,
@@ -291,6 +302,51 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
     }
   };
 
+  const handleRequestCriticalAlerts = async () => {
+    try {
+      // Show explanation first
+      Alert.alert(
+        'Critical Alerts',
+        'Critical Alerts allow notifications to break through Silent mode and Do Not Disturb. This requires special permission from iOS.\n\nWhen you tap "Request Permission", iOS will show a system dialog to enable Critical Alerts.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Request Permission',
+            style: 'default',
+            onPress: async () => {
+              try {
+                // Import the tracking functions
+                const { setCriticalAlertsRequested } = await import('../../services/notifications/notificationUtils');
+                
+                const permissions = await notificationService.requestPermissions();
+                setNotificationPermissions(permissions);
+                
+                // Mark that we've requested critical alerts
+                await setCriticalAlertsRequested();
+                
+                if (permissions.ios?.allowsCriticalAlerts) {
+                  Alert.alert('Success', 'Critical Alerts have been enabled! You can now use this feature in notification settings.');
+                } else {
+                  Alert.alert(
+                    'Critical Alerts Not Enabled',
+                    'Critical Alerts were not enabled. You can try again or enable them manually in iOS Settings:\n\nSettings > Notifications > MigraLog > Critical Alerts',
+                    [{ text: 'OK' }]
+                  );
+                }
+              } catch (error) {
+                logger.error('Failed to request critical alerts permission:', error);
+                Alert.alert('Error', 'Failed to request critical alerts permission');
+              }
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      logger.error('Failed to request critical alerts:', error);
+      Alert.alert('Error', 'Failed to request critical alerts');
+    }
+  };
+
   const handleToggleNotifications = async (enabled: boolean) => {
     try {
       setIsTogglingNotifications(true);
@@ -376,6 +432,8 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
         // Trigger types vary (calendar/time/date) - use dynamic access
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const trigger = notif.trigger as any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const content = notif.content as any;
         let timeInfo = 'Unknown trigger';
 
         if (trigger.type === 'calendar' || (trigger.hour !== undefined && trigger.minute !== undefined)) {
@@ -386,7 +444,24 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
           timeInfo = `In ${trigger.seconds} seconds`;
         }
 
-        return `${index + 1}. ${notif.content.title}\n   ${timeInfo}\n   ID: ${notif.identifier}`;
+        // Extract debugging information
+        const interruptionLevel = content.interruptionLevel || 'active';
+        const critical = content.critical ? 'Yes' : 'No';
+        const categoryId = content.categoryIdentifier || 'none';
+        const data = content.data;
+        let dataInfo = 'none';
+        
+        if (data) {
+          const parts = [];
+          if (data.medicationId) parts.push(`med:${data.medicationId.slice(-8)}`);
+          if (data.medicationIds) parts.push(`meds:${data.medicationIds.length}`);
+          if (data.scheduleId) parts.push(`sched:${data.scheduleId.slice(-8)}`);
+          if (data.isFollowUp) parts.push('followUp');
+          if (data.time) parts.push(`time:${data.time}`);
+          dataInfo = parts.length > 0 ? parts.join(', ') : 'empty';
+        }
+
+        return `${index + 1}. ${notif.content.title}\n   ${timeInfo}\n   Level: ${interruptionLevel} | Critical: ${critical}\n   Category: ${categoryId}\n   Data: ${dataInfo}\n   ID: ${notif.identifier.slice(-8)}`;
       }).join('\n\n');
 
       Alert.alert(
@@ -535,6 +610,36 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
                 )}
               </View>
             </View>
+            
+            {/* Critical Alerts Status - iOS Only */}
+            {Platform.OS === 'ios' && notificationPermissions?.granted && (
+              <>
+                <View style={styles.diagnosticDivider} />
+                <View style={styles.diagnosticRow}>
+                  <View style={styles.diagnosticLeft}>
+                    <Ionicons
+                      name="volume-high-outline"
+                      size={20}
+                      color={theme.textSecondary}
+                    />
+                    <Text style={styles.diagnosticLabel}>Critical Alerts</Text>
+                  </View>
+                  <View style={styles.diagnosticRight}>
+                    {notificationPermissions.ios?.allowsCriticalAlerts ? (
+                      <>
+                        <Ionicons name="checkmark-circle" size={18} color={theme.success} />
+                        <Text style={styles.diagnosticValueSuccess}>Enabled</Text>
+                      </>
+                    ) : (
+                      <>
+                        <Ionicons name="alert-circle" size={18} color={theme.warning} />
+                        <Text style={styles.diagnosticValueWarning}>Disabled</Text>
+                      </>
+                    )}
+                  </View>
+                </View>
+              </>
+            )}
           </View>
 
           <View style={styles.developerActions}>
@@ -548,6 +653,20 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
               >
                 <Ionicons name="notifications-outline" size={24} color={theme.primary} />
                 <Text style={styles.developerButtonText}>Enable Notifications</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Critical Alerts Permission Request - iOS Only */}
+            {Platform.OS === 'ios' && notificationPermissions?.granted && !notificationPermissions.ios?.allowsCriticalAlerts && (
+              <TouchableOpacity
+                style={styles.developerButton}
+                onPress={handleRequestCriticalAlerts}
+                accessibilityRole="button"
+                accessibilityLabel="Enable critical alerts"
+                accessibilityHint="Requests permission for critical alerts that break through silent mode"
+              >
+                <Ionicons name="volume-high-outline" size={24} color={theme.primary} />
+                <Text style={styles.developerButtonText}>Enable Critical Alerts</Text>
               </TouchableOpacity>
             )}
           </View>

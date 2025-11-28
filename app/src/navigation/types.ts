@@ -2,6 +2,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 
 export type RootStackParamList = {
+  Welcome: undefined;
   MainTabs: undefined;
   EpisodeDetail: { episodeId: string };
   NewEpisode: { episodeId?: string };
