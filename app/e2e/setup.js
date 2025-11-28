@@ -8,3 +8,6 @@
 global.isDetoxE2E = true;
 
 console.log('[E2E Setup] Detox E2E environment initialized');
+
+// NOTE: Skip onboarding is now called in individual test files after device.launchApp()
+// because device.openURL() requires the app to be running

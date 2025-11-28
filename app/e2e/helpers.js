@@ -3,6 +3,28 @@
  */
 
 /**
+ * Skip onboarding flow for E2E tests
+ * This prevents the Welcome screen and permission dialogs from blocking tests
+ */
+async function skipOnboarding() {
+  console.log('[E2E] Skipping onboarding flow...');
+  
+  try {
+    await device.openURL({
+      url: 'migraine-tracker://test/skip-onboarding?token=detox'
+    });
+    
+    // Wait for state to update
+    await waitForAnimation(500);
+    
+    console.log('[E2E] ✅ Onboarding skipped');
+  } catch (error) {
+    console.error('[E2E] ❌ Failed to skip onboarding:', error);
+    throw error;
+  }
+}
+
+/**
  * Reset the database to a clean state using deep links (FAST - ~2 seconds)
  * Uses secure token-based authentication to prevent unauthorized access
  * @param {boolean} withFixtures - If true, loads test data (medications, episodes)
@@ -11,6 +33,9 @@ async function resetDatabase(withFixtures = false) {
   console.log(`[E2E] Resetting database via deep link (fixtures: ${withFixtures})...`);
 
   try {
+    // First, skip onboarding to ensure we don't see Welcome screen
+    await skipOnboarding();
+    
     // Use special "detox" token for E2E testing
     // This is accepted by the deep link handler only in Debug/Testing builds
     const fixturesParam = withFixtures ? '&fixtures=true' : '';
@@ -287,6 +312,7 @@ async function loadCorruptedDatabase() {
 }
 
 module.exports = {
+  skipOnboarding,
   resetDatabase,
   scrollToElement,
   scrollToText,

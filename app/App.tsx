@@ -8,6 +8,7 @@ import { ThemeProvider } from './src/theme';
 import { getDatabase } from './src/database/db';
 import { notificationService } from './src/services/notifications/notificationService';
 import { dailyCheckinService } from './src/services/notifications/dailyCheckinService';
+import { useOnboardingStore } from './src/store/onboardingStore';
 import { logger } from './src/utils/logger';
 import { performanceMonitor } from './src/utils/performance';
 import ErrorBoundary from './src/components/ErrorBoundary';
@@ -56,8 +57,12 @@ function App() {
       setError(null);
       setIsRetrying(false);
 
-      // Initialize database (handles migrations automatically)
+      // Check onboarding status first (needed for navigation)
       performanceMonitor.mark('app-start');
+      await useOnboardingStore.getState().checkOnboardingStatus();
+      performanceMonitor.mark('onboarding-checked');
+
+      // Initialize database (handles migrations automatically)
       await getDatabase();
       performanceMonitor.mark('database-ready');
 

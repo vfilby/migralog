@@ -158,8 +158,9 @@ class NotificationService {
     // Set up notification response listeners
     this.setupNotificationHandlers();
 
-    // Request permissions on first app launch (including critical alerts)
-    await this.requestPermissionsOnFirstLaunch();
+    // NOTE: Permission request has been moved to WelcomeScreen onboarding flow
+    // This prevents blocking iOS permission dialogs during E2E tests
+    // and provides better UX by explaining permissions before requesting them
 
     // Handle any pending notification response that arrived before app initialized
     // This is critical for notification actions (like "Take All") that are tapped
@@ -618,51 +619,16 @@ class NotificationService {
 
   /**
    * Request permissions on first app launch (including critical alerts)
-   * Critical alerts can only be requested once, immediately after app install
+   * 
+   * @deprecated This method is no longer called automatically during initialization.
+   * Permission requests now happen in the WelcomeScreen onboarding flow.
+   * This method is kept for backwards compatibility and can be called manually
+   * from the WelcomeScreen or Settings.
    */
   private async requestPermissionsOnFirstLaunch(): Promise<void> {
-    try {
-      // Skip automatic permission request during E2E tests
-      // E2E tests manage permissions through their own helpers
-      // Detox sets __DEV__ to true and we can check for the presence of Detox-specific globals
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const isDetoxTest = __DEV__ && typeof (global as any).device !== 'undefined';
-      if (isDetoxTest) {
-        logger.log('[Notification] Skipping automatic permission request during E2E tests');
-        return;
-      }
-
-      const { hasCriticalAlertsBeenRequested, setCriticalAlertsRequested, setNotificationsGloballyEnabled } = await import('./notificationUtils');
-      
-      // Check if we've ever requested critical alerts before
-      const criticalAlertsAlreadyRequested = await hasCriticalAlertsBeenRequested();
-      
-      // Only request permissions if they haven't been requested before
-      const currentPermissions = await Notifications.getPermissionsAsync();
-      const hasNeverBeenAsked = currentPermissions.status === 'undetermined';
-      
-      if (hasNeverBeenAsked && !criticalAlertsAlreadyRequested) {
-        logger.log('[Notification] First app launch - requesting all permissions including critical alerts...');
-        
-        // Request all permissions including critical alerts on first launch
-        const permissions = await this.requestPermissions();
-        
-        logger.log('[Notification] First launch permission result:', {
-          granted: permissions.granted,
-          criticalAlerts: permissions.ios?.allowsCriticalAlerts,
-        });
-        
-        // Mark that we've requested critical alerts (can only be done once)
-        await setCriticalAlertsRequested();
-        
-        // Store that we've made the initial request
-        await setNotificationsGloballyEnabled(permissions.granted);
-      } else {
-        logger.log('[Notification] Permissions previously requested or critical alerts already requested, skipping automatic request');
-      }
-    } catch (error) {
-      logger.error('[Notification] Error during first launch permission request:', error);
-    }
+    logger.log('[Notification] requestPermissionsOnFirstLaunch() is deprecated - permissions now requested via WelcomeScreen');
+    // This method intentionally does nothing now
+    // Permission flow has been moved to WelcomeScreen for better UX and E2E test compatibility
   }
 
   /**

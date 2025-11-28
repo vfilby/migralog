@@ -6,12 +6,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList, MainTabsParamList } from './types';
 import { useTheme } from '../theme';
 import { navigationRef } from './NavigationService';
+import { useOnboardingStore } from '../store/onboardingStore';
 
 // Main screens (stay at root level)
 import DashboardScreen from '../screens/DashboardScreen';
 import AnalyticsScreen from '../screens/AnalyticsScreen';
 import LogUpdateScreen from '../screens/LogUpdateScreen';
 import DailyStatusPromptScreen from '../screens/DailyStatusPromptScreen';
+import WelcomeScreen from '../screens/WelcomeScreen';
 
 // Episode screens
 import EpisodesScreen from '../screens/episode/EpisodesScreen';
@@ -134,9 +136,24 @@ function MainTabs() {
 }
 
 export default function AppNavigator() {
+  const { isOnboardingComplete, isLoading } = useOnboardingStore();
+
+  // Don't render navigator until we know onboarding status
+  // App.tsx loading screen will show during this time
+  if (isLoading) {
+    return null;
+  }
+
   return (
     <NavigationContainer ref={navigationRef}>
-      <Stack.Navigator>
+      <Stack.Navigator
+        initialRouteName={isOnboardingComplete ? 'MainTabs' : 'Welcome'}
+      >
+        <Stack.Screen
+          name="Welcome"
+          component={WelcomeScreen}
+          options={{ headerShown: false }}
+        />
         <Stack.Screen
           name="MainTabs"
           component={MainTabs}
