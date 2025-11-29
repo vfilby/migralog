@@ -1,5 +1,0 @@
-*.db
-*.db-*
-daemon.pid
-daemon.log
-bd.sock
