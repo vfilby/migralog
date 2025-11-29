@@ -684,8 +684,25 @@ export async function dismissMedicationNotification(medicationId: string, schedu
  */
 export async function rescheduleAllMedicationNotifications(): Promise<void> {
   try {
-    // Cancel all existing medication notifications
-    await Notifications.cancelAllScheduledNotificationsAsync();
+    // Cancel only medication-specific notifications (not daily check-in or other notifications)
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    const medicationNotifs = scheduled.filter((n) => {
+      const data = n.content.data as Record<string, unknown> | null | undefined;
+      if (!data) return false;
+      
+      const medicationId = data.medicationId as string | undefined;
+      const medicationIds = data.medicationIds as string[] | undefined;
+      const type = data.type as string | undefined;
+      
+      // Filter for medication reminders (have medicationId or medicationIds, but not type 'daily_checkin')
+      return (medicationId || medicationIds) && type !== 'daily_checkin';
+    });
+
+    for (const notif of medicationNotifs) {
+      await Notifications.cancelScheduledNotificationAsync(notif.identifier);
+    }
+
+    logger.log('[Notification] Cancelled', medicationNotifs.length, 'medication notifications');
 
     // Get all active medications with schedules
     const medications = await medicationRepository.getActive();
@@ -746,5 +763,86 @@ export async function rescheduleAllMedicationNotifications(): Promise<void> {
     logger.log('[Notification] Rescheduled all medication notifications with grouping:', notificationIds.size);
   } catch (error) {
     logger.error('[Notification] Error rescheduling all notifications:', error);
+  }
+}
+
+/**
+ * Reschedule ALL notifications (medications AND daily check-in)
+ * This should be called on app startup and when global notifications are toggled
+ */
+export async function rescheduleAllNotifications(): Promise<void> {
+  try {
+    logger.log('[Notification] Rescheduling all notifications (medications and daily check-in)');
+
+    // Cancel ALL scheduled notifications once
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    logger.log('[Notification] Cancelled all scheduled notifications');
+
+    // Get all active medications with schedules
+    const medications = await medicationRepository.getActive();
+    const items: Array<{ medication: Medication; schedule: MedicationSchedule }> = [];
+
+    for (const medication of medications) {
+      if (medication.type === 'preventative' && medication.scheduleFrequency === 'daily') {
+        const schedules = await medicationScheduleRepository.getByMedicationId(medication.id);
+        for (const schedule of schedules) {
+          if (schedule.enabled) {
+            items.push({ medication, schedule });
+          }
+        }
+      }
+    }
+
+    // Group by time
+    const grouped = new Map<string, Array<{ medication: Medication; schedule: MedicationSchedule }>>();
+
+    for (const item of items) {
+      const time = item.schedule.time;
+      if (!grouped.has(time)) {
+        grouped.set(time, []);
+      }
+      grouped.get(time)!.push(item);
+    }
+
+    const notificationIds = new Map<string, string>();
+
+    // Schedule notifications for each time group
+    for (const [time, groupItems] of grouped.entries()) {
+      if (groupItems.length === 1) {
+        // Single medication - use single notification
+        const { medication, schedule } = groupItems[0];
+        const notificationId = await scheduleSingleNotification(medication, schedule);
+        if (notificationId) {
+          notificationIds.set(schedule.id, notificationId);
+        }
+      } else {
+        // Multiple medications - use grouped notification
+        const notificationId = await scheduleMultipleNotification(groupItems, time);
+        if (notificationId) {
+          // Store the same notification ID for all schedules in this group
+          for (const { schedule } of groupItems) {
+            notificationIds.set(schedule.id, notificationId);
+          }
+        }
+      }
+    }
+
+    // Update schedules with notification IDs
+    for (const [scheduleId, notificationId] of notificationIds.entries()) {
+      await medicationScheduleRepository.update(scheduleId, {
+        notificationId,
+      });
+    }
+
+    logger.log('[Notification] Rescheduled', notificationIds.size, 'medication notifications');
+
+    // Reschedule daily check-in notification
+    const { dailyCheckinService } = await import('./dailyCheckinService');
+    await dailyCheckinService.scheduleNotification();
+
+    logger.log('[Notification] All notifications rescheduled successfully');
+  } catch (error) {
+    logger.error('[Notification] Error rescheduling all notifications:', error);
+    throw error;
   }
 }
