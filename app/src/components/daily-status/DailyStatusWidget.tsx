@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { logger } from '../utils/logger';
+import { logger } from '../../utils/logger';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { useTheme, ThemeColors } from '../theme';
-import { useDailyStatusStore } from '../store/dailyStatusStore';
+import { useTheme, ThemeColors } from '../../theme';
+import { useDailyStatusStore } from '../../store/dailyStatusStore';
 import { format, subDays } from 'date-fns';
 import { useNavigation } from '@react-navigation/native';
 

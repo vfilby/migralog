@@ -1,9 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Switch, TouchableOpacity, Alert, Linking, Platform, AppState, AppStateStatus } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme, ThemeColors } from '../theme';
-import { useNotificationSettingsStore, FollowUpDelay } from '../store/notificationSettingsStore';
-import { logger } from '../utils/logger';
+import { useTheme, ThemeColors } from '../../theme';
+import { useNotificationSettingsStore, FollowUpDelay } from '../../store/notificationSettingsStore';
+import { logger } from '../../utils/logger';
 import * as Notifications from 'expo-notifications';
 
 const FOLLOW_UP_DELAY_OPTIONS: { value: FollowUpDelay; label: string }[] = [

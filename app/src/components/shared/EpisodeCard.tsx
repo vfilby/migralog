@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { format } from 'date-fns';
-import { Episode, IntensityReading } from '../models/types';
-import { locationService } from '../services/locationService';
-import { useTheme, ThemeColors } from '../theme';
-import { intensityRepository } from '../database/episodeRepository';
-import IntensitySparkline from './IntensitySparkline';
-import { formatDurationLong } from '../utils/dateFormatting';
+import { Episode, IntensityReading } from '../../models/types';
+import { locationService } from '../../services/locationService';
+import { useTheme, ThemeColors } from '../../theme';
+import { intensityRepository } from '../../database/episodeRepository';
+import IntensitySparkline from '../analytics/IntensitySparkline';
+import { formatDurationLong } from '../../utils/dateFormatting';
 
 interface EpisodeCardProps {
   episode: Episode;

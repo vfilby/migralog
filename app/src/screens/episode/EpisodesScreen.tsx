@@ -5,7 +5,7 @@ import { Episode } from '../../models/types';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
-import EpisodeCard from '../../components/EpisodeCard';
+import EpisodeCard from '../../components/shared/EpisodeCard';
 import { useTheme, ThemeColors } from '../../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;

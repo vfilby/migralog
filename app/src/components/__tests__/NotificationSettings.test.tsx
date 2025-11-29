@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react-native';
 import { Linking, Alert } from 'react-native';
-import NotificationSettings from '../NotificationSettings';
+import NotificationSettings from '../shared/NotificationSettings';
 import { useNotificationSettingsStore } from '../../store/notificationSettingsStore';
 import { ThemeProvider } from '../../theme/ThemeContext';
 import * as Notifications from 'expo-notifications';

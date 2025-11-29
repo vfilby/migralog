@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useTheme, ThemeColors } from '../theme';
 import { TimeRangeDays } from '../models/types';
-import MonthlyCalendarView from '../components/MonthlyCalendarView';
-import TimeRangeSelector from '../components/TimeRangeSelector';
-import EpisodeStatistics from '../components/EpisodeStatistics';
-import IntensityHistogram from '../components/IntensityHistogram';
-import MedicationUsageStatistics from '../components/MedicationUsageStatistics';
+import MonthlyCalendarView from '../components/analytics/MonthlyCalendarView';
+import TimeRangeSelector from '../components/analytics/TimeRangeSelector';
+import EpisodeStatistics from '../components/analytics/EpisodeStatistics';
+import IntensityHistogram from '../components/analytics/IntensityHistogram';
+import MedicationUsageStatistics from '../components/analytics/MedicationUsageStatistics';
 
 const createStyles = (theme: ThemeColors) => StyleSheet.create({
   container: {

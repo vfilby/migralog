@@ -28,7 +28,7 @@ import { formatDosageWithUnit, formatMedicationDoseDisplay } from '../../utils/m
 import { useMedicationStatusStyles } from '../../utils/medicationStyling';
 import { getLast7DaysTimeline as calculateLast7DaysTimeline } from '../../utils/medicationTimeline';
 import { getCategoryName } from '../../utils/presetMedications';
-import NotificationSettings from '../../components/NotificationSettings';
+import NotificationSettings from '../../components/shared/NotificationSettings';
 import { isLargeTextModeEnabled } from '../../utils/textScaling';
 import { Ionicons } from '@expo/vector-icons';
 

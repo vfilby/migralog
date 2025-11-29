@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text } from 'react-native';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react-native';
-import MonthlyCalendarView from '../MonthlyCalendarView';
+import MonthlyCalendarView from '../analytics/MonthlyCalendarView';
 import { useDailyStatusStore } from '../../store/dailyStatusStore';
 import { ThemeProvider } from '../../theme/ThemeContext';
 import { DailyStatusLog } from '../../models/types';
