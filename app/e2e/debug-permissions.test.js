@@ -15,11 +15,9 @@ describe('DEBUG: Onboarding Permissions', () => {
   });
 
   beforeEach(async () => {
-    console.log('[DEBUG] Triggering onboarding flow...');
-    await device.openURL({
-      url: 'migraine-tracker://test/trigger-onboarding?token=detox'
-    });
-    await waitForAnimation(1000);
+    console.log('[DEBUG] App should naturally start at onboarding with fresh install');
+    // No deep link needed - fresh app starts at welcome screen
+    await waitForAnimation(2000);
   });
 
   it('should navigate to final step and handle permissions', async () => {
