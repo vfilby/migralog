@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Episode, IntensityReading, EpisodeNote, SymptomLog, PainLocationLog } from '../../models/types';
 import { useTheme, ThemeColors } from '../../theme';
-import IntensitySparkline from '../IntensitySparkline';
+import IntensitySparkline from '../analytics/IntensitySparkline';
 import { TimelineEventRenderer } from './TimelineEventRenderer';
 import { 
   MedicationDoseWithDetails, 

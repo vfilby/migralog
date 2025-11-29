@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import MedicationAutocomplete from '../MedicationAutocomplete';
+import MedicationAutocomplete from '../shared/MedicationAutocomplete';
 import { ThemeProvider } from '../../theme';
 import * as presetMedicationsModule from '../../utils/presetMedications';
 

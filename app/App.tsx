@@ -11,7 +11,7 @@ import { dailyCheckinService } from './src/services/notifications/dailyCheckinSe
 import { useOnboardingStore } from './src/store/onboardingStore';
 import { logger } from './src/utils/logger';
 import { performanceMonitor } from './src/utils/performance';
-import ErrorBoundary from './src/components/ErrorBoundary';
+import ErrorBoundary from './src/components/shared/ErrorBoundary';
 import * as Sentry from '@sentry/react-native';
 
 // Only initialize Sentry if explicitly enabled or in production

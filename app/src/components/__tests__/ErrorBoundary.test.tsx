@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import { Text, View, TouchableOpacity } from 'react-native';
-import ErrorBoundary from '../ErrorBoundary';
+import ErrorBoundary from '../shared/ErrorBoundary';
 import { errorLogger } from '../../services/errorLogger';
 
 // Mock dependencies
@@ -19,7 +19,7 @@ jest.mock('../../utils/logger', () => ({
   },
 }));
 
-jest.mock('../ErrorRecoveryScreen', () => {
+jest.mock('../shared/ErrorRecoveryScreen', () => {
   const React = require('react');
   const { View, Text, TouchableOpacity } = require('react-native');
   return ({ error, onReset }: any) => (

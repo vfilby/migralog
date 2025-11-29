@@ -9,7 +9,7 @@ import {
   getBackupMetadata,
 } from './backupUtils';
 
-class RestoreService {
+class BackupRestorer {
   async restoreBackup(backupId: string): Promise<void> {
     try {
       logger.log('[Restore] Starting backup restore:', backupId);
@@ -37,7 +37,7 @@ class RestoreService {
         'storage',
         'Failed to restore backup',
         error as Error,
-        { context: 'RestoreService.restoreBackup', backupId }
+        { context: 'BackupRestorer.restoreBackup', backupId }
       );
       throw new Error('Failed to restore backup: ' + (error as Error).message);
     }
@@ -160,7 +160,7 @@ class RestoreService {
         'storage',
         'Failed to restore snapshot backup',
         error as Error,
-        { context: 'RestoreService.restoreSnapshotBackup', backupId }
+        { context: 'BackupRestorer.restoreSnapshotBackup', backupId }
       );
       throw error;
     }
@@ -216,4 +216,4 @@ class RestoreService {
   }
 }
 
-export const restoreService = new RestoreService();
+export const backupRestorer = new BackupRestorer();
