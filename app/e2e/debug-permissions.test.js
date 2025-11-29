@@ -35,31 +35,59 @@ describe('DEBUG: Onboarding Permissions', () => {
     
     // Step 2: Disclaimer  
     console.log('[DEBUG] On disclaimer step...');
-    await waitFor(element(by.id('disclaimer-step')))
+    await waitFor(element(by.text('Medical Disclaimer')))
       .toBeVisible()
       .withTimeout(5000);
-    await element(by.id('next-button')).tap();
-    await waitForAnimation(1000); // Slow down
+    await element(by.text('Continue')).tap();
+    await waitForAnimation(2000); // Wait longer for permission request
     
     // Step 3: Notifications
     console.log('[DEBUG] On notification permissions step...');
-    await waitFor(element(by.id('notification-permissions-step')))
+    await waitFor(element(by.text('Enable Notifications')))
       .toBeVisible()
       .withTimeout(5000);
-    await element(by.id('next-button')).tap();
-    await waitForAnimation(1000); // Slow down
+    
+    console.log('[DEBUG] About to tap Continue on notifications step - this should trigger notification permissions...');
+    await element(by.text('Continue')).tap();
+    
+    // Handle notification permission dialogs
+    console.log('[DEBUG] Looking for notification permission dialog...');
+    try {
+      await waitFor(element(by.text('Allow')))
+        .toBeVisible()
+        .withTimeout(5000);
+      console.log('[DEBUG] ✅ Found notification permission dialog');
+      await element(by.text('Allow')).tap();
+      console.log('[DEBUG] ✅ Clicked Allow on notification permission');
+      
+      // Wait for potential second dialog (Critical Alerts)
+      try {
+        await waitFor(element(by.text('Allow')))
+          .toBeVisible()
+          .withTimeout(3000);
+        console.log('[DEBUG] ✅ Found critical alerts permission dialog');
+        await element(by.text('Allow')).tap();
+        console.log('[DEBUG] ✅ Clicked Allow on critical alerts permission');
+      } catch (error) {
+        console.log('[DEBUG] No second permission dialog found');
+      }
+    } catch (error) {
+      console.log('[DEBUG] ⚠️ No notification permission dialog found:', error.message);
+    }
+    
+    await waitForAnimation(2000); // Wait for permissions to process
 
     // Step 4: Location (final step)
-    console.log('[DEBUG] Step 2: Verify we are on final step');
-    await waitFor(element(by.id('location-permissions-step')))
+    console.log('[DEBUG] Verify we are on final step (location)');
+    await waitFor(element(by.text('Location Services')))
       .toBeVisible()
-      .withTimeout(5000);
+      .withTimeout(10000);
 
-    await expect(element(by.id('enable-notifications-button'))).toBeVisible();
+    await expect(element(by.text('Finish Setup'))).toBeVisible();
     console.log('[DEBUG] ✅ Reached final step successfully');
 
-    console.log('[DEBUG] Step 3: Tap "Finish Setup" button and wait...');
-    await element(by.id('enable-notifications-button')).tap();
+    console.log('[DEBUG] Step 3: Tap "Finish Setup" button - this should trigger location permissions...');
+    await element(by.text('Finish Setup')).tap();
     
     // Give more time for the tap to register
     await waitForAnimation(2000);
