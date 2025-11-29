@@ -1,12 +1,12 @@
 import React, { useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useTheme, ThemeColors } from '../../theme';
-import { useMedicationStore } from '../../store/medicationStore';
-import { TimeRangeDays } from '../../models/types';
+import { useTheme, ThemeColors } from '../theme';
+import { useMedicationStore } from '../store/medicationStore';
+import { TimeRangeDays } from '../models/types';
 import {
   getDateRangeForDays,
   calculatePerMedicationStats,
-} from '../../utils/analyticsUtils';
+} from '../utils/analyticsUtils';
 
 interface MedicationUsageStatisticsProps {
   selectedRange: TimeRangeDays;

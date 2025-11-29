@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
-import TimeRangeSelector from '../analytics/TimeRangeSelector';
+import TimeRangeSelector from '../TimeRangeSelector';
 import { ThemeProvider } from '../../theme/ThemeContext';
 
 const renderWithTheme = (component: React.ReactElement) => {

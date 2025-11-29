@@ -47,15 +47,6 @@ coverage/
 # test artifacts (detox screenshots, traces)
 artifacts/
 
-# Build logs
-*.log
-build.log
-build-fromsource.log
-expo-output.log
-expo-upgrade.log
-
-# Database files
-*.db
-app.db
+.env.local
 
 .env.local

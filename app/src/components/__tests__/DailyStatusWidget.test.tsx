@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react-native';
-import DailyStatusWidget from '../daily-status/DailyStatusWidget';
+import DailyStatusWidget from '../DailyStatusWidget';
 import { useDailyStatusStore } from '../../store/dailyStatusStore';
 import { ThemeProvider } from '../../theme/ThemeContext';
 

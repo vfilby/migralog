@@ -1,4 +1,4 @@
-import { backupRestorer as restoreService } from '../backup/BackupRestorer';
+import { restoreService } from '../backup/RestoreService';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as DocumentPicker from 'expo-document-picker';
 import { migrationRunner } from '../../database/migrations';

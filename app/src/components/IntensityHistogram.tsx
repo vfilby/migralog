@@ -1,13 +1,13 @@
 import React, { useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useTheme, ThemeColors } from '../../theme';
-import { useAnalyticsStore } from '../../store/analyticsStore';
-import { TimeRangeDays } from '../../models/types';
+import { useTheme, ThemeColors } from '../theme';
+import { useAnalyticsStore } from '../store/analyticsStore';
+import { TimeRangeDays } from '../models/types';
 import {
   calculateIntensityHistogram,
   IntensityHistogramData,
-} from '../../utils/analyticsUtils';
-import { getPainColor } from '../../utils/painScale';
+} from '../utils/analyticsUtils';
+import { getPainColor } from '../utils/painScale';
 
 interface IntensityHistogramProps {
   selectedRange: TimeRangeDays;

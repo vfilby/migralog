@@ -23,7 +23,7 @@ jest.mock('react-native-maps', () => ({
   Marker: () => null,
 }));
 jest.mock('@react-native-community/datetimepicker', () => () => null);
-jest.mock('../../components/analytics/IntensitySparkline', () => () => null);
+jest.mock('../../components/IntensitySparkline', () => () => null);
 jest.mock('../../utils/painScale', () => ({
   getPainColor: jest.fn(() => '#FF0000'),
   getPainLevel: jest.fn(() => ({ label: 'High' })),

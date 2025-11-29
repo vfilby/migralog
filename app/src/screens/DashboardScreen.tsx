@@ -8,8 +8,8 @@ import { format, isToday } from 'date-fns';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import EpisodeCard from '../components/shared/EpisodeCard';
-import DailyStatusWidget from '../components/daily-status/DailyStatusWidget';
+import EpisodeCard from '../components/EpisodeCard';
+import DailyStatusWidget from '../components/DailyStatusWidget';
 import { useTheme, ThemeColors } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;

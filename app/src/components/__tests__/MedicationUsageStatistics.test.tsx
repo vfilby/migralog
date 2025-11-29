@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react-native';
-import MedicationUsageStatistics from '../analytics/MedicationUsageStatistics';
+import MedicationUsageStatistics from '../MedicationUsageStatistics';
 import { useMedicationStore } from '../../store/medicationStore';
 import { ThemeProvider } from '../../theme/ThemeContext';
 

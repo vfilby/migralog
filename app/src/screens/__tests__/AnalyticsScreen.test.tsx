@@ -12,7 +12,7 @@ jest.mock('../../store/episodeStore', () => ({
   })),
 }));
 
-jest.mock('../../components/analytics/MonthlyCalendarView', () => {
+jest.mock('../../components/MonthlyCalendarView', () => {
   const { View, Text } = require('react-native');
   return function MockMonthlyCalendarView() {
     return (
@@ -23,7 +23,7 @@ jest.mock('../../components/analytics/MonthlyCalendarView', () => {
   };
 });
 
-jest.mock('../../components/analytics/TimeRangeSelector', () => {
+jest.mock('../../components/TimeRangeSelector', () => {
   const { View, Text } = require('react-native');
   return function MockTimeRangeSelector() {
     return (
@@ -34,7 +34,7 @@ jest.mock('../../components/analytics/TimeRangeSelector', () => {
   };
 });
 
-jest.mock('../../components/analytics/EpisodeStatistics', () => {
+jest.mock('../../components/EpisodeStatistics', () => {
   const { View, Text } = require('react-native');
   return function MockEpisodeStatistics() {
     return (
@@ -45,7 +45,7 @@ jest.mock('../../components/analytics/EpisodeStatistics', () => {
   };
 });
 
-jest.mock('../../components/analytics/IntensityHistogram', () => {
+jest.mock('../../components/IntensityHistogram', () => {
   const { View, Text } = require('react-native');
   return function MockIntensityHistogram() {
     return (
@@ -56,7 +56,7 @@ jest.mock('../../components/analytics/IntensityHistogram', () => {
   };
 });
 
-jest.mock('../../components/analytics/MedicationUsageStatistics', () => {
+jest.mock('../../components/MedicationUsageStatistics', () => {
   const { View, Text } = require('react-native');
   return function MockMedicationUsageStatistics() {
     return (

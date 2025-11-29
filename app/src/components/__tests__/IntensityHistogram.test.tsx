@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react-native';
-import IntensityHistogram from '../analytics/IntensityHistogram';
+import IntensityHistogram from '../IntensityHistogram';
 import { useAnalyticsStore } from '../../store/analyticsStore';
 import { ThemeProvider } from '../../theme/ThemeContext';
 import { Episode, IntensityReading } from '../../models/types';
