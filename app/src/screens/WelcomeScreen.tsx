@@ -202,7 +202,7 @@ function WelcomeStep({ colors }: StepProps) {
       </View>
 
       <Text style={[styles.title, { color: colors.text }]}>
-        Welcome to MigraLog
+        Welcome to Migralog
       </Text>
 
       <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
