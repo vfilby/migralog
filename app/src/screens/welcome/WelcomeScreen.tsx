@@ -2,19 +2,19 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/types';
-import { useTheme } from '../theme';
-import { useOnboardingStore } from '../store/onboardingStore';
-import { notificationService } from '../services/notifications/notificationService';
-import { locationService } from '../services/locationService';
-import { logger } from '../utils/logger';
-import { TOTAL_STEPS, ONBOARDING_STEPS, PERMISSION_REQUEST_TIMEOUT_MS } from './welcome/constants';
+import { RootStackParamList } from '../../navigation/types';
+import { useTheme } from '../../theme';
+import { useOnboardingStore } from '../../store/onboardingStore';
+import { notificationService } from '../../services/notifications/notificationService';
+import { locationService } from '../../services/locationService';
+import { logger } from '../../utils/logger';
+import { TOTAL_STEPS, ONBOARDING_STEPS, PERMISSION_REQUEST_TIMEOUT_MS } from './constants';
 import {
   WelcomeStep,
   DisclaimerStep,
   NotificationPermissionsStep,
   LocationPermissionsStep,
-} from './welcome/steps';
+} from './steps';
 
 type WelcomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Welcome'>;
 
