@@ -31,10 +31,7 @@ const renderWithTheme = (component: React.ReactElement) => {
 
 describe('EpisodeInfoCards', () => {
   it('should render pain qualities when provided', () => {
-    const { debug } = renderWithTheme(<EpisodeInfoCards qualities={['throbbing', 'pulsing']} triggers={[]} />);
-    
-    // Debug output to see what's actually rendered
-    debug();
+    renderWithTheme(<EpisodeInfoCards qualities={['throbbing', 'pulsing']} triggers={[]} />);
     
     expect(screen.getByText('Pain Quality')).toBeTruthy();
     expect(screen.getByText('Throbbing')).toBeTruthy();
@@ -48,10 +45,7 @@ describe('EpisodeInfoCards', () => {
   });
 
   it('should render triggers when provided', () => {
-    const { debug } = renderWithTheme(<EpisodeInfoCards qualities={[]} triggers={['stress', 'lack_of_sleep']} />);
-    
-    // Debug output to see what's actually rendered
-    debug();
+    renderWithTheme(<EpisodeInfoCards qualities={[]} triggers={['stress', 'lack_of_sleep']} />);
     
     expect(screen.getByText('Possible Triggers')).toBeTruthy();
     expect(screen.getByText('Stress')).toBeTruthy();
@@ -65,10 +59,7 @@ describe('EpisodeInfoCards', () => {
   });
 
   it('should render both sections when both have data', () => {
-    const { debug } = renderWithTheme(<EpisodeInfoCards qualities={['throbbing']} triggers={['stress']} />);
-    
-    // Debug output to see what's actually rendered
-    debug();
+    renderWithTheme(<EpisodeInfoCards qualities={['throbbing']} triggers={['stress']} />);
     
     expect(screen.getByText('Pain Quality')).toBeTruthy();
     expect(screen.getByText('Throbbing')).toBeTruthy();
