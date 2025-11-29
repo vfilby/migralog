@@ -12,6 +12,9 @@ const { waitForAnimation } = require('./helpers');
  */
 describe('Onboarding Workflow', () => {
   beforeAll(async () => {
+    // Reset device to ensure clean permission state
+    await device.resetContentAndSettings();
+    
     // Launch app with fresh state (no permissions granted initially)
     await device.launchApp({
       newInstance: true,
@@ -105,12 +108,53 @@ describe('Onboarding Workflow', () => {
     // Complete onboarding - this will trigger permission requests
     await element(by.id('enable-notifications-button')).tap();
 
-    // Note: In E2E tests, we can't actually test the system permission dialogs
-    // because they are system-level and not part of our app's UI.
-    // However, we can verify that our app handles the permission responses correctly
-    // and navigates to the main app.
+    // Handle iOS system permission dialogs - be flexible about which ones appear
+    console.log('Handling iOS permission dialogs...');
 
-    await waitForAnimation(3000); // Give time for permission dialogs and processing
+    // Handle any permission dialog that appears (could be standard notifications or critical alerts)
+    let permissionDialogsHandled = 0;
+    const maxDialogs = 3; // notifications, critical alerts, location
+    
+    while (permissionDialogsHandled < maxDialogs) {
+      try {
+        // Look for any "Allow" button in permission dialogs
+        await waitFor(element(by.text('Allow')))
+          .toBeVisible()
+          .withTimeout(3000);
+        
+        permissionDialogsHandled++;
+        console.log(`✅ Permission dialog #${permissionDialogsHandled} appeared - clicking Allow`);
+        await element(by.text('Allow')).tap();
+        await waitForAnimation(1000); // Wait before checking for next dialog
+        
+      } catch (error) {
+        console.log(`⚠️ No more permission dialogs found (handled ${permissionDialogsHandled})`);
+        break;
+      }
+    }
+
+    // Third: Handle Location permission if it appears
+    try {
+      await waitFor(element(by.text('Allow Once')))
+        .toBeVisible()
+        .withTimeout(3000);
+      console.log('✅ Location permission dialog appeared');
+      await element(by.text('Allow Once')).tap();
+      console.log('✅ Location permission granted');
+    } catch (error) {
+      // Try alternative location permission text
+      try {
+        await waitFor(element(by.text('Allow While Using App')))
+          .toBeVisible()
+          .withTimeout(1000);
+        await element(by.text('Allow While Using App')).tap();
+        console.log('✅ Location permission granted (While Using App)');
+      } catch (error2) {
+        console.log('⚠️ Location permission dialog not found - may be already granted, denied, or timed out');
+      }
+    }
+
+    await waitForAnimation(3000); // Give time for all permissions to process
 
     // ======================
     // Verify Navigation to Main App
