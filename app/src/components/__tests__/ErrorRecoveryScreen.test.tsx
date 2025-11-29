@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
-import ErrorRecoveryScreen from '../ErrorRecoveryScreen';
+import ErrorRecoveryScreen from '../shared/ErrorRecoveryScreen';
 
 // Mock Alert
 jest.spyOn(Alert, 'alert');

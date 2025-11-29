@@ -8,8 +8,8 @@ import {
   Platform,
 } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { ScheduleFrequency, MedicationSchedule } from '../models/types';
-import { useTheme, ThemeColors } from '../theme';
+import { ScheduleFrequency, MedicationSchedule } from '../../models/types';
+import { useTheme, ThemeColors } from '../../theme';
 
 interface MedicationScheduleManagerProps {
   scheduleFrequency: ScheduleFrequency;

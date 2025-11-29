@@ -16,7 +16,7 @@ import { RootStackParamList } from '../../navigation/types';
 import { useMedicationStore } from '../../store/medicationStore';
 import { medicationRepository, medicationScheduleRepository } from '../../database/medicationRepository';
 import { MedicationType, ScheduleFrequency, MedicationSchedule } from '../../models/types';
-import MedicationScheduleManager from '../../components/MedicationScheduleManager';
+import MedicationScheduleManager from '../../components/shared/MedicationScheduleManager';
 import { useTheme, ThemeColors } from '../../theme';
 import { notificationService } from '../../services/notifications/notificationService';
 import { isLargeTextModeEnabled } from '../../utils/textScaling';

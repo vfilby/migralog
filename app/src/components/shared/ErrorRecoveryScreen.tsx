@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useColorScheme, Alert, ActivityIndicator } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
-import { useTheme } from '../theme';
-import { ThemeColors, lightColors, darkColors } from '../theme/colors';
-import { DB_PATH } from '../services/backup/backupUtils';
-import { logger } from '../utils/logger';
+import { useTheme } from '../../theme';
+import { ThemeColors, lightColors, darkColors } from '../../theme/colors';
+import { DB_PATH } from '../../services/backup/backupUtils';
+import { logger } from '../../utils/logger';
 
 interface ErrorRecoveryScreenProps {
   error: Error;

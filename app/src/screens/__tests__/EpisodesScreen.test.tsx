@@ -12,7 +12,7 @@ jest.mock('../../store/episodeStore', () => ({
   })),
 }));
 
-jest.mock('../../components/EpisodeCard', () => {
+jest.mock('../../components/shared/EpisodeCard', () => {
   const { View, Text, TouchableOpacity } = require('react-native');
   return function MockEpisodeCard({ episode, onPress }: any) {
     return (

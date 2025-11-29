@@ -1,6 +1,6 @@
 import React, { Component, ReactNode } from 'react';
-import { errorLogger } from '../services/errorLogger';
-import { logger } from '../utils/logger';
+import { errorLogger } from '../../services/errorLogger';
+import { logger } from '../../utils/logger';
 import ErrorRecoveryScreen from './ErrorRecoveryScreen';
 
 interface Props {

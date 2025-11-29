@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import Svg, { Path, Circle, Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
-import { getPainColor, PAIN_SCALE } from '../utils/painScale';
-import { IntensityReading } from '../models/types';
+import { getPainColor, PAIN_SCALE } from '../../utils/painScale';
+import { IntensityReading } from '../../models/types';
 
 interface IntensitySparklineProps {
   /**

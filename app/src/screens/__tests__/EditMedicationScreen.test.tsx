@@ -28,7 +28,7 @@ jest.mock('expo-image-picker', () => ({
   requestMediaLibraryPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
   launchImageLibraryAsync: jest.fn().mockResolvedValue({ canceled: true }),
 }));
-jest.mock('../../components/MedicationScheduleManager', () => {
+jest.mock('../../components/shared/MedicationScheduleManager', () => {
   const { View, Text } = require('react-native');
   return function MedicationScheduleManager() {
     return <View testID="medication-schedule-manager"><Text>Schedule Manager</Text></View>;
