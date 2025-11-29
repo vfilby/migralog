@@ -9,11 +9,12 @@ import { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme';
 import { useOnboardingStore } from '../store/onboardingStore';
 import { notificationService } from '../services/notifications/notificationService';
+import { locationService } from '../services/locationService';
 import { logger } from '../utils/logger';
 
 type WelcomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Welcome'>;
 
-const TOTAL_STEPS = 3;
+const TOTAL_STEPS = 4;
 
 export default function WelcomeScreen() {
   const navigation = useNavigation<WelcomeScreenNavigationProp>();
@@ -37,17 +38,34 @@ export default function WelcomeScreen() {
   const handleFinish = async () => {
     try {
       setIsRequestingPermissions(true);
-      logger.log('[WelcomeScreen] Requesting notification permissions');
+      logger.log('[WelcomeScreen] Requesting permissions');
 
-      // Request all permissions including critical alerts
-      const permissions = await notificationService.requestPermissions();
-
-      logger.log('[WelcomeScreen] Permission request result:', {
-        granted: permissions.granted,
-        criticalAlerts: permissions.ios?.allowsCriticalAlerts,
+      // Request notification permissions (original behavior)
+      const notificationPermissions = await notificationService.requestPermissions();
+      logger.log('[WelcomeScreen] Notification permission result:', {
+        granted: notificationPermissions.granted,
+        criticalAlerts: notificationPermissions.ios?.allowsCriticalAlerts,
       });
 
-      // Mark onboarding as complete regardless of permission result
+      // Request location permission with timeout to avoid hanging E2E tests
+      // E2E tests in simulator may hang on location permission requests
+      try {
+        const locationPromise = locationService.requestPermission();
+        const timeoutPromise = new Promise<boolean>((resolve) => {
+          setTimeout(() => {
+            logger.warn('[WelcomeScreen] Location permission request timed out (likely E2E test)');
+            resolve(false);
+          }, 3000); // 3 second timeout
+        });
+        
+        const locationGranted = await Promise.race([locationPromise, timeoutPromise]);
+        logger.log('[WelcomeScreen] Location permission result:', { granted: locationGranted });
+      } catch (locationError) {
+        logger.warn('[WelcomeScreen] Location permission request failed:', locationError);
+        // Continue without location permission
+      }
+
+      // Mark onboarding as complete regardless of permission results
       await completeOnboarding();
 
       // Navigate to main app
@@ -66,7 +84,7 @@ export default function WelcomeScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Progress Indicator */}
       <View style={styles.progressContainer}>
-        {[1, 2, 3].map((step) => (
+        {[1, 2, 3, 4].map((step) => (
           <View
             key={step}
             style={[
@@ -93,7 +111,8 @@ export default function WelcomeScreen() {
       >
         {currentStep === 1 && <WelcomeStep colors={colors} />}
         {currentStep === 2 && <DisclaimerStep colors={colors} />}
-        {currentStep === 3 && <PermissionsStep colors={colors} />}
+        {currentStep === 3 && <NotificationPermissionsStep colors={colors} />}
+        {currentStep === 4 && <LocationPermissionsStep colors={colors} />}
       </ScrollView>
 
       {/* Navigation Buttons */}
@@ -135,7 +154,7 @@ export default function WelcomeScreen() {
             testID="enable-notifications-button"
           >
             <Text style={styles.primaryButtonText}>
-              {isRequestingPermissions ? 'Setting up...' : 'Enable Notifications'}
+              {isRequestingPermissions ? 'Setting up...' : 'Finish Setup'}
             </Text>
           </TouchableOpacity>
         )}
@@ -246,7 +265,7 @@ function DisclaimerStep({ colors }: StepProps) {
 }
 
 // Step 3: Notification Permissions
-function PermissionsStep({ colors }: StepProps) {
+function NotificationPermissionsStep({ colors }: StepProps) {
   return (
     <View style={styles.stepContainer}>
       <View style={styles.iconContainer}>
@@ -298,6 +317,49 @@ function PermissionsStep({ colors }: StepProps) {
   );
 }
 
+// Step 4: Location Permissions
+function LocationPermissionsStep({ colors }: StepProps) {
+  return (
+    <View style={styles.stepContainer}>
+      <View style={styles.iconContainer}>
+        <Ionicons name="location-outline" size={72} color={colors.primary} />
+      </View>
+
+      <Text style={[styles.title, { color: colors.text }]}>
+        Location Services
+      </Text>
+
+      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+        Help track patterns with location context (optional)
+      </Text>
+
+      <View style={styles.permissionsContainer}>
+        <PermissionItem
+          icon="map-outline"
+          title="Episode Context"
+          description="Automatically capture location when starting new episodes"
+          colors={colors}
+        />
+        <PermissionItem
+          icon="shield-checkmark-outline"
+          title="Privacy Protected"
+          description="Location data stays private and secure on your device"
+          colors={colors}
+        />
+      </View>
+
+      <View style={[styles.infoBox, { backgroundColor: colors.card }]}>
+        <View style={styles.infoTextContainer}>
+          <Ionicons name="information-circle-outline" size={16} color={colors.primary} style={styles.infoIcon} />
+          <Text style={[styles.infoText, { color: colors.textSecondary }]}>
+            Location services are completely optional. You can always change this setting later in the app.
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 // Helper Components
 interface FeatureItemProps {
   icon: string;
@@ -344,7 +406,7 @@ function PermissionItem({ icon, title, description, colors }: PermissionItemProp
   const { theme } = useTheme();
   
   // Define which icons are Ionicons vs emojis
-  const isIonicon = ['warning', 'medical-outline', 'calendar-outline'].includes(icon);
+  const isIonicon = ['warning', 'medical-outline', 'calendar-outline', 'map-outline', 'shield-checkmark-outline'].includes(icon);
   
   // Choose appropriate color for each icon
   const getIconColor = () => {
@@ -355,6 +417,10 @@ function PermissionItem({ icon, title, description, colors }: PermissionItemProp
         return theme.primary;
       case 'calendar-outline':
         return theme.primary;
+      case 'map-outline':
+        return theme.primary;
+      case 'shield-checkmark-outline':
+        return theme.success;
       default:
         return theme.primary;
     }
