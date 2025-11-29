@@ -1,0 +1,1430 @@
+import * as Notifications from 'expo-notifications';
+import { logger } from '../../utils/logger';
+import { Medication, MedicationSchedule } from '../../models/types';
+import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../../database/medicationRepository';
+import { useNotificationSettingsStore } from '../../store/notificationSettingsStore';
+import { handleDailyCheckinNotification } from './dailyCheckinService';
+import {
+  areNotificationsGloballyEnabled as areNotificationsGloballyEnabledUtil,
+  setNotificationsGloballyEnabled as setNotificationsGloballyEnabledUtil,
+} from './notificationUtils';
+
+/**
+ * Handle incoming notifications and decide whether to show them
+ * Exported for testing purposes
+ */
+export async function handleIncomingNotification(notification: Notifications.Notification): Promise<Notifications.NotificationBehavior> {
+  // Check if this is a daily check-in notification
+  const dailyCheckinResult = await handleDailyCheckinNotification(notification);
+  if (dailyCheckinResult !== null) {
+    return dailyCheckinResult;
+  }
+
+  // Check if this is a medication reminder
+  const data = notification.request.content.data as {
+    medicationId?: string;
+    medicationIds?: string[];
+    scheduleId?: string;
+    scheduleIds?: string[];
+    time?: string;
+  };
+
+  // For single medication reminders, check if already logged
+  if (data.medicationId && data.scheduleId) {
+    // Get the medication to find the schedule time and timezone
+    const medication = await medicationRepository.getById(data.medicationId);
+    if (medication) {
+      const schedule = medication.schedule?.find(s => s.id === data.scheduleId);
+      if (schedule) {
+        const wasLogged = await medicationDoseRepository.wasLoggedForScheduleToday(
+          data.medicationId,
+          data.scheduleId,
+          schedule.time,
+          schedule.timezone
+        );
+
+        if (wasLogged) {
+          logger.log('[Notification] Medication already logged for schedule, suppressing notification:', {
+            medicationId: data.medicationId,
+            scheduleId: data.scheduleId,
+          });
+          // Don't show the notification
+          return {
+            shouldPlaySound: false,
+            shouldSetBadge: false,
+            shouldShowBanner: false,
+            shouldShowList: false,
+          };
+        }
+      }
+    }
+  }
+
+  // For multiple medication reminders, filter out already-logged medications
+  if (data.medicationIds && data.scheduleIds && data.time) {
+    const notLoggedMedications: string[] = [];
+    const notLoggedSchedules: string[] = [];
+
+    for (let i = 0; i < data.medicationIds.length; i++) {
+      const medicationId = data.medicationIds[i];
+      const scheduleId = data.scheduleIds[i];
+
+      // Get medication and schedule to find timezone
+      const medication = await medicationRepository.getById(medicationId);
+      const schedule = medication?.schedule?.find(s => s.id === scheduleId);
+
+      if (!schedule) {
+        // If schedule not found, skip this medication
+        continue;
+      }
+
+      const wasLogged = await medicationDoseRepository.wasLoggedForScheduleToday(
+        medicationId,
+        scheduleId,
+        data.time,
+        schedule.timezone
+      );
+
+      if (!wasLogged) {
+        notLoggedMedications.push(medicationId);
+        notLoggedSchedules.push(scheduleId);
+      }
+    }
+
+    // If all medications were logged, don't show notification
+    if (notLoggedMedications.length === 0) {
+      logger.log('[Notification] All medications already logged, suppressing notification');
+      return {
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+        shouldShowBanner: false,
+        shouldShowList: false,
+      };
+    }
+
+    // If some were logged, we still show the notification but ideally would update the content
+    // For now, we show the notification as-is (future enhancement: update content to show only unlogged meds)
+    if (notLoggedMedications.length < data.medicationIds.length) {
+      logger.log('[Notification] Some medications already logged, showing reminder for remaining:', {
+        total: data.medicationIds.length,
+        remaining: notLoggedMedications.length,
+      });
+    }
+  }
+
+  // Default behavior: show the notification
+  return {
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  };
+}
+
+// Configure notification behavior
+Notifications.setNotificationHandler({
+  handleNotification: handleIncomingNotification,
+});
+
+// Notification categories for action buttons
+const MEDICATION_REMINDER_CATEGORY = 'MEDICATION_REMINDER';
+const MULTIPLE_MEDICATION_REMINDER_CATEGORY = 'MULTIPLE_MEDICATION_REMINDER';
+
+export interface NotificationPermissions {
+  granted: boolean;
+  canAskAgain: boolean;
+  ios?: {
+    allowsAlert: boolean;
+    allowsSound: boolean;
+    allowsBadge: boolean;
+    allowsCriticalAlerts: boolean;
+  };
+}
+
+class NotificationService {
+  private initialized = false;
+  // Map to track follow-up notification IDs: key = "medicationId:scheduleId" or "multi:time"
+  private followUpNotifications = new Map<string, string>();
+
+  /**
+   * Initialize the notification service and register categories
+   */
+  async initialize(): Promise<void> {
+    if (this.initialized) return;
+
+    // Register notification categories with action buttons
+    await this.registerCategories();
+
+    // Set up notification response listeners
+    this.setupNotificationHandlers();
+
+    // NOTE: Permission request has been moved to WelcomeScreen onboarding flow
+    // This prevents blocking iOS permission dialogs during E2E tests
+    // and provides better UX by explaining permissions before requesting them
+
+    // Handle any pending notification response that arrived before app initialized
+    // This is critical for notification actions (like "Take All") that are tapped
+    // while the app is in the background or not running
+    const lastResponse = await Notifications.getLastNotificationResponseAsync();
+    if (lastResponse) {
+      logger.log('[Notification] Processing pending notification response from before app init:', {
+        actionIdentifier: lastResponse.actionIdentifier,
+      });
+      await this.handleNotificationResponse(lastResponse);
+    }
+
+    this.initialized = true;
+  }
+
+  /**
+   * Register notification categories with action buttons
+   */
+  private async registerCategories(): Promise<void> {
+    // Single medication reminder
+    await Notifications.setNotificationCategoryAsync(
+      MEDICATION_REMINDER_CATEGORY,
+      [
+        {
+          identifier: 'TAKE_NOW',
+          buttonTitle: '✓ Take Now',
+          options: {
+            opensAppToForeground: false,
+          },
+        },
+        {
+          identifier: 'SNOOZE_10',
+          buttonTitle: 'Snooze 10min',
+          options: {
+            opensAppToForeground: false,
+          },
+        },
+      ]
+    );
+
+    // Multiple medications reminder
+    await Notifications.setNotificationCategoryAsync(
+      MULTIPLE_MEDICATION_REMINDER_CATEGORY,
+      [
+        {
+          identifier: 'TAKE_ALL_NOW',
+          buttonTitle: '✓ Take All',
+          options: {
+            opensAppToForeground: false,
+          },
+        },
+        {
+          identifier: 'REMIND_LATER',
+          buttonTitle: 'Remind Later',
+          options: {
+            opensAppToForeground: false,
+          },
+        },
+        {
+          identifier: 'VIEW_DETAILS',
+          buttonTitle: 'View Details',
+          options: {
+            opensAppToForeground: true,
+          },
+        },
+      ]
+    );
+  }
+
+  /**
+   * Handle a notification response (shared logic for listener and pending responses)
+   */
+  private async handleNotificationResponse(response: Notifications.NotificationResponse): Promise<void> {
+    try {
+      const { actionIdentifier, notification } = response;
+      const data = notification.request.content.data as {
+        medicationId?: string;
+        medicationIds?: string[];
+        scheduleId?: string;
+        scheduleIds?: string[];
+        time?: string;
+      };
+
+      logger.log('[Notification] Response received:', {
+        actionIdentifier,
+        data,
+      });
+
+      switch (actionIdentifier) {
+        case 'TAKE_NOW':
+          if (data.medicationId && data.scheduleId) {
+            await this.handleTakeNow(data.medicationId, data.scheduleId);
+          }
+          break;
+        case 'SNOOZE_10':
+          if (data.medicationId && data.scheduleId) {
+            // Cancel follow-up reminder since user snoozed
+            await this.cancelFollowUpReminder(`${data.medicationId}:${data.scheduleId}`);
+            await this.handleSnooze(data.medicationId, data.scheduleId, 10);
+          }
+          break;
+        case 'TAKE_ALL_NOW':
+          if (data.medicationIds && data.scheduleIds) {
+            await this.handleTakeAllNow(data.medicationIds, data.scheduleIds, data.time);
+          }
+          break;
+        case 'REMIND_LATER':
+          if (data.medicationIds && data.scheduleIds && data.time) {
+            // Cancel follow-up reminder since user chose to snooze
+            await this.cancelFollowUpReminder(`multi:${data.time}`);
+            await this.handleRemindLater(data.medicationIds, data.scheduleIds, data.time, 10);
+          }
+          break;
+        case 'VIEW_DETAILS':
+          // This will be handled by navigation in the app
+          logger.log('[Notification] View details tapped, opening app');
+          break;
+        default:
+          // User tapped notification - cancel follow-up reminder
+          if (data.medicationId && data.scheduleId) {
+            await this.cancelFollowUpReminder(`${data.medicationId}:${data.scheduleId}`);
+          } else if (data.medicationIds && data.time) {
+            await this.cancelFollowUpReminder(`multi:${data.time}`);
+          }
+          logger.log('[Notification] Notification tapped, opening app');
+          break;
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('[Notification] Error handling notification response:', {
+        error: errorMessage,
+        errorStack: error instanceof Error ? error.stack : undefined,
+      });
+      // Log to error logger so we can track these failures
+      const { errorLogger } = await import('../errorLogger');
+      await errorLogger.log(
+        'general',
+        '[Notification] Unhandled error in notification response listener',
+        error instanceof Error ? error : undefined,
+        { context: 'notification_response_handling' }
+      );
+    }
+  }
+
+  /**
+   * Set up handlers for notification interactions
+   */
+  private setupNotificationHandlers(): void {
+    // Handle notification response (tap or action button)
+    Notifications.addNotificationResponseReceivedListener(async (response) => {
+      await this.handleNotificationResponse(response);
+    });
+
+    // Handle notifications received while app is in foreground
+    Notifications.addNotificationReceivedListener(async (notification) => {
+      logger.log('[Notification] Received in foreground:', notification);
+
+      // Schedule follow-up reminder if this is not already a follow-up
+      const data = notification.request.content.data as {
+        medicationId?: string;
+        medicationIds?: string[];
+        scheduleId?: string;
+        scheduleIds?: string[];
+        time?: string;
+        isFollowUp?: boolean;
+      };
+
+      // Don't schedule follow-up for follow-up notifications
+      if (data.isFollowUp) {
+        return;
+      }
+
+      // Schedule follow-up for single medication
+      if (data.medicationId && data.scheduleId) {
+        const medication = await medicationRepository.getById(data.medicationId);
+        if (medication) {
+          await this.scheduleFollowUpReminder(
+            data.medicationId,
+            data.scheduleId,
+            medication.name
+          );
+        }
+      }
+
+      // Schedule follow-up for multiple medications
+      if (data.medicationIds && data.scheduleIds && data.time) {
+        const medications = await Promise.all(
+          data.medicationIds.map(id => medicationRepository.getById(id))
+        );
+        const validMedications = medications.filter(m => m !== null) as Medication[];
+        if (validMedications.length > 0) {
+          const medicationNames = validMedications.map(m => m.name).join(', ');
+          await this.scheduleFollowUpReminder(
+            data.medicationIds,
+            data.scheduleIds,
+            medicationNames,
+            data.time
+          );
+        }
+      }
+    });
+  }
+
+  /**
+   * Handle "Take Now" action - log medication immediately
+   */
+  private async handleTakeNow(medicationId: string, scheduleId: string): Promise<void> {
+    try {
+      const medication = await medicationRepository.getById(medicationId);
+      if (!medication) {
+        logger.error('[Notification] Medication not found');
+        return;
+      }
+
+      // Cancel follow-up reminder since user took action
+      await this.cancelFollowUpReminder(`${medicationId}:${scheduleId}`);
+
+      // Find the schedule to get the dosage
+      const schedule = medication.schedule?.find(s => s.id === scheduleId);
+      const dosage = schedule?.dosage ?? medication.defaultQuantity ?? 1;
+
+      // Use store's logDose to update both database and state
+      // Dynamic import to avoid circular dependency
+      const { useMedicationStore } = await import('../../store/medicationStore');
+      const timestamp = Date.now();
+
+      // Validate dose object before passing to store
+      if (!medication.dosageAmount || !medication.dosageUnit) {
+        throw new Error(
+          `Invalid medication configuration: dosageAmount=${medication.dosageAmount}, dosageUnit=${medication.dosageUnit}`
+        );
+      }
+
+      await useMedicationStore.getState().logDose({
+        medicationId,
+        scheduleId,
+        timestamp,
+        quantity: dosage,
+        dosageAmount: medication.dosageAmount,
+        dosageUnit: medication.dosageUnit,
+        notes: 'Logged from notification',
+        updatedAt: timestamp,
+      });
+
+      logger.log('[Notification] Medication logged successfully:', {
+        medicationId,
+        medicationName: medication.name,
+        scheduleId,
+        dosage,
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('[Notification] Failed to log medication from notification:', {
+        medicationId,
+        scheduleId,
+        error: errorMessage,
+      });
+      // Re-throw so caller knows this failed
+      throw error;
+    }
+  }
+
+  /**
+   * Handle "Snooze" action - reschedule notification
+   */
+  private async handleSnooze(
+    medicationId: string,
+    scheduleId: string,
+    minutes: number
+  ): Promise<void> {
+    try {
+      const medication = await medicationRepository.getById(medicationId);
+      if (!medication) return;
+
+      // Get effective notification settings for this medication
+      const effectiveSettings = useNotificationSettingsStore.getState().getEffectiveSettings(medicationId);
+
+      // Schedule a new notification in X minutes
+      const snoozeTime = new Date(Date.now() + minutes * 60 * 1000);
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `Reminder: ${medication.name}`,
+          body: `Time to take your medication (snoozed)`,
+          data: { medicationId, scheduleId },
+          categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
+          sound: true,
+          // Time-sensitive notification settings for Android and iOS
+          ...(Notifications.AndroidNotificationPriority && {
+            priority: Notifications.AndroidNotificationPriority.HIGH,
+          }),
+          // Only set time-sensitive interruption level if enabled in settings
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...(effectiveSettings.timeSensitiveEnabled && { interruptionLevel: 'timeSensitive' } as any),
+        },
+        // Date trigger type is not exported by expo-notifications
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        trigger: snoozeTime as any,
+      });
+
+      logger.log('[Notification] Snoozed for', minutes, 'minutes');
+    } catch (error) {
+      logger.error('[Notification] Error snoozing notification:', error);
+    }
+  }
+
+  /**
+   * Handle "Take All Now" action - log all medications immediately
+   */
+  private async handleTakeAllNow(
+    medicationIds: string[],
+    scheduleIds: string[],
+    time?: string
+  ): Promise<void> {
+    try {
+      // Cancel follow-up reminder since user took action
+      if (time) {
+        await this.cancelFollowUpReminder(`multi:${time}`);
+      }
+
+      const results: string[] = [];
+
+      // Dynamic import to avoid circular dependency
+      const { useMedicationStore } = await import('../../store/medicationStore');
+
+      for (let i = 0; i < medicationIds.length; i++) {
+        const medicationId = medicationIds[i];
+        const scheduleId = scheduleIds[i];
+
+        try {
+          const medication = await medicationRepository.getById(medicationId);
+          if (!medication) {
+            logger.error('[Notification] Medication not found');
+            continue;
+          }
+
+          // Find the schedule to get the dosage
+          const schedule = medication.schedule?.find(s => s.id === scheduleId);
+          const dosage = schedule?.dosage ?? medication.defaultQuantity ?? 1;
+
+          // Validate dose object before passing to store
+          if (!medication.dosageAmount || !medication.dosageUnit) {
+            throw new Error(
+              `Invalid medication configuration for ${medication.name}: dosageAmount=${medication.dosageAmount}, dosageUnit=${medication.dosageUnit}`
+            );
+          }
+
+          // Use store's logDose to update both database and state
+          const timestamp = Date.now();
+          await useMedicationStore.getState().logDose({
+            medicationId,
+            scheduleId,
+            timestamp,
+            quantity: dosage,
+            dosageAmount: medication.dosageAmount,
+            dosageUnit: medication.dosageUnit,
+            notes: 'Logged from notification',
+            updatedAt: timestamp,
+          });
+
+          results.push(`${medication.name} - ${dosage} dose(s)`);
+          logger.log('[Notification] Medication logged successfully:', {
+            medicationId,
+            medicationName: medication.name,
+            scheduleId,
+            dosage,
+          });
+        } catch (itemError) {
+          const errorMessage = itemError instanceof Error ? itemError.message : String(itemError);
+          logger.error('[Notification] Failed to log medication from notification:', {
+            medicationId: medicationIds[i],
+            scheduleId: scheduleIds[i],
+            error: errorMessage,
+          });
+          // Continue trying other medications even if one fails
+          continue;
+        }
+      }
+
+      if (results.length > 0) {
+        logger.log('[Notification] All medications logged successfully:', results);
+      } else {
+        logger.error('[Notification] Failed to log any medications');
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('[Notification] Error processing multiple medication logging:', {
+        medicationCount: medicationIds.length,
+        error: errorMessage,
+      });
+      // Re-throw so caller knows this failed
+      throw error;
+    }
+  }
+
+  /**
+   * Handle "Remind Later" action - reschedule grouped notification
+   */
+  private async handleRemindLater(
+    medicationIds: string[],
+    scheduleIds: string[],
+    originalTime: string,
+    minutes: number
+  ): Promise<void> {
+    try {
+      const medications = await Promise.all(
+        medicationIds.map(id => medicationRepository.getById(id))
+      );
+
+      const validMedications = medications.filter(m => m !== null) as Medication[];
+      if (validMedications.length === 0) return;
+
+      // Get effective notification settings
+      // For grouped notifications, use time-sensitive if ANY medication has it enabled
+      const settingsStore = useNotificationSettingsStore.getState();
+      const anyTimeSensitive = validMedications.some((medication) => {
+        const settings = settingsStore.getEffectiveSettings(medication.id);
+        return settings.timeSensitiveEnabled;
+      });
+
+      // Schedule a new notification in X minutes
+      const snoozeTime = new Date(Date.now() + minutes * 60 * 1000);
+
+      const medicationNames = validMedications.map(m => m.name).join(', ');
+      const medicationCount = validMedications.length;
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `Reminder: ${medicationCount} Medications`,
+          body: `Time to take: ${medicationNames}`,
+          data: {
+            medicationIds,
+            scheduleIds,
+            time: originalTime,
+          },
+          categoryIdentifier: MULTIPLE_MEDICATION_REMINDER_CATEGORY,
+          sound: true,
+          // Time-sensitive notification settings for Android and iOS
+          ...(Notifications.AndroidNotificationPriority && {
+            priority: Notifications.AndroidNotificationPriority.HIGH,
+          }),
+          // Only set time-sensitive interruption level if enabled for any medication in the group
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...(anyTimeSensitive && { interruptionLevel: 'timeSensitive' } as any),
+        },
+        // Date trigger type is not exported by expo-notifications
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        trigger: snoozeTime as any,
+      });
+
+      logger.log('[Notification] Reminder snoozed for', minutes, 'minutes');
+    } catch (error) {
+      logger.error('[Notification] Error snoozing reminder:', error);
+    }
+  }
+
+  /**
+   * Request permissions on first app launch (including critical alerts)
+   * 
+   * @deprecated This method is no longer called automatically during initialization.
+   * Permission requests now happen in the WelcomeScreen onboarding flow.
+   * This method is kept for backwards compatibility and can be called manually
+   * from the WelcomeScreen or Settings.
+   */
+  private async requestPermissionsOnFirstLaunch(): Promise<void> {
+    logger.log('[Notification] requestPermissionsOnFirstLaunch() is deprecated - permissions now requested via WelcomeScreen');
+    // This method intentionally does nothing now
+    // Permission flow has been moved to WelcomeScreen for better UX and E2E test compatibility
+  }
+
+  /**
+   * Request notification permissions from the user
+   */
+  async requestPermissions(): Promise<NotificationPermissions> {
+    logger.log('[Notification] Requesting permissions including critical alerts...');
+    
+    const { status, canAskAgain, ios } = await Notifications.requestPermissionsAsync({
+      ios: {
+        allowAlert: true,
+        allowSound: true,
+        allowBadge: true,
+        allowCriticalAlerts: true, // Requires com.apple.developer.usernotifications.critical-alerts entitlement
+      },
+    });
+
+    const permissions: NotificationPermissions = {
+      granted: status === 'granted',
+      canAskAgain,
+      ios: ios
+        ? {
+            allowsAlert: ios.allowsAlert ?? false,
+            allowsSound: ios.allowsSound ?? false,
+            allowsBadge: ios.allowsBadge ?? false,
+            allowsCriticalAlerts: ios.allowsCriticalAlerts ?? false,
+          }
+        : undefined,
+    };
+
+    logger.log('[Notification] Permission request result:', {
+      granted: permissions.granted,
+      canAskAgain: permissions.canAskAgain,
+      criticalAlerts: permissions.ios?.allowsCriticalAlerts,
+    });
+
+    return permissions;
+  }
+
+  /**
+   * Get current notification permissions
+   */
+  async getPermissions(): Promise<NotificationPermissions> {
+    const { status, canAskAgain, ios } = await Notifications.getPermissionsAsync();
+
+    return {
+      granted: status === 'granted',
+      canAskAgain,
+      ios: ios
+        ? {
+            allowsAlert: ios.allowsAlert ?? false,
+            allowsSound: ios.allowsSound ?? false,
+            allowsBadge: ios.allowsBadge ?? false,
+            allowsCriticalAlerts: ios.allowsCriticalAlerts ?? false,
+          }
+        : undefined,
+    };
+  }
+
+  /**
+   * Schedule grouped notifications for all medications
+   * Groups medications by their schedule time and creates a single notification per time slot
+   */
+  async scheduleGroupedNotifications(
+    medications: Array<{ medication: Medication; schedule: MedicationSchedule }>
+  ): Promise<Map<string, string>> {
+    // Map of schedule time -> notification ID
+    const notificationIds = new Map<string, string>();
+
+    try {
+      // Check if notifications are globally enabled
+      const globallyEnabled = await this.areNotificationsGloballyEnabled();
+      if (!globallyEnabled) {
+        logger.log('[Notification] Notifications globally disabled, skipping scheduling');
+        return notificationIds;
+      }
+
+      // Group by time
+      const grouped = new Map<string, Array<{ medication: Medication; schedule: MedicationSchedule }>>();
+
+      for (const item of medications) {
+        if (!item.schedule.enabled) {
+          logger.log('[Notification] Schedule disabled, skipping:', item.schedule.id);
+          continue;
+        }
+
+        const time = item.schedule.time;
+        if (!grouped.has(time)) {
+          grouped.set(time, []);
+        }
+        grouped.get(time)!.push(item);
+      }
+
+      // Schedule notifications for each time group
+      for (const [time, items] of grouped.entries()) {
+        if (items.length === 1) {
+          // Single medication - use single notification
+          const { medication, schedule } = items[0];
+          const notificationId = await this.scheduleSingleNotification(medication, schedule);
+          if (notificationId) {
+            notificationIds.set(schedule.id, notificationId);
+          }
+        } else {
+          // Multiple medications - use grouped notification
+          const notificationId = await this.scheduleMultipleNotification(items, time);
+          if (notificationId) {
+            // Store the same notification ID for all schedules in this group
+            for (const { schedule } of items) {
+              notificationIds.set(schedule.id, notificationId);
+            }
+          }
+        }
+      }
+
+      return notificationIds;
+    } catch (error) {
+      logger.error('[Notification] Error scheduling grouped notifications:', error);
+      return notificationIds;
+    }
+  }
+
+  /**
+   * Schedule a notification for a single medication schedule
+   */
+  private async scheduleSingleNotification(
+    medication: Medication,
+    schedule: MedicationSchedule
+  ): Promise<string | null> {
+    try {
+      // Parse the time (HH:mm format)
+      const [hours, minutes] = schedule.time.split(':').map(Number);
+
+      // Get effective notification settings for this medication
+      const effectiveSettings = useNotificationSettingsStore.getState().getEffectiveSettings(medication.id);
+
+      logger.log('[Notification] Scheduling single medication for', hours, ':', minutes, {
+        timeSensitive: effectiveSettings.timeSensitiveEnabled,
+        followUpDelay: effectiveSettings.followUpDelay,
+      });
+
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `Time for ${medication.name}`,
+          body: `${schedule.dosage} dose(s) - ${medication.dosageAmount}${medication.dosageUnit} each`,
+          data: {
+            medicationId: medication.id,
+            scheduleId: schedule.id,
+          },
+          categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
+          sound: true,
+          // Time-sensitive notification settings for Android and iOS
+          ...(Notifications.AndroidNotificationPriority && {
+            priority: Notifications.AndroidNotificationPriority.HIGH,
+          }),
+          // Only set time-sensitive interruption level if enabled in settings
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...(effectiveSettings.timeSensitiveEnabled && { interruptionLevel: 'timeSensitive' } as any), // iOS: breaks through Focus modes
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour: hours,
+          minute: minutes,
+        },
+      });
+
+      logger.log('[Notification] Scheduled for', medication.name, 'at', schedule.time);
+
+      // Schedule follow-up reminder if enabled
+      if (effectiveSettings.followUpDelay !== 'off') {
+        await this.scheduleFollowUpForScheduledNotification(
+          medication,
+          schedule,
+          effectiveSettings.followUpDelay,
+          effectiveSettings.criticalAlertsEnabled
+        );
+      }
+
+      return notificationId;
+    } catch (error) {
+      logger.error('[Notification] Error scheduling single notification:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Schedule a grouped notification for multiple medications at the same time
+   */
+  private async scheduleMultipleNotification(
+    items: Array<{ medication: Medication; schedule: MedicationSchedule }>,
+    time: string
+  ): Promise<string | null> {
+    try {
+      // Parse the time (HH:mm format)
+      const [hours, minutes] = time.split(':').map(Number);
+
+      const medicationNames = items.map(({ medication }) => medication.name).join(', ');
+      const medicationCount = items.length;
+      const medicationIds = items.map(({ medication }) => medication.id);
+      const scheduleIds = items.map(({ schedule }) => schedule.id);
+
+      // Get effective notification settings
+      // For grouped notifications, use time-sensitive if ANY medication has it enabled
+      const settingsStore = useNotificationSettingsStore.getState();
+      const anyTimeSensitive = items.some(({ medication }) => {
+        const settings = settingsStore.getEffectiveSettings(medication.id);
+        return settings.timeSensitiveEnabled;
+      });
+
+      logger.log('[Notification] Scheduling combined notification for', medicationCount, 'medications at', time, {
+        timeSensitive: anyTimeSensitive,
+      });
+
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `Time for ${medicationCount} Medications`,
+          body: medicationNames,
+          data: {
+            medicationIds,
+            scheduleIds,
+            time,
+          },
+          categoryIdentifier: MULTIPLE_MEDICATION_REMINDER_CATEGORY,
+          sound: true,
+          // Time-sensitive notification settings for Android and iOS
+          ...(Notifications.AndroidNotificationPriority && {
+            priority: Notifications.AndroidNotificationPriority.HIGH,
+          }),
+          // Only set time-sensitive interruption level if enabled for any medication in the group
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...(anyTimeSensitive && { interruptionLevel: 'timeSensitive' } as any), // iOS: breaks through Focus modes
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour: hours,
+          minute: minutes,
+        },
+      });
+
+      logger.log('[Notification] Scheduled combined notification for', medicationCount, 'medications at', time);
+
+      // Schedule follow-up reminder if enabled for any medication in the group
+      // Use the most conservative setting (longest delay, enable critical if any has it)
+      const delays = items.map(({ medication }) => {
+        const settings = settingsStore.getEffectiveSettings(medication.id);
+        return settings.followUpDelay;
+      }).filter(d => d !== 'off') as number[];
+
+      const anyCritical = items.some(({ medication }) => {
+        const settings = settingsStore.getEffectiveSettings(medication.id);
+        return settings.criticalAlertsEnabled;
+      });
+
+      if (delays.length > 0) {
+        // Use the maximum delay from all medications in the group
+        const maxDelay = Math.max(...delays);
+        await this.scheduleFollowUpForScheduledMultipleNotification(
+          items,
+          time,
+          maxDelay,
+          anyCritical
+        );
+      }
+
+      return notificationId;
+    } catch (error) {
+      logger.error('[Notification] Error scheduling combined notification:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Schedule a follow-up reminder after the initial notification (immediate, not recurring)
+   * This is used when a notification is received while the app is in the foreground
+   * 
+   * Note: Critical alerts require special entitlement from Apple
+   * Request at: https://developer.apple.com/contact/request/notifications-critical-alerts-entitlement/
+   * 
+   * @deprecated This method is only used for foreground notifications. Scheduled notifications
+   * should use scheduleFollowUpForScheduledNotification instead.
+   */
+  private async scheduleFollowUpReminder(
+    medicationId: string | string[],
+    scheduleId: string | string[],
+    medicationName: string,
+    time?: string
+  ): Promise<void> {
+    try {
+      const isSingle = typeof medicationId === 'string';
+      
+      // Get settings to determine delay and critical alert preference
+      const settingsStore = useNotificationSettingsStore.getState();
+      let delayMinutes: number;
+      let useCriticalAlerts: boolean;
+
+      if (isSingle) {
+        const settings = settingsStore.getEffectiveSettings(medicationId as string);
+        if (settings.followUpDelay === 'off') {
+          logger.log('[Notification] Follow-up disabled for medication, skipping');
+          return;
+        }
+        delayMinutes = settings.followUpDelay;
+        useCriticalAlerts = settings.criticalAlertsEnabled;
+      } else {
+        // For multiple medications, use maximum delay and enable critical if any has it
+        const medicationIds = medicationId as string[];
+        const delays = medicationIds.map(id => {
+          const settings = settingsStore.getEffectiveSettings(id);
+          return settings.followUpDelay;
+        }).filter(d => d !== 'off') as number[];
+
+        if (delays.length === 0) {
+          logger.log('[Notification] Follow-up disabled for all medications, skipping');
+          return;
+        }
+
+        delayMinutes = Math.max(...delays);
+        useCriticalAlerts = medicationIds.some(id => {
+          const settings = settingsStore.getEffectiveSettings(id);
+          return settings.criticalAlertsEnabled;
+        });
+      }
+
+      // Schedule follow-up notification
+      const followUpTime = new Date(Date.now() + delayMinutes * 60 * 1000);
+
+      const key = isSingle
+        ? `${medicationId}:${scheduleId}`
+        : `multi:${time}`;
+
+      const title = isSingle
+        ? `Reminder: ${medicationName}`
+        : `Reminder: ${medicationName} (${Array.isArray(medicationId) ? medicationId.length : 1} medications)`;
+
+      logger.log('[Notification] Scheduling immediate follow-up for', medicationName, {
+        delayMinutes,
+        useCriticalAlerts,
+        at: followUpTime.toLocaleTimeString(),
+      });
+
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title,
+          body: 'Did you take your medication?',
+          data: isSingle
+            ? { medicationId, scheduleId, isFollowUp: true }
+            : { medicationIds: medicationId, scheduleIds: scheduleId, time, isFollowUp: true },
+          categoryIdentifier: isSingle
+            ? MEDICATION_REMINDER_CATEGORY
+            : MULTIPLE_MEDICATION_REMINDER_CATEGORY,
+          sound: true,
+          // Critical alert properties (only if enabled and entitlement is granted)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...(useCriticalAlerts && { critical: true } as any),
+          // Time-sensitive notification settings
+          ...(Notifications.AndroidNotificationPriority && {
+            priority: useCriticalAlerts 
+              ? Notifications.AndroidNotificationPriority.MAX
+              : Notifications.AndroidNotificationPriority.HIGH,
+          }),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...(useCriticalAlerts && { interruptionLevel: 'critical' } as any),
+        },
+        // Date trigger type is not exported by expo-notifications
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        trigger: followUpTime as any,
+      });
+
+      // Store the follow-up notification ID for later cancellation
+      this.followUpNotifications.set(key, notificationId);
+
+      logger.log('[Notification] Scheduled immediate follow-up reminder for', medicationName, 'at', followUpTime.toLocaleTimeString());
+    } catch (error) {
+      logger.error('[Notification] Error scheduling immediate follow-up reminder:', error);
+    }
+  }
+
+  /**
+   * Schedule a follow-up reminder for a scheduled notification (daily trigger)
+   * This schedules follow-up reminders that fire every day after the main notification
+   */
+  private async scheduleFollowUpForScheduledNotification(
+    medication: Medication,
+    schedule: MedicationSchedule,
+    delayMinutes: number,
+    useCriticalAlerts: boolean
+  ): Promise<void> {
+    try {
+      // Parse the scheduled time
+      const [hours, minutes] = schedule.time.split(':').map(Number);
+      
+      // Calculate follow-up time (add delay to scheduled time)
+      const followUpDate = new Date();
+      followUpDate.setHours(hours, minutes + delayMinutes, 0, 0);
+      
+      // If follow-up crosses midnight, adjust accordingly
+      let followUpHour = followUpDate.getHours();
+      let followUpMinute = followUpDate.getMinutes();
+
+      const key = `${medication.id}:${schedule.id}:followup`;
+
+      logger.log('[Notification] Scheduling daily follow-up for', medication.name, 'at', `${followUpHour}:${followUpMinute}`, {
+        delayMinutes,
+        useCriticalAlerts,
+      });
+
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `Reminder: ${medication.name}`,
+          body: 'Did you take your medication?',
+          data: {
+            medicationId: medication.id,
+            scheduleId: schedule.id,
+            isFollowUp: true,
+          },
+          categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
+          sound: true,
+          // Critical alert properties (only if enabled and entitlement is granted)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...(useCriticalAlerts && { critical: true } as any),
+          // Time-sensitive notification settings
+          ...(Notifications.AndroidNotificationPriority && {
+            priority: useCriticalAlerts 
+              ? Notifications.AndroidNotificationPriority.MAX
+              : Notifications.AndroidNotificationPriority.HIGH,
+          }),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...(useCriticalAlerts && { interruptionLevel: 'critical' } as any),
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour: followUpHour,
+          minute: followUpMinute,
+        },
+      });
+
+      // Store the follow-up notification ID for later cancellation
+      this.followUpNotifications.set(key, notificationId);
+
+      logger.log('[Notification] Scheduled daily follow-up reminder for', medication.name, 'at', `${followUpHour}:${followUpMinute}`);
+    } catch (error) {
+      logger.error('[Notification] Error scheduling daily follow-up reminder:', error);
+    }
+  }
+
+  /**
+   * Schedule a follow-up reminder for a scheduled multiple medication notification
+   */
+  private async scheduleFollowUpForScheduledMultipleNotification(
+    items: Array<{ medication: Medication; schedule: MedicationSchedule }>,
+    time: string,
+    delayMinutes: number,
+    useCriticalAlerts: boolean
+  ): Promise<void> {
+    try {
+      // Parse the scheduled time
+      const [hours, minutes] = time.split(':').map(Number);
+      
+      // Calculate follow-up time
+      const followUpDate = new Date();
+      followUpDate.setHours(hours, minutes + delayMinutes, 0, 0);
+      
+      const followUpHour = followUpDate.getHours();
+      const followUpMinute = followUpDate.getMinutes();
+
+      const medicationCount = items.length;
+      const medicationNames = items.map(({ medication }) => medication.name).join(', ');
+      const medicationIds = items.map(({ medication }) => medication.id);
+      const scheduleIds = items.map(({ schedule }) => schedule.id);
+
+      const key = `multi:${time}:followup`;
+
+      logger.log('[Notification] Scheduling daily follow-up for', medicationCount, 'medications at', `${followUpHour}:${followUpMinute}`, {
+        delayMinutes,
+        useCriticalAlerts,
+      });
+
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `Reminder: ${medicationCount} Medications`,
+          body: `Did you take: ${medicationNames}?`,
+          data: {
+            medicationIds,
+            scheduleIds,
+            time,
+            isFollowUp: true,
+          },
+          categoryIdentifier: MULTIPLE_MEDICATION_REMINDER_CATEGORY,
+          sound: true,
+          // Critical alert properties (only if enabled and entitlement is granted)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...(useCriticalAlerts && { critical: true } as any),
+          // Time-sensitive notification settings
+          ...(Notifications.AndroidNotificationPriority && {
+            priority: useCriticalAlerts 
+              ? Notifications.AndroidNotificationPriority.MAX
+              : Notifications.AndroidNotificationPriority.HIGH,
+          }),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...(useCriticalAlerts && { interruptionLevel: 'critical' } as any),
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour: followUpHour,
+          minute: followUpMinute,
+        },
+      });
+
+      // Store the follow-up notification ID for later cancellation
+      this.followUpNotifications.set(key, notificationId);
+
+      logger.log('[Notification] Scheduled daily follow-up reminder for', medicationCount, 'medications at', `${followUpHour}:${followUpMinute}`);
+    } catch (error) {
+      logger.error('[Notification] Error scheduling daily follow-up reminder for multiple medications:', error);
+    }
+  }
+
+  /**
+   * Cancel a follow-up reminder if it exists
+   */
+  private async cancelFollowUpReminder(key: string): Promise<void> {
+    const followUpId = this.followUpNotifications.get(key);
+    if (followUpId) {
+      try {
+        await Notifications.cancelScheduledNotificationAsync(followUpId);
+        this.followUpNotifications.delete(key);
+        logger.log('[Notification] Cancelled follow-up reminder:', key);
+      } catch (error) {
+        logger.error('[Notification] Error cancelling follow-up reminder:', error);
+      }
+    }
+  }
+
+  /**
+   * Schedule a notification for a medication schedule (legacy method, now uses grouped scheduling)
+   * @deprecated Use scheduleGroupedNotifications instead for better grouping support
+   */
+  async scheduleNotification(
+    medication: Medication,
+    schedule: MedicationSchedule
+  ): Promise<string | null> {
+    if (!schedule.enabled) {
+      logger.log('[Notification] Schedule disabled, skipping:', schedule.id);
+      return null;
+    }
+    return this.scheduleSingleNotification(medication, schedule);
+  }
+
+  /**
+   * Cancel a scheduled notification
+   */
+  async cancelNotification(notificationId: string): Promise<void> {
+    try {
+      await Notifications.cancelScheduledNotificationAsync(notificationId);
+      logger.log('[Notification] Cancelled:', notificationId);
+    } catch (error) {
+      logger.error('[Notification] Error cancelling notification:', error);
+    }
+  }
+
+  /**
+   * Cancel all notifications for a medication
+   */
+  async cancelMedicationNotifications(medicationId: string): Promise<void> {
+    try {
+      const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+      const medicationNotifs = scheduled.filter(
+        // Notification data type is dynamic
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (n) => (n.content.data as any)?.medicationId === medicationId
+      );
+
+      for (const notif of medicationNotifs) {
+        await Notifications.cancelScheduledNotificationAsync(notif.identifier);
+      }
+
+      logger.log('[Notification] Cancelled', medicationNotifs.length, 'notifications for medication');
+    } catch (error) {
+      logger.error('[Notification] Error cancelling medication notifications:', error);
+    }
+  }
+
+  /**
+   * Cancel scheduled medication reminder for a specific schedule
+   * This is used when medication is logged before the scheduled reminder time
+   * to prevent the notification from firing after the dose was already taken
+   *
+   * Handles both single and grouped notifications:
+   * - Single: medicationId and scheduleId in data
+   * - Grouped: medicationIds[] and scheduleIds[] arrays in data
+   */
+  async cancelScheduledMedicationReminder(medicationId: string, scheduleId?: string): Promise<void> {
+    try {
+      const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+      let cancelledCount = 0;
+
+      for (const notif of scheduled) {
+        const data = notif.content.data as {
+          medicationId?: string;
+          medicationIds?: string[];
+          scheduleId?: string;
+          scheduleIds?: string[];
+        };
+
+        let shouldCancel = false;
+
+        // Single medication notification
+        if (data.medicationId === medicationId) {
+          if (scheduleId) {
+            // Only cancel if scheduleId matches (for medications with multiple daily schedules)
+            shouldCancel = data.scheduleId === scheduleId;
+          } else {
+            shouldCancel = true;
+          }
+        }
+
+        // Grouped notification - check if this medication/schedule is in the group
+        if (data.medicationIds && data.scheduleIds) {
+          for (let i = 0; i < data.medicationIds.length; i++) {
+            if (data.medicationIds[i] === medicationId) {
+              if (scheduleId) {
+                shouldCancel = data.scheduleIds[i] === scheduleId;
+              } else {
+                shouldCancel = true;
+              }
+              break;
+            }
+          }
+        }
+
+        if (shouldCancel) {
+          await Notifications.cancelScheduledNotificationAsync(notif.identifier);
+          cancelledCount++;
+          logger.log('[Notification] Cancelled scheduled reminder:', {
+            notificationId: notif.identifier,
+            medicationId,
+            scheduleId,
+          });
+        }
+      }
+
+      if (cancelledCount > 0) {
+        logger.log('[Notification] Cancelled', cancelledCount, 'scheduled reminders for medication');
+      }
+    } catch (error) {
+      logger.error('[Notification] Error cancelling scheduled medication reminder:', error);
+    }
+  }
+
+  /**
+   * Get all scheduled notifications
+   */
+  async getAllScheduledNotifications(): Promise<Notifications.NotificationRequest[]> {
+    return await Notifications.getAllScheduledNotificationsAsync();
+  }
+
+  /**
+   * Check if notifications are globally enabled
+   */
+  async areNotificationsGloballyEnabled(): Promise<boolean> {
+    return areNotificationsGloballyEnabledUtil();
+  }
+
+  /**
+   * Set global notification toggle state
+   * When disabled: cancels all scheduled notifications
+   * When enabled: reschedules all medication reminders
+   */
+  async setGlobalNotificationsEnabled(enabled: boolean): Promise<void> {
+    try {
+      await setNotificationsGloballyEnabledUtil(enabled);
+
+      if (!enabled) {
+        // Disable: Cancel all notifications
+        await this.cancelAllNotifications();
+        logger.log('[Notification] All notifications cancelled (global toggle disabled)');
+      } else {
+        // Enable: Reschedule all medication reminders
+        await this.rescheduleAllMedicationNotifications();
+        logger.log('[Notification] All notifications rescheduled (global toggle enabled)');
+      }
+    } catch (error) {
+      logger.error('[Notification] Error setting global toggle:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Cancel all notifications
+   */
+  async cancelAllNotifications(): Promise<void> {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    logger.log('[Notification] Cancelled all notifications');
+  }
+
+  /**
+   * Dismiss presented notifications for a medication
+   * This removes notifications from the notification tray when medication is logged from the app
+   *
+   * For grouped notifications (multiple medications at the same time):
+   * - If scheduleId is provided, only dismisses if BOTH medicationId AND scheduleId match
+   * - This ensures medications with multiple daily schedules only dismiss the correct notification
+   * - Example: Med A at 9am and 9pm should only dismiss the 9am notification when logging the 9am dose
+   */
+  async dismissMedicationNotification(medicationId: string, scheduleId?: string): Promise<void> {
+    try {
+      // Get all presented notifications
+      const presentedNotifications = await Notifications.getPresentedNotificationsAsync();
+
+      logger.log('[Notification] Checking presented notifications to dismiss:', {
+        totalPresented: presentedNotifications.length,
+      });
+
+      for (const notification of presentedNotifications) {
+        const data = notification.request.content.data as {
+          medicationId?: string;
+          medicationIds?: string[];
+          scheduleId?: string;
+          scheduleIds?: string[];
+        };
+
+        // Check if this notification is for the medication being logged
+        let shouldDismiss = false;
+
+        // Single medication notification
+        if (data.medicationId === medicationId) {
+          // If scheduleId is provided, only dismiss if it matches
+          if (scheduleId) {
+            shouldDismiss = data.scheduleId === scheduleId;
+          } else {
+            shouldDismiss = true;
+          }
+        }
+
+        // Multiple medication notification - check if this medication is in the group
+        if (data.medicationIds?.includes(medicationId)) {
+          if (scheduleId) {
+            // Find the index of the medication and check if schedule matches
+            const medIndex = data.medicationIds.indexOf(medicationId);
+            shouldDismiss = data.scheduleIds?.[medIndex] === scheduleId;
+          } else {
+            shouldDismiss = true;
+          }
+        }
+
+        if (shouldDismiss) {
+          await Notifications.dismissNotificationAsync(notification.request.identifier);
+          logger.log('[Notification] Dismissed notification for medication');
+        }
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('[Notification] Error dismissing medication notification:', {
+        error: errorMessage,
+      });
+    }
+  }
+
+  /**
+   * Reschedule all medication notifications with grouping
+   * This should be called after any medication schedule changes
+   */
+  async rescheduleAllMedicationNotifications(): Promise<void> {
+    try {
+      // Cancel all existing medication notifications
+      await this.cancelAllNotifications();
+
+      // Get all active medications with schedules
+      const medications = await medicationRepository.getActive();
+      const items: Array<{ medication: Medication; schedule: MedicationSchedule }> = [];
+
+      for (const medication of medications) {
+        if (medication.type === 'preventative' && medication.scheduleFrequency === 'daily') {
+          const schedules = await medicationScheduleRepository.getByMedicationId(medication.id);
+          for (const schedule of schedules) {
+            if (schedule.enabled) {
+              items.push({ medication, schedule });
+            }
+          }
+        }
+      }
+
+      // Schedule grouped notifications
+      const notificationIds = await this.scheduleGroupedNotifications(items);
+
+      // Update schedules with notification IDs
+      for (const [scheduleId, notificationId] of notificationIds.entries()) {
+        await medicationScheduleRepository.update(scheduleId, {
+          notificationId,
+        });
+      }
+
+      logger.log('[Notification] Rescheduled all medication notifications with grouping:', notificationIds.size);
+    } catch (error) {
+      logger.error('[Notification] Error rescheduling all notifications:', error);
+    }
+  }
+}
+
+export const notificationService = new NotificationService();
