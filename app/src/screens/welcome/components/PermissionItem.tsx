@@ -3,12 +3,11 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../theme';
 import { StepProps } from '../constants';
-import { IONICON_NAMES } from '../constants';
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
 
 interface PermissionItemProps {
-  icon: string;
+  icon: IoniconName;
   title: string;
   description: string;
   colors: StepProps['colors'];
@@ -20,7 +19,6 @@ interface PermissionItemProps {
  */
 export function PermissionItem({ icon, title, description, colors }: PermissionItemProps) {
   const { theme } = useTheme();
-  const isIonicon = IONICON_NAMES.has(icon);
   
   /**
    * Choose appropriate color for each icon based on its purpose
@@ -39,15 +37,11 @@ export function PermissionItem({ icon, title, description, colors }: PermissionI
   return (
     <View style={styles.permissionItem}>
       <View style={styles.permissionIconContainer}>
-        {isIonicon ? (
-          <Ionicons 
-            name={icon as IoniconName} 
-            size={32} 
-            color={getIconColor()} 
-          />
-        ) : (
-          <Text style={styles.permissionIcon}>{icon}</Text>
-        )}
+        <Ionicons 
+          name={icon} 
+          size={32} 
+          color={getIconColor()} 
+        />
       </View>
       <View style={styles.permissionText}>
         <Text style={[styles.permissionTitle, { color: colors.text }]}>
@@ -65,10 +59,6 @@ const styles = StyleSheet.create({
   permissionItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-  },
-  permissionIcon: {
-    fontSize: 32,
-    marginRight: 16,
   },
   permissionIconContainer: {
     marginRight: 16,
