@@ -23,8 +23,27 @@ export default function WelcomeScreen() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isRequestingPermissions, setIsRequestingPermissions] = useState(false);
 
-  const handleNext = () => {
-    if (currentStep < TOTAL_STEPS) {
+  const handleNext = async () => {
+    if (currentStep === 3) {
+      // Step 3 -> 4: Request notification permissions
+      try {
+        setIsRequestingPermissions(true);
+        logger.log('[WelcomeScreen] Requesting notification permissions on step 3');
+        
+        // Request notification permissions
+        const notificationGranted = await notificationService.requestPermissions();
+        logger.log('[WelcomeScreen] Notification permission result:', { granted: notificationGranted });
+        
+        // Continue to next step regardless of permission result
+        setCurrentStep(currentStep + 1);
+      } catch (error) {
+        logger.error('[WelcomeScreen] Error requesting notification permissions:', error);
+        // Continue to next step even if permission request fails
+        setCurrentStep(currentStep + 1);
+      } finally {
+        setIsRequestingPermissions(false);
+      }
+    } else if (currentStep < TOTAL_STEPS) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -38,17 +57,9 @@ export default function WelcomeScreen() {
   const handleFinish = async () => {
     try {
       setIsRequestingPermissions(true);
-      logger.log('[WelcomeScreen] Requesting permissions');
-
-      // Request notification permissions (original behavior)
-      const notificationPermissions = await notificationService.requestPermissions();
-      logger.log('[WelcomeScreen] Notification permission result:', {
-        granted: notificationPermissions.granted,
-        criticalAlerts: notificationPermissions.ios?.allowsCriticalAlerts,
-      });
+      logger.log('[WelcomeScreen] Completing onboarding and requesting location permission');
 
       // Request location permission with timeout to avoid hanging E2E tests
-      // E2E tests in simulator may hang on location permission requests
       try {
         const locationPromise = locationService.requestPermission();
         const timeoutPromise = new Promise<boolean>((resolve) => {
@@ -65,13 +76,14 @@ export default function WelcomeScreen() {
         // Continue without location permission
       }
 
-      // Mark onboarding as complete regardless of permission results
+      // Mark onboarding as complete
+      logger.log('[WelcomeScreen] Completing onboarding');
       await completeOnboarding();
 
       // Navigate to main app
       navigation.replace('MainTabs');
     } catch (error) {
-      logger.error('[WelcomeScreen] Error requesting permissions:', error);
+      logger.error('[WelcomeScreen] Error completing onboarding:', error);
       // Still mark as complete and continue
       await completeOnboarding();
       navigation.replace('MainTabs');
@@ -137,9 +149,12 @@ export default function WelcomeScreen() {
                 currentStep === 1 && styles.primaryButtonFullWidth,
               ]}
               onPress={handleNext}
+              disabled={isRequestingPermissions}
               testID="next-button"
             >
-              <Text style={styles.primaryButtonText}>Continue</Text>
+              <Text style={styles.primaryButtonText}>
+                {isRequestingPermissions && currentStep === 3 ? 'Requesting...' : 'Continue'}
+              </Text>
             </TouchableOpacity>
           </>
         ) : (
