@@ -31,6 +31,7 @@ import {
   cancelScheduledMedicationReminder,
   dismissMedicationNotification,
   rescheduleAllMedicationNotifications,
+  rescheduleAllNotifications,
 } from './medicationNotifications';
 
 // Re-export types and functions for backwards compatibility
@@ -613,8 +614,8 @@ class NotificationService {
         await cancelAllNotifications();
         logger.log('[Notification] All notifications cancelled (global toggle disabled)');
       } else {
-        // Enable: Reschedule all medication reminders
-        await rescheduleAllMedicationNotifications();
+        // Enable: Reschedule all notifications (medications and daily check-in)
+        await rescheduleAllNotifications();
         logger.log('[Notification] All notifications rescheduled (global toggle enabled)');
       }
     } catch (error) {
@@ -633,6 +634,10 @@ class NotificationService {
 
   async rescheduleAllMedicationNotifications(): Promise<void> {
     return rescheduleAllMedicationNotifications();
+  }
+
+  async rescheduleAllNotifications(): Promise<void> {
+    return rescheduleAllNotifications();
   }
 }
 

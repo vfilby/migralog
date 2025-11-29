@@ -35,6 +35,7 @@ export {
   cancelScheduledMedicationReminder,
   dismissMedicationNotification,
   rescheduleAllMedicationNotifications,
+  rescheduleAllNotifications,
 } from './medicationNotifications';
 
 export {

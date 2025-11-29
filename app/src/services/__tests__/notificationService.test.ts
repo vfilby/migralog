@@ -2286,7 +2286,7 @@ describe('notificationService', () => {
   });
 
   describe('rescheduleAllMedicationNotifications', () => {
-    it('should cancel all notifications and reschedule for active medications', async () => {
+    it('should cancel only medication notifications and reschedule for active medications', async () => {
       const mockMedication: Medication = {
         id: 'med-123',
         name: 'Test Med',
@@ -2308,16 +2308,32 @@ describe('notificationService', () => {
         enabled: true,
       };
 
+      // Mock scheduled notifications - one medication, one daily check-in
+      const mockScheduledNotifs = [
+        {
+          identifier: 'med-notif-1',
+          content: { data: { medicationId: 'med-123', scheduleId: 'sched-123' } },
+        },
+        {
+          identifier: 'daily-checkin-1',
+          content: { data: { type: 'daily_checkin' } },
+        },
+      ];
+
       (medicationRepository.getActive as jest.Mock).mockResolvedValue([mockMedication]);
       (medicationScheduleRepository.getByMedicationId as jest.Mock).mockResolvedValue([mockSchedule]);
-      (Notifications.cancelAllScheduledNotificationsAsync as jest.Mock).mockResolvedValue(undefined);
+      (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockResolvedValue(mockScheduledNotifs);
+      (Notifications.cancelScheduledNotificationAsync as jest.Mock).mockResolvedValue(undefined);
       (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('new-notif-id');
       (medicationScheduleRepository.update as jest.Mock).mockResolvedValue(mockSchedule);
 
       await notificationService.rescheduleAllMedicationNotifications();
 
       // Verify workflow
-      expect(Notifications.cancelAllScheduledNotificationsAsync).toHaveBeenCalled();
+      expect(Notifications.getAllScheduledNotificationsAsync).toHaveBeenCalled();
+      // Should only cancel medication notification, not daily check-in
+      expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledTimes(1);
+      expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('med-notif-1');
       expect(medicationRepository.getActive).toHaveBeenCalled();
       expect(medicationScheduleRepository.getByMedicationId).toHaveBeenCalledWith('med-123');
       expect(Notifications.scheduleNotificationAsync).toHaveBeenCalled();
@@ -2446,6 +2462,57 @@ describe('notificationService', () => {
           }),
         })
       );
+    });
+  });
+
+  describe('rescheduleAllNotifications', () => {
+    it('should cancel all notifications and reschedule both medications and daily check-in', async () => {
+      const mockMedication: Medication = {
+        id: 'med-123',
+        name: 'Test Med',
+        type: 'preventative',
+        scheduleFrequency: 'daily',
+        dosageAmount: 100,
+        dosageUnit: 'mg',
+        active: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      const mockSchedule: MedicationSchedule = {
+        id: 'sched-123',
+        medicationId: 'med-123',
+        time: '09:00',
+        timezone: 'America/Los_Angeles',
+        dosage: 1,
+        enabled: true,
+      };
+
+      (medicationRepository.getActive as jest.Mock).mockResolvedValue([mockMedication]);
+      (medicationScheduleRepository.getByMedicationId as jest.Mock).mockResolvedValue([mockSchedule]);
+      (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockResolvedValue([]);
+      (Notifications.cancelAllScheduledNotificationsAsync as jest.Mock).mockResolvedValue(undefined);
+      (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('new-notif-id');
+      (medicationScheduleRepository.update as jest.Mock).mockResolvedValue(mockSchedule);
+      (AsyncStorage.getItem as jest.Mock).mockResolvedValue('true');
+
+      await notificationService.rescheduleAllNotifications();
+
+      // Verify all notifications were cancelled first
+      expect(Notifications.cancelAllScheduledNotificationsAsync).toHaveBeenCalled();
+      
+      // Verify medication notifications were rescheduled
+      expect(medicationRepository.getActive).toHaveBeenCalled();
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalled();
+    });
+
+    it('should handle errors gracefully when rescheduling all notifications', async () => {
+      (Notifications.cancelAllScheduledNotificationsAsync as jest.Mock).mockRejectedValue(
+        new Error('Cancel failed')
+      );
+
+      // Should throw the error for proper error handling upstream
+      await expect(notificationService.rescheduleAllNotifications()).rejects.toThrow('Cancel failed');
     });
   });
 

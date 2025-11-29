@@ -73,8 +73,12 @@ function App() {
 
       // Initialize daily check-in service
       await dailyCheckinService.initialize();
-      await dailyCheckinService.scheduleNotification();
       logger.log('Daily check-in service initialized');
+
+      // Reschedule all notifications on startup to ensure they persist after app updates
+      // This handles both medication reminders and daily check-in
+      await notificationService.rescheduleAllNotifications();
+      logger.log('All notifications rescheduled on startup');
 
       // Initialize test deep links (dev only)
       if (__DEV__) {
