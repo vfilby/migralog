@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react-native';
-import EpisodeStatistics from '../analytics/EpisodeStatistics';
+import EpisodeStatistics from '../EpisodeStatistics';
 import { useAnalyticsStore } from '../../store/analyticsStore';
 import { dailyStatusRepository } from '../../database/dailyStatusRepository';
 import { ThemeProvider } from '../../theme/ThemeContext';

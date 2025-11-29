@@ -38,7 +38,7 @@ jest.mock('expo-image-picker', () => ({
   launchImageLibraryAsync: jest.fn().mockResolvedValue({ canceled: true }),
   launchCameraAsync: jest.fn().mockResolvedValue({ canceled: true }),
 }));
-jest.mock('../../components/shared/MedicationScheduleManager', () => {
+jest.mock('../../components/MedicationScheduleManager', () => {
   const { View, Text } = require('react-native');
   return function MedicationScheduleManager({ onSchedulesChange }: any) {
     return (

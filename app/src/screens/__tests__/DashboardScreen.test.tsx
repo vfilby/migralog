@@ -9,13 +9,13 @@ import { useDailyStatusStore } from '../../store/dailyStatusStore';
 jest.mock('../../store/episodeStore');
 jest.mock('../../store/medicationStore');
 jest.mock('../../store/dailyStatusStore');
-jest.mock('../../components/daily-status/DailyStatusWidget', () => {
+jest.mock('../../components/DailyStatusWidget', () => {
   const { View, Text } = require('react-native');
   return function DailyStatusWidget() {
     return <View testID="daily-status-widget"><Text>Daily Status</Text></View>;
   };
 });
-jest.mock('../../components/shared/EpisodeCard', () => {
+jest.mock('../../components/EpisodeCard', () => {
   const { TouchableOpacity, Text } = require('react-native');
   return function EpisodeCard({ episode, onPress, testID }: any) {
     return (

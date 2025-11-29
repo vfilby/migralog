@@ -8,8 +8,8 @@ import {
   Keyboard,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { useTheme, ThemeColors } from '../../theme';
-import { PresetMedication, searchMedications, getCategoryName } from '../../utils/presetMedications';
+import { useTheme, ThemeColors } from '../theme';
+import { PresetMedication, searchMedications, getCategoryName } from '../utils/presetMedications';
 
 interface MedicationAutocompleteProps {
   value: string;

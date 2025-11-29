@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react-native';
-import MedicationScheduleManager from '../shared/MedicationScheduleManager';
+import MedicationScheduleManager from '../MedicationScheduleManager';
 import { MedicationSchedule } from '../../models/types';
 import { ThemeProvider } from '../../theme/ThemeContext';
 

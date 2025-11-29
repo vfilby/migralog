@@ -22,7 +22,7 @@ import { notificationService, NotificationPermissions } from '../../services/not
 import { dailyCheckinService } from '../../services/notifications/dailyCheckinService';
 import { useDailyCheckinSettingsStore } from '../../store/dailyCheckinSettingsStore';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import NotificationSettings from '../../components/shared/NotificationSettings';
+import NotificationSettings from '../../components/NotificationSettings';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 

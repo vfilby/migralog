@@ -9,10 +9,10 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../../navigation/types';
-import { useDailyStatusStore } from '../../store/dailyStatusStore';
-import { DailyStatusLog } from '../../models/types';
-import { useTheme, ThemeColors } from '../../theme';
+import { RootStackParamList } from '../navigation/types';
+import { useDailyStatusStore } from '../store/dailyStatusStore';
+import { DailyStatusLog } from '../models/types';
+import { useTheme, ThemeColors } from '../theme';
 import {
   format,
   startOfMonth,

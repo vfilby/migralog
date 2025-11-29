@@ -1,6 +1,6 @@
 import React from 'react';
 import { render } from '@testing-library/react-native';
-import IntensitySparkline from '../analytics/IntensitySparkline';
+import IntensitySparkline from '../IntensitySparkline';
 import { IntensityReading } from '../../models/types';
 
 // Helper function to create test intensity readings

@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react-native';
-import EpisodeCard from '../shared/EpisodeCard';
+import EpisodeCard from '../EpisodeCard';
 import { Episode } from '../../models/types';
 import { locationService } from '../../services/locationService';
 import { ThemeProvider } from '../../theme/ThemeContext';

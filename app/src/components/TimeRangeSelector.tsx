@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, AccessibilityRole } from 'react-native';
-import { useTheme, ThemeColors } from '../../theme';
-import { TimeRangeDays, TIME_RANGE_OPTIONS } from '../../models/types';
+import { useTheme, ThemeColors } from '../theme';
+import { TimeRangeDays, TIME_RANGE_OPTIONS } from '../models/types';
 
 interface TimeRangeSelectorProps {
   selectedRange: TimeRangeDays;

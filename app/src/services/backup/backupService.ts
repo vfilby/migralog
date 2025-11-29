@@ -28,7 +28,7 @@ export {
 
 // Import the actual service implementations
 import { backupServiceImpl } from './BackupServiceImpl';
-import { backupRestorer } from './BackupRestorer';
+import { restoreService } from './RestoreService';
 import { getBackupMetadata } from './backupUtils';
 import * as SQLite from 'expo-sqlite';
 
@@ -94,13 +94,13 @@ class BackupService {
     return await backupServiceImpl.getDaysUntilNextWeeklyBackup();
   }
 
-  // Restore operations - delegate to BackupRestorer
+  // Restore operations - delegate to RestoreService
   async restoreBackup(backupId: string) {
-    return await backupRestorer.restoreBackup(backupId);
+    return await restoreService.restoreBackup(backupId);
   }
 
   async importDatabaseFile() {
-    return await backupRestorer.importDatabaseFile();
+    return await restoreService.importDatabaseFile();
   }
 
   // Utility methods

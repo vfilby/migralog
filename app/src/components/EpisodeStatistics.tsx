@@ -1,15 +1,15 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useTheme, ThemeColors } from '../../theme';
-import { useAnalyticsStore } from '../../store/analyticsStore';
-import { dailyStatusRepository } from '../../database/dailyStatusRepository';
-import { DailyStatusLog, TimeRangeDays } from '../../models/types';
+import { useTheme, ThemeColors } from '../theme';
+import { useAnalyticsStore } from '../store/analyticsStore';
+import { dailyStatusRepository } from '../database/dailyStatusRepository';
+import { DailyStatusLog, TimeRangeDays } from '../models/types';
 import {
   calculateEpisodeFrequency,
   calculateDurationMetrics,
   formatDuration,
   formatDateToYYYYMMDD,
-} from '../../utils/analyticsUtils';
+} from '../utils/analyticsUtils';
 
 interface EpisodeStatisticsProps {
   selectedRange: TimeRangeDays;
