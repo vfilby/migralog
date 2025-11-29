@@ -177,7 +177,7 @@ interface StepProps {
 // Step 1: Welcome and Introduction
 function WelcomeStep({ colors }: StepProps) {
   return (
-    <View style={styles.stepContainer}>
+    <View style={styles.stepContainer} testID="welcome-step">
       <View style={styles.iconContainer}>
         <Image 
           source={require('../../assets/icon.png')} 
@@ -227,7 +227,7 @@ function WelcomeStep({ colors }: StepProps) {
 // Step 2: Medical Disclaimer
 function DisclaimerStep({ colors }: StepProps) {
   return (
-    <View style={styles.stepContainer}>
+    <View style={styles.stepContainer} testID="disclaimer-step">
       <View style={styles.iconContainer}>
         <Text style={styles.icon}>⚕️</Text>
       </View>
@@ -267,7 +267,7 @@ function DisclaimerStep({ colors }: StepProps) {
 // Step 3: Notification Permissions
 function NotificationPermissionsStep({ colors }: StepProps) {
   return (
-    <View style={styles.stepContainer}>
+    <View style={styles.stepContainer} testID="notification-permissions-step">
       <View style={styles.iconContainer}>
         <Ionicons name="notifications-outline" size={72} color={colors.primary} />
       </View>
@@ -320,7 +320,7 @@ function NotificationPermissionsStep({ colors }: StepProps) {
 // Step 4: Location Permissions
 function LocationPermissionsStep({ colors }: StepProps) {
   return (
-    <View style={styles.stepContainer}>
+    <View style={styles.stepContainer} testID="location-permissions-step">
       <View style={styles.iconContainer}>
         <Ionicons name="location-outline" size={72} color={colors.primary} />
       </View>
