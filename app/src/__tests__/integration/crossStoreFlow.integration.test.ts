@@ -98,6 +98,7 @@ describe('Integration: Cross-Store Workflows', () => {
     (medicationDoseRepository.create as jest.Mock).mockResolvedValue(mockDose);
     (medicationDoseRepository.getAll as jest.Mock).mockResolvedValue([mockDose]);
     (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([mockDose]);
+    (medicationDoseRepository.getByDateRange as jest.Mock).mockResolvedValue([mockDose]);
 
     // Workflow: Start episode -> Add medication -> Log dose linked to episode
 
@@ -212,9 +213,9 @@ describe('Integration: Cross-Store Workflows', () => {
 
     // Mock dose repository: Before delete returns both doses, after delete only unlinked dose
     // Note: In real DB, CASCADE delete would remove linked dose automatically
-    (medicationDoseRepository.getByMedicationId as jest.Mock)
-      .mockResolvedValueOnce([linkedDose, unlinkedDose])  // Initial load for med-1
-      .mockResolvedValueOnce([unlinkedDose]);              // After cascade delete for med-1
+    (medicationDoseRepository.getByDateRange as jest.Mock)
+      .mockResolvedValueOnce([linkedDose, unlinkedDose])  // Initial load
+      .mockResolvedValueOnce([unlinkedDose]);              // After cascade delete
 
     // Load medications first (required for loadRecentDoses)
     await medStore.loadMedications();
@@ -278,6 +279,7 @@ describe('Integration: Cross-Store Workflows', () => {
     );
     (medicationDoseRepository.getMedicationUsageCounts as jest.Mock).mockResolvedValue(new Map());
     (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([]);
+    (medicationDoseRepository.getByDateRange as jest.Mock).mockResolvedValue([]);
     (episodeRepository.getCurrentEpisode as jest.Mock).mockImplementation(
       async (_db?: any) => activeEpisode
     );
@@ -311,6 +313,7 @@ describe('Integration: Cross-Store Workflows', () => {
       async (medicationId: string, _limit?: number, _db?: any) => 
         medicationId === 'med-1' ? [linkedDose] : []
     );
+    (medicationDoseRepository.getByDateRange as jest.Mock).mockResolvedValue([linkedDose]);
 
     const dose = await medStore.logDose({
       medicationId: medication.id,

@@ -67,6 +67,7 @@ describe('Integration: Medication Workflow', () => {
     (medicationDoseRepository.create as jest.Mock).mockResolvedValue(mockDose);
     (medicationDoseRepository.getAll as jest.Mock).mockResolvedValue([mockDose]);
     (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([mockDose]);
+    (medicationDoseRepository.getByDateRange as jest.Mock).mockResolvedValue([mockDose]);
 
     // Step 1: Add medication
     const created = await store.addMedication({

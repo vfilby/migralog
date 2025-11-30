@@ -456,6 +456,34 @@ export const medicationDoseRepository = {
     return results.map(this.mapRowToDose);
   },
 
+  /**
+   * Batch query to get recent doses for multiple medications
+   * 
+   * This method prevents N+1 query patterns by fetching doses for multiple
+   * medications in a single database query using an IN clause.
+   * 
+   * @param medicationIds Array of medication IDs to fetch doses for
+   * @param limit Maximum total number of doses to return across all medications (default: 50)
+   * @param db Optional database instance
+   * @returns Array of medication doses for all specified medications, ordered by timestamp descending
+   */
+  async getAllByMedicationIds(medicationIds: string[], limit = 50, db?: SQLite.SQLiteDatabase): Promise<MedicationDose[]> {
+    if (medicationIds.length === 0) {
+      return [];
+    }
+
+    const database = db || await getDatabase();
+
+    // Build placeholders for IN clause
+    const placeholders = medicationIds.map(() => '?').join(', ');
+    const results = await database.getAllAsync<MedicationDoseRow>(
+      `SELECT * FROM medication_doses WHERE medication_id IN (${placeholders}) ORDER BY timestamp DESC LIMIT ?`,
+      [...medicationIds, limit]
+    );
+
+    return results.map(this.mapRowToDose);
+  },
+
   async getById(id: string, db?: SQLite.SQLiteDatabase): Promise<MedicationDose | null> {
     const database = db || await getDatabase();
     const result = await database.getFirstAsync<MedicationDoseRow>(
@@ -696,6 +724,42 @@ export const medicationScheduleRepository = {
     const results = await database.getAllAsync<MedicationScheduleRow>(
       'SELECT * FROM medication_schedules WHERE medication_id = ? ORDER BY time ASC',
       [medicationId]
+    );
+
+    return results.map(row => ({
+      id: row.id,
+      medicationId: row.medication_id,
+      time: row.time,
+      timezone: row.timezone,
+      dosage: row.dosage,
+      enabled: row.enabled === 1,
+      notificationId: row.notification_id || undefined,
+      reminderEnabled: row.reminder_enabled === 1,
+    }));
+  },
+
+  /**
+   * Batch query to get schedules for multiple medications
+   * 
+   * This method prevents N+1 query patterns by fetching schedules for multiple
+   * medications in a single database query using an IN clause.
+   * 
+   * @param medicationIds Array of medication IDs to fetch schedules for
+   * @param db Optional database instance
+   * @returns Array of medication schedules for all specified medications
+   */
+  async getByMedicationIds(medicationIds: string[], db?: SQLite.SQLiteDatabase): Promise<MedicationSchedule[]> {
+    if (medicationIds.length === 0) {
+      return [];
+    }
+
+    const database = db || await getDatabase();
+
+    // Build placeholders for IN clause
+    const placeholders = medicationIds.map(() => '?').join(', ');
+    const results = await database.getAllAsync<MedicationScheduleRow>(
+      `SELECT * FROM medication_schedules WHERE medication_id IN (${placeholders}) ORDER BY time ASC`,
+      medicationIds
     );
 
     return results.map(row => ({

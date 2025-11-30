@@ -636,6 +636,154 @@ describe('medicationDoseRepository', () => {
     });
   });
 
+  describe("getAllByMedicationIds", () => {
+    it("should return doses for multiple medications", async () => {
+      const now = Date.now();
+      const medicationIds = ["med-123", "med-456"];
+      const mockRows = [
+        {
+          id: "dose-1",
+          medication_id: "med-123",
+          timestamp: now,
+          quantity: 1,
+          dosage_amount: 200,
+          dosage_unit: "mg",
+          status: "taken",
+          episode_id: null,
+          effectiveness_rating: null,
+          time_to_relief: null,
+          side_effects: null,
+          notes: null,
+          created_at: now,
+          updated_at: now,
+        },
+        {
+          id: "dose-2",
+          medication_id: "med-456",
+          timestamp: now - 1000,
+          quantity: 2,
+          dosage_amount: 100,
+          dosage_unit: "mg",
+          status: "taken",
+          episode_id: null,
+          effectiveness_rating: null,
+          time_to_relief: null,
+          side_effects: null,
+          notes: null,
+          created_at: now,
+          updated_at: now,
+        },
+      ];
+
+      mockDatabase.getAllAsync.mockResolvedValue(mockRows);
+
+      const result = await medicationDoseRepository.getAllByMedicationIds(medicationIds);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].medicationId).toBe("med-123");
+      expect(result[1].medicationId).toBe("med-456");
+      expect(mockDatabase.getAllAsync).toHaveBeenCalledWith(
+        "SELECT * FROM medication_doses WHERE medication_id IN (?, ?) ORDER BY timestamp DESC LIMIT ?",
+        ["med-123", "med-456", 50]
+      );
+    });
+
+    it("should return empty array when no medication IDs provided", async () => {
+      const result = await medicationDoseRepository.getAllByMedicationIds([]);
+
+      expect(result).toEqual([]);
+      expect(mockDatabase.getAllAsync).not.toHaveBeenCalled();
+    });
+
+    it("should support custom limit parameter", async () => {
+      const medicationIds = ["med-123"];
+      mockDatabase.getAllAsync.mockResolvedValue([]);
+
+      await medicationDoseRepository.getAllByMedicationIds(medicationIds, 25);
+
+      expect(mockDatabase.getAllAsync).toHaveBeenCalledWith(
+        "SELECT * FROM medication_doses WHERE medication_id IN (?) ORDER BY timestamp DESC LIMIT ?",
+        ["med-123", 25]
+      );
+    });
+  });
+
+});
+
+describe("medicationScheduleRepository", () => {
+  let mockDatabase: any;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    mockDatabase = {
+      runAsync: jest.fn().mockResolvedValue(undefined),
+      getFirstAsync: jest.fn().mockResolvedValue(null),
+      getAllAsync: jest.fn().mockResolvedValue([]),
+    };
+
+    (db.getDatabase as jest.Mock).mockResolvedValue(mockDatabase);
+    (db.generateId as jest.Mock).mockReturnValue("test-schedule-123");
+  });
+
+  describe("getByMedicationIds", () => {
+    it("should return schedules for multiple medications", async () => {
+      const medicationIds = ["med-123", "med-456"];
+      const mockRows = [
+        {
+          id: "schedule-1",
+          medication_id: "med-123",
+          time: "09:00",
+          timezone: "America/Los_Angeles",
+          dosage: 1,
+          enabled: 1,
+          notification_id: "notif-1",
+          reminder_enabled: 1,
+        },
+        {
+          id: "schedule-2",
+          medication_id: "med-456",
+          time: "21:00",
+          timezone: "America/New_York",
+          dosage: 2,
+          enabled: 0,
+          notification_id: null,
+          reminder_enabled: 0,
+        },
+      ];
+
+      mockDatabase.getAllAsync.mockResolvedValue(mockRows);
+
+      const result = await medicationScheduleRepository.getByMedicationIds(medicationIds);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].medicationId).toBe("med-123");
+      expect(result[1].medicationId).toBe("med-456");
+      expect(mockDatabase.getAllAsync).toHaveBeenCalledWith(
+        "SELECT * FROM medication_schedules WHERE medication_id IN (?, ?) ORDER BY time ASC",
+        ["med-123", "med-456"]
+      );
+    });
+
+    it("should return empty array when no medication IDs provided", async () => {
+      const result = await medicationScheduleRepository.getByMedicationIds([]);
+
+      expect(result).toEqual([]);
+      expect(mockDatabase.getAllAsync).not.toHaveBeenCalled();
+    });
+
+    it("should handle single medication ID", async () => {
+      const medicationIds = ["med-123"];
+      mockDatabase.getAllAsync.mockResolvedValue([]);
+
+      await medicationScheduleRepository.getByMedicationIds(medicationIds);
+
+      expect(mockDatabase.getAllAsync).toHaveBeenCalledWith(
+        "SELECT * FROM medication_schedules WHERE medication_id IN (?) ORDER BY time ASC",
+        ["med-123"]
+      );
+    });
+  });
   describe('Validation Error Handling', () => {
     describe('medicationRepository.create validation', () => {
       it('should allow preventative medication without schedule frequency', async () => {

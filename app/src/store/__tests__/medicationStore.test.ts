@@ -825,13 +825,12 @@ describe('medicationStore', () => {
       ];
 
       useMedicationStore.setState({ medications: mockMeds });
-      mockScheduleRepository.getByMedicationId
-        .mockResolvedValueOnce(mockSchedules1)
-        .mockResolvedValueOnce(mockSchedules2);
+      mockScheduleRepository.getByMedicationIds
+        .mockResolvedValue([...mockSchedules1, ...mockSchedules2]);
 
       await useMedicationStore.getState().loadSchedules();
 
-      expect(mockScheduleRepository.getByMedicationId).toHaveBeenCalledTimes(2);
+      expect(mockScheduleRepository.getByMedicationIds).toHaveBeenCalledWith(['med-1', 'med-2']);
       expect(useMedicationStore.getState().schedules).toHaveLength(2);
     });
 
@@ -891,11 +890,11 @@ describe('medicationStore', () => {
       ];
 
       useMedicationStore.setState({ medications: mockMeds });
-      (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue(mockDoses);
+      (medicationDoseRepository.getByDateRange as jest.Mock).mockResolvedValue(mockDoses);
 
       await useMedicationStore.getState().loadRecentDoses();
 
-      expect(medicationDoseRepository.getByMedicationId).toHaveBeenCalledWith('med-1');
+      expect(medicationDoseRepository.getByDateRange).toHaveBeenCalled();
       expect(useMedicationStore.getState().doses).toHaveLength(2);
       expect(useMedicationStore.getState().doses[0].id).toBe('dose-1'); // Most recent first
       expect(useMedicationStore.getState().doses[1].id).toBe('dose-2');
@@ -943,7 +942,7 @@ describe('medicationStore', () => {
       ];
 
       useMedicationStore.setState({ medications: mockMeds });
-      (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue(mockDoses);
+      (medicationDoseRepository.getByDateRange as jest.Mock).mockResolvedValue(mockDoses);
 
       await useMedicationStore.getState().loadRecentDoses(30);
 
@@ -971,7 +970,7 @@ describe('medicationStore', () => {
           },
         ],
       });
-      (medicationDoseRepository.getByMedicationId as jest.Mock).mockRejectedValue(error);
+      (medicationDoseRepository.getByDateRange as jest.Mock).mockRejectedValue(error);
 
       await expect(
         useMedicationStore.getState().loadRecentDoses()

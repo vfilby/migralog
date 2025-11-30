@@ -293,13 +293,9 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
         // Load schedules for specific medication
         schedules = await medicationScheduleRepository.getByMedicationId(medicationId);
       } else {
-        // Load all schedules for active medications
-        const allSchedules: MedicationSchedule[] = [];
-        for (const med of get().medications) {
-          const medSchedules = await medicationScheduleRepository.getByMedicationId(med.id);
-          allSchedules.push(...medSchedules);
-        }
-        schedules = allSchedules;
+        // Load all schedules for active medications using batch query
+        const medicationIds = get().medications.map(m => m.id);
+        schedules = await medicationScheduleRepository.getByMedicationIds(medicationIds);
       }
 
       set({ schedules });
@@ -315,9 +311,6 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
 
   loadRecentDoses: async (days = 90) => {
     try {
-      // Get all doses for each medication
-      const allDoses: MedicationDose[] = [];
-
       // Calculate cutoff as start of N days ago (midnight), not trailing N * 24 hours
       const now = new Date();
       const cutoffDate = new Date(now);
@@ -325,16 +318,10 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       cutoffDate.setHours(0, 0, 0, 0); // Start of that day
       const cutoffTimestamp = cutoffDate.getTime();
 
-      const medications = get().medications;
+      // Use batch query to get all doses in date range in a single query
+      const allDoses = await medicationDoseRepository.getByDateRange(cutoffTimestamp, Date.now());
 
-      for (const med of medications) {
-        const medDoses = await medicationDoseRepository.getByMedicationId(med.id);
-        // Filter to recent doses (since start of N days ago)
-        const recentDoses = medDoses.filter(dose => dose.timestamp >= cutoffTimestamp);
-        allDoses.push(...recentDoses);
-      }
-
-      // Sort by timestamp descending
+      // Sort by timestamp descending (getByDateRange should already sort DESC)
       allDoses.sort((a, b) => b.timestamp - a.timestamp);
 
       set({ doses: allDoses });
