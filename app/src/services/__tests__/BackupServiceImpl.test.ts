@@ -29,7 +29,6 @@ jest.mock('../../services/errorLogger');
 jest.mock('../backup/BackupCreator', () => ({
   backupCreator: {
     createSnapshotBackup: jest.fn(),
-    createBackup: jest.fn(),
   },
 }));
 jest.mock('../backup/BackupValidator', () => ({
@@ -40,7 +39,7 @@ jest.mock('../backup/BackupValidator', () => ({
 }));
 jest.mock('../backup/BackupExporter', () => ({
   backupExporter: {
-    exportDataForSharing: jest.fn(),
+    exportDataAsJson: jest.fn(),
     exportBackup: jest.fn(),
     importBackup: jest.fn(),
     exportDatabaseFile: jest.fn(),
@@ -84,24 +83,13 @@ describe('BackupServiceImpl', () => {
       expect(result).toEqual(mockMetadata);
     });
 
-    it('should delegate createBackup to BackupCreator', async () => {
-      const { backupCreator } = require('../backup/BackupCreator');
-      const mockMetadata = { id: 'test', timestamp: Date.now() };
-      backupCreator.createBackup.mockResolvedValue(mockMetadata);
-
-      const result = await backupServiceImpl.createBackup(false);
-
-      expect(backupCreator.createBackup).toHaveBeenCalledWith(false, undefined);
-      expect(result).toEqual(mockMetadata);
-    });
-
-    it('should delegate exportDataForSharing to BackupExporter', async () => {
+    it('should delegate exportDataAsJson to BackupExporter', async () => {
       const { backupExporter } = require('../backup/BackupExporter');
-      backupExporter.exportDataForSharing.mockResolvedValue(undefined);
+      backupExporter.exportDataAsJson.mockResolvedValue(undefined);
 
-      await backupServiceImpl.exportDataForSharing();
+      await backupServiceImpl.exportDataAsJson();
 
-      expect(backupExporter.exportDataForSharing).toHaveBeenCalled();
+      expect(backupExporter.exportDataAsJson).toHaveBeenCalled();
     });
 
     it('should delegate checkForBrokenBackups to BackupValidator', async () => {

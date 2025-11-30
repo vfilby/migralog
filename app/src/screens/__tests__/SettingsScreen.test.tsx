@@ -78,7 +78,7 @@ describe('SettingsScreen', () => {
     });
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
     (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
-    (backupService.exportDataForSharing as jest.Mock).mockResolvedValue(undefined);
+    (backupService.exportDataAsJson as jest.Mock).mockResolvedValue(undefined);
   });
 
   it('should render settings screen with all sections (except hidden developer)', async () => {

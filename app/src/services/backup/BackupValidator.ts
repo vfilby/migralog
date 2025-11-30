@@ -44,7 +44,7 @@ class BackupValidator {
           // Check for orphaned metadata files (no corresponding .db file)
           else if (file.endsWith('.meta.json')) {
             const backupId = file.replace('.meta.json', '');
-            const dbPath = getBackupPath(backupId, 'snapshot');
+            const dbPath = getBackupPath(backupId);
             const dbInfo = await FileSystem.getInfoAsync(dbPath);
 
             if (!dbInfo.exists) {
@@ -103,7 +103,7 @@ class BackupValidator {
           // Check for orphaned metadata files (no corresponding .db file)
           else if (file.endsWith('.meta.json')) {
             const backupId = file.replace('.meta.json', '');
-            const dbPath = getBackupPath(backupId, 'snapshot');
+            const dbPath = getBackupPath(backupId);
             const dbInfo = await FileSystem.getInfoAsync(dbPath);
 
             if (!dbInfo.exists) {

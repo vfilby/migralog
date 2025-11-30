@@ -101,7 +101,13 @@ describe('RestoreService', () => {
     });
 
     it('should return null if backup does not exist', async () => {
-      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: false });
+      // Override any existing mocks to ensure file doesn't exist
+      (FileSystem.getInfoAsync as jest.Mock).mockImplementation(() => 
+        Promise.resolve({ exists: false })
+      );
+      (FileSystem.readAsStringAsync as jest.Mock).mockImplementation(() => 
+        Promise.reject(new Error('File should not be read'))
+      );
 
       const metadata = await getBackupMetadata('nonexistent');
 

@@ -21,9 +21,9 @@ import { backupExporter } from './BackupExporter';
 /**
  * BackupServiceImpl - Main coordinator for backup operations
  * Delegates to specialized modules for specific functionality:
- * - BackupCreator: Creates snapshot and JSON backups
+ * - BackupCreator: Creates snapshot backups
  * - BackupValidator: Validates and cleans up broken backups
- * - BackupExporter: Handles export/import operations
+ * - BackupExporter: Handles export/import operations and JSON data export
  * - BackupRestorer: Handles backup restoration (via backupService facade)
  */
 class BackupServiceImpl {
@@ -35,21 +35,7 @@ class BackupServiceImpl {
     return backupCreator.createSnapshotBackup(db);
   }
 
-  /**
-   * Legacy method - creates JSON backup
-   * Delegates to BackupCreator
-   */
-  async createBackup(isAutomatic: boolean = false, db?: SQLite.SQLiteDatabase): Promise<BackupMetadata> {
-    const metadata = await backupCreator.createBackup(isAutomatic, db);
 
-    // Clean up old automatic backups if needed
-    if (isAutomatic) {
-      logger.log('[Backup] Cleaning up old automatic backups...');
-      await this.cleanupOldAutoBackups();
-    }
-
-    return metadata;
-  }
 
   /**
    * List all available backups
@@ -139,14 +125,12 @@ class BackupServiceImpl {
     try {
       logger.log('[Delete] Attempting to delete backup:', backupId);
 
-      // Try to delete all possible file types (snapshot, json, metadata)
-      const snapshotPath = getBackupPath(backupId, 'snapshot');
-      const jsonPath = getBackupPath(backupId, 'json');
+      // Delete snapshot backup files (.db and .meta.json)
+      const snapshotPath = getBackupPath(backupId);
       const metadataPath = getMetadataPath(backupId);
 
       // Check which files actually exist
       const snapshotExists = await FileSystem.getInfoAsync(snapshotPath);
-      const jsonExists = await FileSystem.getInfoAsync(jsonPath);
       const metadataExists = await FileSystem.getInfoAsync(metadataPath);
 
       let deletedCount = 0;
@@ -155,13 +139,6 @@ class BackupServiceImpl {
       if (snapshotExists.exists) {
         await FileSystem.deleteAsync(snapshotPath);
         logger.log('[Delete] Deleted snapshot file:', snapshotPath);
-        deletedCount++;
-      }
-
-      // Delete JSON file if it exists
-      if (jsonExists.exists) {
-        await FileSystem.deleteAsync(jsonPath);
-        logger.log('[Delete] Deleted JSON file:', jsonPath);
         deletedCount++;
       }
 
@@ -201,11 +178,11 @@ class BackupServiceImpl {
   }
 
   /**
-   * Export current database as JSON for sharing
+   * Export current database as JSON for data portability and healthcare sharing
    * Delegates to BackupExporter
    */
-  async exportDataForSharing(): Promise<void> {
-    return backupExporter.exportDataForSharing();
+  async exportDataAsJson(): Promise<void> {
+    return backupExporter.exportDataAsJson();
   }
 
   /**

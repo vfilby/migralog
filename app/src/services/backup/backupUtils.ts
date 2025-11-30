@@ -71,11 +71,12 @@ export function generateBackupId(): string {
 }
 
 /**
- * Get the file path for a backup
+ * Get the file path for a snapshot backup
+ * Note: Only snapshot backups are supported (Issue #194)
+ * For JSON data export, use BackupExporter.exportDataAsJson()
  */
-export function getBackupPath(backupId: string, backupType: 'snapshot' | 'json'): string {
-  const extension = backupType === 'snapshot' ? 'db' : 'json';
-  return `${BACKUP_DIR}${backupId}.${extension}`;
+export function getBackupPath(backupId: string): string {
+  return `${BACKUP_DIR}${backupId}.db`;
 }
 
 /**
@@ -97,28 +98,18 @@ export async function initializeBackupDirectory(): Promise<void> {
 }
 
 /**
- * Get metadata for a specific backup
- * Tries to read from .meta.json file first (snapshot backups), then from JSON backup file
+ * Get metadata for a specific snapshot backup
+ * Reads from .meta.json sidecar file
+ * Note: Only snapshot backups are supported (Issue #194)
  */
 export async function getBackupMetadata(backupId: string): Promise<BackupMetadata | null> {
   try {
-    // Try snapshot first (.meta.json)
     const metadataPath = getMetadataPath(backupId);
     const metadataInfo = await FileSystem.getInfoAsync(metadataPath);
 
     if (metadataInfo.exists) {
       const content = await FileSystem.readAsStringAsync(metadataPath);
       return JSON.parse(content);
-    }
-
-    // JSON backup support removed in Issue #185
-    // Only snapshot backups are supported now
-    const jsonPath = getBackupPath(backupId, 'json');
-    const jsonInfo = await FileSystem.getInfoAsync(jsonPath);
-
-    if (jsonInfo.exists) {
-      // Log that we found a legacy JSON backup but can't restore it
-      logger.warn(`[Backup] Found legacy JSON backup ${backupId} but JSON restore is no longer supported`);
     }
 
     return null;

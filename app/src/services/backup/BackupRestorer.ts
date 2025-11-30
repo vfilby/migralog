@@ -51,7 +51,7 @@ class BackupRestorer {
     try {
       logger.log('[Restore] Restoring from snapshot backup');
 
-      const backupPath = getBackupPath(backupId, 'snapshot');
+      const backupPath = getBackupPath(backupId);
       const backupInfo = await FileSystem.getInfoAsync(backupPath);
 
       if (!backupInfo.exists) {

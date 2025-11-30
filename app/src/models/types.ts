@@ -195,14 +195,15 @@ export interface BackupMetadata {
   medicationCount: number;
   fileSize: number;
   fileName: string;
-  // Note: JSON restore was removed in Issue #185, but JSON creation still exists
-  // for pre-migration backups and data exports. Only snapshot backups can be restored.
-  backupType: 'snapshot' | 'json';
+  // Note: Only snapshot (.db) backups are supported (Issue #194)
+  // JSON export exists separately for data portability and healthcare sharing
+  // Use BackupExporter.exportDataAsJson() for JSON data export
+  backupType: 'snapshot';
 }
 
 export interface BackupData {
   metadata: Omit<BackupMetadata, 'fileSize' | 'fileName' | 'backupType'>;
-  schemaSQL?: string; // Complete CREATE TABLE statements for the schema at backup time (optional for backward compatibility)
+  schemaSQL?: string; // Complete CREATE TABLE statements - optional, omitted in JSON exports
   episodes: Episode[];
   episodeNotes?: EpisodeNote[]; // Optional for backward compatibility
   intensityReadings?: IntensityReading[]; // Optional for backward compatibility

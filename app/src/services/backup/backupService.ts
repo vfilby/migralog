@@ -42,9 +42,7 @@ class BackupService {
     return await backupServiceImpl.createSnapshotBackup(db);
   }
 
-  async createBackup(isAutomatic?: boolean, db?: SQLite.SQLiteDatabase) {
-    return await backupServiceImpl.createBackup(isAutomatic, db);
-  }
+
 
   async listBackups() {
     return await backupServiceImpl.listBackups();
@@ -74,8 +72,8 @@ class BackupService {
     return await backupServiceImpl.cleanupBrokenBackups();
   }
 
-  async exportDataForSharing() {
-    return await backupServiceImpl.exportDataForSharing();
+  async exportDataAsJson() {
+    return await backupServiceImpl.exportDataAsJson();
   }
 
   async exportDatabaseFile() {

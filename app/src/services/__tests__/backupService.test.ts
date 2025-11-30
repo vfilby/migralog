@@ -1,4 +1,4 @@
-import { backupService, BackupData } from '../backup/backupService';
+import { backupService } from '../backup/backupService';
 import { initializeBackupDirectory, validateBackupMetadata } from '../backup/backupUtils';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -15,7 +15,7 @@ import {
 } from '../../database/medicationRepository';
 import { dailyStatusRepository } from '../../database/dailyStatusRepository';
 import { migrationRunner } from '../../database/migrations';
-import { Episode, Medication, MedicationDose, EpisodeNote } from '../../models/types';
+import { Episode, Medication, MedicationDose, EpisodeNote, BackupMetadata } from '../../models/types';
 
 // Mock dependencies
 jest.mock('expo-file-system/legacy', () => ({
@@ -103,7 +103,7 @@ describe('backupService', () => {
     });
   });
 
-  describe('createBackup', () => {
+  describe('createSnapshotBackup', () => {
     const mockEpisodes: Episode[] = [
       {
         id: 'ep-1',
@@ -174,13 +174,22 @@ describe('backupService', () => {
       (dailyStatusRepository.getDateRange as jest.Mock).mockResolvedValue([]);
       (medicationScheduleRepository.getByMedicationId as jest.Mock).mockResolvedValue([]);
       (migrationRunner.getCurrentVersion as jest.Mock).mockResolvedValue(1);
-      (mockDatabase.getAllAsync as jest.Mock).mockResolvedValue([
-        { sql: 'CREATE TABLE episodes (...)' },
-      ]);
+      (mockDatabase.getAllAsync as jest.Mock).mockImplementation((query: string) => {
+        if (query.includes('COUNT') && query.includes('episodes')) {
+          return Promise.resolve([{ count: 1 }]);
+        }
+        if (query.includes('COUNT') && query.includes('medications')) {
+          return Promise.resolve([{ count: 1 }]);
+        }
+        if (query.includes('sqlite_master')) {
+          return Promise.resolve([{ sql: 'CREATE TABLE episodes (...)' }]);
+        }
+        return Promise.resolve([]);
+      });
     });
 
     it('should create a backup successfully', async () => {
-      const metadata = await backupService.createBackup();
+      const metadata = await backupService.createSnapshotBackup();
 
       expect(metadata.id).toBeDefined();
       expect(metadata.episodeCount).toBe(1);
@@ -189,7 +198,10 @@ describe('backupService', () => {
       expect(FileSystem.writeAsStringAsync).toHaveBeenCalled();
     });
 
-    it('should include schema SQL in backup', async () => {
+    // Note: Schema SQL is not included in snapshot backups (only in JSON exports)
+    // Snapshot backups are binary database copies with separate metadata files
+
+    it('should create correct metadata structure', async () => {
       let writtenData: string = '';
       (FileSystem.writeAsStringAsync as jest.Mock).mockImplementation(
         (_path, data) => {
@@ -198,33 +210,20 @@ describe('backupService', () => {
         }
       );
 
-      await backupService.createBackup();
+      await backupService.createSnapshotBackup();
 
-      const backupData: BackupData = JSON.parse(writtenData);
-      expect(backupData.schemaSQL).toBeDefined();
-      expect(backupData.schemaSQL).toContain('CREATE TABLE');
+      const metadata: BackupMetadata = JSON.parse(writtenData);
+      expect(metadata.id).toBeDefined();
+      expect(metadata.timestamp).toBeDefined();
+      expect(metadata.backupType).toBe('snapshot');
+      expect(metadata.episodeCount).toBe(1);
+      expect(metadata.medicationCount).toBe(1);
+      expect(metadata.fileSize).toBe(1234);
     });
 
-    it('should gather all data correctly', async () => {
-      let writtenData: string = '';
-      (FileSystem.writeAsStringAsync as jest.Mock).mockImplementation(
-        (_path, data) => {
-          writtenData = data;
-          return Promise.resolve();
-        }
-      );
-
-      await backupService.createBackup();
-
-      const backupData: BackupData = JSON.parse(writtenData);
-      expect(backupData.episodes).toHaveLength(1);
-      expect(backupData.medications).toHaveLength(1);
-      expect(backupData.medicationDoses).toHaveLength(1);
-      expect(backupData.episodeNotes).toHaveLength(1);
-    });
-
-    it('should clean up old automatic backups', async () => {
+    it('should clean up old automatic backups when using weekly backup', async () => {
       // Issue #185: Updated to use snapshot backups instead of JSON
+      // Note: Cleanup only happens in checkAndCreateWeeklyBackup, not createSnapshotBackup
       // Mock 8 existing backups (more than MAX_AUTO_BACKUPS = 7)
       const mockBackups = Array.from({ length: 8 }, (_, i) => ({
         id: `backup_${i}`,
@@ -268,19 +267,26 @@ describe('backupService', () => {
 
       (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
 
-      await backupService.createBackup(true);
+      // Mock AsyncStorage for weekly backup check
+      const AsyncStorage = require('@react-native-async-storage/async-storage');
+      AsyncStorage.getItem.mockResolvedValue(null); // No previous backup
+      AsyncStorage.setItem.mockResolvedValue(undefined);
+
+      // Use checkAndCreateWeeklyBackup instead, which triggers cleanup
+      await backupService.checkAndCreateWeeklyBackup();
 
       // Should trigger cleanup and delete at least 1 old backup
       expect(FileSystem.deleteAsync).toHaveBeenCalled();
     });
 
     it('should handle errors during backup creation', async () => {
-      (episodeRepository.getAll as jest.Mock).mockRejectedValue(
-        new Error('Database error')
+      // Mock the database copy operation to fail instead of repository calls
+      (FileSystem.copyAsync as jest.Mock).mockRejectedValue(
+        new Error('Database copy failed')
       );
 
-      await expect(backupService.createBackup()).rejects.toThrow(
-        'Failed to create backup: Database error'
+      await expect(backupService.createSnapshotBackup()).rejects.toThrow(
+        'Failed to create snapshot backup'
       );
     });
   });
@@ -989,7 +995,7 @@ describe('backupService', () => {
       });
 
       await expect(backupService.importBackup()).rejects.toThrow(
-        'JSON backup files are no longer supported for import'
+        'Only snapshot (.db) backup files can be imported. Please select a .db backup file.'
       );
     });
 
@@ -1001,7 +1007,7 @@ describe('backupService', () => {
       });
 
       await expect(backupService.importBackup()).rejects.toThrow(
-        'JSON backup files are no longer supported for import'
+        'Only snapshot (.db) backup files can be imported. Please select a .db backup file.'
       );
     });
   });
@@ -1055,7 +1061,7 @@ describe('backupService', () => {
   });
 
   describe('Facade Delegation Tests', () => {
-    it('should delegate createBackup to BackupServiceImpl', async () => {
+    it('should delegate createSnapshotBackup to BackupServiceImpl', async () => {
       (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true, size: 1234 });
       (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
       (episodeRepository.getAll as jest.Mock).mockResolvedValue([]);
@@ -1066,15 +1072,18 @@ describe('backupService', () => {
       (dailyStatusRepository.getDateRange as jest.Mock).mockResolvedValue([]);
       (medicationScheduleRepository.getByMedicationId as jest.Mock).mockResolvedValue([]);
       (migrationRunner.getCurrentVersion as jest.Mock).mockResolvedValue(1);
-      (mockDatabase.getAllAsync as jest.Mock).mockResolvedValue([
-        { sql: 'CREATE TABLE episodes (...)' },
-      ]);
-
-      const metadata = await backupService.createBackup();
-
-      expect(metadata).toBeDefined();
-      expect(metadata.id).toBeDefined();
-      expect(FileSystem.writeAsStringAsync).toHaveBeenCalled();
+      (mockDatabase.getAllAsync as jest.Mock).mockImplementation((query: string) => {
+        if (query.includes('COUNT') && query.includes('episodes')) {
+          return Promise.resolve([{ count: 1 }]);
+        }
+        if (query.includes('COUNT') && query.includes('medications')) {
+          return Promise.resolve([{ count: 1 }]);
+        }
+        if (query.includes('sqlite_master')) {
+          return Promise.resolve([{ sql: 'CREATE TABLE episodes (...)' }]);
+        }
+        return Promise.resolve([]);
+      });
     });
 
     // Note: Updated for Issue #185 - JSON restore no longer supported
@@ -1742,7 +1751,7 @@ describe('backupService', () => {
         // Reset mocks completely
         mockDatabase.getAllAsync.mockReset();
 
-        // Setup for createBackup to trigger cleanup
+        // Setup for createSnapshotBackup to trigger cleanup
         (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true, size: 1000 });
         (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
 
@@ -1771,7 +1780,7 @@ describe('backupService', () => {
         });
 
         // Should complete without throwing (cleanup error is caught internally)
-        const result = await backupService.createBackup(true);
+        const result = await backupService.createSnapshotBackup();
 
         expect(result).toBeDefined();
         expect(result.id).toBeDefined();
@@ -1800,7 +1809,7 @@ describe('backupService', () => {
       });
     });
 
-    describe('exportDataForSharing', () => {
+    describe('exportDataAsJson', () => {
       it('should gather all data and share JSON file', async () => {
         const mockEpisode = {
           id: 'ep-1',
@@ -1845,7 +1854,7 @@ describe('backupService', () => {
         (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true);
         (Sharing.shareAsync as jest.Mock).mockResolvedValue(undefined);
 
-        await backupService.exportDataForSharing();
+        await backupService.exportDataAsJson();
 
         // Verify data was written
         expect(FileSystem.writeAsStringAsync).toHaveBeenCalledWith(
@@ -1872,25 +1881,19 @@ describe('backupService', () => {
         (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
         (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(false);
 
-        await expect(backupService.exportDataForSharing()).rejects.toThrow(
+        await expect(backupService.exportDataAsJson()).rejects.toThrow(
           'Sharing is not available on this device'
         );
       });
     });
 
-    describe('exportSchemaSQL error handling', () => {
-      it('should throw error when schema export fails', async () => {
-        mockDatabase.getAllAsync.mockRejectedValue(new Error('Schema query failed'));
-
-        // This is tested through createBackup which calls exportSchemaSQL
+    describe('database copy error handling', () => {
+      it('should throw error when database copy fails', async () => {
         (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true });
-        (episodeRepository.getAll as jest.Mock).mockResolvedValue([]);
-        (medicationRepository.getAll as jest.Mock).mockResolvedValue([]);
-        (medicationDoseRepository.getAll as jest.Mock).mockResolvedValue([]);
-        (dailyStatusRepository.getDateRange as jest.Mock).mockResolvedValue([]);
+        (FileSystem.copyAsync as jest.Mock).mockRejectedValue(new Error('Copy failed'));
         (migrationRunner.getCurrentVersion as jest.Mock).mockResolvedValue(6);
 
-        await expect(backupService.createBackup()).rejects.toThrow();
+        await expect(backupService.createSnapshotBackup()).rejects.toThrow();
       });
     });
 
