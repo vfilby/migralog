@@ -9,6 +9,8 @@ import {
   Alert,
   RefreshControl,
   ActivityIndicator,
+  Platform,
+  BackHandler,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
@@ -25,6 +27,36 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [creatingBackup, setCreatingBackup] = useState(false);
   const [brokenBackupCount, setBrokenBackupCount] = useState(0);
+
+  const handlePostRestore = () => {
+    Alert.alert(
+      'Backup Restored Successfully',
+      Platform.select({
+        ios: 'Please close the app using the home button and reopen it to see your restored data.',
+        android: 'The app will now close. Please reopen it to see your restored data.',
+        default: 'Please restart the app to see your restored data.',
+      }),
+      [
+        {
+          text: Platform.select({
+            ios: 'OK',
+            android: 'Close App',
+            default: 'OK',
+          }),
+          onPress: () => {
+            if (Platform.OS === 'android') {
+              // On Android, we can close the app
+              BackHandler.exitApp();
+            } else {
+              // On iOS, just navigate back
+              navigation.goBack();
+            }
+          },
+        },
+      ],
+      { cancelable: false }
+    );
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -134,11 +166,7 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
                     onPress: async () => {
                       try {
                         await backupService.restoreBackup(metadata.id);
-                        Alert.alert(
-                          'Success',
-                          'Backup restored successfully. Please restart the app.',
-                          [{ text: 'OK', onPress: () => navigation.goBack() }]
-                        );
+                        handlePostRestore();
                       } catch (error) {
                         logger.error('Failed to restore imported backup:', error);
                         Alert.alert('Error', 'Failed to restore backup: ' + (error as Error).message);
@@ -171,11 +199,7 @@ export default function BackupRecoveryScreen({ navigation }: Props) {
           onPress: async () => {
             try {
               await backupService.restoreBackup(backupId);
-              Alert.alert(
-                'Success',
-                'Backup restored successfully. Please restart the app.',
-                [{ text: 'OK', onPress: () => navigation.goBack() }]
-              );
+              handlePostRestore();
             } catch (error) {
               logger.error('Failed to restore backup:', error);
               Alert.alert('Error', 'Failed to restore backup: ' + (error as Error).message);
