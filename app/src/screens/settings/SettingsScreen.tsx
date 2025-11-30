@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
@@ -69,12 +68,6 @@ export default function SettingsScreen({ navigation }: Props) {
       const newMode = !developerMode;
       toggleDeveloperMode(newMode);
       setVersionTapCount(0);
-      Alert.alert(
-        newMode ? 'Developer Mode Enabled' : 'Developer Mode Disabled',
-        newMode
-          ? 'Developer tools are now visible in Settings.'
-          : 'Developer tools have been hidden.'
-      );
     }
   };
 

@@ -24,7 +24,7 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
   
   // Custom hooks for different developer tools sections
   const { errorLogs, dbStatus, sentryStatus, loadDiagnostics } = useDiagnostics();
-  const { viewErrorLogs, viewPerformance, clearAllLogs, testErrorLogging } = useErrorLogManagement(
+  const { viewErrorLogs, viewPerformance, testErrorLogging } = useErrorLogManagement(
     navigation,
     loadDiagnostics
   );
@@ -35,8 +35,6 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
     handleTestNotification,
     handleTestCriticalNotification,
     handleRecreateAllSchedules,
-    handleDiagnoseCriticalAlerts,
-    handleTestCriticalAlertsRequest,
   } = useNotificationTesting();
 
   return (
@@ -100,7 +98,13 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
 
             <View style={styles.divider} />
 
-            <View style={styles.diagnosticRow}>
+            <TouchableOpacity 
+              style={styles.diagnosticRow}
+              onPress={viewErrorLogs}
+              accessibilityRole="button"
+              accessibilityLabel="View error logs"
+              accessibilityHint="Opens the error logs screen to view recent app errors"
+            >
               <View style={styles.diagnosticLeft}>
                 <Ionicons
                   name="bug-outline"
@@ -113,69 +117,60 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
                 <Text style={styles.diagnosticValueSecondary}>
                   {errorLogs.length} recent
                 </Text>
+                <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
               </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Logging & Debugging */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Logging & Debugging</Text>
-          <Text style={styles.sectionDescription}>
-            Error tracking, performance monitoring, and log management
-          </Text>
-
-          <View style={styles.developerActions}>
-            <TouchableOpacity
-              style={styles.developerButton}
-              onPress={viewErrorLogs}
-              accessibilityRole="button"
-              accessibilityLabel="View error logs"
-              accessibilityHint="Opens the error logs screen to view recent app errors"
-            >
-              <Ionicons name="list-outline" size={24} color={theme.primary} />
-              <Text style={styles.developerButtonText}>View Error Logs</Text>
             </TouchableOpacity>
 
             {__DEV__ && (
-              <TouchableOpacity
-                style={styles.developerButton}
-                onPress={viewPerformance}
-                testID="view-performance-button"
-                accessibilityRole="button"
-                accessibilityLabel="Performance monitoring"
-                accessibilityHint="Opens the performance monitoring screen"
-              >
-                <Ionicons name="speedometer-outline" size={24} color={theme.primary} />
-                <Text style={styles.developerButtonText}>Performance Monitoring</Text>
-              </TouchableOpacity>
+              <>
+                <View style={styles.divider} />
+                <TouchableOpacity 
+                  style={styles.diagnosticRow}
+                  onPress={viewPerformance}
+                  testID="view-performance-button"
+                  accessibilityRole="button"
+                  accessibilityLabel="Performance monitoring"
+                  accessibilityHint="Opens the performance monitoring screen"
+                >
+                  <View style={styles.diagnosticLeft}>
+                    <Ionicons
+                      name="speedometer-outline"
+                      size={20}
+                      color={theme.textSecondary}
+                    />
+                    <Text style={styles.diagnosticLabel}>Performance Monitoring</Text>
+                  </View>
+                  <View style={styles.diagnosticRight}>
+                    <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
+                  </View>
+                </TouchableOpacity>
+              </>
             )}
 
-            <TouchableOpacity
-              style={styles.developerButton}
+            <View style={styles.divider} />
+            <TouchableOpacity 
+              style={styles.diagnosticRow}
               onPress={testErrorLogging}
               accessibilityRole="button"
               accessibilityLabel="Test error logging"
               accessibilityHint="Creates a test error entry in the error logs"
             >
-              <Ionicons name="flask-outline" size={24} color={theme.primary} />
-              <Text style={styles.developerButtonText}>Test Error Logging</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.developerButton, styles.developerButtonDanger]}
-              onPress={clearAllLogs}
-              accessibilityRole="button"
-              accessibilityLabel="Clear all logs"
-              accessibilityHint="Deletes all error logs from the database"
-            >
-              <Ionicons name="trash-outline" size={20} color={theme.error} />
-              <Text style={[styles.developerButtonText, styles.developerButtonTextDanger]}>
-                Clear All Error Logs
-              </Text>
+              <View style={styles.diagnosticLeft}>
+                <Ionicons
+                  name="flask-outline"
+                  size={20}
+                  color={theme.textSecondary}
+                />
+                <Text style={styles.diagnosticLabel}>Test Error Logging</Text>
+              </View>
+              <View style={styles.diagnosticRight}>
+                <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
+              </View>
             </TouchableOpacity>
           </View>
         </View>
+
+
 
         {/* Error Tracking (Sentry) */}
         <View style={styles.section}>
@@ -315,82 +310,72 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
           </Text>
 
           <View style={styles.developerActions}>
-            <TouchableOpacity
-              style={styles.developerButton}
-              onPress={handleViewScheduledNotifications}
-              accessibilityRole="button"
-              accessibilityLabel="View scheduled notifications"
-              accessibilityHint="Shows a list of all currently scheduled notifications"
-            >
-              <Ionicons name="list-outline" size={24} color={theme.primary} />
-              <Text style={styles.developerButtonText}>View Scheduled Notifications</Text>
-            </TouchableOpacity>
+            {/* Schedule management block with separator */}
+            <View style={styles.groupedActionsBlock}>
+              <TouchableOpacity
+                style={styles.groupedActionButton}
+                onPress={handleViewScheduledNotifications}
+                accessibilityRole="button"
+                accessibilityLabel="View scheduled notifications"
+                accessibilityHint="Shows a list of all currently scheduled notifications"
+              >
+                <Ionicons name="list-outline" size={24} color={theme.primary} />
+                <Text style={styles.developerButtonText}>View Scheduled Notifications</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.developerButton}
-              onPress={() => handleTestNotification(false)}
-              accessibilityRole="button"
-              accessibilityLabel="Test regular notification"
-              accessibilityHint="Schedules a test notification to appear in 5 seconds"
-            >
-              <Ionicons name="notifications-outline" size={24} color={theme.primary} />
-              <Text style={styles.developerButtonText}>Test Regular Notification (5s)</Text>
-            </TouchableOpacity>
+              <View style={styles.actionSeparator} />
 
-            <TouchableOpacity
-              style={styles.developerButton}
-              onPress={() => handleTestNotification(true)}
-              accessibilityRole="button"
-              accessibilityLabel="Test time-sensitive notification"
-              accessibilityHint="Schedules a time-sensitive test notification that breaks through Focus mode in 5 seconds"
-            >
-              <Ionicons name="flash-outline" size={24} color={theme.primary} />
-              <Text style={styles.developerButtonText}>Test Time-Sensitive (5s)</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.groupedActionButton}
+                onPress={handleRecreateAllSchedules}
+                accessibilityRole="button"
+                accessibilityLabel="Recreate all notification schedules"
+                accessibilityHint="Cancels and recreates all medication notification schedules with current settings"
+              >
+                <Ionicons name="refresh-circle-outline" size={24} color={theme.primary} />
+                <Text style={styles.developerButtonText}>Recreate All Schedules</Text>
+              </TouchableOpacity>
+            </View>
 
-            <TouchableOpacity
-              style={styles.developerButton}
-              onPress={handleTestCriticalNotification}
-              accessibilityRole="button"
-              accessibilityLabel="Test critical notification"
-              accessibilityHint="Schedules a critical priority test notification in 5 seconds"
-            >
-              <Ionicons name="warning-outline" size={24} color={theme.primary} />
-              <Text style={styles.developerButtonText}>Test Critical Notification (5s)</Text>
-            </TouchableOpacity>
+            {/* Test notification buttons block with separators */}
+            <View style={styles.groupedActionsBlock}>
+              <TouchableOpacity
+                style={styles.groupedActionButton}
+                onPress={() => handleTestNotification(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Test regular notification"
+                accessibilityHint="Schedules a test notification to appear in 5 seconds"
+              >
+                <Ionicons name="notifications-outline" size={24} color={theme.primary} />
+                <Text style={styles.developerButtonText}>Test Regular Notification (5s)</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.developerButton}
-              onPress={handleRecreateAllSchedules}
-              accessibilityRole="button"
-              accessibilityLabel="Recreate all notification schedules"
-              accessibilityHint="Cancels and recreates all medication notification schedules with current settings"
-            >
-              <Ionicons name="refresh-circle-outline" size={24} color={theme.primary} />
-              <Text style={styles.developerButtonText}>Recreate All Schedules</Text>
-            </TouchableOpacity>
+              <View style={styles.actionSeparator} />
 
-            <TouchableOpacity
-              style={styles.developerButton}
-              onPress={handleDiagnoseCriticalAlerts}
-              accessibilityRole="button"
-              accessibilityLabel="Diagnose critical alerts"
-              accessibilityHint="Shows detailed information about critical alerts configuration"
-            >
-              <Ionicons name="medical-outline" size={24} color={theme.primary} />
-              <Text style={styles.developerButtonText}>Diagnose Critical Alerts</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.groupedActionButton}
+                onPress={() => handleTestNotification(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Test time-sensitive notification"
+                accessibilityHint="Schedules a time-sensitive test notification that breaks through Focus mode in 5 seconds"
+              >
+                <Ionicons name="flash-outline" size={24} color={theme.primary} />
+                <Text style={styles.developerButtonText}>Test Time-Sensitive (5s)</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.developerButton}
-              onPress={handleTestCriticalAlertsRequest}
-              accessibilityRole="button"
-              accessibilityLabel="Test critical alerts request"
-              accessibilityHint="Attempts to request critical alerts permission and shows result"
-            >
-              <Ionicons name="shield-checkmark-outline" size={24} color={theme.primary} />
-              <Text style={styles.developerButtonText}>Test Critical Alerts Request</Text>
-            </TouchableOpacity>
+              <View style={styles.actionSeparator} />
+
+              <TouchableOpacity
+                style={styles.groupedActionButton}
+                onPress={handleTestCriticalNotification}
+                accessibilityRole="button"
+                accessibilityLabel="Test critical notification"
+                accessibilityHint="Schedules a critical priority test notification in 5 seconds"
+              >
+                <Ionicons name="warning-outline" size={24} color={theme.primary} />
+                <Text style={styles.developerButtonText}>Test Critical Notification (5s)</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -568,5 +553,29 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
   },
   developerButtonTextDanger: {
     color: theme.error,
+  },
+  groupedActionsBlock: {
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.border,
+    overflow: 'hidden',
+  },
+  groupedActionButton: {
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 0,
+  },
+  groupedActionButtonDanger: {
+    backgroundColor: 'transparent',
+  },
+  actionSeparator: {
+    height: 1,
+    backgroundColor: theme.border,
+    marginHorizontal: 16,
   },
 });
