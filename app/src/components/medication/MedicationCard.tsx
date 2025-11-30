@@ -7,6 +7,7 @@ import { formatMedicationDosage } from '../../utils/medicationFormatting';
 import MedicationBadges, { MedicationType } from './MedicationBadges';
 import MedicationQuickActions from './MedicationQuickActions';
 import MedicationScheduleStatus, { ScheduleLogState } from './MedicationScheduleStatus';
+import { formatTime } from '../../utils/dateFormatting';
 
 export interface MedicationCardProps {
   medication: Medication;
@@ -108,7 +109,7 @@ export default function MedicationCard({
             const [hours, minutes] = s.time.split(':');
             const date = new Date();
             date.setHours(parseInt(hours, 10), parseInt(minutes, 10));
-            return format(date, 'h:mm a');
+            return formatTime(date);
           } catch {
             return s.time;
           }

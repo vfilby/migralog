@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { format } from 'date-fns';
 import { useTheme, ThemeColors } from '../../theme';
 import { MedicationSchedule } from '../../models/types';
+import { formatTime } from '../../utils/dateFormatting';
 
 export interface ScheduleLogState {
   logged: boolean;
@@ -106,7 +106,7 @@ export default function MedicationScheduleStatus({
     const [hours, minutes] = timeStr.split(':');
     const date = new Date();
     date.setHours(parseInt(hours, 10), parseInt(minutes, 10));
-    return format(date, 'h:mm a');
+    return formatTime(date);
   };
 
   return (
@@ -138,7 +138,7 @@ export default function MedicationScheduleStatus({
                   logState.skipped && styles.skippedNotificationText
                 ]}>
                   {logState.logged && logState.loggedAt && 
-                    `${scheduleTimeStr} dose taken at ${format(logState.loggedAt, 'h:mm a')}`
+                    `${scheduleTimeStr} dose taken at ${formatTime(logState.loggedAt)}`
                   }
                   {logState.logged && !logState.loggedAt && 
                     `${scheduleTimeStr} dose taken`

@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { format } from 'date-fns';
 import {
   Episode,
   IntensityReading,
@@ -13,6 +12,7 @@ import { useTheme, ThemeColors } from '../../theme';
 import { getPainColor, getPainLevel } from '../../utils/painScale';
 import { formatMedicationDoseDisplay } from '../../utils/medicationFormatting';
 import { useMedicationStatusStyles } from '../../utils/medicationStyling';
+import { formatTime } from '../../utils/dateFormatting';
 import { 
   MedicationDoseWithDetails, 
   SymptomChange,
@@ -150,7 +150,7 @@ export const TimelineEventRenderer: React.FC<TimelineEventRendererProps> = ({
     }
   };
 
-  const time = format(group.timestamp, 'h:mm a');
+  const time = formatTime(group.timestamp);
 
   // Separate symptom events and pain location events from other events
   const symptomEvents = group.events.filter(e => e.type === 'symptom' || e.type === 'symptom_initial');

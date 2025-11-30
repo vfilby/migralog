@@ -4,13 +4,14 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import { useEpisodeStore } from '../store/episodeStore';
 import { useMedicationStore, TodaysMedication } from '../store/medicationStore';
-import { format, isToday } from 'date-fns';
+import { isToday } from 'date-fns';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import EpisodeCard from '../components/shared/EpisodeCard';
 import DailyStatusWidget from '../components/daily-status/DailyStatusWidget';
 import { useTheme, ThemeColors } from '../theme';
+import { formatTime } from '../utils/dateFormatting';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -413,16 +414,16 @@ export default function DashboardScreen() {
                     style={styles.compactLeft}
                     onPress={() => navigation.navigate('MedicationDetail', { medicationId: item.medication.id })}
                     accessibilityRole="button"
-                    accessibilityLabel={`${item.medication.name} at ${format(item.doseTime, 'h:mm a')}`}
+                    accessibilityLabel={`${item.medication.name} at ${formatTime(item.doseTime)}`}
                     accessibilityHint="View medication details"
                   >
                     <Text style={styles.compactName}>{item.medication.name}</Text>
-                    <Text style={styles.compactTime}>{format(item.doseTime, 'h:mm a')}</Text>
+                    <Text style={styles.compactTime}>{formatTime(item.doseTime)}</Text>
                   </TouchableOpacity>
                   <View style={styles.compactStatus}>
                     <Ionicons name="checkmark-circle" size={16} color={theme.success} />
                     <Text style={styles.compactStatusText}>
-                      Taken at {item.takenAt && format(item.takenAt, 'h:mm a')}
+                      Taken at {item.takenAt && formatTime(item.takenAt)}
                     </Text>
                     <TouchableOpacity
                       style={styles.compactUndoButton}
@@ -441,11 +442,11 @@ export default function DashboardScreen() {
                     style={styles.compactLeft}
                     onPress={() => navigation.navigate('MedicationDetail', { medicationId: item.medication.id })}
                     accessibilityRole="button"
-                    accessibilityLabel={`${item.medication.name} at ${format(item.doseTime, 'h:mm a')}`}
+                    accessibilityLabel={`${item.medication.name} at ${formatTime(item.doseTime)}`}
                     accessibilityHint="View medication details"
                   >
                     <Text style={styles.compactName}>{item.medication.name}</Text>
-                    <Text style={styles.compactTime}>{format(item.doseTime, 'h:mm a')}</Text>
+                    <Text style={styles.compactTime}>{formatTime(item.doseTime)}</Text>
                   </TouchableOpacity>
                   <View style={styles.compactStatus}>
                     <Ionicons name="close-circle" size={16} color={theme.textSecondary} />
@@ -467,11 +468,11 @@ export default function DashboardScreen() {
                     style={styles.compactLeft}
                     onPress={() => navigation.navigate('MedicationDetail', { medicationId: item.medication.id })}
                     accessibilityRole="button"
-                    accessibilityLabel={`${item.medication.name} at ${format(item.doseTime, 'h:mm a')}`}
+                    accessibilityLabel={`${item.medication.name} at ${formatTime(item.doseTime)}`}
                     accessibilityHint="View medication details"
                   >
                     <Text style={styles.compactName}>{item.medication.name}</Text>
-                    <Text style={styles.compactTime}>{format(item.doseTime, 'h:mm a')}</Text>
+                    <Text style={styles.compactTime}>{formatTime(item.doseTime)}</Text>
                   </TouchableOpacity>
                   <View style={styles.compactButtons}>
                     <TouchableOpacity

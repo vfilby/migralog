@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { format } from 'date-fns';
 import { Episode } from '../../models/types';
 import { useTheme, ThemeColors } from '../../theme';
+import { formatTime } from '../../utils/dateFormatting';
 
 interface EpisodeStatusCardProps {
   episode: Episode;
@@ -40,7 +41,7 @@ export const EpisodeStatusCard: React.FC<EpisodeStatusCardProps> = ({
       <View style={styles.detailRow}>
         <Text style={styles.detailLabel}>Started:</Text>
         <Text style={styles.detailValue}>
-          {format(episode.startTime, 'h:mm a')}
+          {formatTime(episode.startTime)}
         </Text>
       </View>
 
@@ -48,7 +49,7 @@ export const EpisodeStatusCard: React.FC<EpisodeStatusCardProps> = ({
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Ended:</Text>
           <Text style={styles.detailValue}>
-            {format(episode.endTime, 'h:mm a')}
+            {formatTime(episode.endTime)}
           </Text>
         </View>
       )}

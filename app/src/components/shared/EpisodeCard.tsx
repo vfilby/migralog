@@ -7,6 +7,7 @@ import { useTheme, ThemeColors } from '../../theme';
 import { intensityRepository } from '../../database/episodeRepository';
 import IntensitySparkline from '../analytics/IntensitySparkline';
 import { formatDurationLong } from '../../utils/dateFormatting';
+import { getTimeFormatString } from '../../utils/localeUtils';
 
 interface EpisodeCardProps {
   episode: Episode;
@@ -159,7 +160,7 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
       {/* Row 1: Date and Ongoing badge */}
       <View style={[styles.cardFirstRow, !locationAddress && { marginBottom: 4 }]}>
         <Text style={styles.cardDate}>
-          {format(episode.startTime, 'EEE, MMM d · h:mm a')}
+          {format(episode.startTime, `EEE, MMM d · ${getTimeFormatString()}`)}
         </Text>
         {!episode.endTime && (
           <View style={styles.ongoingBadge}>

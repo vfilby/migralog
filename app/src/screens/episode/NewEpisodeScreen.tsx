@@ -18,11 +18,11 @@ import { RootStackParamList } from '../../navigation/types';
 import { useEpisodeStore } from '../../store/episodeStore';
 import { PainLocation, PainQuality, Symptom, Trigger, EpisodeLocation } from '../../models/types';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { format } from 'date-fns';
 import { getPainLevel } from '../../utils/painScale';
 import { locationService } from '../../services/locationService';
 import { validateEpisodeEndTime } from '../../utils/episodeValidation';
 import { useTheme, ThemeColors } from '../../theme';
+import { formatDateTime } from '../../utils/dateFormatting';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'NewEpisode'>;
 
@@ -564,10 +564,10 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
             style={styles.timeButton}
             onPress={() => setShowDatePicker(true)}
             accessibilityRole="button"
-            accessibilityLabel={`Episode start time, ${format(startTime, 'MMM d, yyyy h:mm a')}`}
+            accessibilityLabel={`Episode start time, ${formatDateTime(startTime)}`}
             accessibilityHint="Opens date and time picker to change the episode start time"
           >
-            <Text style={styles.timeText}>{format(startTime, 'MMM d, yyyy h:mm a')}</Text>
+            <Text style={styles.timeText}>{formatDateTime(startTime)}</Text>
           </TouchableOpacity>
           {showDatePicker && (
             <DateTimePicker
@@ -591,10 +591,10 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
                 style={[styles.timeButton, styles.endTimeButton]}
                 onPress={() => setShowEndDatePicker(true)}
                 accessibilityRole="button"
-                accessibilityLabel={`Episode end time, ${format(endTime, 'MMM d, yyyy h:mm a')}`}
+                accessibilityLabel={`Episode end time, ${formatDateTime(endTime)}`}
                 accessibilityHint="Opens date and time picker to change the episode end time"
               >
-                <Text style={styles.timeText}>{format(endTime, 'MMM d, yyyy h:mm a')}</Text>
+                <Text style={styles.timeText}>{formatDateTime(endTime)}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.reopenButton}
