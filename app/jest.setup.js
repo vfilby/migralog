@@ -1,6 +1,19 @@
 // Set timezone to UTC for consistent date handling across different environments
 process.env.TZ = 'UTC';
 
+// Mock expo-modules-core (must be first)
+jest.mock('expo-modules-core', () => ({
+  EventEmitter: class MockEventEmitter {
+    emit() {}
+    addListener() { return { remove: () => {} }; }
+    removeListener() {}
+    removeAllListeners() {}
+  },
+  NativeModulesProxy: {},
+  requireNativeModule: jest.fn(() => ({})),
+  requireOptionalNativeModule: jest.fn(() => null),
+}));
+
 // Mock expo-sqlite
 jest.mock('expo-sqlite', () => ({
   openDatabaseAsync: jest.fn(() =>
@@ -159,6 +172,64 @@ jest.mock('expo-document-picker', () => ({
       canceled: true,
     })
   ),
+}));
+
+// Mock expo-image-picker
+jest.mock('expo-image-picker', () => ({
+  launchImageLibraryAsync: jest.fn(() =>
+    Promise.resolve({
+      canceled: true,
+    })
+  ),
+  launchCameraAsync: jest.fn(() =>
+    Promise.resolve({
+      canceled: true,
+    })
+  ),
+  requestMediaLibraryPermissionsAsync: jest.fn(() =>
+    Promise.resolve({
+      status: 'granted',
+      canAskAgain: true,
+      granted: true,
+      expires: 'never',
+    })
+  ),
+  requestCameraPermissionsAsync: jest.fn(() =>
+    Promise.resolve({
+      status: 'granted',
+      canAskAgain: true,
+      granted: true,
+      expires: 'never',
+    })
+  ),
+  MediaTypeOptions: {
+    Images: 'Images',
+    Videos: 'Videos',
+    All: 'All',
+  },
+}));
+
+// Mock expo-constants
+jest.mock('expo-constants', () => ({
+  expoConfig: {
+    name: 'MigraLog',
+    slug: 'migralog',
+    version: '1.0.0',
+  },
+  manifest: {
+    name: 'MigraLog',
+    slug: 'migralog',
+    version: '1.0.0',
+  },
+  platform: {
+    ios: {
+      bundleIdentifier: 'com.example.migralog',
+    },
+    android: {
+      package: 'com.example.migralog',
+    },
+  },
+  getWebViewUserAgentAsync: jest.fn(() => Promise.resolve('mock-user-agent')),
 }));
 
 // Mock date-fns to ensure consistent test results
