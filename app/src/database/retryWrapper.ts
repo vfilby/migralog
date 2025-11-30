@@ -3,16 +3,72 @@ import { errorLogger } from '../services/errorLogger';
 import { logger } from '../utils/logger';
 
 /**
+ * SQLite error codes - Based on SQLite documentation
+ * @see https://www.sqlite.org/rescode.html
+ */
+const SQLITE_ERROR_CODES = {
+  // Permanent errors (should NOT retry)
+  SQLITE_ERROR: 1,        // Generic error
+  SQLITE_INTERNAL: 2,     // Internal logic error
+  SQLITE_PERM: 3,         // Access permission denied
+  SQLITE_ABORT: 4,        // Callback routine requested an abort
+  SQLITE_MISUSE: 21,      // Library used incorrectly
+  SQLITE_NOLFS: 22,       // Uses OS features not supported
+  SQLITE_AUTH: 23,        // Authorization denied
+  SQLITE_FORMAT: 24,      // Database format error
+  SQLITE_RANGE: 25,       // 2nd parameter to sqlite3_bind out of range
+  SQLITE_NOTADB: 26,      // File opened that is not a database
+  SQLITE_NOTICE: 27,      // Notifications from sqlite3_log()
+  SQLITE_WARNING: 28,     // Warnings from sqlite3_log()
+  SQLITE_CORRUPT: 11,     // The database disk image is malformed
+  SQLITE_NOTFOUND: 12,    // Unknown opcode in sqlite3_file_control()
+  SQLITE_INTERRUPT: 9,    // Operation terminated by sqlite3_interrupt()
+  SQLITE_READONLY: 8,     // Attempt to write a readonly database
+  
+  // Transient errors (SHOULD retry)
+  SQLITE_BUSY: 5,         // The database file is locked
+  SQLITE_LOCKED: 6,       // A table in the database is locked
+  SQLITE_IOERR: 10,       // Some kind of disk I/O error occurred
+  SQLITE_FULL: 13,        // Insertion failed because database is full
+  SQLITE_CANTOPEN: 14,    // Unable to open the database file
+  SQLITE_PROTOCOL: 15,    // Database lock protocol error
+  SQLITE_SCHEMA: 17,      // The database schema changed
+} as const;
+
+/**
  * SQLite error codes that should trigger retry logic
  * These represent transient errors that may resolve on subsequent attempts
  */
-const RETRYABLE_ERROR_CODES = [5, 6, 10, 13, 14, 15] as const; // BUSY, LOCKED, IOERR, FULL, CANTOPEN, PROTOCOL
+const RETRYABLE_ERROR_CODES = [
+  SQLITE_ERROR_CODES.SQLITE_BUSY,      // Database file is locked
+  SQLITE_ERROR_CODES.SQLITE_LOCKED,    // Table is locked
+  SQLITE_ERROR_CODES.SQLITE_IOERR,     // Disk I/O error
+  SQLITE_ERROR_CODES.SQLITE_FULL,      // Database is full
+  SQLITE_ERROR_CODES.SQLITE_CANTOPEN,  // Unable to open database
+  SQLITE_ERROR_CODES.SQLITE_PROTOCOL,  // Lock protocol error
+  SQLITE_ERROR_CODES.SQLITE_SCHEMA,    // Schema changed during operation
+] as const;
 
 /**
- * Error codes that should NOT trigger retry logic
+ * SQLite error codes that should NOT trigger retry logic
  * These represent permanent errors that won't be resolved by retrying
  */
-const NON_RETRYABLE_ERROR_CODES = [1, 2, 3, 4, 8, 9, 11, 12, 19, 20, 21, 22, 23, 24, 25, 26] as const;
+const NON_RETRYABLE_ERROR_CODES = [
+  SQLITE_ERROR_CODES.SQLITE_ERROR,     // Generic error
+  SQLITE_ERROR_CODES.SQLITE_INTERNAL,  // Internal logic error
+  SQLITE_ERROR_CODES.SQLITE_PERM,      // Access permission denied
+  SQLITE_ERROR_CODES.SQLITE_ABORT,     // Callback routine requested abort
+  SQLITE_ERROR_CODES.SQLITE_READONLY,  // Attempt to write readonly database
+  SQLITE_ERROR_CODES.SQLITE_INTERRUPT, // Operation terminated
+  SQLITE_ERROR_CODES.SQLITE_CORRUPT,   // Database disk image malformed
+  SQLITE_ERROR_CODES.SQLITE_NOTFOUND,  // Unknown opcode
+  SQLITE_ERROR_CODES.SQLITE_MISUSE,    // Library used incorrectly
+  SQLITE_ERROR_CODES.SQLITE_NOLFS,     // Uses unsupported OS features
+  SQLITE_ERROR_CODES.SQLITE_AUTH,      // Authorization denied
+  SQLITE_ERROR_CODES.SQLITE_FORMAT,    // Database format error
+  SQLITE_ERROR_CODES.SQLITE_RANGE,     // Parameter out of range
+  SQLITE_ERROR_CODES.SQLITE_NOTADB,    // File not a database
+] as const;
 
 interface RetryConfig {
   maxRetries: number;
@@ -30,34 +86,27 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
 
 /**
  * Determines if an error should be retried based on SQLite error codes
+ * Only uses reliable error code detection, avoiding brittle pattern matching
  */
 function isRetryableError(error: unknown): boolean {
   if (!error) return false;
   
-  // Check if error message contains SQLite error codes
-  const errorMessage = (error as Error)?.message || String(error) || '';
+  // Extract error message safely
+  const errorMessage = error instanceof Error ? error.message : String(error);
   const errorCode = extractSQLiteErrorCode(errorMessage);
   
   if (errorCode !== null) {
     return RETRYABLE_ERROR_CODES.includes(errorCode as typeof RETRYABLE_ERROR_CODES[number]);
   }
   
-  // Check for common transient error patterns in message
-  const retryablePatterns = [
-    /database.*is.*locked/i,
-    /table.*is.*locked/i,
-    /database.*busy/i,
-    /disk.*i\/o.*error/i,
-    /temporary.*failure/i,
-    /resource.*temporarily.*unavailable/i,
-  ];
-  
-  return retryablePatterns.some(pattern => pattern.test(errorMessage));
+  // If we can't extract a reliable error code, don't retry
+  // This avoids brittle pattern matching on error messages
+  return false;
 }
 
 /**
  * Extracts SQLite error code from error message
- * SQLite errors typically include codes like "SQLITE_BUSY (5)"
+ * SQLite errors typically include codes like "SQLITE_BUSY (5)" or named constants
  */
 function extractSQLiteErrorCode(message: string): number | null {
   // Look for pattern like "SQLITE_BUSY (5)" or just "(5)"
@@ -66,17 +115,8 @@ function extractSQLiteErrorCode(message: string): number | null {
     return parseInt(codeMatch[1], 10);
   }
   
-  // Look for named error codes
-  const errorCodeMappings: Record<string, number> = {
-    'SQLITE_BUSY': 5,
-    'SQLITE_LOCKED': 6,
-    'SQLITE_IOERR': 10,
-    'SQLITE_PROTOCOL': 15,
-    'SQLITE_FULL': 13,
-    'SQLITE_CANTOPEN': 14,
-  };
-  
-  for (const [name, code] of Object.entries(errorCodeMappings)) {
+  // Look for named error codes using our constants
+  for (const [name, code] of Object.entries(SQLITE_ERROR_CODES)) {
     if (message.includes(name)) {
       return code;
     }
@@ -278,6 +318,7 @@ export const retryUtils = {
   isRetryableError,
   extractSQLiteErrorCode,
   calculateDelay,
+  SQLITE_ERROR_CODES,
   RETRYABLE_ERROR_CODES,
   NON_RETRYABLE_ERROR_CODES,
 };
