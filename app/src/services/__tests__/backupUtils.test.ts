@@ -287,18 +287,18 @@ describe('backupUtils', () => {
 
   describe('getBackupPath', () => {
     it('should return correct path for snapshot backup', () => {
-      const path = getBackupPath('test-backup-123', 'snapshot');
+      const path = getBackupPath('test-backup-123');
       expect(path).toBe(`${BACKUP_DIR}test-backup-123.db`);
     });
 
-    it('should return correct path for JSON backup', () => {
-      const path = getBackupPath('test-backup-456', 'json');
-      expect(path).toBe(`${BACKUP_DIR}test-backup-456.json`);
+    it('should return correct path for backup', () => {
+      const path = getBackupPath('test-backup-456');
+      expect(path).toBe(`${BACKUP_DIR}test-backup-456.db`);
     });
 
     it('should handle IDs with special characters', () => {
-      const path = getBackupPath('backup_12345_abc123', 'json');
-      expect(path).toBe(`${BACKUP_DIR}backup_12345_abc123.json`);
+      const path = getBackupPath('backup_12345_abc123');
+      expect(path).toBe(`${BACKUP_DIR}backup_12345_abc123.db`);
     });
   });
 

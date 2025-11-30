@@ -81,7 +81,7 @@ jest.mock('../errorLogger', () => ({
 
 jest.mock('../backup/backupUtils', () => ({
   generateBackupId: jest.fn(() => `backup_${Date.now()}_test123`),
-  getBackupPath: jest.fn((id: string, type: string) => `file://mockDocDir/backups/${id}.${type === 'snapshot' ? 'db' : 'json'}`),
+  getBackupPath: jest.fn((id: string) => `file://mockDocDir/backups/${id}.db`),
   getMetadataPath: jest.fn((id: string) => `file://mockDocDir/backups/${id}.meta.json`),
   getBackupMetadata: jest.fn(),
 }));
@@ -124,7 +124,7 @@ describe('BackupExporter', () => {
     jest.restoreAllMocks();
   });
 
-  describe('exportDataForSharing', () => {
+  describe('exportDataAsJson', () => {
     const mockEpisodes = [
       {
         id: 'ep1',
@@ -233,7 +233,7 @@ describe('BackupExporter', () => {
     });
 
     it('should create temporary JSON file for sharing', async () => {
-      await backupExporter.exportDataForSharing();
+      await backupExporter.exportDataAsJson();
 
       expect(FileSystem.writeAsStringAsync).toHaveBeenCalledWith(
         expect.stringContaining('migralog_export_'),
@@ -252,7 +252,7 @@ describe('BackupExporter', () => {
     });
 
     it('should gather all data types for export', async () => {
-      await backupExporter.exportDataForSharing();
+      await backupExporter.exportDataAsJson();
 
       expect(episodeRepository.getAll).toHaveBeenCalledWith(50, 0, mockDatabase);
       expect(medicationRepository.getAll).toHaveBeenCalledWith(mockDatabase);
@@ -278,7 +278,7 @@ describe('BackupExporter', () => {
     });
 
     it('should share file with correct metadata', async () => {
-      await backupExporter.exportDataForSharing();
+      await backupExporter.exportDataAsJson();
 
       expect(Sharing.shareAsync).toHaveBeenCalledWith(
         expect.stringContaining('migralog_export_'),
@@ -293,7 +293,7 @@ describe('BackupExporter', () => {
     it('should throw error when sharing unavailable', async () => {
       (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(false);
 
-      await expect(backupExporter.exportDataForSharing()).rejects.toThrow(
+      await expect(backupExporter.exportDataAsJson()).rejects.toThrow(
         'Failed to export data: Sharing is not available on this device'
       );
 
@@ -303,7 +303,7 @@ describe('BackupExporter', () => {
     it('should handle database errors gracefully', async () => {
       (episodeRepository.getAll as jest.Mock).mockRejectedValue(new Error('Database error'));
 
-      await expect(backupExporter.exportDataForSharing()).rejects.toThrow(
+      await expect(backupExporter.exportDataAsJson()).rejects.toThrow(
         'Failed to export data: Database error'
       );
     });
@@ -322,17 +322,7 @@ describe('BackupExporter', () => {
       backupType: 'snapshot' as const,
     };
 
-    const mockJsonMetadata = {
-      id: 'backup-2',
-      timestamp: Date.now(),
-      version: '1.0.0',
-      schemaVersion: 6,
-      episodeCount: 3,
-      medicationCount: 2,
-      fileSize: 3000,
-      fileName: 'backup-2.json',
-      backupType: 'json' as const,
-    };
+
 
     beforeEach(() => {
       (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true);
@@ -356,21 +346,7 @@ describe('BackupExporter', () => {
       );
     });
 
-    it('should export JSON backup with correct mime type', async () => {
-      (getBackupMetadata as jest.Mock).mockResolvedValue(mockJsonMetadata);
 
-      await backupExporter.exportBackup('backup-2');
-
-      expect(getBackupMetadata).toHaveBeenCalledWith('backup-2');
-      expect(Sharing.shareAsync).toHaveBeenCalledWith(
-        expect.stringContaining('backup-2.json'),
-        {
-          mimeType: 'application/json',
-          dialogTitle: 'Export MigraLog Backup',
-          UTI: 'public.json',
-        }
-      );
-    });
 
     it('should throw error if backup not found', async () => {
       (getBackupMetadata as jest.Mock).mockResolvedValue(null);
@@ -509,9 +485,7 @@ describe('BackupExporter', () => {
       });
 
       await expect(backupExporter.importBackup()).rejects.toThrow(
-        'Failed to import backup: JSON backup files are no longer supported for import. ' +
-        'Please use a snapshot (.db) backup file instead. ' +
-        'To create a snapshot backup, use the "Create Backup" button.'
+        'Only snapshot (.db) backup files can be imported'
       );
 
       expect(FileSystem.copyAsync).not.toHaveBeenCalled();
@@ -527,7 +501,7 @@ describe('BackupExporter', () => {
       });
 
       await expect(backupExporter.importBackup()).rejects.toThrow(
-        'JSON backup files are no longer supported'
+        'Only snapshot (.db) backup files can be imported'
       );
     });
 

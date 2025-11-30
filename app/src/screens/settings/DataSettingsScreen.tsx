@@ -22,7 +22,7 @@ export default function DataSettingsScreen({ navigation }: Props) {
 
   const handleExportData = async () => {
     try {
-      await backupService.exportDataForSharing();
+      await backupService.exportDataAsJson();
     } catch (error) {
       logger.error('Failed to export data:', error);
       Alert.alert('Error', 'Failed to export data: ' + (error as Error).message);

@@ -35,9 +35,9 @@ export async function resetDatabaseForTesting(options: {
   try {
     // 1. Create backup before reset (safety measure)
     if (createBackup) {
-      logger.log('[TestHelpers] Creating pre-reset backup...');
-      const backupId = await backupService.createBackup(false); // Not automatic
-      logger.log(`[TestHelpers] Backup created: ${backupId}`);
+      logger.log('[TestHelpers] Creating pre-reset snapshot backup...');
+      const metadata = await backupService.createSnapshotBackup();
+      logger.log(`[TestHelpers] Backup created: ${metadata.id}`);
     }
 
     // 2. Get database instance

@@ -23,15 +23,31 @@ import {
 
 /**
  * BackupExporter - Handles export and import of backup files
- * Supports sharing backups and importing external backup files
+ * Supports sharing snapshot backups and exporting data as JSON for portability
  */
 class BackupExporter {
   /**
-   * Export current database as JSON for sharing with healthcare providers
-   * Creates temporary file and immediately prompts user to save/share
-   * Does NOT store the file in backups directory - this is for data export, not backup
+   * Export current database as JSON for data portability and healthcare sharing
+   * 
+   * This creates a human-readable JSON export of all health data including:
+   * - Episodes (migraine attacks with start/end times, intensity readings, notes)
+   * - Medications (prescriptions, doses, schedules)
+   * - Daily status logs (2 years of data)
+   * 
+   * Use cases:
+   * - Sharing health data with healthcare providers
+   * - Data portability between devices/platforms
+   * - Future: Third-party data imports
+   * 
+   * NOTE: This is NOT a backup format. Use createSnapshotBackup() for backups.
+   * JSON exports cannot be restored directly - they are for data sharing only.
+   * 
+   * The JSON format is documented in docs/json-export-format.md
+   * 
+   * Creates temporary file in cache directory and prompts user to save/share.
+   * File is NOT stored in backups directory.
    */
-  async exportDataForSharing(): Promise<void> {
+  async exportDataAsJson(): Promise<void> {
     try {
       logger.log('[Export] Creating JSON export for sharing...');
 
@@ -122,17 +138,17 @@ class BackupExporter {
   }
 
   /**
-   * Export an existing backup file for sharing
+   * Export an existing snapshot backup file for sharing
+   * Note: Only snapshot (.db) backups are supported (Issue #194)
    */
   async exportBackup(backupId: string): Promise<void> {
     try {
-      // Get metadata to determine backup type
       const metadata = await getBackupMetadata(backupId);
       if (!metadata) {
         throw new Error('Backup not found');
       }
 
-      const backupPath = getBackupPath(backupId, metadata.backupType);
+      const backupPath = getBackupPath(backupId);
       const fileInfo = await FileSystem.getInfoAsync(backupPath);
 
       if (!fileInfo.exists) {
@@ -144,13 +160,10 @@ class BackupExporter {
         throw new Error('Sharing is not available on this device');
       }
 
-      const mimeType = metadata.backupType === 'snapshot' ? 'application/x-sqlite3' : 'application/json';
-      const uti = metadata.backupType === 'snapshot' ? 'public.database' : 'public.json';
-
       await Sharing.shareAsync(backupPath, {
-        mimeType,
+        mimeType: 'application/x-sqlite3',
         dialogTitle: 'Export MigraLog Backup',
-        UTI: uti,
+        UTI: 'public.database',
       });
     } catch (error) {
       logger.error('Failed to export backup:', error);
@@ -179,10 +192,9 @@ class BackupExporter {
       const isDbFile = fileName.endsWith('.db') || fileName.endsWith('.sqlite') || fileName.endsWith('.sqlite3');
 
       if (isDbFile) {
-        // For .db files, we need to handle them differently
-        // Copy the .db file as a backup snapshot
+        // For .db files, copy as a backup snapshot
         const backupId = generateBackupId();
-        const backupPath = getBackupPath(backupId, 'snapshot');
+        const backupPath = getBackupPath(backupId);
 
         await FileSystem.copyAsync({
           from: fileUri,
@@ -213,12 +225,10 @@ class BackupExporter {
         return metadata;
       }
 
-      // JSON backup import no longer supported - Issue #185
-      // Only snapshot (.db) files can be imported now
+      // Only snapshot (.db) backup files can be imported
       throw new Error(
-        'JSON backup files are no longer supported for import. ' +
-        'Please use a snapshot (.db) backup file instead. ' +
-        'To create a snapshot backup, use the "Create Backup" button.'
+        'Only snapshot (.db) backup files can be imported. ' +
+        'Please select a .db backup file.'
       );
     } catch (error) {
       logger.error('Failed to import backup:', error);
