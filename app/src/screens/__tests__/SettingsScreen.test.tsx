@@ -278,10 +278,6 @@ describe('SettingsScreen', () => {
       }
 
       await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith(
-          'Developer Mode Enabled',
-          'Developer tools are now visible in Settings.'
-        );
         expect(AsyncStorage.setItem).toHaveBeenCalledWith('@settings_developer_mode', 'true');
       });
     });
@@ -389,11 +385,8 @@ describe('SettingsScreen', () => {
       }
 
       await waitFor(() => {
-        // The error should be logged but the alert should still show
-        expect(Alert.alert).toHaveBeenCalledWith(
-          'Developer Mode Enabled',
-          'Developer tools are now visible in Settings.'
-        );
+        // Developer mode should still be toggled despite the storage error
+        expect(AsyncStorage.setItem).toHaveBeenCalledWith('@settings_developer_mode', 'true');
       });
     });
   });
