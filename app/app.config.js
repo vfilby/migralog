@@ -6,14 +6,14 @@ module.exports = {
     slug: "migraine-tracker",
     version: pkg.version,
     orientation: "portrait",
-    icon: "./assets/icon.png",
+    icon: "./assets/migralog.icon",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
     scheme: "migraine-tracker",
     splash: {
       image: "./assets/splash-icon.png",
       resizeMode: "contain",
-      backgroundColor: "#4c1d95"
+      backgroundColor: "#162435"
     },
     ios: {
       supportsTablet: true,
