@@ -1,8 +1,5 @@
 name: Auto Version Bump
 
-permissions:
-  contents: write
-
 on:
   push:
     branches:
