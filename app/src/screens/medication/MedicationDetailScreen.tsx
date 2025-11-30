@@ -461,7 +461,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
                     onLongPress={() => handleDoseAction(dose)}
                     activeOpacity={0.7}
                     accessibilityRole="button"
-                    accessibilityLabel={`Dose logged on ${format(new Date(dose.timestamp), 'MMM d, yyyy')} at ${format(new Date(dose.timestamp), 'h:mm a')}`}
+                    accessibilityLabel={`Dose logged on ${format(new Date(dose.timestamp), 'MMM d, yyyy')} at ${formatTime(dose.timestamp)}`}
                     accessibilityHint="Long press to edit or delete this dose"
                   >
                     <View style={styles.logItemLeft}>

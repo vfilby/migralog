@@ -183,6 +183,17 @@ export function getShortDateTimeFormatString(): string {
 }
 
 /**
+ * Get the appropriate time format string with seconds
+ *
+ * Useful for error logs and other contexts requiring precise timestamps.
+ *
+ * @returns 'h:mm:ss a' for 12-hour format, 'HH:mm:ss' for 24-hour format
+ */
+export function getTimeFormatWithSecondsString(): string {
+  return uses12HourClock() ? 'h:mm:ss a' : 'HH:mm:ss';
+}
+
+/**
  * Clear the cached locale settings
  *
  * Useful for testing or when locale settings might have changed.
