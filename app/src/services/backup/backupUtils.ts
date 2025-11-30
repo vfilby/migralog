@@ -73,6 +73,7 @@ export function generateBackupId(): string {
 /**
  * Get the file path for a snapshot backup
  * Note: Only snapshot backups are supported (Issue #194)
+ * For JSON data export, use BackupExporter.exportDataAsJson()
  */
 export function getBackupPath(backupId: string): string {
   return `${BACKUP_DIR}${backupId}.db`;

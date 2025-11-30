@@ -197,6 +197,7 @@ export interface BackupMetadata {
   fileName: string;
   // Note: Only snapshot (.db) backups are supported (Issue #194)
   // JSON export exists separately for data portability and healthcare sharing
+  // Use BackupExporter.exportDataAsJson() for JSON data export
   backupType: 'snapshot';
 }
 

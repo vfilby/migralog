@@ -98,7 +98,7 @@ class BackupExporter {
           episodeCount: episodes.length,
           medicationCount: medications.length,
         },
-        schemaSQL: '', // Not needed for data sharing - only for backup/restore
+        // schemaSQL omitted - not needed for data sharing, only for backup/restore
         episodes,
         episodeNotes,
         intensityReadings,
