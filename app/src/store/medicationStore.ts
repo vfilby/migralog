@@ -8,6 +8,45 @@ import { notificationService } from '../services/notifications/notificationServi
 import { toastService } from '../services/toastService';
 import { cacheManager } from '../utils/cacheManager';
 
+/**
+ * Categorizes medications by type and applies appropriate sorting.
+ *
+ * Rescue medications are sorted by usage frequency (most used first),
+ * with alphabetical name sorting as a tiebreaker. This helps users
+ * quickly access their most commonly used rescue medications.
+ *
+ * @param medications - Array of medications to categorize
+ * @param usageCounts - Map of medication ID to usage count for sorting
+ * @returns Object containing medications grouped by type
+ */
+function categorizeMedications(
+  medications: Medication[],
+  usageCounts: Map<string, number>
+): {
+  preventative: Medication[];
+  rescue: Medication[];
+  other: Medication[];
+} {
+  const preventative = medications.filter(m => m.type === 'preventative');
+  const rescue = medications
+    .filter(m => m.type === 'rescue')
+    .sort((a, b) => {
+      const usageA = usageCounts.get(a.id) || 0;
+      const usageB = usageCounts.get(b.id) || 0;
+
+      // Primary sort: by usage count (descending - most used first)
+      if (usageB !== usageA) {
+        return usageB - usageA;
+      }
+
+      // Secondary sort: alphabetically by name
+      return a.name.localeCompare(b.name);
+    });
+  const other = medications.filter(m => m.type === 'other');
+
+  return { preventative, rescue, other };
+}
+
 export interface TodaysMedication {
   medication: Medication;
   schedule: MedicationSchedule;
@@ -59,27 +98,12 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       // Get usage counts for sorting
       const usageCounts = await medicationDoseRepository.getMedicationUsageCounts();
 
-      const preventativeMedications = cached.filter(m => m.type === 'preventative');
-      const rescueMedications = cached
-        .filter(m => m.type === 'rescue')
-        .sort((a, b) => {
-          const usageA = usageCounts.get(a.id) || 0;
-          const usageB = usageCounts.get(b.id) || 0;
-
-          // Primary sort: by usage count (descending - most used first)
-          if (usageB !== usageA) {
-            return usageB - usageA;
-          }
-
-          // Secondary sort: alphabetically by name
-          return a.name.localeCompare(b.name);
-        });
-      const otherMedications = cached.filter(m => m.type === 'other');
+      const categorized = categorizeMedications(cached, usageCounts);
       set({
         medications: cached,
-        preventativeMedications,
-        rescueMedications,
-        otherMedications,
+        preventativeMedications: categorized.preventative,
+        rescueMedications: categorized.rescue,
+        otherMedications: categorized.other,
         loading: false
       });
       return;
@@ -92,30 +116,15 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       // Get usage counts for sorting
       const usageCounts = await medicationDoseRepository.getMedicationUsageCounts();
 
-      const preventativeMedications = medications.filter(m => m.type === 'preventative');
-      const rescueMedications = medications
-        .filter(m => m.type === 'rescue')
-        .sort((a, b) => {
-          const usageA = usageCounts.get(a.id) || 0;
-          const usageB = usageCounts.get(b.id) || 0;
-
-          // Primary sort: by usage count (descending - most used first)
-          if (usageB !== usageA) {
-            return usageB - usageA;
-          }
-
-          // Secondary sort: alphabetically by name
-          return a.name.localeCompare(b.name);
-        });
-      const otherMedications = medications.filter(m => m.type === 'other');
+      const categorized = categorizeMedications(medications, usageCounts);
 
       cacheManager.set('medications', medications);
 
       set({
         medications,
-        preventativeMedications,
-        rescueMedications,
-        otherMedications,
+        preventativeMedications: categorized.preventative,
+        rescueMedications: categorized.rescue,
+        otherMedications: categorized.other,
         loading: false
       });
     } catch (error) {
