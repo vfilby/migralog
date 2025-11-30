@@ -5,6 +5,7 @@ import { migrationRunner } from './migrations';
 import { errorLogger } from '../services/errorLogger';
 import { logger } from '../utils/logger';
 import { performanceMonitor } from '../utils/performance';
+import { createRetryWrapper } from './retryWrapper';
 
 let db: SQLite.SQLiteDatabase | null = null;
 let isInitialized = false;
@@ -136,7 +137,12 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
       isInitialized = true;
       initTimer.end();
       logger.log('[DB] Database initialization complete');
-      return db;
+      
+      // Wrap the database with retry logic for transient errors
+      const wrappedDb = createRetryWrapper(db);
+      logger.log('[DB] Database retry wrapper applied');
+      
+      return wrappedDb;
     } catch (error) {
       logger.error('[DB] FATAL: Failed to initialize database:', error);
       await errorLogger.log(
