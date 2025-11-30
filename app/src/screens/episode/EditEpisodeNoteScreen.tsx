@@ -16,8 +16,8 @@ import { RootStackParamList } from '../../navigation/types';
 import { episodeNoteRepository } from '../../database/episodeRepository';
 import { EpisodeNote } from '../../models/types';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { format } from 'date-fns';
 import { useTheme, ThemeColors } from '../../theme';
+import { formatDateTime } from '../../utils/dateFormatting';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditEpisodeNote'>;
 
@@ -261,11 +261,11 @@ export default function EditEpisodeNoteScreen({ route, navigation }: Props) {
             style={styles.timeButton}
             onPress={() => setShowDatePicker(true)}
             accessibilityRole="button"
-            accessibilityLabel={`Change time, currently ${format(timestamp, 'MMM d, yyyy h:mm a')}`}
+            accessibilityLabel={`Change time, currently ${formatDateTime(timestamp)}`}
             accessibilityHint="Opens date and time picker"
           >
             <Text style={styles.timeText}>
-              {format(timestamp, 'MMM d, yyyy h:mm a')}
+              {formatDateTime(timestamp)}
             </Text>
           </TouchableOpacity>
           {showDatePicker && (

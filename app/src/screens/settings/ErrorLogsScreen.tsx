@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme, ThemeColors } from '../../theme';
 import { errorLogger, ErrorLog } from '../../services/errorLogger';
 import { format } from 'date-fns';
+import { getTimeFormatWithSecondsString } from '../../utils/localeUtils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ErrorLogs'>;
 
@@ -141,7 +142,7 @@ export default function ErrorLogsScreen({ navigation }: Props) {
                       <View style={styles.logHeaderText}>
                         <Text style={styles.logType}>{log.type}</Text>
                         <Text style={styles.logTimestamp}>
-                          {format(log.timestamp, 'MMM d, h:mm:ss a')}
+                          {format(log.timestamp, `MMM d, ${getTimeFormatWithSecondsString()}`)}
                         </Text>
                       </View>
                     </View>

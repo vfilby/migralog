@@ -31,6 +31,7 @@ import { getCategoryName } from '../../utils/presetMedications';
 import NotificationSettings from '../../components/shared/NotificationSettings';
 import { isLargeTextModeEnabled } from '../../utils/textScaling';
 import { Ionicons } from '@expo/vector-icons';
+import { formatTime, formatDateTime } from '../../utils/dateFormatting';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MedicationDetail'>;
 
@@ -135,7 +136,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
       // Android fallback - show Alert with options
       Alert.alert(
         'Dose Actions',
-        `${format(new Date(dose.timestamp), 'MMM d, yyyy h:mm a')}`,
+        `${formatDateTime(dose.timestamp)}`,
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Edit', onPress: () => handleEditDose(dose) },
@@ -188,7 +189,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
   const handleDeleteDose = (dose: MedicationDose) => {
     Alert.alert(
       'Delete Dose',
-      `Are you sure you want to delete this dose from ${format(new Date(dose.timestamp), 'MMM d, yyyy h:mm a')}?`,
+      `Are you sure you want to delete this dose from ${formatDateTime(dose.timestamp)}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -460,7 +461,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
                     onLongPress={() => handleDoseAction(dose)}
                     activeOpacity={0.7}
                     accessibilityRole="button"
-                    accessibilityLabel={`Dose logged on ${format(new Date(dose.timestamp), 'MMM d, yyyy')} at ${format(new Date(dose.timestamp), 'h:mm a')}`}
+                    accessibilityLabel={`Dose logged on ${format(new Date(dose.timestamp), 'MMM d, yyyy')} at ${formatTime(dose.timestamp)}`}
                     accessibilityHint="Long press to edit or delete this dose"
                   >
                     <View style={styles.logItemLeft}>
@@ -468,7 +469,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
                         {format(new Date(dose.timestamp), 'MMM d, yyyy')}
                       </Text>
                       <Text style={[styles.logTime, { color: theme.textSecondary }]}>
-                        {format(new Date(dose.timestamp), 'h:mm a')}
+                        {formatTime(dose.timestamp)}
                       </Text>
                     </View>
                     <View style={styles.logItemRight}>
@@ -571,11 +572,11 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
                 }]}
                 onPress={() => setShowDateTimePicker(true)}
                 accessibilityRole="button"
-                accessibilityLabel={`Change time, currently ${editTimestamp && format(new Date(editTimestamp), 'MMM d, yyyy h:mm a')}`}
+                accessibilityLabel={`Change time, currently ${editTimestamp && formatDateTime(editTimestamp)}`}
                 accessibilityHint="Opens date and time picker"
               >
                 <Text style={[styles.modalValue, { color: theme.text }]}>
-                  {editTimestamp && format(new Date(editTimestamp), 'MMM d, yyyy h:mm a')}
+                  {editTimestamp && formatDateTime(editTimestamp)}
                 </Text>
               </TouchableOpacity>
               {showDateTimePicker && (

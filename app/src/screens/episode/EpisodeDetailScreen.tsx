@@ -9,12 +9,13 @@ import { useEpisodeStore } from '../../store/episodeStore';
 import { episodeRepository, intensityRepository, symptomLogRepository, episodeNoteRepository, painLocationLogRepository } from '../../database/episodeRepository';
 import { medicationDoseRepository, medicationRepository } from '../../database/medicationRepository';
 import { Episode, IntensityReading, SymptomLog, EpisodeNote, PainLocationLog } from '../../models/types';
-import { format, differenceInMinutes } from 'date-fns';
+import { differenceInMinutes } from 'date-fns';
 import { locationService } from '../../services/locationService';
 import { useTheme, ThemeColors } from '../../theme';
 import { validateEpisodeEndTime } from '../../utils/episodeValidation';
 import { shouldShowMedicationInTimeline } from '../../utils/timelineFilters';
 import { groupEventsByDay, DayGroup } from '../../utils/timelineGrouping';
+import { formatDateTime } from '../../utils/dateFormatting';
 import {
   EpisodeStatusCard,
   EpisodeInfoCards,
@@ -252,7 +253,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
 
     Alert.alert(
       'Intensity Options',
-      format(new Date(reading.timestamp), 'MMM d, yyyy h:mm a'),
+      formatDateTime(reading.timestamp),
       [
         {
           text: 'Edit',
@@ -340,7 +341,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
 
     Alert.alert(
       'Symptom Options',
-      format(new Date(log.onsetTime), 'MMM d, yyyy h:mm a'),
+      formatDateTime(log.onsetTime),
       [
         {
           text: 'Edit',
@@ -382,7 +383,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
 
     Alert.alert(
       'Pain Location Options',
-      format(new Date(log.timestamp), 'MMM d, yyyy h:mm a'),
+      formatDateTime(log.timestamp),
       [
         {
           text: 'Edit',
@@ -666,7 +667,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     } else {
       Alert.alert(
         'Episode End Actions',
-        episode.endTime ? format(new Date(episode.endTime), 'MMM d, yyyy h:mm a') : '',
+        episode.endTime ? formatDateTime(episode.endTime) : '',
         [
           { text: 'Cancel', style: 'cancel' },
           { 

@@ -16,8 +16,8 @@ import { useMedicationStore } from '../../store/medicationStore';
 import { medicationRepository } from '../../database/medicationRepository';
 import { Medication } from '../../models/types';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { format } from 'date-fns';
 import { useTheme, ThemeColors } from '../../theme';
+import { formatDateTime } from '../../utils/dateFormatting';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LogMedication'>;
 
@@ -446,11 +446,11 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
             style={styles.timeButton}
             onPress={() => setShowDatePicker(true)}
             accessibilityRole="button"
-            accessibilityLabel={`Time taken: ${format(timestamp, 'MMM d, yyyy h:mm a')}`}
+            accessibilityLabel={`Time taken: ${formatDateTime(timestamp)}`}
             accessibilityHint="Opens date and time picker to change when medication was taken"
           >
             <Text style={styles.timeText}>
-              {format(timestamp, 'MMM d, yyyy h:mm a')}
+              {formatDateTime(timestamp)}
             </Text>
           </TouchableOpacity>
           {showDatePicker && (

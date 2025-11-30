@@ -2,9 +2,9 @@ import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { format } from 'date-fns';
 import { Episode } from '../../models/types';
 import { useTheme, ThemeColors } from '../../theme';
+import { formatDateTime } from '../../utils/dateFormatting';
 
 interface EpisodeModalsProps {
   showMapModal: boolean;
@@ -71,7 +71,7 @@ export const EpisodeModals: React.FC<EpisodeModalsProps> = ({
                   longitude: episode.location.longitude,
                 }}
                 title="Episode Started Here"
-                description={locationAddress || format(episode.startTime, 'MMM d, yyyy h:mm a')}
+                description={locationAddress || formatDateTime(episode.startTime)}
               />
             </MapView>
           )}
