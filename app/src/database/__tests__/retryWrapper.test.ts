@@ -45,8 +45,8 @@ describe('retryWrapper', () => {
         expect(retryUtils.isRetryableError(error)).toBe(true);
       });
 
-      test('should return true for I/O error pattern', () => {
-        const error = new Error('disk I/O error occurred');
+      test('should return true for SQLITE_IOERR error', () => {
+        const error = new Error('SQLITE_IOERR (10): disk I/O error occurred');
         expect(retryUtils.isRetryableError(error)).toBe(true);
       });
 
