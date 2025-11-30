@@ -20,7 +20,7 @@ The JSON export follows a structured `BackupData` schema with the following top-
 ```typescript
 interface BackupData {
   metadata: BackupMetadata;
-  schemaSQL?: string;           // Optional - omitted in exports
+  // Note: schemaSQL is omitted from JSON exports - only used in backup files
   episodes: Episode[];
   episodeNotes?: EpisodeNote[];
   intensityReadings?: IntensityReading[];

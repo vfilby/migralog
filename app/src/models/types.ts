@@ -203,7 +203,7 @@ export interface BackupMetadata {
 
 export interface BackupData {
   metadata: Omit<BackupMetadata, 'fileSize' | 'fileName' | 'backupType'>;
-  schemaSQL?: string; // Complete CREATE TABLE statements for the schema at backup time (optional for backward compatibility)
+  schemaSQL?: string; // Complete CREATE TABLE statements - optional, omitted in JSON exports
   episodes: Episode[];
   episodeNotes?: EpisodeNote[]; // Optional for backward compatibility
   intensityReadings?: IntensityReading[]; // Optional for backward compatibility
