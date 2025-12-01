@@ -22,6 +22,9 @@ if (shouldInitSentry) {
   Sentry.init({
     dsn: 'https://15bd8c3b6589a60a5e10f2703923db39@o4510275950608384.ingest.us.sentry.io/4510275952312320',
 
+    // Enable Performance Monitoring
+    tracesSampleRate: 1.0, // 100% sampling for small user base
+
     // Adds more context data to events (IP address, cookies, user, etc.)
     // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
     sendDefaultPii: true,
