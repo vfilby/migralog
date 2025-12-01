@@ -40,7 +40,7 @@ import NotificationSettingsScreen from '../screens/settings/NotificationSettings
 import LocationSettingsScreen from '../screens/settings/LocationSettingsScreen';
 import DataSettingsScreen from '../screens/settings/DataSettingsScreen';
 import DeveloperToolsScreen from '../screens/settings/DeveloperToolsScreen';
-import BackupRecoveryScreen from '../screens/settings/BackupRecoveryScreen';
+
 import ErrorLogsScreen from '../screens/settings/ErrorLogsScreen';
 import PerformanceScreen from '../screens/settings/PerformanceScreen';
 
@@ -258,11 +258,7 @@ export default function AppNavigator() {
           component={DeveloperToolsScreen}
           options={{ headerShown: false }}
         />
-        <Stack.Screen
-          name="BackupRecovery"
-          component={BackupRecoveryScreen}
-          options={{ headerShown: false }}
-        />
+
         <Stack.Screen
           name="ErrorLogs"
           component={ErrorLogsScreen}

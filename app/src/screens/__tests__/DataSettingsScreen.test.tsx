@@ -1,20 +1,18 @@
 import React from 'react';
 import { Alert } from 'react-native';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import BackupRecoveryScreen from '../settings/BackupRecoveryScreen';
+import DataSettingsScreen from '../settings/DataSettingsScreen';
 import { ThemeProvider } from '../../theme/ThemeContext';
 import { pressAlertButtonByText } from '../../utils/testUtils/alertHelpers';
 
 // Mock the backup service module
-
-// Mock the module properly
 jest.mock('../../services/backup/backupService', () => {
   const actualModule = jest.requireActual('../../services/backup/backupService');
   return {
     ...actualModule,
     backupService: {
       listBackups: jest.fn().mockResolvedValue([]),
-      createBackup: jest.fn().mockResolvedValue(undefined),
+      exportDataAsJson: jest.fn().mockResolvedValue(undefined),
       createSnapshotBackup: jest.fn().mockResolvedValue(undefined), 
       exportBackup: jest.fn().mockResolvedValue(undefined),
       importBackup: jest.fn().mockResolvedValue({ id: 'imported-backup-123', timestamp: Date.now() }),
@@ -51,11 +49,11 @@ const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 );
 
 const mockRoute = {
-  key: 'backup-recovery',
-  name: 'BackupRecovery' as const,
+  key: 'data-settings',
+  name: 'DataSettingsScreen' as const,
 };
 
-describe('BackupRecoveryScreen', () => {
+describe('DataSettingsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     backupService.listBackups.mockResolvedValue([]);
@@ -65,21 +63,46 @@ describe('BackupRecoveryScreen', () => {
   describe('Rendering', () => {
     it('renders without crashing', async () => {
       const { getByTestId } = render(
-        <BackupRecoveryScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        <DataSettingsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
         { wrapper: TestWrapper }
       );
       await waitFor(() => {
-        expect(getByTestId('backup-recovery-screen')).toBeTruthy();
+        expect(getByTestId('data-settings-screen')).toBeTruthy();
       });
     });
 
     it('displays correct header title', async () => {
       const { getByText } = render(
-        <BackupRecoveryScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        <DataSettingsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
         { wrapper: TestWrapper }
       );
       await waitFor(() => {
-        expect(getByText('Backup & Recovery')).toBeTruthy();
+        expect(getByText('Data Management')).toBeTruthy();
+      });
+    });
+
+    it('shows export data section', async () => {
+      const { getByText } = render(
+        <DataSettingsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        { wrapper: TestWrapper }
+      );
+
+      await waitFor(() => {
+        expect(getByText('Export & Backup')).toBeTruthy();
+        expect(getByText('Export Data')).toBeTruthy();
+      });
+    });
+
+    it('shows backup section', async () => {
+      const { getByText } = render(
+        <DataSettingsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        { wrapper: TestWrapper }
+      );
+
+      await waitFor(() => {
+        expect(getByText('Export & Backup')).toBeTruthy();
+        expect(getByText('Create Backup')).toBeTruthy();
+        expect(getByText('Import Backup')).toBeTruthy();
       });
     });
 
@@ -87,7 +110,7 @@ describe('BackupRecoveryScreen', () => {
       backupService.listBackups.mockResolvedValue([]);
 
       const { getByText } = render(
-        <BackupRecoveryScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        <DataSettingsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
         { wrapper: TestWrapper }
       );
 
@@ -97,10 +120,58 @@ describe('BackupRecoveryScreen', () => {
     });
   });
 
+  describe('Export Data', () => {
+    it('should display export data button', async () => {
+      const { getByText } = render(
+        <DataSettingsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        { wrapper: TestWrapper }
+      );
+
+      await waitFor(() => {
+        expect(getByText('Export Data')).toBeTruthy();
+      });
+    });
+
+    it('should call export data service when export button pressed', async () => {
+      const { getByLabelText } = render(
+        <DataSettingsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        { wrapper: TestWrapper }
+      );
+
+      await waitFor(() => {
+        const exportButton = getByLabelText('Export data');
+        fireEvent.press(exportButton);
+      });
+
+      await waitFor(() => {
+        expect(backupService.exportDataAsJson).toHaveBeenCalled();
+      });
+    });
+
+    it('should show error alert when export fails', async () => {
+      const error = new Error('Export failed');
+      backupService.exportDataAsJson.mockRejectedValueOnce(error);
+
+      const { getByLabelText } = render(
+        <DataSettingsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        { wrapper: TestWrapper }
+      );
+
+      await waitFor(() => {
+        const exportButton = getByLabelText('Export data');
+        fireEvent.press(exportButton);
+      });
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to export data: Export failed');
+      });
+    });
+  });
+
   describe('Backup Creation', () => {
     it('should display create backup button', async () => {
       const { getByText } = render(
-        <BackupRecoveryScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        <DataSettingsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
         { wrapper: TestWrapper }
       );
 
@@ -111,7 +182,7 @@ describe('BackupRecoveryScreen', () => {
 
     it('should call backup creation service when create button pressed', async () => {
       const { getByText } = render(
-        <BackupRecoveryScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        <DataSettingsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
         { wrapper: TestWrapper }
       );
 
@@ -130,7 +201,7 @@ describe('BackupRecoveryScreen', () => {
       backupService.createSnapshotBackup.mockRejectedValueOnce(error);
 
       const { getByText } = render(
-        <BackupRecoveryScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        <DataSettingsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
         { wrapper: TestWrapper }
       );
 
@@ -143,12 +214,29 @@ describe('BackupRecoveryScreen', () => {
         expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to create backup: Storage full');
       });
     });
+
+    it('should handle successful backup creation with success alert', async () => {
+      const { getByText } = render(
+        <DataSettingsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        { wrapper: TestWrapper }
+      );
+
+      await waitFor(() => {
+        const createButton = getByText('Create Backup');
+        fireEvent.press(createButton);
+      });
+
+      await waitFor(() => {
+        expect(backupService.createSnapshotBackup).toHaveBeenCalled();
+        expect(Alert.alert).toHaveBeenCalledWith('Success', 'Backup created successfully');
+      });
+    });
   });
 
   describe('Backup Import', () => {
     it('should display import backup button', async () => {
       const { getByText } = render(
-        <BackupRecoveryScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        <DataSettingsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
         { wrapper: TestWrapper }
       );
 
@@ -159,7 +247,7 @@ describe('BackupRecoveryScreen', () => {
 
     it('should show import confirmation dialog when import pressed', async () => {
       const { getByText } = render(
-        <BackupRecoveryScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        <DataSettingsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
         { wrapper: TestWrapper }
       );
 
@@ -175,15 +263,13 @@ describe('BackupRecoveryScreen', () => {
     });
   });
 
-
-
   describe('Broken Backup Handling', () => {
     it('should show warning banner when broken backups exist', async () => {
       backupService.checkForBrokenBackups.mockResolvedValue(3);
       backupService.listBackups.mockResolvedValue([]);
 
       const { getByText } = render(
-        <BackupRecoveryScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        <DataSettingsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
         { wrapper: TestWrapper }
       );
 
@@ -201,7 +287,7 @@ describe('BackupRecoveryScreen', () => {
       backupService.checkForBrokenBackups.mockResolvedValueOnce(0);
 
       const { queryByText } = render(
-        <BackupRecoveryScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        <DataSettingsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
         { wrapper: TestWrapper }
       );
 
@@ -215,7 +301,7 @@ describe('BackupRecoveryScreen', () => {
       backupService.listBackups.mockResolvedValue([]);
 
       const { getByText } = render(
-        <BackupRecoveryScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        <DataSettingsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
         { wrapper: TestWrapper }
       );
 
@@ -246,13 +332,13 @@ describe('BackupRecoveryScreen', () => {
       backupService.checkForBrokenBackups.mockResolvedValue(0);
 
       const { getByTestId } = render(
-        <BackupRecoveryScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        <DataSettingsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
         { wrapper: TestWrapper }
       );
 
       // Should still render the screen without crashing
       await waitFor(() => {
-        expect(getByTestId('backup-recovery-screen')).toBeTruthy();
+        expect(getByTestId('data-settings-screen')).toBeTruthy();
       });
 
       await waitFor(() => {
@@ -264,22 +350,22 @@ describe('BackupRecoveryScreen', () => {
   describe('Accessibility', () => {
     it('has proper testID for the screen', async () => {
       const { getByTestId } = render(
-        <BackupRecoveryScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        <DataSettingsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
         { wrapper: TestWrapper }
       );
       await waitFor(() => {
-        expect(getByTestId('backup-recovery-screen')).toBeTruthy();
+        expect(getByTestId('data-settings-screen')).toBeTruthy();
       });
     });
 
     it('provides accessible header', async () => {
       const { getByText } = render(
-        <BackupRecoveryScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        <DataSettingsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
         { wrapper: TestWrapper }
       );
       
       await waitFor(() => {
-        expect(getByText('Backup & Recovery')).toBeTruthy();
+        expect(getByText('Data Management')).toBeTruthy();
       });
     });
   });
@@ -287,11 +373,11 @@ describe('BackupRecoveryScreen', () => {
   describe('Theme Support', () => {
     it('renders correctly with theme integration', async () => {
       const { getByTestId } = render(
-        <BackupRecoveryScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        <DataSettingsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
         { wrapper: TestWrapper }
       );
       await waitFor(() => {
-        expect(getByTestId('backup-recovery-screen')).toBeTruthy();
+        expect(getByTestId('data-settings-screen')).toBeTruthy();
       });
     });
   });
@@ -304,23 +390,23 @@ describe('BackupRecoveryScreen', () => {
       );
 
       const { getByTestId } = render(
-        <BackupRecoveryScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        <DataSettingsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
         { wrapper: TestWrapper }
       );
 
       await waitFor(() => {
-        expect(getByTestId('backup-recovery-screen')).toBeTruthy();
+        expect(getByTestId('data-settings-screen')).toBeTruthy();
       });
     });
 
     it('should handle refresh functionality', async () => {
       const { getByTestId } = render(
-        <BackupRecoveryScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        <DataSettingsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
         { wrapper: TestWrapper }
       );
 
       await waitFor(() => {
-        expect(getByTestId('backup-recovery-screen')).toBeTruthy();
+        expect(getByTestId('data-settings-screen')).toBeTruthy();
       });
 
       // Reset mocks to test refresh
@@ -330,46 +416,23 @@ describe('BackupRecoveryScreen', () => {
     });
   });
 
-  describe('Service Integration', () => {
-    it('should handle successful backup creation with success alert', async () => {
+  describe('Data Management', () => {
+    it('should display privacy information', async () => {
       const { getByText } = render(
-        <BackupRecoveryScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        <DataSettingsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
         { wrapper: TestWrapper }
       );
 
       await waitFor(() => {
-        const createButton = getByText('Create Backup');
-        fireEvent.press(createButton);
-      });
-
-      await waitFor(() => {
-        expect(backupService.createSnapshotBackup).toHaveBeenCalled();
-        expect(Alert.alert).toHaveBeenCalledWith('Success', 'Backup created successfully');
+        expect(getByText('Data Privacy')).toBeTruthy();
       });
     });
-  });
 
-  describe('Navigation', () => {
-    it('should handle back navigation', async () => {
-      const mockNavigation = { goBack: mockGoBack };
-
-      const { getByTestId } = render(
-        <BackupRecoveryScreen navigation={mockNavigation as any} route={mockRoute} />,
-        { wrapper: TestWrapper }
-      );
-
-      await waitFor(() => {
-        expect(getByTestId('backup-recovery-screen')).toBeTruthy();
-      });
-    });
-  });
-
-  describe('Empty State', () => {
     it('should show empty state when no backups available', async () => {
       backupService.listBackups.mockResolvedValue([]);
 
       const { getByText } = render(
-        <BackupRecoveryScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
+        <DataSettingsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
         { wrapper: TestWrapper }
       );
 

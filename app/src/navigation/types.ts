@@ -23,7 +23,7 @@ export type RootStackParamList = {
   LocationSettingsScreen: undefined;
   DataSettingsScreen: undefined;
   DeveloperToolsScreen: undefined;
-  BackupRecovery: undefined;
+
   ErrorLogs: undefined;
   Performance: undefined;
   DailyStatusPrompt: { date?: string };
