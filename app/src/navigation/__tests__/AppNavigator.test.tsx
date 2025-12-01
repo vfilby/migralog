@@ -54,7 +54,7 @@ jest.mock('../../screens/settings/NotificationSettingsScreen', () => createScree
 jest.mock('../../screens/settings/LocationSettingsScreen', () => createScreenMock('LocationSettings', 'location-settings-screen'));
 jest.mock('../../screens/settings/DataSettingsScreen', () => createScreenMock('DataSettings', 'data-settings-screen'));
 jest.mock('../../screens/settings/DeveloperToolsScreen', () => createScreenMock('DeveloperTools', 'developer-tools-screen'));
-jest.mock('../../screens/settings/BackupRecoveryScreen', () => createScreenMock('BackupRecovery', 'backup-recovery-screen'));
+
 jest.mock('../../screens/settings/ErrorLogsScreen', () => createScreenMock('ErrorLogs', 'error-logs-screen'));
 jest.mock('../../screens/settings/PerformanceScreen', () => createScreenMock('Performance', 'performance-screen'));
 
