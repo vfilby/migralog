@@ -11,7 +11,7 @@ module.exports = {
     newArchEnabled: true,
     scheme: "migraine-tracker",
     splash: {
-      image: "./assets/splash-icon.png",
+      image: "./assets/splash-image.png",
       resizeMode: "contain",
       backgroundColor: "#162435"
     },

@@ -1,33 +1,33 @@
 # Testing Guide
 
-Comprehensive testing strategy for MigraineTracker.
+Comprehensive testing strategy for MigraineTracker. This is a summary for the GitHub Wiki.
 
-## Test Types
+📖 **For detailed testing documentation, see [../testing.md](../testing.md)**
+
+## Quick Overview
+
+MigraineTracker uses a multi-layered testing approach:
 
 ### Unit Tests (Jest)
+- **Location**: `src/**/__tests__/*.test.ts`
+- **Coverage Goal**: 80%+ for core business logic
+- **Run**: `npm test`
 
-Test individual functions, components, and modules in isolation.
+### E2E Tests (Detox)  
+- **Location**: `e2e/*.test.js`
+- **Covers**: Critical user flows
+- **Run**: `npm run test:e2e` (requires build first)
 
-**Location**: `src/**/__tests__/*.test.ts`
+## Quick Commands
 
-**Run**:
 ```bash
+# Unit testing
 npm test              # Run all tests
-npm run test:watch    # Watch mode
 npm run test:coverage # With coverage report
-```
 
-**Coverage Goals**: 80%+ for repositories, stores, and utilities
-
-**Example**:
-```typescript
-// src/database/__tests__/episodeRepository.test.ts
-describe('episodeRepository', () => {
-  it('should create an episode', async () => {
-    const episode = await episodeRepository.create({
-      startTime: Date.now(),
-      peakIntensity: 7,
-    });
+# E2E testing  
+npm run test:e2e:build # Build app for testing
+npm run test:e2e       # Run E2E tests
     expect(episode.id).toBeDefined();
     expect(episode.peakIntensity).toBe(7);
   });
