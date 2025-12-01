@@ -4,7 +4,10 @@
 
 This document describes the complete data model for the Migraine Tracker application. The app uses SQLite as the primary data store and includes validation schemas using Zod for type safety.
 
-**Current Schema Version:** 10
+**Current Schema Version:** 19  
+**Last Updated:** November 30, 2024  
+
+> ⚠️ **Note**: This document has been updated to reflect the current production schema version 19. Migration documentation has been updated separately.
 
 ---
 

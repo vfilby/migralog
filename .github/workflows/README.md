@@ -5,7 +5,7 @@ This directory contains CI/CD workflows for the MigraineTracker app.
 
 ## Workflows
 
-### PR Tests (`pr-tests.yml`)
+### PR Tests (`pr-tests-optimized.yml`)
 Runs on every pull request to `main`, `master`, or `develop` branches.
 
 **Jobs:**
