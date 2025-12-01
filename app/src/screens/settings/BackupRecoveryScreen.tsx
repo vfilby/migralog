@@ -18,6 +18,7 @@ import { backupService, BackupMetadata } from '../../services/backup/backupServi
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, ThemeColors } from '../../theme';
 
+// NOTE: This screen is deprecated - functionality moved to DataSettingsScreen
 type Props = NativeStackScreenProps<RootStackParamList, 'BackupRecovery'>;
 
 export default function BackupRecoveryScreen({ navigation }: Props) {

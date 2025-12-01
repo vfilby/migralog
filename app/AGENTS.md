@@ -2,6 +2,21 @@
 
 This file provides guidance for AI agents working on this codebase.
 
+## Build Restrictions
+
+### EAS Builds - NEVER RUN WITHOUT EXPLICIT PERMISSION
+
+**CRITICAL**: Never run EAS builds (`npm run build:ios`, `eas build`, etc.) without explicit user permission. These commands:
+- Trigger remote cloud builds that cost money
+- Are resource-intensive and time-consuming 
+- Should only be run when specifically requested by the user
+- Are unnecessary for code validation (use `npx tsc --noEmit` instead)
+
+**For code validation, use these alternatives:**
+- `npx tsc --noEmit` - TypeScript compilation check
+- `npm run test:ci` - Unit tests
+- `npm run test:lint` - Linting
+
 ## Testing
 
 ### E2E Test Troubleshooting
