@@ -147,14 +147,20 @@ try {
   process.exit(1);
 }
 
-// Push changelog commit and tag to remote
+// Push tag to remote (changelog is handled by GitHub Actions)
 try {
-  console.log('⬆️  Pushing changelog commit and tag to remote...');
-  execSync('git push origin main', { stdio: 'inherit' });
+  console.log('⬆️  Pushing tag to remote...');
   execSync(`git push origin ${newTag}`, { stdio: 'inherit' });
-  console.log('✅ Changelog and tag pushed to remote');
+  console.log('✅ Tag pushed to remote');
+  
+  // Check if we have unpushed changelog commits
+  const ahead = execSync('git rev-list --count origin/main..HEAD').toString().trim();
+  if (ahead > 0) {
+    console.log('ℹ️  Local changelog commits detected (these will be handled by GitHub Actions)');
+    console.log('   If you want to sync local changes: git reset --hard origin/main');
+  }
 } catch (error) {
-  console.error('❌ Failed to push:', error.message);
+  console.error('❌ Failed to push tag:', error.message);
   console.error('   Cleaning up local tag...');
   execSync(`git tag -d ${newTag}`);
   process.exit(1);
