@@ -147,23 +147,17 @@ try {
   process.exit(1);
 }
 
-// Handle changelog commit with branch protection
+// Push tag to remote (changelog is handled by GitHub Actions)
 try {
   console.log('⬆️  Pushing tag to remote...');
   execSync(`git push origin ${newTag}`, { stdio: 'inherit' });
   console.log('✅ Tag pushed to remote');
-
-  // Check if we have a changelog commit that needs to be pushed
-  const changelogStatus = execSync('git status --porcelain CHANGELOG.md').toString().trim();
-  const ahead = execSync('git rev-list --count origin/main..HEAD').toString().trim();
   
+  // Check if we have unpushed changelog commits
+  const ahead = execSync('git rev-list --count origin/main..HEAD').toString().trim();
   if (ahead > 0) {
-    console.log('📝 Changelog changes detected - creating PR for changelog update...');
-    console.log('   ⚠️  Manual step required:');
-    console.log('   1. Create a branch for the changelog: git checkout -b chore/changelog-' + newTag);
-    console.log('   2. Push the branch: git push origin chore/changelog-' + newTag);
-    console.log('   3. Create a PR to merge the changelog update');
-    console.log('   Or reset if changelog is not needed: git reset --hard origin/main');
+    console.log('ℹ️  Local changelog commits detected (these will be handled by GitHub Actions)');
+    console.log('   If you want to sync local changes: git reset --hard origin/main');
   }
 } catch (error) {
   console.error('❌ Failed to push tag:', error.message);
