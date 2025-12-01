@@ -6,6 +6,9 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ##### 🎯 User-Facing Changes
 
+- Fix branding consistency: ensure all visible text uses 'MigraLog' [`#251`](https://github.com/vfilby/migralog/pull/251)
+- Consolidate data management functionality into single screen [`#250`](https://github.com/vfilby/migralog/pull/250)
+- ✨ **Feature:** add centralized database retry mechanism for transient SQLite errors [`#249`](https://github.com/vfilby/migralog/pull/249)
 - Improve developer tools UI organization and remove popup alerts [`#247`](https://github.com/vfilby/migralog/pull/247)
 - improve backup restore UX with automatic app restart [`#246`](https://github.com/vfilby/migralog/pull/246)
 - Remove legacy JSON backup functionality entirely [`#244`](https://github.com/vfilby/migralog/pull/244)
@@ -117,6 +120,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - Fix: Medication status sync between Dashboard and Medications screen (Issue #7) [`#9`](https://github.com/vfilby/migralog/pull/9)
 - ✨ **Feature:** Improve symptom timeline UI and move episode metadata [`#6`](https://github.com/vfilby/migralog/pull/6)
 - 🐛 **Fix:** Medication tracking UI persistence bug [`#1`](https://github.com/vfilby/migralog/pull/1)
+- ✨ **Feature:** add centralized database retry mechanism for transient SQLite errors (#249) [`#56`](https://github.com/vfilby/MigraineTracker/issues/56)
 - improve backup restore UX with automatic app restart (#246) [`#245`](https://github.com/vfilby/MigraineTracker/issues/245)
 - Remove legacy JSON backup functionality entirely (#244) [`#194`](https://github.com/vfilby/MigraineTracker/issues/194)
 - Convert app to use locale-aware date/time formatting (#242) [`#203`](https://github.com/vfilby/MigraineTracker/issues/203)
@@ -481,6 +485,7 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ##### 🔧 Technical Changes
 
+- ✅ Test: improve coverage for critical app components [`#248`](https://github.com/vfilby/migralog/pull/248)
 - ♻️ Refactor: reorganize developer tools screen for better usability [`#225`](https://github.com/vfilby/migralog/pull/225)
 - ♻️ Refactor: extract reusable MedicationCard components [`#224`](https://github.com/vfilby/migralog/pull/224)
 - ♻️ Refactor: organize services into logical subdirectories [`#223`](https://github.com/vfilby/migralog/pull/223)
@@ -511,7 +516,6 @@ All notable changes to this project will be documented in this file. Dates are d
 - 🔧 Chore: comprehensive lint cleanup - zero source file warnings [`#44`](https://github.com/vfilby/MigraineTracker/issues/44)
 - 📝 Docs: Rewrite README for users and create DEVELOPMENT.md for developers [`#19`](https://github.com/vfilby/MigraineTracker/issues/19)
 - 🔧 Chore: update dependencies to match Expo SDK 54 requirements [`06a4927`](https://github.com/vfilby/MigraineTracker/commit/06a49270e577b4151274e5beedeecf333f179fbd)
-- ✅ Test: improve coverage for critical app components [`62b381d`](https://github.com/vfilby/MigraineTracker/commit/62b381d2a16d360b21f1e9baf1a9b93d846f35d1)
 - ♻️ Refactor: split notificationService into focused modules [`9454876`](https://github.com/vfilby/MigraineTracker/commit/9454876ff0ad8ba78e8e7fff86e856581feb5595)
 - 🔧 Chore: remove build artifacts and archive outdated documentation [`95e56e2`](https://github.com/vfilby/MigraineTracker/commit/95e56e286c7cd6daf3d5b0e92185874ed4346730)
 - ♻️ Refactor: split BackupServiceImpl into focused modules [`aeeb067`](https://github.com/vfilby/MigraineTracker/commit/aeeb067e9aa2431ac2e632ac5679fa7b17dd19df)
@@ -565,6 +569,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - 🔧 Chore: bump version to 1.1.13 [`aaa9e6e`](https://github.com/vfilby/MigraineTracker/commit/aaa9e6ec2b56986735ccdbe50dd8b89c4aa16a53)
 - 🔧 Chore: bump version to 1.1.46 [`626fcf3`](https://github.com/vfilby/MigraineTracker/commit/626fcf37aa3ee954a8b7e60077f0277d8ee9d395)
 - 🔧 Chore: bump version to 1.1.54 [`aaca5de`](https://github.com/vfilby/MigraineTracker/commit/aaca5ded6adaf72d3a64f610c6f3cb1f951d20d6)
+- 🔧 Chore: bump version to 1.1.78 [`9d16c9e`](https://github.com/vfilby/MigraineTracker/commit/9d16c9efa9c0733f4e8810197c01d0106a53e952)
 - 🔧 Chore: update CHANGELOG.md for alpha-v1.1.29 [`cc86d4f`](https://github.com/vfilby/MigraineTracker/commit/cc86d4f22330012994bcf0a44be1c28c9c5fd103)
 - 🔧 Chore: bump version to 1.1.20 [`3f3526e`](https://github.com/vfilby/MigraineTracker/commit/3f3526e3cec4f9ef79d15e44d710a4d9f99a45ce)
 - 🔧 Chore: update CHANGELOG.md for alpha-v1.1.2 [`0fc21c5`](https://github.com/vfilby/MigraineTracker/commit/0fc21c568a4e003901c37d44bdd815b267e99b06)
