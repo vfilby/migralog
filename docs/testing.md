@@ -11,6 +11,10 @@ MigraineTracker uses a comprehensive testing strategy to ensure code quality, re
 - **@testing-library/react-native 13.3.3**: React Native component testing utilities
 - **react-test-renderer 19.1.0**: React renderer for snapshot and component testing
 
+### End-to-End Testing
+- **Detox**: React Native E2E testing framework for iOS/Android
+- **Device Testing**: Automated testing on real devices and simulators
+
 ### Test Coverage Goals
 - **Minimum Coverage**: 80% for statements, branches, functions, and lines
 - **Current Coverage** (for tested modules):
@@ -20,12 +24,12 @@ MigraineTracker uses a comprehensive testing strategy to ensure code quality, re
 
 ## Running Tests
 
-### Basic Commands
+### Unit Tests (Jest)
 
 ```bash
 cd app
 
-# Run all tests
+# Run all unit tests
 npm test
 
 # Run tests in watch mode (re-runs on file changes)
@@ -38,24 +42,49 @@ npm run test:coverage
 npm run test:ci
 ```
 
-### Test File Locations
+### E2E Tests (Detox)
 
-Tests are co-located with source files in `__tests__` directories:
+**Important**: E2E tests require a development build, not Expo Go.
+
+```bash
+# Build the app for testing (do this first)
+npm run test:e2e:build
+
+# Run all E2E tests
+npm run test:e2e
+
+# Run specific test suite
+npx detox test e2e/episodeLifecycle.test.js --configuration ios.sim.debug
+
+# Rebuild E2E setup if needed
+npm run test:e2e:rebuild
+```
+
+### Test Organization
 
 ```
-src/
-├── utils/
-│   ├── painScale.ts
-│   └── __tests__/
-│       └── painScale.test.ts
-├── database/
-│   ├── episodeRepository.ts
-│   └── __tests__/
-│       └── episodeRepository.test.ts
-└── store/
-    ├── episodeStore.ts
-    └── __tests__/
-        └── episodeStore.test.ts
+app/
+├── e2e/                          # End-to-end tests (Detox)
+│   ├── episodeLifecycle.test.js  # Episode creation/management tests
+│   ├── medicationTracking.test.js # Medication tracking tests
+│   ├── dailyStatusTracking.test.js # Daily status tests
+│   ├── helpers.js                 # Test helper functions
+│   └── jest.config.js            # Detox-specific Jest config
+├── src/
+│   └── **/__tests__/            # Unit tests co-located with source files
+│       ├── utils/
+│       │   ├── painScale.ts
+│       │   └── __tests__/
+│       │       └── painScale.test.ts
+│       ├── database/
+│       │   ├── episodeRepository.ts
+│       │   └── __tests__/
+│       │       └── episodeRepository.test.ts
+│       └── store/
+│           ├── episodeStore.ts
+│           └── __tests__/
+│               └── episodeStore.test.ts
+└── jest.config.js               # Main Jest configuration
 ```
 
 ## Test Configuration
@@ -267,6 +296,20 @@ After running `npm run test:coverage`, open the HTML coverage report:
 open coverage/lcov-report/index.html
 ```
 
+### Coverage Goals
+
+- **Unit Tests**: 80%+ coverage for:
+  - Database repositories
+  - Zustand stores
+  - Utility functions
+  - Business logic
+
+- **E2E Tests**: Cover critical user flows:
+  - Episode lifecycle (create, update, end)
+  - Medication tracking
+  - Daily status logging
+  - Navigation between screens
+
 ### Coverage Metrics
 
 - **Statements**: Has each statement been executed?
@@ -408,6 +451,65 @@ it('should process episode', () => {
 });
 ```
 
+### E2E Testing Best Practices
+
+Place E2E tests in the `e2e/` directory:
+
+```javascript
+// e2e/myFeature.test.js
+describe('My Feature', () => {
+  beforeAll(async () => {
+    await device.launchApp();
+  });
+
+  beforeEach(async () => {
+    // Reset app state using deep links
+    await device.openURL({ url: 'migralog://reset-for-testing' });
+  });
+
+  it('should perform some user action', async () => {
+    await element(by.id('my-button')).tap();
+    await expect(element(by.text('Expected Result'))).toBeVisible();
+  });
+});
+```
+
+#### E2E Test Patterns
+
+**Navigation Testing**:
+```javascript
+it('should navigate to episodes screen', async () => {
+  await element(by.id('episodes-tab')).tap();
+  await expect(element(by.id('episodes-screen'))).toBeVisible();
+});
+```
+
+**Form Testing**:
+```javascript
+it('should create new episode', async () => {
+  await element(by.id('new-episode-button')).tap();
+  await element(by.id('pain-level-slider')).swipe('right');
+  await element(by.id('save-episode-button')).tap();
+  
+  await expect(element(by.text('Episode saved'))).toBeVisible();
+});
+```
+
+**Data Persistence Testing**:
+```javascript
+it('should persist data across app restarts', async () => {
+  // Create data
+  await createTestEpisode();
+  
+  // Restart app
+  await device.terminateApp();
+  await device.launchApp();
+  
+  // Verify data persists
+  await expect(element(by.text('Test Episode'))).toBeVisible();
+});
+```
+
 ## Common Testing Patterns
 
 ### Testing with Multiple Scenarios
@@ -443,72 +545,50 @@ it('should transition from loading to loaded state', async () => {
 
 ## Continuous Integration
 
-### GitHub Actions (Future Enhancement)
+Tests run automatically on pull requests via GitHub Actions:
+- Unit tests run on every PR
+- E2E tests run on labeled PRs or main branch
+- Coverage reports are generated and tracked
 
-Create `.github/workflows/test.yml`:
-
-```yaml
-name: Tests
-
-on: [push, pull_request]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-
-      - name: Install dependencies
-        run: cd app && npm ci
-
-      - name: Run tests
-        run: cd app && npm run test:ci
-
-      - name: Upload coverage
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./app/coverage/lcov.info
-```
+See `.github/workflows/` for current CI configuration.
 
 ## Troubleshooting
 
 ### Common Issues
 
-#### 1. Tests timing out
+#### Unit Tests
 
-**Problem**: Async tests taking too long
-**Solution**: Increase timeout or fix slow operations
+1. **Tests timing out**
+   - **Problem**: Async tests taking too long
+   - **Solution**: Increase timeout or fix slow operations
+   ```typescript
+   it('should complete async operation', async () => {
+     jest.setTimeout(10000);
+     await slowOperation();
+   }, 10000);
+   ```
 
-```typescript
-it('should complete async operation', async () => {
-  // Increase timeout for this test
-  jest.setTimeout(10000);
-  await slowOperation();
-}, 10000);
-```
+2. **Module not found errors**
+   - **Problem**: Import paths not resolving
+   - **Solution**: Check `transformIgnorePatterns` in jest.config.js
 
-#### 2. Module not found errors
+3. **State persisting between tests**
+   - **Problem**: Tests affecting each other
+   - **Solution**: Add proper cleanup
+   ```typescript
+   beforeEach(() => {
+     jest.clearAllMocks();
+     useStore.setState(initialState);
+   });
+   ```
 
-**Problem**: Import paths not resolving
-**Solution**: Check `transformIgnorePatterns` in jest.config.js
+#### E2E Tests
 
-#### 3. State persisting between tests
-
-**Problem**: Tests affecting each other
-**Solution**: Add proper cleanup in `beforeEach` or `afterEach`
-
-```typescript
-beforeEach(() => {
-  jest.clearAllMocks();
-  useStore.setState(initialState);
-});
-```
+1. **Build not found**: Run `npm run test:e2e:build` first
+2. **App crashes**: Check Metro bundler is running with `--clear` flag
+3. **Element not found**: Ensure testID props are set correctly
+4. **Simulator issues**: Reset simulator or try clean build
+5. **Tests hanging**: Use `npm run test:e2e:rebuild` to reset Expo server
 
 ## Future Enhancements
 

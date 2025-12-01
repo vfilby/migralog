@@ -18,6 +18,22 @@ This document describes the complete data model for the Migraine Tracker applica
 ### Timestamps
 - All timestamps are **Unix epoch milliseconds** (not seconds)
 - Used for temporal ordering and range queries
+
+### Entity Relationships
+The application follows a hierarchical data model with clear parent-child relationships:
+
+#### Primary Entities
+- **episodes** - Core migraine episode tracking (parent table)
+- **medications** - Medication definitions and schedules (parent table)
+- **daily_status_logs** - Daily health status tracking (independent table)
+
+#### Child Entities
+- **intensity_readings** - Point-in-time pain measurements during episodes
+- **symptom_logs** - Individual symptom tracking with timing
+- **pain_location_logs** - Changes in pain location over time
+- **medication_doses** - Actual medication intake records
+- **medication_schedules** - When medications should be taken
+- **medication_reminders** - Scheduled reminder tracking
 - Date strings follow `YYYY-MM-DD` format for daily aggregations
 
 ### Serialization
@@ -621,4 +637,215 @@ const validated = EpisodeSchema.parse(episode);
 3. If yellow, require statusType (prodrome/postdrome/anxiety/other)
 4. Optional notes
 5. Use for monthly trends and pattern detection
+
+---
+
+## Complete Database Schema Reference
+
+This section provides the complete SQL table definitions with constraints and relationships.
+
+### Table Definitions
+
+#### episodes (Parent Table)
+```sql
+CREATE TABLE IF NOT EXISTS episodes (
+  id TEXT PRIMARY KEY,
+  start_time INTEGER NOT NULL CHECK(start_time > 0),
+  end_time INTEGER CHECK(end_time IS NULL OR end_time > start_time),
+  locations TEXT NOT NULL,                    -- JSON array: PainLocation[]
+  qualities TEXT NOT NULL,                    -- JSON array: PainQuality[]
+  symptoms TEXT NOT NULL,                     -- JSON array: Symptom[]
+  triggers TEXT NOT NULL,                     -- JSON array: Trigger[]
+  notes TEXT CHECK(length(notes) <= 5000),
+  peak_intensity REAL CHECK(peak_intensity IS NULL OR (peak_intensity >= 0 AND peak_intensity <= 10)),
+  average_intensity REAL CHECK(average_intensity IS NULL OR (average_intensity >= 0 AND average_intensity <= 10 AND (peak_intensity IS NULL OR average_intensity <= peak_intensity))),
+  latitude REAL,                              -- GPS latitude
+  longitude REAL,                             -- GPS longitude
+  location_accuracy REAL,                     -- GPS accuracy in meters
+  location_timestamp INTEGER,                 -- When location was captured
+  created_at INTEGER NOT NULL CHECK(created_at > 0),
+  updated_at INTEGER NOT NULL CHECK(updated_at > 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_episodes_start_time ON episodes(start_time);
+CREATE INDEX IF NOT EXISTS idx_episodes_date_range ON episodes(start_time, end_time);
+```
+
+#### medications (Parent Table)
+```sql
+CREATE TABLE IF NOT EXISTS medications (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL CHECK(length(name) > 0 AND length(name) <= 200),
+  type TEXT NOT NULL CHECK(type IN ('preventative', 'rescue')),
+  dosage_amount REAL NOT NULL CHECK(dosage_amount > 0),
+  dosage_unit TEXT NOT NULL CHECK(length(dosage_unit) > 0 AND length(dosage_unit) <= 50),
+  default_dosage REAL CHECK(default_dosage IS NULL OR default_dosage > 0),
+  schedule_frequency TEXT CHECK(schedule_frequency IS NULL OR schedule_frequency IN ('daily', 'monthly', 'quarterly')),
+  photo_uri TEXT CHECK(photo_uri IS NULL OR length(photo_uri) <= 500),
+  start_date INTEGER CHECK(start_date IS NULL OR start_date > 0),
+  end_date INTEGER CHECK(end_date IS NULL OR (start_date IS NULL OR end_date > start_date)),
+  active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0, 1)),
+  notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
+  created_at INTEGER NOT NULL CHECK(created_at > 0),
+  updated_at INTEGER NOT NULL CHECK(updated_at > 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_medications_active_type ON medications(active, type) WHERE active = 1;
+```
+
+#### daily_status_logs (Independent Table)
+```sql
+CREATE TABLE IF NOT EXISTS daily_status_logs (
+  id TEXT PRIMARY KEY,
+  date TEXT NOT NULL UNIQUE CHECK(date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
+  status TEXT NOT NULL CHECK(status IN ('green', 'yellow', 'red')),
+  status_type TEXT CHECK(status_type IS NULL OR status_type IN ('prodrome', 'postdrome', 'anxiety', 'other')),
+  notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
+  prompted INTEGER NOT NULL DEFAULT 0 CHECK(prompted IN (0, 1)),
+  created_at INTEGER NOT NULL CHECK(created_at > 0),
+  updated_at INTEGER NOT NULL CHECK(updated_at > 0),
+  CHECK(status = 'yellow' OR status_type IS NULL)
+);
+
+CREATE INDEX IF NOT EXISTS idx_daily_status_date ON daily_status_logs(date);
+CREATE INDEX IF NOT EXISTS idx_daily_status_status ON daily_status_logs(status);
+CREATE INDEX IF NOT EXISTS idx_daily_status_date_status ON daily_status_logs(date, status);
+```
+
+#### Child Tables
+
+##### intensity_readings (Child of episodes)
+```sql
+CREATE TABLE IF NOT EXISTS intensity_readings (
+  id TEXT PRIMARY KEY,
+  episode_id TEXT NOT NULL,
+  timestamp INTEGER NOT NULL CHECK(timestamp > 0),
+  intensity REAL NOT NULL CHECK(intensity >= 0 AND intensity <= 10),
+  created_at INTEGER NOT NULL CHECK(created_at > 0),
+  FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_intensity_readings_episode ON intensity_readings(episode_id);
+CREATE INDEX IF NOT EXISTS idx_intensity_readings_time ON intensity_readings(episode_id, timestamp);
+```
+
+##### medication_doses (Child of medications, optional FK to episodes)
+```sql
+CREATE TABLE IF NOT EXISTS medication_doses (
+  id TEXT PRIMARY KEY,
+  medication_id TEXT NOT NULL,
+  timestamp INTEGER NOT NULL CHECK(timestamp > 0),
+  amount REAL NOT NULL CHECK(amount >= 0),
+  dosage_amount REAL,                        -- Snapshot of medication.dosage_amount at time of dose
+  dosage_unit TEXT,                          -- Snapshot of medication.dosage_unit at time of dose
+  status TEXT NOT NULL DEFAULT 'taken' CHECK(status IN ('taken', 'skipped')),
+  episode_id TEXT,
+  effectiveness_rating REAL CHECK(effectiveness_rating IS NULL OR (effectiveness_rating >= 0 AND effectiveness_rating <= 10)),
+  time_to_relief INTEGER CHECK(time_to_relief IS NULL OR (time_to_relief > 0 AND time_to_relief <= 1440)),
+  side_effects TEXT,                         -- JSON array: string[]
+  notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
+  created_at INTEGER NOT NULL CHECK(created_at > 0),
+  FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE,
+  FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE SET NULL,
+  CHECK(status != 'taken' OR amount > 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_medication_doses_medication ON medication_doses(medication_id);
+CREATE INDEX IF NOT EXISTS idx_medication_doses_episode ON medication_doses(episode_id);
+CREATE INDEX IF NOT EXISTS idx_medication_doses_timestamp ON medication_doses(timestamp);
+CREATE INDEX IF NOT EXISTS idx_medication_doses_med_time ON medication_doses(medication_id, timestamp DESC);
+```
+
+### Entity Relationship Diagram (Text Format)
+
+```
+┌─────────────────┐
+│   episodes      │ (Parent)
+├─────────────────┤
+│ id (PK)         │
+│ start_time      │
+│ end_time        │
+│ locations (JSON)│
+│ qualities (JSON)│
+│ symptoms (JSON) │
+│ triggers (JSON) │
+│ notes           │
+│ peak_intensity  │
+│ avg_intensity   │
+│ latitude        │
+│ longitude       │
+│ location_acc    │
+│ location_ts     │
+│ created_at      │
+│ updated_at      │
+└─────────────────┘
+        │
+        ├──1:N──> intensity_readings (CASCADE)
+        ├──1:N──> symptom_logs (CASCADE)
+        ├──1:N──> pain_location_logs (CASCADE)
+        └──0:N──> medication_doses (SET NULL on episode delete)
+
+┌─────────────────┐
+│  medications    │ (Parent)
+├─────────────────┤
+│ id (PK)         │
+│ name            │
+│ type (enum)     │
+│ dosage_amount   │
+│ dosage_unit     │
+│ default_dosage  │
+│ schedule_freq   │
+│ photo_uri       │
+│ start_date      │
+│ end_date        │
+│ active          │
+│ notes           │
+│ created_at      │
+│ updated_at      │
+└─────────────────┘
+        │
+        ├──1:N──> medication_schedules (CASCADE)
+        ├──1:N──> medication_doses (CASCADE)
+        └──1:N──> medication_reminders (CASCADE)
+
+┌─────────────────────────┐
+│  daily_status_logs      │ (Independent)
+├─────────────────────────┤
+│ id (PK)                 │
+│ date (UNIQUE)           │
+│ status (enum)           │
+│ status_type (enum)      │
+│ notes                   │
+│ prompted (bool)         │
+│ created_at              │
+│ updated_at              │
+└─────────────────────────┘
+        (No relationships)
+```
+
+### Cascade Behavior Summary
+
+**Episode Deletion:**
+- All `intensity_readings` deleted
+- All `symptom_logs` deleted  
+- All `pain_location_logs` deleted
+- All `medication_doses` have `episode_id` set to NULL
+
+**Medication Deletion:**
+- All `medication_schedules` deleted
+- All `medication_doses` deleted
+- All `medication_reminders` deleted
+
+### JSON Serialized Fields
+
+| Table | Column | Type | Example |
+|-------|--------|------|---------|
+| episodes | locations | PainLocation[] | `["left_temple","right_eye"]` |
+| episodes | qualities | PainQuality[] | `["throbbing","pressure"]` |
+| episodes | symptoms | Symptom[] | `["nausea","light_sensitivity"]` |
+| episodes | triggers | Trigger[] | `["stress","lack_of_sleep"]` |
+| pain_location_logs | pain_locations | PainLocation[] | `["left_temple","right_eye"]` |
+| medication_doses | side_effects | string[] | `["nausea","dizziness"]` |
+
+For complete table definitions including symptom_logs, pain_location_logs, medication_schedules, and medication_reminders, see the database migration files in `/app/src/database/migrations/`.
 
