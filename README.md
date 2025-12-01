@@ -1,4 +1,4 @@
-# MigraLog
+# MigraLog 
 
 **Take control of your pain.** MigraLog is a comprehensive mobile app designed to help you track, understand, and manage your chronic pain episodes. Whether you experience migraines, headaches, or other episodic pain conditions, MigraLog provides the tools you need to identify patterns, optimize treatment, and communicate effectively with your healthcare providers.
 
