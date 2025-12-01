@@ -16,12 +16,12 @@ export function WelcomeStep({ colors }: StepProps) {
           style={styles.logoImage}
           resizeMode="contain"
           accessible={true}
-          accessibilityLabel="Migralog app icon"
+          accessibilityLabel="MigraLog app icon"
         />
       </View>
 
       <Text style={[styles.title, { color: colors.text }]}>
-        Welcome to Migralog
+        Welcome to MigraLog
       </Text>
 
       <Text style={[styles.subtitle, { color: colors.textSecondary }]}>

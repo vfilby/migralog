@@ -22,7 +22,7 @@ describe('Onboarding Workflow', () => {
 
     // Step 1: Welcome Screen
     console.log('📱 Step 1: Looking for Welcome screen...');
-    await expect(element(by.text('Welcome to Migralog'))).toBeVisible();
+    await expect(element(by.text('Welcome to MigraLog'))).toBeVisible();
     await element(by.text('Continue')).tap();
     console.log('✅ Step 1: Welcome screen completed');
 
