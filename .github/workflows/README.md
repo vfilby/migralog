@@ -14,10 +14,10 @@ Runs on every pull request to `main`, `master`, or `develop` branches.
    - Jest unit tests with coverage
    - Uploads coverage to Codecov (if configured)
 
-2. **E2E Tests** (macOS) - **Currently Disabled**
-   - E2E tests are not run automatically in CI due to reliability issues on GitHub's free runners
-   - They fail and take too long on the hosted infrastructure
-   - Must be run manually for merged PRs or releases
+2. **E2E Tests** (macOS) - **Currently Disabled in PR Workflows**
+   - E2E tests are not run in the PR workflows because they fail and take too long on GitHub's free runners
+   - They need to be run manually for a merged PR or a release
+   - Due to reliability issues on the hosted infrastructure
    - When enabled, tests include:
      - Episode lifecycle tests
      - Medication tracking tests
