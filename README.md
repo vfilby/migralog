@@ -48,9 +48,7 @@ Your health data stays with you:
 
 ### ✅ Recent Additions  
 - ✅ **Photo Attachments**: Add photos to medications for easy identification
-- ✅ **Advanced Scheduling**: Complex medication schedules (daily, weekly, as-needed)
 - ✅ **Notifications**: Medication reminders and daily check-ins
-- ✅ **Onboarding Flow**: Guided setup for new users
 - ✅ **Archived Medications**: Manage discontinued medications
 - ✅ **Error Monitoring**: Integrated Sentry for app stability
 
