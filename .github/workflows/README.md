@@ -14,14 +14,14 @@ Runs on every pull request to `main`, `master`, or `develop` branches.
    - Jest unit tests with coverage
    - Uploads coverage to Codecov (if configured)
 
-2. **E2E Tests** (macOS)
-   - Builds iOS app with Expo
-   - Runs Detox E2E tests on iPhone simulator
-   - Tests include:
+2. **E2E Tests** (macOS) - **Currently Disabled**
+   - E2E tests are not run automatically in CI due to reliability issues on GitHub's free runners
+   - They fail and take too long on the hosted infrastructure
+   - Must be run manually for merged PRs or releases
+   - When enabled, tests include:
      - Episode lifecycle tests
      - Medication tracking tests
      - Daily status tracking tests
-   - Uploads test artifacts (screenshots, logs)
 
 3. **Lint** (Ubuntu)
    - Runs ESLint on TypeScript/JavaScript files

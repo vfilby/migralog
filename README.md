@@ -49,18 +49,16 @@ Your health data stays with you:
 ### ✅ Recent Additions  
 - ✅ **Photo Attachments**: Add photos to medications for easy identification
 - ✅ **Advanced Scheduling**: Complex medication schedules (daily, weekly, as-needed)
-- ✅ **Critical Notifications**: Time-sensitive alerts that break through Do Not Disturb
+- ✅ **Notifications**: Medication reminders and daily check-ins
 - ✅ **Onboarding Flow**: Guided setup for new users
 - ✅ **Archived Medications**: Manage discontinued medications
 - ✅ **Error Monitoring**: Integrated Sentry for app stability
 
 ### 🔜 Future Considerations
 - 📱 **Live Activities** (iOS): Track episodes directly from your Lock Screen
-- 🌐 **Enhanced Web Support**: Full web platform functionality
 - 🤖 **Pattern Recognition**: AI-powered insights and suggestions
 - ☁️ **Weather Integration**: Track how weather affects your episodes
 - 📄 **Report Generation**: Create professional reports for your healthcare provider
-- 🤝 **Provider Sharing**: Securely share data with your care team
 
 ## Getting Started
 
@@ -70,10 +68,6 @@ Your health data stays with you:
 - **TestFlight**: Currently available for beta testing ([App Store ID: 6753635113](https://apps.apple.com/app/id6753635113))
 - **App Store**: Production release coming soon
 - **Build from source**: See [DEVELOPMENT.md](DEVELOPMENT.md) for developer setup
-
-**Web** (Limited Support)  
-- Basic functionality available in modern browsers
-- Database limitations apply (see [docs/](docs/) for details)
 
 **Android**  
 - Under evaluation for future release
