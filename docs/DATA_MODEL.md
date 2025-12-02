@@ -4,7 +4,7 @@
 
 This document describes the complete data model for the Migraine Tracker application. The app uses SQLite as the primary data store and includes validation schemas using Zod for type safety.
 
-**Current Schema Version:** 10
+**Current Schema Version:** 19
 
 ---
 
@@ -60,8 +60,6 @@ The application follows a hierarchical data model with clear parent-child relati
   symptoms: Symptom[];                 // Associated symptoms
   triggers: Trigger[];                 // Identified triggers
   notes?: string;                      // User notes (max 5000 chars)
-  peakIntensity?: number;              // 0-10 scale
-  averageIntensity?: number;           // 0-10 scale, must be ≤ peakIntensity
   location?: EpisodeLocation;          // GPS coordinates when recorded
   createdAt: number;                   // Record creation timestamp
   updatedAt: number;                   // Last modification timestamp
@@ -78,8 +76,6 @@ Stored in `episodes` table with JSON serialization:
 #### Constraints
 - `startTime > 0` (must be valid positive timestamp)
 - `endTime IS NULL OR endTime > startTime` (end after start)
-- `peak_intensity` and `average_intensity` in range [0, 10]
-- `average_intensity ≤ peak_intensity` (if both present)
 - `notes ≤ 5000` characters
 - Indexes on `start_time` and date ranges for efficient querying
 
@@ -657,8 +653,6 @@ CREATE TABLE IF NOT EXISTS episodes (
   symptoms TEXT NOT NULL,                     -- JSON array: Symptom[]
   triggers TEXT NOT NULL,                     -- JSON array: Trigger[]
   notes TEXT CHECK(length(notes) <= 5000),
-  peak_intensity REAL CHECK(peak_intensity IS NULL OR (peak_intensity >= 0 AND peak_intensity <= 10)),
-  average_intensity REAL CHECK(average_intensity IS NULL OR (average_intensity >= 0 AND average_intensity <= 10 AND (peak_intensity IS NULL OR average_intensity <= peak_intensity))),
   latitude REAL,                              -- GPS latitude
   longitude REAL,                             -- GPS longitude
   location_accuracy REAL,                     -- GPS accuracy in meters
@@ -770,8 +764,6 @@ CREATE INDEX IF NOT EXISTS idx_medication_doses_med_time ON medication_doses(med
 │ symptoms (JSON) │
 │ triggers (JSON) │
 │ notes           │
-│ peak_intensity  │
-│ avg_intensity   │
 │ latitude        │
 │ longitude       │
 │ location_acc    │

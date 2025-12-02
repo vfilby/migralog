@@ -1,4 +1,4 @@
-# MigraLog 
+# MigraLog
 
 **Take control of your pain.** MigraLog is a comprehensive mobile app designed to help you track, understand, and manage your chronic pain episodes. Whether you experience migraines, headaches, or other episodic pain conditions, MigraLog provides the tools you need to identify patterns, optimize treatment, and communicate effectively with your healthcare providers.
 
@@ -46,26 +46,30 @@ Your health data stays with you:
 - ✅ **Offline Support**: Full functionality without internet connection
 - ✅ **Backup & Restore**: Export and import your data
 
-### 🔜 Coming Soon
+### ✅ Recent Additions  
+- ✅ **Photo Attachments**: Add photos to medications for easy identification
+- ✅ **Notifications**: Medication reminders and daily check-ins
+- ✅ **Archived Medications**: Manage discontinued medications
+- ✅ **Error Monitoring**: Integrated Sentry for app stability
+
+### 🔜 Future Considerations
 - 📱 **Live Activities** (iOS): Track episodes directly from your Lock Screen
-- 🔔 **Smart Reminders**: Critical alerts for missed preventative medications
-- 📈 **Advanced Analytics**: Deeper pattern recognition and predictions
-- 📸 **Photo Documentation**: Take photos of your medications
+- 🤖 **Pattern Recognition**: AI-powered insights and suggestions
 - ☁️ **Weather Integration**: Track how weather affects your episodes
 - 📄 **Report Generation**: Create professional reports for your healthcare provider
-- 🤝 **Provider Sharing**: Securely share data with your care team
 
 ## Getting Started
 
 ### Installation
 
-**iOS** (Primary Platform)
-- Download from the App Store _(coming soon)_
-- Or build from source (see [DEVELOPMENT.md](DEVELOPMENT.md))
+**iOS** (Primary Platform)  
+- **TestFlight**: Currently available for beta testing ([App Store ID: 6753635113](https://apps.apple.com/app/id6753635113))
+- **App Store**: Production release coming soon
+- **Build from source**: See [DEVELOPMENT.md](DEVELOPMENT.md) for developer setup
 
-**Android** (Secondary Platform)
-- Download from Google Play _(coming soon)_
-- Or build from source (see [DEVELOPMENT.md](DEVELOPMENT.md))
+**Android**  
+- Under evaluation for future release
+- Build from source available (see [DEVELOPMENT.md](DEVELOPMENT.md))
 
 ### Quick Start Guide
 

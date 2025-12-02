@@ -15,19 +15,21 @@ A React Native mobile app for tracking migraine episodes, symptoms, medications,
 
 ## Tech Stack
 
-- React Native 0.81.4
-- Expo ~54
-- TypeScript 5.9
+- React Native 0.81
+- Expo ^54 
+- TypeScript 5.9 (strict mode)
 - SQLite (expo-sqlite) for offline-first storage
-- Zustand for state management
-- React Navigation for routing
+- Zustand for state management  
+- React Navigation v7 for routing
 - date-fns for date utilities
+- Sentry for error monitoring
+- Jest + Detox for testing
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js (v18 or later recommended)
+- Node.js (v20.x required - matches CI/CD environment)
 - npm or yarn
 - Xcode (for iOS development)
 - Android Studio (for Android development)

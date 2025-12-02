@@ -5,7 +5,7 @@ This directory contains CI/CD workflows for the MigraineTracker app.
 
 ## Workflows
 
-### PR Tests (`pr-tests.yml`)
+### PR Tests (`pr-tests-optimized.yml`)
 Runs on every pull request to `main`, `master`, or `develop` branches.
 
 **Jobs:**
@@ -14,14 +14,14 @@ Runs on every pull request to `main`, `master`, or `develop` branches.
    - Jest unit tests with coverage
    - Uploads coverage to Codecov (if configured)
 
-2. **E2E Tests** (macOS)
-   - Builds iOS app with Expo
-   - Runs Detox E2E tests on iPhone simulator
-   - Tests include:
+2. **E2E Tests** (macOS) - **Currently Disabled in PR Workflows**
+   - E2E tests are not run in the PR workflows because they fail and take too long on GitHub's free runners
+   - They need to be run manually for a merged PR or a release
+   - Due to reliability issues on the hosted infrastructure
+   - When enabled, tests include:
      - Episode lifecycle tests
      - Medication tracking tests
      - Daily status tracking tests
-   - Uploads test artifacts (screenshots, logs)
 
 3. **Lint** (Ubuntu)
    - Runs ESLint on TypeScript/JavaScript files
