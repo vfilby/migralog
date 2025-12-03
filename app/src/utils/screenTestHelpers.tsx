@@ -15,6 +15,8 @@ export const createMockNavigation = (overrides = {}) => ({
     index: 0,
     routeNames: ['Test'],
     routes: [{ key: 'test-route-key', name: 'Test' }],
+    type: 'stack',
+    stale: false,
   })),
   dispatch: jest.fn(),
   setParams: jest.fn(),
@@ -23,6 +25,8 @@ export const createMockNavigation = (overrides = {}) => ({
   reset: jest.fn(),
   setOptions: jest.fn(),
   isFocused: jest.fn(() => true),
+  navigateDeprecated: jest.fn(),
+  preload: jest.fn(),
   ...overrides,
 });
 
