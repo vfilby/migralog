@@ -119,9 +119,13 @@ describe('MedicationDetailScreen', () => {
       <MedicationDetailScreen navigation={mockNavigation as any} route={mockRoute as any} />
     );
 
+    // Wait for loading to complete and content to appear
     await waitFor(() => {
-      expect(medicationRepository.getById).toHaveBeenCalledWith('med-123');
+      expect(screen.getByTestId('medication-detail-screen')).toBeTruthy();
     });
+
+    // Verify that the repository was called during loading
+    expect(medicationRepository.getById).toHaveBeenCalledWith('med-123');
   });
 
   it('should display medication name', async () => {
