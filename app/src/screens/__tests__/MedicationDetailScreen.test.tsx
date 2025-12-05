@@ -118,23 +118,7 @@ describe('MedicationDetailScreen', () => {
     mockArchiveMedication.mockResolvedValue(undefined);
   });
 
-  it('should render medication detail screen', async () => {
-    const mockRoute = {
-      params: { medicationId: 'med-123' },
-    };
 
-    renderWithProviders(
-      <MedicationDetailScreen navigation={mockNavigation as any} route={mockRoute as any} />
-    );
-
-    // Wait for the medication content to load and display
-    await waitFor(() => {
-      expect(screen.getByText('Test Medication')).toBeTruthy();
-    });
-
-    // Verify the main screen container is present
-    expect(screen.getByTestId('medication-detail-screen')).toBeTruthy();
-  });
 
   it('should display medication name', async () => {
     const mockRoute = {
