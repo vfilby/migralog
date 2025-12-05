@@ -93,6 +93,11 @@ describe('MedicationDetailScreen', () => {
       currentEpisode: null,
     });
 
+    // Ensure all repository mocks are reset and properly configured
+    (medicationRepository.getById as jest.Mock).mockReset();
+    (medicationScheduleRepository.getByMedicationId as jest.Mock).mockReset();
+    (medicationDoseRepository.getByMedicationId as jest.Mock).mockReset();
+
     (medicationRepository.getById as jest.Mock).mockResolvedValue({
       id: 'med-123',
       name: 'Test Medication',
@@ -104,6 +109,9 @@ describe('MedicationDetailScreen', () => {
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
+
+    (medicationScheduleRepository.getByMedicationId as jest.Mock).mockResolvedValue([]);
+    (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([]);
 
     mockLogDose.mockResolvedValue({ id: 'dose-123' });
     mockDeleteDose.mockResolvedValue(undefined);
@@ -119,13 +127,13 @@ describe('MedicationDetailScreen', () => {
       <MedicationDetailScreen navigation={mockNavigation as any} route={mockRoute as any} />
     );
 
-    // Wait for loading to complete and content to appear
+    // Wait for the medication content to load and display
     await waitFor(() => {
-      expect(screen.getByTestId('medication-detail-screen')).toBeTruthy();
+      expect(screen.getByText('Test Medication')).toBeTruthy();
     });
 
-    // Verify that the repository was called during loading
-    expect(medicationRepository.getById).toHaveBeenCalledWith('med-123');
+    // Verify the main screen container is present
+    expect(screen.getByTestId('medication-detail-screen')).toBeTruthy();
   });
 
   it('should display medication name', async () => {
