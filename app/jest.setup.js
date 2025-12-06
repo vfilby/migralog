@@ -95,6 +95,13 @@ jest.mock('expo-notifications', () => ({
     CALENDAR: 'calendar',
     TIME_INTERVAL: 'timeInterval',
   },
+  AndroidNotificationPriority: {
+    MIN: -2,
+    LOW: -1,
+    DEFAULT: 0,
+    HIGH: 1,
+    MAX: 2,
+  },
 }));
 
 // Mock expo-location

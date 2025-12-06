@@ -659,7 +659,7 @@ class NotificationService {
     return cancelAllNotifications();
   }
 
-  async dismissMedicationNotification(medicationId: string, scheduleId?: string): Promise<void> {
+  async dismissMedicationNotification(medicationId: string, scheduleId: string): Promise<void> {
     return dismissMedicationNotification(medicationId, scheduleId);
   }
 

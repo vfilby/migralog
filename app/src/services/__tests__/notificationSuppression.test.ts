@@ -16,11 +16,13 @@ import {
   medicationRepository,
   medicationDoseRepository,
 } from '../../database/medicationRepository';
+import { episodeRepository } from '../../database/episodeRepository';
 import { Medication } from '../../models/types';
 
 // Mock dependencies
 jest.mock('expo-notifications');
 jest.mock('../../database/medicationRepository');
+jest.mock('../../database/episodeRepository');
 jest.mock('../../services/errorLogger');
 jest.mock('../../store/dailyStatusStore');
 jest.mock('../../store/episodeStore');
@@ -380,6 +382,9 @@ describe('Notification Suppression Logic', () => {
       // Mock the store getState methods
       (useEpisodeStore.getState as jest.Mock) = jest.fn(() => mockEpisodeStore);
       (useDailyStatusStore.getState as jest.Mock) = jest.fn(() => mockDailyStatusStore);
+      
+      // Mock episodeRepository.getEpisodesForDate to return empty array by default
+      (episodeRepository.getEpisodesForDate as jest.Mock).mockResolvedValue([]);
     });
 
     it('SUP-D1: should SHOW notification when no status logged and no active episode', async () => {
@@ -451,7 +456,7 @@ describe('Notification Suppression Logic', () => {
       expectSuppressed(result!);
     });
 
-    it('SUP-D4: should SHOW notification when episode ended and no status', async () => {
+    it('SUP-D4: should SUPPRESS notification when episode ended but exists for today (red day)', async () => {
       // Arrange
       const notification = createMockNotification({
         type: 'daily_checkin',
@@ -464,11 +469,27 @@ describe('Notification Suppression Logic', () => {
       // Mock: No status for today
       mockDailyStatusStore.getDayStatus.mockResolvedValue(null);
 
+      // BUSINESS RULE: ANY episode on the day = red day = suppress notification
+      // Mock episodeRepository to return an ended episode for today
+      const mockEpisode = {
+        id: 'episode-1',
+        startTime: Date.now() - 7200000, // 2 hours ago
+        endTime: Date.now() - 3600000, // 1 hour ago (ended)
+        locations: [],
+        qualities: [],
+        symptoms: [],
+        triggers: [],
+        createdAt: Date.now() - 7200000,
+        updatedAt: Date.now() - 3600000,
+      };
+      
+      (episodeRepository.getEpisodesForDate as jest.Mock).mockResolvedValue([mockEpisode]);
+
       // Act
       const result = await handleDailyCheckinNotification(notification);
 
       // Assert
-      expectShown(result!);
+      expectSuppressed(result!);
     });
 
     it('SUP-D-EDGE1: should return null for non-daily-checkin notification (not handled)', async () => {
@@ -525,7 +546,7 @@ describe('Notification Suppression Logic', () => {
       ],
     };
 
-    it('SUP-F1: should SUPPRESS follow-up when medication was logged after primary', async () => {
+    it('SUP-F1: should SUPPRESS follow-up when medication was logged (any time, not just after primary)', async () => {
       // Arrange
       (medicationRepository.getById as jest.Mock).mockResolvedValue(mockMedication);
       (medicationDoseRepository.wasLoggedForScheduleToday as jest.Mock).mockResolvedValue(true);
@@ -541,7 +562,9 @@ describe('Notification Suppression Logic', () => {
 
       // Assert
       expectSuppressed(result);
-      // Follow-up uses same suppression logic as primary
+      // LOGIC FIX (SUP-528): Follow-ups check logged status only (not timing)
+      // Scheduled notifications use DAILY triggers and check if dose was logged for schedule today
+      // No time-based conditions - suppression is based solely on whether dose is logged
     });
 
     it('SUP-F2: should SHOW follow-up when medication was NOT logged', async () => {

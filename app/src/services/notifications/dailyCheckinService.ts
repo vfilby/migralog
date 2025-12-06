@@ -3,6 +3,7 @@ import { logger } from '../../utils/logger';
 import { useDailyCheckinSettingsStore } from '../../store/dailyCheckinSettingsStore';
 import { useDailyStatusStore } from '../../store/dailyStatusStore';
 import { useEpisodeStore } from '../../store/episodeStore';
+import { episodeRepository } from '../../database/episodeRepository';
 import { format } from 'date-fns';
 import { areNotificationsGloballyEnabled } from './notificationUtils';
 
@@ -47,7 +48,20 @@ export async function handleDailyCheckinNotification(
       };
     }
 
-    // Check if today already has a status logged or an episode
+    // SAFETY FIX (SUP-454): Business rule - ANY episode on the day = red day = suppress notification
+    // Check if ANY episode exists for today (active or ended)
+    const episodesToday = await episodeRepository.getEpisodesForDate(today);
+    if (episodesToday.length > 0) {
+      logger.log('[DailyCheckin] Episode exists for today, suppressing notification (red day)');
+      return {
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+        shouldShowBanner: false,
+        shouldShowList: false,
+      };
+    }
+
+    // Check if today already has a status logged
     const todayStatus = await dailyStatusStore.getDayStatus(today);
     if (todayStatus) {
       logger.log('[DailyCheckin] Day already has status logged, suppressing notification:', todayStatus.status);

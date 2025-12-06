@@ -198,6 +198,12 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       cacheManager.invalidate("medications");
       await medicationRepository.delete(id);
 
+      // CONSISTENCY FIX: Reschedule all notifications to update grouped notifications
+      // This ensures that grouped notifications no longer include the deleted medication
+      // Matches the behavior of archiveMedication for consistency
+      await notificationService.rescheduleAllMedicationNotifications();
+      logger.log('[Store] Rescheduled all notifications after deleting medication:', id);
+
       const medications = get().medications.filter(m => m.id !== id);
       const preventativeMedications = get().preventativeMedications.filter(m => m.id !== id);
       const rescueMedications = get().rescueMedications.filter(m => m.id !== id);
@@ -240,8 +246,10 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
 
       // Dismiss any presented notifications for this medication
       // This removes the notification from the notification tray when logging from the app
-      // Pass scheduleId to ensure only the correct notification is dismissed for medications with multiple schedules
-      await notificationService.dismissMedicationNotification(dose.medicationId, dose.scheduleId);
+      // Only dismiss if scheduleId exists to ensure only the correct notification is dismissed for medications with multiple schedules
+      if (dose.scheduleId) {
+        await notificationService.dismissMedicationNotification(dose.medicationId, dose.scheduleId);
+      }
       logger.log('[Store] Cancelled/dismissed notifications for logged medication');
 
       // Add to doses in state

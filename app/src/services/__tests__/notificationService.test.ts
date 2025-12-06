@@ -842,17 +842,18 @@ describe('notificationService', () => {
 
       (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue(mockPresentedNotifs);
 
-      await notificationService.dismissMedicationNotification('med-123');
+      // BREAKING CHANGE (DIS-106b): scheduleId is now required
+      await notificationService.dismissMedicationNotification('med-123', 'sched-1');
 
       // Verify getPresentedNotificationsAsync was called
       expect(Notifications.getPresentedNotificationsAsync).toHaveBeenCalled();
 
-      // Should only dismiss notifications for med-123
+      // Should only dismiss notifications for med-123 with sched-1
       expect(Notifications.dismissNotificationAsync).toHaveBeenCalledTimes(1);
       expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith('notif-1');
     });
 
-    it('should dismiss medication from grouped notification', async () => {
+    it('should dismiss medication from grouped notification when ALL logged (SAFETY)', async () => {
       const mockPresentedNotifs = [
         {
           request: {
@@ -861,6 +862,7 @@ describe('notificationService', () => {
               data: {
                 medicationIds: ['med-123', 'med-456'],
                 scheduleIds: ['sched-1', 'sched-2'],
+                time: '08:00',
               },
             },
           },
@@ -869,9 +871,27 @@ describe('notificationService', () => {
 
       (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue(mockPresentedNotifs);
 
+      // Mock medications (needed for the safety check)
+      const { medicationRepository, medicationDoseRepository } = require('../../database/medicationRepository');
+      (medicationRepository.getById as jest.Mock).mockImplementation((id: string) => {
+        const scheduleId = id === 'med-123' ? 'sched-1' : 'sched-2';
+        return Promise.resolve({
+          id,
+          name: `Med ${id}`,
+          schedule: [{
+            id: scheduleId,
+            time: '08:00',
+            timezone: 'America/Los_Angeles',
+          }],
+        });
+      });
+
+      // SAFETY FIX (DIS-130): Mock that ALL medications are logged
+      (medicationDoseRepository.wasLoggedForScheduleToday as jest.Mock).mockResolvedValue(true);
+
       await notificationService.dismissMedicationNotification('med-123', 'sched-1');
 
-      // Should dismiss the grouped notification containing this medication
+      // Should dismiss the grouped notification because ALL medications are logged
       expect(Notifications.dismissNotificationAsync).toHaveBeenCalledTimes(1);
       expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith('notif-group-1');
     });
@@ -905,8 +925,9 @@ describe('notificationService', () => {
         new Error('Failed to get presented notifications')
       );
 
+      // BREAKING CHANGE (DIS-106b): scheduleId is now required
       await expect(
-        notificationService.dismissMedicationNotification('med-123')
+        notificationService.dismissMedicationNotification('med-123', 'sched-1')
       ).resolves.not.toThrow();
     });
 
@@ -922,7 +943,8 @@ describe('notificationService', () => {
 
       (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue(mockPresentedNotifs);
 
-      await notificationService.dismissMedicationNotification('med-123');
+      // BREAKING CHANGE (DIS-106b): scheduleId is now required
+      await notificationService.dismissMedicationNotification('med-123', 'sched-1');
 
       // Should not dismiss any notifications since medication IDs don't match
       expect(Notifications.dismissNotificationAsync).not.toHaveBeenCalled();
