@@ -1,7 +1,8 @@
 import * as Notifications from 'expo-notifications';
+import * as Sentry from '@sentry/react-native';
 import { logger } from '../../utils/logger';
 import { Medication, MedicationSchedule } from '../../models/types';
-import { medicationRepository, medicationScheduleRepository } from '../../database/medicationRepository';
+import { medicationRepository, medicationScheduleRepository, medicationDoseRepository } from '../../database/medicationRepository';
 import { useNotificationSettingsStore } from '../../store/notificationSettingsStore';
 import { scheduleNotification } from './notificationScheduler';
 
@@ -111,6 +112,11 @@ export async function handleSnooze(
 
 /**
  * Handle "Take All Now" action - log all medications immediately
+ * 
+ * SAFETY NOTE (HAND-111): This action requires explicit user tap on the "Take All" button.
+ * It is NOT automatic - the user must consciously choose to take all medications.
+ * The button is a convenience feature for users who want to log multiple medications at once,
+ * but it defers to the user for the final decision.
  */
 export async function handleTakeAllNow(
   medicationIds: string[],
@@ -619,12 +625,22 @@ export async function cancelScheduledMedicationReminder(medicationId: string, sc
  * Dismiss presented notifications for a medication
  * This removes notifications from the notification tray when medication is logged from the app
  *
- * For grouped notifications (multiple medications at the same time):
- * - If scheduleId is provided, only dismisses if BOTH medicationId AND scheduleId match
+ * BREAKING CHANGE (DIS-106a & DIS-106b): scheduleId is now REQUIRED
+ * - Removes unused "dismiss all" code path that was a bug vector
+ * - In production, scheduleId is always provided when logging a dose
+ * - This makes the function safer and more predictable
+ *
+ * SAFETY FIX (DIS-130 & DIS-171): For grouped notifications (multiple medications at the same time):
+ * - Only dismisses group notification when ALL medications in the group are logged/skipped
+ * - This prevents users from missing other medications in the group
+ * - Checks database to verify all medications are accounted for before dismissing
+ * 
+ * For single medication notifications:
+ * - Only dismisses if BOTH medicationId AND scheduleId match
  * - This ensures medications with multiple daily schedules only dismiss the correct notification
  * - Example: Med A at 9am and 9pm should only dismiss the 9am notification when logging the 9am dose
  */
-export async function dismissMedicationNotification(medicationId: string, scheduleId?: string): Promise<void> {
+export async function dismissMedicationNotification(medicationId: string, scheduleId: string): Promise<void> {
   try {
     // Get all presented notifications
     const presentedNotifications = await Notifications.getPresentedNotificationsAsync();
@@ -639,41 +655,126 @@ export async function dismissMedicationNotification(medicationId: string, schedu
         medicationIds?: string[];
         scheduleId?: string;
         scheduleIds?: string[];
+        time?: string;
       };
 
       // Check if this notification is for the medication being logged
       let shouldDismiss = false;
 
       // Single medication notification
+      // BREAKING CHANGE (DIS-106a): scheduleId is now required - removed "dismiss all" logic
       if (data.medicationId === medicationId) {
-        // If scheduleId is provided, only dismiss if it matches
-        if (scheduleId) {
-          shouldDismiss = data.scheduleId === scheduleId;
-        } else {
-          shouldDismiss = true;
-        }
+        // Only dismiss if scheduleId matches (required parameter)
+        shouldDismiss = data.scheduleId === scheduleId;
       }
-
-      // Multiple medication notification - check if this medication is in the group
-      if (data.medicationIds?.includes(medicationId)) {
-        if (scheduleId) {
-          // Find the index of the medication and check if schedule matches
-          const medIndex = data.medicationIds.indexOf(medicationId);
-          shouldDismiss = data.scheduleIds?.[medIndex] === scheduleId;
+      // Multiple medication notification - SAFETY CHECK: only dismiss if ALL medications are logged
+      else if (data.medicationIds?.includes(medicationId)) {
+        // BREAKING CHANGE (DIS-106a): scheduleId is now required
+        // Find the index of the medication and check if schedule matches
+        const medIndex = data.medicationIds.indexOf(medicationId);
+        const scheduleMatches = data.scheduleIds?.[medIndex] === scheduleId;
+        
+        if (scheduleMatches && data.medicationIds.length > 1) {
+            // SAFETY FIX: Check if ALL medications in the group are logged before dismissing
+            // This prevents the notification from being dismissed when only one medication is logged,
+            // which would cause the user to potentially miss the other medications
+            let allLogged = true;
+            
+            for (let i = 0; i < data.medicationIds.length; i++) {
+              const checkMedicationId = data.medicationIds[i];
+              const checkScheduleId = data.scheduleIds?.[i];
+              
+              if (!checkScheduleId) continue; // Skip if no schedule ID
+              
+              try {
+                // Get the medication to find schedule time and timezone
+                const medication = await medicationRepository.getById(checkMedicationId);
+                const schedule = medication?.schedule?.find(s => s.id === checkScheduleId);
+                
+                if (medication && schedule) {
+                  // Check if this medication was logged for this schedule today
+                  const wasLogged = await medicationDoseRepository.wasLoggedForScheduleToday(
+                    checkMedicationId,
+                    checkScheduleId,
+                    schedule.time,
+                    schedule.timezone
+                  );
+                  
+                  if (!wasLogged) {
+                    allLogged = false;
+                    logger.log('[Notification] Grouped notification: Not all medications logged yet, keeping notification:', {
+                      notLoggedMed: checkMedicationId,
+                      totalInGroup: data.medicationIds.length,
+                    });
+                    break;
+                  }
+                }
+              } catch (error) {
+                // On error checking a medication, err on the side of caution and don't dismiss
+                logger.error('[Notification] Error checking if medication logged, keeping notification:', error);
+                allLogged = false;
+                break;
+              }
+            }
+            
+            shouldDismiss = allLogged;
         } else {
-          shouldDismiss = true;
+          // Single medication in group or schedule doesn't match
+          shouldDismiss = scheduleMatches && data.medicationIds.length === 1;
         }
       }
 
       if (shouldDismiss) {
-        await Notifications.dismissNotificationAsync(notification.request.identifier);
-        logger.log('[Notification] Dismissed notification for medication');
+        try {
+          await Notifications.dismissNotificationAsync(notification.request.identifier);
+          logger.log('[Notification] Dismissed notification for medication');
+        } catch (dismissError) {
+          // Log dismiss failure to Sentry with notification context (DIS-208)
+          const dismissErrorMessage = dismissError instanceof Error ? dismissError.message : String(dismissError);
+          logger.error('[Notification] Failed to dismiss notification:', {
+            notificationId: notification.request.identifier,
+            medicationId,
+            scheduleId,
+            error: dismissErrorMessage,
+          });
+          
+          Sentry.captureException(dismissError instanceof Error ? dismissError : new Error(dismissErrorMessage), {
+            level: 'warning', // warning since it doesn't break core functionality
+            tags: {
+              component: 'NotificationDismiss',
+              operation: 'dismissNotificationAsync',
+            },
+            extra: {
+              notificationId: notification.request.identifier,
+              medicationId,
+              scheduleId,
+              errorMessage: dismissErrorMessage,
+            },
+          });
+          // Continue processing other notifications even if one fails
+        }
       }
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error('[Notification] Error dismissing medication notification:', {
+      medicationId,
+      scheduleId,
       error: errorMessage,
+    });
+    
+    // Log to Sentry with full context (DIS-187, DIS-208)
+    Sentry.captureException(error instanceof Error ? error : new Error(errorMessage), {
+      level: 'error',
+      tags: {
+        component: 'NotificationDismiss',
+        operation: 'dismissMedicationNotification',
+      },
+      extra: {
+        medicationId,
+        scheduleId,
+        errorMessage,
+      },
     });
   }
 }
