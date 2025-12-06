@@ -11,9 +11,6 @@
  */
 
 import * as Notifications from 'expo-notifications';
-import {
-  medicationRepository,
-} from '../../database/medicationRepository';
 import { Medication, MedicationSchedule } from '../../models/types';
 
 // Mock dependencies
@@ -205,8 +202,10 @@ describe('Notification Scheduling', () => {
     it.skip('SCHED-G1: should create grouped notification for meds at same time - TODO: Fix mock setup', async () => {
       // Act
       const notifId = await scheduleMultipleNotification(
-        [mockMedA, mockMedB],
-        [mockScheduleA, mockScheduleB],
+        [
+          { medication: mockMedA, schedule: mockScheduleA },
+          { medication: mockMedB, schedule: mockScheduleB }
+        ],
         '08:00'
       );
 
@@ -239,8 +238,10 @@ describe('Notification Scheduling', () => {
 
       // Act
       await scheduleMultipleNotification(
-        [mockMedA, mockMedB],
-        [mockScheduleA, mockScheduleB],
+        [
+          { medication: mockMedA, schedule: mockScheduleA },
+          { medication: mockMedB, schedule: mockScheduleB }
+        ],
         '08:00'
       );
 
@@ -260,8 +261,10 @@ describe('Notification Scheduling', () => {
 
       // Act
       await scheduleMultipleNotification(
-        [mockMedA, mockMedB],
-        [mockScheduleA, mockScheduleB],
+        [
+          { medication: mockMedA, schedule: mockScheduleA },
+          { medication: mockMedB, schedule: mockScheduleB }
+        ],
         '08:00'
       );
 
