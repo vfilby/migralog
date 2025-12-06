@@ -23,8 +23,11 @@ jest.mock('../../services/errorLogger');
 jest.mock('../../store/medicationStore');
 jest.mock('../../store/dailyStatusStore');
 jest.mock('../../store/notificationSettingsStore');
+jest.mock('@sentry/react-native');
+jest.mock('../notifications/errorNotificationHelper');
 
 // Import after mocks
+import * as Sentry from '@sentry/react-native';
 import {
   handleTakeNow,
   handleSnooze,
@@ -35,6 +38,8 @@ import { dailyCheckinService } from '../notifications/dailyCheckinService';
 import { useMedicationStore } from '../../store/medicationStore';
 import { useDailyStatusStore } from '../../store/dailyStatusStore';
 import { useNotificationSettingsStore } from '../../store/notificationSettingsStore';
+import { notifyUserOfError } from '../notifications/errorNotificationHelper';
+import { expectSentryError } from '../../utils/testUtils/sentryTestUtils';
 
 // Setup Notifications mock
 (Notifications as any).AndroidNotificationPriority = {
@@ -44,13 +49,17 @@ import { useNotificationSettingsStore } from '../../store/notificationSettingsSt
   HIGH: 1,
   MAX: 2,
 };
-(Notifications as any).scheduleNotificationAsync = jest.fn();
 
 describe('Notification Action Handlers', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.spyOn(console, 'log').mockImplementation();
     jest.spyOn(console, 'error').mockImplementation();
+    (Sentry.captureException as jest.Mock).mockClear();
+    // Mock notifyUserOfError to resolve immediately without calling scheduleNotificationAsync
+    (notifyUserOfError as jest.Mock).mockResolvedValue(undefined);
+    // Set up scheduleNotificationAsync mock
+    jest.spyOn(Notifications, 'scheduleNotificationAsync').mockResolvedValue('notification-id-123' as any);
   });
 
   describe('Take Now Actions', () => {
@@ -92,9 +101,10 @@ describe('Notification Action Handlers', () => {
       (medicationRepository.getById as jest.Mock).mockResolvedValue(mockMedication);
 
       // Act
-      await handleTakeNow('med-1', 'sched-1');
+      const result = await handleTakeNow('med-1', 'sched-1');
 
       // Assert
+      expect(result).toBe(true);
       expect(medicationRepository.getById).toHaveBeenCalledWith('med-1');
       expect(mockMedicationStore.logDose).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -106,6 +116,7 @@ describe('Notification Action Handlers', () => {
           notes: 'Logged from notification',
         })
       );
+      expect(notifyUserOfError).not.toHaveBeenCalled();
     });
 
     it('ACT-T2: should use default quantity when schedule not found', async () => {
@@ -114,9 +125,10 @@ describe('Notification Action Handlers', () => {
       (medicationRepository.getById as jest.Mock).mockResolvedValue(medWithoutSchedule);
 
       // Act
-      await handleTakeNow('med-1', 'sched-999');
+      const result = await handleTakeNow('med-1', 'sched-999');
 
       // Assert
+      expect(result).toBe(true);
       expect(mockMedicationStore.logDose).toHaveBeenCalledWith(
         expect.objectContaining({
           quantity: 1, // Falls back to defaultQuantity
@@ -124,25 +136,40 @@ describe('Notification Action Handlers', () => {
       );
     });
 
-    it('ACT-T3: should not log dose when medication not found', async () => {
+    it('ACT-T3: should not log dose when medication not found and notify user (HAND-138, SUP-145)', async () => {
       // Arrange
       (medicationRepository.getById as jest.Mock).mockResolvedValue(null);
 
       // Act
-      await handleTakeNow('med-999', 'sched-1');
+      const result = await handleTakeNow('med-999', 'sched-1');
 
       // Assert
+      expect(result).toBe(false);
       expect(mockMedicationStore.logDose).not.toHaveBeenCalled();
+      expect(notifyUserOfError).toHaveBeenCalledWith(
+        'data',
+        expect.stringContaining('problem with your medication'),
+        expect.any(Error),
+        expect.objectContaining({ medicationId: 'med-999', scheduleId: 'sched-1' })
+      );
     });
 
-    it('ACT-T4: should throw error when medication has invalid configuration', async () => {
+    it('ACT-T4: should return false and notify user when medication has invalid configuration (HAND-138, HAND-238)', async () => {
       // Arrange
       const invalidMed = { ...mockMedication, dosageAmount: undefined };
       (medicationRepository.getById as jest.Mock).mockResolvedValue(invalidMed);
 
-      // Act & Assert
-      await expect(handleTakeNow('med-1', 'sched-1')).rejects.toThrow(
-        'Invalid medication configuration'
+      // Act
+      const result = await handleTakeNow('med-1', 'sched-1');
+
+      // Assert
+      expect(result).toBe(false);
+      expect(mockMedicationStore.logDose).not.toHaveBeenCalled();
+      expect(notifyUserOfError).toHaveBeenCalledWith(
+        'data',
+        expect.stringContaining('problem with your medication data'),
+        expect.any(Error),
+        expect.objectContaining({ medicationId: 'med-1', scheduleId: 'sched-1' })
       );
     });
   });
@@ -209,9 +236,10 @@ describe('Notification Action Handlers', () => {
         .mockResolvedValueOnce(mockMedB);
 
       // Act
-      await handleTakeAllNow(['med-A', 'med-B'], ['sched-A', 'sched-B']);
+      const result = await handleTakeAllNow(['med-A', 'med-B'], ['sched-A', 'sched-B']);
 
       // Assert
+      expect(result).toEqual({ success: 2, total: 2 });
       expect(mockMedicationStore.logDose).toHaveBeenCalledTimes(2);
       expect(mockMedicationStore.logDose).toHaveBeenNthCalledWith(
         1,
@@ -229,32 +257,44 @@ describe('Notification Action Handlers', () => {
           quantity: 2,
         })
       );
+      expect(notifyUserOfError).not.toHaveBeenCalled();
     });
 
-    it('ACT-TA2: should continue logging even if one medication fails (resilient)', async () => {
+    it('ACT-TA2: should continue logging even if one medication fails (resilient) and notify user', async () => {
       // Arrange
       (medicationRepository.getById as jest.Mock)
         .mockResolvedValueOnce(null) // Med A not found
         .mockResolvedValueOnce(mockMedB); // Med B found
 
       // Act
-      await handleTakeAllNow(['med-A', 'med-B'], ['sched-A', 'sched-B']);
+      const result = await handleTakeAllNow(['med-A', 'med-B'], ['sched-A', 'sched-B']);
 
       // Assert
+      expect(result).toEqual({ success: 1, total: 2 });
       expect(mockMedicationStore.logDose).toHaveBeenCalledTimes(1); // Only Med B logged
       expect(mockMedicationStore.logDose).toHaveBeenCalledWith(
         expect.objectContaining({
           medicationId: 'med-B',
         })
       );
+      // Verify error notification for failed medication (HAND-238)
+      expect(notifyUserOfError).toHaveBeenCalledWith(
+        'data',
+        expect.stringContaining('could not be logged'),
+        expect.any(Error),
+        expect.objectContaining({ medicationId: 'med-A' })
+      );
     });
 
-    it('ACT-TA3: should handle empty medication arrays', async () => {
+    it('ACT-TA3: should handle empty medication arrays and log to Sentry (HAND-254)', async () => {
       // Act
-      await handleTakeAllNow([], []);
+      const result = await handleTakeAllNow([], []);
 
       // Assert
+      expect(result).toEqual({ success: 0, total: 0 });
       expect(mockMedicationStore.logDose).not.toHaveBeenCalled();
+      // Verify Sentry logging for unexpected empty list
+      expectSentryError(Sentry.captureException as jest.Mock, 'empty medication list');
     });
   });
 
@@ -286,8 +326,6 @@ describe('Notification Action Handlers', () => {
       (useNotificationSettingsStore.getState as jest.Mock) = jest.fn(
         () => mockNotificationSettingsStore
       );
-      
-      (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('snooze-notif-123');
     });
 
     it('ACT-SN1: should schedule ONE-TIME notification when "Snooze" tapped', async () => {
@@ -296,9 +334,11 @@ describe('Notification Action Handlers', () => {
       const beforeSnooze = Date.now();
 
       // Act
-      await handleSnooze('med-1', 'sched-1', 10); // Snooze for 10 minutes
+      const result = await handleSnooze('med-1', 'sched-1', 10); // Snooze for 10 minutes
 
       // Assert
+      expect(result).toBe(true);
+      expect(notifyUserOfError).not.toHaveBeenCalled(); // Should not have errored
       expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
       
       const scheduleCall = (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls[0][0];
@@ -314,6 +354,7 @@ describe('Notification Action Handlers', () => {
       const expectedTime = beforeSnooze + 10 * 60 * 1000;
       expect(triggerTime).toBeGreaterThanOrEqual(expectedTime - 1000); // Allow 1s tolerance
       expect(triggerTime).toBeLessThanOrEqual(expectedTime + 1000);
+      expect(notifyUserOfError).not.toHaveBeenCalled();
     });
 
     it('ACT-SN2: should use timeSensitive setting when scheduling snooze', async () => {
@@ -331,15 +372,22 @@ describe('Notification Action Handlers', () => {
       expect(scheduleCall.content.interruptionLevel).toBe('timeSensitive');
     });
 
-    it('ACT-SN3: should not schedule if medication not found', async () => {
+    it('ACT-SN3: should not schedule if medication not found and notify user (HAND-138, HAND-238)', async () => {
       // Arrange
       (medicationRepository.getById as jest.Mock).mockResolvedValue(null);
 
       // Act
-      await handleSnooze('med-999', 'sched-1', 10);
+      const result = await handleSnooze('med-999', 'sched-1', 10);
 
       // Assert
+      expect(result).toBe(false);
       expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+      expect(notifyUserOfError).toHaveBeenCalledWith(
+        'data',
+        expect.stringContaining('Could not snooze'),
+        expect.any(Error),
+        expect.objectContaining({ medicationId: 'med-999', scheduleId: 'sched-1' })
+      );
     });
   });
 

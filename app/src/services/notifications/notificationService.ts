@@ -1,9 +1,11 @@
 import * as Notifications from 'expo-notifications';
+import * as Sentry from '@sentry/react-native';
 import { logger } from '../../utils/logger';
 import { Medication, MedicationSchedule } from '../../models/types';
 import { medicationRepository, medicationDoseRepository } from '../../database/medicationRepository';
 import { useNotificationSettingsStore } from '../../store/notificationSettingsStore';
 import { handleDailyCheckinNotification } from './dailyCheckinNotifications';
+import { notifyUserOfError } from './errorNotificationHelper';
 import {
   areNotificationsGloballyEnabled as areNotificationsGloballyEnabledUtil,
   setNotificationsGloballyEnabled as setNotificationsGloballyEnabledUtil,
@@ -63,33 +65,142 @@ export async function handleIncomingNotification(notification: Notifications.Not
       try {
         // Get the medication to find the schedule time and timezone
         const medication = await medicationRepository.getById(data.medicationId);
-        if (medication) {
-          const schedule = medication.schedule?.find(s => s.id === data.scheduleId);
-          if (schedule) {
-            const wasLogged = await medicationDoseRepository.wasLoggedForScheduleToday(
-              data.medicationId,
-              data.scheduleId,
-              schedule.time,
-              schedule.timezone
-            );
+        
+        // Issue 5 (SUP-145): Clear error messaging when medication data is missing/corrupt
+        if (!medication) {
+          // Log to Sentry as ERROR with diagnostic info
+          const missingMedicationError = new Error(`Notification fired but medication data is missing: ${data.medicationId}`);
+          
+          Sentry.captureException(missingMedicationError, {
+            level: 'error',
+            tags: {
+              component: 'NotificationService',
+              operation: 'handleIncomingNotification',
+              errorType: 'missing_medication',
+            },
+            extra: {
+              medicationId: data.medicationId,
+              scheduleId: data.scheduleId,
+              notificationTitle: notification.request.content.title,
+              notificationBody: notification.request.content.body,
+            },
+          });
+          
+          logger.error('[Notification] Medication not found for notification:', {
+            medicationId: data.medicationId,
+            scheduleId: data.scheduleId,
+          });
+          
+          // Show user-friendly message
+          await notifyUserOfError(
+            'data',
+            "There's a problem with your medication reminder. Please check your medications.",
+            missingMedicationError,
+            { medicationId: data.medicationId, scheduleId: data.scheduleId }
+          );
+          
+          // Still show notification (fail-safe behavior)
+          return {
+            shouldPlaySound: true,
+            shouldSetBadge: true,
+            shouldShowBanner: true,
+            shouldShowList: true,
+          };
+        }
+        
+        const schedule = medication.schedule?.find(s => s.id === data.scheduleId);
+        
+        // Issue 6 (SUP-162): Data inconsistency alert - schedule doesn't match
+        if (!schedule) {
+          const inconsistencyError = new Error(`Notification schedule doesn't match medication: scheduleId=${data.scheduleId}, medicationId=${data.medicationId}`);
+          
+          Sentry.captureException(inconsistencyError, {
+            level: 'error',
+            tags: {
+              component: 'NotificationService',
+              operation: 'handleIncomingNotification',
+              errorType: 'data_inconsistency',
+            },
+            extra: {
+              medicationId: data.medicationId,
+              scheduleId: data.scheduleId,
+              medicationName: medication.name,
+              availableScheduleIds: medication.schedule?.map(s => s.id) || [],
+            },
+          });
+          
+          logger.error('[Notification] Schedule not found on medication:', {
+            medicationId: data.medicationId,
+            scheduleId: data.scheduleId,
+            medicationName: medication.name,
+          });
+          
+          // Notify user of inconsistency (Issue 6: SUP-162)
+          await notifyUserOfError(
+            'data',
+            "Your medication schedule has changed. Please check your medication settings.",
+            inconsistencyError,
+            { medicationId: data.medicationId, scheduleId: data.scheduleId }
+          );
+          
+          // Still show notification (fail-safe - take safest action)
+          return {
+            shouldPlaySound: true,
+            shouldSetBadge: true,
+            shouldShowBanner: true,
+            shouldShowList: true,
+          };
+        }
+        
+        if (schedule) {
+          const wasLogged = await medicationDoseRepository.wasLoggedForScheduleToday(
+            data.medicationId,
+            data.scheduleId,
+            schedule.time,
+            schedule.timezone
+          );
 
-            if (wasLogged) {
-              logger.log('[Notification] Medication already logged for schedule, suppressing notification:', {
-                medicationId: data.medicationId,
-                scheduleId: data.scheduleId,
-              });
-              // Don't show the notification
-              return {
-                shouldPlaySound: false,
-                shouldSetBadge: false,
-                shouldShowBanner: false,
-                shouldShowList: false,
-              };
-            }
+          if (wasLogged) {
+            logger.log('[Notification] Medication already logged for schedule, suppressing notification:', {
+              medicationId: data.medicationId,
+              scheduleId: data.scheduleId,
+            });
+            // Don't show the notification
+            return {
+              shouldPlaySound: false,
+              shouldSetBadge: false,
+              shouldShowBanner: false,
+              shouldShowList: false,
+            };
           }
         }
       } catch (error) {
         logger.error('[Notification] Error checking if medication logged, showing notification (fail-safe):', error);
+        
+        // Issue 3 (HAND-334): No silent failures - log database errors to Sentry
+        // Issue 7 (SUP-182): Categorize as 'transient' (database error)
+        Sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
+          level: 'error',
+          tags: {
+            component: 'NotificationService',
+            operation: 'handleIncomingNotification',
+            errorType: 'transient', // Database/network errors are typically transient
+          },
+          extra: {
+            medicationId: data.medicationId,
+            scheduleId: data.scheduleId,
+            errorMessage: error instanceof Error ? error.message : String(error),
+          },
+        });
+        
+        // Issue 8 (SUP-340): Clear, actionable error message
+        await notifyUserOfError(
+          'system',
+          'A temporary issue occurred checking your medication. Please try again.',
+          error instanceof Error ? error : new Error(String(error)),
+          { medicationId: data.medicationId, scheduleId: data.scheduleId }
+        );
+        
         // Fall through to show notification
       }
     }
@@ -99,6 +210,7 @@ export async function handleIncomingNotification(notification: Notifications.Not
     try {
       const notLoggedMedications: string[] = [];
       const notLoggedSchedules: string[] = [];
+      const notLoggedMedicationNames: string[] = [];
 
       for (let i = 0; i < data.medicationIds.length; i++) {
         const medicationId = data.medicationIds[i];
@@ -107,10 +219,62 @@ export async function handleIncomingNotification(notification: Notifications.Not
         try {
           // Get medication and schedule to find timezone
           const medication = await medicationRepository.getById(medicationId);
+          
+          // Issue 5 (SUP-145): Handle missing medication in group
+          if (!medication) {
+            logger.error('[Notification] Medication not found in grouped notification:', {
+              medicationId,
+              scheduleId,
+              groupTime: data.time,
+            });
+            
+            Sentry.captureException(new Error(`Grouped notification: medication not found ${medicationId}`), {
+              level: 'error',
+              tags: {
+                component: 'NotificationService',
+                operation: 'handleIncomingNotification',
+                errorType: 'missing_medication',
+                notificationType: 'grouped',
+              },
+              extra: {
+                medicationId,
+                scheduleId,
+                groupTime: data.time,
+                totalInGroup: data.medicationIds.length,
+              },
+            });
+            
+            // Skip this medication (don't include in notification)
+            continue;
+          }
+          
           const schedule = medication?.schedule?.find(s => s.id === scheduleId);
 
+          // Issue 6 (SUP-162): Data inconsistency in grouped notification
           if (!schedule) {
-            // If schedule not found, skip this medication
+            logger.error('[Notification] Schedule not found in grouped notification:', {
+              medicationId,
+              scheduleId,
+              medicationName: medication.name,
+            });
+            
+            Sentry.captureException(new Error(`Grouped notification: schedule mismatch ${scheduleId}`), {
+              level: 'error',
+              tags: {
+                component: 'NotificationService',
+                operation: 'handleIncomingNotification',
+                errorType: 'data_inconsistency',
+                notificationType: 'grouped',
+              },
+              extra: {
+                medicationId,
+                scheduleId,
+                medicationName: medication.name,
+                availableScheduleIds: medication.schedule?.map(s => s.id) || [],
+              },
+            });
+            
+            // Skip this medication
             continue;
           }
 
@@ -124,12 +288,30 @@ export async function handleIncomingNotification(notification: Notifications.Not
           if (!wasLogged) {
             notLoggedMedications.push(medicationId);
             notLoggedSchedules.push(scheduleId);
+            notLoggedMedicationNames.push(medication.name);
           }
         } catch (error) {
           logger.error('[Notification] Error checking medication in group, including it (fail-safe):', {
             medicationId,
             error,
           });
+          
+          // Issue 3 (HAND-334) + Issue 7 (SUP-182): Log transient errors
+          Sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
+            level: 'warning',
+            tags: {
+              component: 'NotificationService',
+              operation: 'handleIncomingNotification',
+              errorType: 'transient',
+              notificationType: 'grouped',
+            },
+            extra: {
+              medicationId,
+              scheduleId: data.scheduleIds[i],
+              errorMessage: error instanceof Error ? error.message : String(error),
+            },
+          });
+          
           // Include medication in notification on error (fail-safe)
           notLoggedMedications.push(medicationId);
           notLoggedSchedules.push(scheduleId);
@@ -147,16 +329,56 @@ export async function handleIncomingNotification(notification: Notifications.Not
         };
       }
 
-      // If some were logged, we still show the notification but ideally would update the content
-      // For now, we show the notification as-is (future enhancement: update content to show only unlogged meds)
+      // Issue 11 (SUP-313): Dynamic notification content
+      // TODO: Update notification content to show only remaining medications
+      // This requires re-scheduling or updating the notification content dynamically
+      // For now, log the intent and show original notification
       if (notLoggedMedications.length < data.medicationIds.length) {
+        const loggedCount = data.medicationIds.length - notLoggedMedications.length;
+        
         logger.log('[Notification] Some medications already logged, showing reminder for remaining:', {
           total: data.medicationIds.length,
+          logged: loggedCount,
           remaining: notLoggedMedications.length,
+          remainingMeds: notLoggedMedicationNames.join(', '),
         });
+        
+        // Issue 11 (SUP-313): Show which medications remain
+        // Ideally we'd update the notification content here to show:
+        // "Time to take: [Medication A, Medication B]" (only unlogged ones)
+        // This would require updating the notification object which isn't currently possible
+        // in the handleNotification callback. Marking as enhancement for future work.
+        //
+        // For now, the notification will show all medications in the group,
+        // but the suppression logic ensures we don't suppress if ANY remain unlogged.
       }
     } catch (error) {
       logger.error('[Notification] Error checking grouped medications, showing notification (fail-safe):', error);
+      
+      // Issue 3 (HAND-334): No silent failures
+      Sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
+        level: 'error',
+        tags: {
+          component: 'NotificationService',
+          operation: 'handleIncomingNotification',
+          errorType: 'transient',
+          notificationType: 'grouped',
+        },
+        extra: {
+          medicationCount: data.medicationIds?.length || 0,
+          groupTime: data.time,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        },
+      });
+      
+      // Issue 8 (SUP-340): Clear error message
+      await notifyUserOfError(
+        'system',
+        'A temporary issue occurred with your medication reminder. Please check the app.',
+        error instanceof Error ? error : new Error(String(error)),
+        { medicationCount: data.medicationIds?.length || 0, groupTime: data.time }
+      );
+      
       // Fall through to show notification
     }
   }
@@ -276,6 +498,8 @@ class NotificationService {
 
   /**
    * Handle a notification response (shared logic for listener and pending responses)
+   * 
+   * ISSUE FIX (HAND-334): Improved error handling with Sentry logging
    */
   private async handleNotificationResponse(response: Notifications.NotificationResponse): Promise<void> {
     try {
@@ -296,8 +520,10 @@ class NotificationService {
       switch (actionIdentifier) {
         case 'TAKE_NOW':
           if (data.medicationId && data.scheduleId) {
-            await handleTakeNow(data.medicationId, data.scheduleId);
-            await this.cancelFollowUpReminder(`${data.medicationId}:${data.scheduleId}`);
+            const success = await handleTakeNow(data.medicationId, data.scheduleId);
+            if (success) {
+              await this.cancelFollowUpReminder(`${data.medicationId}:${data.scheduleId}`);
+            }
           }
           break;
         case 'SNOOZE_10':
@@ -305,12 +531,13 @@ class NotificationService {
             // Cancel follow-up reminder since user snoozed
             await this.cancelFollowUpReminder(`${data.medicationId}:${data.scheduleId}`);
             await handleSnooze(data.medicationId, data.scheduleId, 10);
+            // Note: Success/failure already logged by handleSnooze
           }
           break;
         case 'TAKE_ALL_NOW':
           if (data.medicationIds && data.scheduleIds) {
-            await handleTakeAllNow(data.medicationIds, data.scheduleIds);
-            if (data.time) {
+            const result = await handleTakeAllNow(data.medicationIds, data.scheduleIds);
+            if (result.success > 0 && data.time) {
               await this.cancelFollowUpReminder(`multi:${data.time}`);
             }
           }
@@ -320,6 +547,7 @@ class NotificationService {
             // Cancel follow-up reminder since user chose to snooze
             await this.cancelFollowUpReminder(`multi:${data.time}`);
             await handleRemindLater(data.medicationIds, data.scheduleIds, data.time, 10);
+            // Note: Success/failure already logged by handleRemindLater
           }
           break;
         case 'VIEW_DETAILS':
@@ -342,6 +570,20 @@ class NotificationService {
         error: errorMessage,
         errorStack: error instanceof Error ? error.stack : undefined,
       });
+      
+      // Issue 3 (HAND-334): No silent failures - log to Sentry
+      Sentry.captureException(error instanceof Error ? error : new Error(errorMessage), {
+        level: 'error',
+        tags: {
+          component: 'NotificationService',
+          operation: 'handleNotificationResponse',
+        },
+        extra: {
+          actionIdentifier: response.actionIdentifier,
+          errorMessage,
+        },
+      });
+      
       // Log to error logger so we can track these failures
       const { errorLogger } = await import('../errorLogger');
       await errorLogger.log(
@@ -349,6 +591,14 @@ class NotificationService {
         '[Notification] Unhandled error in notification response listener',
         error instanceof Error ? error : undefined,
         { context: 'notification_response_handling' }
+      );
+      
+      // Issue 2 (HAND-238) + Issue 8 (SUP-340): User-friendly notification
+      await notifyUserOfError(
+        'system',
+        'An error occurred processing your action. Please try again from the app.',
+        error instanceof Error ? error : new Error(errorMessage),
+        { actionIdentifier: response.actionIdentifier }
       );
     }
   }
@@ -617,7 +867,7 @@ class NotificationService {
   }
 
   async cancelNotification(notificationId: string): Promise<void> {
-    return cancelNotification(notificationId);
+    await cancelNotification(notificationId);
   }
 
   async cancelMedicationNotifications(medicationId: string): Promise<void> {

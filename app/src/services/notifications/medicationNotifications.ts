@@ -5,6 +5,7 @@ import { Medication, MedicationSchedule } from '../../models/types';
 import { medicationRepository, medicationScheduleRepository, medicationDoseRepository } from '../../database/medicationRepository';
 import { useNotificationSettingsStore } from '../../store/notificationSettingsStore';
 import { scheduleNotification } from './notificationScheduler';
+import { notifyUserOfError } from './errorNotificationHelper';
 
 // Notification categories for action buttons
 export const MEDICATION_REMINDER_CATEGORY = 'MEDICATION_REMINDER';
@@ -12,13 +13,27 @@ export const MULTIPLE_MEDICATION_REMINDER_CATEGORY = 'MULTIPLE_MEDICATION_REMIND
 
 /**
  * Handle "Take Now" action - log medication immediately
+ * 
+ * ISSUE FIX (HAND-138): Now returns error state instead of throwing
+ * - Uses notifyUserOfError() for user feedback
+ * - Logs to Sentry with full context
+ * - Returns boolean to indicate success/failure
  */
-export async function handleTakeNow(medicationId: string, scheduleId: string): Promise<void> {
+export async function handleTakeNow(medicationId: string, scheduleId: string): Promise<boolean> {
   try {
     const medication = await medicationRepository.getById(medicationId);
     if (!medication) {
-      logger.error('[Notification] Medication not found');
-      return;
+      logger.error('[Notification] Medication not found:', { medicationId, scheduleId });
+      
+      // Issue 2 (HAND-238) + Issue 5 (SUP-145): User-friendly error notification
+      await notifyUserOfError(
+        'data',
+        'There was a problem with your medication reminder. Please check your medications.',
+        new Error(`Medication not found: ${medicationId}`),
+        { medicationId, scheduleId, operation: 'handleTakeNow' }
+      );
+      
+      return false;
     }
 
     // Find the schedule to get the dosage
@@ -32,9 +47,26 @@ export async function handleTakeNow(medicationId: string, scheduleId: string): P
 
     // Validate dose object before passing to store
     if (!medication.dosageAmount || !medication.dosageUnit) {
-      throw new Error(
+      const validationError = new Error(
         `Invalid medication configuration: dosageAmount=${medication.dosageAmount}, dosageUnit=${medication.dosageUnit}`
       );
+      
+      logger.error('[Notification] Invalid medication configuration:', {
+        medicationId,
+        scheduleId,
+        dosageAmount: medication.dosageAmount,
+        dosageUnit: medication.dosageUnit,
+      });
+      
+      // Issue 2 (HAND-238): User notification for validation errors
+      await notifyUserOfError(
+        'data',
+        'There was a problem with your medication data. Please update your medication settings.',
+        validationError,
+        { medicationId, scheduleId, operation: 'handleTakeNow' }
+      );
+      
+      return false;
     }
 
     await useMedicationStore.getState().logDose({
@@ -54,6 +86,8 @@ export async function handleTakeNow(medicationId: string, scheduleId: string): P
       scheduleId,
       dosage,
     });
+    
+    return true;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error('[Notification] Failed to log medication from notification:', {
@@ -61,22 +95,48 @@ export async function handleTakeNow(medicationId: string, scheduleId: string): P
       scheduleId,
       error: errorMessage,
     });
-    // Re-throw so caller knows this failed
-    throw error;
+    
+    // Issue 2 (HAND-238) + Issue 3 (HAND-334): No silent failures
+    await notifyUserOfError(
+      'system',
+      'Failed to log your medication. Please try again.',
+      error instanceof Error ? error : new Error(errorMessage),
+      { medicationId, scheduleId, operation: 'handleTakeNow' }
+    );
+    
+    // Return error state instead of throwing
+    return false;
   }
 }
 
 /**
  * Handle "Snooze" action - reschedule notification
+ * 
+ * ISSUE FIX (HAND-138): Now returns error state and notifies user
+ * 
+ * NOTE (HAND-346): This is "snooze" for SINGLE medications (10 min fixed).
+ * For MULTIPLE medications, use handleRemindLater() which allows custom delays.
  */
 export async function handleSnooze(
   medicationId: string,
   scheduleId: string,
   minutes: number
-): Promise<void> {
+): Promise<boolean> {
   try {
     const medication = await medicationRepository.getById(medicationId);
-    if (!medication) return;
+    if (!medication) {
+      logger.error('[Notification] Medication not found for snooze:', { medicationId, scheduleId });
+      
+      // Issue 2 (HAND-238): User notification
+      await notifyUserOfError(
+        'data',
+        'Could not snooze medication reminder. Please check your medications.',
+        new Error(`Medication not found: ${medicationId}`),
+        { medicationId, scheduleId, operation: 'handleSnooze' }
+      );
+      
+      return false;
+    }
 
     // Get effective notification settings for this medication
     const effectiveSettings = useNotificationSettingsStore.getState().getEffectiveSettings(medicationId);
@@ -105,8 +165,19 @@ export async function handleSnooze(
     });
 
     logger.log('[Notification] Snoozed for', minutes, 'minutes');
+    return true;
   } catch (error) {
     logger.error('[Notification] Error snoozing notification:', error);
+    
+    // Issue 2 (HAND-238) + Issue 3 (HAND-334): No silent failures
+    await notifyUserOfError(
+      'system',
+      'Failed to snooze your medication reminder. Please try again.',
+      error instanceof Error ? error : new Error(String(error)),
+      { medicationId, scheduleId, minutes, operation: 'handleSnooze' }
+    );
+    
+    return false;
   }
 }
 
@@ -117,13 +188,42 @@ export async function handleSnooze(
  * It is NOT automatic - the user must consciously choose to take all medications.
  * The button is a convenience feature for users who want to log multiple medications at once,
  * but it defers to the user for the final decision.
+ * 
+ * ISSUE FIX (HAND-138, HAND-254): Now returns error state and handles empty lists
+ * - Returns object with success count and total count
+ * - Uses notifyUserOfError() for failures
+ * - Logs each error to Sentry
  */
 export async function handleTakeAllNow(
   medicationIds: string[],
   scheduleIds: string[]
-): Promise<void> {
+): Promise<{ success: number; total: number }> {
   try {
+    // Issue 9 (HAND-254): Empty medication list edge case
+    if (medicationIds.length === 0 || scheduleIds.length === 0) {
+      logger.error('[Notification] Empty medication list in handleTakeAllNow - this should not happen', {
+        medicationIdsLength: medicationIds.length,
+        scheduleIdsLength: scheduleIds.length,
+      });
+      
+      // Log to Sentry as this indicates a bug in notification scheduling
+      Sentry.captureException(new Error('handleTakeAllNow called with empty medication list'), {
+        level: 'warning',
+        tags: {
+          component: 'MedicationNotifications',
+          operation: 'handleTakeAllNow',
+        },
+        extra: {
+          medicationIdsLength: medicationIds.length,
+          scheduleIdsLength: scheduleIds.length,
+        },
+      });
+      
+      return { success: 0, total: 0 };
+    }
+
     const results: string[] = [];
+    let successCount = 0;
 
     // Dynamic import to avoid circular dependency
     const { useMedicationStore } = await import('../../store/medicationStore');
@@ -135,7 +235,16 @@ export async function handleTakeAllNow(
       try {
         const medication = await medicationRepository.getById(medicationId);
         if (!medication) {
-          logger.error('[Notification] Medication not found');
+          logger.error('[Notification] Medication not found in group:', { medicationId, scheduleId });
+          
+          // Issue 2 (HAND-238) + Issue 3 (HAND-334): Log each failure
+          await notifyUserOfError(
+            'data',
+            'One of your medications could not be logged. Please check your medications.',
+            new Error(`Medication not found: ${medicationId}`),
+            { medicationId, scheduleId, operation: 'handleTakeAllNow', index: i }
+          );
+          
           continue;
         }
 
@@ -145,9 +254,25 @@ export async function handleTakeAllNow(
 
         // Validate dose object before passing to store
         if (!medication.dosageAmount || !medication.dosageUnit) {
-          throw new Error(
+          const validationError = new Error(
             `Invalid medication configuration for ${medication.name}: dosageAmount=${medication.dosageAmount}, dosageUnit=${medication.dosageUnit}`
           );
+          
+          logger.error('[Notification] Invalid medication configuration in group:', {
+            medicationId,
+            scheduleId,
+            medicationName: medication.name,
+          });
+          
+          // Issue 2 (HAND-238): User notification for each failure
+          await notifyUserOfError(
+            'data',
+            `Problem with ${medication.name} settings. Please update your medication.`,
+            validationError,
+            { medicationId, scheduleId, operation: 'handleTakeAllNow', index: i }
+          );
+          
+          continue;
         }
 
         // Use store's logDose to update both database and state
@@ -164,6 +289,8 @@ export async function handleTakeAllNow(
         });
 
         results.push(`${medication.name} - ${dosage} dose(s)`);
+        successCount++;
+        
         logger.log('[Notification] Medication logged successfully:', {
           medicationId,
           medicationName: medication.name,
@@ -177,43 +304,122 @@ export async function handleTakeAllNow(
           scheduleId: scheduleIds[i],
           error: errorMessage,
         });
+        
+        // Issue 2 (HAND-238) + Issue 3 (HAND-334): Log individual failures
+        await notifyUserOfError(
+          'system',
+          'Failed to log one of your medications. Please check the app.',
+          itemError instanceof Error ? itemError : new Error(errorMessage),
+          { medicationId: medicationIds[i], scheduleId: scheduleIds[i], operation: 'handleTakeAllNow', index: i }
+        );
+        
         // Continue trying other medications even if one fails
         continue;
       }
     }
 
     if (results.length > 0) {
-      logger.log('[Notification] All medications logged successfully:', results);
+      logger.log('[Notification] Medications logged successfully:', {
+        successCount: results.length,
+        totalCount: medicationIds.length,
+        results,
+      });
     } else {
-      logger.error('[Notification] Failed to log any medications');
+      logger.error('[Notification] Failed to log any medications', {
+        totalCount: medicationIds.length,
+      });
+      
+      // Issue 2 (HAND-238): Notify user if ALL failed
+      await notifyUserOfError(
+        'system',
+        'Failed to log your medications. Please open the app and try again.',
+        new Error('All medications failed to log'),
+        { medicationCount: medicationIds.length, operation: 'handleTakeAllNow' }
+      );
     }
+    
+    return { success: successCount, total: medicationIds.length };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error('[Notification] Error processing multiple medication logging:', {
       medicationCount: medicationIds.length,
       error: errorMessage,
     });
-    // Re-throw so caller knows this failed
-    throw error;
+    
+    // Issue 2 (HAND-238) + Issue 3 (HAND-334): No silent failures
+    await notifyUserOfError(
+      'system',
+      'An error occurred while logging your medications. Please try again.',
+      error instanceof Error ? error : new Error(errorMessage),
+      { medicationCount: medicationIds.length, operation: 'handleTakeAllNow' }
+    );
+    
+    // Return error state instead of throwing
+    return { success: 0, total: medicationIds.length };
   }
 }
 
 /**
  * Handle "Remind Later" action - reschedule grouped notification
+ * 
+ * ISSUE FIX (HAND-138): Now returns error state and notifies user
+ * 
+ * NOTE (HAND-346): This is "remind later" for MULTIPLE medications.
+ * For SINGLE medication snooze, use handleSnooze() which is simpler.
+ * Difference: remindLater handles groups, snooze handles single meds with fixed 10min delay.
  */
 export async function handleRemindLater(
   medicationIds: string[],
   scheduleIds: string[],
   originalTime: string,
   minutes: number
-): Promise<void> {
+): Promise<boolean> {
   try {
+    // Issue 9 (HAND-254): Empty medication list edge case
+    if (medicationIds.length === 0 || scheduleIds.length === 0) {
+      logger.error('[Notification] Empty medication list in handleRemindLater - this should not happen', {
+        medicationIdsLength: medicationIds.length,
+        scheduleIdsLength: scheduleIds.length,
+      });
+      
+      // Log to Sentry as this indicates a bug
+      Sentry.captureException(new Error('handleRemindLater called with empty medication list'), {
+        level: 'warning',
+        tags: {
+          component: 'MedicationNotifications',
+          operation: 'handleRemindLater',
+        },
+        extra: {
+          medicationIdsLength: medicationIds.length,
+          scheduleIdsLength: scheduleIds.length,
+          originalTime,
+        },
+      });
+      
+      return false;
+    }
+
     const medications = await Promise.all(
       medicationIds.map(id => medicationRepository.getById(id))
     );
 
     const validMedications = medications.filter(m => m !== null) as Medication[];
-    if (validMedications.length === 0) return;
+    if (validMedications.length === 0) {
+      logger.error('[Notification] No valid medications found for remind later:', {
+        medicationIds,
+        originalTime,
+      });
+      
+      // Issue 2 (HAND-238): User notification
+      await notifyUserOfError(
+        'data',
+        'Could not find medications for reminder. Please check your medications.',
+        new Error('No valid medications found'),
+        { medicationIds, scheduleIds, originalTime, operation: 'handleRemindLater' }
+      );
+      
+      return false;
+    }
 
     // Get effective notification settings
     // For grouped notifications, use time-sensitive if ANY medication has it enabled
@@ -253,9 +459,24 @@ export async function handleRemindLater(
       trigger: snoozeTime as any,
     });
 
-    logger.log('[Notification] Reminder snoozed for', minutes, 'minutes');
+    logger.log('[Notification] Reminder snoozed for', minutes, 'minutes', {
+      medicationCount,
+      validCount: validMedications.length,
+    });
+    
+    return true;
   } catch (error) {
     logger.error('[Notification] Error snoozing reminder:', error);
+    
+    // Issue 2 (HAND-238) + Issue 3 (HAND-334): No silent failures
+    await notifyUserOfError(
+      'system',
+      'Failed to snooze your medication reminder. Please try again.',
+      error instanceof Error ? error : new Error(String(error)),
+      { medicationIds, scheduleIds, originalTime, minutes, operation: 'handleRemindLater' }
+    );
+    
+    return false;
   }
 }
 
@@ -391,6 +612,8 @@ async function scheduleFollowUpForScheduledMultipleNotification(
 
 /**
  * Schedule a notification for a single medication schedule
+ * 
+ * ISSUE FIX (SCHED-324): Now logs scheduling errors to Sentry
  */
 export async function scheduleSingleNotification(
   medication: Medication,
@@ -444,7 +667,31 @@ export async function scheduleSingleNotification(
 
     return notificationId;
   } catch (error) {
-    logger.error('[Notification] Error scheduling single notification:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error('[Notification] Error scheduling single notification:', {
+      medicationId: medication.id,
+      medicationName: medication.name,
+      scheduleId: schedule.id,
+      scheduleTime: schedule.time,
+      error: errorMessage,
+    });
+    
+    // Issue 4 (SCHED-324): Log scheduling errors to Sentry
+    Sentry.captureException(error instanceof Error ? error : new Error(errorMessage), {
+      level: 'error',
+      tags: {
+        component: 'NotificationScheduler',
+        operation: 'scheduleSingleNotification',
+      },
+      extra: {
+        medicationId: medication.id,
+        medicationName: medication.name,
+        scheduleId: schedule.id,
+        scheduleTime: schedule.time,
+        errorMessage,
+      },
+    });
+    
     return null;
   }
 }
@@ -527,7 +774,29 @@ export async function scheduleMultipleNotification(
 
     return notificationId;
   } catch (error) {
-    logger.error('[Notification] Error scheduling combined notification:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error('[Notification] Error scheduling combined notification:', {
+      medicationCount: items.length,
+      time,
+      error: errorMessage,
+    });
+    
+    // Issue 4 (SCHED-324): Log scheduling errors to Sentry
+    Sentry.captureException(error instanceof Error ? error : new Error(errorMessage), {
+      level: 'error',
+      tags: {
+        component: 'NotificationScheduler',
+        operation: 'scheduleMultipleNotification',
+      },
+      extra: {
+        medicationCount: items.length,
+        medicationIds: items.map(({ medication }) => medication.id),
+        medicationNames: items.map(({ medication }) => medication.name),
+        time,
+        errorMessage,
+      },
+    });
+    
     return null;
   }
 }
@@ -863,7 +1132,25 @@ export async function rescheduleAllMedicationNotifications(): Promise<void> {
 
     logger.log('[Notification] Rescheduled all medication notifications with grouping:', notificationIds.size);
   } catch (error) {
-    logger.error('[Notification] Error rescheduling all notifications:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error('[Notification] Error rescheduling all notifications:', {
+      error: errorMessage,
+    });
+    
+    // Issue 3 (HAND-334) + Issue 4 (SCHED-324): No silent failures
+    Sentry.captureException(error instanceof Error ? error : new Error(errorMessage), {
+      level: 'error',
+      tags: {
+        component: 'NotificationScheduler',
+        operation: 'rescheduleAllMedicationNotifications',
+      },
+      extra: {
+        errorMessage,
+      },
+    });
+    
+    // Optionally notify user if this is a critical failure
+    // For now, just log - user will notice if notifications stop working
   }
 }
 
@@ -943,7 +1230,23 @@ export async function rescheduleAllNotifications(): Promise<void> {
 
     logger.log('[Notification] All notifications rescheduled successfully');
   } catch (error) {
-    logger.error('[Notification] Error rescheduling all notifications:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error('[Notification] Error rescheduling all notifications:', {
+      error: errorMessage,
+    });
+    
+    // Issue 3 (HAND-334) + Issue 4 (SCHED-324): No silent failures
+    Sentry.captureException(error instanceof Error ? error : new Error(errorMessage), {
+      level: 'error',
+      tags: {
+        component: 'NotificationScheduler',
+        operation: 'rescheduleAllNotifications',
+      },
+      extra: {
+        errorMessage,
+      },
+    });
+    
     throw error;
   }
 }
