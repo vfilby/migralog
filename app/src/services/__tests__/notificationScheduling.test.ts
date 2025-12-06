@@ -18,9 +18,8 @@ jest.mock('expo-notifications');
 jest.mock('../../database/medicationRepository');
 jest.mock('../../services/errorLogger');
 jest.mock('../../store/notificationSettingsStore');
-jest.mock('../notifications/notificationScheduler', () => ({
-  scheduleNotification: jest.fn().mockResolvedValue('notif-123'),
-}));
+// Don't mock notificationScheduler - let it call through to Notifications.scheduleNotificationAsync
+// so we can verify the actual notification scheduling behavior
 
 // Setup Notifications mock
 (Notifications as any).AndroidNotificationPriority = {
@@ -91,7 +90,7 @@ describe('Notification Scheduling', () => {
       enabled: true,
     };
 
-    it.skip('SCHED-S1: should schedule notification with DAILY trigger - TODO: Fix mock setup', async () => {
+    it('SCHED-S1: should schedule notification with DAILY trigger', async () => {
       // Act
       const notifId = await scheduleSingleNotification(mockMedication, mockSchedule);
 
@@ -112,7 +111,7 @@ describe('Notification Scheduling', () => {
       expect(call.content.data.scheduleId).toBe('sched-1');
     });
 
-    it.skip('SCHED-S2: should schedule follow-up when enabled - TODO: Fix mock setup', async () => {
+    it('SCHED-S2: should schedule follow-up when enabled', async () => {
       // Arrange
       mockNotificationSettingsStore.getEffectiveSettings.mockReturnValue({
         timeSensitiveEnabled: true,
@@ -199,7 +198,7 @@ describe('Notification Scheduling', () => {
       enabled: true,
     };
 
-    it.skip('SCHED-G1: should create grouped notification for meds at same time - TODO: Fix mock setup', async () => {
+    it('SCHED-G1: should create grouped notification for meds at same time', async () => {
       // Act
       const notifId = await scheduleMultipleNotification(
         [
@@ -227,7 +226,7 @@ describe('Notification Scheduling', () => {
       expect(call.content.body).toContain('Med B');
     });
 
-    it.skip('SCHED-G2: should use timeSensitive if ANY med has it enabled - TODO: Fix mock setup', async () => {
+    it('SCHED-G2: should use timeSensitive if ANY med has it enabled', async () => {
       // Arrange - Mock returns different values based on medication ID
       mockNotificationSettingsStore.getEffectiveSettings = jest.fn((medId: string) => {
         if (medId === 'med-A') {
@@ -250,7 +249,7 @@ describe('Notification Scheduling', () => {
       expect(call.content.interruptionLevel).toBe('timeSensitive');
     });
 
-    it.skip('SCHED-G3: should schedule follow-up if ANY med has it enabled - TODO: Fix mock setup', async () => {
+    it('SCHED-G3: should schedule follow-up if ANY med has it enabled', async () => {
       // Arrange - Mock returns different values based on medication ID
       mockNotificationSettingsStore.getEffectiveSettings = jest.fn((medId: string) => {
         if (medId === 'med-A') {
@@ -279,7 +278,7 @@ describe('Notification Scheduling', () => {
   });
 
   describe('Time Parsing', () => {
-    it.skip('SCHED-TIME1: should correctly parse HH:mm format - TODO: Fix mock setup', async () => {
+    it('SCHED-TIME1: should correctly parse HH:mm format', async () => {
       const mockMed: Medication = {
         id: 'med-1',
         name: 'Test',
@@ -322,9 +321,10 @@ describe('Notification Scheduling', () => {
 
   describe('Error Handling', () => {
     it('SCHED-ERR1: should return null on scheduling error', async () => {
-      // Arrange
-      const { scheduleNotification } = require('../notifications/notificationScheduler');
-      scheduleNotification.mockRejectedValueOnce(new Error('Platform error'));
+      // Arrange - Mock scheduleNotificationAsync to throw error
+      (Notifications.scheduleNotificationAsync as jest.Mock).mockRejectedValueOnce(
+        new Error('Platform error')
+      );
 
       const mockMed: Medication = {
         id: 'med-1',
