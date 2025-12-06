@@ -129,6 +129,12 @@ describe('MedicationDetailScreen', () => {
       <MedicationDetailScreen navigation={mockNavigation as any} route={mockRoute as any} />
     );
 
+    // First wait for loading to complete (loading should disappear)
+    await waitFor(() => {
+      expect(screen.queryByText('Loading...')).toBeNull();
+    }, { timeout: 5000 });
+
+    // Then verify the medication name is displayed
     await waitFor(() => {
       expect(screen.getByText('Test Medication')).toBeTruthy();
     });
@@ -143,6 +149,11 @@ describe('MedicationDetailScreen', () => {
       <MedicationDetailScreen navigation={mockNavigation as any} route={mockRoute as any} />
     );
 
+    // Wait for loading to complete
+    await waitFor(() => {
+      expect(screen.queryByText('Loading...')).toBeNull();
+    }, { timeout: 5000 });
+
     await waitFor(() => {
       expect(screen.getByText('Preventative')).toBeTruthy();
     });
@@ -156,6 +167,11 @@ describe('MedicationDetailScreen', () => {
     renderWithProviders(
       <MedicationDetailScreen navigation={mockNavigation as any} route={mockRoute as any} />
     );
+
+    // Wait for loading to complete
+    await waitFor(() => {
+      expect(screen.queryByText('Loading...')).toBeNull();
+    }, { timeout: 5000 });
 
     await waitFor(() => {
       expect(screen.getByText(/100mg/)).toBeTruthy();
