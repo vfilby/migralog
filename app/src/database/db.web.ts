@@ -42,18 +42,29 @@ const webDb: WebDatabase = {
   async runAsync(sql: string, params: any[] = []) {
     logger.log('[WebDB] run:', sql, params);
 
-    if (sql.trim().startsWith('INSERT')) {
+    const trimmedSql = sql.trim().toUpperCase();
+    
+    if (trimmedSql.startsWith('INSERT')) {
       const tableName = getTableName(sql);
       const table = store.get(tableName) || [];
 
       // Simple insert - just store the params as a row
-      const values = params.map(p => (typeof p === 'string' && p.startsWith('[')) ? JSON.parse(p) : p);
+      const values = params.map(p => {
+        if (typeof p === 'string' && p.startsWith('[')) {
+          try {
+            return JSON.parse(p);
+          } catch {
+            return p; // Return original string if JSON parsing fails
+          }
+        }
+        return p;
+      });
       table.push(values);
       store.set(tableName, table);
-    } else if (sql.trim().startsWith('UPDATE')) {
+    } else if (trimmedSql.startsWith('UPDATE')) {
       // For demo purposes, update operations are logged but not fully implemented
       logger.log('[WebDB] UPDATE not fully implemented for web demo');
-    } else if (sql.trim().startsWith('DELETE')) {
+    } else if (trimmedSql.startsWith('DELETE')) {
       const tableName = getTableName(sql);
       // Simple delete - clear the table
       store.set(tableName, []);
