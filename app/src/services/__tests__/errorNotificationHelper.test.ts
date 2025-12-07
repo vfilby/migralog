@@ -23,7 +23,7 @@ jest.mock('../../utils/logger', () => ({
 
 // Import AFTER mocks
 import * as Notifications from 'expo-notifications';
-import * as Sentry from '@sentry/react-native';
+import { logger } from '../../utils/logger';
 import {
   notifyUserOfError,
   clearRateLimitHistory,
@@ -47,28 +47,22 @@ describe('Error Notification Helper', () => {
     
     // Configure mocks (after clearAllMocks clears them)
     (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('notif-123');
-    (Sentry.captureException as jest.Mock).mockImplementation(() => {});
   });
 
   describe('Basic Functionality', () => {
-    it('ERRHELP-1: should log to Sentry when error occurs', async () => {
+    it('ERRHELP-1: should log error when error occurs', async () => {
       // Arrange
       const error = new Error('Test error');
       
       // Act
       await notifyUserOfError('data', 'User message', error);
       
-      // Assert
-      expect(Sentry.captureException).toHaveBeenCalledWith(
+      // Assert - logger.warn is called because data errors are categorized as transient
+      expect(logger.warn).toHaveBeenCalledWith(
         error,
         expect.objectContaining({
-          tags: expect.objectContaining({
-            errorType: 'data',
-            component: 'NotificationSystem',
-          }),
-          extra: expect.objectContaining({
-            userMessage: 'User message',
-          }),
+          errorType: 'data',
+          component: 'NotificationSystem',
         })
       );
     });
@@ -89,7 +83,7 @@ describe('Error Notification Helper', () => {
       });
     });
 
-    it('ERRHELP-3: should include full context in Sentry log', async () => {
+    it('ERRHELP-3: should include full context in error log', async () => {
       // Arrange
       const error = new Error('Test error');
       const context = {
@@ -100,13 +94,11 @@ describe('Error Notification Helper', () => {
       // Act
       await notifyUserOfError('data', 'User message', error, context);
       
-      // Assert
-      expect(Sentry.captureException).toHaveBeenCalledWith(
+      // Assert - logger.warn is used for transient errors
+      expect(logger.warn).toHaveBeenCalledWith(
         error,
         expect.objectContaining({
-          extra: expect.objectContaining({
-            context,
-          }),
+          context,
         })
       );
     });
@@ -121,13 +113,11 @@ describe('Error Notification Helper', () => {
       await notifyUserOfError('data', undefined, error);
       
       // Assert
-      expect(Sentry.captureException).toHaveBeenCalledWith(
+      // Catastrophic errors use logger.error
+      expect(logger.error).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
-          level: 'error', // catastrophic
-          tags: expect.objectContaining({
-            severity: 'catastrophic',
-          }),
+          severity: 'catastrophic',
         })
       );
     });
@@ -140,13 +130,11 @@ describe('Error Notification Helper', () => {
       await notifyUserOfError('network', undefined, error);
       
       // Assert
-      expect(Sentry.captureException).toHaveBeenCalledWith(
+      // Transient errors use logger.warn
+      expect(logger.warn).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
-          level: 'warning', // transient
-          tags: expect.objectContaining({
-            severity: 'transient',
-          }),
+          severity: 'transient',
         })
       );
     });
@@ -159,13 +147,11 @@ describe('Error Notification Helper', () => {
       await notifyUserOfError('data', undefined, error);
       
       // Assert
-      expect(Sentry.captureException).toHaveBeenCalledWith(
+      // Catastrophic errors use logger.error
+      expect(logger.error).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
-          level: 'error', // catastrophic
-          tags: expect.objectContaining({
-            severity: 'catastrophic',
-          }),
+          severity: 'catastrophic',
         })
       );
     });
@@ -305,8 +291,8 @@ describe('Error Notification Helper', () => {
       expect(getRateLimitCount()).toBe(3);
     });
 
-    it('ERRHELP-RATE4: should still log to Sentry even when rate limited', async () => {
-      // Act - Exceed rate limit
+    it('ERRHELP-RATE4: should still log even when rate limited', async () => {
+      // Arrange - Fill up rate limit (3 errors per minute)
       await notifyUserOfError('data', 'Error 1');
       await notifyUserOfError('data', 'Error 2');
       await notifyUserOfError('data', 'Error 3');
@@ -315,8 +301,8 @@ describe('Error Notification Helper', () => {
       
       await notifyUserOfError('data', 'Error 4'); // Rate limited
       
-      // Assert - Sentry should still be called, but not user notification
-      expect(Sentry.captureException).toHaveBeenCalled();
+      // Assert - logger should still be called, but not user notification
+      expect(logger.error).toHaveBeenCalled();
       expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
     });
 
@@ -345,7 +331,7 @@ describe('Error Notification Helper', () => {
       ).resolves.not.toThrow();
     });
 
-    it('ERRHELP-ERR2: should still log to Sentry when notification fails', async () => {
+    it('ERRHELP-ERR2: should still log when notification fails', async () => {
       // Arrange
       (Notifications.scheduleNotificationAsync as jest.Mock).mockRejectedValue(
         new Error('Notification permission denied')
@@ -355,15 +341,15 @@ describe('Error Notification Helper', () => {
       await notifyUserOfError('data', 'Error message');
       
       // Assert - Should log both original error and notification failure
-      expect(Sentry.captureException).toHaveBeenCalledTimes(2);
+      expect(logger.error).toHaveBeenCalledTimes(2);
     });
 
     it('ERRHELP-ERR3: should handle non-Error objects', async () => {
       // Act
       await notifyUserOfError('data', 'Error message', 'string error');
       
-      // Assert - Should convert to Error
-      expect(Sentry.captureException).toHaveBeenCalledWith(
+      // Assert - Should convert to Error (warn is used for transient errors)
+      expect(logger.warn).toHaveBeenCalledWith(
         expect.any(Error),
         expect.anything()
       );

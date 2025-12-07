@@ -23,11 +23,11 @@ jest.mock('../../services/errorLogger');
 jest.mock('../../store/medicationStore');
 jest.mock('../../store/dailyStatusStore');
 jest.mock('../../store/notificationSettingsStore');
-jest.mock('@sentry/react-native');
+jest.mock('../../utils/logger');
 jest.mock('../notifications/errorNotificationHelper');
 
 // Import after mocks
-import * as Sentry from '@sentry/react-native';
+import { logger } from '../../utils/logger';
 import {
   handleTakeNow,
   handleSnooze,
@@ -39,7 +39,6 @@ import { useMedicationStore } from '../../store/medicationStore';
 import { useDailyStatusStore } from '../../store/dailyStatusStore';
 import { useNotificationSettingsStore } from '../../store/notificationSettingsStore';
 import { notifyUserOfError } from '../notifications/errorNotificationHelper';
-import { expectSentryError } from '../../utils/testUtils/sentryTestUtils';
 
 // Setup Notifications mock
 (Notifications as any).AndroidNotificationPriority = {
@@ -55,7 +54,8 @@ describe('Notification Action Handlers', () => {
     jest.clearAllMocks();
     jest.spyOn(console, 'log').mockImplementation();
     jest.spyOn(console, 'error').mockImplementation();
-    (Sentry.captureException as jest.Mock).mockClear();
+    (logger.error as jest.Mock).mockClear();
+    (logger.warn as jest.Mock).mockClear();
     // Mock notifyUserOfError to resolve immediately without calling scheduleNotificationAsync
     (notifyUserOfError as jest.Mock).mockResolvedValue(undefined);
     // Set up scheduleNotificationAsync mock
@@ -286,15 +286,21 @@ describe('Notification Action Handlers', () => {
       );
     });
 
-    it('ACT-TA3: should handle empty medication arrays and log to Sentry (HAND-254)', async () => {
+    it('ACT-TA3: should handle empty medication arrays and log error (HAND-254)', async () => {
       // Act
       const result = await handleTakeAllNow([], []);
 
       // Assert
       expect(result).toEqual({ success: 0, total: 0 });
       expect(mockMedicationStore.logDose).not.toHaveBeenCalled();
-      // Verify Sentry logging for unexpected empty list
-      expectSentryError(Sentry.captureException as jest.Mock, 'empty medication list');
+      // Verify error logging for unexpected empty list
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ message: expect.stringContaining('empty medication list') }),
+        expect.objectContaining({
+          component: 'MedicationNotifications',
+          operation: 'handleTakeAllNow',
+        })
+      );
     });
   });
 

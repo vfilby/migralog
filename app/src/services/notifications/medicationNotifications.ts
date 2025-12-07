@@ -1,5 +1,4 @@
 import * as Notifications from 'expo-notifications';
-import * as Sentry from '@sentry/react-native';
 import { logger } from '../../utils/logger';
 import { Medication, MedicationSchedule } from '../../models/types';
 import { medicationRepository, medicationScheduleRepository, medicationDoseRepository } from '../../database/medicationRepository';
@@ -201,22 +200,12 @@ export async function handleTakeAllNow(
   try {
     // Issue 9 (HAND-254): Empty medication list edge case
     if (medicationIds.length === 0 || scheduleIds.length === 0) {
-      logger.error('[Notification] Empty medication list in handleTakeAllNow - this should not happen', {
+      // Log as this indicates a bug in notification scheduling
+      logger.error(new Error('handleTakeAllNow called with empty medication list'), {
+        component: 'MedicationNotifications',
+        operation: 'handleTakeAllNow',
         medicationIdsLength: medicationIds.length,
         scheduleIdsLength: scheduleIds.length,
-      });
-      
-      // Log to Sentry as this indicates a bug in notification scheduling
-      Sentry.captureException(new Error('handleTakeAllNow called with empty medication list'), {
-        level: 'warning',
-        tags: {
-          component: 'MedicationNotifications',
-          operation: 'handleTakeAllNow',
-        },
-        extra: {
-          medicationIdsLength: medicationIds.length,
-          scheduleIdsLength: scheduleIds.length,
-        },
       });
       
       return { success: 0, total: 0 };
@@ -377,23 +366,13 @@ export async function handleRemindLater(
   try {
     // Issue 9 (HAND-254): Empty medication list edge case
     if (medicationIds.length === 0 || scheduleIds.length === 0) {
-      logger.error('[Notification] Empty medication list in handleRemindLater - this should not happen', {
+      // Log as this indicates a bug
+      logger.error(new Error('handleRemindLater called with empty medication list'), {
+        component: 'MedicationNotifications',
+        operation: 'handleRemindLater',
         medicationIdsLength: medicationIds.length,
         scheduleIdsLength: scheduleIds.length,
-      });
-      
-      // Log to Sentry as this indicates a bug
-      Sentry.captureException(new Error('handleRemindLater called with empty medication list'), {
-        level: 'warning',
-        tags: {
-          component: 'MedicationNotifications',
-          operation: 'handleRemindLater',
-        },
-        extra: {
-          medicationIdsLength: medicationIds.length,
-          scheduleIdsLength: scheduleIds.length,
-          originalTime,
-        },
+        originalTime,
       });
       
       return false;
@@ -668,28 +647,16 @@ export async function scheduleSingleNotification(
     return notificationId;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error('[Notification] Error scheduling single notification:', {
+    
+    // Issue 4 (SCHED-324): Log scheduling errors
+    logger.error(error instanceof Error ? error : new Error(errorMessage), {
+      component: 'NotificationScheduler',
+      operation: 'scheduleSingleNotification',
       medicationId: medication.id,
       medicationName: medication.name,
       scheduleId: schedule.id,
       scheduleTime: schedule.time,
-      error: errorMessage,
-    });
-    
-    // Issue 4 (SCHED-324): Log scheduling errors to Sentry
-    Sentry.captureException(error instanceof Error ? error : new Error(errorMessage), {
-      level: 'error',
-      tags: {
-        component: 'NotificationScheduler',
-        operation: 'scheduleSingleNotification',
-      },
-      extra: {
-        medicationId: medication.id,
-        medicationName: medication.name,
-        scheduleId: schedule.id,
-        scheduleTime: schedule.time,
-        errorMessage,
-      },
+      errorMessage,
     });
     
     return null;
@@ -775,26 +742,16 @@ export async function scheduleMultipleNotification(
     return notificationId;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error('[Notification] Error scheduling combined notification:', {
-      medicationCount: items.length,
-      time,
-      error: errorMessage,
-    });
     
-    // Issue 4 (SCHED-324): Log scheduling errors to Sentry
-    Sentry.captureException(error instanceof Error ? error : new Error(errorMessage), {
-      level: 'error',
-      tags: {
-        component: 'NotificationScheduler',
-        operation: 'scheduleMultipleNotification',
-      },
-      extra: {
-        medicationCount: items.length,
-        medicationIds: items.map(({ medication }) => medication.id),
-        medicationNames: items.map(({ medication }) => medication.name),
-        time,
-        errorMessage,
-      },
+    // Issue 4 (SCHED-324): Log scheduling errors
+    logger.error(error instanceof Error ? error : new Error(errorMessage), {
+      component: 'NotificationScheduler',
+      operation: 'scheduleMultipleNotification',
+      medicationCount: items.length,
+      medicationIds: items.map(({ medication }) => medication.id),
+      medicationNames: items.map(({ medication }) => medication.name),
+      time,
+      errorMessage,
     });
     
     return null;
@@ -998,27 +955,16 @@ export async function dismissMedicationNotification(medicationId: string, schedu
           await Notifications.dismissNotificationAsync(notification.request.identifier);
           logger.log('[Notification] Dismissed notification for medication');
         } catch (dismissError) {
-          // Log dismiss failure to Sentry with notification context (DIS-208)
+          // Log dismiss failure with notification context (DIS-208)
           const dismissErrorMessage = dismissError instanceof Error ? dismissError.message : String(dismissError);
-          logger.error('[Notification] Failed to dismiss notification:', {
+          
+          logger.warn(dismissError instanceof Error ? dismissError : new Error(dismissErrorMessage), {
+            component: 'NotificationDismiss',
+            operation: 'dismissNotificationAsync',
             notificationId: notification.request.identifier,
             medicationId,
             scheduleId,
-            error: dismissErrorMessage,
-          });
-          
-          Sentry.captureException(dismissError instanceof Error ? dismissError : new Error(dismissErrorMessage), {
-            level: 'warning', // warning since it doesn't break core functionality
-            tags: {
-              component: 'NotificationDismiss',
-              operation: 'dismissNotificationAsync',
-            },
-            extra: {
-              notificationId: notification.request.identifier,
-              medicationId,
-              scheduleId,
-              errorMessage: dismissErrorMessage,
-            },
+            errorMessage: dismissErrorMessage,
           });
           // Continue processing other notifications even if one fails
         }
@@ -1026,24 +972,14 @@ export async function dismissMedicationNotification(medicationId: string, schedu
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error('[Notification] Error dismissing medication notification:', {
+    
+    // Log with full context (DIS-187, DIS-208)
+    logger.error(error instanceof Error ? error : new Error(errorMessage), {
+      component: 'NotificationDismiss',
+      operation: 'dismissMedicationNotification',
       medicationId,
       scheduleId,
-      error: errorMessage,
-    });
-    
-    // Log to Sentry with full context (DIS-187, DIS-208)
-    Sentry.captureException(error instanceof Error ? error : new Error(errorMessage), {
-      level: 'error',
-      tags: {
-        component: 'NotificationDismiss',
-        operation: 'dismissMedicationNotification',
-      },
-      extra: {
-        medicationId,
-        scheduleId,
-        errorMessage,
-      },
+      errorMessage,
     });
   }
 }
@@ -1133,20 +1069,12 @@ export async function rescheduleAllMedicationNotifications(): Promise<void> {
     logger.log('[Notification] Rescheduled all medication notifications with grouping:', notificationIds.size);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error('[Notification] Error rescheduling all notifications:', {
-      error: errorMessage,
-    });
     
     // Issue 3 (HAND-334) + Issue 4 (SCHED-324): No silent failures
-    Sentry.captureException(error instanceof Error ? error : new Error(errorMessage), {
-      level: 'error',
-      tags: {
-        component: 'NotificationScheduler',
-        operation: 'rescheduleAllMedicationNotifications',
-      },
-      extra: {
-        errorMessage,
-      },
+    logger.error(error instanceof Error ? error : new Error(errorMessage), {
+      component: 'NotificationScheduler',
+      operation: 'rescheduleAllMedicationNotifications',
+      errorMessage,
     });
     
     // Optionally notify user if this is a critical failure
@@ -1231,20 +1159,12 @@ export async function rescheduleAllNotifications(): Promise<void> {
     logger.log('[Notification] All notifications rescheduled successfully');
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error('[Notification] Error rescheduling all notifications:', {
-      error: errorMessage,
-    });
     
     // Issue 3 (HAND-334) + Issue 4 (SCHED-324): No silent failures
-    Sentry.captureException(error instanceof Error ? error : new Error(errorMessage), {
-      level: 'error',
-      tags: {
-        component: 'NotificationScheduler',
-        operation: 'rescheduleAllNotifications',
-      },
-      extra: {
-        errorMessage,
-      },
+    logger.error(error instanceof Error ? error : new Error(errorMessage), {
+      component: 'NotificationScheduler',
+      operation: 'rescheduleAllNotifications',
+      errorMessage,
     });
     
     throw error;

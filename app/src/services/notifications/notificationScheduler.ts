@@ -1,5 +1,4 @@
 import * as Notifications from 'expo-notifications';
-import * as Sentry from '@sentry/react-native';
 import { logger } from '../../utils/logger';
 import { notifyUserOfError } from './errorNotificationHelper';
 
@@ -30,33 +29,22 @@ export async function scheduleNotification(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     
-    // Log to Sentry with full context (Issue 3: HAND-334 - No silent failures)
-    logger.error('[NotificationScheduler] Failed to schedule notification:', {
-      error: errorMessage,
-      title: content.title,
-      trigger: JSON.stringify(trigger),
-    });
-    
-    Sentry.captureException(error instanceof Error ? error : new Error(errorMessage), {
-      level: 'error',
-      tags: {
-        component: 'NotificationScheduler',
-        operation: 'scheduleNotification',
-      },
-      extra: {
-        notificationTitle: content.title,
-        notificationBody: content.body,
-        triggerType: typeof trigger === 'object' && trigger !== null && 'type' in trigger 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ? (trigger as any).type 
-          : 'unknown',
-        errorMessage,
-        // Include medication context if available
-        medicationId: content.data?.medicationId,
-        medicationIds: content.data?.medicationIds,
-        scheduleId: content.data?.scheduleId,
-        scheduleIds: content.data?.scheduleIds,
-      },
+    // Log with full context (Issue 3: HAND-334 - No silent failures)
+    logger.error(error instanceof Error ? error : new Error(errorMessage), {
+      component: 'NotificationScheduler',
+      operation: 'scheduleNotification',
+      notificationTitle: content.title,
+      notificationBody: content.body,
+      triggerType: typeof trigger === 'object' && trigger !== null && 'type' in trigger 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ? (trigger as any).type 
+        : 'unknown',
+      errorMessage,
+      // Include medication context if available
+      medicationId: content.data?.medicationId,
+      medicationIds: content.data?.medicationIds,
+      scheduleId: content.data?.scheduleId,
+      scheduleIds: content.data?.scheduleIds,
     });
     
     // Notify user for critical failures (Issue 2: HAND-238)
@@ -92,19 +80,12 @@ export async function cancelNotification(notificationId: string): Promise<boolea
     logger.log('[Notification] Cancelled:', notificationId);
     return true;
   } catch (error) {
-    logger.error('[Notification] Error cancelling notification:', error);
-    
-    // Log to Sentry (Issue 3: HAND-334 - No silent failures)
-    Sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
-      level: 'warning', // Warning since this doesn't break core functionality
-      tags: {
-        component: 'NotificationScheduler',
-        operation: 'cancelNotification',
-      },
-      extra: {
-        notificationId,
-        errorMessage: error instanceof Error ? error.message : String(error),
-      },
+    // Log (Issue 3: HAND-334 - No silent failures)
+    logger.warn(error instanceof Error ? error : new Error(String(error)), {
+      component: 'NotificationScheduler',
+      operation: 'cancelNotification',
+      notificationId,
+      errorMessage: error instanceof Error ? error.message : String(error),
     });
     
     return false;

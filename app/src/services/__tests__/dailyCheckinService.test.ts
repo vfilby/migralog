@@ -488,9 +488,9 @@ describe('dailyCheckinService', () => {
     });
   });
 
-  describe('cancelAndDismissForDate', () => {
+  describe('dismissForDate', () => {
     beforeEach(() => {
-      // Reset initialization to allow calling cancelAndDismissForDate
+      // Reset initialization to allow calling dismissForDate
       (dailyCheckinService as any).initialized = true;
     });
 
@@ -516,7 +516,7 @@ describe('dailyCheckinService', () => {
 
       (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue(mockPresentedNotifs);
 
-      await dailyCheckinService.cancelAndDismissForDate(todayStr);
+      await dailyCheckinService.dismissForDate(todayStr);
 
       // Should NOT cancel the recurring DAILY notification (it needs to fire tomorrow)
       expect(Notifications.cancelScheduledNotificationAsync).not.toHaveBeenCalled();
@@ -527,14 +527,14 @@ describe('dailyCheckinService', () => {
     });
 
     it('should not dismiss notifications when logging a past date', async () => {
-      await dailyCheckinService.cancelAndDismissForDate('2020-01-01');
+      await dailyCheckinService.dismissForDate('2020-01-01');
 
       // Should not dismiss anything for past dates
       expect(Notifications.dismissNotificationAsync).not.toHaveBeenCalled();
     });
 
     it('should not dismiss notifications when logging a future date', async () => {
-      await dailyCheckinService.cancelAndDismissForDate('2099-12-31');
+      await dailyCheckinService.dismissForDate('2099-12-31');
 
       // Should not dismiss anything for future dates
       expect(Notifications.dismissNotificationAsync).not.toHaveBeenCalled();
@@ -548,7 +548,7 @@ describe('dailyCheckinService', () => {
         new Error('Failed to get notifications')
       );
 
-      await expect(dailyCheckinService.cancelAndDismissForDate(todayStr)).resolves.not.toThrow();
+      await expect(dailyCheckinService.dismissForDate(todayStr)).resolves.not.toThrow();
     });
   });
 });

@@ -386,16 +386,18 @@ class DailyCheckinService {
   }
 
   /**
-   * Dismiss any presented daily check-in notifications for a given date
-   * Called when a day status is logged to prevent the notification 
-   * from remaining visible after the user has already logged their day
+   * Dismiss any presented daily check-in notifications for the specified date
    * 
-   * Note: We do NOT cancel the recurring DAILY notification schedule because:
+   * Called when a day status is logged to prevent the notification 
+   * from remaining visible after the user has already logged their day.
+   * 
+   * Note: This only dismisses already-presented notifications in the notification center.
+   * We do NOT cancel the recurring DAILY notification schedule because:
    * 1. DAILY notifications can't be cancelled for a single day (all or nothing)
    * 2. We rely on handleDailyCheckinNotification to suppress future occurrences
    * 3. Cancelling would break notifications for all future days
    */
-  async cancelAndDismissForDate(date: string): Promise<void> {
+  async dismissForDate(date: string): Promise<void> {
     const today = format(new Date(), 'yyyy-MM-dd');
 
     // Only dismiss if for today or past (not future)
