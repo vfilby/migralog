@@ -244,9 +244,9 @@ describe('EditMedicationScreen', () => {
         <EditMedicationScreen navigation={mockNavigation as any} route={mockRoute as any} />
       );
 
-      // Wait for the screen to load
+      // Wait for the form to fully load by checking for a form element
       await waitFor(() => {
-        expect(screen.getByText('Edit Medication')).toBeTruthy();
+        expect(screen.getByText('Scheduled')).toBeTruthy();
       });
 
       // Click the Scheduled button to show the schedule manager
@@ -265,7 +265,7 @@ describe('EditMedicationScreen', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Edit Medication')).toBeTruthy();
+        expect(screen.getByText('Scheduled')).toBeTruthy();
       });
 
       // Switch to Scheduled mode first
@@ -287,6 +287,10 @@ describe('EditMedicationScreen', () => {
         <EditMedicationScreen navigation={mockNavigation as any} route={mockRoute as any} />
       );
 
+      await waitFor(() => {
+        expect(screen.getByText('Scheduled')).toBeTruthy();
+      });
+      
       await waitFor(() => {
         expect(screen.getByText('Edit Medication')).toBeTruthy();
       });
