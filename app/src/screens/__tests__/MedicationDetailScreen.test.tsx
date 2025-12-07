@@ -36,6 +36,14 @@ jest.mock('../../utils/textScaling', () => ({
   MAX_FONT_SCALE: 3.1,
 }));
 
+// Mock DateTimePicker
+jest.mock('@react-native-community/datetimepicker', () => {
+  return {
+    __esModule: true,
+    default: () => null,
+  };
+});
+
 // Mock NotificationSettings
 jest.mock('../../components/shared/NotificationSettings', () => {
   return function MockNotificationSettings() {
@@ -138,7 +146,7 @@ describe('MedicationDetailScreen', () => {
     await waitFor(() => {
       expect(screen.getByText('Test Medication')).toBeTruthy();
     });
-  });
+  }, 10000);
 
   it('should display medication type badge', async () => {
     const mockRoute = {
