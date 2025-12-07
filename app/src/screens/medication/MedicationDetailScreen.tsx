@@ -52,6 +52,13 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
   const [editTimestamp, setEditTimestamp] = useState<number>(Date.now());
   const [showDateTimePicker, setShowDateTimePicker] = useState(false);
   const [notificationSettingsExpanded, setNotificationSettingsExpanded] = useState(false);
+  
+  // Log Dose with Details modal state
+  const [logDoseModalVisible, setLogDoseModalVisible] = useState(false);
+  const [logDoseAmount, setLogDoseAmount] = useState('');
+  const [logDoseNotes, setLogDoseNotes] = useState('');
+  const [logDoseTimestamp, setLogDoseTimestamp] = useState<number>(Date.now());
+  const [showLogDoseDateTimePicker, setShowLogDoseDateTimePicker] = useState(false);
 
   useEffect(() => {
     loadMedicationData();
@@ -116,6 +123,69 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
     }
   };
 
+  const validateDoseAmount = (amountStr: string): number | null => {
+    const amount = parseFloat(amountStr);
+    if (isNaN(amount) || amount <= 0) {
+      Alert.alert('Invalid Amount', 'Please enter a valid dose amount');
+      return null;
+    }
+    return amount;
+  };
+
+  const validateTimestamp = (timestamp: number): boolean => {
+    const now = Date.now();
+    const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
+    
+    if (timestamp > now + fiveMinutes) {
+      Alert.alert('Invalid Date', 'Cannot log doses too far in the future. Please select a time within 5 minutes of now.');
+      return false;
+    }
+    return true;
+  };
+
+  const handleOpenLogDoseModal = () => {
+    if (!medication) return;
+    setLogDoseAmount((medication.defaultQuantity || 1).toString());
+    setLogDoseNotes('');
+    setLogDoseTimestamp(Date.now());
+    setLogDoseModalVisible(true);
+  };
+
+  const handleSaveLogDose = async () => {
+    if (!medication) return;
+
+    const amount = validateDoseAmount(logDoseAmount);
+    if (amount === null) return;
+
+    if (!validateTimestamp(logDoseTimestamp)) return;
+
+    try {
+      await logDose({
+        medicationId: medication.id,
+        timestamp: logDoseTimestamp,
+        quantity: amount,
+        dosageAmount: medication.dosageAmount,
+        dosageUnit: medication.dosageUnit,
+        episodeId: currentEpisode?.id,
+        notes: logDoseNotes.trim() || undefined,
+        updatedAt: Date.now(),
+      });
+      // Toast notification shown by store
+      setLogDoseModalVisible(false);
+      await loadMedicationData(); // Reload to show in recent activity
+    } catch (error) {
+      logger.error('Failed to log medication:', error);
+      // Error toast shown by store
+    }
+  };
+
+  const handleCancelLogDose = () => {
+    setLogDoseModalVisible(false);
+    setLogDoseAmount('');
+    setLogDoseNotes('');
+    setShowLogDoseDateTimePicker(false);
+  };
+
   const handleDoseAction = (dose: MedicationDose) => {
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
@@ -157,11 +227,8 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
   const handleSaveEdit = async () => {
     if (!editingDose || !medication) return;
 
-    const amount = parseFloat(editAmount);
-    if (isNaN(amount) || amount <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid dose amount');
-      return;
-    }
+    const amount = validateDoseAmount(editAmount);
+    if (amount === null) return;
 
     try {
       await medicationDoseRepository.update(editingDose.id, {
@@ -370,6 +437,18 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
               accessibilityHint={`Logs a dose of ${medication.name} with current time`}
             >
               <Text style={[styles.logDoseButtonText, { color: theme.primaryText }]}>Log Dose Now</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.logDoseSecondaryButton, { 
+                backgroundColor: theme.background,
+                borderColor: theme.primary,
+              }]}
+              onPress={handleOpenLogDoseModal}
+              accessibilityRole="button"
+              accessibilityLabel="Log dose with details"
+              accessibilityHint={`Opens a form to log a dose of ${medication.name} with custom time and notes`}
+            >
+              <Text style={[styles.logDoseSecondaryButtonText, { color: theme.primary }]}>Log Dose with Details</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -634,6 +713,117 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
           </ScrollView>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Log Dose with Details Modal */}
+      <Modal
+        visible={logDoseModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={handleCancelLogDose}
+      >
+        <KeyboardAvoidingView
+          style={[styles.modalContainer, { backgroundColor: theme.background }]}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={[styles.modalHeader, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+            <TouchableOpacity
+              onPress={handleCancelLogDose}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel"
+              accessibilityHint="Discard changes and close log dose modal"
+            >
+              <Text style={[styles.modalCancelButton, { color: theme.primary }]}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>Log Dose</Text>
+            <TouchableOpacity
+              onPress={handleSaveLogDose}
+              accessibilityRole="button"
+              accessibilityLabel="Save"
+              accessibilityHint="Saves the dose and closes modal"
+            >
+              <Text style={[styles.modalSaveButton, { color: theme.primary }]}>Save</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            <View style={[styles.modalSection, { backgroundColor: theme.card }]}>
+              <Text style={[styles.modalLabel, { color: theme.textSecondary }]}>Medication</Text>
+              <Text style={[styles.modalValue, { color: theme.text }]}>{medication?.name}</Text>
+            </View>
+
+            <View style={[styles.modalSection, { backgroundColor: theme.card }]}>
+              <Text style={[styles.modalLabel, { color: theme.textSecondary }]}>Date & Time</Text>
+              <TouchableOpacity
+                style={[styles.dateTimeButton, {
+                  backgroundColor: theme.background,
+                  borderColor: theme.border,
+                }]}
+                onPress={() => setShowLogDoseDateTimePicker(true)}
+                accessibilityRole="button"
+                accessibilityLabel={`Change time, currently ${logDoseTimestamp && formatDateTime(logDoseTimestamp)}`}
+                accessibilityHint="Opens date and time picker"
+              >
+                <Text style={[styles.modalValue, { color: theme.text }]}>
+                  {logDoseTimestamp && formatDateTime(logDoseTimestamp)}
+                </Text>
+              </TouchableOpacity>
+              {showLogDoseDateTimePicker && (
+                <DateTimePicker
+                  value={logDoseTimestamp && logDoseTimestamp > 0 ? new Date(logDoseTimestamp) : new Date()}
+                  mode="datetime"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={(event, selectedDateTime) => {
+                    if (Platform.OS === 'android') {
+                      setShowLogDoseDateTimePicker(false);
+                    }
+                    if (selectedDateTime) {
+                      setLogDoseTimestamp(selectedDateTime.getTime());
+                    }
+                  }}
+                />
+              )}
+            </View>
+
+            <View style={[styles.modalSection, { backgroundColor: theme.card }]}>
+              <Text style={[styles.modalLabel, { color: theme.textSecondary }]}>Number of Doses</Text>
+              <TextInput
+                testID="log-dose-amount-input"
+                accessibilityLabel="Dose amount input"
+                style={[styles.modalInput, {
+                  backgroundColor: theme.background,
+                  color: theme.text,
+                  borderColor: theme.border,
+                }]}
+                value={logDoseAmount}
+                onChangeText={setLogDoseAmount}
+                keyboardType="decimal-pad"
+                placeholder="Enter amount"
+                placeholderTextColor={theme.textTertiary}
+              />
+            </View>
+
+            <View style={[styles.modalSection, { backgroundColor: theme.card }]}>
+              <Text style={[styles.modalLabel, { color: theme.textSecondary }]}>Notes (Optional)</Text>
+              <TextInput
+                testID="log-dose-notes-input"
+                accessibilityLabel="Dose notes input"
+                style={[styles.modalTextArea, {
+                  backgroundColor: theme.background,
+                  color: theme.text,
+                  borderColor: theme.border,
+                }]}
+                value={logDoseNotes}
+                onChangeText={setLogDoseNotes}
+                multiline
+                numberOfLines={4}
+                placeholder="Add notes about this dose"
+                placeholderTextColor={theme.textTertiary}
+                textAlignVertical="top"
+              />
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -750,6 +940,7 @@ const styles = StyleSheet.create({
   },
   logDoseSection: {
     marginTop: 20,
+    gap: 12,
   },
   logDoseButton: {
     paddingVertical: 14,
@@ -758,6 +949,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logDoseButtonText: {
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  logDoseSecondaryButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    borderWidth: 2,
+  },
+  logDoseSecondaryButtonText: {
     fontSize: 17,
     fontWeight: '600',
   },
