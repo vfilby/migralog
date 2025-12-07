@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger, LogLevel } from '../logger';
 import { Share } from 'react-native';
+import * as Sentry from '@sentry/react-native';
 
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage');
@@ -10,6 +11,12 @@ jest.mock('react-native', () => ({
   Share: {
     share: jest.fn(),
   },
+}));
+
+// Mock Sentry
+jest.mock('@sentry/react-native', () => ({
+  captureException: jest.fn(),
+  captureMessage: jest.fn(),
 }));
 
 // Mock console methods to avoid cluttering test output
@@ -539,6 +546,99 @@ describe('logger', () => {
 
       // Should not throw, just log error
       expect(console.error).toHaveBeenCalled();
+    });
+  });
+
+  describe('Sentry integration', () => {
+    describe('warn() with Error objects', () => {
+      it('should use captureException for Error objects', async () => {
+        await logger.setLogLevel(LogLevel.DEBUG);
+
+        const error = new Error('Test warning error');
+        logger.warn(error);
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(Sentry.captureException).toHaveBeenCalledWith(error, {
+          level: 'warning',
+          contexts: { logger: { errorName: 'Error' } },
+        });
+        expect(Sentry.captureMessage).not.toHaveBeenCalled();
+      });
+
+      it('should use captureMessage for string warnings', async () => {
+        await logger.setLogLevel(LogLevel.DEBUG);
+
+        logger.warn('String warning message');
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(Sentry.captureMessage).toHaveBeenCalledWith('String warning message', {
+          level: 'warning',
+          contexts: undefined,
+        });
+        expect(Sentry.captureException).not.toHaveBeenCalled();
+      });
+
+      it('should merge context for Error objects in warn()', async () => {
+        await logger.setLogLevel(LogLevel.DEBUG);
+
+        const error = new TypeError('Invalid type warning');
+        logger.warn(error, { endpoint: '/api/test', statusCode: 400 });
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(Sentry.captureException).toHaveBeenCalledWith(error, {
+          level: 'warning',
+          contexts: {
+            logger: {
+              errorName: 'TypeError',
+              endpoint: '/api/test',
+              statusCode: 400,
+            },
+          },
+        });
+      });
+
+      it('should preserve Error message in logs for warn()', async () => {
+        await logger.setLogLevel(LogLevel.DEBUG);
+
+        const error = new Error('Warning error message');
+        logger.warn(error);
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        const logs = logger.getLogs();
+        expect(logs[0].message).toBe('Warning error message');
+        expect(logs[0].level).toBe(LogLevel.WARN);
+      });
+    });
+
+    describe('error() with Error objects', () => {
+      it('should use captureException for Error objects', async () => {
+        await logger.setLogLevel(LogLevel.DEBUG);
+
+        const error = new Error('Test error');
+        logger.error(error);
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(Sentry.captureException).toHaveBeenCalledWith(error, {
+          contexts: { logger: { errorName: 'Error' } },
+        });
+      });
+
+      it('should handle Sentry errors gracefully in warn()', async () => {
+        await logger.setLogLevel(LogLevel.DEBUG);
+        (Sentry.captureException as jest.Mock).mockImplementationOnce(() => {
+          throw new Error('Sentry error');
+        });
+
+        const error = new Error('Test warning');
+        logger.warn(error);
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        // Should not throw, should log error
+        expect(console.error).toHaveBeenCalledWith(
+          '[Logger] Failed to send warning to Sentry:',
+          expect.any(Error)
+        );
+      });
     });
   });
 

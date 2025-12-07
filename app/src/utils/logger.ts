@@ -37,6 +37,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Share } from 'react-native';
+import * as Sentry from '@sentry/react-native';
 
 const STORAGE_KEY_LOGS = '@app_logs';
 const STORAGE_KEY_LOG_LEVEL = '@log_level';
@@ -375,17 +376,56 @@ class Logger {
   /**
    * Log warning messages
    * Maps to LogLevel.WARN
+   * Sends warnings to Sentry (as exceptions for Error objects, messages otherwise)
    */
   warn(...args: unknown[]): void {
     if (args.length === 0) return;
     
     const firstArg = args[0];
-    const message = typeof firstArg === 'string' ? firstArg : JSON.stringify(firstArg);
-    const context = args.length > 1 && typeof args[1] === 'object' && args[1] !== null
-      ? args[1] as Record<string, unknown>
-      : undefined;
+    let message: string;
+    let context: Record<string, unknown> | undefined;
     
-    // Fire and forget
+    // Handle Error objects specially to preserve stack traces
+    if (firstArg instanceof Error) {
+      message = firstArg.message;
+      context = { errorName: firstArg.name };
+      
+      // If there's a second argument, merge it into context
+      if (args.length > 1 && typeof args[1] === 'object' && args[1] !== null) {
+        context = { ...context, ...(args[1] as Record<string, unknown>) };
+      }
+      
+      // Send Error objects to Sentry as exceptions to preserve stack traces
+      // Sentry's beforeSend hook handles privacy scrubbing automatically
+      try {
+        Sentry.captureException(firstArg, {
+          level: 'warning',
+          contexts: context ? { logger: context } : undefined,
+        });
+      } catch (sentryError) {
+        // Don't let Sentry errors break logging
+        console.error('[Logger] Failed to send warning to Sentry:', sentryError);
+      }
+    } else {
+      message = typeof firstArg === 'string' ? firstArg : JSON.stringify(firstArg);
+      context = args.length > 1 && typeof args[1] === 'object' && args[1] !== null
+        ? args[1] as Record<string, unknown>
+        : undefined;
+      
+      // Send non-Error warnings to Sentry as messages
+      // Sentry's beforeSend hook handles privacy scrubbing automatically
+      try {
+        Sentry.captureMessage(message, {
+          level: 'warning',
+          contexts: context ? { logger: context } : undefined,
+        });
+      } catch (sentryError) {
+        // Don't let Sentry errors break logging
+        console.error('[Logger] Failed to send warning to Sentry:', sentryError);
+      }
+    }
+    
+    // Fire and forget for local logging
     this.logInternal(LogLevel.WARN, message, context).catch(err =>
       console.error('[Logger] Failed to log warn message:', err)
     );
@@ -396,6 +436,7 @@ class Logger {
    * Maps to LogLevel.ERROR
    * 
    * Automatically captures stack trace from Error objects
+   * Sends errors to Sentry for remote monitoring
    */
   error(...args: unknown[]): void {
     if (args.length === 0) return;
@@ -403,6 +444,7 @@ class Logger {
     let message: string;
     let context: Record<string, unknown> | undefined;
     let stack: string | undefined;
+    let errorForSentry: Error;
     
     const firstArg = args[0];
     
@@ -411,6 +453,7 @@ class Logger {
       message = firstArg.message;
       stack = firstArg.stack;
       context = { errorName: firstArg.name };
+      errorForSentry = firstArg;
       
       // If there's a second argument, merge it into context
       if (args.length > 1 && typeof args[1] === 'object' && args[1] !== null) {
@@ -421,9 +464,21 @@ class Logger {
       context = args.length > 1 && typeof args[1] === 'object' && args[1] !== null
         ? args[1] as Record<string, unknown>
         : undefined;
+      errorForSentry = new Error(message);
     }
     
-    // Fire and forget
+    // Send to Sentry with context
+    // Sentry's beforeSend hook handles privacy scrubbing automatically
+    try {
+      Sentry.captureException(errorForSentry, {
+        contexts: context ? { logger: context } : undefined,
+      });
+    } catch (sentryError) {
+      // Don't let Sentry errors break logging
+      console.error('[Logger] Failed to send error to Sentry:', sentryError);
+    }
+    
+    // Fire and forget for local logging
     this.logInternal(LogLevel.ERROR, message, context, stack).catch(err =>
       console.error('[Logger] Failed to log error message:', err)
     );

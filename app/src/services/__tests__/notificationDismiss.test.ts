@@ -14,13 +14,12 @@ import * as Notifications from 'expo-notifications';
 // Mock dependencies
 jest.mock('expo-notifications');
 jest.mock('../../services/errorLogger');
-jest.mock('@sentry/react-native');
+jest.mock('../../utils/logger');
 jest.mock('../../database/medicationRepository');
 
 // Import after mocks
 import { dismissMedicationNotification } from '../notifications/medicationNotifications';
-import { expectSentryError } from '../../utils/testUtils/sentryTestUtils';
-import * as Sentry from '@sentry/react-native';
+import { logger } from '../../utils/logger';
 import { medicationRepository, medicationDoseRepository } from '../../database/medicationRepository';
 
 // Setup Notifications mock methods
@@ -32,7 +31,6 @@ describe('Notification Dismiss Logic', () => {
     jest.clearAllMocks();
     jest.spyOn(console, 'log').mockImplementation();
     jest.spyOn(console, 'error').mockImplementation();
-    (Sentry.captureException as jest.Mock).mockClear();
   });
 
   // Helper to create mock presented notification
@@ -232,18 +230,14 @@ describe('Notification Dismiss Logic', () => {
       await expect(dismissMedicationNotification('med-1', 'sched-1')).resolves.not.toThrow();
       expect(Notifications.dismissNotificationAsync).not.toHaveBeenCalled();
       
-      // DIS-187: Verify error is logged to Sentry with context
-      expectSentryError(
-        Sentry.captureException as jest.Mock,
-        'Platform error'
+      // DIS-187: Verify error is logged with context
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ message: expect.stringContaining('Platform error') }),
+        expect.objectContaining({
+          medicationId: 'med-1',
+          scheduleId: 'sched-1',
+        })
       );
-      
-      // Verify context includes medication and schedule IDs
-      const sentryCall = (Sentry.captureException as jest.Mock).mock.calls[0];
-      expect(sentryCall[1]?.extra).toMatchObject({
-        medicationId: 'med-1',
-        scheduleId: 'sched-1',
-      });
     });
 
     it('DIS-ERR2: should handle dismissNotificationAsync error gracefully', async () => {
@@ -265,19 +259,15 @@ describe('Notification Dismiss Logic', () => {
       // Act & Assert - should not throw
       await expect(dismissMedicationNotification('med-1', 'sched-1')).resolves.not.toThrow();
       
-      // DIS-208: Verify error is logged to Sentry with context
-      expectSentryError(
-        Sentry.captureException as jest.Mock,
-        'Dismiss failed'
+      // DIS-208: Verify error is logged with context
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ message: expect.stringContaining('Dismiss failed') }),
+        expect.objectContaining({
+          notificationId: 'notif-1',
+          medicationId: 'med-1',
+          scheduleId: 'sched-1',
+        })
       );
-      
-      // Verify context includes notification ID and medication info
-      const sentryCall = (Sentry.captureException as jest.Mock).mock.calls[0];
-      expect(sentryCall[1]?.extra).toMatchObject({
-        notificationId: 'notif-1',
-        medicationId: 'med-1',
-        scheduleId: 'sched-1',
-      });
     });
   });
 

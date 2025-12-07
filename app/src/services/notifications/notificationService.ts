@@ -1,5 +1,4 @@
 import * as Notifications from 'expo-notifications';
-import * as Sentry from '@sentry/react-native';
 import { logger } from '../../utils/logger';
 import { Medication, MedicationSchedule } from '../../models/types';
 import { medicationRepository, medicationDoseRepository } from '../../database/medicationRepository';
@@ -68,27 +67,17 @@ export async function handleIncomingNotification(notification: Notifications.Not
         
         // Issue 5 (SUP-145): Clear error messaging when medication data is missing/corrupt
         if (!medication) {
-          // Log to Sentry as ERROR with diagnostic info
+          // Log error with diagnostic info - logger handles Sentry integration
           const missingMedicationError = new Error(`Notification fired but medication data is missing: ${data.medicationId}`);
           
-          Sentry.captureException(missingMedicationError, {
-            level: 'error',
-            tags: {
-              component: 'NotificationService',
-              operation: 'handleIncomingNotification',
-              errorType: 'missing_medication',
-            },
-            extra: {
-              medicationId: data.medicationId,
-              scheduleId: data.scheduleId,
-              notificationTitle: notification.request.content.title,
-              notificationBody: notification.request.content.body,
-            },
-          });
-          
-          logger.error('[Notification] Medication not found for notification:', {
+          logger.error(missingMedicationError, {
+            component: 'NotificationService',
+            operation: 'handleIncomingNotification',
+            errorType: 'missing_medication',
             medicationId: data.medicationId,
             scheduleId: data.scheduleId,
+            notificationTitle: notification.request.content.title,
+            notificationBody: notification.request.content.body,
           });
           
           // Show user-friendly message
@@ -114,25 +103,14 @@ export async function handleIncomingNotification(notification: Notifications.Not
         if (!schedule) {
           const inconsistencyError = new Error(`Notification schedule doesn't match medication: scheduleId=${data.scheduleId}, medicationId=${data.medicationId}`);
           
-          Sentry.captureException(inconsistencyError, {
-            level: 'error',
-            tags: {
-              component: 'NotificationService',
-              operation: 'handleIncomingNotification',
-              errorType: 'data_inconsistency',
-            },
-            extra: {
-              medicationId: data.medicationId,
-              scheduleId: data.scheduleId,
-              medicationName: medication.name,
-              availableScheduleIds: medication.schedule?.map(s => s.id) || [],
-            },
-          });
-          
-          logger.error('[Notification] Schedule not found on medication:', {
+          logger.error(inconsistencyError, {
+            component: 'NotificationService',
+            operation: 'handleIncomingNotification',
+            errorType: 'data_inconsistency',
             medicationId: data.medicationId,
             scheduleId: data.scheduleId,
             medicationName: medication.name,
+            availableScheduleIds: medication.schedule?.map(s => s.id) || [],
           });
           
           // Notify user of inconsistency (Issue 6: SUP-162)
@@ -175,22 +153,15 @@ export async function handleIncomingNotification(notification: Notifications.Not
           }
         }
       } catch (error) {
-        logger.error('[Notification] Error checking if medication logged, showing notification (fail-safe):', error);
-        
-        // Issue 3 (HAND-334): No silent failures - log database errors to Sentry
+        // Issue 3 (HAND-334): No silent failures - log database errors
         // Issue 7 (SUP-182): Categorize as 'transient' (database error)
-        Sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
-          level: 'error',
-          tags: {
-            component: 'NotificationService',
-            operation: 'handleIncomingNotification',
-            errorType: 'transient', // Database/network errors are typically transient
-          },
-          extra: {
-            medicationId: data.medicationId,
-            scheduleId: data.scheduleId,
-            errorMessage: error instanceof Error ? error.message : String(error),
-          },
+        logger.error(error instanceof Error ? error : new Error(String(error)), {
+          component: 'NotificationService',
+          operation: 'handleIncomingNotification',
+          errorType: 'transient', // Database/network errors are typically transient
+          medicationId: data.medicationId,
+          scheduleId: data.scheduleId,
+          errorMessage: error instanceof Error ? error.message : String(error),
         });
         
         // Issue 8 (SUP-340): Clear, actionable error message
@@ -222,26 +193,15 @@ export async function handleIncomingNotification(notification: Notifications.Not
           
           // Issue 5 (SUP-145): Handle missing medication in group
           if (!medication) {
-            logger.error('[Notification] Medication not found in grouped notification:', {
+            logger.error(new Error(`Grouped notification: medication not found ${medicationId}`), {
+              component: 'NotificationService',
+              operation: 'handleIncomingNotification',
+              errorType: 'missing_medication',
+              notificationType: 'grouped',
               medicationId,
               scheduleId,
               groupTime: data.time,
-            });
-            
-            Sentry.captureException(new Error(`Grouped notification: medication not found ${medicationId}`), {
-              level: 'error',
-              tags: {
-                component: 'NotificationService',
-                operation: 'handleIncomingNotification',
-                errorType: 'missing_medication',
-                notificationType: 'grouped',
-              },
-              extra: {
-                medicationId,
-                scheduleId,
-                groupTime: data.time,
-                totalInGroup: data.medicationIds.length,
-              },
+              totalInGroup: data.medicationIds.length,
             });
             
             // Skip this medication (don't include in notification)
@@ -252,26 +212,15 @@ export async function handleIncomingNotification(notification: Notifications.Not
 
           // Issue 6 (SUP-162): Data inconsistency in grouped notification
           if (!schedule) {
-            logger.error('[Notification] Schedule not found in grouped notification:', {
+            logger.error(new Error(`Grouped notification: schedule mismatch ${scheduleId}`), {
+              component: 'NotificationService',
+              operation: 'handleIncomingNotification',
+              errorType: 'data_inconsistency',
+              notificationType: 'grouped',
               medicationId,
               scheduleId,
               medicationName: medication.name,
-            });
-            
-            Sentry.captureException(new Error(`Grouped notification: schedule mismatch ${scheduleId}`), {
-              level: 'error',
-              tags: {
-                component: 'NotificationService',
-                operation: 'handleIncomingNotification',
-                errorType: 'data_inconsistency',
-                notificationType: 'grouped',
-              },
-              extra: {
-                medicationId,
-                scheduleId,
-                medicationName: medication.name,
-                availableScheduleIds: medication.schedule?.map(s => s.id) || [],
-              },
+              availableScheduleIds: medication.schedule?.map(s => s.id) || [],
             });
             
             // Skip this medication
@@ -291,25 +240,15 @@ export async function handleIncomingNotification(notification: Notifications.Not
             notLoggedMedicationNames.push(medication.name);
           }
         } catch (error) {
-          logger.error('[Notification] Error checking medication in group, including it (fail-safe):', {
-            medicationId,
-            error,
-          });
-          
           // Issue 3 (HAND-334) + Issue 7 (SUP-182): Log transient errors
-          Sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
-            level: 'warning',
-            tags: {
-              component: 'NotificationService',
-              operation: 'handleIncomingNotification',
-              errorType: 'transient',
-              notificationType: 'grouped',
-            },
-            extra: {
-              medicationId,
-              scheduleId: data.scheduleIds[i],
-              errorMessage: error instanceof Error ? error.message : String(error),
-            },
+          logger.error(error instanceof Error ? error : new Error(String(error)), {
+            component: 'NotificationService',
+            operation: 'handleIncomingNotification',
+            errorType: 'transient',
+            notificationType: 'grouped',
+            medicationId,
+            scheduleId: data.scheduleIds[i],
+            errorMessage: error instanceof Error ? error.message : String(error),
           });
           
           // Include medication in notification on error (fail-safe)
@@ -353,22 +292,15 @@ export async function handleIncomingNotification(notification: Notifications.Not
         // but the suppression logic ensures we don't suppress if ANY remain unlogged.
       }
     } catch (error) {
-      logger.error('[Notification] Error checking grouped medications, showing notification (fail-safe):', error);
-      
       // Issue 3 (HAND-334): No silent failures
-      Sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
-        level: 'error',
-        tags: {
-          component: 'NotificationService',
-          operation: 'handleIncomingNotification',
-          errorType: 'transient',
-          notificationType: 'grouped',
-        },
-        extra: {
-          medicationCount: data.medicationIds?.length || 0,
-          groupTime: data.time,
-          errorMessage: error instanceof Error ? error.message : String(error),
-        },
+      logger.error(error instanceof Error ? error : new Error(String(error)), {
+        component: 'NotificationService',
+        operation: 'handleIncomingNotification',
+        errorType: 'transient',
+        notificationType: 'grouped',
+        medicationCount: data.medicationIds?.length || 0,
+        groupTime: data.time,
+        errorMessage: error instanceof Error ? error.message : String(error),
       });
       
       // Issue 8 (SUP-340): Clear error message
@@ -566,22 +498,14 @@ class NotificationService {
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error('[Notification] Error handling notification response:', {
-        error: errorMessage,
-        errorStack: error instanceof Error ? error.stack : undefined,
-      });
       
-      // Issue 3 (HAND-334): No silent failures - log to Sentry
-      Sentry.captureException(error instanceof Error ? error : new Error(errorMessage), {
-        level: 'error',
-        tags: {
-          component: 'NotificationService',
-          operation: 'handleNotificationResponse',
-        },
-        extra: {
-          actionIdentifier: response.actionIdentifier,
-          errorMessage,
-        },
+      // Issue 3 (HAND-334): No silent failures - log error
+      logger.error(error instanceof Error ? error : new Error(errorMessage), {
+        component: 'NotificationService',
+        operation: 'handleNotificationResponse',
+        actionIdentifier: response.actionIdentifier,
+        errorMessage,
+        errorStack: error instanceof Error ? error.stack : undefined,
       });
       
       // Log to error logger so we can track these failures

@@ -138,9 +138,9 @@ export const useDailyStatusStore = create<DailyStatusState>((set, get) => ({
         prompted,
       });
 
-      // Cancel any scheduled daily check-in notification for today
+      // Dismiss any presented daily check-in notification for today
       // This prevents the notification from showing after the user has logged their day
-      await getDailyCheckinService().cancelAndDismissForDate(date);
+      await getDailyCheckinService().dismissForDate(date);
 
       // Update local state - replace or add
       const existingIndex = get().dailyStatuses.findIndex(log => log.date === date);

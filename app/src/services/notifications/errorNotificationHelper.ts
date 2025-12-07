@@ -15,7 +15,6 @@
  */
 
 import * as Notifications from 'expo-notifications';
-import * as Sentry from '@sentry/react-native';
 import { logger } from '../../utils/logger';
 import { errorLogger } from '../errorLogger';
 
@@ -169,26 +168,34 @@ export async function notifyUserOfError(
   // Get user-friendly message
   const message = getUserFriendlyMessage(errorType, severity, userMessage);
   
-  // Log to Sentry with full context (ALWAYS do this, even if notification fails)
+  // Log with full context (ALWAYS do this, even if notification fails)
   const error = technicalDetails instanceof Error 
     ? technicalDetails 
     : new Error(message);
   
-  Sentry.captureException(error, {
-    level: severity === 'catastrophic' ? 'error' : 'warning',
-    tags: {
+  if (severity === 'catastrophic') {
+    logger.error(error, {
       errorType,
       severity,
       component: 'NotificationSystem',
-    },
-    extra: {
       userMessage: message,
       technicalDetails: technicalDetails instanceof Error 
         ? technicalDetails.message 
         : String(technicalDetails),
       context,
-    },
-  });
+    });
+  } else {
+    logger.warn(error, {
+      errorType,
+      severity,
+      component: 'NotificationSystem',
+      userMessage: message,
+      technicalDetails: technicalDetails instanceof Error 
+        ? technicalDetails.message 
+        : String(technicalDetails),
+      context,
+    });
+  }
   
   // Log to local error logger (ALWAYS do this)
   try {
@@ -247,31 +254,16 @@ export async function notifyUserOfError(
   } catch (notificationError) {
     // If we fail to notify user, at least log it
     // Don't throw - we don't want error notification to crash the app
-    logger.error('[ErrorNotification] Failed to notify user of error:', {
-      originalError: technicalDetails instanceof Error 
-        ? technicalDetails.message 
-        : String(technicalDetails),
-      notificationError: notificationError instanceof Error 
-        ? notificationError.message 
-        : String(notificationError),
-    });
-    
-    // Log notification failure to Sentry
     const notificationFailureError = notificationError instanceof Error
       ? notificationError
       : new Error(`Failed to schedule error notification: ${String(notificationError)}`);
     
-    Sentry.captureException(notificationFailureError, {
-      level: 'error',
-      tags: {
-        component: 'ErrorNotificationHelper',
-        operation: 'notifyUserOfError',
-      },
-      extra: {
-        originalError: technicalDetails instanceof Error 
-          ? technicalDetails.message 
-          : String(technicalDetails),
-      },
+    logger.error(notificationFailureError, {
+      component: 'ErrorNotificationHelper',
+      operation: 'notifyUserOfError',
+      originalError: technicalDetails instanceof Error 
+        ? technicalDetails.message 
+        : String(technicalDetails),
     });
   }
 }
