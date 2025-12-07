@@ -13,6 +13,8 @@ This directory contains technical implementation details, strategies, and histor
 - **[Backup Strategy](backup-strategy.md)** - Data backup and recovery implementation
 - **[Database Retry Mechanism](database-retry-mechanism.md)** - SQLite error handling and retry logic
 - **[Dependency Policy](dependency-policy.md)** - Guidelines for adding/updating dependencies
+- **[Error Handling Patterns](error-handling-patterns.md)** - Error handling best practices
+- **[Logging Guide](logging-guide.md)** - Enhanced logging system documentation
 - **[Refactoring Strategy](refactoring-strategy.md)** - Systematic approach to code improvements
 - **[Sentry Setup](sentry-setup.md)** - Error tracking and monitoring configuration
 

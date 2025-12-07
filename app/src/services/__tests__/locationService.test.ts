@@ -68,10 +68,14 @@ describe('locationService', () => {
 
       const result = await locationService.requestPermission();
 
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
       expect(result).toBe(false);
       expect(console.error).toHaveBeenCalledWith(
+        '[ERROR]',
         'Failed to request location permission:',
-        expect.any(Error)
+        { context: expect.any(Error), stack: undefined }
       );
     });
   });
@@ -105,10 +109,14 @@ describe('locationService', () => {
 
       const result = await locationService.checkPermission();
 
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
       expect(result).toBe(false);
       expect(console.error).toHaveBeenCalledWith(
+        '[ERROR]',
         'Failed to check location permission:',
-        expect.any(Error)
+        { context: expect.any(Error), stack: undefined }
       );
     });
   });
@@ -318,10 +326,14 @@ describe('locationService', () => {
 
       const result = await locationService.reverseGeocode(37.7749, -122.4194);
 
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
       expect(result).toBe(null);
       expect(console.error).toHaveBeenCalledWith(
+        '[ERROR]',
         'Failed to reverse geocode:',
-        expect.any(Error)
+        { context: expect.any(Error), stack: undefined }
       );
     });
 

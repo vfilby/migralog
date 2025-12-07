@@ -371,9 +371,11 @@ describe('DailyStatusWidget', () => {
 
       fireEvent.press(screen.getByTestId('widget-green-button'));
 
-      await waitFor(() => {
+      await waitFor(async () => {
+        // Wait for async logger to complete
+        await new Promise(resolve => setImmediate(resolve));
          
-        expect(console.error).toHaveBeenCalledWith('Failed to log status:', expect.any(Error));
+        expect(console.error).toHaveBeenCalledWith('[ERROR]', 'Failed to log status:', { context: expect.any(Error), stack: undefined });
       });
     });
 
@@ -399,9 +401,11 @@ describe('DailyStatusWidget', () => {
       mockGetDayStatus.mockResolvedValue(statusData);
       fireEvent.press(screen.getByTestId('undo-status-button'));
 
-      await waitFor(() => {
+      await waitFor(async () => {
+        // Wait for async logger to complete
+        await new Promise(resolve => setImmediate(resolve));
          
-        expect(console.error).toHaveBeenCalledWith('Failed to undo status:', expect.any(Error));
+        expect(console.error).toHaveBeenCalledWith('[ERROR]', 'Failed to undo status:', { context: expect.any(Error), stack: undefined });
       });
     });
   });

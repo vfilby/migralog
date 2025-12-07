@@ -1,6 +1,9 @@
 // Set timezone to UTC for consistent date handling across different environments
 process.env.TZ = 'UTC';
 
+// Define __DEV__ for React Native environment
+global.__DEV__ = true;
+
 // Mock expo-modules-core (must be first)
 jest.mock('expo-modules-core', () => ({
   EventEmitter: class MockEventEmitter {

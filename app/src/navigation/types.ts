@@ -27,6 +27,7 @@ export type RootStackParamList = {
   ErrorLogs: undefined;
   Performance: undefined;
   DailyStatusPrompt: { date?: string };
+  LogViewerScreen: undefined;
 };
 
 export type MainTabsParamList = {

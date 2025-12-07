@@ -6,6 +6,7 @@
  */
 
 import { migrationRunner } from '../migrations';
+import { logger, LogLevel } from '../../utils/logger';
 
 // Mock expo-sqlite
 jest.mock('expo-sqlite');
@@ -13,11 +14,14 @@ jest.mock('expo-sqlite');
 describe('Migration Coverage Tests', () => {
   let mockDatabase: any;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
     jest.spyOn(console, 'log').mockImplementation();
     jest.spyOn(console, 'warn').mockImplementation();
     jest.spyOn(console, 'error').mockImplementation();
+    
+    // Set logger to DEBUG level so all messages are logged in tests
+    await logger.setLogLevel(LogLevel.DEBUG);
 
     mockDatabase = {
       execAsync: jest.fn().mockResolvedValue(undefined),
@@ -77,7 +81,12 @@ describe('Migration Coverage Tests', () => {
 
       const validation = await (migrationRunner as any).validateMigration(migrationWithoutDown);
       expect(validation.valid).toBe(true);
+
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
       expect(console.warn).toHaveBeenCalledWith(
+        '[WARN]',
         "Migration 20 does not have a 'down' function - rollback will not be possible"
       );
     });
@@ -118,8 +127,12 @@ describe('Migration Coverage Tests', () => {
     it('should return false when runner not initialized', async () => {
       // Don't initialize the runner
       const result = await (migrationRunner as any).runSmokeTests(19);
+      
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+      
       expect(result).toBe(false);
-      expect(console.error).toHaveBeenCalledWith('Cannot run smoke tests: MigrationRunner not initialized');
+      expect(console.error).toHaveBeenCalledWith('[ERROR]', 'Cannot run smoke tests: MigrationRunner not initialized');
     });
 
     it('should skip smoke tests in test environment (Jest worker)', async () => {
@@ -132,7 +145,11 @@ describe('Migration Coverage Tests', () => {
 
       const result = await (migrationRunner as any).runSmokeTests(19);
       expect(result).toBe(true);
-      expect(console.log).toHaveBeenCalledWith('Skipping smoke tests in test environment for migration 19');
+
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Skipping smoke tests in test environment for migration 19');
 
       // Restore environment
       if (originalJestWorkerId) {
@@ -153,7 +170,11 @@ describe('Migration Coverage Tests', () => {
 
       const result = await (migrationRunner as any).runSmokeTests(19);
       expect(result).toBe(true);
-      expect(console.log).toHaveBeenCalledWith('Skipping smoke tests in test environment for migration 19');
+
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Skipping smoke tests in test environment for migration 19');
 
       // Restore environment
       if (originalNodeEnv) {
@@ -176,7 +197,10 @@ describe('Migration Coverage Tests', () => {
         'Migration aborted: Failed to create backup'
       );
 
-      expect(console.error).toHaveBeenCalledWith('Failed to create backup before migration:', expect.any(Error));
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(console.error).toHaveBeenCalledWith('[ERROR]', 'Failed to create backup before migration:', { context: expect.any(Error), stack: undefined });
     });
 
     it('should warn when no backup function provided', async () => {
@@ -188,8 +212,11 @@ describe('Migration Coverage Tests', () => {
       await migrationRunner.initialize(mockDatabase);
       await migrationRunner.runMigrations(); // No backup function
 
-      expect(console.warn).toHaveBeenCalledWith('No backup function provided, skipping automatic backup');
-      expect(console.warn).toHaveBeenCalledWith('WARNING: If migration fails, manual data recovery may be required');
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(console.warn).toHaveBeenCalledWith('[WARN]', 'No backup function provided, skipping automatic backup');
+      expect(console.warn).toHaveBeenCalledWith('[WARN]', 'WARNING: If migration fails, manual data recovery may be required');
     });
 
     it('should handle no migrations needed scenario', async () => {
@@ -199,7 +226,10 @@ describe('Migration Coverage Tests', () => {
       // Already at current version, no migrations needed
       await migrationRunner.runMigrations();
 
-      expect(console.log).toHaveBeenCalledWith('Database is up to date, no migrations needed');
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Database is up to date, no migrations needed');
     });
 
     it('should handle migration execution failure', async () => {
@@ -219,7 +249,11 @@ describe('Migration Coverage Tests', () => {
       await expect(migrationRunner.runMigrations()).rejects.toThrow(
         'Migration 19 failed: SQL error. Database backup available'
       );
-      expect(console.error).toHaveBeenCalledWith('Migration 19 failed:', expect.any(Error));
+      
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+      
+      expect(console.error).toHaveBeenCalledWith('[ERROR]', 'Migration 19 failed:', { context: expect.any(Error), stack: undefined });
     });
 
     it('should execute migration v19 successfully', async () => {
@@ -232,11 +266,14 @@ describe('Migration Coverage Tests', () => {
       await migrationRunner.initialize(mockDatabase);
       await migrationRunner.runMigrations();
 
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
       // Verify migration v19 execution
       expect(mockDatabase.execAsync).toHaveBeenCalledWith(
         expect.stringContaining('CREATE TABLE intensity_readings_new')
       );
-      expect(console.log).toHaveBeenCalledWith('Migration 19: Adding CHECK constraints to tables...');
+      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Migration 19: Adding CHECK constraints to tables...');
 
       // Verify version update
       expect(mockDatabase.runAsync).toHaveBeenCalledWith(
@@ -252,7 +289,11 @@ describe('Migration Coverage Tests', () => {
       await migrationRunner.initialize(mockDatabase);
 
       await migrationRunner.rollback(19);
-      expect(console.log).toHaveBeenCalledWith('No rollback needed');
+
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(console.log).toHaveBeenCalledWith('[INFO]', 'No rollback needed');
     });
 
     it('should handle rollback when no rollback needed (higher version)', async () => {
@@ -260,7 +301,11 @@ describe('Migration Coverage Tests', () => {
       await migrationRunner.initialize(mockDatabase);
 
       await migrationRunner.rollback(20);
-      expect(console.log).toHaveBeenCalledWith('No rollback needed');
+
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(console.log).toHaveBeenCalledWith('[INFO]', 'No rollback needed');
     });
 
     it('should handle rollback backup creation failure', async () => {
@@ -272,7 +317,11 @@ describe('Migration Coverage Tests', () => {
       await expect(migrationRunner.rollback(18, failingBackup)).rejects.toThrow(
         'Rollback aborted: Failed to create backup'
       );
-      expect(console.error).toHaveBeenCalledWith('Failed to create backup before rollback:', expect.any(Error));
+      
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+      
+      expect(console.error).toHaveBeenCalledWith('[ERROR]', 'Failed to create backup before rollback:', { context: expect.any(Error), stack: undefined });
     });
 
     it('should warn when no backup function provided for rollback', async () => {
@@ -281,7 +330,11 @@ describe('Migration Coverage Tests', () => {
 
       // This test doesn't trigger the warning because no rollback is needed (version 19 -> 19)
       await migrationRunner.rollback(19);
-      expect(console.log).toHaveBeenCalledWith('No rollback needed');
+
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(console.log).toHaveBeenCalledWith('[INFO]', 'No rollback needed');
     });
 
     it('should handle migration that does not support rollback', async () => {
@@ -375,7 +428,7 @@ describe('Migration Coverage Tests', () => {
 
       // Try rollback to higher version (should skip)
       await migrationRunner.rollback(20);
-      expect(console.log).toHaveBeenCalledWith('No rollback needed');
+      expect(console.log).toHaveBeenCalledWith('[INFO]', 'No rollback needed');
     });
   });
 
@@ -388,7 +441,10 @@ describe('Migration Coverage Tests', () => {
       await migrationRunner.runMigrations();
       await migrationRunner.runMigrations();
 
-      expect(console.log).toHaveBeenCalledWith('Database is up to date, no migrations needed');
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Database is up to date, no migrations needed');
     });
 
     it('should create backup before migration when backup function provided', async () => {
@@ -403,9 +459,12 @@ describe('Migration Coverage Tests', () => {
       const backupFunction = jest.fn().mockResolvedValue(undefined);
       await migrationRunner.runMigrations(backupFunction);
 
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
       expect(backupFunction).toHaveBeenCalledWith(mockDatabase);
-      expect(console.log).toHaveBeenCalledWith('Creating automatic backup before migration...');
-      expect(console.log).toHaveBeenCalledWith('Backup created successfully');
+      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Creating automatic backup before migration...');
+      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Backup created successfully');
     });
 
     it('should log migration progress', async () => {
@@ -418,10 +477,13 @@ describe('Migration Coverage Tests', () => {
       await migrationRunner.initialize(mockDatabase);
       await migrationRunner.runMigrations();
 
-      expect(console.log).toHaveBeenCalledWith('Migrating database from version 18 to 19');
-      expect(console.log).toHaveBeenCalledWith('Running migration 19: add_check_constraints_to_tables');
-      expect(console.log).toHaveBeenCalledWith('Migration 19 completed successfully');
-      expect(console.log).toHaveBeenCalledWith('All migrations completed successfully');
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Migrating database from version 18 to 19');
+      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Running migration 19: add_check_constraints_to_tables');
+      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Migration 19 completed successfully');
+      expect(console.log).toHaveBeenCalledWith('[INFO]', 'All migrations completed successfully');
     });
 
     it('should create backup before rollback when backup function provided', async () => {
@@ -444,9 +506,12 @@ describe('Migration Coverage Tests', () => {
       const backupFunction = jest.fn().mockResolvedValue(undefined);
       await migrationRunner.rollback(19, backupFunction);
 
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
       expect(backupFunction).toHaveBeenCalledWith(mockDatabase);
-      expect(console.log).toHaveBeenCalledWith('Creating automatic backup before rollback...');
-      expect(console.log).toHaveBeenCalledWith('Backup created successfully');
+      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Creating automatic backup before rollback...');
+      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Backup created successfully');
 
       // Restore original migrations
       migrationModule.migrations = originalMigrationsArray;
@@ -471,7 +536,10 @@ describe('Migration Coverage Tests', () => {
 
       await migrationRunner.rollback(19); // No backup function provided
 
-      expect(console.warn).toHaveBeenCalledWith('No backup function provided, skipping automatic backup');
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(console.warn).toHaveBeenCalledWith('[WARN]', 'No backup function provided, skipping automatic backup');
 
       // Restore original migrations
       migrationModule.migrations = originalMigrationsArray;

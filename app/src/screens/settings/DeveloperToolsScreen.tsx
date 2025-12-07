@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { useNotificationTesting } from './hooks/useNotificationTesting';
 import { useDatabaseOperations } from './hooks/useDatabaseOperations';
 import { useSentryTesting } from './hooks/useSentryTesting';
 import { useErrorLogManagement } from './hooks/useErrorLogManagement';
+import { logger, LogLevel } from '../../utils/logger';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DeveloperToolsScreen'>;
 
@@ -22,9 +23,13 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
   
+  // Logger state
+  const [logLevel, setLogLevelState] = useState<LogLevel>(LogLevel.INFO);
+  const [logCount, setLogCount] = useState<number>(0);
+  
   // Custom hooks for different developer tools sections
-  const { errorLogs, dbStatus, sentryStatus, loadDiagnostics } = useDiagnostics();
-  const { viewErrorLogs, viewPerformance, testErrorLogging } = useErrorLogManagement(
+  const { dbStatus, sentryStatus, loadDiagnostics } = useDiagnostics();
+  const { viewPerformance, testErrorLogging } = useErrorLogManagement(
     navigation,
     loadDiagnostics
   );
@@ -36,6 +41,42 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
     handleTestCriticalNotification,
     handleRecreateAllSchedules,
   } = useNotificationTesting();
+
+  // Load current log level and log count on mount
+  useEffect(() => {
+    loadLoggerState();
+  }, []);
+
+  const loadLoggerState = async () => {
+    try {
+      const currentLevel = await logger.getLogLevel();
+      const logs = await logger.getLogs();
+      setLogLevelState(currentLevel);
+      setLogCount(logs.length);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to load logger state:', error);
+    }
+  };
+
+  const handleLogLevelChange = async (level: LogLevel) => {
+    try {
+      await logger.setLogLevel(level);
+      setLogLevelState(level);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to set log level:', error);
+    }
+  };
+
+  const navigateToLogViewer = () => {
+    navigation.navigate('LogViewerScreen');
+  };
+
+  // Helper to get log level name for display
+  const getLogLevelName = (level: LogLevel): string => {
+    return LogLevel[level];
+  };
 
   return (
     <View style={styles.container}>
@@ -59,6 +100,65 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
       </View>
 
       <ScrollView style={styles.content} testID="developer-tools-scroll-view">
+        {/* Logging Configuration */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Logging Configuration</Text>
+          <Text style={styles.sectionDescription}>
+            Control app logging verbosity and persistence
+          </Text>
+
+          <View style={styles.diagnosticCard}>
+            <View style={styles.logLevelContainer}>
+              <Text style={styles.logLevelLabel}>Current Log Level</Text>
+              <View style={styles.segmentedControl}>
+                {[LogLevel.DEBUG, LogLevel.INFO, LogLevel.WARN, LogLevel.ERROR].map((level) => (
+                  <TouchableOpacity
+                    key={level}
+                    style={[
+                      styles.segmentButton,
+                      logLevel === level && styles.segmentButtonActive,
+                    ]}
+                    onPress={() => handleLogLevelChange(level)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Set log level to ${getLogLevelName(level)}`}
+                    accessibilityState={{ selected: logLevel === level }}
+                  >
+                    <Text
+                      style={[
+                        styles.segmentButtonText,
+                        logLevel === level && styles.segmentButtonTextActive,
+                      ]}
+                    >
+                      {getLogLevelName(level)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.logLevelDescription}>
+              <Text style={styles.logLevelDescriptionTitle}>Log Level Descriptions:</Text>
+              <Text style={styles.logLevelDescriptionItem}>
+                <Text style={styles.logLevelDescriptionBold}>DEBUG:</Text> Most verbose - all logs including debugging information
+              </Text>
+              <Text style={styles.logLevelDescriptionItem}>
+                <Text style={styles.logLevelDescriptionBold}>INFO:</Text> General information and important events
+              </Text>
+              <Text style={styles.logLevelDescriptionItem}>
+                <Text style={styles.logLevelDescriptionBold}>WARN:</Text> Warning messages and potential issues
+              </Text>
+              <Text style={styles.logLevelDescriptionItem}>
+                <Text style={styles.logLevelDescriptionBold}>ERROR:</Text> Only errors and critical issues
+              </Text>
+              <Text style={[styles.logLevelDescriptionItem, { marginTop: 8, fontStyle: 'italic' }]}>
+                Note: Logs persist across app restarts
+              </Text>
+            </View>
+          </View>
+        </View>
+
         {/* System Diagnostics */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>System Diagnostics</Text>
@@ -100,22 +200,22 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
 
             <TouchableOpacity 
               style={styles.diagnosticRow}
-              onPress={viewErrorLogs}
+              onPress={navigateToLogViewer}
               accessibilityRole="button"
-              accessibilityLabel="View error logs"
-              accessibilityHint="Opens the error logs screen to view recent app errors"
+              accessibilityLabel="View app logs"
+              accessibilityHint="Opens the log viewer screen to view all app logs"
             >
               <View style={styles.diagnosticLeft}>
                 <Ionicons
-                  name="bug-outline"
+                  name="document-text-outline"
                   size={20}
                   color={theme.textSecondary}
                 />
-                <Text style={styles.diagnosticLabel}>Error Logs</Text>
+                <Text style={styles.diagnosticLabel}>App Logs</Text>
               </View>
               <View style={styles.diagnosticRight}>
                 <Text style={styles.diagnosticValueSecondary}>
-                  {errorLogs.length} recent
+                  {logCount} total
                 </Text>
                 <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
               </View>
@@ -577,5 +677,57 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     height: 1,
     backgroundColor: theme.border,
     marginHorizontal: 16,
+  },
+  logLevelContainer: {
+    gap: 12,
+  },
+  logLevelLabel: {
+    fontSize: 15,
+    color: theme.text,
+    fontWeight: '500',
+  },
+  segmentedControl: {
+    flexDirection: 'row',
+    backgroundColor: theme.background,
+    borderRadius: 8,
+    padding: 2,
+    gap: 2,
+  },
+  segmentButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentButtonActive: {
+    backgroundColor: theme.primary,
+  },
+  segmentButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.textSecondary,
+  },
+  segmentButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  logLevelDescription: {
+    gap: 8,
+  },
+  logLevelDescriptionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.text,
+    marginBottom: 4,
+  },
+  logLevelDescriptionItem: {
+    fontSize: 13,
+    color: theme.textSecondary,
+    lineHeight: 18,
+  },
+  logLevelDescriptionBold: {
+    fontWeight: '600',
+    color: theme.text,
   },
 });
