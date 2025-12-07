@@ -494,6 +494,7 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ##### 🔧 Technical Changes
 
+- 🔧 Chore: update CHANGELOG.md for alpha-v1.1.89 [`#266`](https://github.com/vfilby/migralog/pull/266)
 - 📝 Docs: consolidate and reorganize documentation structure [`#254`](https://github.com/vfilby/migralog/pull/254)
 - ✅ Test: improve coverage for critical app components [`#248`](https://github.com/vfilby/migralog/pull/248)
 - ♻️ Refactor: reorganize developer tools screen for better usability [`#225`](https://github.com/vfilby/migralog/pull/225)
