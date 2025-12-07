@@ -11,7 +11,7 @@ export type RootStackParamList = {
   EditMedication: { medicationId: string };
   MedicationDetail: { medicationId: string };
   LogMedication: { medicationId?: string; episodeId?: string };
-  MedicationLog: undefined;
+  MedicationLog: { medicationId?: string };
   EditMedicationDose: { doseId: string };
   EditIntensityReading: { readingId: string };
   EditSymptomLog: { symptomLogId: string };

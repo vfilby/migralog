@@ -489,7 +489,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
               {doses.length > 10 && (
                 <TouchableOpacity
                   style={styles.viewAllButton}
-                  onPress={() => navigation.navigate('MedicationLog')}
+                  onPress={() => navigation.navigate('MedicationLog', { medicationId })}
                   accessibilityRole="button"
                   accessibilityLabel={`View all ${doses.length} doses`}
                   accessibilityHint="Opens the full medication log screen"
