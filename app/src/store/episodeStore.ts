@@ -79,6 +79,13 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
         loading: false
       });
 
+      // Cancel/dismiss today's daily check-in notification since starting an episode marks the day as red
+      // This prevents the "How was your day?" notification from showing later today
+      const { format } = await import('date-fns');
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const { dailyCheckinService } = await import('../services/notifications/dailyCheckinService');
+      await dailyCheckinService.cancelAndDismissForDate(today);
+
       return newEpisode;
     } catch (error) {
       await errorLogger.log('database', 'Failed to start episode', error as Error, {
@@ -113,6 +120,13 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
         episodes: updatedEpisodes,
         loading: false
       });
+
+      // Cancel/dismiss today's daily check-in notification since ending an episode marks the day as red
+      // This prevents the "How was your day?" notification from showing later today
+      const { format } = await import('date-fns');
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const { dailyCheckinService } = await import('../services/notifications/dailyCheckinService');
+      await dailyCheckinService.cancelAndDismissForDate(today);
     } catch (error) {
       set({ error: (error as Error).message, loading: false });
 

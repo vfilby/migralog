@@ -505,7 +505,7 @@ describe('Notification Suppression Logic', () => {
       expect(result).toBeNull();
     });
 
-    it('SUP-D-EDGE2: should SHOW notification on error (fail-safe)', async () => {
+    it('SUP-D-EDGE2: should SUPPRESS notification on error (fail-safe)', async () => {
       // Arrange
       const notification = createMockNotification({
         type: 'daily_checkin',
@@ -519,7 +519,10 @@ describe('Notification Suppression Logic', () => {
       const result = await handleDailyCheckinNotification(notification);
 
       // Assert
-      expectShown(result!);
+      // Changed behavior: suppress on error to prevent spurious notifications
+      // Rationale: Better to miss one daily check-in prompt than to show a notification
+      // to a user who already had an episode (more disruptive)
+      expectSuppressed(result!);
     });
   });
 

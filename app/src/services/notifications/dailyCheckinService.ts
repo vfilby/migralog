@@ -33,13 +33,18 @@ export async function handleDailyCheckinNotification(
     const dailyStatusStore = useDailyStatusStore.getState();
     const episodeStore = useEpisodeStore.getState();
 
+    logger.log('[DailyCheckin] Evaluating notification for date:', today);
+
     // Load current episode if not already loaded
     // This will use cache if available (5 second TTL) or query database
     await episodeStore.loadCurrentEpisode();
 
     // Don't show if user is currently in an active episode
     if (episodeStore.currentEpisode) {
-      logger.log('[DailyCheckin] User has active episode, suppressing notification');
+      logger.log('[DailyCheckin] User has active episode, suppressing notification', {
+        episodeId: episodeStore.currentEpisode.id,
+        startTime: new Date(episodeStore.currentEpisode.startTime).toISOString(),
+      });
       return {
         shouldPlaySound: false,
         shouldSetBadge: false,
@@ -52,7 +57,15 @@ export async function handleDailyCheckinNotification(
     // Check if ANY episode exists for today (active or ended)
     const episodesToday = await episodeRepository.getEpisodesForDate(today);
     if (episodesToday.length > 0) {
-      logger.log('[DailyCheckin] Episode exists for today, suppressing notification (red day)');
+      logger.log('[DailyCheckin] Episode exists for today, suppressing notification (red day)', {
+        date: today,
+        episodeCount: episodesToday.length,
+        episodes: episodesToday.map(ep => ({
+          id: ep.id,
+          startTime: new Date(ep.startTime).toISOString(),
+          endTime: ep.endTime ? new Date(ep.endTime).toISOString() : 'ongoing',
+        })),
+      });
       return {
         shouldPlaySound: false,
         shouldSetBadge: false,
@@ -74,7 +87,7 @@ export async function handleDailyCheckinNotification(
     }
 
     // Show the notification
-    logger.log('[DailyCheckin] Showing daily check-in notification');
+    logger.log('[DailyCheckin] Showing daily check-in notification for date:', today);
     return {
       shouldPlaySound: true,
       shouldSetBadge: true,
@@ -83,12 +96,13 @@ export async function handleDailyCheckinNotification(
     };
   } catch (error) {
     logger.error('[DailyCheckin] Error checking if notification should be shown:', error);
-    // Default to showing the notification on error
+    // Default to NOT showing the notification on error (safer)
+    // This prevents spurious notifications if there's a database issue
     return {
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+      shouldShowBanner: false,
+      shouldShowList: false,
     };
   }
 }
@@ -290,7 +304,9 @@ class DailyCheckinService {
           body: 'Tap to log how you\'re feeling today',
           data: {
             type: 'daily_checkin',
-            date: format(new Date(), 'yyyy-MM-dd'),
+            // NOTE: We don't include a 'date' field here because this is a DAILY trigger
+            // that fires every day. The handler will use the current date when the
+            // notification fires, not a stale date from when it was scheduled.
           },
           categoryIdentifier: DAILY_CHECKIN_CATEGORY,
           sound: true,
@@ -374,25 +390,26 @@ class DailyCheckinService {
   }
 
   /**
-   * Cancel scheduled notification and dismiss any presented notifications for daily check-in
-   * Called when a day status is logged to prevent the notification from showing
-   * after the user has already logged their day
+   * Dismiss any presented daily check-in notifications for today
+   * Called when a day status is logged or episode is created/ended to prevent the notification 
+   * from remaining visible after the user has already logged their day or had an episode
+   * 
+   * Note: We do NOT cancel the recurring DAILY notification schedule because:
+   * 1. DAILY notifications can't be cancelled for a single day (all or nothing)
+   * 2. We rely on handleDailyCheckinNotification to suppress future occurrences
+   * 3. Cancelling would break notifications for all future days
    */
   async cancelAndDismissForDate(date: string): Promise<void> {
     const today = format(new Date(), 'yyyy-MM-dd');
 
-    // Only cancel if logging today's status
+    // Only dismiss if for today
     if (date !== today) {
-      logger.log('[DailyCheckin] Not cancelling notification - logged date is not today:', date);
+      logger.log('[DailyCheckin] Not dismissing notification - date is not today:', date);
       return;
     }
 
     try {
-      // Cancel the scheduled notification
-      await this.cancelNotification();
-      logger.log('[DailyCheckin] Cancelled scheduled notification for today');
-
-      // Dismiss any presented notifications
+      // Dismiss any already-presented notifications in the notification center
       const presentedNotifications = await Notifications.getPresentedNotificationsAsync();
       for (const notification of presentedNotifications) {
         const data = notification.request.content.data as { type?: string };
@@ -401,8 +418,11 @@ class DailyCheckinService {
           logger.log('[DailyCheckin] Dismissed presented notification:', notification.request.identifier);
         }
       }
+      
+      // Note: We do NOT cancel the scheduled DAILY notification here because it's recurring.
+      // The handleDailyCheckinNotification function will suppress it when it tries to fire.
     } catch (error) {
-      logger.error('[DailyCheckin] Error cancelling/dismissing notifications:', error);
+      logger.error('[DailyCheckin] Error dismissing notifications:', error);
     }
   }
 }
