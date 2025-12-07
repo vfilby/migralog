@@ -114,6 +114,34 @@ npm run precommit
 
 **Pro tip:** Run `npm run precommit` before pushing to ensure your code passes CI checks.
 
+### Logging and Debugging
+
+The app includes an enhanced logging system for debugging and troubleshooting:
+
+```bash
+# View logs on physical device:
+# 1. Open Settings screen
+# 2. Tap app version 7 times to enable Developer Mode
+# 3. Tap "Developer Tools"
+# 4. Tap "App Logs"
+
+# In your code:
+import { logger, LogLevel } from '../utils/logger';
+
+# Basic logging
+logger.debug('Debug info');
+logger.info('User action completed');
+logger.warn('Warning message');
+logger.error('Error occurred', { context: data });
+
+# Change log level on device to reduce noise
+await logger.setLogLevel(LogLevel.ERROR); // Only show errors
+```
+
+**On Physical Devices**: The Log Viewer is essential for debugging on physical iOS devices where you can't access Xcode console. Export logs via the share button and send to your development machine.
+
+See [Logging Guide](docs/logging-guide.md) for complete documentation on log levels, structured logging, privacy considerations, and best practices.
+
 ### Utilities
 
 ```bash

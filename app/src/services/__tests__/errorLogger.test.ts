@@ -68,8 +68,11 @@ describe('errorLogger', () => {
       // Should not throw
       const logs = await testLogger.getLogs();
       expect(logs).toEqual([]);
+      
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
        
-      expect(console.error).toHaveBeenCalledWith('Failed to load error logs:', expect.any(Error));
+      expect(console.error).toHaveBeenCalledWith('[ERROR]', 'Failed to load error logs:', { context: expect.any(Error), stack: undefined });
     });
 
     it('should only initialize once', async () => {
@@ -161,10 +164,14 @@ describe('errorLogger', () => {
 
       await errorLogger.log('database', 'Test error');
 
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
       // Should not throw
       expect(console.error).toHaveBeenCalledWith(
+        '[ERROR]',
         'Failed to persist error logs:',
-        expect.any(Error)
+        { context: expect.any(Error), stack: undefined }
       );
     });
 
@@ -174,10 +181,13 @@ describe('errorLogger', () => {
 
       await errorLogger.log('database', 'Test message', error, context);
 
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
       expect(console.error).toHaveBeenCalledWith(
+        '[ERROR]',
         '[database] Test message',
-        error,
-        context
+        { context: error, stack: undefined }
       );
     });
   });
@@ -233,7 +243,10 @@ describe('errorLogger', () => {
 
       await errorLogger.clearLogs();
 
-      expect(console.error).toHaveBeenCalledWith('Failed to clear error logs:', expect.any(Error));
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(console.error).toHaveBeenCalledWith('[ERROR]', 'Failed to clear error logs:', { context: expect.any(Error), stack: undefined });
        
     });
   });

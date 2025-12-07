@@ -43,6 +43,7 @@ import DeveloperToolsScreen from '../screens/settings/DeveloperToolsScreen';
 
 import ErrorLogsScreen from '../screens/settings/ErrorLogsScreen';
 import PerformanceScreen from '../screens/settings/PerformanceScreen';
+import LogViewerScreen from '../screens/settings/LogViewerScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabsParamList>();
@@ -267,6 +268,11 @@ export default function AppNavigator() {
         <Stack.Screen
           name="Performance"
           component={PerformanceScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="LogViewerScreen"
+          component={LogViewerScreen}
           options={{ headerShown: false }}
         />
         <Stack.Screen

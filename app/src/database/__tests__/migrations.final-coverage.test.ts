@@ -5,6 +5,7 @@
  */
 
 import { migrationRunner } from '../migrations';
+import { logger, LogLevel } from '../../utils/logger';
 
 // Mock expo-sqlite
 jest.mock('expo-sqlite');
@@ -12,11 +13,14 @@ jest.mock('expo-sqlite');
 describe('Final Migration Coverage Tests', () => {
   let mockDatabase: any;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
     jest.spyOn(console, 'log').mockImplementation();
     jest.spyOn(console, 'warn').mockImplementation();
     jest.spyOn(console, 'error').mockImplementation();
+    
+    // Set logger to DEBUG level so all messages are logged in tests
+    await logger.setLogLevel(LogLevel.DEBUG);
 
     mockDatabase = {
       execAsync: jest.fn().mockResolvedValue(undefined),
@@ -83,9 +87,13 @@ describe('Final Migration Coverage Tests', () => {
         'Migration aborted: Failed to create backup'
       );
 
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
       expect(console.error).toHaveBeenCalledWith(
+        '[ERROR]',
         'Failed to create backup before migration:',
-        expect.any(Error)
+        { context: expect.any(Error), stack: undefined }
       );
     });
 
@@ -112,9 +120,13 @@ describe('Final Migration Coverage Tests', () => {
         'Rollback aborted: Failed to create backup'
       );
 
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
       expect(console.error).toHaveBeenCalledWith(
+        '[ERROR]',
         'Failed to create backup before rollback:',
-        expect.any(Error)
+        { context: expect.any(Error), stack: undefined }
       );
 
       // Restore original migrations
@@ -141,7 +153,11 @@ describe('Final Migration Coverage Tests', () => {
       // Rollback without backup function
       await migrationRunner.rollback(19);
 
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
       expect(console.warn).toHaveBeenCalledWith(
+        '[WARN]',
         'No backup function provided, skipping automatic backup'
       );
 
@@ -161,10 +177,13 @@ describe('Final Migration Coverage Tests', () => {
       await migrationRunner.initialize(mockDatabase);
       await migrationRunner.runMigrations();
 
-      expect(console.log).toHaveBeenCalledWith('Migrating database from version 18 to 19');
-      expect(console.log).toHaveBeenCalledWith('Running migration 19: add_check_constraints_to_tables');
-      expect(console.log).toHaveBeenCalledWith('Migration 19 completed successfully');
-      expect(console.log).toHaveBeenCalledWith('All migrations completed successfully');
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Migrating database from version 18 to 19');
+      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Running migration 19: add_check_constraints_to_tables');
+      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Migration 19 completed successfully');
+      expect(console.log).toHaveBeenCalledWith('[INFO]', 'All migrations completed successfully');
     });
 
     it('should handle rollback with missing down function', async () => {
@@ -196,8 +215,11 @@ describe('Final Migration Coverage Tests', () => {
 
       await migrationRunner.rollback(19);
 
-      expect(console.log).toHaveBeenCalledWith('Rolling back database from version 20 to 19');
-      expect(console.log).toHaveBeenCalledWith('Rollback completed successfully');
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Rolling back database from version 20 to 19');
+      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Rollback completed successfully');
 
       // Restore original migrations
       migrationModule.migrations = originalMigrationsArray;
@@ -221,7 +243,10 @@ describe('Final Migration Coverage Tests', () => {
         'Migration 19 failed: Version update failed'
       );
 
-      expect(console.error).toHaveBeenCalledWith('Migration 19 failed:', expect.any(Error));
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(console.error).toHaveBeenCalledWith('[ERROR]', 'Migration 19 failed:', { context: expect.any(Error), stack: undefined });
     });
 
     it('should handle migration execution SQL failure', async () => {
@@ -250,21 +275,22 @@ describe('Final Migration Coverage Tests', () => {
       await migrationRunner.initialize(mockDatabase);
 
       // Set Jest worker ID
-      const originalJestWorkerId = process.env.JEST_WORKER_ID;
       process.env.JEST_WORKER_ID = '1';
 
       const result = await (migrationRunner as any).runSmokeTests(19);
       expect(result).toBe(true);
+
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
       expect(console.log).toHaveBeenCalledWith(
+        '[INFO]',
         'Skipping smoke tests in test environment for migration 19'
       );
 
       // Restore
-      if (originalJestWorkerId) {
-        process.env.JEST_WORKER_ID = originalJestWorkerId;
-      } else {
-        process.env.JEST_WORKER_ID = undefined as any;
-      }
+      delete process.env.JEST_WORKER_ID;
+      (mockDatabase.getAllAsync as any).mock = { calls: [] };
     });
 
     it('should detect NODE_ENV test for smoke tests', async () => {
@@ -279,6 +305,14 @@ describe('Final Migration Coverage Tests', () => {
 
       const result = await (migrationRunner as any).runSmokeTests(19);
       expect(result).toBe(true);
+
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(console.log).toHaveBeenCalledWith(
+        '[INFO]',
+        'Skipping smoke tests in test environment for migration 19'
+      );
 
       // Restore
       if (originalNodeEnv) {
@@ -298,7 +332,12 @@ describe('Final Migration Coverage Tests', () => {
 
       const result = await (migrationRunner as any).runSmokeTests(19);
       expect(result).toBe(true);
+
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
       expect(console.log).toHaveBeenCalledWith(
+        '[INFO]',
         'Skipping smoke tests in test environment for migration 19'
       );
     });

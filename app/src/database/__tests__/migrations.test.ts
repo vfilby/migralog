@@ -9,6 +9,7 @@
  */
 
 import { migrationRunner } from '../migrations';
+import { logger, LogLevel } from '../../utils/logger';
 
 // Mock expo-sqlite
 jest.mock('expo-sqlite');
@@ -16,11 +17,14 @@ jest.mock('expo-sqlite');
 describe('migrationRunner (Squashed Schema)', () => {
   let mockDatabase: any;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
     jest.spyOn(console, 'log').mockImplementation();
     jest.spyOn(console, 'warn').mockImplementation();
     jest.spyOn(console, 'error').mockImplementation();
+    
+    // Set logger to DEBUG level so all messages are logged in tests
+    await logger.setLogLevel(LogLevel.DEBUG);
 
     mockDatabase = {
       execAsync: jest.fn().mockResolvedValue(undefined),
@@ -156,7 +160,11 @@ describe('migrationRunner (Squashed Schema)', () => {
         [19, expect.any(Number)]
       );
 
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
       expect(console.log).toHaveBeenCalledWith(
+        '[INFO]',
         expect.stringContaining('Migration 19')
       );
     });
@@ -167,7 +175,11 @@ describe('migrationRunner (Squashed Schema)', () => {
 
       await migrationRunner.runMigrations();
 
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
       expect(console.log).toHaveBeenCalledWith(
+        '[INFO]',
         'Database is up to date, no migrations needed'
       );
     });
@@ -197,8 +209,12 @@ describe('migrationRunner (Squashed Schema)', () => {
       await migrationRunner.runMigrations();
       await migrationRunner.runMigrations();
 
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
       // Should not throw or cause issues
       expect(console.log).toHaveBeenCalledWith(
+        '[INFO]',
         'Database is up to date, no migrations needed'
       );
     });
@@ -212,7 +228,10 @@ describe('migrationRunner (Squashed Schema)', () => {
       // Trying to rollback from 19 to any version should log "No rollback needed"
       await migrationRunner.rollback(19);
 
-      expect(console.log).toHaveBeenCalledWith('No rollback needed');
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(console.log).toHaveBeenCalledWith('[INFO]', 'No rollback needed');
     });
 
     it('should handle rollback to higher version', async () => {
@@ -221,7 +240,10 @@ describe('migrationRunner (Squashed Schema)', () => {
 
       await migrationRunner.rollback(20);
 
-      expect(console.log).toHaveBeenCalledWith('No rollback needed');
+      // Wait for async logger to complete
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(console.log).toHaveBeenCalledWith('[INFO]', 'No rollback needed');
     });
   });
 
