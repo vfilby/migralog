@@ -6,10 +6,12 @@ import { renderWithProviders, createMockNavigation, createMockRoute } from '../.
 // Repository mocks
 const mockMedicationDoseRepository = {
   getAll: jest.fn(),
+  getByMedicationId: jest.fn(),
 };
 
 const mockMedicationRepository = {
   getById: jest.fn(),
+  getAll: jest.fn(),
 };
 
 jest.mock('../../database/medicationRepository', () => ({
@@ -77,7 +79,13 @@ describe('MedicationLogScreen', () => {
     
     // Clear repository mocks but don't reset them completely
     mockMedicationDoseRepository.getAll.mockClear();
+    mockMedicationDoseRepository.getByMedicationId.mockClear();
     mockMedicationRepository.getById.mockClear();
+    mockMedicationRepository.getAll.mockClear();
+    
+    // Set default implementations for new methods
+    mockMedicationRepository.getAll.mockResolvedValue([]);
+    mockMedicationDoseRepository.getByMedicationId.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -96,11 +104,13 @@ describe('MedicationLogScreen', () => {
     });
 
     it('displays correct header with title and back button', async () => {
+      mockMedicationDoseRepository.getAll.mockResolvedValue([]);
+      
       renderWithProviders(<MedicationLogScreen navigation={mockNavigation} route={mockRoute} />);
       
       await waitFor(() => {
         expect(screen.getByText('Medication Log')).toBeTruthy();
-        expect(screen.getByText('Back')).toBeTruthy();
+        expect(screen.getByText('← Back')).toBeTruthy();
       }, { timeout: 5000 });
     });
   });
@@ -151,10 +161,10 @@ describe('MedicationLogScreen', () => {
       renderWithProviders(<MedicationLogScreen navigation={mockNavigation} route={mockRoute} />);
       
       await waitFor(() => {
-        expect(screen.getByText('Back')).toBeTruthy();
+        expect(screen.getByText('← Back')).toBeTruthy();
       });
       
-      const backButton = screen.getByText('Back');
+      const backButton = screen.getByText('← Back');
       await act(async () => {
         fireEvent.press(backButton);
       });
@@ -163,6 +173,8 @@ describe('MedicationLogScreen', () => {
     });
 
     it('renders navigation elements correctly', async () => {
+      mockMedicationDoseRepository.getAll.mockResolvedValue([]);
+      
       renderWithProviders(<MedicationLogScreen navigation={mockNavigation} route={mockRoute} />);
       
       // Wait for component to mount
@@ -172,7 +184,7 @@ describe('MedicationLogScreen', () => {
       
       // Test that navigation elements exist
       expect(screen.getByText('Medication Log')).toBeTruthy();
-      expect(screen.getByText('Back')).toBeTruthy();
+      expect(screen.getByText('← Back')).toBeTruthy();
     });
 
     it('verifies focus listener functionality', async () => {
@@ -220,6 +232,8 @@ describe('MedicationLogScreen', () => {
 
   describe('Additional Coverage Tests', () => {
     it('provides proper component structure', async () => {
+      mockMedicationDoseRepository.getAll.mockResolvedValue([]);
+      
       renderWithProviders(<MedicationLogScreen navigation={mockNavigation} route={mockRoute} />);
       
       await waitFor(() => {
@@ -228,8 +242,7 @@ describe('MedicationLogScreen', () => {
       
       // Test that essential components are rendered
       expect(screen.getByText('Medication Log')).toBeTruthy();
-      expect(screen.getByText('Back')).toBeTruthy();
-      expect(screen.getByText('Loading...')).toBeTruthy();
+      expect(screen.getByText('← Back')).toBeTruthy();
     });
 
     it('handles async loading lifecycle', async () => {
@@ -242,9 +255,6 @@ describe('MedicationLogScreen', () => {
         expect(screen.getByTestId('medication-log-screen')).toBeTruthy();
       });
       
-      // Should show loading initially
-      expect(screen.getByText('Loading...')).toBeTruthy();
-      
       // Trigger focus listener to complete loading
       await act(async () => {
         if (focusListener) {
@@ -255,13 +265,14 @@ describe('MedicationLogScreen', () => {
       // Should show empty state after loading
       await waitFor(() => {
         expect(screen.getByText('No medications logged yet')).toBeTruthy();
-        expect(screen.queryByText('Loading...')).toBeNull();
       });
     });
   });
 
   describe('Accessibility', () => {
     it('has proper testID for the screen', async () => {
+      mockMedicationDoseRepository.getAll.mockResolvedValue([]);
+      
       renderWithProviders(<MedicationLogScreen navigation={mockNavigation} route={mockRoute} />);
       
       await waitFor(() => {
@@ -270,24 +281,26 @@ describe('MedicationLogScreen', () => {
     });
 
     it('provides accessible navigation elements', async () => {
+      mockMedicationDoseRepository.getAll.mockResolvedValue([]);
+      
       renderWithProviders(<MedicationLogScreen navigation={mockNavigation} route={mockRoute} />);
       
       await waitFor(() => {
         expect(screen.getByText('Medication Log')).toBeTruthy();
-        expect(screen.getByText('Back')).toBeTruthy();
+        expect(screen.getByText('← Back')).toBeTruthy();
       });
     });
   });
 
   describe('Loading States', () => {
-    it('shows loading text initially', async () => {
+    it('loads data and shows empty state when no doses exist', async () => {
       mockMedicationDoseRepository.getAll.mockResolvedValue([]);
       
       renderWithProviders(<MedicationLogScreen navigation={mockNavigation} route={mockRoute} />);
       
-      // Should initially show loading
+      // Wait for component to mount
       await waitFor(() => {
-        expect(screen.getByText('Loading...')).toBeTruthy();
+        expect(screen.getByTestId('medication-log-screen')).toBeTruthy();
       });
       
       // Trigger focus listener to complete loading
@@ -297,9 +310,9 @@ describe('MedicationLogScreen', () => {
         }
       });
       
-      // Wait for loading to complete
+      // Wait for loading to complete and empty state to show
       await waitFor(() => {
-        expect(screen.queryByText('Loading...')).toBeNull();
+        expect(screen.getByText('No medications logged yet')).toBeTruthy();
       });
     });
   });

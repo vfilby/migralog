@@ -1629,7 +1629,7 @@ describe('MedicationDetailScreen', () => {
 
       fireEvent.press(screen.getByText('View All (15)'));
 
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('MedicationLog');
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('MedicationLog', { medicationId: 'med-123' });
     });
   });
 
