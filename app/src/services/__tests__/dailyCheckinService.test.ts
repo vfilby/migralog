@@ -7,7 +7,6 @@ jest.mock('../../store/dailyCheckinSettingsStore');
 jest.mock('../../store/dailyStatusStore');
 jest.mock('../../store/episodeStore');
 jest.mock('../../services/errorLogger');
-jest.mock('../../database/episodeRepository');
 
 // Mock date-fns format function to control "today" in tests
 jest.mock('date-fns', () => ({
@@ -49,7 +48,6 @@ import { areNotificationsGloballyEnabled } from '../notifications/notificationUt
 import { useDailyCheckinSettingsStore } from '../../store/dailyCheckinSettingsStore';
 import { useDailyStatusStore } from '../../store/dailyStatusStore';
 import { useEpisodeStore } from '../../store/episodeStore';
-import { episodeRepository } from '../../database/episodeRepository';
 
 describe('dailyCheckinService', () => {
   beforeEach(() => {
@@ -73,7 +71,6 @@ describe('dailyCheckinService', () => {
     (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue([]);
     (Notifications.dismissNotificationAsync as jest.Mock).mockResolvedValue(undefined);
     (areNotificationsGloballyEnabled as jest.Mock).mockResolvedValue(true);
-    (episodeRepository.getEpisodesForDate as jest.Mock) = jest.fn().mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -104,6 +101,7 @@ describe('dailyCheckinService', () => {
 
       (useDailyStatusStore.getState as jest.Mock).mockReturnValue({
         getDayStatus: jest.fn().mockResolvedValue(null),
+        getEpisodesForDate: jest.fn().mockResolvedValue([]),
       });
 
       const notification = {
@@ -135,6 +133,7 @@ describe('dailyCheckinService', () => {
 
       (useDailyStatusStore.getState as jest.Mock).mockReturnValue({
         getDayStatus: jest.fn().mockResolvedValue({ status: 'green' }),
+        getEpisodesForDate: jest.fn().mockResolvedValue([]),
       });
 
       const notification = {
@@ -166,9 +165,8 @@ describe('dailyCheckinService', () => {
 
       (useDailyStatusStore.getState as jest.Mock).mockReturnValue({
         getDayStatus: jest.fn().mockResolvedValue(null),
+        getEpisodesForDate: jest.fn().mockResolvedValue([]),
       });
-
-      (episodeRepository.getEpisodesForDate as jest.Mock).mockResolvedValue([]);
 
       const notification = {
         request: {
@@ -212,10 +210,8 @@ describe('dailyCheckinService', () => {
 
       (useDailyStatusStore.getState as jest.Mock).mockReturnValue({
         getDayStatus: jest.fn().mockResolvedValue(null),
+        getEpisodesForDate: jest.fn().mockResolvedValue([endedEpisode]),
       });
-
-      // Mock episodeRepository to return the ended episode for today
-      (episodeRepository.getEpisodesForDate as jest.Mock).mockResolvedValue([endedEpisode]);
 
       const notification = {
         request: {
@@ -226,9 +222,6 @@ describe('dailyCheckinService', () => {
       } as unknown as Notifications.Notification;
 
       const result = await handleDailyCheckinNotification(notification);
-
-      // Should call episodeRepository to check for episodes on that day
-      expect(episodeRepository.getEpisodesForDate).toHaveBeenCalled();
 
       // Should suppress notification because an episode occurred that day (red day)
       expect(result).toEqual({

@@ -16,13 +16,11 @@ import {
   medicationRepository,
   medicationDoseRepository,
 } from '../../database/medicationRepository';
-import { episodeRepository } from '../../database/episodeRepository';
 import { Medication } from '../../models/types';
 
 // Mock dependencies
 jest.mock('expo-notifications');
 jest.mock('../../database/medicationRepository');
-jest.mock('../../database/episodeRepository');
 jest.mock('../../services/errorLogger');
 jest.mock('../../store/dailyStatusStore');
 jest.mock('../../store/episodeStore');
@@ -383,8 +381,8 @@ describe('Notification Suppression Logic', () => {
       (useEpisodeStore.getState as jest.Mock) = jest.fn(() => mockEpisodeStore);
       (useDailyStatusStore.getState as jest.Mock) = jest.fn(() => mockDailyStatusStore);
       
-      // Mock episodeRepository.getEpisodesForDate to return empty array by default
-      (episodeRepository.getEpisodesForDate as jest.Mock).mockResolvedValue([]);
+      // Mock dailyStatusStore.getEpisodesForDate to return empty array by default
+      mockDailyStatusStore.getEpisodesForDate = jest.fn().mockResolvedValue([]);
     });
 
     it('SUP-D1: should SHOW notification when no status logged and no active episode', async () => {
@@ -470,7 +468,7 @@ describe('Notification Suppression Logic', () => {
       mockDailyStatusStore.getDayStatus.mockResolvedValue(null);
 
       // BUSINESS RULE: ANY episode on the day = red day = suppress notification
-      // Mock episodeRepository to return an ended episode for today
+      // Mock dailyStatusStore to return an ended episode for today
       const mockEpisode = {
         id: 'episode-1',
         startTime: Date.now() - 7200000, // 2 hours ago
@@ -483,7 +481,7 @@ describe('Notification Suppression Logic', () => {
         updatedAt: Date.now() - 3600000,
       };
       
-      (episodeRepository.getEpisodesForDate as jest.Mock).mockResolvedValue([mockEpisode]);
+      mockDailyStatusStore.getEpisodesForDate.mockResolvedValue([mockEpisode]);
 
       // Act
       const result = await handleDailyCheckinNotification(notification);
@@ -505,7 +503,7 @@ describe('Notification Suppression Logic', () => {
       expect(result).toBeNull();
     });
 
-    it('SUP-D-EDGE2: should SUPPRESS notification on error (fail-safe)', async () => {
+    it('SUP-D-EDGE2: should SHOW notification on error (fail-safe)', async () => {
       // Arrange
       const notification = createMockNotification({
         type: 'daily_checkin',
@@ -519,10 +517,9 @@ describe('Notification Suppression Logic', () => {
       const result = await handleDailyCheckinNotification(notification);
 
       // Assert
-      // Changed behavior: suppress on error to prevent spurious notifications
-      // Rationale: Better to miss one daily check-in prompt than to show a notification
-      // to a user who already had an episode (more disruptive)
-      expectSuppressed(result!);
+      // Changed behavior: show on error - safer to show notification than suppress
+      // Rationale: Better to show a daily check-in prompt than to miss it entirely
+      expectShown(result!);
     });
   });
 

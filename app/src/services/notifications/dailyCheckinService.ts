@@ -3,7 +3,6 @@ import { logger } from '../../utils/logger';
 import { useDailyCheckinSettingsStore } from '../../store/dailyCheckinSettingsStore';
 import { useDailyStatusStore } from '../../store/dailyStatusStore';
 import { useEpisodeStore } from '../../store/episodeStore';
-import { episodeRepository } from '../../database/episodeRepository';
 import { format } from 'date-fns';
 import { areNotificationsGloballyEnabled } from './notificationUtils';
 
@@ -55,7 +54,7 @@ export async function handleDailyCheckinNotification(
 
     // SAFETY FIX (SUP-454): Business rule - ANY episode on the day = red day = suppress notification
     // Check if ANY episode exists for today (active or ended)
-    const episodesToday = await episodeRepository.getEpisodesForDate(today);
+    const episodesToday = await dailyStatusStore.getEpisodesForDate(today);
     if (episodesToday.length > 0) {
       logger.log('[DailyCheckin] Episode exists for today, suppressing notification (red day)', {
         date: today,
@@ -96,13 +95,13 @@ export async function handleDailyCheckinNotification(
     };
   } catch (error) {
     logger.error('[DailyCheckin] Error checking if notification should be shown:', error);
-    // Default to NOT showing the notification on error (safer)
-    // This prevents spurious notifications if there's a database issue
+    // Default to SHOWING the notification on error (safer)
+    // Better to show the notification than risk missing a daily check-in
     return {
-      shouldPlaySound: false,
-      shouldSetBadge: false,
-      shouldShowBanner: false,
-      shouldShowList: false,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
     };
   }
 }
@@ -304,9 +303,6 @@ class DailyCheckinService {
           body: 'Tap to log how you\'re feeling today',
           data: {
             type: 'daily_checkin',
-            // NOTE: We don't include a 'date' field here because this is a DAILY trigger
-            // that fires every day. The handler will use the current date when the
-            // notification fires, not a stale date from when it was scheduled.
           },
           categoryIdentifier: DAILY_CHECKIN_CATEGORY,
           sound: true,
@@ -390,9 +386,9 @@ class DailyCheckinService {
   }
 
   /**
-   * Dismiss any presented daily check-in notifications for today
-   * Called when a day status is logged or episode is created/ended to prevent the notification 
-   * from remaining visible after the user has already logged their day or had an episode
+   * Dismiss any presented daily check-in notifications for a given date
+   * Called when a day status is logged to prevent the notification 
+   * from remaining visible after the user has already logged their day
    * 
    * Note: We do NOT cancel the recurring DAILY notification schedule because:
    * 1. DAILY notifications can't be cancelled for a single day (all or nothing)
@@ -402,9 +398,9 @@ class DailyCheckinService {
   async cancelAndDismissForDate(date: string): Promise<void> {
     const today = format(new Date(), 'yyyy-MM-dd');
 
-    // Only dismiss if for today
-    if (date !== today) {
-      logger.log('[DailyCheckin] Not dismissing notification - date is not today:', date);
+    // Only dismiss if for today or past (not future)
+    if (date > today) {
+      logger.log('[DailyCheckin] Not dismissing notification - date is in the future:', date);
       return;
     }
 
