@@ -17,10 +17,7 @@ import { logger, LogEntry, LogLevel } from '../../utils/logger';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LogViewerScreen'>;
 
-type LogLevelFilter = 'ALL' | LogLevel;
-
-const LOG_LEVEL_FILTERS: LogLevelFilter[] = [
-  'ALL',
+const LOG_LEVEL_FILTERS: LogLevel[] = [
   LogLevel.DEBUG,
   LogLevel.INFO,
   LogLevel.WARN,
@@ -33,7 +30,7 @@ export default function LogViewerScreen({ navigation }: Props) {
 
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [filteredLogs, setFilteredLogs] = useState<LogEntry[]>([]);
-  const [selectedLevel, setSelectedLevel] = useState<LogLevelFilter>('ALL');
+  const [selectedLevel, setSelectedLevel] = useState<LogLevel>(LogLevel.DEBUG);
   const [searchText, setSearchText] = useState('');
   const [expandedLogIds, setExpandedLogIds] = useState<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
@@ -50,9 +47,7 @@ export default function LogViewerScreen({ navigation }: Props) {
 
     // Filter by level - show selected level and all higher severity levels
     // Log level hierarchy: DEBUG (0) < INFO (1) < WARN (2) < ERROR (3)
-    if (selectedLevel !== 'ALL') {
-      filtered = filtered.filter(log => log.level >= selectedLevel);
-    }
+    filtered = filtered.filter(log => log.level >= selectedLevel);
 
     // Filter by search text
     if (searchText.trim()) {
@@ -221,7 +216,7 @@ export default function LogViewerScreen({ navigation }: Props) {
       <Ionicons name="document-text-outline" size={64} color={theme.textTertiary} />
       <Text style={styles.emptyStateTitle}>No Logs Found</Text>
       <Text style={styles.emptyStateDescription}>
-        {searchText || selectedLevel !== 'ALL'
+        {searchText || selectedLevel !== LogLevel.DEBUG
           ? 'Try adjusting your filters'
           : 'App logs will appear here as they are generated'}
       </Text>
@@ -302,54 +297,64 @@ export default function LogViewerScreen({ navigation }: Props) {
         )}
       </View>
 
-      {/* Level filter tabs */}
+      {/* Level filter strip */}
       <View style={styles.filterContainer}>
-        {LOG_LEVEL_FILTERS.map(level => {
-          const isSelected = level === selectedLevel;
-          const levelName = level === 'ALL' ? 'ALL' : LogLevel[level];
-          // Count logs at this level and all higher severity levels
-          const count =
-            level === 'ALL'
-              ? logs.length
-              : logs.filter(log => log.level >= level).length;
+        <View style={styles.filterStrip}>
+          {LOG_LEVEL_FILTERS.map((level, index) => {
+            // A level is "active" if it's >= selected level (inclusive filtering)
+            const isActive = level >= selectedLevel;
+            const levelName = LogLevel[level];
+            // Count logs at this level and all higher severity levels
+            const count = logs.filter(log => log.level >= level).length;
 
-          return (
-            <TouchableOpacity
-              key={levelName}
-              style={[styles.filterTab, isSelected && styles.filterTabSelected]}
-              onPress={() => setSelectedLevel(level)}
-              accessibilityRole="button"
-              accessibilityLabel={`Filter by ${levelName}`}
-              accessibilityState={{ selected: isSelected }}
-            >
-              <Text
+            // Determine border radius based on position
+            const isFirst = index === 0;
+            const isLast = index === LOG_LEVEL_FILTERS.length - 1;
+
+            return (
+              <TouchableOpacity
+                key={levelName}
                 style={[
-                  styles.filterTabText,
-                  isSelected && styles.filterTabTextSelected,
+                  styles.filterButton,
+                  isActive && styles.filterButtonActive,
+                  isFirst && styles.filterButtonFirst,
+                  isLast && styles.filterButtonLast,
                 ]}
+                onPress={() => setSelectedLevel(level)}
+                accessibilityRole="button"
+                accessibilityLabel={`Filter by ${levelName}`}
+                accessibilityState={{ selected: level === selectedLevel }}
+                accessibilityHint={`Shows ${levelName} and all higher severity logs`}
               >
-                {levelName}
-              </Text>
-              {count > 0 && (
-                <View
+                <Text
                   style={[
-                    styles.filterTabBadge,
-                    isSelected && styles.filterTabBadgeSelected,
+                    styles.filterButtonText,
+                    isActive && styles.filterButtonTextActive,
                   ]}
                 >
-                  <Text
+                  {levelName}
+                </Text>
+                {count > 0 && (
+                  <View
                     style={[
-                      styles.filterTabBadgeText,
-                      isSelected && styles.filterTabBadgeTextSelected,
+                      styles.filterButtonBadge,
+                      isActive && styles.filterButtonBadgeActive,
                     ]}
                   >
-                    {count}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          );
-        })}
+                    <Text
+                      style={[
+                        styles.filterButtonBadgeText,
+                        isActive && styles.filterButtonBadgeTextActive,
+                      ]}
+                    >
+                      {count}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
       {/* Log list */}
@@ -455,35 +460,50 @@ const createStyles = (theme: ThemeColors) =>
       paddingVertical: 4,
     },
     filterContainer: {
-      flexDirection: 'row',
       paddingHorizontal: 16,
       paddingVertical: 12,
-      gap: 8,
     },
-    filterTab: {
+    filterStrip: {
       flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 16,
-      backgroundColor: theme.card,
+      borderRadius: 10,
+      overflow: 'hidden',
       borderWidth: 1,
       borderColor: theme.border,
+    },
+    filterButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 8,
+      paddingVertical: 10,
+      backgroundColor: theme.card,
+      borderRightWidth: 1,
+      borderRightColor: theme.border,
       gap: 6,
     },
-    filterTabSelected: {
-      backgroundColor: theme.primary,
-      borderColor: theme.primary,
+    filterButtonFirst: {
+      borderTopLeftRadius: 9,
+      borderBottomLeftRadius: 9,
     },
-    filterTabText: {
+    filterButtonLast: {
+      borderRightWidth: 0,
+      borderTopRightRadius: 9,
+      borderBottomRightRadius: 9,
+    },
+    filterButtonActive: {
+      backgroundColor: theme.primary,
+      borderRightColor: theme.primary,
+    },
+    filterButtonText: {
       fontSize: 13,
       fontWeight: '600',
       color: theme.textSecondary,
     },
-    filterTabTextSelected: {
+    filterButtonTextActive: {
       color: theme.primaryText,
     },
-    filterTabBadge: {
+    filterButtonBadge: {
       backgroundColor: theme.background,
       paddingHorizontal: 6,
       paddingVertical: 2,
@@ -491,15 +511,15 @@ const createStyles = (theme: ThemeColors) =>
       minWidth: 20,
       alignItems: 'center',
     },
-    filterTabBadgeSelected: {
+    filterButtonBadgeActive: {
       backgroundColor: theme.primaryText + '30',
     },
-    filterTabBadgeText: {
+    filterButtonBadgeText: {
       fontSize: 11,
       fontWeight: '600',
       color: theme.textSecondary,
     },
-    filterTabBadgeTextSelected: {
+    filterButtonBadgeTextActive: {
       color: theme.primaryText,
     },
     listContent: {

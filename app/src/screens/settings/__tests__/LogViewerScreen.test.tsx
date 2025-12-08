@@ -232,7 +232,7 @@ describe('LogViewerScreen', () => {
       },
     ];
 
-    it('should show all logs when ALL filter is selected', async () => {
+    it('should show all logs when DEBUG filter is selected by default', async () => {
       (logger.getLogs as jest.Mock).mockReturnValue(mockLogs);
 
       renderWithProviders(
@@ -1085,7 +1085,6 @@ describe('LogViewerScreen', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByLabelText('Filter by ALL')).toBeTruthy();
         expect(screen.getByLabelText('Filter by DEBUG')).toBeTruthy();
         expect(screen.getByLabelText('Filter by INFO')).toBeTruthy();
         expect(screen.getByLabelText('Filter by WARN')).toBeTruthy();
