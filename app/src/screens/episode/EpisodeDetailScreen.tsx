@@ -117,8 +117,8 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     episodeNotes
   } = useEpisodeStore();
   
-  // Medication store - provides medication deletion
-  const { deleteDose } = useMedicationStore();
+  // Medication store - provides medication deletion and dose loading
+  const { deleteDose, loadMedicationDosesWithDetails } = useMedicationStore();
   
   // Local state for episode and UI
   const [episode, setEpisode] = useState<Episode | null>(null);
@@ -153,17 +153,9 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
 
       setEpisode(episodeWithDetails);
 
-      // Load medication doses for this episode
-      // We need medication details joined with doses, so we still need repository access here
-      // TODO: Future refactor - add loadMedicationDosesWithDetails to store
-      const { medicationDoseRepository, medicationRepository } = await import('../../database/medicationRepository');
-      const meds = await medicationDoseRepository.getByEpisodeId(episodeId);
-      const medsWithDetails = await Promise.all(
-        meds.map(async (dose) => {
-          const medication = await medicationRepository.getById(dose.medicationId);
-          return { ...dose, medication: medication || undefined };
-        })
-      );
+      // Load medication doses for this episode with full medication details
+      // Uses store method to avoid direct repository access
+      const medsWithDetails = await loadMedicationDosesWithDetails(episodeId);
       setMedications(medsWithDetails);
 
       // Reverse geocode location if available

@@ -88,6 +88,7 @@ interface MedicationState {
   getDoseById: (id: string) => MedicationDose | null;
   getDosesByMedicationId: (medicationId: string, limit?: number) => Promise<MedicationDose[]>;
   loadMedicationWithDetails: (medicationId: string) => Promise<{ medication: Medication; schedules: MedicationSchedule[]; doses: MedicationDose[] } | null>;
+  loadMedicationDosesWithDetails: (episodeId: string) => Promise<Array<MedicationDose & { medication?: Medication }>>;
   addSchedule: (schedule: Omit<MedicationSchedule, 'id'>) => Promise<MedicationSchedule>;
   updateSchedule: (id: string, updates: Partial<MedicationSchedule>) => Promise<void>;
   deleteSchedule: (id: string) => Promise<void>;
@@ -714,6 +715,48 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
     
     logger.log('[Store] Found schedules for medication:', medicationId, schedules.length);
     return schedules;
+  },
+
+  /**
+   * Load medication doses for an episode with full medication details
+   * This replaces direct repository access in EpisodeDetailScreen.
+   * Loads doses and joins with medication data.
+   * 
+   * @param episodeId - Episode id
+   * @returns Array of medication doses with joined medication details
+   */
+  loadMedicationDosesWithDetails: async (episodeId: string) => {
+    set({ loading: true, error: null });
+    try {
+      logger.log('[Store] Loading medication doses with details for episode:', episodeId);
+      
+      // Load medication doses for this episode
+      const doses = await medicationDoseRepository.getByEpisodeId(episodeId);
+      
+      // Load medication details for each dose
+      const dosesWithDetails = await Promise.all(
+        doses.map(async (dose) => {
+          const medication = await medicationRepository.getById(dose.medicationId);
+          return { ...dose, medication: medication || undefined };
+        })
+      );
+
+      logger.log('[Store] Loaded medication doses with details:', {
+        episodeId,
+        dosesCount: dosesWithDetails.length
+      });
+
+      set({ loading: false });
+      return dosesWithDetails;
+    } catch (error) {
+      await errorLogger.log('database', 'Failed to load medication doses with details', error as Error, {
+        operation: 'loadMedicationDosesWithDetails',
+        episodeId
+      });
+      set({ error: (error as Error).message, loading: false });
+      toastService.error('Failed to load medication doses');
+      throw error;
+    }
   },
 
 }));

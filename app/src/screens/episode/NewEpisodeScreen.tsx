@@ -279,7 +279,15 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
 export default function NewEpisodeScreen({ navigation, route }: Props) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const { startEpisode, updateEpisode, deleteEpisode, reopenEpisode } = useEpisodeStore();
+  const { 
+    startEpisode, 
+    updateEpisode, 
+    updateEpisodeTimestamps,
+    deleteEpisode, 
+    reopenEpisode,
+    updateIntensityReading,
+    addIntensityReadingWithTimestamp
+  } = useEpisodeStore();
   const episodeId = route.params?.episodeId;
   const isEditing = !!episodeId;
 
@@ -307,6 +315,10 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
       if (!episodeId) return;
 
       try {
+        // NOTE: Direct repository import is acceptable here for initial data loading in edit mode
+        // This is a one-time load when the screen mounts, not a mutation operation.
+        // Adding a store method for this would be redundant since we only need to load
+        // the data once and don't need to update store state.
         const { episodeRepository, intensityRepository } = await import('../../database/episodeRepository');
         const episode = await episodeRepository.getById(episodeId);
 
@@ -410,9 +422,8 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
 
         // Check if start time changed to update initial intensity reading timestamp
         const startTimeChanged = originalStartTime && startTime.getTime() !== originalStartTime;
-
-        // Update existing episode
-        await updateEpisode(episodeId, {
+        
+        const episodeUpdates = {
           startTime: startTime.getTime(),
           endTime: endTime ? endTime.getTime() : undefined,
           locations,
@@ -420,37 +431,22 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
           symptoms,
           triggers,
           notes: notes.trim() || undefined,
-        });
-        logger.log('[NewEpisode] Episode updated');
+        };
 
-        // Update all timeline entries with matching timestamp if start time changed
+        // Update existing episode with timestamp cascade if start time changed
         if (startTimeChanged) {
-          logger.log('[NewEpisode] Start time changed, updating all timeline entries with original start time...');
-          const { intensityRepository, episodeNoteRepository } = await import('../../database/episodeRepository');
-
-          // Update intensity readings
-          const intensityChanges = await intensityRepository.updateTimestampsForEpisode(
-            episodeId,
-            originalStartTime,
-            startTime.getTime()
-          );
-          logger.log(`[NewEpisode] Updated ${intensityChanges} intensity reading(s)`);
-
-          // Update episode notes
-          const notesChanges = await episodeNoteRepository.updateTimestampsForEpisode(
-            episodeId,
-            originalStartTime,
-            startTime.getTime()
-          );
-          logger.log(`[NewEpisode] Updated ${notesChanges} episode note(s)`);
+          logger.log('[NewEpisode] Start time changed, using updateEpisodeTimestamps');
+          await updateEpisodeTimestamps(episodeId, originalStartTime, startTime.getTime(), episodeUpdates);
+        } else {
+          logger.log('[NewEpisode] No start time change, using regular updateEpisode');
+          await updateEpisode(episodeId, episodeUpdates);
         }
+        logger.log('[NewEpisode] Episode updated');
 
         // Update initial intensity reading if it changed
         if (initialReadingId && intensity !== initialIntensity) {
           logger.log('[NewEpisode] Updating intensity reading...');
-          const { intensityRepository } = await import('../../database/episodeRepository');
-          await intensityRepository.update(initialReadingId, { intensity });
-
+          await updateIntensityReading(initialReadingId, { intensity });
           logger.log('[NewEpisode] Intensity updated');
         }
 
@@ -474,12 +470,7 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
         // Add initial intensity reading with the same timestamp as episode start
         if (intensity > 0) {
           logger.log('[NewEpisode] Adding intensity reading...');
-          const { intensityRepository } = await import('../../database/episodeRepository');
-          await intensityRepository.create({
-            episodeId: episode.id,
-            timestamp: episode.startTime, // Use episode start time for initial reading
-            intensity,
-          });
+          await addIntensityReadingWithTimestamp(episode.id, intensity, episode.startTime);
           logger.log('[NewEpisode] Intensity reading added');
         }
 

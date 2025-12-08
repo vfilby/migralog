@@ -33,7 +33,12 @@ const mockNavigation = {
 describe('NewEpisodeScreen', () => {
   const mockStartEpisode = jest.fn();
   const mockAddIntensityReading = jest.fn();
+  const mockAddIntensityReadingWithTimestamp = jest.fn();
   const mockUpdateEpisode = jest.fn();
+  const mockUpdateEpisodeTimestamps = jest.fn();
+  const mockUpdateIntensityReading = jest.fn();
+  const mockDeleteEpisode = jest.fn();
+  const mockReopenEpisode = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -41,12 +46,22 @@ describe('NewEpisodeScreen', () => {
     (useEpisodeStore as unknown as jest.Mock).mockReturnValue({
       startEpisode: mockStartEpisode,
       addIntensityReading: mockAddIntensityReading,
+      addIntensityReadingWithTimestamp: mockAddIntensityReadingWithTimestamp,
       updateEpisode: mockUpdateEpisode,
+      updateEpisodeTimestamps: mockUpdateEpisodeTimestamps,
+      updateIntensityReading: mockUpdateIntensityReading,
+      deleteEpisode: mockDeleteEpisode,
+      reopenEpisode: mockReopenEpisode,
     });
 
-    mockStartEpisode.mockResolvedValue({ id: 'new-episode-123' });
+    mockStartEpisode.mockResolvedValue({ id: 'new-episode-123', startTime: Date.now() });
     mockAddIntensityReading.mockResolvedValue({ id: 'reading-123' });
+    mockAddIntensityReadingWithTimestamp.mockResolvedValue({ id: 'reading-123' });
     mockUpdateEpisode.mockResolvedValue(undefined);
+    mockUpdateEpisodeTimestamps.mockResolvedValue(undefined);
+    mockUpdateIntensityReading.mockResolvedValue(undefined);
+    mockDeleteEpisode.mockResolvedValue(undefined);
+    mockReopenEpisode.mockResolvedValue(undefined);
   });
 
   it('should render new episode screen with title', async () => {

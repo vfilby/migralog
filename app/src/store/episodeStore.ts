@@ -39,10 +39,12 @@ interface EpisodeState {
   endEpisode: (episodeId: string, endTime: number) => Promise<void>;
   reopenEpisode: (episodeId: string) => Promise<void>;
   updateEpisode: (episodeId: string, updates: Partial<Episode>) => Promise<void>;
+  updateEpisodeTimestamps: (episodeId: string, originalStartTime: number, newStartTime: number, updates: Partial<Episode>) => Promise<void>;
   deleteEpisode: (episodeId: string) => Promise<void>;
 
   // Intensity Reading CRUD
   addIntensityReading: (episodeId: string, intensity: number) => Promise<void>;
+  addIntensityReadingWithTimestamp: (episodeId: string, intensity: number, timestamp: number) => Promise<void>;
   getIntensityReadingById: (id: string) => IntensityReading | null;
   updateIntensityReading: (id: string, updates: Partial<IntensityReading>) => Promise<void>;
   deleteIntensityReading: (id: string) => Promise<void>;
@@ -260,6 +262,93 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
     }
   },
 
+  /**
+   * Update episode with timestamp cascade updates
+   * When the episode start time changes, this method updates all related timeline entries
+   * that match the original start time to use the new start time.
+   * 
+   * @param episodeId - Episode ID
+   * @param originalStartTime - Original episode start timestamp
+   * @param newStartTime - New episode start timestamp
+   * @param updates - Episode updates to apply
+   */
+  updateEpisodeTimestamps: async (episodeId: string, originalStartTime: number, newStartTime: number, updates: Partial<Episode>) => {
+    set({ loading: true, error: null });
+    try {
+      // Validate input
+      if (!episodeId) {
+        throw new Error('Episode ID is required');
+      }
+      if (!updates || Object.keys(updates).length === 0) {
+        throw new Error('Updates are required');
+      }
+
+      logger.log('[EpisodeStore] Updating episode with timestamp cascade:', {
+        episodeId,
+        originalStartTime,
+        newStartTime,
+        updates
+      });
+
+      // Update episode
+      await episodeRepository.update(episodeId, updates);
+
+      // If start time changed, update all timeline entries with matching timestamp
+      if (originalStartTime !== newStartTime) {
+        logger.log('[EpisodeStore] Start time changed, updating timeline entries');
+        
+        // Update intensity readings
+        const intensityChanges = await intensityRepository.updateTimestampsForEpisode(
+          episodeId,
+          originalStartTime,
+          newStartTime
+        );
+        logger.log(`[EpisodeStore] Updated ${intensityChanges} intensity reading(s)`);
+
+        // Update episode notes
+        const notesChanges = await episodeNoteRepository.updateTimestampsForEpisode(
+          episodeId,
+          originalStartTime,
+          newStartTime
+        );
+        logger.log(`[EpisodeStore] Updated ${notesChanges} episode note(s)`);
+      }
+
+      // Invalidate cache when updating episode
+      cacheManager.invalidate('episodes');
+      cacheManager.invalidate('currentEpisode');
+
+      // Update local state
+      const updatedEpisodes = get().episodes.map(ep =>
+        ep.id === episodeId ? { ...ep, ...updates } : ep
+      );
+
+      const currentEpisode = get().currentEpisode;
+      const updatedCurrentEpisode = currentEpisode?.id === episodeId
+        ? { ...currentEpisode, ...updates }
+        : currentEpisode;
+
+      set({
+        episodes: updatedEpisodes,
+        currentEpisode: updatedCurrentEpisode,
+        loading: false
+      });
+
+      logger.log('[EpisodeStore] Episode timestamps updated successfully');
+    } catch (error) {
+      await errorLogger.log('database', 'Failed to update episode timestamps', error as Error, {
+        operation: 'updateEpisodeTimestamps',
+        episodeId,
+        originalStartTime,
+        newStartTime,
+        updates,
+      });
+      set({ error: (error as Error).message, loading: false });
+      toastService.error('Failed to update episode');
+      throw error;
+    }
+  },
+
   addIntensityReading: async (episodeId, intensity) => {
     set({ loading: true, error: null });
     try {
@@ -292,6 +381,64 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
         operation: 'addIntensityReading',
         episodeId,
         intensity,
+      });
+      set({ error: (error as Error).message, loading: false });
+      toastService.error('Failed to add intensity reading');
+      throw error;
+    }
+  },
+
+  /**
+   * Add intensity reading with a specific timestamp
+   * This is useful for initial readings that should match the episode start time
+   * 
+   * @param episodeId - Episode ID
+   * @param intensity - Pain intensity (0-10)
+   * @param timestamp - Specific timestamp for the reading
+   */
+  addIntensityReadingWithTimestamp: async (episodeId: string, intensity: number, timestamp: number) => {
+    set({ loading: true, error: null });
+    try {
+      // Validate input
+      if (!episodeId) {
+        throw new Error('Episode ID is required');
+      }
+      if (intensity === undefined || intensity === null) {
+        throw new Error('Intensity is required');
+      }
+      if (!timestamp) {
+        throw new Error('Timestamp is required');
+      }
+
+      logger.log('[EpisodeStore] Adding intensity reading with custom timestamp:', {
+        episodeId,
+        intensity,
+        timestamp
+      });
+
+      const reading = await intensityRepository.create({
+        episodeId,
+        timestamp,
+        intensity,
+      });
+
+      // Invalidate cache for episode details
+      cacheManager.invalidate('episodes');
+      cacheManager.invalidate('currentEpisode');
+
+      // Update state with new reading
+      set({ 
+        intensityReadings: [...get().intensityReadings, reading],
+        loading: false 
+      });
+
+      logger.log('[EpisodeStore] Intensity reading added with timestamp:', reading.id);
+    } catch (error) {
+      await errorLogger.log('database', 'Failed to add intensity reading with timestamp', error as Error, {
+        operation: 'addIntensityReadingWithTimestamp',
+        episodeId,
+        intensity,
+        timestamp
       });
       set({ error: (error as Error).message, loading: false });
       toastService.error('Failed to add intensity reading');
