@@ -471,11 +471,9 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
   getArchivedMedications: async () => {
     set({ loading: true, error: null });
     try {
-      logger.debug('[Store] Loading archived medications');
       const archivedMedications = await medicationRepository.getArchived();
       
       set({ archivedMedications, loading: false });
-      logger.debug('[Store] Loaded archived medications:', archivedMedications.length);
     } catch (error) {
       await errorLogger.log('database', 'Failed to load archived medications', error as Error, {
         operation: 'getArchivedMedications'
@@ -496,8 +494,6 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
    * @returns Medication object or null if not found
    */
   getMedicationById: (id: string) => {
-    logger.debug('[Store] Getting medication by ID:', id);
-    
     // Check active medications first
     const medication = get().medications.find(m => m.id === id);
     if (medication) {
@@ -514,7 +510,6 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
     // but not yet loaded into state. This is a synchronous method, so we can't
     // load it here. Callers should use loadMedicationWithDetails for a complete
     // async approach that will load from repository if needed.
-    logger.debug('[Store] Medication not found in state:', id);
     return null;
   },
 
@@ -526,13 +521,7 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
    * @returns Dose object or null if not found in state
    */
   getDoseById: (id: string) => {
-    logger.debug('[Store] Getting dose by ID:', id);
     const dose = get().doses.find(d => d.id === id);
-    
-    if (!dose) {
-      logger.debug('[Store] Dose not found in state:', id);
-    }
-    
     return dose || null;
   },
 
@@ -547,11 +536,9 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
   getDosesByMedicationId: async (medicationId: string, limit = 50) => {
     set({ loading: true, error: null });
     try {
-      logger.debug('[Store] Loading doses for medication:', medicationId);
       const doses = await medicationDoseRepository.getByMedicationId(medicationId, limit);
       
       set({ loading: false });
-      logger.debug('[Store] Loaded doses for medication:', medicationId, doses.length);
       return doses;
     } catch (error) {
       await errorLogger.log('database', 'Failed to load doses for medication', error as Error, {
@@ -575,8 +562,6 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
   loadMedicationWithDetails: async (medicationId: string) => {
     set({ loading: true, error: null });
     try {
-      logger.debug('[Store] Loading medication with details:', medicationId);
-      
       // Load medication, schedules, and recent doses in parallel
       const [medication, schedules, doses] = await Promise.all([
         medicationRepository.getById(medicationId),
@@ -585,16 +570,9 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       ]);
 
       if (!medication) {
-        logger.debug('[Store] Medication not found:', medicationId);
         set({ loading: false });
         return null;
       }
-
-      logger.debug('[Store] Loaded medication with details:', {
-        medicationId,
-        schedulesCount: schedules.length,
-        dosesCount: doses.length
-      });
 
       set({ loading: false });
       return { medication, schedules, doses };
@@ -710,10 +688,7 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
    * @returns Array of schedules for the medication
    */
   getSchedulesByMedicationId: (medicationId: string) => {
-    logger.debug('[Store] Getting schedules for medication:', medicationId);
     const schedules = get().schedules.filter(s => s.medicationId === medicationId);
-    
-    logger.debug('[Store] Found schedules for medication:', medicationId, schedules.length);
     return schedules;
   },
 
@@ -728,8 +703,6 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
   loadMedicationDosesWithDetails: async (episodeId: string) => {
     set({ loading: true, error: null });
     try {
-      logger.debug('[Store] Loading medication doses with details for episode:', episodeId);
-      
       // Load medication doses for this episode
       const doses = await medicationDoseRepository.getByEpisodeId(episodeId);
       
@@ -740,11 +713,6 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
           return { ...dose, medication: medication || undefined };
         })
       );
-
-      logger.debug('[Store] Loaded medication doses with details:', {
-        episodeId,
-        dosesCount: dosesWithDetails.length
-      });
 
       set({ loading: false });
       return dosesWithDetails;
