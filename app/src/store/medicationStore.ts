@@ -260,17 +260,15 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       // Dynamic import to avoid circular dependency
       const { notificationService } = await import('../services/notifications/notificationService');
 
-      // Cancel any scheduled notifications for this medication/schedule
-      // This prevents the notification from firing if medication is logged before the scheduled time
-      await notificationService.cancelScheduledMedicationReminder(dose.medicationId, dose.scheduleId);
-
       // Dismiss any presented notifications for this medication
       // This removes the notification from the notification tray when logging from the app
-      // Only dismiss if scheduleId exists to ensure only the correct notification is dismissed for medications with multiple schedules
+      // Note: We only dismiss presented notifications, not cancel scheduled ones.
+      // Scheduled notifications are automatically suppressed by handleIncomingNotification
+      // which checks if the medication was already logged.
       if (dose.scheduleId) {
         await notificationService.dismissMedicationNotification(dose.medicationId, dose.scheduleId);
+        logger.log('[Store] Dismissed presented notification for logged medication');
       }
-      logger.log('[Store] Cancelled/dismissed notifications for logged medication');
 
       // Add to doses in state
       const doses = [newDose, ...get().doses];
@@ -471,11 +469,9 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
   getArchivedMedications: async () => {
     set({ loading: true, error: null });
     try {
-      logger.log('[Store] Loading archived medications');
       const archivedMedications = await medicationRepository.getArchived();
       
       set({ archivedMedications, loading: false });
-      logger.log('[Store] Loaded archived medications:', archivedMedications.length);
     } catch (error) {
       await errorLogger.log('database', 'Failed to load archived medications', error as Error, {
         operation: 'getArchivedMedications'
@@ -496,8 +492,6 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
    * @returns Medication object or null if not found
    */
   getMedicationById: (id: string) => {
-    logger.log('[Store] Getting medication by ID:', id);
-    
     // Check active medications first
     const medication = get().medications.find(m => m.id === id);
     if (medication) {
@@ -514,7 +508,6 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
     // but not yet loaded into state. This is a synchronous method, so we can't
     // load it here. Callers should use loadMedicationWithDetails for a complete
     // async approach that will load from repository if needed.
-    logger.log('[Store] Medication not found in state:', id);
     return null;
   },
 
@@ -526,13 +519,7 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
    * @returns Dose object or null if not found in state
    */
   getDoseById: (id: string) => {
-    logger.log('[Store] Getting dose by ID:', id);
     const dose = get().doses.find(d => d.id === id);
-    
-    if (!dose) {
-      logger.log('[Store] Dose not found in state:', id);
-    }
-    
     return dose || null;
   },
 
@@ -547,11 +534,9 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
   getDosesByMedicationId: async (medicationId: string, limit = 50) => {
     set({ loading: true, error: null });
     try {
-      logger.log('[Store] Loading doses for medication:', medicationId);
       const doses = await medicationDoseRepository.getByMedicationId(medicationId, limit);
       
       set({ loading: false });
-      logger.log('[Store] Loaded doses for medication:', medicationId, doses.length);
       return doses;
     } catch (error) {
       await errorLogger.log('database', 'Failed to load doses for medication', error as Error, {
@@ -575,8 +560,6 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
   loadMedicationWithDetails: async (medicationId: string) => {
     set({ loading: true, error: null });
     try {
-      logger.log('[Store] Loading medication with details:', medicationId);
-      
       // Load medication, schedules, and recent doses in parallel
       const [medication, schedules, doses] = await Promise.all([
         medicationRepository.getById(medicationId),
@@ -585,16 +568,9 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       ]);
 
       if (!medication) {
-        logger.log('[Store] Medication not found:', medicationId);
         set({ loading: false });
         return null;
       }
-
-      logger.log('[Store] Loaded medication with details:', {
-        medicationId,
-        schedulesCount: schedules.length,
-        dosesCount: doses.length
-      });
 
       set({ loading: false });
       return { medication, schedules, doses };
@@ -710,10 +686,7 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
    * @returns Array of schedules for the medication
    */
   getSchedulesByMedicationId: (medicationId: string) => {
-    logger.log('[Store] Getting schedules for medication:', medicationId);
     const schedules = get().schedules.filter(s => s.medicationId === medicationId);
-    
-    logger.log('[Store] Found schedules for medication:', medicationId, schedules.length);
     return schedules;
   },
 
@@ -728,8 +701,6 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
   loadMedicationDosesWithDetails: async (episodeId: string) => {
     set({ loading: true, error: null });
     try {
-      logger.log('[Store] Loading medication doses with details for episode:', episodeId);
-      
       // Load medication doses for this episode
       const doses = await medicationDoseRepository.getByEpisodeId(episodeId);
       
@@ -740,11 +711,6 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
           return { ...dose, medication: medication || undefined };
         })
       );
-
-      logger.log('[Store] Loaded medication doses with details:', {
-        episodeId,
-        dosesCount: dosesWithDetails.length
-      });
 
       set({ loading: false });
       return dosesWithDetails;
