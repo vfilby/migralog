@@ -260,17 +260,15 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       // Dynamic import to avoid circular dependency
       const { notificationService } = await import('../services/notifications/notificationService');
 
-      // Cancel any scheduled notifications for this medication/schedule
-      // This prevents the notification from firing if medication is logged before the scheduled time
-      await notificationService.cancelScheduledMedicationReminder(dose.medicationId, dose.scheduleId);
-
       // Dismiss any presented notifications for this medication
       // This removes the notification from the notification tray when logging from the app
-      // Only dismiss if scheduleId exists to ensure only the correct notification is dismissed for medications with multiple schedules
+      // Note: We only dismiss presented notifications, not cancel scheduled ones.
+      // Scheduled notifications are automatically suppressed by handleIncomingNotification
+      // which checks if the medication was already logged.
       if (dose.scheduleId) {
         await notificationService.dismissMedicationNotification(dose.medicationId, dose.scheduleId);
+        logger.log('[Store] Dismissed presented notification for logged medication');
       }
-      logger.log('[Store] Cancelled/dismissed notifications for logged medication');
 
       // Add to doses in state
       const doses = [newDose, ...get().doses];
