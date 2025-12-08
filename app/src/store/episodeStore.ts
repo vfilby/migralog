@@ -512,7 +512,7 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
   loadEpisodeWithDetails: async (episodeId: string) => {
     set({ loading: true, error: null });
     try {
-      logger.log('[EpisodeStore] Loading episode with details:', episodeId);
+      logger.debug('[EpisodeStore] Loading episode with details:', episodeId);
 
       // Load all data in parallel for better performance
       const [episode, intensityReadings, symptomLogs, episodeNotes, painLocationLogs] = await Promise.all([
@@ -568,7 +568,7 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
         loading: false,
       });
 
-      logger.log('[EpisodeStore] Episode with details loaded:', {
+      logger.debug('[EpisodeStore] Episode with details loaded:', {
         episodeId,
         intensityReadingsCount: intensityReadings.length,
         symptomLogsCount: symptomLogs.length,
