@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ##### 🎯 User-Facing Changes
 
+- Refactor screens and components to enforce store architecture (#275) [`#276`](https://github.com/vfilby/migralog/pull/276)
 - Implement issues #269, #271, and #272: notification refactoring, architecture documentation, and centralized error handling [`#274`](https://github.com/vfilby/migralog/pull/274)
 - Add enhanced logging system with on-device log viewer [`#273`](https://github.com/vfilby/migralog/pull/273)
 - Fix daily check-in notification showing after episode ends [`#270`](https://github.com/vfilby/migralog/pull/270)
@@ -133,6 +134,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - Fix: Medication status sync between Dashboard and Medications screen (Issue #7) [`#9`](https://github.com/vfilby/migralog/pull/9)
 - ✨ **Feature:** Improve symptom timeline UI and move episode metadata [`#6`](https://github.com/vfilby/migralog/pull/6)
 - 🐛 **Fix:** Medication tracking UI persistence bug [`#1`](https://github.com/vfilby/migralog/pull/1)
+- Refactor screens and components to enforce store architecture (#275) (#276) [`#275`](https://github.com/vfilby/MigraineTracker/issues/275)
 - 🐛 **Fix:** Implement Phase 3 code review feedback for notification error handling (#265) [`#264`](https://github.com/vfilby/MigraineTracker/issues/264)
 - ✨ **Feature:** add centralized database retry mechanism for transient SQLite errors (#249) [`#56`](https://github.com/vfilby/MigraineTracker/issues/56)
 - improve backup restore UX with automatic app restart (#246) [`#245`](https://github.com/vfilby/MigraineTracker/issues/245)
