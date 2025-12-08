@@ -48,9 +48,10 @@ export default function LogViewerScreen({ navigation }: Props) {
   useEffect(() => {
     let filtered = logs;
 
-    // Filter by level
+    // Filter by level - show selected level and all higher severity levels
+    // Log level hierarchy: DEBUG (0) < INFO (1) < WARN (2) < ERROR (3)
     if (selectedLevel !== 'ALL') {
-      filtered = filtered.filter(log => log.level === selectedLevel);
+      filtered = filtered.filter(log => log.level >= selectedLevel);
     }
 
     // Filter by search text
@@ -306,10 +307,11 @@ export default function LogViewerScreen({ navigation }: Props) {
         {LOG_LEVEL_FILTERS.map(level => {
           const isSelected = level === selectedLevel;
           const levelName = level === 'ALL' ? 'ALL' : LogLevel[level];
+          // Count logs at this level and all higher severity levels
           const count =
             level === 'ALL'
               ? logs.length
-              : logs.filter(log => log.level === level).length;
+              : logs.filter(log => log.level >= level).length;
 
           return (
             <TouchableOpacity

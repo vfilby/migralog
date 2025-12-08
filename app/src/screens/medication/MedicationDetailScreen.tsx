@@ -529,7 +529,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
                   {doses.length} dose{doses.length !== 1 ? 's' : ''} logged
                 </Text>
               </View>
-              {doses.slice(0, 10).map((dose, index) => (
+              {doses.slice(0, 5).map((dose, index) => (
                 <View key={dose.id}>
                   <TouchableOpacity
                     style={styles.logItem}
@@ -556,24 +556,22 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
                       )}
                     </View>
                   </TouchableOpacity>
-                  {index < doses.slice(0, 10).length - 1 && (
+                  {index < doses.slice(0, 5).length - 1 && (
                     <View style={[styles.separator, { backgroundColor: theme.border }]} />
                   )}
                 </View>
               ))}
-              {doses.length > 10 && (
-                <TouchableOpacity
-                  style={styles.viewAllButton}
-                  onPress={() => navigation.navigate('MedicationLog', { medicationId })}
-                  accessibilityRole="button"
-                  accessibilityLabel={`View all ${doses.length} doses`}
-                  accessibilityHint="Opens the full medication log screen"
-                >
-                  <Text style={[styles.viewAllText, { color: theme.primary }]}>
-                    View All ({doses.length})
-                  </Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                style={styles.viewAllButton}
+                onPress={() => navigation.navigate('MedicationLog', { medicationId })}
+                accessibilityRole="button"
+                accessibilityLabel={`View all ${doses.length} doses`}
+                accessibilityHint="Opens the full medication log screen"
+              >
+                <Text style={[styles.viewAllText, { color: theme.primary }]}>
+                  View All ({doses.length})
+                </Text>
+              </TouchableOpacity>
             </>
           )}
         </View>

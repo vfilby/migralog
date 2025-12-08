@@ -247,7 +247,7 @@ describe('LogViewerScreen', () => {
       });
     });
 
-    it('should filter to DEBUG logs when DEBUG filter is selected', async () => {
+    it('should filter to DEBUG and higher severity logs when DEBUG filter is selected', async () => {
       (logger.getLogs as jest.Mock).mockReturnValue(mockLogs);
 
       renderWithProviders(
@@ -262,15 +262,64 @@ describe('LogViewerScreen', () => {
       const debugFilterTab = screen.getByLabelText('Filter by DEBUG');
       fireEvent.press(debugFilterTab);
 
+      // DEBUG filter should show all levels (DEBUG, INFO, WARN, ERROR)
       await waitFor(() => {
         expect(screen.getByText('Debug message')).toBeTruthy();
-        expect(screen.queryByText('Info message')).toBeNull();
-        expect(screen.queryByText('Warning message')).toBeNull();
-        expect(screen.queryByText('Error message')).toBeNull();
+        expect(screen.getByText('Info message')).toBeTruthy();
+        expect(screen.getByText('Warning message')).toBeTruthy();
+        expect(screen.getByText('Error message')).toBeTruthy();
       });
     });
 
-    it('should filter to ERROR logs when ERROR filter is selected', async () => {
+    it('should filter to INFO and higher severity logs when INFO filter is selected', async () => {
+      (logger.getLogs as jest.Mock).mockReturnValue(mockLogs);
+
+      renderWithProviders(
+        <LogViewerScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Info message')).toBeTruthy();
+      });
+
+      // Click INFO filter tab using accessibility label
+      const infoFilterTab = screen.getByLabelText('Filter by INFO');
+      fireEvent.press(infoFilterTab);
+
+      // INFO filter should show INFO, WARN, ERROR (not DEBUG)
+      await waitFor(() => {
+        expect(screen.queryByText('Debug message')).toBeNull();
+        expect(screen.getByText('Info message')).toBeTruthy();
+        expect(screen.getByText('Warning message')).toBeTruthy();
+        expect(screen.getByText('Error message')).toBeTruthy();
+      });
+    });
+
+    it('should filter to WARN and higher severity logs when WARN filter is selected', async () => {
+      (logger.getLogs as jest.Mock).mockReturnValue(mockLogs);
+
+      renderWithProviders(
+        <LogViewerScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Warning message')).toBeTruthy();
+      });
+
+      // Click WARN filter tab using accessibility label
+      const warnFilterTab = screen.getByLabelText('Filter by WARN');
+      fireEvent.press(warnFilterTab);
+
+      // WARN filter should show WARN, ERROR (not DEBUG or INFO)
+      await waitFor(() => {
+        expect(screen.queryByText('Debug message')).toBeNull();
+        expect(screen.queryByText('Info message')).toBeNull();
+        expect(screen.getByText('Warning message')).toBeTruthy();
+        expect(screen.getByText('Error message')).toBeTruthy();
+      });
+    });
+
+    it('should filter to ERROR logs only when ERROR filter is selected', async () => {
       (logger.getLogs as jest.Mock).mockReturnValue(mockLogs);
 
       renderWithProviders(
@@ -285,6 +334,7 @@ describe('LogViewerScreen', () => {
       const errorFilterTab = screen.getByLabelText('Filter by ERROR');
       fireEvent.press(errorFilterTab);
 
+      // ERROR filter should show only ERROR (highest severity)
       await waitFor(() => {
         expect(screen.queryByText('Debug message')).toBeNull();
         expect(screen.queryByText('Info message')).toBeNull();
@@ -305,6 +355,7 @@ describe('LogViewerScreen', () => {
       });
 
       // Click ERROR filter tab using accessibility label
+      // ERROR filter shows only ERROR level (highest severity)
       const errorFilterTab = screen.getByLabelText('Filter by ERROR');
       fireEvent.press(errorFilterTab);
 
@@ -318,8 +369,8 @@ describe('LogViewerScreen', () => {
         {
           id: '1',
           timestamp: new Date('2025-01-01T12:00:00Z'),
-          level: LogLevel.INFO,
-          message: 'Info message',
+          level: LogLevel.DEBUG,
+          message: 'Debug message',
         },
       ]);
 
@@ -328,10 +379,11 @@ describe('LogViewerScreen', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Info message')).toBeTruthy();
+        expect(screen.getByText('Debug message')).toBeTruthy();
       });
 
       // Click ERROR filter tab using accessibility label
+      // ERROR filter should show no results since we only have DEBUG logs
       const errorFilterTab = screen.getByLabelText('Filter by ERROR');
       fireEvent.press(errorFilterTab);
 
@@ -515,12 +567,15 @@ describe('LogViewerScreen', () => {
       fireEvent.changeText(searchInput, 'user');
 
       // Apply INFO filter using accessibility label
+      // INFO filter shows INFO and higher severity (INFO, WARN, ERROR)
       const infoFilterTab = screen.getByLabelText('Filter by INFO');
       fireEvent.press(infoFilterTab);
 
       await waitFor(() => {
+        // Both "User logged in" and "User logged out" are INFO level
         expect(screen.getByText('User logged in')).toBeTruthy();
         expect(screen.getByText('User logged out')).toBeTruthy();
+        // "Database connection failed" is ERROR level but doesn't match "user" search
         expect(screen.queryByText('Database connection failed')).toBeNull();
       });
     });
