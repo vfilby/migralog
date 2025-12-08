@@ -1,10 +1,15 @@
 import * as Notifications from 'expo-notifications';
 import { logger } from '../../utils/logger';
 import { useDailyCheckinSettingsStore } from '../../store/dailyCheckinSettingsStore';
-import { useDailyStatusStore } from '../../store/dailyStatusStore';
-import { useEpisodeStore } from '../../store/episodeStore';
 import { format } from 'date-fns';
 import { areNotificationsGloballyEnabled } from './notificationUtils';
+import { Episode } from '../../models/types';
+
+// Lazy imports to avoid require cycles
+const getDailyStatusStore = () =>
+  require('../../store/dailyStatusStore').useDailyStatusStore;
+const getEpisodeStore = () =>
+  require('../../store/episodeStore').useEpisodeStore;
 
 // Notification category for daily check-in
 const DAILY_CHECKIN_CATEGORY = 'DAILY_CHECKIN';
@@ -29,8 +34,8 @@ export async function handleDailyCheckinNotification(
   try {
     // Check if we should show the notification
     const today = format(new Date(), 'yyyy-MM-dd');
-    const dailyStatusStore = useDailyStatusStore.getState();
-    const episodeStore = useEpisodeStore.getState();
+    const dailyStatusStore = getDailyStatusStore().getState();
+    const episodeStore = getEpisodeStore().getState();
 
     logger.log('[DailyCheckin] Evaluating notification for date:', today);
 
@@ -59,7 +64,7 @@ export async function handleDailyCheckinNotification(
       logger.log('[DailyCheckin] Episode exists for today, suppressing notification (red day)', {
         date: today,
         episodeCount: episodesToday.length,
-        episodes: episodesToday.map(ep => ({
+        episodes: episodesToday.map((ep: Episode) => ({
           id: ep.id,
           startTime: new Date(ep.startTime).toISOString(),
           endTime: ep.endTime ? new Date(ep.endTime).toISOString() : 'ongoing',
@@ -252,7 +257,7 @@ class DailyCheckinService {
    */
   private async handleClearDay(date: string): Promise<void> {
     try {
-      const dailyStatusStore = useDailyStatusStore.getState();
+      const dailyStatusStore = getDailyStatusStore().getState();
 
       await dailyStatusStore.logDayStatus(date, 'green', undefined, undefined, true);
 

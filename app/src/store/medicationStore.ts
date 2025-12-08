@@ -4,7 +4,8 @@ import { Medication, MedicationDose, MedicationSchedule } from '../models/types'
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../database/medicationRepository';
 import { episodeRepository } from '../database/episodeRepository';
 import { errorLogger } from '../services/errorLogger';
-import { notificationService } from '../services/notifications/notificationService';
+// Lazy import to avoid circular dependency with notificationService
+// import { notificationService } from '../services/notifications/notificationService';
 import { toastService } from '../services/toastService';
 import { cacheManager } from '../utils/cacheManager';
 
@@ -214,6 +215,8 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       // CONSISTENCY FIX: Reschedule all notifications to update grouped notifications
       // This ensures that grouped notifications no longer include the deleted medication
       // Matches the behavior of archiveMedication for consistency
+      // Dynamic import to avoid circular dependency
+      const { notificationService } = await import('../services/notifications/notificationService');
       await notificationService.rescheduleAllMedicationNotifications();
       logger.log('[Store] Rescheduled all notifications after deleting medication:', id);
 
@@ -252,6 +255,9 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       };
 
       const newDose = await medicationDoseRepository.create(doseWithStatus);
+
+      // Dynamic import to avoid circular dependency
+      const { notificationService } = await import('../services/notifications/notificationService');
 
       // Cancel any scheduled notifications for this medication/schedule
       // This prevents the notification from firing if medication is logged before the scheduled time
@@ -384,6 +390,9 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
     try {
       await medicationRepository.update(id, { active: false });
 
+      // Dynamic import to avoid circular dependency
+      const { notificationService } = await import('../services/notifications/notificationService');
+
       // Reschedule all notifications to update grouped notifications
       // This ensures that grouped notifications no longer include the archived medication
       await notificationService.rescheduleAllMedicationNotifications();
@@ -416,6 +425,9 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       const medication = await medicationRepository.getById(id);
       if (medication && medication.type === 'preventative') {
         const schedules = await medicationScheduleRepository.getByMedicationId(id);
+        
+        // Dynamic import to avoid circular dependency
+        const { notificationService } = await import('../services/notifications/notificationService');
         const permissions = await notificationService.getPermissions();
 
         if (permissions.granted) {
