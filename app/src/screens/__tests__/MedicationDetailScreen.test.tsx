@@ -5,30 +5,11 @@ import MedicationDetailScreen from '../medication/MedicationDetailScreen';
 import { renderWithProviders } from '../../utils/screenTestHelpers';
 import { useMedicationStore } from '../../store/medicationStore';
 import { useEpisodeStore } from '../../store/episodeStore';
-import { medicationRepository, medicationScheduleRepository, medicationDoseRepository } from '../../database/medicationRepository';
-import { toastService } from '../../services/toastService';
 import { logger } from '../../utils/logger';
 
 jest.mock('../../store/medicationStore');
 jest.mock('../../store/episodeStore');
-jest.mock('../../services/toastService');
 jest.mock('../../utils/logger');
-jest.mock('../../database/medicationRepository', () => ({
-  medicationRepository: {
-    getById: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
-  },
-  medicationScheduleRepository: {
-    getByMedicationId: jest.fn().mockResolvedValue([]),
-  },
-  medicationDoseRepository: {
-    getByMedicationId: jest.fn().mockResolvedValue([]),
-    create: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
-  },
-}));
 jest.mock('../../utils/textScaling', () => ({
   isLargeTextModeEnabled: jest.fn(() => false),
   getFontScale: jest.fn(() => 1.0),
@@ -86,44 +67,48 @@ describe('MedicationDetailScreen', () => {
   const mockLogDose = jest.fn();
   const mockDeleteDose = jest.fn();
   const mockArchiveMedication = jest.fn();
+  const mockUpdateDose = jest.fn();
+  const mockLoadMedicationWithDetails = jest.fn();
+
+  const defaultMedication = {
+    id: 'med-123',
+    name: 'Test Medication',
+    type: 'preventative' as const,
+    dosageAmount: 100,
+    dosageUnit: 'mg' as const,
+    defaultQuantity: 1,
+    active: true,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
     Platform.OS = 'ios'; // Default to iOS for most tests
 
+    // Set up default store mock
+    mockLoadMedicationWithDetails.mockResolvedValue({
+      medication: defaultMedication,
+      schedules: [],
+      doses: [],
+    });
+
+    mockLogDose.mockResolvedValue({ id: 'dose-123' });
+    mockDeleteDose.mockResolvedValue(undefined);
+    mockArchiveMedication.mockResolvedValue(undefined);
+    mockUpdateDose.mockResolvedValue(undefined);
+
     (useMedicationStore as unknown as jest.Mock).mockReturnValue({
       logDose: mockLogDose,
       deleteDose: mockDeleteDose,
       archiveMedication: mockArchiveMedication,
+      updateDose: mockUpdateDose,
+      loadMedicationWithDetails: mockLoadMedicationWithDetails,
     });
 
     (useEpisodeStore as unknown as jest.Mock).mockReturnValue({
       currentEpisode: null,
     });
-
-    // Ensure all repository mocks are reset and properly configured
-    (medicationRepository.getById as jest.Mock).mockReset();
-    (medicationScheduleRepository.getByMedicationId as jest.Mock).mockReset();
-    (medicationDoseRepository.getByMedicationId as jest.Mock).mockReset();
-
-    (medicationRepository.getById as jest.Mock).mockResolvedValue({
-      id: 'med-123',
-      name: 'Test Medication',
-      type: 'preventative',
-      dosageAmount: 100,
-      dosageUnit: 'mg',
-      defaultQuantity: 1,
-      active: true,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
-
-    (medicationScheduleRepository.getByMedicationId as jest.Mock).mockResolvedValue([]);
-    (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([]);
-
-    mockLogDose.mockResolvedValue({ id: 'dose-123' });
-    mockDeleteDose.mockResolvedValue(undefined);
-    mockArchiveMedication.mockResolvedValue(undefined);
   });
 
 
@@ -186,7 +171,7 @@ describe('MedicationDetailScreen', () => {
     });
   });
 
-  it('should load schedules for preventative medications', async () => {
+  it('should load medication details including schedules and doses', async () => {
     const mockRoute = {
       params: { medicationId: 'med-123' },
     };
@@ -196,35 +181,25 @@ describe('MedicationDetailScreen', () => {
     );
 
     await waitFor(() => {
-      expect(medicationScheduleRepository.getByMedicationId).toHaveBeenCalledWith('med-123');
-    });
-  });
-
-  it('should load dose history', async () => {
-    const mockRoute = {
-      params: { medicationId: 'med-123' },
-    };
-
-    renderWithProviders(
-      <MedicationDetailScreen navigation={mockNavigation as any} route={mockRoute as any} />
-    );
-
-    await waitFor(() => {
-      expect(medicationDoseRepository.getByMedicationId).toHaveBeenCalledWith('med-123');
+      expect(mockLoadMedicationWithDetails).toHaveBeenCalledWith('med-123');
     });
   });
 
   it('should display rescue medication type badge', async () => {
-    (medicationRepository.getById as jest.Mock).mockResolvedValue({
-      id: 'med-456',
-      name: 'Rescue Med',
-      type: 'rescue',
-      dosageAmount: 200,
-      dosageUnit: 'mg',
-      defaultQuantity: 2,
-      active: true,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+    mockLoadMedicationWithDetails.mockResolvedValue({
+      medication: {
+        id: 'med-456',
+        name: 'Rescue Med',
+        type: 'rescue',
+        dosageAmount: 200,
+        dosageUnit: 'mg',
+        defaultQuantity: 2,
+        active: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      },
+      schedules: [],
+      doses: [],
     });
 
     const mockRoute = {
@@ -242,19 +217,23 @@ describe('MedicationDetailScreen', () => {
 
   it('should display "Skipped" for skipped doses in history', async () => {
     const now = Date.now();
-    (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([
-      {
-        id: 'dose-1',
-        medicationId: 'med-123',
-        timestamp: now - 3600000,
-        quantity: 0,
-        dosageAmount: 100,
-        dosageUnit: 'mg',
-        status: 'skipped',
-        createdAt: now,
-        updatedAt: now,
-      },
-    ]);
+    mockLoadMedicationWithDetails.mockResolvedValue({
+      medication: defaultMedication,
+      schedules: [],
+      doses: [
+        {
+          id: 'dose-1',
+          medicationId: 'med-123',
+          timestamp: now - 3600000,
+          quantity: 0,
+          dosageAmount: 100,
+          dosageUnit: 'mg',
+          status: 'skipped',
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+    });
 
     const mockRoute = {
       params: { medicationId: 'med-123' },
@@ -271,19 +250,23 @@ describe('MedicationDetailScreen', () => {
 
   it('should display formatted dose for taken doses in history', async () => {
     const now = Date.now();
-    (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([
-      {
-        id: 'dose-1',
-        medicationId: 'med-123',
-        timestamp: now - 3600000,
-        quantity: 2,
-        dosageAmount: 100,
-        dosageUnit: 'mg',
-        status: 'taken',
-        createdAt: now,
-        updatedAt: now,
-      },
-    ]);
+    mockLoadMedicationWithDetails.mockResolvedValue({
+      medication: defaultMedication,
+      schedules: [],
+      doses: [
+        {
+          id: 'dose-1',
+          medicationId: 'med-123',
+          timestamp: now - 3600000,
+          quantity: 2,
+          dosageAmount: 100,
+          dosageUnit: 'mg',
+          status: 'taken',
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+    });
 
     const mockRoute = {
       params: { medicationId: 'med-123' },
@@ -300,32 +283,26 @@ describe('MedicationDetailScreen', () => {
 
   it('should show red indicator for days with only skipped doses in 7-day timeline', async () => {
     const now = Date.now();
-    (medicationRepository.getById as jest.Mock).mockResolvedValue({
-      id: 'med-123',
-      name: 'Test Medication',
-      type: 'preventative',
-      dosageAmount: 100,
-      dosageUnit: 'mg',
-      defaultQuantity: 1,
-      scheduleFrequency: 'daily',
-      active: true,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
-
-    (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([
-      {
-        id: 'dose-1',
-        medicationId: 'med-123',
-        timestamp: now - 86400000, // Yesterday
-        quantity: 0,
-        dosageAmount: 100,
-        dosageUnit: 'mg',
-        status: 'skipped',
-        createdAt: now,
-        updatedAt: now,
+    mockLoadMedicationWithDetails.mockResolvedValue({
+      medication: {
+        ...defaultMedication,
+        scheduleFrequency: 'daily',
       },
-    ]);
+      schedules: [],
+      doses: [
+        {
+          id: 'dose-1',
+          medicationId: 'med-123',
+          timestamp: now - 86400000, // Yesterday
+          quantity: 0,
+          dosageAmount: 100,
+          dosageUnit: 'mg',
+          status: 'skipped',
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+    });
 
     const mockRoute = {
       params: { medicationId: 'med-123' },
@@ -345,7 +322,7 @@ describe('MedicationDetailScreen', () => {
       const Alert = require('react-native').Alert;
       jest.spyOn(Alert, 'alert');
       
-      (medicationRepository.getById as jest.Mock).mockResolvedValue(null);
+      mockLoadMedicationWithDetails.mockResolvedValue(null);
 
       const mockRoute = {
         params: { medicationId: 'non-existent' },
@@ -365,7 +342,7 @@ describe('MedicationDetailScreen', () => {
       const Alert = require('react-native').Alert;
       jest.spyOn(Alert, 'alert');
       
-      (medicationRepository.getById as jest.Mock).mockRejectedValue(new Error('Load failed'));
+      mockLoadMedicationWithDetails.mockRejectedValue(new Error('Load failed'));
 
       const mockRoute = {
         params: { medicationId: 'med-123' },
@@ -402,16 +379,20 @@ describe('MedicationDetailScreen', () => {
 
   describe('Other Type Badge', () => {
     it('should display other medication type badge', async () => {
-      (medicationRepository.getById as jest.Mock).mockResolvedValue({
-        id: 'med-789',
-        name: 'Other Med',
-        type: 'other',
-        dosageAmount: 50,
-        dosageUnit: 'ml',
-        defaultQuantity: 1,
-        active: true,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
+      mockLoadMedicationWithDetails.mockResolvedValue({
+        medication: {
+          id: 'med-789',
+          name: 'Other Med',
+          type: 'other',
+          dosageAmount: 50,
+          dosageUnit: 'ml',
+          defaultQuantity: 1,
+          active: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+        schedules: [],
+        doses: [],
       });
 
       const mockRoute = {
@@ -430,17 +411,13 @@ describe('MedicationDetailScreen', () => {
 
   describe('Photo Display', () => {
     it('should display medication photo when available', async () => {
-      (medicationRepository.getById as jest.Mock).mockResolvedValue({
-        id: 'med-123',
-        name: 'Test Medication',
-        type: 'preventative',
-        dosageAmount: 100,
-        dosageUnit: 'mg',
-        defaultQuantity: 1,
-        active: true,
-        photoUri: 'file://photo.jpg',
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
+      mockLoadMedicationWithDetails.mockResolvedValue({
+        medication: {
+          ...defaultMedication,
+          photoUri: 'file://photo.jpg',
+        },
+        schedules: [],
+        doses: [],
       });
 
       const mockRoute = {
@@ -459,17 +436,13 @@ describe('MedicationDetailScreen', () => {
 
   describe('Notes Display', () => {
     it('should display medication notes when available', async () => {
-      (medicationRepository.getById as jest.Mock).mockResolvedValue({
-        id: 'med-123',
-        name: 'Test Medication',
-        type: 'preventative',
-        dosageAmount: 100,
-        dosageUnit: 'mg',
-        defaultQuantity: 1,
-        active: true,
-        notes: 'Take with food',
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
+      mockLoadMedicationWithDetails.mockResolvedValue({
+        medication: {
+          ...defaultMedication,
+          notes: 'Take with food',
+        },
+        schedules: [],
+        doses: [],
       });
 
       const mockRoute = {
@@ -488,17 +461,13 @@ describe('MedicationDetailScreen', () => {
 
   describe('Category Display', () => {
     it('should display medication category when available', async () => {
-      (medicationRepository.getById as jest.Mock).mockResolvedValue({
-        id: 'med-123',
-        name: 'Test Medication',
-        type: 'preventative',
-        dosageAmount: 100,
-        dosageUnit: 'mg',
-        defaultQuantity: 1,
-        active: true,
-        category: 'triptan',
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
+      mockLoadMedicationWithDetails.mockResolvedValue({
+        medication: {
+          ...defaultMedication,
+          category: 'triptan',
+        },
+        schedules: [],
+        doses: [],
       });
 
       const mockRoute = {
@@ -517,17 +486,20 @@ describe('MedicationDetailScreen', () => {
 
   describe('Schedules Display', () => {
     it('should display schedules when available', async () => {
-      (medicationScheduleRepository.getByMedicationId as jest.Mock).mockResolvedValue([
-        {
-          id: 'schedule-1',
-          medicationId: 'med-123',
-          time: '08:00',
-          timezone: 'America/Los_Angeles',
-          dosage: 1,
-          enabled: true,
-          reminderEnabled: true,
-        },
-      ]);
+      mockLoadMedicationWithDetails.mockResolvedValue({
+        medication: defaultMedication,
+        schedules: [{
+            id: 'schedule-1',
+            medicationId: 'med-123',
+            time: '08:00',
+            timezone: 'America/Los_Angeles',
+            dosage: 1,
+            enabled: true,
+            reminderEnabled: true,
+          },
+        ],
+        doses: [],
+      });
 
       const mockRoute = {
         params: { medicationId: 'med-123' },
@@ -545,7 +517,11 @@ describe('MedicationDetailScreen', () => {
 
   describe('Empty Dose History', () => {
     it('loads medication even with no doses', async () => {
-      (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([]);
+      mockLoadMedicationWithDetails.mockResolvedValue({
+        medication: defaultMedication,
+        schedules: [],
+        doses: [],
+      });
 
       const mockRoute = {
         params: { medicationId: 'med-123' },
@@ -608,7 +584,7 @@ describe('MedicationDetailScreen', () => {
         focusCallback();
       });
 
-      expect(medicationRepository.getById).toHaveBeenCalledTimes(2); // Initial load + focus reload
+      expect(mockLoadMedicationWithDetails).toHaveBeenCalledTimes(2); // Initial load + focus reload
     });
   });
 
@@ -693,7 +669,7 @@ describe('MedicationDetailScreen', () => {
     });
 
     it('should not log dose when medication is null', async () => {
-      (medicationRepository.getById as jest.Mock).mockResolvedValue(null);
+      mockLoadMedicationWithDetails.mockResolvedValue(null);
 
       const mockRoute = {
         params: { medicationId: 'med-123' },
@@ -729,7 +705,11 @@ describe('MedicationDetailScreen', () => {
         updatedAt: Date.now(),
       };
 
-      (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([mockDose]);
+      mockLoadMedicationWithDetails.mockResolvedValue({
+        medication: defaultMedication,
+        schedules: [],
+        doses: [mockDose],
+      });
 
       const mockRoute = {
         params: { medicationId: 'med-123' },
@@ -770,7 +750,11 @@ describe('MedicationDetailScreen', () => {
         updatedAt: Date.now(),
       };
 
-      (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([mockDose]);
+      mockLoadMedicationWithDetails.mockResolvedValue({
+        medication: defaultMedication,
+        schedules: [],
+        doses: [mockDose],
+      });
       
       let actionSheetCallback: Function | undefined;
       (ActionSheetIOS.showActionSheetWithOptions as jest.Mock).mockImplementation((options, callback) => {
@@ -816,7 +800,11 @@ describe('MedicationDetailScreen', () => {
         updatedAt: Date.now(),
       };
 
-      (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([mockDose]);
+      mockLoadMedicationWithDetails.mockResolvedValue({
+        medication: defaultMedication,
+        schedules: [],
+        doses: [mockDose],
+      });
       
       let actionSheetCallback: Function | undefined;
       (ActionSheetIOS.showActionSheetWithOptions as jest.Mock).mockImplementation((options, callback) => {
@@ -863,7 +851,11 @@ describe('MedicationDetailScreen', () => {
         updatedAt: Date.now(),
       };
 
-      (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([mockDose]);
+      mockLoadMedicationWithDetails.mockResolvedValue({
+        medication: defaultMedication,
+        schedules: [],
+        doses: [mockDose],
+      });
       
       let actionSheetCallback: Function | undefined;
       (ActionSheetIOS.showActionSheetWithOptions as jest.Mock).mockImplementation((options, callback) => {
@@ -913,7 +905,11 @@ describe('MedicationDetailScreen', () => {
         updatedAt: Date.now(),
       };
 
-      (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([mockDose]);
+      mockLoadMedicationWithDetails.mockResolvedValue({
+        medication: defaultMedication,
+        schedules: [],
+        doses: [mockDose],
+      });
 
       const mockRoute = {
         params: { medicationId: 'med-123' },
@@ -954,7 +950,11 @@ describe('MedicationDetailScreen', () => {
         updatedAt: Date.now(),
       };
 
-      (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([mockDose]);
+      mockLoadMedicationWithDetails.mockResolvedValue({
+        medication: defaultMedication,
+        schedules: [],
+        doses: [mockDose],
+      });
       
       let editCallback: Function | undefined;
       (Alert.alert as jest.Mock).mockImplementation((title, message, buttons) => {
@@ -1002,7 +1002,11 @@ describe('MedicationDetailScreen', () => {
         updatedAt: Date.now(),
       };
 
-      (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([mockDose]);
+      mockLoadMedicationWithDetails.mockResolvedValue({
+        medication: defaultMedication,
+        schedules: [],
+        doses: [mockDose],
+      });
       
       let actionSheetCallback: Function | undefined;
       (ActionSheetIOS.showActionSheetWithOptions as jest.Mock).mockImplementation((options, callback) => {
@@ -1047,8 +1051,12 @@ describe('MedicationDetailScreen', () => {
         updatedAt: Date.now(),
       };
 
-      (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([mockDose]);
-      (medicationDoseRepository.update as jest.Mock).mockResolvedValue(undefined);
+      mockLoadMedicationWithDetails.mockResolvedValue({
+        medication: defaultMedication,
+        schedules: [],
+        doses: [mockDose],
+      });
+      mockUpdateDose.mockResolvedValue(undefined);
       
       let actionSheetCallback: Function | undefined;
       (ActionSheetIOS.showActionSheetWithOptions as jest.Mock).mockImplementation((options, callback) => {
@@ -1086,7 +1094,7 @@ describe('MedicationDetailScreen', () => {
       fireEvent.press(screen.getByText('Save'));
 
       await waitFor(() => {
-        expect(medicationDoseRepository.update).toHaveBeenCalledWith('dose-1', {
+        expect(mockUpdateDose).toHaveBeenCalledWith('dose-1', {
           quantity: 3,
           notes: undefined,
           timestamp: expect.any(Number),
@@ -1107,7 +1115,11 @@ describe('MedicationDetailScreen', () => {
         updatedAt: Date.now(),
       };
 
-      (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([mockDose]);
+      mockLoadMedicationWithDetails.mockResolvedValue({
+        medication: defaultMedication,
+        schedules: [],
+        doses: [mockDose],
+      });
       
       let actionSheetCallback: Function | undefined;
       (ActionSheetIOS.showActionSheetWithOptions as jest.Mock).mockImplementation((options, callback) => {
@@ -1157,9 +1169,13 @@ describe('MedicationDetailScreen', () => {
         updatedAt: Date.now(),
       };
 
-      (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([mockDose]);
-      (medicationDoseRepository.update as jest.Mock).mockRejectedValue(new Error('Update failed'));
-      jest.spyOn(toastService, 'error');
+      mockLoadMedicationWithDetails.mockResolvedValue({
+        medication: defaultMedication,
+        schedules: [],
+        doses: [mockDose],
+      });
+      mockUpdateDose.mockRejectedValue(new Error('Update failed'));
+      jest.spyOn(logger, 'error');
       
       let actionSheetCallback: Function | undefined;
       (ActionSheetIOS.showActionSheetWithOptions as jest.Mock).mockImplementation((options, callback) => {
@@ -1195,7 +1211,7 @@ describe('MedicationDetailScreen', () => {
       fireEvent.press(screen.getByText('Save'));
 
       await waitFor(() => {
-        expect(toastService.error).toHaveBeenCalledWith('Failed to update dose');
+        expect(logger.error).toHaveBeenCalled();
       });
     });
 
@@ -1212,7 +1228,11 @@ describe('MedicationDetailScreen', () => {
         updatedAt: Date.now(),
       };
 
-      (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([mockDose]);
+      mockLoadMedicationWithDetails.mockResolvedValue({
+        medication: defaultMedication,
+        schedules: [],
+        doses: [mockDose],
+      });
       
       let actionSheetCallback: Function | undefined;
       (ActionSheetIOS.showActionSheetWithOptions as jest.Mock).mockImplementation((options, callback) => {
@@ -1262,7 +1282,11 @@ describe('MedicationDetailScreen', () => {
         updatedAt: Date.now(),
       };
 
-      (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([mockDose]);
+      mockLoadMedicationWithDetails.mockResolvedValue({
+        medication: defaultMedication,
+        schedules: [],
+        doses: [mockDose],
+      });
       
       let actionSheetCallback: Function | undefined;
       (ActionSheetIOS.showActionSheetWithOptions as jest.Mock).mockImplementation((options, callback) => {
@@ -1322,7 +1346,11 @@ describe('MedicationDetailScreen', () => {
         updatedAt: Date.now(),
       };
 
-      (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([mockDose]);
+      mockLoadMedicationWithDetails.mockResolvedValue({
+        medication: defaultMedication,
+        schedules: [],
+        doses: [mockDose],
+      });
       
       let actionSheetCallback: Function | undefined;
       (ActionSheetIOS.showActionSheetWithOptions as jest.Mock).mockImplementation((options, callback) => {
@@ -1372,7 +1400,11 @@ describe('MedicationDetailScreen', () => {
         updatedAt: Date.now(),
       };
 
-      (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([mockDose]);
+      mockLoadMedicationWithDetails.mockResolvedValue({
+        medication: defaultMedication,
+        schedules: [],
+        doses: [mockDose],
+      });
       
       let deleteCallback: Function | undefined;
       (Alert.alert as jest.Mock).mockImplementation((title, message, buttons) => {
@@ -1432,7 +1464,11 @@ describe('MedicationDetailScreen', () => {
         updatedAt: Date.now(),
       };
 
-      (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([mockDose]);
+      mockLoadMedicationWithDetails.mockResolvedValue({
+        medication: defaultMedication,
+        schedules: [],
+        doses: [mockDose],
+      });
       mockDeleteDose.mockRejectedValue(new Error('Delete failed'));
       jest.spyOn(logger, 'error');
       
@@ -1518,7 +1554,6 @@ describe('MedicationDetailScreen', () => {
     it('should handle archive medication failure', async () => {
       mockArchiveMedication.mockRejectedValue(new Error('Archive failed'));
       jest.spyOn(logger, 'error');
-      jest.spyOn(toastService, 'error');
       
       let archiveCallback: Function | undefined;
       (Alert.alert as jest.Mock).mockImplementation((title, message, buttons) => {
@@ -1547,12 +1582,11 @@ describe('MedicationDetailScreen', () => {
 
       await waitFor(() => {
         expect(logger.error).toHaveBeenCalledWith('Failed to archive medication:', expect.any(Error));
-        expect(toastService.error).toHaveBeenCalledWith('Failed to archive medication');
       });
     });
 
     it('should not archive when medication is null', async () => {
-      (medicationRepository.getById as jest.Mock).mockResolvedValue(null);
+      mockLoadMedicationWithDetails.mockResolvedValue(null);
 
       const mockRoute = {
         params: { medicationId: 'med-123' },
@@ -1621,7 +1655,11 @@ describe('MedicationDetailScreen', () => {
         updatedAt: Date.now(),
       }));
 
-      (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue(doses);
+      mockLoadMedicationWithDetails.mockResolvedValue({
+        medication: defaultMedication,
+        schedules: [],
+        doses,
+      });
 
       const mockRoute = {
         params: { medicationId: 'med-123' },
@@ -1643,17 +1681,21 @@ describe('MedicationDetailScreen', () => {
 
   describe('Notification Settings', () => {
     it('should expand and collapse notification settings', async () => {
-      (medicationScheduleRepository.getByMedicationId as jest.Mock).mockResolvedValue([
-        {
-          id: 'schedule-1',
-          medicationId: 'med-123',
-          time: '08:00',
-          timezone: 'America/Los_Angeles',
-          dosage: 1,
-          enabled: true,
-          reminderEnabled: true,
-        },
-      ]);
+      mockLoadMedicationWithDetails.mockResolvedValue({
+        medication: defaultMedication,
+        schedules: [
+          {
+            id: 'schedule-1',
+            medicationId: 'med-123',
+            time: '08:00',
+            timezone: 'America/Los_Angeles',
+            dosage: 1,
+            enabled: true,
+            reminderEnabled: true,
+          },
+        ],
+        doses: [],
+      });
 
       const mockRoute = {
         params: { medicationId: 'med-123' },
@@ -1717,17 +1759,13 @@ describe('MedicationDetailScreen', () => {
 
   describe('Schedule Frequency Display', () => {
     it('should display schedule frequency when available', async () => {
-      (medicationRepository.getById as jest.Mock).mockResolvedValue({
-        id: 'med-123',
-        name: 'Test Medication',
-        type: 'preventative',
-        dosageAmount: 100,
-        dosageUnit: 'mg',
-        defaultQuantity: 1,
-        scheduleFrequency: 'twice-daily',
-        active: true,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
+      mockLoadMedicationWithDetails.mockResolvedValue({
+        medication: {
+          ...defaultMedication,
+          scheduleFrequency: 'twice-daily',
+        },
+        schedules: [],
+        doses: [],
       });
 
       const mockRoute = {

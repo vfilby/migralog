@@ -4,20 +4,8 @@ import { screen, waitFor, fireEvent } from '@testing-library/react-native';
 import EditMedicationScreen from '../medication/EditMedicationScreen';
 import { renderWithProviders } from '../../utils/screenTestHelpers';
 import { useMedicationStore } from '../../store/medicationStore';
-import { medicationRepository } from '../../database/medicationRepository';
 
 jest.mock('../../store/medicationStore');
-jest.mock('../../database/medicationRepository', () => ({
-  medicationRepository: {
-    getById: jest.fn(),
-  },
-  medicationScheduleRepository: {
-    getByMedicationId: jest.fn().mockResolvedValue([]),
-    create: jest.fn().mockResolvedValue({ id: 'schedule-123' }),
-    update: jest.fn().mockResolvedValue(undefined),
-    delete: jest.fn().mockResolvedValue(undefined),
-  },
-}));
 jest.mock('../../services/notifications/notificationService', () => ({
   notificationService: {
     scheduleNotification: jest.fn(),
@@ -50,15 +38,12 @@ const mockNavigation = {
 
 describe('EditMedicationScreen', () => {
   const mockUpdateMedication = jest.fn();
+  const mockLoadMedicationWithDetails = jest.fn();
+  const mockAddSchedule = jest.fn();
+  const mockDeleteSchedule = jest.fn();
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-
-    (useMedicationStore as unknown as jest.Mock).mockReturnValue({
-      updateMedication: mockUpdateMedication,
-    });
-
-    (medicationRepository.getById as jest.Mock).mockResolvedValue({
+  const mockMedicationData = {
+    medication: {
       id: 'med-123',
       name: 'Test Med',
       type: 'preventative',
@@ -68,9 +53,25 @@ describe('EditMedicationScreen', () => {
       active: true,
       createdAt: Date.now(),
       updatedAt: Date.now(),
+    },
+    schedules: [],
+    doses: [],
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    (useMedicationStore as unknown as jest.Mock).mockReturnValue({
+      updateMedication: mockUpdateMedication,
+      loadMedicationWithDetails: mockLoadMedicationWithDetails,
+      addSchedule: mockAddSchedule,
+      deleteSchedule: mockDeleteSchedule,
     });
 
+    mockLoadMedicationWithDetails.mockResolvedValue(mockMedicationData);
     mockUpdateMedication.mockResolvedValue(undefined);
+    mockAddSchedule.mockResolvedValue({ id: 'schedule-123' });
+    mockDeleteSchedule.mockResolvedValue(undefined);
   });
 
   it('should render edit medication screen with title', async () => {
@@ -111,7 +112,7 @@ describe('EditMedicationScreen', () => {
     );
 
     await waitFor(() => {
-      expect(medicationRepository.getById).toHaveBeenCalledWith('med-123');
+      expect(mockLoadMedicationWithDetails).toHaveBeenCalledWith('med-123');
     });
   });
 
@@ -369,7 +370,7 @@ describe('EditMedicationScreen', () => {
   describe('Error Handling', () => {
     it('should show error and go back when medication fails to load', async () => {
       const mockAlert = jest.spyOn(require('react-native').Alert, 'alert');
-      (medicationRepository.getById as jest.Mock).mockRejectedValueOnce(new Error('Load failed'));
+      mockLoadMedicationWithDetails.mockRejectedValueOnce(new Error('Load failed'));
 
       const mockRoute = { params: { medicationId: 'med-123' } };
       renderWithProviders(
@@ -414,17 +415,21 @@ describe('EditMedicationScreen', () => {
     });
 
     it('should show change photo button when photo exists', async () => {
-      (medicationRepository.getById as jest.Mock).mockResolvedValue({
-        id: 'med-123',
-        name: 'Test Med',
-        type: 'preventative',
-        dosageAmount: 100,
-        dosageUnit: 'mg',
-        defaultQuantity: 1,
-        active: true,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        photoUri: 'file://photo.jpg',
+      mockLoadMedicationWithDetails.mockResolvedValue({
+        medication: {
+          id: 'med-123',
+          name: 'Test Med',
+          type: 'preventative',
+          dosageAmount: 100,
+          dosageUnit: 'mg',
+          defaultQuantity: 1,
+          active: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          photoUri: 'file://photo.jpg',
+        },
+        schedules: [],
+        doses: [],
       });
 
       const mockRoute = { params: { medicationId: 'med-123' } };
@@ -439,17 +444,21 @@ describe('EditMedicationScreen', () => {
 
     it('should show image options when pressing change photo button', async () => {
       const mockAlert = jest.spyOn(require('react-native').Alert, 'alert');
-      (medicationRepository.getById as jest.Mock).mockResolvedValue({
-        id: 'med-123',
-        name: 'Test Med',
-        type: 'preventative',
-        dosageAmount: 100,
-        dosageUnit: 'mg',
-        defaultQuantity: 1,
-        active: true,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        photoUri: 'file://photo.jpg',
+      mockLoadMedicationWithDetails.mockResolvedValue({
+        medication: {
+          id: 'med-123',
+          name: 'Test Med',
+          type: 'preventative',
+          dosageAmount: 100,
+          dosageUnit: 'mg',
+          defaultQuantity: 1,
+          active: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          photoUri: 'file://photo.jpg',
+        },
+        schedules: [],
+        doses: [],
       });
 
       const mockRoute = { params: { medicationId: 'med-123' } };

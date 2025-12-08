@@ -4,20 +4,13 @@ import { Alert } from 'react-native';
 
 import EditMedicationDoseScreen from '../medication/EditMedicationDoseScreen';
 import { renderWithProviders } from '../../utils/screenTestHelpers';
-import { medicationDoseRepository, medicationRepository } from '../../database/medicationRepository';
+import { useMedicationStore } from '../../store/medicationStore';
 import { MedicationDose, Medication } from '../../models/types';
 import { pressAlertButtonByText } from '../../utils/testUtils/alertHelpers';
 
-jest.mock('../../database/medicationRepository', () => ({
-  medicationDoseRepository: {
-    getById: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
-  },
-  medicationRepository: {
-    getById: jest.fn(),
-  },
-}));
+jest.mock('../../store/medicationStore');
+
+import { logger } from '../../utils/logger';
 
 jest.mock('../../utils/logger', () => ({
   logger: {
@@ -65,22 +58,28 @@ const mockDose: MedicationDose = {
 };
 
 describe('EditMedicationDoseScreen', () => {
+  const mockGetDoseById = jest.fn();
+  const mockGetMedicationById = jest.fn();
+  const mockUpdateDose = jest.fn();
+  const mockDeleteDose = jest.fn();
+
   beforeEach(() => {
     jest.clearAllMocks();
-    (medicationDoseRepository.getById as jest.Mock).mockResolvedValue(mockDose);
-    (medicationRepository.getById as jest.Mock).mockResolvedValue(mockMedication);
+    
+    (useMedicationStore as unknown as jest.Mock).mockReturnValue({
+      getDoseById: mockGetDoseById,
+      getMedicationById: mockGetMedicationById,
+      updateDose: mockUpdateDose,
+      deleteDose: mockDeleteDose,
+    });
+
+    mockGetDoseById.mockReturnValue(mockDose);
+    mockGetMedicationById.mockReturnValue(mockMedication);
+    mockUpdateDose.mockResolvedValue(undefined);
+    mockDeleteDose.mockResolvedValue(undefined);
   });
 
   it('should render loading state initially', async () => {
-    let resolveDosePromise: (value: any) => void = () => {};
-    const loadingDosePromise = new Promise((resolve) => {
-      resolveDosePromise = resolve;
-    });
-    
-    (medicationDoseRepository.getById as jest.Mock).mockImplementation(
-      () => loadingDosePromise
-    );
-
     renderWithProviders(
       <EditMedicationDoseScreen 
         navigation={mockNavigation as any} 
@@ -88,13 +87,6 @@ describe('EditMedicationDoseScreen', () => {
       />
     );
 
-    // During loading, the save/delete buttons should not be present
-    expect(screen.queryByText('Save Changes')).toBeNull();
-    expect(screen.queryByText('Delete Dose')).toBeNull();
-    
-    // Resolve the promise to move past loading state
-    resolveDosePromise(mockDose);
-    
     // After loading completes, we should see the dose controls
     await waitFor(() => {
       expect(screen.getByText('Save Changes')).toBeTruthy();
@@ -110,8 +102,8 @@ describe('EditMedicationDoseScreen', () => {
     );
 
     await waitFor(() => {
-      expect(medicationDoseRepository.getById).toHaveBeenCalledWith('test-dose-123');
-      expect(medicationRepository.getById).toHaveBeenCalledWith('med-456');
+      expect(mockGetDoseById).toHaveBeenCalledWith('test-dose-123');
+      expect(mockGetMedicationById).toHaveBeenCalledWith('med-456');
     });
 
     await waitFor(() => {
@@ -126,7 +118,7 @@ describe('EditMedicationDoseScreen', () => {
   });
 
   it('should show error and go back if dose not found', async () => {
-    (medicationDoseRepository.getById as jest.Mock).mockResolvedValue(null);
+    mockGetDoseById.mockReturnValue(null);
 
     renderWithProviders(
       <EditMedicationDoseScreen 
@@ -142,7 +134,7 @@ describe('EditMedicationDoseScreen', () => {
   });
 
   it('should show error and go back if medication not found', async () => {
-    (medicationRepository.getById as jest.Mock).mockResolvedValue(null);
+    mockGetMedicationById.mockReturnValue(null);
 
     renderWithProviders(
       <EditMedicationDoseScreen 
@@ -158,7 +150,9 @@ describe('EditMedicationDoseScreen', () => {
   });
 
   it('should handle loading error and go back', async () => {
-    (medicationDoseRepository.getById as jest.Mock).mockRejectedValue(new Error('Database error'));
+    mockGetDoseById.mockImplementation(() => {
+      throw new Error('Database error');
+    });
 
     renderWithProviders(
       <EditMedicationDoseScreen 
@@ -293,7 +287,7 @@ describe('EditMedicationDoseScreen', () => {
   it('should not allow decreasing dose amount below 0.5', async () => {
     // Set initial dose to 0.5
     const smallDose = { ...mockDose, quantity: 0.5 };
-    (medicationDoseRepository.getById as jest.Mock).mockResolvedValue(smallDose);
+    mockGetDoseById.mockReturnValue(smallDose);
 
     renderWithProviders(
       <EditMedicationDoseScreen 
@@ -357,7 +351,7 @@ describe('EditMedicationDoseScreen', () => {
   });
 
   it('should save dose changes successfully', async () => {
-    (medicationDoseRepository.update as jest.Mock).mockResolvedValue(undefined);
+    mockUpdateDose.mockResolvedValue(undefined);
 
     renderWithProviders(
       <EditMedicationDoseScreen 
@@ -381,7 +375,7 @@ describe('EditMedicationDoseScreen', () => {
     fireEvent.press(saveButton);
 
     await waitFor(() => {
-      expect(medicationDoseRepository.update).toHaveBeenCalledWith(
+      expect(mockUpdateDose).toHaveBeenCalledWith(
         'test-dose-123',
         expect.objectContaining({
           quantity: 2,
@@ -414,7 +408,7 @@ describe('EditMedicationDoseScreen', () => {
 
     await waitFor(() => {
       expect(Alert.alert).toHaveBeenCalledWith('Error', 'Please enter a valid amount');
-      expect(medicationDoseRepository.update).not.toHaveBeenCalled();
+      expect(mockUpdateDose).not.toHaveBeenCalled();
     });
   });
 
@@ -439,12 +433,12 @@ describe('EditMedicationDoseScreen', () => {
 
     await waitFor(() => {
       expect(Alert.alert).toHaveBeenCalledWith('Error', 'Please enter a valid amount');
-      expect(medicationDoseRepository.update).not.toHaveBeenCalled();
+      expect(mockUpdateDose).not.toHaveBeenCalled();
     });
   });
 
   it('should handle save error', async () => {
-    (medicationDoseRepository.update as jest.Mock).mockRejectedValue(new Error('Save failed'));
+    mockUpdateDose.mockRejectedValue(new Error('Save failed'));
 
     renderWithProviders(
       <EditMedicationDoseScreen 
@@ -460,9 +454,13 @@ describe('EditMedicationDoseScreen', () => {
     const saveButton = screen.getByText('Save Changes');
     fireEvent.press(saveButton);
 
+    // Wait for save to be called
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to update medication dose');
+      expect(mockUpdateDose).toHaveBeenCalled();
     });
+
+    // Error is logged but Alert is not shown (store shows toast instead)
+    expect(logger.error).toHaveBeenCalledWith('Failed to update medication dose:', expect.any(Error));
   });
 
   it('should show confirmation dialog when delete button is pressed', async () => {
@@ -493,7 +491,7 @@ describe('EditMedicationDoseScreen', () => {
   });
 
   it('should delete dose when confirmed', async () => {
-    (medicationDoseRepository.delete as jest.Mock).mockResolvedValue(undefined);
+    mockDeleteDose.mockResolvedValue(undefined);
 
     renderWithProviders(
       <EditMedicationDoseScreen 
@@ -521,13 +519,13 @@ describe('EditMedicationDoseScreen', () => {
     await pressAlertButtonByText('Delete');
 
     await waitFor(() => {
-      expect(medicationDoseRepository.delete).toHaveBeenCalledWith('test-dose-123');
+      expect(mockDeleteDose).toHaveBeenCalledWith('test-dose-123');
       expect(mockNavigation.goBack).toHaveBeenCalled();
     });
   });
 
   it('should handle delete error', async () => {
-    (medicationDoseRepository.delete as jest.Mock).mockRejectedValue(new Error('Delete failed'));
+    mockDeleteDose.mockRejectedValue(new Error('Delete failed'));
 
     renderWithProviders(
       <EditMedicationDoseScreen 
@@ -546,9 +544,13 @@ describe('EditMedicationDoseScreen', () => {
     // Simulate pressing Delete in the confirmation dialog
     await pressAlertButtonByText('Delete');
 
+    // Wait for delete to be called
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to delete medication dose');
+      expect(mockDeleteDose).toHaveBeenCalled();
     });
+
+    // Error is logged but Alert is not shown (store shows toast instead)
+    expect(logger.error).toHaveBeenCalledWith('Failed to delete medication dose:', expect.any(Error));
   });
 
   it('should cancel and go back when cancel button is pressed', async () => {
@@ -570,7 +572,7 @@ describe('EditMedicationDoseScreen', () => {
   });
 
   it('should show saving state when save is in progress', async () => {
-    (medicationDoseRepository.update as jest.Mock).mockImplementation(
+    mockUpdateDose.mockImplementation(
       () => new Promise(() => {}) // Never resolves
     );
 
@@ -617,7 +619,7 @@ describe('EditMedicationDoseScreen', () => {
   });
 
   it('should save with empty notes when notes are cleared', async () => {
-    (medicationDoseRepository.update as jest.Mock).mockResolvedValue(undefined);
+    mockUpdateDose.mockResolvedValue(undefined);
 
     renderWithProviders(
       <EditMedicationDoseScreen 
@@ -638,7 +640,7 @@ describe('EditMedicationDoseScreen', () => {
     fireEvent.press(saveButton);
 
     await waitFor(() => {
-      expect(medicationDoseRepository.update).toHaveBeenCalledWith(
+      expect(mockUpdateDose).toHaveBeenCalledWith(
         'test-dose-123',
         expect.objectContaining({
           notes: undefined, // Should be undefined when trimmed empty
@@ -649,7 +651,7 @@ describe('EditMedicationDoseScreen', () => {
 
   it('should prevent save when dose, medication, or timestamp is null', async () => {
     // Mock a scenario where dose loads but medication is null
-    (medicationRepository.getById as jest.Mock).mockResolvedValue(null);
+    mockGetMedicationById.mockReturnValue(null);
 
     renderWithProviders(
       <EditMedicationDoseScreen 

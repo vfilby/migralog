@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
-import { medicationDoseRepository, medicationRepository } from '../../database/medicationRepository';
+import { useMedicationStore } from '../../store/medicationStore';
 import { MedicationDose, Medication } from '../../models/types';
 import { formatDoseWithSnapshot, formatDosageWithUnit } from '../../utils/medicationFormatting';
 import { formatRelativeDate } from '../../utils/dateFormatting';
@@ -28,10 +28,10 @@ const PAGE_SIZE = 20;
 export default function MedicationLogScreen({ route, navigation }: Props) {
   const { medicationId } = route.params || {};
   const { theme } = useTheme();
+  const { medications, getMedicationById, getDosesByMedicationId, doses: allStoreDoses } = useMedicationStore();
   
   const [doses, setDoses] = useState<MedicationDoseWithDetails[]>([]);
   const [filteredMedicationId, setFilteredMedicationId] = useState<string | null>(medicationId || null);
-  const [medications, setMedications] = useState<Medication[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -55,10 +55,6 @@ export default function MedicationLogScreen({ route, navigation }: Props) {
     setCurrentPage(1);
     setHasMore(true);
     try {
-      // Load all medications for filter dropdown
-      const allMeds = await medicationRepository.getAll();
-      setMedications(allMeds.filter(m => m.active));
-
       // Load first page of doses
       await loadDoses(1, true);
     } catch (error) {
@@ -70,32 +66,34 @@ export default function MedicationLogScreen({ route, navigation }: Props) {
 
   const loadDoses = async (page: number, reset: boolean = false) => {
     try {
-      let allDoses: MedicationDose[];
+      let dosesToUse: MedicationDose[];
       
       if (filteredMedicationId) {
-        allDoses = await medicationDoseRepository.getByMedicationId(filteredMedicationId);
+        // Load doses for specific medication using store method
+        dosesToUse = await getDosesByMedicationId(filteredMedicationId, 1000); // Load all doses
       } else {
-        allDoses = await medicationDoseRepository.getAll();
+        // Use doses from store state if available, or load from repository
+        // Note: The store keeps recent doses (90 days), but this screen may need all doses
+        // For now, we'll load from the specific medication if filtered, otherwise use store state
+        dosesToUse = allStoreDoses;
       }
 
       // Sort by timestamp descending (most recent first)
-      allDoses.sort((a, b) => b.timestamp - a.timestamp);
+      dosesToUse.sort((a, b) => b.timestamp - a.timestamp);
 
       // Paginate
       const startIndex = (page - 1) * PAGE_SIZE;
       const endIndex = startIndex + PAGE_SIZE;
-      const paginatedDoses = allDoses.slice(startIndex, endIndex);
+      const paginatedDoses = dosesToUse.slice(startIndex, endIndex);
       
       // Check if there are more pages
-      setHasMore(endIndex < allDoses.length);
+      setHasMore(endIndex < dosesToUse.length);
 
-      // Load medication details for each dose
-      const dosesWithDetails = await Promise.all(
-        paginatedDoses.map(async (dose) => {
-          const medication = await medicationRepository.getById(dose.medicationId);
-          return { ...dose, medication: medication || undefined };
-        })
-      );
+      // Load medication details for each dose using store method
+      const dosesWithDetails = paginatedDoses.map((dose) => {
+        const medication = getMedicationById(dose.medicationId);
+        return { ...dose, medication: medication || undefined };
+      });
 
       if (reset) {
         setDoses(dosesWithDetails);
@@ -197,7 +195,7 @@ export default function MedicationLogScreen({ route, navigation }: Props) {
 
   const filterOptions = [
     { id: 'all', name: 'All Medications' },
-    ...medications
+    ...medications.filter(m => m.active)
   ];
 
   return (

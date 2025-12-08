@@ -13,7 +13,6 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { useMedicationStore } from '../../store/medicationStore';
-import { medicationRepository } from '../../database/medicationRepository';
 import { Medication } from '../../models/types';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme, ThemeColors } from '../../theme';
@@ -272,7 +271,7 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const { medicationId } = route.params; // episodeId available in route.params if needed
-  const { rescueMedications, loadMedications, logDose } = useMedicationStore();
+  const { rescueMedications, loadMedications, logDose, getMedicationById } = useMedicationStore();
   const [selectedMedId, setSelectedMedId] = useState<string | null>(medicationId || null);
   const [medication, setMedication] = useState<Medication | null>(null);
   const [timestamp, setTimestamp] = useState(new Date());
@@ -290,11 +289,12 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
     if (selectedMedId) {
       loadMedication(selectedMedId);
     }
-     
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMedId]);
 
-  const loadMedication = async (medId: string) => {
-    const med = await medicationRepository.getById(medId);
+  const loadMedication = (medId: string) => {
+    // Use store method to get medication from state
+    const med = getMedicationById(medId);
     if (med) {
       setMedication(med);
       setAmount(med.defaultQuantity?.toString() || '1');

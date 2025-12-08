@@ -15,10 +15,10 @@ import {
 import Slider from '@react-native-community/slider';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { intensityRepository, symptomLogRepository, episodeNoteRepository, episodeRepository, painLocationLogRepository } from '../database/episodeRepository';
 import { Symptom, PainLocation } from '../models/types';
 import { getPainLevel } from '../utils/painScale';
 import { useTheme, ThemeColors } from '../theme';
+import { useEpisodeStore } from '../store/episodeStore';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LogUpdate'>;
 
@@ -220,6 +220,19 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
   const styles = createStyles(theme);
   const scrollViewRef = useRef<ScrollView>(null);
   const shouldScrollOnKeyboard = useRef(false);
+  
+  // Use episode store for all data operations
+  const { 
+    loadEpisodeWithDetails,
+    addIntensityReading,
+    addSymptomLog,
+    addEpisodeNote,
+    addPainLocationLog,
+    intensityReadings,
+    symptomLogs,
+    painLocationLogs
+  } = useEpisodeStore();
+  
   const [currentIntensity, setCurrentIntensity] = useState(5);
   const [intensityChanged, setIntensityChanged] = useState(false);
   const [currentSymptoms, setCurrentSymptoms] = useState<Symptom[]>([]);
@@ -255,11 +268,11 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
 
   const loadLatestData = async () => {
     try {
-      // Get episode
-      const episode = await episodeRepository.getById(episodeId);
+      // Load episode with all details using store
+      const episodeWithDetails = await loadEpisodeWithDetails(episodeId);
 
       // Check if episode has ended
-      if (episode?.endTime) {
+      if (episodeWithDetails?.endTime) {
         Alert.alert(
           'Episode Ended',
           'This episode has already ended. You cannot add updates to a closed episode.',
@@ -268,43 +281,43 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
         return;
       }
 
-      // Get all intensity readings sorted by timestamp ascending
-      const intensityReadings = await intensityRepository.getByEpisodeId(episodeId);
-      if (intensityReadings.length > 0) {
+      // Get intensity readings for this episode from store state
+      const episodeIntensityReadings = intensityReadings.filter(r => r.episodeId === episodeId);
+      if (episodeIntensityReadings.length > 0) {
         // Get the latest intensity (last in chronological order)
-        const latestReading = intensityReadings[intensityReadings.length - 1];
+        const latestReading = episodeIntensityReadings[episodeIntensityReadings.length - 1];
         setCurrentIntensity(latestReading.intensity ?? 5);
       } else {
         // No intensity readings found - use default
         setCurrentIntensity(5);
       }
 
-      // Get latest symptoms
-      const symptomLogs = await symptomLogRepository.getByEpisodeId(episodeId);
+      // Get latest symptoms from store state
+      const episodeSymptomLogs = symptomLogs.filter(log => log.episodeId === episodeId);
       let symptomsToSet: Symptom[] = [];
-      if (symptomLogs.length > 0) {
+      if (episodeSymptomLogs.length > 0) {
         // Sort by onset time descending to get latest
-        const sorted = symptomLogs.sort((a, b) => b.onsetTime - a.onsetTime);
+        const sorted = episodeSymptomLogs.sort((a, b) => b.onsetTime - a.onsetTime);
         // Get unique symptoms from the most recent log entries
         const recentSymptoms = sorted.slice(0, 5).map(log => log.symptom);
         symptomsToSet = Array.from(new Set(recentSymptoms));
-      } else if (episode) {
+      } else if (episodeWithDetails) {
         // Use initial symptoms from episode
-        symptomsToSet = episode.symptoms;
+        symptomsToSet = episodeWithDetails.symptoms;
       }
       setCurrentSymptoms(symptomsToSet);
       setInitialSymptoms(symptomsToSet);
 
-      // Get latest pain locations (areas where pain is felt)
-      const painLocationLogs = await painLocationLogRepository.getByEpisodeId(episodeId);
+      // Get latest pain locations from store state
+      const episodePainLocationLogs = painLocationLogs.filter(log => log.episodeId === episodeId);
       let painLocationsToSet: PainLocation[] = [];
-      if (painLocationLogs.length > 0) {
+      if (episodePainLocationLogs.length > 0) {
         // Get the most recent pain location log
-        const latestLog = painLocationLogs[painLocationLogs.length - 1];
+        const latestLog = episodePainLocationLogs[episodePainLocationLogs.length - 1];
         painLocationsToSet = latestLog.painLocations;
-      } else if (episode) {
+      } else if (episodeWithDetails) {
         // Use initial pain locations from episode
-        painLocationsToSet = episode.locations; // TODO: This will be episode.painLocations after full migration
+        painLocationsToSet = episodeWithDetails.locations;
       }
       setCurrentPainLocations(painLocationsToSet);
       setInitialPainLocations(painLocationsToSet);
@@ -357,20 +370,16 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
     try {
       const timestamp = Date.now();
 
-      // Only log intensity if it was changed
+      // Only log intensity if it was changed - use store method
       if (intensityChanged) {
-        await intensityRepository.create({
-          episodeId,
-          timestamp,
-          intensity: currentIntensity,
-        });
+        await addIntensityReading(episodeId, currentIntensity);
       }
 
-      // Log symptoms if they changed
+      // Log symptoms if they changed - use store method
       if (symptomsChanged && currentSymptoms.length > 0) {
         await Promise.all(
           currentSymptoms.map(symptom =>
-            symptomLogRepository.create({
+            addSymptomLog({
               episodeId,
               symptom,
               onsetTime: timestamp,
@@ -379,9 +388,9 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
         );
       }
 
-      // Log pain locations if they changed
+      // Log pain locations if they changed - use store method
       if (painLocationsChanged) {
-        await painLocationLogRepository.create({
+        await addPainLocationLog({
           episodeId,
           timestamp,
           painLocations: currentPainLocations,
@@ -389,9 +398,9 @@ export default function LogUpdateScreen({ route, navigation }: Props) {
         });
       }
 
-      // Add note if provided
+      // Add note if provided - use store method
       if (noteText.trim()) {
-        await episodeNoteRepository.create({
+        await addEpisodeNote({
           episodeId,
           timestamp,
           note: noteText.trim(),

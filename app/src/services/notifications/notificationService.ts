@@ -1,6 +1,8 @@
 import * as Notifications from 'expo-notifications';
 import { logger } from '../../utils/logger';
 import { Medication, MedicationSchedule } from '../../models/types';
+// ARCHITECTURAL EXCEPTION: Notification handlers need direct repository access
+// because they run in background when app may be suspended. See docs/store-repository-guidelines.md
 import { medicationRepository, medicationDoseRepository } from '../../database/medicationRepository';
 import { useNotificationSettingsStore } from '../../store/notificationSettingsStore';
 import { handleDailyCheckinNotification } from './dailyCheckinNotifications';
@@ -19,24 +21,23 @@ import {
   getAllScheduledNotifications,
   cancelNotification,
 } from './notificationScheduler';
-import {
-  MEDICATION_REMINDER_CATEGORY,
-  MULTIPLE_MEDICATION_REMINDER_CATEGORY,
-  handleTakeNow,
-  handleSnooze,
-  handleTakeAllNow,
-  handleRemindLater,
-  scheduleSingleNotification,
-  scheduleMultipleNotification,
-  cancelMedicationNotifications,
-  cancelScheduledMedicationReminder,
-  dismissMedicationNotification,
-  rescheduleAllMedicationNotifications,
-  rescheduleAllNotifications,
-} from './medicationNotifications';
+
+// Lazy import to avoid circular dependency with medicationStore
+// medicationNotifications imports medicationStore, which imports notificationService
+let medicationNotificationsModule: typeof import('./medicationNotifications') | null = null;
+const getMedicationNotifications = async () => {
+  if (!medicationNotificationsModule) {
+    medicationNotificationsModule = await import('./medicationNotifications');
+  }
+  return medicationNotificationsModule;
+};
 
 // Re-export types and functions for backwards compatibility
 export type { NotificationPermissions };
+
+// Re-export constants that are needed at module load time
+export const MEDICATION_REMINDER_CATEGORY = 'MEDICATION_REMINDER';
+export const MULTIPLE_MEDICATION_REMINDER_CATEGORY = 'MULTIPLE_MEDICATION_REMINDER';
 
 /**
  * Handle incoming notifications and decide whether to show them
@@ -449,10 +450,12 @@ class NotificationService {
         data,
       });
 
+      const medNotifications = await getMedicationNotifications();
+      
       switch (actionIdentifier) {
         case 'TAKE_NOW':
           if (data.medicationId && data.scheduleId) {
-            const success = await handleTakeNow(data.medicationId, data.scheduleId);
+            const success = await medNotifications.handleTakeNow(data.medicationId, data.scheduleId);
             if (success) {
               await this.cancelFollowUpReminder(`${data.medicationId}:${data.scheduleId}`);
             }
@@ -462,13 +465,13 @@ class NotificationService {
           if (data.medicationId && data.scheduleId) {
             // Cancel follow-up reminder since user snoozed
             await this.cancelFollowUpReminder(`${data.medicationId}:${data.scheduleId}`);
-            await handleSnooze(data.medicationId, data.scheduleId, 10);
+            await medNotifications.handleSnooze(data.medicationId, data.scheduleId, 10);
             // Note: Success/failure already logged by handleSnooze
           }
           break;
         case 'TAKE_ALL_NOW':
           if (data.medicationIds && data.scheduleIds) {
-            const result = await handleTakeAllNow(data.medicationIds, data.scheduleIds);
+            const result = await medNotifications.handleTakeAllNow(data.medicationIds, data.scheduleIds);
             if (result.success > 0 && data.time) {
               await this.cancelFollowUpReminder(`multi:${data.time}`);
             }
@@ -478,7 +481,7 @@ class NotificationService {
           if (data.medicationIds && data.scheduleIds && data.time) {
             // Cancel follow-up reminder since user chose to snooze
             await this.cancelFollowUpReminder(`multi:${data.time}`);
-            await handleRemindLater(data.medicationIds, data.scheduleIds, data.time, 10);
+            await medNotifications.handleRemindLater(data.medicationIds, data.scheduleIds, data.time, 10);
             // Note: Success/failure already logged by handleRemindLater
           }
           break;
@@ -748,17 +751,19 @@ class NotificationService {
       }
 
       // Schedule notifications for each time group
+      const medNotifications = await getMedicationNotifications();
+      
       for (const [time, items] of grouped.entries()) {
         if (items.length === 1) {
           // Single medication - use single notification
           const { medication, schedule } = items[0];
-          const notificationId = await scheduleSingleNotification(medication, schedule);
+          const notificationId = await medNotifications.scheduleSingleNotification(medication, schedule);
           if (notificationId) {
             notificationIds.set(schedule.id, notificationId);
           }
         } else {
           // Multiple medications - use grouped notification
-          const notificationId = await scheduleMultipleNotification(items, time);
+          const notificationId = await medNotifications.scheduleMultipleNotification(items, time);
           if (notificationId) {
             // Store the same notification ID for all schedules in this group
             for (const { schedule } of items) {
@@ -787,7 +792,8 @@ class NotificationService {
       logger.log('[Notification] Schedule disabled, skipping:', schedule.id);
       return null;
     }
-    return scheduleSingleNotification(medication, schedule);
+    const medNotifications = await getMedicationNotifications();
+    return medNotifications.scheduleSingleNotification(medication, schedule);
   }
 
   async cancelNotification(notificationId: string): Promise<void> {
@@ -795,11 +801,13 @@ class NotificationService {
   }
 
   async cancelMedicationNotifications(medicationId: string): Promise<void> {
-    return cancelMedicationNotifications(medicationId);
+    const medNotifications = await getMedicationNotifications();
+    return medNotifications.cancelMedicationNotifications(medicationId);
   }
 
   async cancelScheduledMedicationReminder(medicationId: string, scheduleId?: string): Promise<void> {
-    return cancelScheduledMedicationReminder(medicationId, scheduleId);
+    const medNotifications = await getMedicationNotifications();
+    return medNotifications.cancelScheduledMedicationReminder(medicationId, scheduleId);
   }
 
   async getAllScheduledNotifications(): Promise<Notifications.NotificationRequest[]> {
@@ -820,7 +828,8 @@ class NotificationService {
         logger.log('[Notification] All notifications cancelled (global toggle disabled)');
       } else {
         // Enable: Reschedule all notifications (medications and daily check-in)
-        await rescheduleAllNotifications();
+        const medNotifications = await getMedicationNotifications();
+        await medNotifications.rescheduleAllNotifications();
         logger.log('[Notification] All notifications rescheduled (global toggle enabled)');
       }
     } catch (error) {
@@ -834,15 +843,18 @@ class NotificationService {
   }
 
   async dismissMedicationNotification(medicationId: string, scheduleId: string): Promise<void> {
-    return dismissMedicationNotification(medicationId, scheduleId);
+    const medNotifications = await getMedicationNotifications();
+    return medNotifications.dismissMedicationNotification(medicationId, scheduleId);
   }
 
   async rescheduleAllMedicationNotifications(): Promise<void> {
-    return rescheduleAllMedicationNotifications();
+    const medNotifications = await getMedicationNotifications();
+    return medNotifications.rescheduleAllMedicationNotifications();
   }
 
   async rescheduleAllNotifications(): Promise<void> {
-    return rescheduleAllNotifications();
+    const medNotifications = await getMedicationNotifications();
+    return medNotifications.rescheduleAllNotifications();
   }
 }
 

@@ -4,20 +4,14 @@ import { Alert } from 'react-native';
 import ArchivedMedicationsScreen from '../medication/ArchivedMedicationsScreen';
 import { ThemeProvider } from '../../theme/ThemeContext';
 
-const mockMedicationRepository = {
-  getArchived: jest.fn(),
-};
-
 const mockUnarchiveMedication = jest.fn();
-
-jest.mock('../../database/medicationRepository', () => ({
-  medicationRepository: mockMedicationRepository,
-}));
+const mockGetArchivedMedications = jest.fn();
 
 jest.mock('../../store/medicationStore', () => ({
   useMedicationStore: jest.fn(() => ({
     unarchiveMedication: mockUnarchiveMedication,
-    medications: [],
+    getArchivedMedications: mockGetArchivedMedications,
+    archivedMedications: [],
     loading: false,
   })),
 }));
@@ -48,7 +42,7 @@ jest.spyOn(Alert, 'alert');
 describe('ArchivedMedicationsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockMedicationRepository.getArchived.mockResolvedValue([]);
+    mockGetArchivedMedications.mockResolvedValue(undefined);
   });
 
   describe('Rendering', () => {
@@ -83,7 +77,7 @@ describe('ArchivedMedicationsScreen', () => {
     });
 
     it('shows empty state when no archived medications exist', async () => {
-      mockMedicationRepository.getArchived.mockResolvedValue([]);
+      mockGetArchivedMedications.mockResolvedValue(undefined);
 
       const { getByText } = render(
         <ArchivedMedicationsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
@@ -121,7 +115,7 @@ describe('ArchivedMedicationsScreen', () => {
     });
 
     it('provides accessible empty state', async () => {
-      mockMedicationRepository.getArchived.mockResolvedValue([]);
+      mockGetArchivedMedications.mockResolvedValue(undefined);
 
       const { getByText } = render(
         <ArchivedMedicationsScreen navigation={{ goBack: mockGoBack } as any} route={mockRoute} />,
@@ -168,7 +162,7 @@ describe('ArchivedMedicationsScreen', () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
       
       // Override the mock for this specific test
-      mockMedicationRepository.getArchived.mockImplementation(() => {
+      mockGetArchivedMedications.mockImplementation(() => {
         return Promise.reject(new Error('Network error'));
       });
 

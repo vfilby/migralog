@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { logger } from '../../utils/logger';
-import { toastService } from '../../services/toastService';
 import {
   View,
   Text,
@@ -19,7 +18,6 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { Medication, MedicationDose, MedicationSchedule } from '../../models/types';
-import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../../database/medicationRepository';
 import { format } from 'date-fns';
 import { useTheme } from '../../theme';
 import { useMedicationStore } from '../../store/medicationStore';
@@ -39,7 +37,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
   const { medicationId } = route.params;
   const { theme } = useTheme();
   const { getStatusStyle } = useMedicationStatusStyles();
-  const { logDose, deleteDose, archiveMedication } = useMedicationStore();
+  const { logDose, deleteDose, archiveMedication, updateDose, loadMedicationWithDetails } = useMedicationStore();
   const { currentEpisode } = useEpisodeStore();
   const [medication, setMedication] = useState<Medication | null>(null);
   const [schedules, setSchedules] = useState<MedicationSchedule[]>([]);
@@ -75,23 +73,21 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
 
   const loadMedicationData = async () => {
     try {
-      const med = await medicationRepository.getById(medicationId);
-      if (!med) {
+      // Use store method to load medication with all details
+      const result = await loadMedicationWithDetails(medicationId);
+      
+      if (!result) {
         Alert.alert('Error', 'Medication not found');
         navigation.goBack();
         return;
       }
 
-      setMedication(med);
+      setMedication(result.medication);
+      setSchedules(result.schedules);
 
-      // Load schedules for all medication types (schedules are optional for any type)
-      const scheds = await medicationScheduleRepository.getByMedicationId(medicationId);
-      setSchedules(scheds);
-
-      // Load last 30 days of doses
+      // Filter doses to last 30 days
       const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
-      const allDoses = await medicationDoseRepository.getByMedicationId(medicationId);
-      const recentDoses = allDoses.filter(d => d.timestamp >= thirtyDaysAgo);
+      const recentDoses = result.doses.filter(d => d.timestamp >= thirtyDaysAgo);
       setDoses(recentDoses);
     } catch (error) {
       logger.error('Failed to load medication data:', error);
@@ -231,17 +227,17 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
     if (amount === null) return;
 
     try {
-      await medicationDoseRepository.update(editingDose.id, {
+      // Use store method which provides centralized error handling and logging
+      await updateDose(editingDose.id, {
         quantity: amount,
         notes: editNotes.trim() || undefined,
         timestamp: editTimestamp,
       });
-      // Success is evident from UI update (TODO: Use store.updateDose() instead)
       setEditModalVisible(false);
       await loadMedicationData(); // Reload to update the list
     } catch (error) {
+      // Store already logged error and showed toast
       logger.error('Failed to update dose:', error);
-      toastService.error('Failed to update dose');
     }
   };
 
@@ -292,8 +288,8 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
               await archiveMedication(medicationId);
               navigation.goBack();
             } catch (error) {
+              // Store already logged error and showed toast
               logger.error('Failed to archive medication:', error);
-              toastService.error('Failed to archive medication');
             }
           },
         },

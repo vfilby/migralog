@@ -4,7 +4,6 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import { useMedicationStore } from '../../store/medicationStore';
 import { useEpisodeStore } from '../../store/episodeStore';
-import { medicationScheduleRepository, medicationDoseRepository } from '../../database/medicationRepository';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
@@ -278,7 +277,17 @@ export default function MedicationsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const { preventativeMedications, rescueMedications, otherMedications, loadMedications, logDose, deleteDose } = useMedicationStore();
+  const { 
+    preventativeMedications, 
+    rescueMedications, 
+    otherMedications, 
+    loadMedications, 
+    logDose, 
+    deleteDose, 
+    getDosesByMedicationId, 
+    getSchedulesByMedicationId,
+    loadSchedules 
+  } = useMedicationStore();
   const { currentEpisode, loadCurrentEpisode } = useEpisodeStore();
   const [medicationSchedules, setMedicationSchedules] = useState<Record<string, MedicationSchedule[]>>({});
   const [scheduleLogStates, setScheduleLogStates] = useState<Record<string, ScheduleLogState>>({});
@@ -308,15 +317,19 @@ export default function MedicationsScreen() {
 
   const loadSchedulesAndDoses = async () => {
     try {
+      // Load all schedules for preventative medications
+      await loadSchedules();
+      
       const schedules: Record<string, MedicationSchedule[]> = {};
       const logStates: Record<string, ScheduleLogState> = {};
 
       for (const med of preventativeMedications) {
-        const medSchedules = await medicationScheduleRepository.getByMedicationId(med.id);
+        // Use store method to get schedules from state
+        const medSchedules = getSchedulesByMedicationId(med.id);
         schedules[med.id] = medSchedules;
 
-        // Load today's doses for this medication
-        const doses = await medicationDoseRepository.getByMedicationId(med.id, 50);
+        // Load today's doses for this medication using store method
+        const doses = await getDosesByMedicationId(med.id, 50);
 
         // Check which schedules have been logged or skipped today
         // Use the same logic as DashboardScreen: any dose logged today counts as taken/skipped

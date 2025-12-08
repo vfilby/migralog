@@ -12,12 +12,12 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
-import { intensityRepository } from '../../database/episodeRepository';
 import { IntensityReading } from '../../models/types';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme, ThemeColors } from '../../theme';
 import { getPainColor, getPainLevel } from '../../utils/painScale';
 import { formatDateTime } from '../../utils/dateFormatting';
+import { useEpisodeStore } from '../../store/episodeStore';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditIntensityReading'>;
 
@@ -182,6 +182,9 @@ export default function EditIntensityReadingScreen({ route, navigation }: Props)
   const styles = createStyles(theme);
   const { readingId } = route.params;
 
+  // Use episode store for intensity reading operations
+  const { getIntensityReadingById, updateIntensityReading, deleteIntensityReading } = useEpisodeStore();
+
   const [reading, setReading] = useState<IntensityReading | null>(null);
   const [timestamp, setTimestamp] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -192,7 +195,7 @@ export default function EditIntensityReadingScreen({ route, navigation }: Props)
   const loadReading = useCallback(async () => {
     try {
       setLoading(true);
-      const loadedReading = await intensityRepository.getById(readingId);
+      const loadedReading = getIntensityReadingById(readingId);
 
       if (!loadedReading) {
         Alert.alert('Error', 'Intensity reading not found');
@@ -210,7 +213,7 @@ export default function EditIntensityReadingScreen({ route, navigation }: Props)
     } finally {
       setLoading(false);
     }
-  }, [readingId, navigation]);
+  }, [readingId, navigation, getIntensityReadingById]);
 
   useEffect(() => {
     loadReading();
@@ -221,7 +224,8 @@ export default function EditIntensityReadingScreen({ route, navigation }: Props)
 
     setSaving(true);
     try {
-      await intensityRepository.update(reading.id, {
+      // Use store method to update intensity reading
+      await updateIntensityReading(reading.id, {
         timestamp: timestamp.getTime(),
         intensity,
       });
@@ -248,7 +252,8 @@ export default function EditIntensityReadingScreen({ route, navigation }: Props)
           style: 'destructive',
           onPress: async () => {
             try {
-              await intensityRepository.delete(reading.id);
+              // Use store method to delete intensity reading
+              await deleteIntensityReading(reading.id);
               navigation.goBack();
             } catch (error) {
               logger.error('Failed to delete intensity reading:', error);

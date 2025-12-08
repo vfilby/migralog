@@ -17,7 +17,6 @@ import { useMedicationStore } from '../../store/medicationStore';
 import { MedicationType, ScheduleFrequency, MedicationSchedule, MedicationCategory } from '../../models/types';
 import MedicationScheduleManager from '../../components/shared/MedicationScheduleManager';
 import MedicationAutocomplete from '../../components/shared/MedicationAutocomplete';
-import { medicationScheduleRepository } from '../../database/medicationRepository';
 import { useTheme, ThemeColors } from '../../theme';
 import { errorLogger } from '../../services/errorLogger';
 import { notificationService } from '../../services/notifications/notificationService';
@@ -239,7 +238,7 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
 export default function AddMedicationScreen({ navigation }: Props) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const { addMedication } = useMedicationStore();
+  const { addMedication, addSchedule } = useMedicationStore();
   const [name, setName] = useState('');
   const [type, setType] = useState<MedicationType>('rescue');
   const [dosageAmount, setDosageAmount] = useState('');
@@ -355,8 +354,8 @@ export default function AddMedicationScreen({ navigation }: Props) {
         logger.log('[AddMedication] Saving schedules...');
 
         for (const schedule of schedules) {
-          // Create the schedule in the database
-          await medicationScheduleRepository.create({
+          // Create the schedule using store method
+          await addSchedule({
             medicationId: newMedication.id,
             time: schedule.time,
             timezone: schedule.timezone,
