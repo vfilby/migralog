@@ -517,9 +517,9 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
           </View>
         )}
 
-        {/* 30-Day Log */}
+        {/* Recent Activity */}
         <View style={[styles.section, { backgroundColor: theme.card }]}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Recent Activity (30 days)</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Recent Activity</Text>
           {doses.length === 0 ? (
             <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No doses logged in the last 30 days</Text>
           ) : (
