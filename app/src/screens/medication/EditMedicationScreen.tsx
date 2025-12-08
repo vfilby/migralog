@@ -14,7 +14,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { useMedicationStore } from '../../store/medicationStore';
-import { medicationRepository, medicationScheduleRepository } from '../../database/medicationRepository';
 import { MedicationType, ScheduleFrequency, MedicationSchedule } from '../../models/types';
 import MedicationScheduleManager from '../../components/shared/MedicationScheduleManager';
 import { useTheme, ThemeColors } from '../../theme';
@@ -244,7 +243,7 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const { medicationId } = route.params;
-  const { updateMedication } = useMedicationStore();
+  const { updateMedication, loadMedicationWithDetails, addSchedule, deleteSchedule } = useMedicationStore();
   const [name, setName] = useState('');
   const [type, setType] = useState<MedicationType>('rescue');
   const [dosageAmount, setDosageAmount] = useState('');
@@ -261,30 +260,38 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
 
   const loadMedication = useCallback(async () => {
     try {
-      const med = await medicationRepository.getById(medicationId);
-      if (med) {
-        setName(med.name);
-        setType(med.type);
-        setDosageAmount(med.dosageAmount.toString());
-        setDosageUnit(med.dosageUnit);
-        setDefaultDosage(med.defaultQuantity?.toString() || '1');
-        setScheduleFrequency(med.scheduleFrequency || 'daily');
-        setNotes(med.notes || '');
-        setPhotoUri(med.photoUri);
-
-        // Load existing schedules
-        const existingSchedules = await medicationScheduleRepository.getByMedicationId(medicationId);
-        setExistingScheduleIds(existingSchedules.map(s => s.id));
-        setSchedules(existingSchedules.map(s => ({
-          time: s.time,
-          timezone: s.timezone,
-          dosage: s.dosage,
-          enabled: s.enabled,
-        })));
-
-        // Set scheduling mode based on whether schedules exist
-        setSchedulingMode(existingSchedules.length > 0 ? 'scheduled' : 'as-needed');
+      // Use store method to load medication with all details
+      const result = await loadMedicationWithDetails(medicationId);
+      
+      if (!result) {
+        Alert.alert('Error', 'Medication not found');
+        navigation.goBack();
+        return;
       }
+
+      const med = result.medication;
+      const existingSchedules = result.schedules;
+
+      setName(med.name);
+      setType(med.type);
+      setDosageAmount(med.dosageAmount.toString());
+      setDosageUnit(med.dosageUnit);
+      setDefaultDosage(med.defaultQuantity?.toString() || '1');
+      setScheduleFrequency(med.scheduleFrequency || 'daily');
+      setNotes(med.notes || '');
+      setPhotoUri(med.photoUri);
+
+      // Set existing schedules
+      setExistingScheduleIds(existingSchedules.map(s => s.id));
+      setSchedules(existingSchedules.map(s => ({
+        time: s.time,
+        timezone: s.timezone,
+        dosage: s.dosage,
+        enabled: s.enabled,
+      })));
+
+      // Set scheduling mode based on whether schedules exist
+      setSchedulingMode(existingSchedules.length > 0 ? 'scheduled' : 'as-needed');
     } catch (error) {
       logger.error('Failed to load medication:', error);
       Alert.alert('Error', 'Failed to load medication');
@@ -292,7 +299,7 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [medicationId, navigation]);
+  }, [medicationId, navigation, loadMedicationWithDetails]);
 
   useEffect(() => {
     loadMedication();
@@ -363,15 +370,15 @@ export default function EditMedicationScreen({ route, navigation }: Props) {
 
       // Update schedules for any medication type with schedules
       if (schedules.length > 0) {
-        // Delete all existing schedules
+        // Delete all existing schedules using store method
         await Promise.all(
-          existingScheduleIds.map(id => medicationScheduleRepository.delete(id))
+          existingScheduleIds.map(id => deleteSchedule(id))
         );
 
-        // Create new schedules
+        // Create new schedules using store method
         for (const schedule of schedules) {
           // Create the schedule in the database
-          await medicationScheduleRepository.create({
+          await addSchedule({
             medicationId,
             time: schedule.time,
             timezone: schedule.timezone,

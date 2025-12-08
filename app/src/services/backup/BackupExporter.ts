@@ -2,6 +2,8 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { logger } from '../../utils/logger';
+// ARCHITECTURAL EXCEPTION: Backup/export needs direct repository access
+// because it requires complete database access independent of UI state. See docs/store-repository-guidelines.md
 import { episodeRepository, episodeNoteRepository, intensityRepository } from '../../database/episodeRepository';
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../../database/medicationRepository';
 import { dailyStatusRepository } from '../../database/dailyStatusRepository';

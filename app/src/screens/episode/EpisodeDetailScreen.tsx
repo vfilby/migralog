@@ -6,9 +6,8 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '../../navigation/types';
 import { useEpisodeStore } from '../../store/episodeStore';
-import { episodeRepository, intensityRepository, symptomLogRepository, episodeNoteRepository, painLocationLogRepository } from '../../database/episodeRepository';
-import { medicationDoseRepository, medicationRepository } from '../../database/medicationRepository';
-import { Episode, IntensityReading, SymptomLog, EpisodeNote, PainLocationLog } from '../../models/types';
+import { useMedicationStore } from '../../store/medicationStore';
+import { Episode, EpisodeNote } from '../../models/types';
 import { differenceInMinutes } from 'date-fns';
 import { locationService } from '../../services/locationService';
 import { useTheme, ThemeColors } from '../../theme';
@@ -101,13 +100,29 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const { width: screenWidth } = useWindowDimensions();
-  const { endEpisode, updateEpisode, reopenEpisode } = useEpisodeStore();
+  
+  // Episode store - provides episode data and actions
+  const { 
+    endEpisode, 
+    updateEpisode, 
+    reopenEpisode,
+    loadEpisodeWithDetails,
+    deleteIntensityReading,
+    deleteSymptomLog,
+    deleteEpisodeNote,
+    deletePainLocationLog,
+    intensityReadings,
+    symptomLogs,
+    painLocationLogs,
+    episodeNotes
+  } = useEpisodeStore();
+  
+  // Medication store - provides medication deletion
+  const { deleteDose } = useMedicationStore();
+  
+  // Local state for episode and UI
   const [episode, setEpisode] = useState<Episode | null>(null);
-  const [intensityReadings, setIntensityReadings] = useState<IntensityReading[]>([]);
-  const [symptomLogs, setSymptomLogs] = useState<SymptomLog[]>([]);
-  const [painLocationLogs, setPainLocationLogs] = useState<PainLocationLog[]>([]);
   const [medications, setMedications] = useState<MedicationDoseWithDetails[]>([]);
-  const [episodeNotes, setEpisodeNotes] = useState<EpisodeNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [locationAddress, setLocationAddress] = useState<string | null>(null);
   const [showMapModal, setShowMapModal] = useState(false);
@@ -123,35 +138,39 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
 
   const loadEpisodeData = async () => {
     try {
-      const [ep, readings, symptoms, painLocs, meds, notes] = await Promise.all([
-        episodeRepository.getById(episodeId),
-        intensityRepository.getByEpisodeId(episodeId),
-        symptomLogRepository.getByEpisodeId(episodeId),
-        painLocationLogRepository.getByEpisodeId(episodeId),
-        medicationDoseRepository.getByEpisodeId(episodeId),
-        episodeNoteRepository.getByEpisodeId(episodeId),
-      ]);
+      setLoading(true);
+      
+      // Load episode with all related data through store
+      // This replaces the manual Promise.all with 6 repository calls
+      // Store method loads: episode, intensityReadings, symptomLogs, episodeNotes, painLocationLogs
+      const episodeWithDetails = await loadEpisodeWithDetails(episodeId);
+      
+      if (!episodeWithDetails) {
+        logger.error('Episode not found:', episodeId);
+        setLoading(false);
+        return;
+      }
 
-      // Load medication details for each dose
+      setEpisode(episodeWithDetails);
+
+      // Load medication doses for this episode
+      // We need medication details joined with doses, so we still need repository access here
+      // TODO: Future refactor - add loadMedicationDosesWithDetails to store
+      const { medicationDoseRepository, medicationRepository } = await import('../../database/medicationRepository');
+      const meds = await medicationDoseRepository.getByEpisodeId(episodeId);
       const medsWithDetails = await Promise.all(
         meds.map(async (dose) => {
           const medication = await medicationRepository.getById(dose.medicationId);
           return { ...dose, medication: medication || undefined };
         })
       );
-
-      setEpisode(ep);
-      setIntensityReadings(readings);
-      setSymptomLogs(symptoms);
-      setPainLocationLogs(painLocs);
       setMedications(medsWithDetails);
-      setEpisodeNotes(notes);
 
       // Reverse geocode location if available
-      if (ep?.location) {
+      if (episodeWithDetails.location) {
         const address = await locationService.reverseGeocode(
-          ep.location.latitude,
-          ep.location.longitude
+          episodeWithDetails.location.latitude,
+          episodeWithDetails.location.longitude
         );
         setLocationAddress(address);
       }
@@ -208,7 +227,8 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
           style: 'destructive',
           onPress: async () => {
             try {
-              await episodeNoteRepository.delete(noteId);
+              // Use store method for deletion - provides error handling and logging
+              await deleteEpisodeNote(noteId);
               await loadEpisodeData();
             } catch (error) {
               logger.error('Failed to delete note:', error);
@@ -227,7 +247,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     }
   };
 
-  const handleIntensityLongPress = (reading: IntensityReading) => {
+  const handleIntensityLongPress = (reading: { id: string; intensity: number; timestamp: number }) => {
     const confirmDelete = () => {
       Alert.alert(
         'Delete Intensity Reading',
@@ -239,7 +259,8 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
             style: 'destructive',
             onPress: async () => {
               try {
-                await intensityRepository.delete(reading.id);
+                // Use store method for deletion - provides error handling and logging
+                await deleteIntensityReading(reading.id);
                 await loadEpisodeData();
               } catch (error) {
                 logger.error('Failed to delete intensity reading:', error);
@@ -269,7 +290,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     );
   };
 
-  const handleNoteLongPress = (note: EpisodeNote) => {
+  const handleNoteLongPress = (note: { id: string }) => {
     Alert.alert(
       'Note Options',
       '',
@@ -303,7 +324,8 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
           style: 'destructive',
           onPress: async () => {
             try {
-              await medicationDoseRepository.delete(dose.id);
+              // Use store method for deletion - provides error handling and logging
+              await deleteDose(dose.id);
               await loadEpisodeData();
             } catch (error) {
               logger.error('Failed to delete medication dose:', error);
@@ -315,7 +337,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     );
   };
 
-  const handleSymptomLongPress = (log: SymptomLog) => {
+  const handleSymptomLongPress = (log: { id: string; onsetTime: number }) => {
     const confirmDelete = () => {
       Alert.alert(
         'Delete Symptom Change',
@@ -327,7 +349,8 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
             style: 'destructive',
             onPress: async () => {
               try {
-                await symptomLogRepository.delete(log.id);
+                // Use store method for deletion - provides error handling and logging
+                await deleteSymptomLog(log.id);
                 await loadEpisodeData();
               } catch (error) {
                 logger.error('Failed to delete symptom change:', error);
@@ -357,7 +380,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     );
   };
 
-  const handlePainLocationLongPress = (log: PainLocationLog) => {
+  const handlePainLocationLongPress = (log: { id: string; timestamp: number }) => {
     const confirmDelete = () => {
       Alert.alert(
         'Delete Pain Location Update',
@@ -369,7 +392,8 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
             style: 'destructive',
             onPress: async () => {
               try {
-                await painLocationLogRepository.delete(log.id);
+                // Use store method for deletion - provides error handling and logging
+                await deletePainLocationLog(log.id);
                 await loadEpisodeData();
               } catch (error) {
                 logger.error('Failed to delete pain location update:', error);

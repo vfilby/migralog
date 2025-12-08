@@ -13,11 +13,11 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
-import { episodeNoteRepository } from '../../database/episodeRepository';
 import { EpisodeNote } from '../../models/types';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme, ThemeColors } from '../../theme';
 import { formatDateTime } from '../../utils/dateFormatting';
+import { useEpisodeStore } from '../../store/episodeStore';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditEpisodeNote'>;
 
@@ -132,6 +132,9 @@ export default function EditEpisodeNoteScreen({ route, navigation }: Props) {
   const styles = createStyles(theme);
   const { noteId } = route.params;
 
+  // Use episode store for episode note operations
+  const { getEpisodeNoteById, updateEpisodeNote, deleteEpisodeNote } = useEpisodeStore();
+
   const [note, setNote] = useState<EpisodeNote | null>(null);
   const [timestamp, setTimestamp] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -142,7 +145,7 @@ export default function EditEpisodeNoteScreen({ route, navigation }: Props) {
   const loadNote = useCallback(async () => {
     try {
       setLoading(true);
-      const loadedNote = await episodeNoteRepository.getById(noteId);
+      const loadedNote = getEpisodeNoteById(noteId);
 
       if (!loadedNote) {
         Alert.alert('Error', 'Note not found');
@@ -160,7 +163,7 @@ export default function EditEpisodeNoteScreen({ route, navigation }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [noteId, navigation]);
+  }, [noteId, navigation, getEpisodeNoteById]);
 
   useEffect(() => {
     loadNote();
@@ -176,7 +179,8 @@ export default function EditEpisodeNoteScreen({ route, navigation }: Props) {
 
     setSaving(true);
     try {
-      await episodeNoteRepository.update(note.id, {
+      // Use store method to update episode note
+      await updateEpisodeNote(note.id, {
         timestamp: timestamp.getTime(),
         note: noteText.trim(),
       });
@@ -203,7 +207,8 @@ export default function EditEpisodeNoteScreen({ route, navigation }: Props) {
           style: 'destructive',
           onPress: async () => {
             try {
-              await episodeNoteRepository.delete(note.id);
+              // Use store method to delete episode note
+              await deleteEpisodeNote(note.id);
               navigation.goBack();
             } catch (error) {
               logger.error('Failed to delete note:', error);

@@ -1,6 +1,8 @@
 import * as Notifications from 'expo-notifications';
 import { logger } from '../../utils/logger';
 import { Medication, MedicationSchedule } from '../../models/types';
+// ARCHITECTURAL EXCEPTION: Notification handlers need direct repository access
+// because they run in background when app may be suspended. See docs/store-repository-guidelines.md
 import { medicationRepository, medicationScheduleRepository, medicationDoseRepository } from '../../database/medicationRepository';
 import { useNotificationSettingsStore } from '../../store/notificationSettingsStore';
 import { scheduleNotification } from './notificationScheduler';

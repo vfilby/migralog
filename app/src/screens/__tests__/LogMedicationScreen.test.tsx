@@ -5,15 +5,9 @@ import { Alert } from 'react-native';
 import LogMedicationScreen from '../medication/LogMedicationScreen';
 import { renderWithProviders } from '../../utils/screenTestHelpers';
 import { useMedicationStore } from '../../store/medicationStore';
-import { medicationRepository } from '../../database/medicationRepository';
 import { Medication } from '../../models/types';
 
 jest.mock('../../store/medicationStore');
-jest.mock('../../database/medicationRepository', () => ({
-  medicationRepository: {
-    getById: jest.fn(),
-  },
-}));
 
 jest.mock('../../utils/logger', () => ({
   logger: {
@@ -83,17 +77,33 @@ const mockMedication2: Medication = {
   updatedAt: Date.now() - 86400000,
 };
 
+const mockLoadMedications = jest.fn();
+const mockLogDose = jest.fn();
+const mockGetMedicationById = jest.fn((id: string) => {
+  if (id === 'med-123') return mockMedication1;
+  if (id === 'med-456') return mockMedication2;
+  return null;
+});
+
 const mockMedicationStore = {
   rescueMedications: [mockMedication1, mockMedication2],
-  loadMedications: jest.fn(),
-  logDose: jest.fn(),
+  loadMedications: mockLoadMedications,
+  logDose: mockLogDose,
+  getMedicationById: mockGetMedicationById,
 };
 
 describe('LogMedicationScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    
+    // Reset mock implementations
+    mockGetMedicationById.mockImplementation((id: string) => {
+      if (id === 'med-123') return mockMedication1;
+      if (id === 'med-456') return mockMedication2;
+      return null;
+    });
+    
     mockUseMedicationStore.mockReturnValue(mockMedicationStore as any);
-    (medicationRepository.getById as jest.Mock).mockResolvedValue(mockMedication1);
   });
 
   it('should render medication selection screen when no medication is selected', async () => {
@@ -141,7 +151,7 @@ describe('LogMedicationScreen', () => {
     );
 
     await waitFor(() => {
-      expect(mockMedicationStore.loadMedications).toHaveBeenCalled();
+      expect(mockLoadMedications).toHaveBeenCalled();
     });
   });
 
@@ -154,7 +164,7 @@ describe('LogMedicationScreen', () => {
     );
 
     await waitFor(() => {
-      expect(medicationRepository.getById).toHaveBeenCalledWith('med-123');
+      expect(mockGetMedicationById).toHaveBeenCalledWith('med-123');
     });
 
     await waitFor(() => {
@@ -165,7 +175,7 @@ describe('LogMedicationScreen', () => {
   });
 
   it('should quick log medication with default quantity', async () => {
-    mockMedicationStore.logDose.mockResolvedValue(undefined);
+    mockLogDose.mockResolvedValue(undefined);
 
     renderWithProviders(
       <LogMedicationScreen 
@@ -182,7 +192,7 @@ describe('LogMedicationScreen', () => {
     fireEvent.press(quickLogButton);
 
     await waitFor(() => {
-      expect(mockMedicationStore.logDose).toHaveBeenCalledWith(
+      expect(mockLogDose).toHaveBeenCalledWith(
         expect.objectContaining({
           medicationId: 'med-123',
           quantity: 1,
@@ -197,7 +207,7 @@ describe('LogMedicationScreen', () => {
   });
 
   it('should handle quick log error', async () => {
-    mockMedicationStore.logDose.mockRejectedValue(new Error('Log failed'));
+    mockLogDose.mockRejectedValue(new Error('Log failed'));
 
     renderWithProviders(
       <LogMedicationScreen 
@@ -446,7 +456,7 @@ describe('LogMedicationScreen', () => {
   });
 
   it('should save medication dose successfully', async () => {
-    mockMedicationStore.logDose.mockResolvedValue(undefined);
+    mockLogDose.mockResolvedValue(undefined);
 
     renderWithProviders(
       <LogMedicationScreen 
@@ -470,7 +480,7 @@ describe('LogMedicationScreen', () => {
     fireEvent.press(saveButton);
 
     await waitFor(() => {
-      expect(mockMedicationStore.logDose).toHaveBeenCalledWith(
+      expect(mockLogDose).toHaveBeenCalledWith(
         expect.objectContaining({
           medicationId: 'med-123',
           quantity: 2,
@@ -506,7 +516,7 @@ describe('LogMedicationScreen', () => {
 
     await waitFor(() => {
       expect(Alert.alert).toHaveBeenCalledWith('Error', 'Please enter a valid amount');
-      expect(mockMedicationStore.logDose).not.toHaveBeenCalled();
+      expect(mockLogDose).not.toHaveBeenCalled();
     });
   });
 
@@ -531,12 +541,12 @@ describe('LogMedicationScreen', () => {
 
     await waitFor(() => {
       expect(Alert.alert).toHaveBeenCalledWith('Error', 'Please enter a valid amount');
-      expect(mockMedicationStore.logDose).not.toHaveBeenCalled();
+      expect(mockLogDose).not.toHaveBeenCalled();
     });
   });
 
   it('should handle save error', async () => {
-    mockMedicationStore.logDose.mockRejectedValue(new Error('Save failed'));
+    mockLogDose.mockRejectedValue(new Error('Save failed'));
 
     renderWithProviders(
       <LogMedicationScreen 
@@ -621,7 +631,7 @@ describe('LogMedicationScreen', () => {
   });
 
   it('should save with empty notes when notes are cleared', async () => {
-    mockMedicationStore.logDose.mockResolvedValue(undefined);
+    mockLogDose.mockResolvedValue(undefined);
 
     renderWithProviders(
       <LogMedicationScreen 
@@ -643,7 +653,7 @@ describe('LogMedicationScreen', () => {
     fireEvent.press(saveButton);
 
     await waitFor(() => {
-      expect(mockMedicationStore.logDose).toHaveBeenCalledWith(
+      expect(mockLogDose).toHaveBeenCalledWith(
         expect.objectContaining({
           notes: undefined, // Should be undefined when trimmed empty
         })
@@ -653,7 +663,7 @@ describe('LogMedicationScreen', () => {
 
   it('should handle medication with no default quantity', async () => {
     const medWithoutDefault = { ...mockMedication1, defaultQuantity: undefined };
-    (medicationRepository.getById as jest.Mock).mockResolvedValue(medWithoutDefault);
+    mockGetMedicationById.mockReturnValue(medWithoutDefault);
 
     renderWithProviders(
       <LogMedicationScreen 
@@ -847,8 +857,8 @@ describe('LogMedicationScreen', () => {
   });
 
   it('should handle medication loading failure gracefully', async () => {
-    // Mock medicationRepository.getById to return null
-    (medicationRepository.getById as jest.Mock).mockResolvedValue(null);
+    // Mock getMedicationById to return null
+    mockGetMedicationById.mockReturnValue(null);
 
     renderWithProviders(
       <LogMedicationScreen 
@@ -910,7 +920,7 @@ describe('LogMedicationScreen', () => {
       rescueMedications: [medWithoutDefault],
     } as any);
 
-    mockMedicationStore.logDose.mockResolvedValue(undefined);
+    mockLogDose.mockResolvedValue(undefined);
 
     renderWithProviders(
       <LogMedicationScreen 
@@ -928,7 +938,7 @@ describe('LogMedicationScreen', () => {
     fireEvent.press(quickLogButton);
 
     await waitFor(() => {
-      expect(mockMedicationStore.logDose).toHaveBeenCalledWith(
+      expect(mockLogDose).toHaveBeenCalledWith(
         expect.objectContaining({
           medicationId: 'med-123',
           quantity: 1, // Should default to 1
@@ -952,7 +962,7 @@ describe('LogMedicationScreen', () => {
     });
 
     // Mock the scenario where medication becomes null after initial load
-    (medicationRepository.getById as jest.Mock).mockResolvedValue(null);
+    mockGetMedicationById.mockReturnValue(null);
 
     // Force the component to update by changing selectedMedId
     const detailsButton = screen.getByLabelText('Log medication');
@@ -960,16 +970,16 @@ describe('LogMedicationScreen', () => {
     // Simulate internal state where medication becomes null
     // This is a tricky edge case to test directly, so we'll simulate the state
     // by temporarily clearing the mocked medication return value
-    const originalImplementation = (medicationRepository.getById as jest.Mock).getMockImplementation();
-    (medicationRepository.getById as jest.Mock).mockImplementation(() => {
-      return Promise.resolve(null);
+    const originalImplementation = mockGetMedicationById.getMockImplementation();
+    mockGetMedicationById.mockImplementation(() => {
+      return null;
     });
 
     // The save button should not do anything if medication is null
     fireEvent.press(detailsButton);
 
     // Restore the original implementation
-    (medicationRepository.getById as jest.Mock).mockImplementation(originalImplementation);
+    mockGetMedicationById.mockImplementation(originalImplementation);
   });
 
   it('should handle DateTimePicker with null timestamp', async () => {

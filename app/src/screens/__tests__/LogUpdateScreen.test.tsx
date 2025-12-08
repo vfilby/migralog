@@ -3,32 +3,23 @@ import { screen, waitFor, fireEvent } from '@testing-library/react-native';
 import LogUpdateScreen from '../LogUpdateScreen';
 import { renderWithProviders } from '../../utils/screenTestHelpers';
 
-jest.mock('../../database/episodeRepository', () => ({
-  intensityRepository: {
-    getByEpisodeId: jest.fn().mockResolvedValue([]),
-    create: jest.fn().mockResolvedValue({ id: 'reading-123' }),
-  },
-  symptomLogRepository: {
-    getByEpisodeId: jest.fn().mockResolvedValue([]),
-    create: jest.fn().mockResolvedValue({ id: 'symptom-123' }),
-    delete: jest.fn().mockResolvedValue(undefined),
-  },
-  episodeNoteRepository: {
-    create: jest.fn().mockResolvedValue({ id: 'note-123' }),
-  },
-  episodeRepository: {
-    update: jest.fn().mockResolvedValue(undefined),
-    getById: jest.fn().mockResolvedValue({
+// Mock the episode store instead of repository
+jest.mock('../../store/episodeStore', () => ({
+  useEpisodeStore: jest.fn(() => ({
+    loadEpisodeWithDetails: jest.fn().mockResolvedValue({
       id: 'episode-123',
       startTime: Date.now() - 1000000,
       symptoms: ['nausea'],
       locations: ['left_temple'],
     }),
-  },
-  painLocationLogRepository: {
-    getByEpisodeId: jest.fn().mockResolvedValue([]),
-    create: jest.fn().mockResolvedValue({ id: 'pain-location-123' }),
-  },
+    addIntensityReading: jest.fn().mockResolvedValue(undefined),
+    addSymptomLog: jest.fn().mockResolvedValue(undefined),
+    addEpisodeNote: jest.fn().mockResolvedValue(undefined),
+    addPainLocationLog: jest.fn().mockResolvedValue(undefined),
+    intensityReadings: [],
+    symptomLogs: [],
+    painLocationLogs: [],
+  })),
 }));
 
 jest.mock('@react-native-community/slider', () => {
@@ -156,15 +147,24 @@ describe('LogUpdateScreen', () => {
 
   describe('Episode Ended', () => {
     it('should show alert and go back when episode has ended', async () => {
-      const { episodeRepository } = require('../../database/episodeRepository');
+      const { useEpisodeStore } = require('../../store/episodeStore');
       const mockAlert = jest.spyOn(require('react-native').Alert, 'alert');
       
-      episodeRepository.getById.mockResolvedValueOnce({
-        id: 'episode-123',
-        startTime: Date.now() - 1000000,
-        endTime: Date.now() - 500000, // Episode has ended
-        symptoms: [],
-        locations: [],
+      useEpisodeStore.mockReturnValueOnce({
+        loadEpisodeWithDetails: jest.fn().mockResolvedValue({
+          id: 'episode-123',
+          startTime: Date.now() - 1000000,
+          endTime: Date.now() - 500000, // Episode has ended
+          symptoms: [],
+          locations: [],
+        }),
+        addIntensityReading: jest.fn(),
+        addSymptomLog: jest.fn(),
+        addEpisodeNote: jest.fn(),
+        addPainLocationLog: jest.fn(),
+        intensityReadings: [],
+        symptomLogs: [],
+        painLocationLogs: [],
       });
 
       const mockRoute = {
@@ -189,12 +189,26 @@ describe('LogUpdateScreen', () => {
 
   describe('Loading Latest Data', () => {
     it('should load latest intensity from readings', async () => {
-      const { intensityRepository } = require('../../database/episodeRepository');
+      const { useEpisodeStore } = require('../../store/episodeStore');
       
-      intensityRepository.getByEpisodeId.mockResolvedValueOnce([
-        { id: '1', episodeId: 'episode-123', timestamp: Date.now() - 2000, intensity: 5 },
-        { id: '2', episodeId: 'episode-123', timestamp: Date.now() - 1000, intensity: 7 },
-      ]);
+      useEpisodeStore.mockReturnValueOnce({
+        loadEpisodeWithDetails: jest.fn().mockResolvedValue({
+          id: 'episode-123',
+          startTime: Date.now() - 1000000,
+          symptoms: ['nausea'],
+          locations: ['left_temple'],
+        }),
+        addIntensityReading: jest.fn(),
+        addSymptomLog: jest.fn(),
+        addEpisodeNote: jest.fn(),
+        addPainLocationLog: jest.fn(),
+        intensityReadings: [
+          { id: '1', episodeId: 'episode-123', timestamp: Date.now() - 2000, intensity: 5 },
+          { id: '2', episodeId: 'episode-123', timestamp: Date.now() - 1000, intensity: 7 },
+        ],
+        symptomLogs: [],
+        painLocationLogs: [],
+      });
 
       const mockRoute = {
         params: { episodeId: 'episode-123' },
@@ -210,14 +224,22 @@ describe('LogUpdateScreen', () => {
     });
 
     it('should load symptoms from episode when no symptom logs exist', async () => {
-      const { symptomLogRepository, episodeRepository } = require('../../database/episodeRepository');
+      const { useEpisodeStore } = require('../../store/episodeStore');
       
-      symptomLogRepository.getByEpisodeId.mockResolvedValueOnce([]);
-      episodeRepository.getById.mockResolvedValueOnce({
-        id: 'episode-123',
-        startTime: Date.now(),
-        symptoms: ['nausea', 'vomiting'],
-        locations: [],
+      useEpisodeStore.mockReturnValueOnce({
+        loadEpisodeWithDetails: jest.fn().mockResolvedValue({
+          id: 'episode-123',
+          startTime: Date.now(),
+          symptoms: ['nausea', 'vomiting'],
+          locations: [],
+        }),
+        addIntensityReading: jest.fn(),
+        addSymptomLog: jest.fn(),
+        addEpisodeNote: jest.fn(),
+        addPainLocationLog: jest.fn(),
+        intensityReadings: [],
+        symptomLogs: [],
+        painLocationLogs: [],
       });
 
       const mockRoute = {
@@ -234,16 +256,30 @@ describe('LogUpdateScreen', () => {
     });
 
     it('should load pain locations from logs', async () => {
-      const { painLocationLogRepository } = require('../../database/episodeRepository');
+      const { useEpisodeStore } = require('../../store/episodeStore');
       
-      painLocationLogRepository.getByEpisodeId.mockResolvedValueOnce([
-        {
-          id: '1',
-          episodeId: 'episode-123',
-          timestamp: Date.now() - 1000,
-          painLocations: ['left_temple', 'right_eye'],
-        },
-      ]);
+      useEpisodeStore.mockReturnValueOnce({
+        loadEpisodeWithDetails: jest.fn().mockResolvedValue({
+          id: 'episode-123',
+          startTime: Date.now() - 1000000,
+          symptoms: ['nausea'],
+          locations: ['left_temple'],
+        }),
+        addIntensityReading: jest.fn(),
+        addSymptomLog: jest.fn(),
+        addEpisodeNote: jest.fn(),
+        addPainLocationLog: jest.fn(),
+        intensityReadings: [],
+        symptomLogs: [],
+        painLocationLogs: [
+          {
+            id: '1',
+            episodeId: 'episode-123',
+            timestamp: Date.now() - 1000,
+            painLocations: ['left_temple', 'right_eye'],
+          },
+        ],
+      });
 
       const mockRoute = {
         params: { episodeId: 'episode-123' },
@@ -259,9 +295,23 @@ describe('LogUpdateScreen', () => {
     });
 
     it('should use default intensity when no readings exist', async () => {
-      const { intensityRepository } = require('../../database/episodeRepository');
+      const { useEpisodeStore } = require('../../store/episodeStore');
       
-      intensityRepository.getByEpisodeId.mockResolvedValueOnce([]);
+      useEpisodeStore.mockReturnValueOnce({
+        loadEpisodeWithDetails: jest.fn().mockResolvedValue({
+          id: 'episode-123',
+          startTime: Date.now() - 1000000,
+          symptoms: ['nausea'],
+          locations: ['left_temple'],
+        }),
+        addIntensityReading: jest.fn(),
+        addSymptomLog: jest.fn(),
+        addEpisodeNote: jest.fn(),
+        addPainLocationLog: jest.fn(),
+        intensityReadings: [],
+        symptomLogs: [],
+        painLocationLogs: [],
+      });
 
       const mockRoute = {
         params: { episodeId: 'episode-123' },
@@ -321,13 +371,22 @@ describe('LogUpdateScreen', () => {
     });
 
     it('should allow toggling symptoms off', async () => {
-      const { episodeRepository } = require('../../database/episodeRepository');
+      const { useEpisodeStore } = require('../../store/episodeStore');
       
-      episodeRepository.getById.mockResolvedValueOnce({
-        id: 'episode-123',
-        startTime: Date.now(),
-        symptoms: ['nausea'],
-        locations: [],
+      useEpisodeStore.mockReturnValueOnce({
+        loadEpisodeWithDetails: jest.fn().mockResolvedValue({
+          id: 'episode-123',
+          startTime: Date.now(),
+          symptoms: ['nausea'],
+          locations: [],
+        }),
+        addIntensityReading: jest.fn(),
+        addSymptomLog: jest.fn(),
+        addEpisodeNote: jest.fn(),
+        addPainLocationLog: jest.fn(),
+        intensityReadings: [],
+        symptomLogs: [],
+        painLocationLogs: [],
       });
 
       const mockRoute = {
@@ -434,7 +493,24 @@ describe('LogUpdateScreen', () => {
     });
 
     it('should save when intensity is changed', async () => {
-      const { intensityRepository } = require('../../database/episodeRepository');
+      const { useEpisodeStore } = require('../../store/episodeStore');
+      const mockAddIntensityReading = jest.fn().mockResolvedValue(undefined);
+      
+      useEpisodeStore.mockReturnValue({
+        loadEpisodeWithDetails: jest.fn().mockResolvedValue({
+          id: 'episode-123',
+          startTime: Date.now() - 1000000,
+          symptoms: ['nausea'],
+          locations: ['left_temple'],
+        }),
+        addIntensityReading: mockAddIntensityReading,
+        addSymptomLog: jest.fn(),
+        addEpisodeNote: jest.fn(),
+        addPainLocationLog: jest.fn(),
+        intensityReadings: [],
+        symptomLogs: [],
+        painLocationLogs: [],
+      });
       
       const mockRoute = {
         params: { episodeId: 'episode-123' },
@@ -456,18 +532,30 @@ describe('LogUpdateScreen', () => {
       fireEvent.press(screen.getByText('Save Update'));
 
       await waitFor(() => {
-        expect(intensityRepository.create).toHaveBeenCalledWith(
-          expect.objectContaining({
-            episodeId: 'episode-123',
-            intensity: 8,
-          })
-        );
+        expect(mockAddIntensityReading).toHaveBeenCalledWith('episode-123', 8);
         expect(mockNavigation.goBack).toHaveBeenCalled();
       });
     });
 
     it('should save when symptoms are changed', async () => {
-      const { symptomLogRepository } = require('../../database/episodeRepository');
+      const { useEpisodeStore } = require('../../store/episodeStore');
+      const mockAddSymptomLog = jest.fn().mockResolvedValue(undefined);
+      
+      useEpisodeStore.mockReturnValue({
+        loadEpisodeWithDetails: jest.fn().mockResolvedValue({
+          id: 'episode-123',
+          startTime: Date.now() - 1000000,
+          symptoms: ['nausea'],
+          locations: ['left_temple'],
+        }),
+        addIntensityReading: jest.fn(),
+        addSymptomLog: mockAddSymptomLog,
+        addEpisodeNote: jest.fn(),
+        addPainLocationLog: jest.fn(),
+        intensityReadings: [],
+        symptomLogs: [],
+        painLocationLogs: [],
+      });
       
       const mockRoute = {
         params: { episodeId: 'episode-123' },
@@ -488,13 +576,30 @@ describe('LogUpdateScreen', () => {
       fireEvent.press(screen.getByText('Save Update'));
 
       await waitFor(() => {
-        expect(symptomLogRepository.create).toHaveBeenCalled();
+        expect(mockAddSymptomLog).toHaveBeenCalled();
         expect(mockNavigation.goBack).toHaveBeenCalled();
       });
     });
 
     it('should save when pain locations are changed', async () => {
-      const { painLocationLogRepository } = require('../../database/episodeRepository');
+      const { useEpisodeStore } = require('../../store/episodeStore');
+      const mockAddPainLocationLog = jest.fn().mockResolvedValue(undefined);
+      
+      useEpisodeStore.mockReturnValue({
+        loadEpisodeWithDetails: jest.fn().mockResolvedValue({
+          id: 'episode-123',
+          startTime: Date.now() - 1000000,
+          symptoms: ['nausea'],
+          locations: ['left_temple'],
+        }),
+        addIntensityReading: jest.fn(),
+        addSymptomLog: jest.fn(),
+        addEpisodeNote: jest.fn(),
+        addPainLocationLog: mockAddPainLocationLog,
+        intensityReadings: [],
+        symptomLogs: [],
+        painLocationLogs: [],
+      });
       
       const mockRoute = {
         params: { episodeId: 'episode-123' },
@@ -517,13 +622,30 @@ describe('LogUpdateScreen', () => {
       fireEvent.press(screen.getByText('Save Update'));
 
       await waitFor(() => {
-        expect(painLocationLogRepository.create).toHaveBeenCalled();
+        expect(mockAddPainLocationLog).toHaveBeenCalled();
         expect(mockNavigation.goBack).toHaveBeenCalled();
       });
     });
 
     it('should save note when provided', async () => {
-      const { episodeNoteRepository } = require('../../database/episodeRepository');
+      const { useEpisodeStore } = require('../../store/episodeStore');
+      const mockAddEpisodeNote = jest.fn().mockResolvedValue(undefined);
+      
+      useEpisodeStore.mockReturnValue({
+        loadEpisodeWithDetails: jest.fn().mockResolvedValue({
+          id: 'episode-123',
+          startTime: Date.now() - 1000000,
+          symptoms: ['nausea'],
+          locations: ['left_temple'],
+        }),
+        addIntensityReading: jest.fn(),
+        addSymptomLog: jest.fn(),
+        addEpisodeNote: mockAddEpisodeNote,
+        addPainLocationLog: jest.fn(),
+        intensityReadings: [],
+        symptomLogs: [],
+        painLocationLogs: [],
+      });
       
       const mockRoute = {
         params: { episodeId: 'episode-123' },
@@ -545,7 +667,7 @@ describe('LogUpdateScreen', () => {
       fireEvent.press(screen.getByText('Save Update'));
 
       await waitFor(() => {
-        expect(episodeNoteRepository.create).toHaveBeenCalledWith(
+        expect(mockAddEpisodeNote).toHaveBeenCalledWith(
           expect.objectContaining({
             episodeId: 'episode-123',
             note: 'Test note',
@@ -556,10 +678,24 @@ describe('LogUpdateScreen', () => {
     });
 
     it('should show error alert when save fails', async () => {
-      const { intensityRepository } = require('../../database/episodeRepository');
+      const { useEpisodeStore } = require('../../store/episodeStore');
       const mockAlert = jest.spyOn(require('react-native').Alert, 'alert');
       
-      intensityRepository.create.mockRejectedValueOnce(new Error('Save failed'));
+      useEpisodeStore.mockReturnValue({
+        loadEpisodeWithDetails: jest.fn().mockResolvedValue({
+          id: 'episode-123',
+          startTime: Date.now() - 1000000,
+          symptoms: ['nausea'],
+          locations: ['left_temple'],
+        }),
+        addIntensityReading: jest.fn().mockRejectedValue(new Error('Save failed')),
+        addSymptomLog: jest.fn(),
+        addEpisodeNote: jest.fn(),
+        addPainLocationLog: jest.fn(),
+        intensityReadings: [],
+        symptomLogs: [],
+        painLocationLogs: [],
+      });
 
       const mockRoute = {
         params: { episodeId: 'episode-123' },
@@ -588,10 +724,23 @@ describe('LogUpdateScreen', () => {
     });
 
     it('should display "Saving..." text while saving', async () => {
-      const { intensityRepository } = require('../../database/episodeRepository');
+      const { useEpisodeStore } = require('../../store/episodeStore');
       
-      // Make save slow
-      intensityRepository.create.mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)));
+      useEpisodeStore.mockReturnValue({
+        loadEpisodeWithDetails: jest.fn().mockResolvedValue({
+          id: 'episode-123',
+          startTime: Date.now() - 1000000,
+          symptoms: ['nausea'],
+          locations: ['left_temple'],
+        }),
+        addIntensityReading: jest.fn().mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100))),
+        addSymptomLog: jest.fn(),
+        addEpisodeNote: jest.fn(),
+        addPainLocationLog: jest.fn(),
+        intensityReadings: [],
+        symptomLogs: [],
+        painLocationLogs: [],
+      });
 
       const mockRoute = {
         params: { episodeId: 'episode-123' },

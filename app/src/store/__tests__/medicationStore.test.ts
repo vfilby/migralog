@@ -26,6 +26,7 @@ describe('medicationStore', () => {
       medications: [],
       preventativeMedications: [],
       rescueMedications: [],
+      archivedMedications: [],
       loading: false,
       error: null,
     });
@@ -1316,6 +1317,598 @@ describe('medicationStore', () => {
 
       expect(useMedicationStore.getState().medications).toHaveLength(1);
       expect(useMedicationStore.getState().error).toBe(null);
+    });
+  });
+
+  // New methods for screen refactoring tests
+
+  describe('getArchivedMedications', () => {
+    it('should load archived medications', async () => {
+      const mockArchivedMeds: Medication[] = [
+        {
+          id: 'archived-1',
+          name: 'Archived Med',
+          type: 'rescue',
+          dosageAmount: 100,
+          dosageUnit: 'mg',
+          defaultQuantity: 1,
+          scheduleFrequency: undefined,
+          photoUri: undefined,
+          schedule: [],
+          active: false,
+          notes: undefined,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+      ];
+
+      (medicationRepository.getArchived as jest.Mock).mockResolvedValue(mockArchivedMeds);
+
+      await useMedicationStore.getState().getArchivedMedications();
+
+      const state = useMedicationStore.getState();
+      expect(state.archivedMedications).toEqual(mockArchivedMeds);
+      expect(state.loading).toBe(false);
+      expect(state.error).toBe(null);
+    });
+
+    it('should handle errors when loading archived medications', async () => {
+      const error = new Error('Failed to load archived');
+      (medicationRepository.getArchived as jest.Mock).mockRejectedValue(error);
+
+      await expect(
+        useMedicationStore.getState().getArchivedMedications()
+      ).rejects.toThrow('Failed to load archived');
+
+      expect(useMedicationStore.getState().error).toBe('Failed to load archived');
+      expect(useMedicationStore.getState().loading).toBe(false);
+    });
+  });
+
+  describe('getMedicationById', () => {
+    it('should return medication from active medications', () => {
+      const mockMed: Medication = {
+        id: 'med-1',
+        name: 'Active Med',
+        type: 'rescue',
+        dosageAmount: 100,
+        dosageUnit: 'mg',
+        defaultQuantity: 1,
+        scheduleFrequency: undefined,
+        photoUri: undefined,
+        schedule: [],
+        active: true,
+        notes: undefined,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      useMedicationStore.setState({ medications: [mockMed] });
+
+      const result = useMedicationStore.getState().getMedicationById('med-1');
+
+      expect(result).toEqual(mockMed);
+    });
+
+    it('should return medication from archived medications', () => {
+      const mockArchivedMed: Medication = {
+        id: 'archived-1',
+        name: 'Archived Med',
+        type: 'rescue',
+        dosageAmount: 100,
+        dosageUnit: 'mg',
+        defaultQuantity: 1,
+        scheduleFrequency: undefined,
+        photoUri: undefined,
+        schedule: [],
+        active: false,
+        notes: undefined,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      useMedicationStore.setState({ archivedMedications: [mockArchivedMed] });
+
+      const result = useMedicationStore.getState().getMedicationById('archived-1');
+
+      expect(result).toEqual(mockArchivedMed);
+    });
+
+    it('should return null if medication not found', () => {
+      useMedicationStore.setState({ medications: [], archivedMedications: [] });
+
+      const result = useMedicationStore.getState().getMedicationById('not-found');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('getDoseById', () => {
+    it('should return dose from state', () => {
+      const mockDose = {
+        id: 'dose-1',
+        medicationId: 'med-1',
+        timestamp: Date.now(),
+        quantity: 2,
+        status: 'taken' as const,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      useMedicationStore.setState({ doses: [mockDose] });
+
+      const result = useMedicationStore.getState().getDoseById('dose-1');
+
+      expect(result).toEqual(mockDose);
+    });
+
+    it('should return null if dose not found', () => {
+      useMedicationStore.setState({ doses: [] });
+
+      const result = useMedicationStore.getState().getDoseById('not-found');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('getDosesByMedicationId', () => {
+    it('should load doses for specific medication', async () => {
+      const mockDoses = [
+        {
+          id: 'dose-1',
+          medicationId: 'med-1',
+          timestamp: Date.now(),
+          quantity: 1,
+          status: 'taken' as const,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+        {
+          id: 'dose-2',
+          medicationId: 'med-1',
+          timestamp: Date.now() - 1000,
+          quantity: 2,
+          status: 'taken' as const,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+      ];
+
+      (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue(mockDoses);
+
+      const result = await useMedicationStore.getState().getDosesByMedicationId('med-1');
+
+      expect(result).toEqual(mockDoses);
+      expect(medicationDoseRepository.getByMedicationId).toHaveBeenCalledWith('med-1', 50);
+    });
+
+    it('should support custom limit', async () => {
+      (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([]);
+
+      await useMedicationStore.getState().getDosesByMedicationId('med-1', 100);
+
+      expect(medicationDoseRepository.getByMedicationId).toHaveBeenCalledWith('med-1', 100);
+    });
+
+    it('should handle errors when loading doses', async () => {
+      const error = new Error('Failed to load doses');
+      (medicationDoseRepository.getByMedicationId as jest.Mock).mockRejectedValue(error);
+
+      await expect(
+        useMedicationStore.getState().getDosesByMedicationId('med-1')
+      ).rejects.toThrow('Failed to load doses');
+    });
+
+    it('should set loading state when loading doses', async () => {
+      const mockDoses = [
+        {
+          id: 'dose-1',
+          medicationId: 'med-1',
+          timestamp: Date.now(),
+          quantity: 1,
+          status: 'taken' as const,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+      ];
+
+      (medicationDoseRepository.getByMedicationId as jest.Mock).mockImplementation(
+        () => new Promise(resolve => setTimeout(() => resolve(mockDoses), 50))
+      );
+
+      const loadPromise = useMedicationStore.getState().getDosesByMedicationId('med-1');
+
+      // Should be loading
+      expect(useMedicationStore.getState().loading).toBe(true);
+
+      await loadPromise;
+
+      // Should not be loading after completion
+      expect(useMedicationStore.getState().loading).toBe(false);
+    });
+  });
+
+  describe('loadMedicationWithDetails', () => {
+    beforeEach(() => {
+      const mockScheduleRepository = require('../../database/medicationRepository').medicationScheduleRepository;
+      mockScheduleRepository.getByMedicationId = jest.fn();
+    });
+
+    it('should load medication with schedules and doses', async () => {
+      const mockScheduleRepository = require('../../database/medicationRepository').medicationScheduleRepository;
+      const mockMed: Medication = {
+        id: 'med-1',
+        name: 'Test Med',
+        type: 'preventative',
+        dosageAmount: 100,
+        dosageUnit: 'mg',
+        defaultQuantity: 1,
+        scheduleFrequency: 'daily',
+        photoUri: undefined,
+        schedule: [],
+        active: true,
+        notes: undefined,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      const mockSchedules = [
+        {
+          id: 'schedule-1',
+          medicationId: 'med-1',
+          time: '09:00',
+          timezone: 'America/Los_Angeles',
+          dosage: 1,
+          enabled: true,
+        },
+      ];
+
+      const mockDoses = [
+        {
+          id: 'dose-1',
+          medicationId: 'med-1',
+          timestamp: Date.now(),
+          quantity: 1,
+          status: 'taken' as const,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+      ];
+
+      (medicationRepository.getById as jest.Mock).mockResolvedValue(mockMed);
+      mockScheduleRepository.getByMedicationId.mockResolvedValue(mockSchedules);
+      (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue(mockDoses);
+
+      const result = await useMedicationStore.getState().loadMedicationWithDetails('med-1');
+
+      expect(result).toEqual({
+        medication: mockMed,
+        schedules: mockSchedules,
+        doses: mockDoses,
+      });
+      expect(useMedicationStore.getState().loading).toBe(false);
+    });
+
+    it('should return null if medication not found', async () => {
+      const mockScheduleRepository = require('../../database/medicationRepository').medicationScheduleRepository;
+      (medicationRepository.getById as jest.Mock).mockResolvedValue(null);
+      mockScheduleRepository.getByMedicationId.mockResolvedValue([]);
+      (medicationDoseRepository.getByMedicationId as jest.Mock).mockResolvedValue([]);
+
+      const result = await useMedicationStore.getState().loadMedicationWithDetails('not-found');
+
+      expect(result).toBeNull();
+      expect(useMedicationStore.getState().loading).toBe(false);
+    });
+
+    it('should handle errors when loading medication details', async () => {
+      const error = new Error('Failed to load details');
+      (medicationRepository.getById as jest.Mock).mockRejectedValue(error);
+
+      await expect(
+        useMedicationStore.getState().loadMedicationWithDetails('med-1')
+      ).rejects.toThrow('Failed to load details');
+
+      expect(useMedicationStore.getState().error).toBe('Failed to load details');
+      expect(useMedicationStore.getState().loading).toBe(false);
+    });
+  });
+
+  describe('addSchedule', () => {
+    beforeEach(() => {
+      const mockScheduleRepository = require('../../database/medicationRepository').medicationScheduleRepository;
+      mockScheduleRepository.create = jest.fn();
+    });
+
+    it('should add a new schedule', async () => {
+      const mockScheduleRepository = require('../../database/medicationRepository').medicationScheduleRepository;
+      const newSchedule = {
+        medicationId: 'med-1',
+        time: '09:00',
+        timezone: 'America/Los_Angeles',
+        dosage: 1,
+        enabled: true,
+      };
+
+      const createdSchedule = {
+        ...newSchedule,
+        id: 'schedule-1',
+      };
+
+      mockScheduleRepository.create.mockResolvedValue(createdSchedule);
+
+      const result = await useMedicationStore.getState().addSchedule(newSchedule);
+
+      expect(result).toEqual(createdSchedule);
+      expect(useMedicationStore.getState().schedules).toContainEqual(createdSchedule);
+      expect(useMedicationStore.getState().loading).toBe(false);
+    });
+
+    it('should handle errors when adding schedule', async () => {
+      const mockScheduleRepository = require('../../database/medicationRepository').medicationScheduleRepository;
+      const error = new Error('Failed to add schedule');
+      mockScheduleRepository.create.mockRejectedValue(error);
+
+      const newSchedule = {
+        medicationId: 'med-1',
+        time: '09:00',
+        timezone: 'America/Los_Angeles',
+        dosage: 1,
+        enabled: true,
+      };
+
+      await expect(
+        useMedicationStore.getState().addSchedule(newSchedule)
+      ).rejects.toThrow('Failed to add schedule');
+
+      expect(useMedicationStore.getState().error).toBe('Failed to add schedule');
+      expect(useMedicationStore.getState().loading).toBe(false);
+    });
+
+    it('should invalidate medications cache when adding schedule', async () => {
+      const mockScheduleRepository = require('../../database/medicationRepository').medicationScheduleRepository;
+      const newSchedule = {
+        medicationId: 'med-1',
+        time: '09:00',
+        timezone: 'America/Los_Angeles',
+        dosage: 1,
+        enabled: true,
+      };
+
+      const createdSchedule = {
+        ...newSchedule,
+        id: 'schedule-1',
+      };
+
+      mockScheduleRepository.create.mockResolvedValue(createdSchedule);
+
+      // Set cache
+      cacheManager.set('medications', []);
+      expect(cacheManager.get('medications')).toBeDefined();
+
+      await useMedicationStore.getState().addSchedule(newSchedule);
+
+      // Cache should be invalidated
+      expect(cacheManager.get('medications')).toBeUndefined();
+    });
+  });
+
+  describe('updateSchedule', () => {
+    beforeEach(() => {
+      const mockScheduleRepository = require('../../database/medicationRepository').medicationScheduleRepository;
+      mockScheduleRepository.update = jest.fn();
+    });
+
+    it('should update a schedule', async () => {
+      const mockScheduleRepository = require('../../database/medicationRepository').medicationScheduleRepository;
+      const existingSchedule = {
+        id: 'schedule-1',
+        medicationId: 'med-1',
+        time: '09:00',
+        timezone: 'America/Los_Angeles',
+        dosage: 1,
+        enabled: true,
+      };
+
+      useMedicationStore.setState({ schedules: [existingSchedule] });
+
+      mockScheduleRepository.update.mockResolvedValue(undefined);
+
+      await useMedicationStore.getState().updateSchedule('schedule-1', { time: '10:00' });
+
+      const state = useMedicationStore.getState();
+      expect(state.schedules[0].time).toBe('10:00');
+      expect(mockScheduleRepository.update).toHaveBeenCalledWith('schedule-1', { time: '10:00' });
+      expect(state.loading).toBe(false);
+    });
+
+    it('should handle errors when updating schedule', async () => {
+      const mockScheduleRepository = require('../../database/medicationRepository').medicationScheduleRepository;
+      const error = new Error('Failed to update schedule');
+      mockScheduleRepository.update.mockRejectedValue(error);
+
+      await expect(
+        useMedicationStore.getState().updateSchedule('schedule-1', { time: '10:00' })
+      ).rejects.toThrow('Failed to update schedule');
+
+      expect(useMedicationStore.getState().error).toBe('Failed to update schedule');
+      expect(useMedicationStore.getState().loading).toBe(false);
+    });
+
+    it('should invalidate medications cache when updating schedule', async () => {
+      const mockScheduleRepository = require('../../database/medicationRepository').medicationScheduleRepository;
+      const existingSchedule = {
+        id: 'schedule-1',
+        medicationId: 'med-1',
+        time: '09:00',
+        timezone: 'America/Los_Angeles',
+        dosage: 1,
+        enabled: true,
+      };
+
+      useMedicationStore.setState({ schedules: [existingSchedule] });
+      mockScheduleRepository.update.mockResolvedValue(undefined);
+
+      // Set cache
+      cacheManager.set('medications', []);
+      expect(cacheManager.get('medications')).toBeDefined();
+
+      await useMedicationStore.getState().updateSchedule('schedule-1', { time: '10:00' });
+
+      // Cache should be invalidated
+      expect(cacheManager.get('medications')).toBeUndefined();
+    });
+  });
+
+  describe('deleteSchedule', () => {
+    beforeEach(() => {
+      const mockScheduleRepository = require('../../database/medicationRepository').medicationScheduleRepository;
+      mockScheduleRepository.delete = jest.fn();
+    });
+
+    it('should delete a schedule', async () => {
+      const mockScheduleRepository = require('../../database/medicationRepository').medicationScheduleRepository;
+      const schedule1 = {
+        id: 'schedule-1',
+        medicationId: 'med-1',
+        time: '09:00',
+        timezone: 'America/Los_Angeles',
+        dosage: 1,
+        enabled: true,
+      };
+
+      const schedule2 = {
+        id: 'schedule-2',
+        medicationId: 'med-1',
+        time: '21:00',
+        timezone: 'America/Los_Angeles',
+        dosage: 1,
+        enabled: true,
+      };
+
+      useMedicationStore.setState({ schedules: [schedule1, schedule2] });
+
+      mockScheduleRepository.delete.mockResolvedValue(undefined);
+
+      await useMedicationStore.getState().deleteSchedule('schedule-1');
+
+      const state = useMedicationStore.getState();
+      expect(state.schedules).toHaveLength(1);
+      expect(state.schedules[0].id).toBe('schedule-2');
+      expect(mockScheduleRepository.delete).toHaveBeenCalledWith('schedule-1');
+      expect(state.loading).toBe(false);
+    });
+
+    it('should handle errors when deleting schedule', async () => {
+      const mockScheduleRepository = require('../../database/medicationRepository').medicationScheduleRepository;
+      const error = new Error('Failed to delete schedule');
+      mockScheduleRepository.delete.mockRejectedValue(error);
+
+      await expect(
+        useMedicationStore.getState().deleteSchedule('schedule-1')
+      ).rejects.toThrow('Failed to delete schedule');
+
+      expect(useMedicationStore.getState().error).toBe('Failed to delete schedule');
+      expect(useMedicationStore.getState().loading).toBe(false);
+    });
+
+    it('should invalidate medications cache when deleting schedule', async () => {
+      const mockScheduleRepository = require('../../database/medicationRepository').medicationScheduleRepository;
+      const schedule1 = {
+        id: 'schedule-1',
+        medicationId: 'med-1',
+        time: '09:00',
+        timezone: 'America/Los_Angeles',
+        dosage: 1,
+        enabled: true,
+      };
+
+      useMedicationStore.setState({ schedules: [schedule1] });
+      mockScheduleRepository.delete.mockResolvedValue(undefined);
+
+      // Set cache
+      cacheManager.set('medications', []);
+      expect(cacheManager.get('medications')).toBeDefined();
+
+      await useMedicationStore.getState().deleteSchedule('schedule-1');
+
+      // Cache should be invalidated
+      expect(cacheManager.get('medications')).toBeUndefined();
+    });
+  });
+
+  describe('getSchedulesByMedicationId', () => {
+    it('should return schedules for specific medication', () => {
+      const schedule1 = {
+        id: 'schedule-1',
+        medicationId: 'med-1',
+        time: '09:00',
+        timezone: 'America/Los_Angeles',
+        dosage: 1,
+        enabled: true,
+      };
+
+      const schedule2 = {
+        id: 'schedule-2',
+        medicationId: 'med-2',
+        time: '21:00',
+        timezone: 'America/Los_Angeles',
+        dosage: 1,
+        enabled: true,
+      };
+
+      const schedule3 = {
+        id: 'schedule-3',
+        medicationId: 'med-1',
+        time: '17:00',
+        timezone: 'America/Los_Angeles',
+        dosage: 1,
+        enabled: true,
+      };
+
+      useMedicationStore.setState({ schedules: [schedule1, schedule2, schedule3] });
+
+      const result = useMedicationStore.getState().getSchedulesByMedicationId('med-1');
+
+      expect(result).toHaveLength(2);
+      expect(result).toContainEqual(schedule1);
+      expect(result).toContainEqual(schedule3);
+      expect(result).not.toContainEqual(schedule2);
+    });
+
+    it('should return empty array if no schedules found', () => {
+      useMedicationStore.setState({ schedules: [] });
+
+      const result = useMedicationStore.getState().getSchedulesByMedicationId('med-1');
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('updateDose - enhanced', () => {
+    it('should update dose and state', async () => {
+      const existingDose = {
+        id: 'dose-1',
+        medicationId: 'med-1',
+        timestamp: Date.now(),
+        quantity: 1,
+        status: 'taken' as const,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      useMedicationStore.setState({ doses: [existingDose] });
+
+      (medicationDoseRepository.update as jest.Mock).mockResolvedValue(undefined);
+
+      await useMedicationStore.getState().updateDose('dose-1', { effectivenessRating: 8 });
+
+      const state = useMedicationStore.getState();
+      expect(state.doses[0].effectivenessRating).toBe(8);
+      expect(medicationDoseRepository.update).toHaveBeenCalledWith('dose-1', {
+        effectivenessRating: 8,
+      });
+      expect(state.loading).toBe(false);
     });
   });
 

@@ -1,9 +1,9 @@
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme, ThemeColors } from '../../theme';
 import { useAnalyticsStore } from '../../store/analyticsStore';
-import { dailyStatusRepository } from '../../database/dailyStatusRepository';
-import { DailyStatusLog, TimeRangeDays } from '../../models/types';
+import { useDailyStatusStore } from '../../store/dailyStatusStore';
+import { TimeRangeDays } from '../../models/types';
 import {
   calculateEpisodeFrequency,
   calculateDurationMetrics,
@@ -102,28 +102,26 @@ export default function EpisodeStatistics({ selectedRange }: EpisodeStatisticsPr
   const { theme } = useTheme();
   const styles = createStyles(theme);
 
-  // Use the analytics store for episodes (follows Components → Stores → Repositories pattern)
+  // Use the analytics store for episodes and daily status store for statuses
   const { episodes, dateRange, setDateRange } = useAnalyticsStore();
-  const [dailyStatuses, setDailyStatuses] = useState<DailyStatusLog[]>([]);
+  const { dailyStatuses: storeDailyStatuses, loadDailyStatuses } = useDailyStatusStore();
 
   // Update the store's date range when the selected range changes
   useEffect(() => {
     setDateRange(selectedRange);
   }, [selectedRange, setDateRange]);
 
-  // Load daily statuses directly from repository for the date range
-  // This prevents issues with the shared store being overwritten by the calendar
+  // Load daily statuses using store method for the date range
   useEffect(() => {
     const loadData = async () => {
       const startDateStr = formatDateToYYYYMMDD(dateRange.startDate);
       const endDateStr = formatDateToYYYYMMDD(dateRange.endDate);
 
-      const statuses = await dailyStatusRepository.getDateRange(startDateStr, endDateStr);
-      setDailyStatuses(statuses);
+      await loadDailyStatuses(startDateStr, endDateStr);
     };
 
     loadData();
-  }, [dateRange]);
+  }, [dateRange, loadDailyStatuses]);
 
   const statistics = useMemo(() => {
     const { startDate, endDate } = dateRange;
@@ -179,7 +177,7 @@ export default function EpisodeStatistics({ selectedRange }: EpisodeStatisticsPr
     // This ensures we're not affected by whatever month the calendar is showing
     const startDateStr = formatDateToYYYYMMDD(normalizedStart);
     const endDateStr = formatDateToYYYYMMDD(normalizedEnd);
-    const relevantDailyStatuses = dailyStatuses.filter(log =>
+    const relevantDailyStatuses = storeDailyStatuses.filter(log =>
       log.date >= startDateStr && log.date <= endDateStr
     );
 
@@ -241,7 +239,7 @@ export default function EpisodeStatistics({ selectedRange }: EpisodeStatisticsPr
       episodeFrequency,
       durationMetrics,
     };
-  }, [dateRange, episodes, dailyStatuses]);
+  }, [dateRange, episodes, storeDailyStatuses]);
 
   const hasEpisodes = statistics.episodeFrequency > 0;
 

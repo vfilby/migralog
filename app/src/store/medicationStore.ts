@@ -62,6 +62,7 @@ interface MedicationState {
   preventativeMedications: Medication[];
   rescueMedications: Medication[];
   otherMedications: Medication[];
+  archivedMedications: Medication[]; // Archived medications
   schedules: MedicationSchedule[]; // All schedules for active medications
   doses: MedicationDose[]; // Recent doses (last 90 days for analytics)
   loading: boolean;
@@ -79,6 +80,17 @@ interface MedicationState {
   logDose: (dose: Omit<MedicationDose, 'id' | 'createdAt'>) => Promise<MedicationDose>;
   updateDose: (id: string, updates: Partial<MedicationDose>) => Promise<void>;
   deleteDose: (id: string) => Promise<void>;
+  
+  // New methods for screen refactoring
+  getArchivedMedications: () => Promise<void>;
+  getMedicationById: (id: string) => Medication | null;
+  getDoseById: (id: string) => MedicationDose | null;
+  getDosesByMedicationId: (medicationId: string, limit?: number) => Promise<MedicationDose[]>;
+  loadMedicationWithDetails: (medicationId: string) => Promise<{ medication: Medication; schedules: MedicationSchedule[]; doses: MedicationDose[] } | null>;
+  addSchedule: (schedule: Omit<MedicationSchedule, 'id'>) => Promise<MedicationSchedule>;
+  updateSchedule: (id: string, updates: Partial<MedicationSchedule>) => Promise<void>;
+  deleteSchedule: (id: string) => Promise<void>;
+  getSchedulesByMedicationId: (medicationId: string) => MedicationSchedule[];
 }
 
 export const useMedicationStore = create<MedicationState>((set, get) => ({
@@ -86,6 +98,7 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
   preventativeMedications: [],
   rescueMedications: [],
   otherMedications: [],
+  archivedMedications: [],
   schedules: [],
   doses: [],
   loading: false,
@@ -273,10 +286,25 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
   },
 
   updateDose: async (id, updates) => {
+    set({ loading: true, error: null });
     try {
+      logger.log('[Store] Updating dose:', id, updates);
       await medicationDoseRepository.update(id, updates);
+
+      // Update doses in state
+      const doses = get().doses.map(d =>
+        d.id === id ? { ...d, ...updates } : d
+      );
+      set({ doses, loading: false });
+
+      logger.log('[Store] Dose updated:', id);
     } catch (error) {
-      set({ error: (error as Error).message });
+      await errorLogger.log('database', 'Failed to update dose', error as Error, {
+        operation: 'updateDose',
+        doseId: id
+      });
+      set({ error: (error as Error).message, loading: false });
+      toastService.error('Failed to update dose');
       throw error;
     }
   },
@@ -419,6 +447,261 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       set({ error: (error as Error).message });
       throw error;
     }
+  },
+
+  // New methods for screen refactoring
+
+  /**
+   * Load archived medications from the repository
+   * Updates the archivedMedications state with the results.
+   */
+  getArchivedMedications: async () => {
+    set({ loading: true, error: null });
+    try {
+      logger.log('[Store] Loading archived medications');
+      const archivedMedications = await medicationRepository.getArchived();
+      
+      set({ archivedMedications, loading: false });
+      logger.log('[Store] Loaded archived medications:', archivedMedications.length);
+    } catch (error) {
+      await errorLogger.log('database', 'Failed to load archived medications', error as Error, {
+        operation: 'getArchivedMedications'
+      });
+      set({ error: (error as Error).message, loading: false });
+      toastService.error('Failed to load archived medications');
+      throw error;
+    }
+  },
+
+  /**
+   * Get a medication by ID from state
+   * Searches in both active and archived medications in state.
+   * If not found in state and archived medications haven't been loaded,
+   * falls back to loading from repository.
+   * 
+   * @param id - Medication id
+   * @returns Medication object or null if not found
+   */
+  getMedicationById: (id: string) => {
+    logger.log('[Store] Getting medication by ID:', id);
+    
+    // Check active medications first
+    const medication = get().medications.find(m => m.id === id);
+    if (medication) {
+      return medication;
+    }
+
+    // Check archived medications
+    const archivedMedication = get().archivedMedications.find(m => m.id === id);
+    if (archivedMedication) {
+      return archivedMedication;
+    }
+
+    // If archived medications array is empty, the medication might be archived
+    // but not yet loaded into state. This is a synchronous method, so we can't
+    // load it here. Callers should use loadMedicationWithDetails for a complete
+    // async approach that will load from repository if needed.
+    logger.log('[Store] Medication not found in state:', id);
+    return null;
+  },
+
+  /**
+   * Get a dose by ID from state
+   * Only searches in doses currently loaded in state (recent doses).
+   * 
+   * @param id - Dose id
+   * @returns Dose object or null if not found in state
+   */
+  getDoseById: (id: string) => {
+    logger.log('[Store] Getting dose by ID:', id);
+    const dose = get().doses.find(d => d.id === id);
+    
+    if (!dose) {
+      logger.log('[Store] Dose not found in state:', id);
+    }
+    
+    return dose || null;
+  },
+
+  /**
+   * Load doses for a specific medication from the repository
+   * Does not update state - returns the doses directly.
+   * 
+   * @param medicationId - Medication id
+   * @param limit - Maximum number of doses to load (default: 50)
+   * @returns Array of medication doses
+   */
+  getDosesByMedicationId: async (medicationId: string, limit = 50) => {
+    set({ loading: true, error: null });
+    try {
+      logger.log('[Store] Loading doses for medication:', medicationId);
+      const doses = await medicationDoseRepository.getByMedicationId(medicationId, limit);
+      
+      set({ loading: false });
+      logger.log('[Store] Loaded doses for medication:', medicationId, doses.length);
+      return doses;
+    } catch (error) {
+      await errorLogger.log('database', 'Failed to load doses for medication', error as Error, {
+        operation: 'getDosesByMedicationId',
+        medicationId
+      });
+      set({ error: (error as Error).message, loading: false });
+      toastService.error('Failed to load medication doses');
+      throw error;
+    }
+  },
+
+  /**
+   * Load a medication with all its associated data from the repository
+   * Loads medication, schedules, and recent doses in parallel.
+   * This is useful for medication detail screens.
+   * 
+   * @param medicationId - Medication id
+   * @returns Object containing medication, schedules, and doses, or null if medication not found
+   */
+  loadMedicationWithDetails: async (medicationId: string) => {
+    set({ loading: true, error: null });
+    try {
+      logger.log('[Store] Loading medication with details:', medicationId);
+      
+      // Load medication, schedules, and recent doses in parallel
+      const [medication, schedules, doses] = await Promise.all([
+        medicationRepository.getById(medicationId),
+        medicationScheduleRepository.getByMedicationId(medicationId),
+        medicationDoseRepository.getByMedicationId(medicationId, 50)
+      ]);
+
+      if (!medication) {
+        logger.log('[Store] Medication not found:', medicationId);
+        set({ loading: false });
+        return null;
+      }
+
+      logger.log('[Store] Loaded medication with details:', {
+        medicationId,
+        schedulesCount: schedules.length,
+        dosesCount: doses.length
+      });
+
+      set({ loading: false });
+      return { medication, schedules, doses };
+    } catch (error) {
+      await errorLogger.log('database', 'Failed to load medication details', error as Error, {
+        operation: 'loadMedicationWithDetails',
+        medicationId
+      });
+      set({ error: (error as Error).message, loading: false });
+      toastService.error('Failed to load medication details');
+      throw error;
+    }
+  },
+
+  /**
+   * Add a new medication schedule
+   * @param schedule - Schedule data (without id)
+   * @returns The created schedule with generated id
+   */
+  addSchedule: async (schedule) => {
+    set({ loading: true, error: null });
+    try {
+      logger.log('[Store] Adding schedule:', schedule);
+      const newSchedule = await medicationScheduleRepository.create(schedule);
+
+      // Invalidate medication cache as schedules affect medication data
+      cacheManager.invalidate('medications');
+
+      // Update schedules in state
+      const schedules = [...get().schedules, newSchedule];
+      set({ schedules, loading: false });
+
+      logger.log('[Store] Schedule added:', newSchedule.id);
+      return newSchedule;
+    } catch (error) {
+      await errorLogger.log('database', 'Failed to add schedule', error as Error, {
+        operation: 'addSchedule',
+        medicationId: schedule.medicationId
+      });
+      set({ error: (error as Error).message, loading: false });
+      toastService.error('Failed to add schedule');
+      throw error;
+    }
+  },
+
+  /**
+   * Update an existing medication schedule
+   * @param id - Schedule id
+   * @param updates - Partial schedule data to update
+   */
+  updateSchedule: async (id, updates) => {
+    set({ loading: true, error: null });
+    try {
+      logger.log('[Store] Updating schedule:', id, updates);
+      await medicationScheduleRepository.update(id, updates);
+
+      // Invalidate medication cache as schedules affect medication data
+      cacheManager.invalidate('medications');
+
+      // Update schedules in state
+      const schedules = get().schedules.map(s =>
+        s.id === id ? { ...s, ...updates } : s
+      );
+      set({ schedules, loading: false });
+
+      logger.log('[Store] Schedule updated:', id);
+    } catch (error) {
+      await errorLogger.log('database', 'Failed to update schedule', error as Error, {
+        operation: 'updateSchedule',
+        scheduleId: id
+      });
+      set({ error: (error as Error).message, loading: false });
+      toastService.error('Failed to update schedule');
+      throw error;
+    }
+  },
+
+  /**
+   * Delete a medication schedule
+   * @param id - Schedule id to delete
+   */
+  deleteSchedule: async (id) => {
+    set({ loading: true, error: null });
+    try {
+      logger.log('[Store] Deleting schedule:', id);
+      await medicationScheduleRepository.delete(id);
+
+      // Invalidate medication cache as schedules affect medication data
+      cacheManager.invalidate('medications');
+
+      // Update schedules in state
+      const schedules = get().schedules.filter(s => s.id !== id);
+      set({ schedules, loading: false });
+
+      logger.log('[Store] Schedule deleted:', id);
+    } catch (error) {
+      await errorLogger.log('database', 'Failed to delete schedule', error as Error, {
+        operation: 'deleteSchedule',
+        scheduleId: id
+      });
+      set({ error: (error as Error).message, loading: false });
+      toastService.error('Failed to delete schedule');
+      throw error;
+    }
+  },
+
+  /**
+   * Get schedules for a specific medication from state
+   * Only returns schedules that are currently loaded in state.
+   * Use loadSchedules() first to ensure schedules are loaded.
+   * 
+   * @param medicationId - Medication id
+   * @returns Array of schedules for the medication
+   */
+  getSchedulesByMedicationId: (medicationId: string) => {
+    logger.log('[Store] Getting schedules for medication:', medicationId);
+    const schedules = get().schedules.filter(s => s.medicationId === medicationId);
+    
+    logger.log('[Store] Found schedules for medication:', medicationId, schedules.length);
+    return schedules;
   },
 
 }));

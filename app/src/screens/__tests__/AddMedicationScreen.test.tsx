@@ -62,15 +62,18 @@ const mockNavigation = createMockNavigation();
 
 describe('AddMedicationScreen', () => {
   const mockAddMedication = jest.fn();
+  const mockAddSchedule = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
 
     (useMedicationStore as unknown as jest.Mock).mockReturnValue({
       addMedication: mockAddMedication,
+      addSchedule: mockAddSchedule,
     });
 
     mockAddMedication.mockResolvedValue({ id: 'new-med-123' });
+    mockAddSchedule.mockResolvedValue({ id: 'schedule-123' });
   });
 
   it('should render add medication screen with title', async () => {
@@ -645,7 +648,7 @@ describe('AddMedicationScreen', () => {
 
       await waitFor(() => {
         expect(mockAddMedication).toHaveBeenCalled();
-        expect(medicationScheduleRepository.create).toHaveBeenCalledWith({
+        expect(mockAddSchedule).toHaveBeenCalledWith({
           medicationId: 'new-med-123',
           time: '08:00',
           timezone: 'America/Los_Angeles',

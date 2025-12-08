@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { logger } from '../../utils/logger';
 import {
   View,
@@ -10,9 +10,7 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
-import { medicationRepository } from '../../database/medicationRepository';
 import { useMedicationStore } from '../../store/medicationStore';
-import { Medication } from '../../models/types';
 import { useTheme, ThemeColors } from '../../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ArchivedMedications'>;
@@ -135,23 +133,18 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
 export default function ArchivedMedicationsScreen({ navigation }: Props) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const [archivedMedications, setArchivedMedications] = useState<Medication[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { unarchiveMedication } = useMedicationStore();
+  const { archivedMedications, loading, getArchivedMedications, unarchiveMedication } = useMedicationStore();
 
   useEffect(() => {
     loadArchivedMedications();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadArchivedMedications = async () => {
-    setLoading(true);
     try {
-      const archived = await medicationRepository.getArchived();
-      setArchivedMedications(archived);
+      await getArchivedMedications();
     } catch (error) {
       logger.error('Failed to load archived medications:', error);
-    } finally {
-      setLoading(false);
     }
   };
 

@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
-import { medicationDoseRepository, medicationRepository } from '../../database/medicationRepository';
+import { useMedicationStore } from '../../store/medicationStore';
 import { MedicationDose, Medication } from '../../models/types';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme, ThemeColors } from '../../theme';
@@ -213,6 +213,7 @@ export default function EditMedicationDoseScreen({ route, navigation }: Props) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const { doseId } = route.params;
+  const { getDoseById, getMedicationById, updateDose, deleteDose } = useMedicationStore();
 
   const [dose, setDose] = useState<MedicationDose | null>(null);
   const [medication, setMedication] = useState<Medication | null>(null);
@@ -223,10 +224,11 @@ export default function EditMedicationDoseScreen({ route, navigation }: Props) {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const loadDose = useCallback(async () => {
+  const loadDose = useCallback(() => {
     try {
       setLoading(true);
-      const loadedDose = await medicationDoseRepository.getById(doseId);
+      // Use store method to get dose from state
+      const loadedDose = getDoseById(doseId);
 
       if (!loadedDose) {
         Alert.alert('Error', 'Medication dose not found');
@@ -234,7 +236,8 @@ export default function EditMedicationDoseScreen({ route, navigation }: Props) {
         return;
       }
 
-      const loadedMedication = await medicationRepository.getById(loadedDose.medicationId);
+      // Use store method to get medication from state
+      const loadedMedication = getMedicationById(loadedDose.medicationId);
 
       if (!loadedMedication) {
         Alert.alert('Error', 'Medication not found');
@@ -254,7 +257,7 @@ export default function EditMedicationDoseScreen({ route, navigation }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [doseId, navigation]);
+  }, [doseId, navigation, getDoseById, getMedicationById]);
 
   useEffect(() => {
     loadDose();
@@ -270,7 +273,8 @@ export default function EditMedicationDoseScreen({ route, navigation }: Props) {
 
     setSaving(true);
     try {
-      await medicationDoseRepository.update(dose.id, {
+      // Use store method which provides centralized error handling and logging
+      await updateDose(dose.id, {
         timestamp: timestamp.getTime(),
         quantity: parseFloat(amount),
         notes: notes.trim() || undefined,
@@ -278,8 +282,8 @@ export default function EditMedicationDoseScreen({ route, navigation }: Props) {
 
       navigation.goBack();
     } catch (error) {
+      // Store already logged error and showed toast
       logger.error('Failed to update medication dose:', error);
-      Alert.alert('Error', 'Failed to update medication dose');
     } finally {
       setSaving(false);
     }
@@ -298,11 +302,12 @@ export default function EditMedicationDoseScreen({ route, navigation }: Props) {
           style: 'destructive',
           onPress: async () => {
             try {
-              await medicationDoseRepository.delete(dose.id);
+              // Use store method which shows toast
+              await deleteDose(dose.id);
               navigation.goBack();
             } catch (error) {
+              // Store already logged error and showed toast
               logger.error('Failed to delete medication dose:', error);
-              Alert.alert('Error', 'Failed to delete medication dose');
             }
           },
         },

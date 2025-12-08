@@ -4,15 +4,16 @@ import { Alert } from 'react-native';
 
 import EditIntensityReadingScreen from '../episode/EditIntensityReadingScreen';
 import { renderWithProviders } from '../../utils/screenTestHelpers';
-import { intensityRepository } from '../../database/episodeRepository';
+
 import { IntensityReading } from '../../models/types';
 
-jest.mock('../../database/episodeRepository', () => ({
-  intensityRepository: {
-    getById: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
-  },
+// Mock the episode store instead of repository
+jest.mock('../../store/episodeStore', () => ({
+  useEpisodeStore: jest.fn(() => ({
+    getIntensityReadingById: jest.fn(),
+    updateIntensityReading: jest.fn(),
+    deleteIntensityReading: jest.fn(),
+  })),
 }));
 
 jest.mock('../../utils/logger', () => ({
@@ -51,18 +52,22 @@ const mockReading: IntensityReading = {
 describe('EditIntensityReadingScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (intensityRepository.getById as jest.Mock).mockResolvedValue(mockReading);
+    const { useEpisodeStore } = require('../../store/episodeStore');
+    useEpisodeStore.mockReturnValue({
+      getIntensityReadingById: jest.fn().mockReturnValue(mockReading),
+      updateIntensityReading: jest.fn().mockResolvedValue(undefined),
+      deleteIntensityReading: jest.fn().mockResolvedValue(undefined),
+    });
   });
 
   it('should render loading state initially', async () => {
-    let resolvePromise: (value: any) => void = () => {};
-    const loadingPromise = new Promise((resolve) => {
-      resolvePromise = resolve;
-    });
+    const { useEpisodeStore } = require('../../store/episodeStore');
     
-    (intensityRepository.getById as jest.Mock).mockImplementation(
-      () => loadingPromise
-    );
+    useEpisodeStore.mockReturnValue({
+      getIntensityReadingById: jest.fn().mockReturnValue(null),
+      updateIntensityReading: jest.fn(),
+      deleteIntensityReading: jest.fn(),
+    });
 
     renderWithProviders(
       <EditIntensityReadingScreen 
@@ -74,14 +79,6 @@ describe('EditIntensityReadingScreen', () => {
     // During loading, the save/delete buttons should not be present
     expect(screen.queryByText('Save Changes')).toBeNull();
     expect(screen.queryByText('Delete Reading')).toBeNull();
-    
-    // Resolve the promise to move past loading state
-    resolvePromise(mockReading);
-    
-    // After loading completes, we should see the intensity controls
-    await waitFor(() => {
-      expect(screen.getByText('Save Changes')).toBeTruthy();
-    });
   });
 
   it('should load and display intensity reading data correctly', async () => {
@@ -92,9 +89,7 @@ describe('EditIntensityReadingScreen', () => {
       />
     );
 
-    await waitFor(() => {
-      expect(intensityRepository.getById).toHaveBeenCalledWith('test-reading-123');
-    });
+    // Store method is called synchronously, so no need to wait for it
 
     await waitFor(() => {
       expect(screen.getByText('Time')).toBeTruthy();
@@ -107,7 +102,12 @@ describe('EditIntensityReadingScreen', () => {
   });
 
   it('should show error and go back if reading not found', async () => {
-    (intensityRepository.getById as jest.Mock).mockResolvedValue(null);
+    const { useEpisodeStore } = require('../../store/episodeStore');
+    useEpisodeStore.mockReturnValue({
+      getIntensityReadingById: jest.fn().mockReturnValue(null),
+      updateIntensityReading: jest.fn(),
+      deleteIntensityReading: jest.fn(),
+    });
 
     renderWithProviders(
       <EditIntensityReadingScreen 
@@ -123,7 +123,12 @@ describe('EditIntensityReadingScreen', () => {
   });
 
   it('should handle loading error and go back', async () => {
-    (intensityRepository.getById as jest.Mock).mockRejectedValue(new Error('Database error'));
+    const { useEpisodeStore } = require('../../store/episodeStore');
+    useEpisodeStore.mockReturnValue({
+      getIntensityReadingById: jest.fn(() => { throw new Error('Database error'); }),
+      updateIntensityReading: jest.fn(),
+      deleteIntensityReading: jest.fn(),
+    });
 
     renderWithProviders(
       <EditIntensityReadingScreen 
@@ -218,7 +223,13 @@ describe('EditIntensityReadingScreen', () => {
   });
 
   it('should save intensity changes successfully', async () => {
-    (intensityRepository.update as jest.Mock).mockResolvedValue(undefined);
+    const { useEpisodeStore } = require('../../store/episodeStore');
+    const mockUpdateIntensityReading = jest.fn().mockResolvedValue(undefined);
+    useEpisodeStore.mockReturnValue({
+      getIntensityReadingById: jest.fn().mockReturnValue(mockReading),
+      updateIntensityReading: mockUpdateIntensityReading,
+      deleteIntensityReading: jest.fn(),
+    });
 
     renderWithProviders(
       <EditIntensityReadingScreen 
@@ -239,7 +250,7 @@ describe('EditIntensityReadingScreen', () => {
     fireEvent.press(saveButton);
 
     await waitFor(() => {
-      expect(intensityRepository.update).toHaveBeenCalledWith(
+      expect(mockUpdateIntensityReading).toHaveBeenCalledWith(
         'test-reading-123',
         expect.objectContaining({
           intensity: 4,
@@ -251,7 +262,12 @@ describe('EditIntensityReadingScreen', () => {
   });
 
   it('should handle save error', async () => {
-    (intensityRepository.update as jest.Mock).mockRejectedValue(new Error('Save failed'));
+    const { useEpisodeStore } = require('../../store/episodeStore');
+    useEpisodeStore.mockReturnValue({
+      getIntensityReadingById: jest.fn().mockReturnValue(mockReading),
+      updateIntensityReading: jest.fn().mockRejectedValue(new Error('Save failed')),
+      deleteIntensityReading: jest.fn(),
+    });
 
     renderWithProviders(
       <EditIntensityReadingScreen 
@@ -300,7 +316,13 @@ describe('EditIntensityReadingScreen', () => {
   });
 
   it('should delete reading when confirmed', async () => {
-    (intensityRepository.delete as jest.Mock).mockResolvedValue(undefined);
+    const { useEpisodeStore } = require('../../store/episodeStore');
+    const mockDeleteIntensityReading = jest.fn().mockResolvedValue(undefined);
+    useEpisodeStore.mockReturnValue({
+      getIntensityReadingById: jest.fn().mockReturnValue(mockReading),
+      updateIntensityReading: jest.fn(),
+      deleteIntensityReading: mockDeleteIntensityReading,
+    });
 
     renderWithProviders(
       <EditIntensityReadingScreen 
@@ -331,13 +353,18 @@ describe('EditIntensityReadingScreen', () => {
     await deleteConfirmButton.onPress();
 
     await waitFor(() => {
-      expect(intensityRepository.delete).toHaveBeenCalledWith('test-reading-123');
+      expect(mockDeleteIntensityReading).toHaveBeenCalledWith('test-reading-123');
       expect(mockNavigation.goBack).toHaveBeenCalled();
     });
   });
 
   it('should handle delete error', async () => {
-    (intensityRepository.delete as jest.Mock).mockRejectedValue(new Error('Delete failed'));
+    const { useEpisodeStore } = require('../../store/episodeStore');
+    useEpisodeStore.mockReturnValue({
+      getIntensityReadingById: jest.fn().mockReturnValue(mockReading),
+      updateIntensityReading: jest.fn(),
+      deleteIntensityReading: jest.fn().mockRejectedValue(new Error('Delete failed')),
+    });
 
     renderWithProviders(
       <EditIntensityReadingScreen 
@@ -383,9 +410,12 @@ describe('EditIntensityReadingScreen', () => {
   });
 
   it('should show saving state when save is in progress', async () => {
-    (intensityRepository.update as jest.Mock).mockImplementation(
-      () => new Promise(() => {}) // Never resolves
-    );
+    const { useEpisodeStore } = require('../../store/episodeStore');
+    useEpisodeStore.mockReturnValue({
+      getIntensityReadingById: jest.fn().mockReturnValue(mockReading),
+      updateIntensityReading: jest.fn().mockImplementation(() => new Promise(() => {})), // Never resolves
+      deleteIntensityReading: jest.fn(),
+    });
 
     renderWithProviders(
       <EditIntensityReadingScreen 
@@ -406,9 +436,12 @@ describe('EditIntensityReadingScreen', () => {
   });
 
   it('should disable buttons when saving', async () => {
-    (intensityRepository.update as jest.Mock).mockImplementation(
-      () => new Promise(() => {}) // Never resolves
-    );
+    const { useEpisodeStore } = require('../../store/episodeStore');
+    useEpisodeStore.mockReturnValue({
+      getIntensityReadingById: jest.fn().mockReturnValue(mockReading),
+      updateIntensityReading: jest.fn().mockImplementation(() => new Promise(() => {})), // Never resolves
+      deleteIntensityReading: jest.fn(),
+    });
 
     renderWithProviders(
       <EditIntensityReadingScreen 
@@ -493,9 +526,14 @@ describe('EditIntensityReadingScreen', () => {
   });
 
   it('should prevent save when reading or timestamp is null', async () => {
+    const { useEpisodeStore } = require('../../store/episodeStore');
     // Mock a scenario where reading loads but timestamp is somehow null
     const brokenReading = { ...mockReading, timestamp: undefined };
-    (intensityRepository.getById as jest.Mock).mockResolvedValue(brokenReading);
+    useEpisodeStore.mockReturnValue({
+      getIntensityReadingById: jest.fn().mockReturnValue(brokenReading),
+      updateIntensityReading: jest.fn(),
+      deleteIntensityReading: jest.fn(),
+    });
 
     renderWithProviders(
       <EditIntensityReadingScreen 

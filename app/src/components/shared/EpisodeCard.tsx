@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { format } from 'date-fns';
-import { Episode, IntensityReading } from '../../models/types';
+import { Episode } from '../../models/types';
 import { locationService } from '../../services/locationService';
 import { useTheme, ThemeColors } from '../../theme';
-import { intensityRepository } from '../../database/episodeRepository';
+import { useEpisodeStore } from '../../store/episodeStore';
 import IntensitySparkline from '../analytics/IntensitySparkline';
 import { formatDurationLong } from '../../utils/dateFormatting';
 import { getTimeFormatString } from '../../utils/localeUtils';
@@ -118,7 +118,12 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
 const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = false, testID }: EpisodeCardProps) => {
   const { theme } = useTheme();
   const [locationAddress, setLocationAddress] = useState<string | null>(null);
-  const [intensityReadings, setIntensityReadings] = useState<IntensityReading[]>([]);
+  
+  // Use episode store to get intensity readings
+  const { intensityReadings: storeIntensityReadings } = useEpisodeStore();
+  
+  // Filter intensity readings for this episode
+  const intensityReadings = storeIntensityReadings.filter(r => r.episodeId === episode.id);
 
   // Calculate duration - either completed duration or elapsed time for ongoing
   const durationHours = episode.endTime
@@ -134,14 +139,6 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
         .catch(() => setLocationAddress(null));
     }
   }, [episode.location]);
-
-  useEffect(() => {
-    // Load intensity readings for the episode
-    intensityRepository
-      .getByEpisodeId(episode.id)
-      .then(readings => setIntensityReadings(readings))
-      .catch(() => setIntensityReadings([]));
-  }, [episode.id]);
 
   const styles = createStyles(theme);
 
