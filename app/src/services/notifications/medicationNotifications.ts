@@ -886,6 +886,10 @@ export async function dismissMedicationNotification(medicationId: string, schedu
       component: 'NotificationDismiss',
     });
 
+    let dismissedCount = 0;
+    let dismissedInitial = 0;
+    let dismissedFollowUps = 0;
+
     for (const notification of presentedNotifications) {
       const data = notification.request.content.data as {
         medicationId?: string;
@@ -893,6 +897,7 @@ export async function dismissMedicationNotification(medicationId: string, schedu
         scheduleId?: string;
         scheduleIds?: string[];
         time?: string;
+        isFollowUp?: boolean;
       };
 
       logger.info('[Notification] Processing notification for dismissal check', {
@@ -903,6 +908,7 @@ export async function dismissMedicationNotification(medicationId: string, schedu
           scheduleId: data.scheduleId,
           scheduleIds: data.scheduleIds,
           time: data.time,
+          isFollowUp: data.isFollowUp,
         },
         targetMedicationId: medicationId,
         targetScheduleId: scheduleId,
@@ -913,7 +919,8 @@ export async function dismissMedicationNotification(medicationId: string, schedu
       let shouldDismiss = false;
 
       // Single medication notification
-      // BREAKING CHANGE (DIS-106a): scheduleId is now required - removed "dismiss all" logic
+      // This matches BOTH initial notifications AND follow-up reminders for the schedule
+      // since they both have the same medicationId and scheduleId
       if (data.medicationId === medicationId) {
         // Only dismiss if scheduleId matches (required parameter)
         shouldDismiss = data.scheduleId === scheduleId;
@@ -924,6 +931,8 @@ export async function dismissMedicationNotification(medicationId: string, schedu
           scheduleIdMatch: shouldDismiss,
           notificationScheduleId: data.scheduleId,
           targetScheduleId: scheduleId,
+          isFollowUp: data.isFollowUp || false,
+          notificationType: data.isFollowUp ? 'follow-up reminder' : 'initial notification',
           shouldDismiss,
           component: 'NotificationDismiss',
         });
@@ -1060,10 +1069,19 @@ export async function dismissMedicationNotification(medicationId: string, schedu
           
           await Notifications.dismissNotificationAsync(notification.request.identifier);
           
+          dismissedCount++;
+          if (data.isFollowUp) {
+            dismissedFollowUps++;
+          } else {
+            dismissedInitial++;
+          }
+          
           logger.info('[Notification] Successfully dismissed notification', {
             notificationId: notification.request.identifier,
             medicationId,
             scheduleId,
+            isFollowUp: data.isFollowUp || false,
+            notificationType: data.isFollowUp ? 'follow-up reminder' : 'initial notification',
             component: 'NotificationDismiss',
           });
         } catch (dismissError) {
@@ -1097,6 +1115,9 @@ export async function dismissMedicationNotification(medicationId: string, schedu
     
     logger.info('[Notification] Finished processing all presented notifications', {
       totalProcessed: presentedNotifications.length,
+      totalDismissed: dismissedCount,
+      dismissedInitial,
+      dismissedFollowUps,
       medicationId,
       scheduleId,
       component: 'NotificationDismiss',
