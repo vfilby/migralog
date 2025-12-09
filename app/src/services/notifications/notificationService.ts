@@ -45,9 +45,21 @@ export const MULTIPLE_MEDICATION_REMINDER_CATEGORY = 'MULTIPLE_MEDICATION_REMIND
  */
 export async function handleIncomingNotification(notification: Notifications.Notification): Promise<Notifications.NotificationBehavior> {
   try {
+    logger.info('[Notification] handleIncomingNotification called', {
+      notificationId: notification.request.identifier,
+      title: notification.request.content.title,
+      body: notification.request.content.body,
+      component: 'NotificationHandler',
+    });
+
     // Check if this is a daily check-in notification
     const dailyCheckinResult = await handleDailyCheckinNotification(notification);
     if (dailyCheckinResult !== null) {
+      logger.info('[Notification] Daily check-in notification handled', {
+        notificationId: notification.request.identifier,
+        shouldShow: dailyCheckinResult.shouldShowBanner,
+        component: 'NotificationHandler',
+      });
       return dailyCheckinResult;
     }
 
@@ -58,7 +70,20 @@ export async function handleIncomingNotification(notification: Notifications.Not
       scheduleId?: string;
       scheduleIds?: string[];
       time?: string;
+      isFollowUp?: boolean;
     };
+
+    logger.info('[Notification] Processing medication reminder notification', {
+      notificationId: notification.request.identifier,
+      medicationId: data.medicationId,
+      medicationIds: data.medicationIds,
+      scheduleId: data.scheduleId,
+      scheduleIds: data.scheduleIds,
+      time: data.time,
+      isFollowUp: data.isFollowUp,
+      notificationType: data.isFollowUp ? 'follow-up reminder' : 'initial notification',
+      component: 'NotificationHandler',
+    });
 
     // For single medication reminders, check if already logged
     if (data.medicationId && data.scheduleId) {
@@ -140,9 +165,16 @@ export async function handleIncomingNotification(notification: Notifications.Not
           );
 
           if (wasLogged) {
-            logger.log('[Notification] Medication already logged for schedule, suppressing notification:', {
+            logger.info('[Notification] Medication already logged for schedule, SUPPRESSING notification', {
+              notificationId: notification.request.identifier,
               medicationId: data.medicationId,
               scheduleId: data.scheduleId,
+              scheduleTime: schedule.time,
+              scheduleTimezone: schedule.timezone,
+              isFollowUp: data.isFollowUp,
+              notificationType: data.isFollowUp ? 'follow-up reminder' : 'initial notification',
+              decision: 'SUPPRESS',
+              component: 'NotificationHandler',
             });
             // Don't show the notification
             return {
@@ -260,7 +292,17 @@ export async function handleIncomingNotification(notification: Notifications.Not
 
       // If all medications were logged, don't show notification
       if (notLoggedMedications.length === 0) {
-        logger.log('[Notification] All medications already logged, suppressing notification');
+        logger.info('[Notification] All medications in group already logged, SUPPRESSING notification', {
+          notificationId: notification.request.identifier,
+          totalMedications: data.medicationIds?.length || 0,
+          medicationIds: data.medicationIds,
+          scheduleIds: data.scheduleIds,
+          groupTime: data.time,
+          isFollowUp: data.isFollowUp,
+          notificationType: data.isFollowUp ? 'follow-up reminder' : 'initial notification',
+          decision: 'SUPPRESS',
+          component: 'NotificationHandler',
+        });
         return {
           shouldPlaySound: false,
           shouldSetBadge: false,
@@ -317,6 +359,17 @@ export async function handleIncomingNotification(notification: Notifications.Not
   }
 
     // Default behavior: show the notification
+    logger.info('[Notification] Showing notification (not logged yet or no suppression criteria met)', {
+      notificationId: notification.request.identifier,
+      medicationId: data.medicationId,
+      medicationIds: data.medicationIds,
+      scheduleId: data.scheduleId,
+      scheduleIds: data.scheduleIds,
+      isFollowUp: data.isFollowUp,
+      notificationType: data.isFollowUp ? 'follow-up reminder' : 'initial notification',
+      decision: 'SHOW',
+      component: 'NotificationHandler',
+    });
     return {
       shouldPlaySound: true,
       shouldSetBadge: true,
