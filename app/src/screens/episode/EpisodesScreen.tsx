@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList } from 'react-native';
 import { useEpisodeStore } from '../../store/episodeStore';
 import { Episode } from '../../models/types';
@@ -7,6 +7,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import EpisodeCard from '../../components/shared/EpisodeCard';
 import { useTheme, ThemeColors } from '../../theme';
+import { logger } from '../../utils/logger';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -59,12 +60,39 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
 export default function EpisodesScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { theme } = useTheme();
-  const { episodes, loadEpisodes, loading } = useEpisodeStore();
+  const episodeStore = useEpisodeStore();
   const styles = createStyles(theme);
 
+  // Local state for episodes and loading - fixes store subscription issue
+  const [episodes, setEpisodes] = useState<Episode[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Load episodes data
+  const loadEpisodesData = async () => {
+    try {
+      setLoading(true);
+      await episodeStore.loadEpisodes();
+      
+      // Get episodes from store after loading
+      // Access from the store hook instance, not getState()
+      setEpisodes(episodeStore.episodes);
+    } catch (error) {
+      logger.error('Failed to load episodes:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load on mount
+  useEffect(() => {
+    loadEpisodesData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Reload on focus
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      loadEpisodes();
+      loadEpisodesData();
     });
     return unsubscribe;
     // eslint-disable-next-line react-hooks/exhaustive-deps
