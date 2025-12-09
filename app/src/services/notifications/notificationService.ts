@@ -45,11 +45,16 @@ export const MULTIPLE_MEDICATION_REMINDER_CATEGORY = 'MULTIPLE_MEDICATION_REMIND
  */
 export async function handleIncomingNotification(notification: Notifications.Notification): Promise<Notifications.NotificationBehavior> {
   try {
-    logger.info('[Notification] handleIncomingNotification called', {
+    // CRITICAL DEBUG LOGGING: This log confirms the handler is being invoked
+    // If you don't see this log when a notification arrives, the handler is not registered properly
+    logger.info('[Notification] ===== handleIncomingNotification CALLED =====', {
       notificationId: notification.request.identifier,
       title: notification.request.content.title,
       body: notification.request.content.body,
+      data: notification.request.content.data,
+      trigger: notification.request.trigger,
       component: 'NotificationHandler',
+      timestamp: new Date().toISOString(),
     });
 
     // Check if this is a daily check-in notification
@@ -389,8 +394,19 @@ export async function handleIncomingNotification(notification: Notifications.Not
 }
 
 // Configure notification behavior
+// Note: This is called at module load time AND re-registered during initialization
+// to ensure the handler is properly set up on both simulator and device
+logger.info('[Notification] Setting notification handler at module load time', {
+  component: 'NotificationService',
+  phase: 'module-initialization',
+  timestamp: new Date().toISOString(),
+});
 Notifications.setNotificationHandler({
   handleNotification: handleIncomingNotification,
+});
+logger.info('[Notification] Notification handler set at module load time', {
+  component: 'NotificationService',
+  phase: 'module-initialization',
 });
 
 class NotificationService {
@@ -403,6 +419,22 @@ class NotificationService {
    */
   async initialize(): Promise<void> {
     if (this.initialized) return;
+
+    // CRITICAL FIX: Re-register notification handler during initialization
+    // This ensures the handler is properly set up on device after the native bridge is ready
+    // Without this, handleIncomingNotification may not be called on physical devices
+    logger.info('[Notification] Registering notification handler during initialization', {
+      component: 'NotificationService',
+      operation: 'initialize',
+      handlerFunction: 'handleIncomingNotification',
+    });
+    Notifications.setNotificationHandler({
+      handleNotification: handleIncomingNotification,
+    });
+    logger.info('[Notification] Notification handler registered successfully', {
+      component: 'NotificationService',
+      operation: 'initialize',
+    });
 
     // Register notification categories with action buttons
     await this.registerCategories();
