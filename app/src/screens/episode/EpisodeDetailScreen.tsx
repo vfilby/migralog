@@ -7,7 +7,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '../../navigation/types';
 import { useEpisodeStore } from '../../store/episodeStore';
 import { useMedicationStore } from '../../store/medicationStore';
-import { Episode, EpisodeNote } from '../../models/types';
+import { Episode, EpisodeNote, IntensityReading, SymptomLog, PainLocationLog } from '../../models/types';
 import { differenceInMinutes } from 'date-fns';
 import { locationService } from '../../services/locationService';
 import { useTheme, ThemeColors } from '../../theme';
@@ -111,10 +111,6 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
     deleteSymptomLog,
     deleteEpisodeNote,
     deletePainLocationLog,
-    intensityReadings,
-    symptomLogs,
-    painLocationLogs,
-    episodeNotes
   } = useEpisodeStore();
   
   // Medication store - provides medication deletion and dose loading
@@ -123,6 +119,10 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   // Local state for episode and UI
   const [episode, setEpisode] = useState<Episode | null>(null);
   const [medications, setMedications] = useState<MedicationDoseWithDetails[]>([]);
+  const [intensityReadings, setIntensityReadings] = useState<IntensityReading[]>([]);
+  const [symptomLogs, setSymptomLogs] = useState<SymptomLog[]>([]);
+  const [painLocationLogs, setPainLocationLogs] = useState<PainLocationLog[]>([]);
+  const [episodeNotes, setEpisodeNotes] = useState<EpisodeNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [locationAddress, setLocationAddress] = useState<string | null>(null);
   const [showMapModal, setShowMapModal] = useState(false);
@@ -152,6 +152,13 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
       }
 
       setEpisode(episodeWithDetails);
+      
+      // Set related data from episodeWithDetails to local state
+      // This ensures the UI updates with the loaded data
+      setIntensityReadings(episodeWithDetails.intensityReadings || []);
+      setSymptomLogs(episodeWithDetails.symptomLogs || []);
+      setPainLocationLogs(episodeWithDetails.painLocationLogs || []);
+      setEpisodeNotes(episodeWithDetails.episodeNotes || []);
 
       // Load medication doses for this episode with full medication details
       // Uses store method to avoid direct repository access
