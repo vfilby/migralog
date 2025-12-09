@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ##### 🎯 User-Facing Changes
 
+- Fix: Intensity graph and episode details not loading after store migration [`#282`](https://github.com/vfilby/migralog/pull/282)
 - 🐛 **Fix:** correct text matcher in medication dose E2E test [`#281`](https://github.com/vfilby/migralog/pull/281)
 - Add comprehensive notification lifecycle logging for debugging [`#280`](https://github.com/vfilby/migralog/pull/280)
 - UX Improvements: Medication Logs and App Logs Filtering [`#277`](https://github.com/vfilby/migralog/pull/277)
