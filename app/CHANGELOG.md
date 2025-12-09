@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ##### 🎯 User-Facing Changes
 
+- Add comprehensive notification lifecycle logging for debugging [`#280`](https://github.com/vfilby/migralog/pull/280)
 - UX Improvements: Medication Logs and App Logs Filtering [`#277`](https://github.com/vfilby/migralog/pull/277)
 - Refactor screens and components to enforce store architecture (#275) [`#276`](https://github.com/vfilby/migralog/pull/276)
 - Implement issues #269, #271, and #272: notification refactoring, architecture documentation, and centralized error handling [`#274`](https://github.com/vfilby/migralog/pull/274)
