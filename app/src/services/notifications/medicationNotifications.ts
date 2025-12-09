@@ -870,11 +870,20 @@ export async function cancelScheduledMedicationReminder(medicationId: string, sc
  */
 export async function dismissMedicationNotification(medicationId: string, scheduleId: string): Promise<void> {
   try {
+    logger.info('[Notification] dismissMedicationNotification called', {
+      medicationId,
+      scheduleId,
+      component: 'NotificationDismiss',
+    });
+
     // Get all presented notifications
     const presentedNotifications = await Notifications.getPresentedNotificationsAsync();
 
-    logger.log('[Notification] Checking presented notifications to dismiss:', {
+    logger.info('[Notification] Retrieved presented notifications', {
       totalPresented: presentedNotifications.length,
+      medicationId,
+      scheduleId,
+      component: 'NotificationDismiss',
     });
 
     for (const notification of presentedNotifications) {
@@ -886,6 +895,20 @@ export async function dismissMedicationNotification(medicationId: string, schedu
         time?: string;
       };
 
+      logger.info('[Notification] Processing notification for dismissal check', {
+        notificationId: notification.request.identifier,
+        notificationData: {
+          medicationId: data.medicationId,
+          medicationIds: data.medicationIds,
+          scheduleId: data.scheduleId,
+          scheduleIds: data.scheduleIds,
+          time: data.time,
+        },
+        targetMedicationId: medicationId,
+        targetScheduleId: scheduleId,
+        component: 'NotificationDismiss',
+      });
+
       // Check if this notification is for the medication being logged
       let shouldDismiss = false;
 
@@ -894,6 +917,16 @@ export async function dismissMedicationNotification(medicationId: string, schedu
       if (data.medicationId === medicationId) {
         // Only dismiss if scheduleId matches (required parameter)
         shouldDismiss = data.scheduleId === scheduleId;
+        
+        logger.info('[Notification] Single medication notification match check', {
+          notificationId: notification.request.identifier,
+          medicationIdMatch: true,
+          scheduleIdMatch: shouldDismiss,
+          notificationScheduleId: data.scheduleId,
+          targetScheduleId: scheduleId,
+          shouldDismiss,
+          component: 'NotificationDismiss',
+        });
       }
       // Multiple medication notification - SAFETY CHECK: only dismiss if ALL medications are logged
       else if (data.medicationIds?.includes(medicationId)) {
@@ -902,10 +935,29 @@ export async function dismissMedicationNotification(medicationId: string, schedu
         const medIndex = data.medicationIds.indexOf(medicationId);
         const scheduleMatches = data.scheduleIds?.[medIndex] === scheduleId;
         
+        logger.info('[Notification] Multiple medication notification match check', {
+          notificationId: notification.request.identifier,
+          medicationIdInGroup: true,
+          medicationIndex: medIndex,
+          scheduleMatches,
+          notificationScheduleId: data.scheduleIds?.[medIndex],
+          targetScheduleId: scheduleId,
+          totalMedicationsInGroup: data.medicationIds.length,
+          component: 'NotificationDismiss',
+        });
+        
         if (scheduleMatches && data.medicationIds.length > 1) {
             // SAFETY FIX: Check if ALL medications in the group are logged before dismissing
             // This prevents the notification from being dismissed when only one medication is logged,
             // which would cause the user to potentially miss the other medications
+            logger.info('[Notification] Checking if all medications in group are logged', {
+              notificationId: notification.request.identifier,
+              totalInGroup: data.medicationIds.length,
+              medicationIds: data.medicationIds,
+              scheduleIds: data.scheduleIds,
+              component: 'NotificationDismiss',
+            });
+            
             let allLogged = true;
             
             for (let i = 0; i < data.medicationIds.length; i++) {
@@ -919,6 +971,16 @@ export async function dismissMedicationNotification(medicationId: string, schedu
                 const medication = await medicationRepository.getById(checkMedicationId);
                 const schedule = medication?.schedule?.find(s => s.id === checkScheduleId);
                 
+                logger.info('[Notification] Checking individual medication in group', {
+                  notificationId: notification.request.identifier,
+                  checkingMedicationId: checkMedicationId,
+                  checkingScheduleId: checkScheduleId,
+                  medicationFound: !!medication,
+                  scheduleFound: !!schedule,
+                  medicationIndex: i,
+                  component: 'NotificationDismiss',
+                });
+                
                 if (medication && schedule) {
                   // Check if this medication was logged for this schedule today
                   const wasLogged = await medicationDoseRepository.wasLoggedForScheduleToday(
@@ -928,34 +990,82 @@ export async function dismissMedicationNotification(medicationId: string, schedu
                     schedule.timezone
                   );
                   
+                  logger.info('[Notification] Medication logged status check', {
+                    notificationId: notification.request.identifier,
+                    checkingMedicationId: checkMedicationId,
+                    checkingScheduleId: checkScheduleId,
+                    wasLogged,
+                    scheduleTime: schedule.time,
+                    scheduleTimezone: schedule.timezone,
+                    component: 'NotificationDismiss',
+                  });
+                  
                   if (!wasLogged) {
                     allLogged = false;
-                    logger.log('[Notification] Grouped notification: Not all medications logged yet, keeping notification:', {
+                    logger.info('[Notification] Grouped notification: Not all medications logged yet, keeping notification', {
+                      notificationId: notification.request.identifier,
                       notLoggedMed: checkMedicationId,
+                      notLoggedSchedule: checkScheduleId,
                       totalInGroup: data.medicationIds.length,
+                      checkedSoFar: i + 1,
+                      component: 'NotificationDismiss',
                     });
                     break;
                   }
                 }
               } catch (error) {
                 // On error checking a medication, err on the side of caution and don't dismiss
-                logger.error('[Notification] Error checking if medication logged, keeping notification:', error);
+                logger.error('[Notification] Error checking if medication logged, keeping notification', error instanceof Error ? error : new Error(String(error)), {
+                  notificationId: notification.request.identifier,
+                  checkingMedicationId: checkMedicationId,
+                  checkingScheduleId: checkScheduleId,
+                  component: 'NotificationDismiss',
+                });
                 allLogged = false;
                 break;
               }
             }
             
             shouldDismiss = allLogged;
+            
+            logger.info('[Notification] All medications logged check complete', {
+              notificationId: notification.request.identifier,
+              allLogged,
+              shouldDismiss,
+              totalInGroup: data.medicationIds.length,
+              component: 'NotificationDismiss',
+            });
         } else {
           // Single medication in group or schedule doesn't match
           shouldDismiss = scheduleMatches && data.medicationIds.length === 1;
+          
+          logger.info('[Notification] Single medication in group or schedule mismatch', {
+            notificationId: notification.request.identifier,
+            scheduleMatches,
+            groupSize: data.medicationIds.length,
+            shouldDismiss,
+            component: 'NotificationDismiss',
+          });
         }
       }
 
       if (shouldDismiss) {
         try {
+          logger.info('[Notification] Attempting to dismiss notification', {
+            notificationId: notification.request.identifier,
+            medicationId,
+            scheduleId,
+            component: 'NotificationDismiss',
+          });
+          
           await Notifications.dismissNotificationAsync(notification.request.identifier);
-          logger.log('[Notification] Dismissed notification for medication');
+          
+          logger.info('[Notification] Successfully dismissed notification', {
+            notificationId: notification.request.identifier,
+            medicationId,
+            scheduleId,
+            component: 'NotificationDismiss',
+          });
         } catch (dismissError) {
           // Log dismiss failure with notification context (DIS-208)
           const dismissErrorMessage = dismissError instanceof Error ? dismissError.message : String(dismissError);
@@ -970,8 +1080,27 @@ export async function dismissMedicationNotification(medicationId: string, schedu
           });
           // Continue processing other notifications even if one fails
         }
+      } else {
+        logger.info('[Notification] Not dismissing notification - criteria not met', {
+          notificationId: notification.request.identifier,
+          shouldDismiss,
+          notificationMedicationId: data.medicationId,
+          notificationMedicationIds: data.medicationIds,
+          notificationScheduleId: data.scheduleId,
+          notificationScheduleIds: data.scheduleIds,
+          targetMedicationId: medicationId,
+          targetScheduleId: scheduleId,
+          component: 'NotificationDismiss',
+        });
       }
     }
+    
+    logger.info('[Notification] Finished processing all presented notifications', {
+      totalProcessed: presentedNotifications.length,
+      medicationId,
+      scheduleId,
+      component: 'NotificationDismiss',
+    });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     
