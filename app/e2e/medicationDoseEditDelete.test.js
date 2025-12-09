@@ -81,7 +81,7 @@ describe('Medication Dose Edit/Delete', () => {
     await element(by.id('medication-detail-scrollview')).scrollTo('bottom');
     await waitForAnimation(500);
 
-    await waitFor(element(by.text('Recent Activity (30 days)')))
+    await waitFor(element(by.text('Recent Activity')))
       .toBeVisible()
       .withTimeout(5000);
 
