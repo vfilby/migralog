@@ -87,14 +87,39 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
     const cached = cacheManager.get<Episode[]>('episodes');
     if (cached) {
       set({ episodes: cached, loading: false });
+      // Even if episodes are cached, we should load intensity readings
+      // to ensure EpisodeCard can display sparklines
+      const episodeIds = cached.map(ep => ep.id);
+      if (episodeIds.length > 0) {
+        try {
+          const intensityReadings = await intensityRepository.getByEpisodeIds(episodeIds);
+          set({ intensityReadings });
+        } catch (error) {
+          logger.error('Failed to load intensity readings for cached episodes:', error);
+        }
+      }
       return;
     }
 
     set({ loading: true, error: null });
     try {
       const episodes = await episodeRepository.getAll();
+      
+      // Load intensity readings for all episodes so EpisodeCard can display sparklines
+      let intensityReadings: IntensityReading[] = [];
+      try {
+        const episodeIds = episodes.map(ep => ep.id);
+        if (episodeIds.length > 0) {
+          intensityReadings = await intensityRepository.getByEpisodeIds(episodeIds);
+        }
+      } catch (intensityError) {
+        // If intensity readings fail to load, just log it and continue
+        // This ensures the main episode loading still works
+        logger.error('Failed to load intensity readings for episodes:', intensityError);
+      }
+      
       cacheManager.set('episodes', episodes);
-      set({ episodes, loading: false });
+      set({ episodes, intensityReadings, loading: false });
     } catch (error) {
       set({ error: (error as Error).message, loading: false });
     }
@@ -105,13 +130,51 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
     const cached = cacheManager.get<Episode | null>('currentEpisode');
     if (cached !== undefined) {
       set({ currentEpisode: cached });
+      // Even if current episode is cached, load its intensity readings
+      // so EpisodeCard can display sparkline on dashboard
+      if (cached) {
+        try {
+          const intensityReadings = await intensityRepository.getByEpisodeId(cached.id);
+          // Merge with existing readings to avoid overwriting data for other episodes
+          const currentState = get();
+          const mergedReadings = new Map<string, IntensityReading>();
+          const existingReadings = currentState.intensityReadings || [];
+          existingReadings.forEach(r => mergedReadings.set(r.id, r));
+          intensityReadings.forEach(r => mergedReadings.set(r.id, r));
+          set({ intensityReadings: Array.from(mergedReadings.values()) });
+        } catch (error) {
+          logger.error('Failed to load intensity readings for current episode:', error);
+        }
+      }
       return;
     }
 
     try {
       const currentEpisode = await episodeRepository.getCurrentEpisode();
-      cacheManager.set('currentEpisode', currentEpisode);
-      set({ currentEpisode });
+      
+      // Load intensity readings for current episode so EpisodeCard can display sparkline
+      if (currentEpisode) {
+        try {
+          const intensityReadings = await intensityRepository.getByEpisodeId(currentEpisode.id);
+          // Merge with existing readings
+          const currentState = get();
+          const mergedReadings = new Map<string, IntensityReading>();
+          const existingReadings = currentState.intensityReadings || [];
+          existingReadings.forEach(r => mergedReadings.set(r.id, r));
+          intensityReadings.forEach(r => mergedReadings.set(r.id, r));
+          
+          cacheManager.set('currentEpisode', currentEpisode);
+          set({ currentEpisode, intensityReadings: Array.from(mergedReadings.values()) });
+        } catch (intensityError) {
+          // If intensity readings fail to load, just set the episode without them
+          logger.error('Failed to load intensity readings for current episode:', intensityError);
+          cacheManager.set('currentEpisode', currentEpisode);
+          set({ currentEpisode });
+        }
+      } else {
+        cacheManager.set('currentEpisode', null);
+        set({ currentEpisode: null });
+      }
     } catch (error) {
       set({ error: (error as Error).message });
     }
@@ -372,8 +435,9 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       cacheManager.invalidate('currentEpisode');
 
       // Update state with new reading
+      const currentReadings = get().intensityReadings || [];
       set({ 
-        intensityReadings: [...get().intensityReadings, reading],
+        intensityReadings: [...currentReadings, reading],
         loading: false 
       });
     } catch (error) {
@@ -427,8 +491,9 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       cacheManager.invalidate('currentEpisode');
 
       // Update state with new reading
+      const currentReadings = get().intensityReadings || [];
       set({ 
-        intensityReadings: [...get().intensityReadings, reading],
+        intensityReadings: [...currentReadings, reading],
         loading: false 
       });
 
@@ -464,8 +529,9 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       cacheManager.invalidate('currentEpisode');
 
       // Update state with new log
+      const currentLogs = get().symptomLogs || [];
       set({ 
-        symptomLogs: [...get().symptomLogs, newLog],
+        symptomLogs: [...currentLogs, newLog],
         loading: false 
       });
     } catch (error) {
@@ -596,7 +662,8 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
    * @returns Intensity reading if found, null otherwise
    */
   getIntensityReadingById: (id: string) => {
-    const reading = get().intensityReadings.find(r => r.id === id);
+    const readings = get().intensityReadings || [];
+    const reading = readings.find(r => r.id === id);
     return reading || null;
   },
 
@@ -626,7 +693,8 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       cacheManager.invalidate('currentEpisode');
 
       // Update state
-      const updatedReadings = get().intensityReadings.map(r =>
+      const currentReadings = get().intensityReadings || [];
+      const updatedReadings = currentReadings.map(r =>
         r.id === id ? { ...r, ...updates } : r
       );
 
@@ -667,7 +735,8 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       cacheManager.invalidate('currentEpisode');
 
       // Update state
-      const updatedReadings = get().intensityReadings.filter(r => r.id !== id);
+      const currentReadings = get().intensityReadings || [];
+      const updatedReadings = currentReadings.filter(r => r.id !== id);
       set({ intensityReadings: updatedReadings, loading: false });
 
       logger.log('[EpisodeStore] Intensity reading deleted:', id);
@@ -708,7 +777,8 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       cacheManager.invalidate('currentEpisode');
 
       // Update state
-      const updatedLogs = get().symptomLogs.map(log =>
+      const currentLogs = get().symptomLogs || [];
+      const updatedLogs = currentLogs.map(log =>
         log.id === id ? { ...log, ...updates } : log
       );
 
@@ -749,7 +819,8 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       cacheManager.invalidate('currentEpisode');
 
       // Update state
-      const updatedLogs = get().symptomLogs.filter(log => log.id !== id);
+      const currentLogs = get().symptomLogs || [];
+      const updatedLogs = currentLogs.filter(log => log.id !== id);
       set({ symptomLogs: updatedLogs, loading: false });
 
       logger.log('[EpisodeStore] Symptom log deleted:', id);
@@ -789,7 +860,8 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       cacheManager.invalidate('currentEpisode');
 
       // Update state
-      const updatedNotes = [...get().episodeNotes, newNote];
+      const currentNotes = get().episodeNotes || [];
+      const updatedNotes = [...currentNotes, newNote];
       set({ episodeNotes: updatedNotes, loading: false });
 
       logger.log('[EpisodeStore] Episode note added:', newNote.id);
@@ -811,7 +883,8 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
    * @returns Episode note if found, null otherwise
    */
   getEpisodeNoteById: (id: string) => {
-    const note = get().episodeNotes.find(n => n.id === id);
+    const notes = get().episodeNotes || [];
+    const note = notes.find(n => n.id === id);
     return note || null;
   },
 
@@ -841,7 +914,8 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       cacheManager.invalidate('currentEpisode');
 
       // Update state
-      const updatedNotes = get().episodeNotes.map(note =>
+      const currentNotes = get().episodeNotes || [];
+      const updatedNotes = currentNotes.map(note =>
         note.id === id ? { ...note, ...updates } : note
       );
 
@@ -882,7 +956,8 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       cacheManager.invalidate('currentEpisode');
 
       // Update state
-      const updatedNotes = get().episodeNotes.filter(note => note.id !== id);
+      const currentNotes = get().episodeNotes || [];
+      const updatedNotes = currentNotes.filter(note => note.id !== id);
       set({ episodeNotes: updatedNotes, loading: false });
 
       logger.log('[EpisodeStore] Episode note deleted:', id);
@@ -922,7 +997,8 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       cacheManager.invalidate('currentEpisode');
 
       // Update state
-      const updatedLogs = [...get().painLocationLogs, newLog];
+      const currentLogs = get().painLocationLogs || [];
+      const updatedLogs = [...currentLogs, newLog];
       set({ painLocationLogs: updatedLogs, loading: false });
 
       logger.log('[EpisodeStore] Pain location log added:', newLog.id);
@@ -963,7 +1039,8 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       cacheManager.invalidate('currentEpisode');
 
       // Update state
-      const updatedLogs = get().painLocationLogs.map(log =>
+      const currentLogs = get().painLocationLogs || [];
+      const updatedLogs = currentLogs.map(log =>
         log.id === id ? { ...log, ...updates } : log
       );
 
@@ -1004,7 +1081,8 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       cacheManager.invalidate('currentEpisode');
 
       // Update state
-      const updatedLogs = get().painLocationLogs.filter(log => log.id !== id);
+      const currentLogs = get().painLocationLogs || [];
+      const updatedLogs = currentLogs.filter(log => log.id !== id);
       set({ painLocationLogs: updatedLogs, loading: false });
 
       logger.log('[EpisodeStore] Pain location log deleted:', id);
