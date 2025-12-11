@@ -78,21 +78,29 @@ function App() {
       await dailyCheckinService.initialize();
       logger.log('Daily check-in service initialized');
 
-      // Run one-time migration from DAILY to one-time notifications
-      // This is a no-op if already migrated
-      const { migrateToOneTimeNotifications } = await import('./src/services/notifications/notificationMigration');
-      await migrateToOneTimeNotifications();
-      logger.log('Notification migration check complete');
-
-      // Reconcile and top-up notifications for the one-time notification system
-      const { reconcileNotifications, topUpNotifications } = await import('./src/services/notifications/medicationNotifications');
-      await reconcileNotifications();
-      await topUpNotifications();
-      logger.log('Notification reconciliation and top-up complete');
-
       // Reschedule daily check-in notification (still uses DAILY trigger)
       await dailyCheckinService.scheduleNotification();
       logger.log('Daily check-in notification scheduled');
+
+      // Run notification system maintenance in background (non-blocking)
+      // This ensures app is ready quickly while notifications are managed async
+      (async () => {
+        try {
+          // Run one-time migration from DAILY to one-time notifications
+          // This is a no-op if already migrated
+          const { migrateToOneTimeNotifications } = await import('./src/services/notifications/notificationMigration');
+          await migrateToOneTimeNotifications();
+          logger.log('Notification migration check complete');
+
+          // Reconcile and top-up notifications for the one-time notification system
+          const { reconcileNotifications, topUpNotifications } = await import('./src/services/notifications/medicationNotifications');
+          await reconcileNotifications();
+          await topUpNotifications();
+          logger.log('Notification reconciliation and top-up complete');
+        } catch (error) {
+          logger.error('Background notification maintenance failed:', error);
+        }
+      })();
 
       // Initialize test deep links (dev only)
       if (__DEV__) {

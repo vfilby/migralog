@@ -16,6 +16,23 @@ import {
 } from '../types/notifications';
 
 /**
+ * Check if the scheduled_notifications table exists
+ * Used to gracefully handle cases where migration hasn't run yet
+ */
+export async function tableExists(): Promise<boolean> {
+  try {
+    const db = await getDatabase();
+    const result = await db.getFirstAsync<{ name: string }>(
+      `SELECT name FROM sqlite_master WHERE type='table' AND name='scheduled_notifications'`
+    );
+    return result !== null;
+  } catch (error) {
+    logger.warn('[ScheduledNotificationRepo] Error checking table existence:', error);
+    return false;
+  }
+}
+
+/**
  * Generate a unique ID for a mapping
  */
 function generateId(): string {
@@ -413,6 +430,7 @@ export async function getUniqueNotificationIdsForDate(
 }
 
 export const scheduledNotificationRepository = {
+  tableExists,
   saveMapping,
   saveMappingsBatch,
   getMapping,

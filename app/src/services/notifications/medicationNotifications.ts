@@ -1689,6 +1689,13 @@ export async function scheduleNotificationsForDays(
  */
 export async function topUpNotifications(threshold: number = 3): Promise<void> {
   try {
+    // Check if the scheduled_notifications table exists yet
+    // It may not exist if migration v20 hasn't run
+    if (!await scheduledNotificationRepository.tableExists()) {
+      logger.log('[Notification] Skipping top-up - table not yet created');
+      return;
+    }
+
     logger.log('[Notification] Starting top-up with threshold:', threshold);
 
     // Get all active medications with schedules
@@ -1810,6 +1817,13 @@ export async function topUpNotifications(threshold: number = 3): Promise<void> {
  */
 export async function reconcileNotifications(): Promise<void> {
   try {
+    // Check if the scheduled_notifications table exists yet
+    // It may not exist if migration v20 hasn't run
+    if (!await scheduledNotificationRepository.tableExists()) {
+      logger.log('[Notification] Skipping reconciliation - table not yet created');
+      return;
+    }
+
     logger.log('[Notification] Starting reconciliation...');
 
     // Get all scheduled notifications from OS
