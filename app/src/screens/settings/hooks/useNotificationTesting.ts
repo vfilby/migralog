@@ -33,17 +33,44 @@ export function useNotificationTesting() {
         medNameMap.set(med.id, med.name);
       }
 
-      // Group mappings by medication
-      const byMedication = new Map<string, { dates: string[]; scheduleId: string }>();
+      // Group mappings by medication with reminder/followup breakdown
+      const byMedication = new Map<string, {
+        reminders: string[];
+        followups: string[];
+        scheduleId: string
+      }>();
       for (const mapping of futureMappings) {
-        if (!byMedication.has(mapping.medicationId)) {
-          byMedication.set(mapping.medicationId, { dates: [], scheduleId: mapping.scheduleId });
+        // Skip non-medication notifications (daily check-in)
+        if (!mapping.medicationId || !mapping.scheduleId) {
+          continue;
         }
-        byMedication.get(mapping.medicationId)!.dates.push(mapping.date);
+        if (!byMedication.has(mapping.medicationId)) {
+          byMedication.set(mapping.medicationId, { reminders: [], followups: [], scheduleId: mapping.scheduleId });
+        }
+        const medData = byMedication.get(mapping.medicationId)!;
+        if (mapping.notificationType === 'followup') {
+          medData.followups.push(mapping.date);
+        } else {
+          medData.reminders.push(mapping.date);
+        }
       }
 
+      // Get daily check-in mappings separately
+      const dailyCheckinMappings = await scheduledNotificationRepository.getFutureDailyCheckinMappings();
+
       // Build summary message
-      let message = `📊 OS Notifications: ${osNotifications.length}\n📂 DB Mappings: ${futureMappings.length}\n\n`;
+      let message = `📊 OS Notifications: ${osNotifications.length}\n📂 DB Mappings: ${futureMappings.length + dailyCheckinMappings.length}\n`;
+      if (dailyCheckinMappings.length > 0) {
+        const sortedDates = dailyCheckinMappings.map(m => m.date).sort();
+        const firstDate = sortedDates[0];
+        const lastDate = sortedDates[sortedDates.length - 1];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const lastDateObj = new Date(lastDate);
+        const daysOut = Math.ceil((lastDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        message += `🌅 Daily Check-in: ${dailyCheckinMappings.length} (${firstDate} → ${lastDate}, ${daysOut} days)\n`;
+      }
+      message += '\n';
 
       if (byMedication.size === 0) {
         message += 'No medication notifications scheduled.';
@@ -52,9 +79,9 @@ export function useNotificationTesting() {
 
         for (const [medId, data] of byMedication) {
           const medName = medNameMap.get(medId) || `Unknown (${medId.slice(-8)})`;
-          const sortedDates = [...data.dates].sort();
-          const firstDate = sortedDates[0];
-          const lastDate = sortedDates[sortedDates.length - 1];
+          const allDates = [...data.reminders, ...data.followups].sort();
+          const firstDate = allDates[0];
+          const lastDate = allDates[allDates.length - 1];
 
           // Calculate days from today
           const today = new Date();
@@ -62,9 +89,10 @@ export function useNotificationTesting() {
           const lastDateObj = new Date(lastDate);
           const daysOut = Math.ceil((lastDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
+          const totalCount = data.reminders.length + data.followups.length;
           message += `• ${medName}\n`;
-          message += `  ${sortedDates.length} notifications (${firstDate} → ${lastDate})\n`;
-          message += `  ${daysOut} days out\n\n`;
+          message += `  ${totalCount} total (${data.reminders.length} reminders + ${data.followups.length} follow-ups)\n`;
+          message += `  ${firstDate} → ${lastDate} (${daysOut} days out)\n\n`;
         }
       }
 

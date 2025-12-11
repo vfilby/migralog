@@ -180,7 +180,8 @@ describe('Final Migration Coverage Tests', () => {
       // Wait for async logger to complete
       await new Promise(resolve => setImmediate(resolve));
 
-      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Migrating database from version 18 to 20');
+      // Check migration progress logs
+      expect(console.log).toHaveBeenCalledWith('[INFO]', expect.stringMatching(/^Migrating database from version 18 to \d+$/));
       expect(console.log).toHaveBeenCalledWith('[INFO]', 'Running migration 19: add_check_constraints_to_tables');
       expect(console.log).toHaveBeenCalledWith('[INFO]', 'Migration 19 completed successfully');
       expect(console.log).toHaveBeenCalledWith('[INFO]', 'All migrations completed successfully');

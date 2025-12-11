@@ -1459,6 +1459,11 @@ export async function cancelNotificationForDate(
       } else if (remainingMappings.length === 1) {
         // Only one medication left - convert to single notification
         const remaining = remainingMappings[0];
+        // These mappings are medication notifications, so IDs should exist
+        if (!remaining.medicationId || !remaining.scheduleId) {
+          logger.warn('[Notification] Invalid mapping in group - missing medication/schedule ID');
+          return;
+        }
         const medication = await medicationRepository.getById(remaining.medicationId);
         const schedule = medication?.schedule?.find(s => s.id === remaining.scheduleId);
 
@@ -1505,6 +1510,7 @@ export async function cancelNotificationForDate(
         const medications: Array<{ medication: Medication; schedule: MedicationSchedule }> = [];
 
         for (const m of remainingMappings) {
+          if (!m.medicationId || !m.scheduleId) continue;
           const medication = await medicationRepository.getById(m.medicationId);
           const schedule = medication?.schedule?.find(s => s.id === m.scheduleId);
           if (medication && schedule) {
@@ -1548,6 +1554,7 @@ export async function cancelNotificationForDate(
 
             // Update mappings with new notification ID
             for (const m of remainingMappings) {
+              if (!m.medicationId || !m.scheduleId) continue;
               await scheduledNotificationRepository.deleteMapping(m.id);
               await scheduledNotificationRepository.saveMapping({
                 medicationId: m.medicationId,
@@ -1557,6 +1564,7 @@ export async function cancelNotificationForDate(
                 notificationType: m.notificationType,
                 isGrouped: true,
                 groupKey: m.groupKey,
+                sourceType: 'medication',
               });
             }
 

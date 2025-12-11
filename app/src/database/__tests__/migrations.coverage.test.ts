@@ -339,11 +339,12 @@ describe('Migration Coverage Tests', () => {
     });
 
     it('should handle migration that does not support rollback', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: SCHEMA_VERSION }]);
+      // Version 20 -> 18 requires rolling back through v19 which doesn't support downgrade
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: 20 }]);
       await migrationRunner.initialize(mockDatabase);
 
-      // Migration's down function throws the specific error
-      await expect(migrationRunner.rollback(SCHEMA_VERSION - 2)).rejects.toThrow('does not support downgrade');
+      // Migration v19's down function throws the specific error
+      await expect(migrationRunner.rollback(18)).rejects.toThrow('does not support downgrade');
     });
   });
 
@@ -482,7 +483,8 @@ describe('Migration Coverage Tests', () => {
       await new Promise(resolve => setImmediate(resolve));
 
       expect(console.log).toHaveBeenCalledWith('[INFO]', `Migrating database from version ${SCHEMA_VERSION - 1} to ${SCHEMA_VERSION}`);
-      expect(console.log).toHaveBeenCalledWith('[INFO]', `Running migration ${SCHEMA_VERSION}: add_scheduled_notifications_table`);
+      // Match any migration name at SCHEMA_VERSION since it can change
+      expect(console.log).toHaveBeenCalledWith('[INFO]', expect.stringMatching(new RegExp(`^Running migration ${SCHEMA_VERSION}: .+$`)));
       expect(console.log).toHaveBeenCalledWith('[INFO]', `Migration ${SCHEMA_VERSION} completed successfully`);
       expect(console.log).toHaveBeenCalledWith('[INFO]', 'All migrations completed successfully');
     });

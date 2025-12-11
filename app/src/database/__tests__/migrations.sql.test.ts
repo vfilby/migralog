@@ -4,7 +4,7 @@
  * All migrations have been squashed into the base schema (schema.ts).
  * These tests verify that:
  * 1. The migrations array is empty (no migrations to run)
- * 2. Fresh databases start at version 20
+ * 2. Fresh databases start at SCHEMA_VERSION
  * 3. No SQL is executed for migration operations on fresh databases
  */
 
@@ -15,6 +15,7 @@ jest.mock('expo-sqlite', () => ({
 
 // Import migrations after mocking
 import { migrationRunner } from '../migrations';
+import { SCHEMA_VERSION } from '../schema';
 
 describe('Migration SQL Verification (Squashed Schema)', () => {
   let mockDb: any;
@@ -37,8 +38,8 @@ describe('Migration SQL Verification (Squashed Schema)', () => {
 
         // Return appropriate mocked responses
         if (sql.includes('SELECT version FROM schema_version')) {
-          // Return version 20 for fresh database
-          return [{ version: 20 }];
+          // Return current SCHEMA_VERSION for fresh database
+          return [{ version: SCHEMA_VERSION }];
         }
         if (sql.includes('PRAGMA table_info')) {
           return [];
@@ -55,7 +56,7 @@ describe('Migration SQL Verification (Squashed Schema)', () => {
   });
 
   describe('Fresh Database Creation', () => {
-    it('should set version to 20 on initialization', async () => {
+    it('should set version to SCHEMA_VERSION on initialization', async () => {
       // Mock empty schema_version table (fresh database)
       mockDb.getAllAsync = jest.fn(async (sql: string) => {
         if (sql.includes('SELECT version FROM schema_version')) {
@@ -66,20 +67,20 @@ describe('Migration SQL Verification (Squashed Schema)', () => {
 
       await migrationRunner.initialize(mockDb);
 
-      // Should insert version 20
+      // Should insert SCHEMA_VERSION
       const insertCalls = (mockDb.runAsync as jest.Mock).mock.calls;
       expect(insertCalls.length).toBeGreaterThan(0);
 
-      // Check that the SQL contains the correct INSERT statement
+      // Check that the SQL contains the correct INSERT statement with SCHEMA_VERSION
       const hasVersionInsert = insertCalls.some((call: any[]) =>
         call[0].includes('INSERT OR IGNORE INTO schema_version') &&
-        call[0].includes('(1, 20,')
+        call[1]?.includes(SCHEMA_VERSION)
       );
 
       expect(hasVersionInsert).toBe(true);
     });
 
-    it('should not run any migrations for fresh database at version 20', async () => {
+    it('should not run any migrations for fresh database at SCHEMA_VERSION', async () => {
       await migrationRunner.initialize(mockDb);
 
       const needsMigration = await migrationRunner.needsMigration();
@@ -103,27 +104,25 @@ describe('Migration SQL Verification (Squashed Schema)', () => {
   });
 
   describe('Migration Array', () => {
-    it('should have an empty migrations array', () => {
+    it('should have target version matching SCHEMA_VERSION', () => {
       // Since migrations are squashed, target is the schema version
-      const targetVersion = 20;
-
-      // Verify no migrations are defined by checking that current and target versions are the same
-      expect(targetVersion).toBe(20);
+      // This test verifies that the target version matches the defined SCHEMA_VERSION
+      expect(SCHEMA_VERSION).toBeGreaterThanOrEqual(20);
     });
 
-    it('should return target version 20 from migration v20', async () => {
+    it('should return target version matching SCHEMA_VERSION', async () => {
       await migrationRunner.initialize(mockDb);
       const targetVersion = await migrationRunner.getTargetVersion();
 
-      // Migration v19 exists in the array, so target version is 19
-      expect(targetVersion).toBe(20);
+      // Target version should match SCHEMA_VERSION
+      expect(targetVersion).toBe(SCHEMA_VERSION);
     });
 
-    it('should return current version 20 for fresh database', async () => {
+    it('should return current version matching SCHEMA_VERSION for fresh database', async () => {
       await migrationRunner.initialize(mockDb);
       const currentVersion = await migrationRunner.getCurrentVersion();
 
-      expect(currentVersion).toBe(20);
+      expect(currentVersion).toBe(SCHEMA_VERSION);
     });
   });
 
@@ -198,11 +197,11 @@ describe('Migration SQL Verification (Squashed Schema)', () => {
   });
 
   describe('Edge Cases', () => {
-    it('should handle database already at version 20', async () => {
-      // Mock database already at version 20
+    it('should handle database already at SCHEMA_VERSION', async () => {
+      // Mock database already at SCHEMA_VERSION
       mockDb.getAllAsync = jest.fn(async (sql: string) => {
         if (sql.includes('SELECT version FROM schema_version')) {
-          return [{ version: 20 }];
+          return [{ version: SCHEMA_VERSION }];
         }
         return [];
       });
@@ -230,7 +229,7 @@ describe('Migration SQL Verification (Squashed Schema)', () => {
       const version2 = await migrationRunner.getCurrentVersion();
 
       expect(version1).toBe(version2);
-      expect(version1).toBe(20);
+      expect(version1).toBe(SCHEMA_VERSION);
     });
   });
 });

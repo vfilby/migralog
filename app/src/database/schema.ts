@@ -1,6 +1,6 @@
 // Database schema and initialization
 
-export const SCHEMA_VERSION = 20;
+export const SCHEMA_VERSION = 21;
 
 export const createTables = `
   -- Episodes table

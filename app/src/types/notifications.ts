@@ -7,9 +7,14 @@
  */
 
 /**
- * Type of notification - either a reminder or a follow-up reminder
+ * Type of notification - reminder, follow-up, or daily check-in
  */
-export type NotificationType = 'reminder' | 'followup';
+export type NotificationType = 'reminder' | 'followup' | 'daily_checkin';
+
+/**
+ * Source type - whether notification is for medication or daily check-in
+ */
+export type NotificationSourceType = 'medication' | 'daily_checkin';
 
 /**
  * Mapping between a scheduled OS notification and database record
@@ -18,16 +23,17 @@ export type NotificationType = 'reminder' | 'followup';
  * - Cancel specific day's notifications when medication is logged
  * - Track which notifications are scheduled for reconciliation
  * - Handle grouped notifications (multiple meds at same time)
+ * - Track daily check-in notifications
  */
 export interface ScheduledNotificationMapping {
   /** Unique identifier for this mapping */
   id: string;
 
-  /** ID of the medication this notification is for */
-  medicationId: string;
+  /** ID of the medication this notification is for (null for daily check-in) */
+  medicationId: string | null;
 
-  /** ID of the medication schedule */
-  scheduleId: string;
+  /** ID of the medication schedule (null for daily check-in) */
+  scheduleId: string | null;
 
   /** Date in YYYY-MM-DD format that this notification is for */
   date: string;
@@ -35,7 +41,7 @@ export interface ScheduledNotificationMapping {
   /** Expo notification ID returned by scheduleNotificationAsync */
   notificationId: string;
 
-  /** Whether this is a reminder or follow-up notification */
+  /** Whether this is a reminder, follow-up, or daily check-in notification */
   notificationType: NotificationType;
 
   /** Whether this notification is part of a grouped notification */
@@ -44,17 +50,23 @@ export interface ScheduledNotificationMapping {
   /** Time key for grouping (HH:MM format), used to identify grouped notifications */
   groupKey?: string;
 
+  /** Source type - 'medication' or 'daily_checkin' */
+  sourceType: NotificationSourceType;
+
   /** When this mapping was created */
   createdAt?: string;
 }
 
 /**
  * Input for creating a new notification mapping (without auto-generated fields)
+ * sourceType defaults to 'medication' if not specified
  */
 export type ScheduledNotificationMappingInput = Omit<
   ScheduledNotificationMapping,
-  'id' | 'notificationId' | 'createdAt'
->;
+  'id' | 'notificationId' | 'createdAt' | 'sourceType'
+> & {
+  sourceType?: NotificationSourceType;
+};
 
 /**
  * Data structure for scheduled notification requests

@@ -9,6 +9,7 @@
  */
 
 import { migrationRunner } from '../migrations';
+import { SCHEMA_VERSION } from '../schema';
 import { logger, LogLevel } from '../../utils/logger';
 
 // Mock expo-sqlite
@@ -60,60 +61,60 @@ describe('migrationRunner (Squashed Schema)', () => {
       expect(mockDatabase.runAsync).toHaveBeenCalled();
     });
 
-    it('should set version to 20 for fresh database', async () => {
+    it('should set version to SCHEMA_VERSION for fresh database', async () => {
       // Mock empty schema_version table (fresh database)
       mockDatabase.getAllAsync.mockResolvedValue([]);
 
       await migrationRunner.initialize(mockDatabase);
 
-      // Should insert version 20
+      // Should insert SCHEMA_VERSION - the implementation uses parameterized query
       expect(mockDatabase.runAsync).toHaveBeenCalledWith(
-        'INSERT OR IGNORE INTO schema_version (id, version, updated_at) VALUES (1, 20, ?)',
-        expect.any(Array)
+        'INSERT OR IGNORE INTO schema_version (id, version, updated_at) VALUES (1, ?, ?)',
+        expect.arrayContaining([SCHEMA_VERSION])
       );
     });
   });
 
   describe('getCurrentVersion', () => {
     it('should return current schema version', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 20 }]);
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: SCHEMA_VERSION }]);
       await migrationRunner.initialize(mockDatabase);
 
       const version = await migrationRunner.getCurrentVersion();
 
-      expect(version).toBe(20);
+      expect(version).toBe(SCHEMA_VERSION);
     });
 
-    it('should return 20 for fresh database after initialization', async () => {
+    it('should return SCHEMA_VERSION for fresh database after initialization', async () => {
       mockDatabase.getAllAsync.mockResolvedValue([]);
       mockDatabase.runAsync.mockResolvedValue(undefined);
       await migrationRunner.initialize(mockDatabase);
 
-      // After init, should return 20
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 20 }]);
+      // After init, should return SCHEMA_VERSION
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: SCHEMA_VERSION }]);
       const version = await migrationRunner.getCurrentVersion();
 
-      expect(version).toBe(20);
+      expect(version).toBe(SCHEMA_VERSION);
     });
   });
 
   describe('getTargetVersion', () => {
-    it('should return 20 from migration v20', async () => {
+    it('should return SCHEMA_VERSION as target', async () => {
       const targetVersion = await migrationRunner.getTargetVersion();
 
-      // Migration v20 exists in the array, so target version is 20
-      expect(targetVersion).toBe(20);
+      // Latest migration defines the target version (should match SCHEMA_VERSION)
+      expect(targetVersion).toBe(SCHEMA_VERSION);
     });
   });
 
   describe('needsMigration', () => {
-    it('should return false for fresh database at version 20', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 20 }]);
+    it('should return false for fresh database at SCHEMA_VERSION', async () => {
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: SCHEMA_VERSION }]);
       await migrationRunner.initialize(mockDatabase);
 
       const needsMigration = await migrationRunner.needsMigration();
 
-      // Current version 20, target version 20, so no migration needed
+      // Current version matches target, so no migration needed
       expect(needsMigration).toBe(false);
     });
 
@@ -121,8 +122,8 @@ describe('migrationRunner (Squashed Schema)', () => {
       mockDatabase.getAllAsync.mockResolvedValue([]);
       await migrationRunner.initialize(mockDatabase);
 
-      // After initialization, fresh database should be at v20
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 20 }]);
+      // After initialization, fresh database should be at SCHEMA_VERSION
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: SCHEMA_VERSION }]);
       const needsMigration = await migrationRunner.needsMigration();
 
       expect(needsMigration).toBe(false);
@@ -169,8 +170,8 @@ describe('migrationRunner (Squashed Schema)', () => {
       );
     });
 
-    it('should not run migrations for fresh database at version 20', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 20 }]);
+    it('should not run migrations for fresh database at SCHEMA_VERSION', async () => {
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: SCHEMA_VERSION }]);
       await migrationRunner.initialize(mockDatabase);
 
       await migrationRunner.runMigrations();
@@ -185,7 +186,7 @@ describe('migrationRunner (Squashed Schema)', () => {
     });
 
     it('should not execute any migration SQL for fresh database', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 20 }]);
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: SCHEMA_VERSION }]);
       await migrationRunner.initialize(mockDatabase);
 
       const execCallsBefore = mockDatabase.execAsync.mock.calls.length;
@@ -202,7 +203,7 @@ describe('migrationRunner (Squashed Schema)', () => {
     });
 
     it('should handle runMigrations being called multiple times', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 20 }]);
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: SCHEMA_VERSION }]);
       await migrationRunner.initialize(mockDatabase);
 
       await migrationRunner.runMigrations();
@@ -222,11 +223,11 @@ describe('migrationRunner (Squashed Schema)', () => {
 
   describe('rollback', () => {
     it('should handle rollback attempt gracefully', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 20 }]);
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: SCHEMA_VERSION }]);
       await migrationRunner.initialize(mockDatabase);
 
-      // Trying to rollback from 20 to 20 should log "No rollback needed"
-      await migrationRunner.rollback(20);
+      // Trying to rollback to current version should log "No rollback needed"
+      await migrationRunner.rollback(SCHEMA_VERSION);
 
       // Wait for async logger to complete
       await new Promise(resolve => setImmediate(resolve));
@@ -235,10 +236,11 @@ describe('migrationRunner (Squashed Schema)', () => {
     });
 
     it('should handle rollback to higher version', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 20 }]);
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: SCHEMA_VERSION }]);
       await migrationRunner.initialize(mockDatabase);
 
-      await migrationRunner.rollback(21);
+      // Rolling back to a future version should be a no-op
+      await migrationRunner.rollback(SCHEMA_VERSION + 1);
 
       // Wait for async logger to complete
       await new Promise(resolve => setImmediate(resolve));
