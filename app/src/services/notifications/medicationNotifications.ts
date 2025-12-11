@@ -1146,21 +1146,28 @@ export async function dismissMedicationNotification(medicationId: string, schedu
 }
 
 /**
- * Reschedule all medication notifications with grouping
- * This should be called after any medication schedule changes
+ * Reschedule all medication notifications using the one-time notification system
+ *
+ * This function:
+ * 1. Cancels all existing OS medication notifications
+ * 2. Clears all entries from the scheduled_notifications database table
+ * 3. Schedules new one-time notifications for all active medication schedules
+ *
+ * This should be called after any medication schedule changes or to fix
+ * inconsistencies between OS notifications and database mappings.
  */
 export async function rescheduleAllMedicationNotifications(): Promise<void> {
   try {
-    // Cancel only medication-specific notifications (not daily check-in or other notifications)
+    // Step 1: Cancel all medication notifications from the OS
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
     const medicationNotifs = scheduled.filter((n) => {
       const data = n.content.data as Record<string, unknown> | null | undefined;
       if (!data) return false;
-      
+
       const medicationId = data.medicationId as string | undefined;
       const medicationIds = data.medicationIds as string[] | undefined;
       const type = data.type as string | undefined;
-      
+
       // Filter for medication reminders (have medicationId or medicationIds, but not type 'daily_checkin')
       return (medicationId || medicationIds) && type !== 'daily_checkin';
     });
@@ -1169,75 +1176,62 @@ export async function rescheduleAllMedicationNotifications(): Promise<void> {
       await Notifications.cancelScheduledNotificationAsync(notif.identifier);
     }
 
-    logger.log('[Notification] Cancelled', medicationNotifs.length, 'medication notifications');
+    logger.log('[Notification] Cancelled', medicationNotifs.length, 'OS medication notifications');
 
-    // Get all active medications with schedules
+    // Step 2: Clear all entries from scheduled_notifications database
+    const tableExists = await scheduledNotificationRepository.tableExists();
+    if (tableExists) {
+      const deletedCount = await scheduledNotificationRepository.deleteAllMappings();
+      logger.log('[Notification] Cleared', deletedCount, 'database notification mappings');
+    }
+
+    // Step 3: Get all active medications with schedules
     const medications = await medicationRepository.getActive();
-    const items: Array<{ medication: Medication; schedule: MedicationSchedule }> = [];
+    const activeMedSchedules: Array<{ medication: Medication; schedule: MedicationSchedule }> = [];
 
     for (const medication of medications) {
       if (medication.type === 'preventative' && medication.scheduleFrequency === 'daily') {
         const schedules = await medicationScheduleRepository.getByMedicationId(medication.id);
         for (const schedule of schedules) {
           if (schedule.enabled) {
-            items.push({ medication, schedule });
+            activeMedSchedules.push({ medication, schedule });
           }
         }
       }
     }
 
-    // Group by time
-    const grouped = new Map<string, Array<{ medication: Medication; schedule: MedicationSchedule }>>();
-
-    for (const item of items) {
-      const time = item.schedule.time;
-      if (!grouped.has(time)) {
-        grouped.set(time, []);
-      }
-      grouped.get(time)!.push(item);
+    if (activeMedSchedules.length === 0) {
+      logger.log('[Notification] No active medication schedules to reschedule');
+      return;
     }
 
-    const notificationIds = new Map<string, string>();
+    // Step 4: Calculate how many days to schedule based on active schedules
+    const daysToSchedule = calculateNotificationDays(activeMedSchedules.length);
 
-    // Schedule notifications for each time group
-    for (const [time, groupItems] of grouped.entries()) {
-      if (groupItems.length === 1) {
-        // Single medication - use single notification
-        const { medication, schedule } = groupItems[0];
-        const notificationId = await scheduleSingleNotification(medication, schedule);
-        if (notificationId) {
-          notificationIds.set(schedule.id, notificationId);
-        }
-      } else {
-        // Multiple medications - use grouped notification
-        const notificationId = await scheduleMultipleNotification(groupItems, time);
-        if (notificationId) {
-          // Store the same notification ID for all schedules in this group
-          for (const { schedule } of groupItems) {
-            notificationIds.set(schedule.id, notificationId);
-          }
-        }
-      }
+    logger.log('[Notification] Rescheduling notifications:', {
+      activeSchedules: activeMedSchedules.length,
+      daysToSchedule,
+    });
+
+    // Step 5: Schedule one-time notifications for each active schedule
+    for (const { medication, schedule } of activeMedSchedules) {
+      await scheduleNotificationsForDays(medication, schedule, daysToSchedule);
     }
 
-    // Update schedules with notification IDs
-    for (const [scheduleId, notificationId] of notificationIds.entries()) {
-      await medicationScheduleRepository.update(scheduleId, {
-        notificationId,
-      });
-    }
-
-    logger.log('[Notification] Rescheduled all medication notifications with grouping:', notificationIds.size);
+    logger.log('[Notification] Rescheduled all medication notifications:', {
+      schedulesProcessed: activeMedSchedules.length,
+      daysPerSchedule: daysToSchedule,
+    });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    
+
     // Issue 3 (HAND-334) + Issue 4 (SCHED-324): No silent failures
     logger.error(error instanceof Error ? error : new Error(errorMessage), {
       component: 'NotificationScheduler',
       operation: 'rescheduleAllMedicationNotifications',
       errorMessage,
     });
-    
+
     // Optionally notify user if this is a critical failure
     // For now, just log - user will notice if notifications stop working
   }
@@ -1343,27 +1337,50 @@ export async function rescheduleAllNotifications(): Promise<void> {
 const IOS_NOTIFICATION_LIMIT = 64;
 
 /**
- * Calculate how many days of notifications to schedule based on medication count
+ * Calculate how many days of notifications to schedule based on actual schedule count
  *
- * @param activeMedicationCount - Number of active medications with schedules
+ * This calculates dynamically based on the actual notification slots needed:
+ * - Each active schedule requires 1 reminder notification per day
+ * - Each active schedule also requires 1 follow-up notification per day
+ * - Reserved slots for daily check-in and buffer
+ *
+ * @param activeScheduleCount - Number of active medication schedules (not medications)
+ * @param includeFollowUps - Whether to account for follow-up notifications (default: true)
  * @returns Number of days to schedule notifications for
  */
-export function calculateNotificationDays(activeMedicationCount: number): number {
-  if (activeMedicationCount === 0) return 0;
+export function calculateNotificationDays(
+  activeScheduleCount: number,
+  includeFollowUps: boolean = true
+): number {
+  if (activeScheduleCount === 0) return 0;
 
-  // Reserve some slots for follow-up reminders (2x) and daily check-in (1)
+  // Reserve slots for:
+  // - 1 for daily check-in notification
+  // - 2 for buffer/unexpected notifications
   const reservedSlots = 3;
   const availableSlots = IOS_NOTIFICATION_LIMIT - reservedSlots;
 
-  // Assume each medication might have up to 2 notifications per day (reminder + follow-up)
-  const slotsPerMedPerDay = 2;
-  const slotsNeededPerDay = activeMedicationCount * slotsPerMedPerDay;
+  // Calculate actual slots needed per day based on whether follow-ups are enabled
+  // Reminder: 1 per schedule, Follow-up: 1 per schedule (if enabled)
+  const slotsPerSchedulePerDay = includeFollowUps ? 2 : 1;
+  const slotsNeededPerDay = activeScheduleCount * slotsPerSchedulePerDay;
 
   // Calculate maximum days we can schedule
   const maxDays = Math.floor(availableSlots / slotsNeededPerDay);
 
   // Return at least 3 days, at most 14 days
-  return Math.max(3, Math.min(maxDays, 14));
+  const result = Math.max(3, Math.min(maxDays, 14));
+
+  logger.log('[Notification] calculateNotificationDays:', {
+    activeScheduleCount,
+    includeFollowUps,
+    slotsNeededPerDay,
+    availableSlots,
+    maxDays,
+    result,
+  });
+
+  return result;
 }
 
 /**

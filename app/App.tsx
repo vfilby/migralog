@@ -86,12 +86,6 @@ function App() {
       // This ensures app is ready quickly while notifications are managed async
       (async () => {
         try {
-          // Run one-time migration from DAILY to one-time notifications
-          // This is a no-op if already migrated
-          const { migrateToOneTimeNotifications } = await import('./src/services/notifications/notificationMigration');
-          await migrateToOneTimeNotifications();
-          logger.log('Notification migration check complete');
-
           // Reconcile and top-up notifications for the one-time notification system
           const { reconcileNotifications, topUpNotifications } = await import('./src/services/notifications/medicationNotifications');
           await reconcileNotifications();

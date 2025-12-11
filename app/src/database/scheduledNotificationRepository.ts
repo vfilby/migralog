@@ -8,6 +8,7 @@
  * - Handling grouped notifications (multiple meds at same time)
  */
 
+import { ulid } from 'ulidx';
 import { getDatabase } from './db';
 import { logger } from '../utils/logger';
 import {
@@ -33,10 +34,11 @@ export async function tableExists(): Promise<boolean> {
 }
 
 /**
- * Generate a unique ID for a mapping
+ * Generate a unique ID for a mapping using ULID
+ * ULID provides time-ordered, collision-resistant unique IDs
  */
 function generateId(): string {
-  return `sn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return `sn_${ulid()}`;
 }
 
 /**
@@ -51,7 +53,7 @@ interface ScheduledNotificationRow {
   notification_type: string;
   is_grouped: number;
   group_key: string | null;
-  created_at: string;
+  created_at: number;
 }
 
 /**
@@ -67,7 +69,7 @@ function rowToMapping(row: ScheduledNotificationRow): ScheduledNotificationMappi
     notificationType: row.notification_type as NotificationType,
     isGrouped: row.is_grouped === 1,
     groupKey: row.group_key ?? undefined,
-    createdAt: row.created_at,
+    createdAt: new Date(row.created_at).toISOString(),
   };
 }
 
@@ -80,10 +82,12 @@ export async function saveMapping(
   const db = await getDatabase();
   const id = generateId();
 
+  const createdAt = Date.now();
+
   await db.runAsync(
     `INSERT INTO scheduled_notifications
-     (id, medication_id, schedule_id, date, notification_id, notification_type, is_grouped, group_key)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+     (id, medication_id, schedule_id, date, notification_id, notification_type, is_grouped, group_key, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       mapping.medicationId,
@@ -93,6 +97,7 @@ export async function saveMapping(
       mapping.notificationType,
       mapping.isGrouped ? 1 : 0,
       mapping.groupKey ?? null,
+      createdAt,
     ]
   );
 
@@ -107,7 +112,7 @@ export async function saveMapping(
   return {
     ...mapping,
     id,
-    createdAt: new Date().toISOString(),
+    createdAt: new Date(createdAt).toISOString(),
   };
 }
 
@@ -128,10 +133,11 @@ export async function saveMappingsBatch(
   await db.withTransactionAsync(async () => {
     for (const mapping of mappings) {
       const id = generateId();
+      const createdAt = Date.now();
       await db.runAsync(
         `INSERT INTO scheduled_notifications
-         (id, medication_id, schedule_id, date, notification_id, notification_type, is_grouped, group_key)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, medication_id, schedule_id, date, notification_id, notification_type, is_grouped, group_key, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           mapping.medicationId,
@@ -141,13 +147,14 @@ export async function saveMappingsBatch(
           mapping.notificationType,
           mapping.isGrouped ? 1 : 0,
           mapping.groupKey ?? null,
+          createdAt,
         ]
       );
 
       results.push({
         ...mapping,
         id,
-        createdAt: new Date().toISOString(),
+        createdAt: new Date(createdAt).toISOString(),
       });
     }
   });

@@ -40,9 +40,8 @@ export async function scheduleNotification(
       operation: 'scheduleNotification',
       notificationTitle: content.title,
       notificationBody: content.body,
-      triggerType: typeof trigger === 'object' && trigger !== null && 'type' in trigger 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ? (trigger as any).type 
+      triggerType: typeof trigger === 'object' && trigger !== null && 'type' in trigger
+        ? (trigger as { type: string }).type
         : 'unknown',
       errorMessage,
       // Include medication context if available
@@ -148,11 +147,13 @@ export async function scheduleNotificationAtomic(
 
   try {
     // Step 1: Schedule the notification with the OS
-    // Use Date as trigger - Expo accepts Date objects for one-time notifications
+    // Use DATE trigger type for one-time notifications at a specific date/time
     notificationId = await Notifications.scheduleNotificationAsync({
       content,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      trigger: trigger as any,
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: trigger,
+      },
     });
 
     if (!notificationId) {

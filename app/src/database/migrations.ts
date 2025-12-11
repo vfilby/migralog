@@ -174,10 +174,10 @@ const migrations: Migration[] = [
           schedule_id TEXT NOT NULL,
           date TEXT NOT NULL,
           notification_id TEXT NOT NULL,
-          notification_type TEXT NOT NULL DEFAULT 'reminder',
-          is_grouped INTEGER DEFAULT 0,
+          notification_type TEXT NOT NULL DEFAULT 'reminder' CHECK(notification_type IN ('reminder', 'follow_up')),
+          is_grouped INTEGER DEFAULT 0 CHECK(is_grouped IN (0, 1)),
           group_key TEXT,
-          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          created_at INTEGER NOT NULL CHECK(created_at > 0),
           FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE,
           FOREIGN KEY (schedule_id) REFERENCES medication_schedules(id) ON DELETE CASCADE,
           UNIQUE(medication_id, schedule_id, date, notification_type)
