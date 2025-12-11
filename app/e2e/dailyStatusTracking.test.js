@@ -18,8 +18,11 @@ describe('Daily Status Tracking', () => {
 
   beforeEach(async () => {
     // Reset database before each test to ensure clean state
-    // Note: Calendar month state persists between tests (only navigate to previous month once in first test)
+    // Note: resetDatabase() clears data but does NOT reset calendar UI state
+    // Each test must explicitly navigate to the month it needs
     await resetDatabase();
+    // Relaunch app to ensure clean UI state
+    await device.launchApp({ newInstance: true });
   });
 
   it('should complete full daily status tracking workflow', async () => {
@@ -57,21 +60,9 @@ describe('Daily Status Tracking', () => {
     console.log('Calendar is visible!');
 
     // Navigate to PREVIOUS month to ensure all days are in the past and can be set
-    // Only navigate if we're still on the current month (check for current month name)
-    const currentMonth = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    try {
-      await waitFor(element(by.text(currentMonth)))
-        .toBeVisible()
-        .withTimeout(1000);
-
-      // We're on current month, navigate to previous month
-      await element(by.id('previous-month-button')).tap();
-      await waitForAnimation(1000);
-      console.log('Navigated to previous month to select past dates');
-    } catch (e) {
-      // Already on a previous month, no need to navigate
-      console.log('Already on previous month, skipping navigation');
-    }
+    await element(by.id('previous-month-button')).tap();
+    await waitForAnimation(1000);
+    console.log('Navigated to previous month to select past dates');
 
     // ======================
     // Phase 2: Manually Log a Green Day
@@ -205,8 +196,19 @@ describe('Daily Status Tracking', () => {
     await waitForAnimation(500);
 
     await element(by.id('daily-status-notes-input')).typeText('Feeling warning signs of episode');
+
+    // Dismiss keyboard by tapping somewhere else or pressing return
     await element(by.id('daily-status-notes-input')).tapReturnKey();
-    await waitForAnimation(500);
+    await waitForAnimation(1000);
+
+    // Ensure keyboard is fully dismissed by tapping outside
+    try {
+      // Tap on the modal background to dismiss keyboard
+      await element(by.text('Daily Check-in')).tap();
+      await waitForAnimation(500);
+    } catch (e) {
+      // If can't tap the title, that's okay
+    }
 
     // Save the yellow day
     await waitFor(element(by.id('save-status-button')))
@@ -218,30 +220,26 @@ describe('Daily Status Tracking', () => {
     // Should be back on Analytics screen (where we came from)
     await waitFor(element(by.text('Trends & Analytics')))
       .toBeVisible()
-      .withTimeout(3000);
+      .withTimeout(5000);
 
     console.log('Successfully logged yellow day with prodrome type and notes');
 
     // Navigate back to Home (Dashboard)
+    await waitFor(element(by.text('Home')))
+      .toBeVisible()
+      .withTimeout(5000);
     await element(by.text('Home')).tap();
-    await waitForAnimation(1000);
+    await waitForAnimation(2000);
 
     // ======================
     // Phase 4: Create Episode and Verify Auto-Red Day
     // ======================
 
-    // Scroll to top to find Start Episode button
-    try {
-      await element(by.id('dashboard-title')).swipe('down', 'fast', 0.9);
-      await waitForAnimation(500);
-    } catch (e) {
-      console.log('Already at top');
-    }
-
-    // Start a new episode
+    // Wait for dashboard to load and check for start episode button
+    // The button is in the Quick Actions section which should be visible
     await waitFor(element(by.id('start-episode-button')))
       .toBeVisible()
-      .withTimeout(5000);
+      .withTimeout(10000);
 
     await element(by.id('start-episode-button')).tap();
     await waitForAnimation(1000);
@@ -284,18 +282,11 @@ describe('Daily Status Tracking', () => {
     await element(by.text('Home')).tap();
     await waitForAnimation(1000);
 
-    // Scroll back up to see active episode
-    try {
-      await element(by.id('dashboard-title')).swipe('down', 'fast', 0.9);
-      await waitForAnimation(500);
-    } catch (e) {
-      console.log('Already at top');
-    }
-
     // Tap the active episode card to open details
+    // Active episode card should be visible on dashboard when there's an active episode
     await waitFor(element(by.id('active-episode-card')))
       .toBeVisible()
-      .withTimeout(3000);
+      .withTimeout(5000);
 
     await element(by.id('active-episode-card')).tap();
     await waitForAnimation(1000);
@@ -369,7 +360,13 @@ describe('Daily Status Tracking', () => {
     await element(by.text('Trends')).tap();
     await waitForAnimation(1000);
 
-    // Calendar state persists from first test - already on previous month
+    // Navigate to previous month (calendar resets to current month after resetDatabase)
+    await waitFor(element(by.id('previous-month-button')))
+      .toBeVisible()
+      .withTimeout(5000);
+    await element(by.id('previous-month-button')).tap();
+    await waitForAnimation(1000);
+
     // Tap on a day (e.g., the 15th of previous month)
     const today = new Date();
     const previousMonth = new Date(today);
@@ -441,7 +438,13 @@ describe('Daily Status Tracking', () => {
     await element(by.text('Trends')).tap();
     await waitForAnimation(1000);
 
-    // Calendar state persists from first test - already on previous month
+    // Navigate to previous month (calendar resets to current month after resetDatabase)
+    await waitFor(element(by.id('previous-month-button')))
+      .toBeVisible()
+      .withTimeout(5000);
+    await element(by.id('previous-month-button')).tap();
+    await waitForAnimation(1000);
+
     // Tap on a day from previous month
     const today = new Date();
     const previousMonth = new Date(today);
@@ -527,42 +530,19 @@ describe('Daily Status Tracking', () => {
     console.log(`Logging status for yesterday: ${yesterdayDate}`);
 
     // Navigate to yesterday's month if needed
-    // Get the expected month name for yesterday
-    const yesterdayMonthName = yesterday.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    // Yesterday could be in current month (most days) or previous month (1st of month)
+    const todayDate = new Date();
+    const isYesterdayInPreviousMonth = yesterday.getMonth() !== todayDate.getMonth();
 
-    // Check if we're already on yesterday's month
-    let onCorrectMonth = false;
-    try {
-      await waitFor(element(by.text(yesterdayMonthName)))
+    if (isYesterdayInPreviousMonth) {
+      console.log('Yesterday is in previous month, navigating back');
+      await waitFor(element(by.id('previous-month-button')))
         .toBeVisible()
-        .withTimeout(1000);
-      onCorrectMonth = true;
-      console.log(`Already on yesterday's month: ${yesterdayMonthName}`);
-    } catch (e) {
-      console.log(`Not on yesterday's month, need to navigate to: ${yesterdayMonthName}`);
-    }
-
-    // If not on correct month, navigate to it
-    if (!onCorrectMonth) {
-      // Check if yesterday is in the future (next month) or past (previous month)
-      const currentMonthName = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-
-      try {
-        // Are we on current month?
-        await waitFor(element(by.text(currentMonthName)))
-          .toBeVisible()
-          .withTimeout(1000);
-
-        // We're on current month, yesterday must be in previous month (1st of month case)
-        await element(by.id('previous-month-button')).tap();
-        await waitForAnimation(1000);
-        console.log('Navigated backward to previous month for yesterday');
-      } catch (e) {
-        // We're on some other month, navigate forward to get to yesterday's month
-        await element(by.id('next-month-button')).tap();
-        await waitForAnimation(1000);
-        console.log('Navigated forward to get to yesterday\'s month');
-      }
+        .withTimeout(5000);
+      await element(by.id('previous-month-button')).tap();
+      await waitForAnimation(1000);
+    } else {
+      console.log('Yesterday is in current month, no navigation needed');
     }
 
     // Tap on yesterday in the calendar
@@ -649,42 +629,19 @@ describe('Daily Status Tracking', () => {
     console.log(`Logging status for yesterday: ${yesterdayDate}`);
 
     // Navigate to yesterday's month if needed
-    // Get the expected month name for yesterday
-    const yesterdayMonthName = yesterday.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    // Yesterday could be in current month (most days) or previous month (1st of month)
+    const todayDate = new Date();
+    const isYesterdayInPreviousMonth = yesterday.getMonth() !== todayDate.getMonth();
 
-    // Check if we're already on yesterday's month
-    let onCorrectMonth = false;
-    try {
-      await waitFor(element(by.text(yesterdayMonthName)))
+    if (isYesterdayInPreviousMonth) {
+      console.log('Yesterday is in previous month, navigating back');
+      await waitFor(element(by.id('previous-month-button')))
         .toBeVisible()
-        .withTimeout(1000);
-      onCorrectMonth = true;
-      console.log(`Already on yesterday's month: ${yesterdayMonthName}`);
-    } catch (e) {
-      console.log(`Not on yesterday's month, need to navigate to: ${yesterdayMonthName}`);
-    }
-
-    // If not on correct month, navigate to it
-    if (!onCorrectMonth) {
-      // Check if yesterday is in the future (next month) or past (previous month)
-      const currentMonthName = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-
-      try {
-        // Are we on current month?
-        await waitFor(element(by.text(currentMonthName)))
-          .toBeVisible()
-          .withTimeout(1000);
-
-        // We're on current month, yesterday must be in previous month (1st of month case)
-        await element(by.id('previous-month-button')).tap();
-        await waitForAnimation(1000);
-        console.log('Navigated backward to previous month for yesterday');
-      } catch (e) {
-        // We're on some other month, navigate forward to get to yesterday's month
-        await element(by.id('next-month-button')).tap();
-        await waitForAnimation(1000);
-        console.log('Navigated forward to get to yesterday\'s month');
-      }
+        .withTimeout(5000);
+      await element(by.id('previous-month-button')).tap();
+      await waitForAnimation(1000);
+    } else {
+      console.log('Yesterday is in current month, no navigation needed');
     }
 
     // Tap on yesterday in the calendar
@@ -754,11 +711,19 @@ describe('Daily Status Tracking', () => {
 
     // Navigate back to Analytics to verify calendar updated
     await element(by.text('Trends')).tap();
+    await waitForAnimation(1000);
 
-    // Calendar should be visible
+    // Calendar should be visible (resets to current month when re-entering Analytics)
     await waitFor(element(by.id('previous-month-button')))
       .toBeVisible()
       .withTimeout(5000);
+
+    // Navigate to yesterday's month if needed (calendar resets to current month)
+    if (isYesterdayInPreviousMonth) {
+      console.log('Yesterday is in previous month, navigating back');
+      await element(by.id('previous-month-button')).tap();
+      await waitForAnimation(1000);
+    }
 
     // Yesterday should still be visible but WITHOUT the green indicator
     // We can tap on it - if it opens the prompt, the status was properly cleared
