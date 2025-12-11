@@ -271,7 +271,7 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
         const { cancelNotificationForDate, topUpNotifications } = await import('../services/notifications/medicationNotifications');
         const today = new Date().toISOString().split('T')[0];
         await cancelNotificationForDate(dose.medicationId, dose.scheduleId, today, 'reminder');
-        await cancelNotificationForDate(dose.medicationId, dose.scheduleId, today, 'followup');
+        await cancelNotificationForDate(dose.medicationId, dose.scheduleId, today, 'follow_up');
 
         // Top up notifications to maintain the scheduled count
         await topUpNotifications();

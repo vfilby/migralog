@@ -1205,11 +1205,22 @@ export async function rescheduleAllMedicationNotifications(): Promise<void> {
       return;
     }
 
-    // Step 4: Calculate how many days to schedule based on active schedules
-    const daysToSchedule = calculateNotificationDays(activeMedSchedules.length);
+    // Step 4: Calculate how many days to schedule based on actual slots needed per day
+    // Each schedule needs 1 slot for reminder, plus 1 slot for follow-up if enabled
+    const settingsStore = useNotificationSettingsStore.getState();
+    let slotsNeededPerDay = 0;
+    for (const { medication } of activeMedSchedules) {
+      const effectiveSettings = settingsStore.getEffectiveSettings(medication.id);
+      // 1 for reminder, +1 for follow-up if enabled
+      const hasFollowUp = effectiveSettings.followUpDelay !== 'off';
+      slotsNeededPerDay += hasFollowUp ? 2 : 1;
+    }
+
+    const daysToSchedule = calculateNotificationDays(slotsNeededPerDay);
 
     logger.log('[Notification] Rescheduling notifications:', {
       activeSchedules: activeMedSchedules.length,
+      slotsNeededPerDay,
       daysToSchedule,
     });
 
@@ -1337,33 +1348,24 @@ export async function rescheduleAllNotifications(): Promise<void> {
 const IOS_NOTIFICATION_LIMIT = 64;
 
 /**
- * Calculate how many days of notifications to schedule based on actual schedule count
+ * Calculate how many days of notifications to schedule based on actual slots needed per day
  *
  * This calculates dynamically based on the actual notification slots needed:
- * - Each active schedule requires 1 reminder notification per day
- * - Each active schedule also requires 1 follow-up notification per day
+ * - Each schedule with follow-up enabled needs 2 slots per day (reminder + follow-up)
+ * - Each schedule with follow-up disabled needs 1 slot per day (reminder only)
  * - Reserved slots for daily check-in and buffer
  *
- * @param activeScheduleCount - Number of active medication schedules (not medications)
- * @param includeFollowUps - Whether to account for follow-up notifications (default: true)
+ * @param slotsNeededPerDay - Total notification slots needed per day (calculated by caller based on actual settings)
  * @returns Number of days to schedule notifications for
  */
-export function calculateNotificationDays(
-  activeScheduleCount: number,
-  includeFollowUps: boolean = true
-): number {
-  if (activeScheduleCount === 0) return 0;
+export function calculateNotificationDays(slotsNeededPerDay: number): number {
+  if (slotsNeededPerDay === 0) return 0;
 
   // Reserve slots for:
-  // - 1 for daily check-in notification
+  // - 14 for daily check-in notifications (14 days)
   // - 2 for buffer/unexpected notifications
-  const reservedSlots = 3;
+  const reservedSlots = 16;
   const availableSlots = IOS_NOTIFICATION_LIMIT - reservedSlots;
-
-  // Calculate actual slots needed per day based on whether follow-ups are enabled
-  // Reminder: 1 per schedule, Follow-up: 1 per schedule (if enabled)
-  const slotsPerSchedulePerDay = includeFollowUps ? 2 : 1;
-  const slotsNeededPerDay = activeScheduleCount * slotsPerSchedulePerDay;
 
   // Calculate maximum days we can schedule
   const maxDays = Math.floor(availableSlots / slotsNeededPerDay);
@@ -1372,9 +1374,8 @@ export function calculateNotificationDays(
   const result = Math.max(3, Math.min(maxDays, 14));
 
   logger.log('[Notification] calculateNotificationDays:', {
-    activeScheduleCount,
-    includeFollowUps,
     slotsNeededPerDay,
+    reservedSlots,
     availableSlots,
     maxDays,
     result,
@@ -1393,7 +1394,7 @@ export function calculateNotificationDays(
  * @param medicationId - ID of the medication
  * @param scheduleId - ID of the schedule
  * @param date - Date in YYYY-MM-DD format
- * @param notificationType - Type of notification ('reminder' or 'followup')
+ * @param notificationType - Type of notification ('reminder' or 'follow_up')
  */
 export async function cancelNotificationForDate(
   medicationId: string,
@@ -1672,7 +1673,7 @@ export async function scheduleNotificationsForDays(
           medicationId: medication.id,
           scheduleId: schedule.id,
           date: dateString,
-          notificationType: 'followup',
+          notificationType: 'follow_up',
           isGrouped: false,
         };
 
@@ -1981,7 +1982,7 @@ export async function handleSkip(
     await cancelNotificationForDate(medicationId, scheduleId, today, 'reminder');
 
     // Cancel today's follow-up
-    await cancelNotificationForDate(medicationId, scheduleId, today, 'followup');
+    await cancelNotificationForDate(medicationId, scheduleId, today, 'follow_up');
 
     // Top up notifications
     await topUpNotifications();
@@ -2031,7 +2032,7 @@ export async function handleSkipAll(
       const scheduleId = data.scheduleIds[i];
 
       await cancelNotificationForDate(medicationId, scheduleId, today, 'reminder');
-      await cancelNotificationForDate(medicationId, scheduleId, today, 'followup');
+      await cancelNotificationForDate(medicationId, scheduleId, today, 'follow_up');
     }
 
     // Top up notifications

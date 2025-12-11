@@ -9,7 +9,7 @@
 /**
  * Type of notification - reminder, follow-up, or daily check-in
  */
-export type NotificationType = 'reminder' | 'followup' | 'daily_checkin';
+export type NotificationType = 'reminder' | 'follow_up' | 'daily_checkin';
 
 /**
  * Source type - whether notification is for medication or daily check-in

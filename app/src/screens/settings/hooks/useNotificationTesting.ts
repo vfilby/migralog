@@ -48,7 +48,7 @@ export function useNotificationTesting() {
           byMedication.set(mapping.medicationId, { reminders: [], followups: [], scheduleId: mapping.scheduleId });
         }
         const medData = byMedication.get(mapping.medicationId)!;
-        if (mapping.notificationType === 'followup') {
+        if (mapping.notificationType === 'follow_up') {
           medData.followups.push(mapping.date);
         } else {
           medData.reminders.push(mapping.date);
@@ -59,7 +59,8 @@ export function useNotificationTesting() {
       const dailyCheckinMappings = await scheduledNotificationRepository.getFutureDailyCheckinMappings();
 
       // Build summary message
-      let message = `📊 OS Notifications: ${osNotifications.length}\n📂 DB Mappings: ${futureMappings.length + dailyCheckinMappings.length}\n`;
+      // futureMappings includes ALL mappings (medication + daily check-in)
+      let message = `📊 OS Notifications: ${osNotifications.length}\n📂 DB Mappings: ${futureMappings.length}\n`;
       if (dailyCheckinMappings.length > 0) {
         const sortedDates = dailyCheckinMappings.map(m => m.date).sort();
         const firstDate = sortedDates[0];
