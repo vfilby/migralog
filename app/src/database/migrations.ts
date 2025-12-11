@@ -161,6 +161,44 @@ const migrations: Migration[] = [
       throw new Error('Migration 19 does not support downgrade');
     },
   },
+  {
+    version: 20,
+    name: 'add_scheduled_notifications_table',
+    up: async (db: SQLite.SQLiteDatabase) => {
+      logger.log('Migration 20: Adding scheduled_notifications table for one-time notification tracking...');
+
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS scheduled_notifications (
+          id TEXT PRIMARY KEY,
+          medication_id TEXT NOT NULL,
+          schedule_id TEXT NOT NULL,
+          date TEXT NOT NULL,
+          notification_id TEXT NOT NULL,
+          notification_type TEXT NOT NULL DEFAULT 'reminder',
+          is_grouped INTEGER DEFAULT 0,
+          group_key TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE,
+          FOREIGN KEY (schedule_id) REFERENCES medication_schedules(id) ON DELETE CASCADE,
+          UNIQUE(medication_id, schedule_id, date, notification_type)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_date
+          ON scheduled_notifications(date);
+        CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_group
+          ON scheduled_notifications(group_key, date);
+        CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_notification_id
+          ON scheduled_notifications(notification_id);
+      `);
+
+      logger.log('Migration 20: scheduled_notifications table created successfully');
+    },
+    down: async (db: SQLite.SQLiteDatabase) => {
+      logger.log('Migration 20 rollback: Dropping scheduled_notifications table...');
+      await db.execAsync('DROP TABLE IF EXISTS scheduled_notifications;');
+      logger.log('Migration 20 rollback: Complete');
+    },
+  },
 ];
 
 class MigrationRunner {
@@ -178,11 +216,11 @@ class MigrationRunner {
     );
 
     if (result.length === 0) {
-      // This is a fresh database - set to version 19 (current schema)
+      // This is a fresh database - set to version 20 (current schema)
       // All migrations have been squashed into the base schema (schema.ts)
       // Use INSERT OR IGNORE to handle case where row already exists
       await this.db.runAsync(
-        'INSERT OR IGNORE INTO schema_version (id, version, updated_at) VALUES (1, 19, ?)',
+        'INSERT OR IGNORE INTO schema_version (id, version, updated_at) VALUES (1, 20, ?)',
         [Date.now()]
       );
     }
@@ -362,6 +400,40 @@ class MigrationRunner {
           }
 
           logger.log('Migration 19: All tables recreated with CHECK constraints');
+          break;
+
+        case 20:
+          // Verify scheduled_notifications table exists
+          const v20Tables = await this.db.getAllAsync<{ name: string }>(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+          );
+          const v20TableNames = v20Tables.map(t => t.name);
+
+          if (!v20TableNames.includes('scheduled_notifications')) {
+            logger.error('Smoke test failed: scheduled_notifications table not found');
+            return false;
+          }
+
+          // Verify indexes exist
+          const v20Indexes = await this.db.getAllAsync<{ name: string }>(
+            "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='scheduled_notifications'"
+          );
+          const v20IndexNames = v20Indexes.map(i => i.name);
+
+          const expectedIndexes = [
+            'idx_scheduled_notifications_date',
+            'idx_scheduled_notifications_group',
+            'idx_scheduled_notifications_notification_id'
+          ];
+
+          for (const idx of expectedIndexes) {
+            if (!v20IndexNames.includes(idx)) {
+              logger.error(`Smoke test failed: Index ${idx} not found after migration 20`);
+              return false;
+            }
+          }
+
+          logger.log('Migration 20: scheduled_notifications table and indexes verified');
           break;
       }
 

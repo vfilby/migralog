@@ -249,7 +249,7 @@ describe('Migration Data Safety Tests (Squashed Schema)', () => {
   });
 
   describe('Schema Version Integrity', () => {
-    it('should maintain version 19 after initialization', async () => {
+    it('should maintain version 20 after initialization', async () => {
       await adapter.execAsync(createTables);
       const migrationRunner = getMigrations();
       await migrationRunner.initialize(adapter as any);
@@ -259,7 +259,7 @@ describe('Migration Data Safety Tests (Squashed Schema)', () => {
       );
 
       expect(version).toHaveLength(1);
-      expect(version[0].version).toBe(19);
+      expect(version[0].version).toBe(20);
     });
 
     it('should not allow version modification through normal operations', async () => {
@@ -275,7 +275,7 @@ describe('Migration Data Safety Tests (Squashed Schema)', () => {
         'SELECT version FROM schema_version WHERE id = 1'
       );
 
-      expect(version[0].version).toBe(19);
+      expect(version[0].version).toBe(20);
     });
   });
 

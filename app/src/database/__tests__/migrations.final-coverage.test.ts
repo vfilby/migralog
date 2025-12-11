@@ -38,7 +38,7 @@ describe('Final Migration Coverage Tests', () => {
 
   describe('Validation Edge Cases', () => {
     it('should validate migration with missing up function', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: 20 }]);
       await migrationRunner.initialize(mockDatabase);
 
       // Test direct validation of migration without up function
@@ -55,7 +55,7 @@ describe('Final Migration Coverage Tests', () => {
 
     it('should handle database connection validation failure', async () => {
       mockDatabase.getAllAsync
-        .mockResolvedValueOnce([{ version: 19 }]) // initialization works
+        .mockResolvedValueOnce([{ version: 20 }]) // initialization works
         .mockRejectedValue(new Error('Connection lost')); // validation query fails
 
       await migrationRunner.initialize(mockDatabase);
@@ -180,14 +180,14 @@ describe('Final Migration Coverage Tests', () => {
       // Wait for async logger to complete
       await new Promise(resolve => setImmediate(resolve));
 
-      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Migrating database from version 18 to 19');
+      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Migrating database from version 18 to 20');
       expect(console.log).toHaveBeenCalledWith('[INFO]', 'Running migration 19: add_check_constraints_to_tables');
       expect(console.log).toHaveBeenCalledWith('[INFO]', 'Migration 19 completed successfully');
       expect(console.log).toHaveBeenCalledWith('[INFO]', 'All migrations completed successfully');
     });
 
     it('should handle rollback with missing down function', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: 20 }]);
       await migrationRunner.initialize(mockDatabase);
 
       // Migration 19's down function throws this specific error
@@ -271,7 +271,7 @@ describe('Final Migration Coverage Tests', () => {
 
   describe('Environment and Mock Detection', () => {
     it('should detect Jest worker environment for smoke tests', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: 20 }]);
       await migrationRunner.initialize(mockDatabase);
 
       // Set Jest worker ID
@@ -294,7 +294,7 @@ describe('Final Migration Coverage Tests', () => {
     });
 
     it('should detect NODE_ENV test for smoke tests', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: 20 }]);
       await migrationRunner.initialize(mockDatabase);
 
       const originalNodeEnv = process.env.NODE_ENV;
@@ -324,7 +324,7 @@ describe('Final Migration Coverage Tests', () => {
     });
 
     it('should detect mocked database functions', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: 20 }]);
       await migrationRunner.initialize(mockDatabase);
 
       // Add mock property

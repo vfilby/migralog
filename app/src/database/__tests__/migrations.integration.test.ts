@@ -3,7 +3,7 @@
  *
  * All migrations have been squashed into the base schema (schema.ts).
  * These tests verify that:
- * 1. Fresh databases are created at version 19 directly
+ * 1. Fresh databases are created at version 20 directly
  * 2. No migrations are needed for new installs
  * 3. Schema structure matches expected final state
  * 4. Foreign key constraints work correctly
@@ -80,7 +80,7 @@ describe('Migration Integration Tests (Squashed Schema)', () => {
   });
 
   describe('Fresh Database Creation', () => {
-    it('should create database at version 19 without migrations', async () => {
+    it('should create database at version 20 without migrations', async () => {
       // Create schema
       await adapter.execAsync(createTables);
 
@@ -88,12 +88,12 @@ describe('Migration Integration Tests (Squashed Schema)', () => {
       const migrationRunner = getMigrations();
       await migrationRunner.initialize(adapter as any);
 
-      // Verify version is set to 19
+      // Verify version is set to 20
       const version = await adapter.getAllAsync<{ version: number }>(
         'SELECT version FROM schema_version WHERE id = 1'
       );
       expect(version).toHaveLength(1);
-      expect(version[0].version).toBe(19);
+      expect(version[0].version).toBe(20);
 
       // Verify no migrations are needed
       const needsMigration = await migrationRunner.needsMigration();
@@ -451,8 +451,8 @@ describe('Migration Integration Tests (Squashed Schema)', () => {
       );
 
       // Version should remain at 19
-      expect(versionBefore[0].version).toBe(19);
-      expect(versionAfter[0].version).toBe(19);
+      expect(versionBefore[0].version).toBe(20);
+      expect(versionAfter[0].version).toBe(20);
     });
   });
 });

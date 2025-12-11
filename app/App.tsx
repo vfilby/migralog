@@ -78,10 +78,21 @@ function App() {
       await dailyCheckinService.initialize();
       logger.log('Daily check-in service initialized');
 
-      // Reschedule all notifications on startup to ensure they persist after app updates
-      // This handles both medication reminders and daily check-in
-      await notificationService.rescheduleAllNotifications();
-      logger.log('All notifications rescheduled on startup');
+      // Run one-time migration from DAILY to one-time notifications
+      // This is a no-op if already migrated
+      const { migrateToOneTimeNotifications } = await import('./src/services/notifications/notificationMigration');
+      await migrateToOneTimeNotifications();
+      logger.log('Notification migration check complete');
+
+      // Reconcile and top-up notifications for the one-time notification system
+      const { reconcileNotifications, topUpNotifications } = await import('./src/services/notifications/medicationNotifications');
+      await reconcileNotifications();
+      await topUpNotifications();
+      logger.log('Notification reconciliation and top-up complete');
+
+      // Reschedule daily check-in notification (still uses DAILY trigger)
+      await dailyCheckinService.scheduleNotification();
+      logger.log('Daily check-in notification scheduled');
 
       // Initialize test deep links (dev only)
       if (__DEV__) {
