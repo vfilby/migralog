@@ -132,6 +132,7 @@ export async function saveMapping(
 
 /**
  * Save multiple notification mappings in a batch
+ * Uses a transaction to ensure all-or-nothing semantics
  */
 export async function saveMappingsBatch(
   mappings: Array<SaveMappingInput>
@@ -143,44 +144,60 @@ export async function saveMappingsBatch(
   const db = await getDatabase();
   const results: ScheduledNotificationMapping[] = [];
 
-  // Use a transaction for batch insert
-  await db.withTransactionAsync(async () => {
-    for (const mapping of mappings) {
-      const id = generateId();
-      const createdAt = Date.now();
-      const sourceType = mapping.sourceType || 'medication';
-      await db.runAsync(
-        `INSERT INTO scheduled_notifications
-         (id, medication_id, schedule_id, date, notification_id, notification_type, is_grouped, group_key, source_type, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
+  try {
+    // Use a transaction for batch insert - ensures atomicity
+    await db.withTransactionAsync(async () => {
+      for (const mapping of mappings) {
+        const id = generateId();
+        const createdAt = Date.now();
+        const sourceType = mapping.sourceType || 'medication';
+        await db.runAsync(
+          `INSERT INTO scheduled_notifications
+           (id, medication_id, schedule_id, date, notification_id, notification_type, is_grouped, group_key, source_type, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            id,
+            mapping.medicationId,
+            mapping.scheduleId,
+            mapping.date,
+            mapping.notificationId,
+            mapping.notificationType,
+            mapping.isGrouped ? 1 : 0,
+            mapping.groupKey ?? null,
+            sourceType,
+            createdAt,
+          ]
+        );
+
+        results.push({
+          ...mapping,
           id,
-          mapping.medicationId,
-          mapping.scheduleId,
-          mapping.date,
-          mapping.notificationId,
-          mapping.notificationType,
-          mapping.isGrouped ? 1 : 0,
-          mapping.groupKey ?? null,
           sourceType,
-          createdAt,
-        ]
-      );
+          createdAt: new Date(createdAt).toISOString(),
+        });
+      }
+    });
 
-      results.push({
-        ...mapping,
-        id,
-        sourceType,
-        createdAt: new Date(createdAt).toISOString(),
-      });
-    }
-  });
+    logger.log('[ScheduledNotificationRepo] Saved batch:', {
+      count: mappings.length,
+    });
 
-  logger.log('[ScheduledNotificationRepo] Saved batch:', {
-    count: mappings.length,
-  });
-
-  return results;
+    return results;
+  } catch (error) {
+    // Transaction automatically rolls back on error
+    logger.error('[ScheduledNotificationRepo] Batch save failed:', {
+      error,
+      mappingCount: mappings.length,
+      firstMapping: mappings[0]
+        ? {
+            medicationId: mappings[0].medicationId,
+            date: mappings[0].date,
+            notificationType: mappings[0].notificationType,
+          }
+        : null,
+    });
+    throw error;
+  }
 }
 
 /**
