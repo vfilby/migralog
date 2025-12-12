@@ -1,6 +1,6 @@
 {
   "name": "migralog",
-  "version": "1.1.102",
+  "version": "1.1.103",
   "main": "index.ts",
   "scripts": {
     "start": "npm run generate-build-info && expo start --dev-client",
