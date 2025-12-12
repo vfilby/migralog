@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
@@ -15,6 +16,7 @@ import { useNotificationTesting } from './hooks/useNotificationTesting';
 import { useDatabaseOperations } from './hooks/useDatabaseOperations';
 import { useSentryTesting } from './hooks/useSentryTesting';
 import { useErrorLogManagement } from './hooks/useErrorLogManagement';
+import { useDebugArchive } from './hooks/useDebugArchive';
 import { logger, LogLevel } from '../../utils/logger';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DeveloperToolsScreen'>;
@@ -41,6 +43,11 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
     handleTestCriticalNotification,
     handleRecreateAllSchedules,
   } = useNotificationTesting();
+  const {
+    generateArchive,
+    isGenerating,
+    progress,
+  } = useDebugArchive();
 
   // Load current log level and log count on mount
   useEffect(() => {
@@ -218,6 +225,44 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
                   {logCount} total
                 </Text>
                 <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.divider} />
+            <TouchableOpacity 
+              style={styles.diagnosticRow}
+              onPress={generateArchive}
+              disabled={isGenerating}
+              accessibilityRole="button"
+              accessibilityLabel="Generate debug archive"
+              accessibilityHint="Creates a comprehensive debug archive with logs, database, and notification state"
+            >
+              <View style={styles.diagnosticLeft}>
+                <Ionicons
+                  name="archive-outline"
+                  size={20}
+                  color={isGenerating ? theme.textTertiary : theme.textSecondary}
+                />
+                <Text style={[styles.diagnosticLabel, isGenerating && { color: theme.textTertiary }]}>
+                  Generate Debug Archive
+                </Text>
+              </View>
+              <View style={styles.diagnosticRight}>
+                {isGenerating ? (
+                  <>
+                    <Text style={styles.diagnosticValueSecondary}>
+                      {Math.round(progress)}%
+                    </Text>
+                    <ActivityIndicator size="small" color={theme.primary} />
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.diagnosticValueSecondary}>
+                      Export All Debug Data
+                    </Text>
+                    <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
+                  </>
+                )}
               </View>
             </TouchableOpacity>
 
