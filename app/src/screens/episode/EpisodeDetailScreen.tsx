@@ -337,10 +337,18 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   };
 
   const handleSymptomLongPress = (log: { id: string; onsetTime: number }) => {
+    // Find all symptom logs at the same timestamp (the whole event)
+    const logsAtTimestamp = symptomLogs.filter(l => l.onsetTime === log.onsetTime);
+    const logCount = logsAtTimestamp.length;
+
     const confirmDelete = () => {
+      const message = logCount > 1
+        ? `Are you sure you want to delete all ${logCount} symptom changes at this time?`
+        : 'Are you sure you want to delete this symptom change?';
+
       Alert.alert(
         'Delete Symptom Change',
-        'Are you sure you want to delete this symptom change?',
+        message,
         [
           { text: 'Cancel', style: 'cancel' },
           {
@@ -348,12 +356,12 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
             style: 'destructive',
             onPress: async () => {
               try {
-                // Use store method for deletion - provides error handling and logging
-                await deleteSymptomLog(log.id);
+                // Delete all symptom logs at this timestamp
+                await Promise.all(logsAtTimestamp.map(l => deleteSymptomLog(l.id)));
                 await loadEpisodeData();
               } catch (error) {
-                logger.error('Failed to delete symptom change:', error);
-                Alert.alert('Error', 'Failed to delete symptom change');
+                logger.error('Failed to delete symptom changes:', error);
+                Alert.alert('Error', 'Failed to delete symptom changes');
               }
             },
           },
@@ -482,38 +490,68 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
       });
     });
 
-    // Add symptom logs with deltas
+    // Add symptom logs with deltas (similar to pain locations)
     // Sort symptom logs by time to calculate deltas correctly
     const sortedSymptomLogs = [...symptomLogs].sort((a, b) => a.onsetTime - b.onsetTime);
+
+    // Group symptom logs by timestamp
+    const symptomLogsByTimestamp = new Map<number, typeof sortedSymptomLogs>();
+    sortedSymptomLogs.forEach(log => {
+      const existing = symptomLogsByTimestamp.get(log.onsetTime) || [];
+      existing.push(log);
+      symptomLogsByTimestamp.set(log.onsetTime, existing);
+    });
 
     // Track current symptom state
     let currentSymptoms = new Set(episode?.symptoms || []);
 
-    sortedSymptomLogs.forEach(symptomLog => {
-      // Determine if this is an addition or removal
-      const isAdded = symptomLog.resolutionTime === null || symptomLog.resolutionTime === undefined;
-      const symptomChanges: SymptomChange[] = [{
-        symptom: symptomLog.symptom,
-        changeType: isAdded ? 'added' : 'removed',
-      }];
+    // Process each timestamp group
+    Array.from(symptomLogsByTimestamp.entries())
+      .sort(([a], [b]) => a - b)
+      .forEach(([timestamp, logsAtTime]) => {
+        const symptomChanges: SymptomChange[] = [];
+        const changedSymptoms = new Set<string>();
 
-      // Update current state
-      if (isAdded) {
-        currentSymptoms.add(symptomLog.symptom);
-      } else {
-        currentSymptoms.delete(symptomLog.symptom);
-      }
+        // Process all logs at this timestamp to get additions and removals
+        logsAtTime.forEach(symptomLog => {
+          const isAdded = symptomLog.resolutionTime === null || symptomLog.resolutionTime === undefined;
+          symptomChanges.push({
+            symptom: symptomLog.symptom,
+            changeType: isAdded ? 'added' : 'removed',
+          });
+          changedSymptoms.add(symptomLog.symptom);
 
-      events.push({
-        id: `symptom-${symptomLog.id}`,
-        timestamp: symptomLog.onsetTime,
-        type: 'symptom',
-        data: {
-          log: symptomLog,
-          changes: symptomChanges,
-        },
+          // Update current state
+          if (isAdded) {
+            currentSymptoms.add(symptomLog.symptom);
+          } else {
+            currentSymptoms.delete(symptomLog.symptom);
+          }
+        });
+
+        // Add unchanged symptoms (currently active but not changed at this timestamp)
+        currentSymptoms.forEach(symptom => {
+          if (!changedSymptoms.has(symptom)) {
+            symptomChanges.push({
+              symptom,
+              changeType: 'unchanged',
+            });
+          }
+        });
+
+        // Use the first log at this timestamp as the representative log
+        const primaryLog = logsAtTime[0];
+
+        events.push({
+          id: `symptom-${primaryLog.id}`,
+          timestamp: timestamp,
+          type: 'symptom',
+          data: {
+            log: primaryLog,
+            changes: symptomChanges,
+          },
+        });
       });
-    });
 
     // Add initial pain locations as a timeline event (if episode has pain locations)
     if (episode && episode.locations && episode.locations.length > 0) {

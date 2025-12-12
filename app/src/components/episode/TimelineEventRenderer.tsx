@@ -206,19 +206,22 @@ export const TimelineEventRenderer: React.FC<TimelineEventRendererProps> = ({
               const isInitial = event.type === 'symptom_initial';
               const log = eventData.log;
               const chips = eventData.changes.map((change: SymptomChange, idx: number) => {
-                const isAdded = change.changeType === 'added';
-                const chipStyle = isAdded ? styles.symptomAddedChip : styles.symptomRemovedChip;
-                const textStyle = isAdded ? styles.symptomAddedText : styles.symptomRemovedText;
-                const indicator = isAdded ? '+ ' : '− ';
                 const label = change.symptom.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
 
-                if (isInitial) {
+                // Initial symptoms or unchanged symptoms show as grey (no indicator)
+                if (isInitial || change.changeType === 'unchanged') {
                   return (
                     <View key={`${event.id}-${idx}`} style={styles.chip}>
                       <Text style={styles.chipText}>{label}</Text>
                     </View>
                   );
                 }
+
+                // Added/removed symptoms show with indicator and color
+                const isAdded = change.changeType === 'added';
+                const chipStyle = isAdded ? styles.symptomAddedChip : styles.symptomRemovedChip;
+                const textStyle = isAdded ? styles.symptomAddedText : styles.symptomRemovedText;
+                const indicator = isAdded ? '+ ' : '− ';
 
                 return (
                   <View key={`${event.id}-${idx}`} style={[styles.chip, chipStyle]}>

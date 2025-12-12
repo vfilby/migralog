@@ -15,7 +15,7 @@ export type MedicationDoseWithDetails = MedicationDose & {
 
 export interface SymptomChange {
   symptom: string;
-  changeType: 'added' | 'removed';
+  changeType: 'added' | 'removed' | 'unchanged';
 }
 
 export interface SymptomEventData {

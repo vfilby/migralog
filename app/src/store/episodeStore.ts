@@ -51,6 +51,7 @@ interface EpisodeState {
 
   // Symptom Log CRUD
   addSymptomLog: (log: Omit<SymptomLog, 'id' | 'createdAt'>) => Promise<void>;
+  getSymptomLogById: (id: string) => SymptomLog | null;
   updateSymptomLog: (id: string, updates: Partial<SymptomLog>) => Promise<void>;
   deleteSymptomLog: (id: string) => Promise<void>;
 
@@ -62,6 +63,7 @@ interface EpisodeState {
 
   // Pain Location CRUD
   addPainLocationLog: (log: Omit<PainLocationLog, 'id' | 'createdAt'>) => Promise<void>;
+  getPainLocationLogById: (id: string) => PainLocationLog | null;
   updatePainLocationLog: (id: string, updates: Partial<PainLocationLog>) => Promise<void>;
   deletePainLocationLog: (id: string) => Promise<void>;
 
@@ -752,8 +754,20 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
   },
 
   /**
+   * Get symptom log by ID from state
+   *
+   * @param id - Symptom log ID
+   * @returns Symptom log if found, null otherwise
+   */
+  getSymptomLogById: (id: string) => {
+    const logs = get().symptomLogs || [];
+    const log = logs.find(l => l.id === id);
+    return log || null;
+  },
+
+  /**
    * Update symptom log
-   * 
+   *
    * @param id - Symptom log ID
    * @param updates - Partial symptom log updates
    */
@@ -1014,8 +1028,20 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
   },
 
   /**
+   * Get pain location log by ID from state
+   *
+   * @param id - Pain location log ID
+   * @returns Pain location log if found, null otherwise
+   */
+  getPainLocationLogById: (id: string) => {
+    const logs = get().painLocationLogs || [];
+    const log = logs.find(l => l.id === id);
+    return log || null;
+  },
+
+  /**
    * Update pain location log
-   * 
+   *
    * @param id - Pain location log ID
    * @param updates - Partial pain location log updates
    */
