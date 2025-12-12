@@ -21,6 +21,7 @@
     "test:ui:onboarding": "bash scripts/trigger-onboarding.sh",
     "sim:ios:load-db": "bash scripts/load-test-db.sh",
     "sim:ios:app": "bash scripts/launch-simulator.sh",
+    "sim:files": "bash ../scripts/open-simulator-files.sh",
     "eas-build-post-install": "node scripts/generate-build-info.js",
     "release:alpha": "node scripts/tag-release.js alpha",
     "release:beta": "node scripts/tag-release.js beta",

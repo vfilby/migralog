@@ -119,6 +119,25 @@ MigraLog is open source and welcomes contributions! Whether you're a developer, 
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for developer setup instructions and [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
 
+## Developer Tools
+
+### 🔧 iOS Simulator Files Access
+
+If you're testing the app and need to access files saved to the iOS Files app in simulators:
+
+```bash
+# Access Files.app directory in iOS Simulator
+npm run sim:files
+```
+
+This utility script:
+- Lists all booted iOS simulators
+- Finds the correct Files.app local storage path
+- Shows contents including debug archives and exported files
+- Opens the directory in Finder for easy access
+
+Perfect for retrieving debug archives created by the comprehensive debugging feature in Developer Tools.
+
 ## About
 
 MigraLog was created to help people with chronic pain conditions better understand and manage their health. The app is designed with input from pain management specialists and people who live with chronic pain.
