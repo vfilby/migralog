@@ -5,11 +5,13 @@ import {
   medicationDoseRepository,
   medicationScheduleRepository,
 } from '../../database/medicationRepository';
+import { scheduledNotificationRepository } from '../../database/scheduledNotificationRepository';
 import { Medication, MedicationSchedule } from '../../models/types';
 
 // Mock dependencies BEFORE importing the service
 jest.mock('expo-notifications');
 jest.mock('../../database/medicationRepository');
+jest.mock('../../database/scheduledNotificationRepository');
 jest.mock('../../services/errorLogger');
 jest.mock('@react-native-async-storage/async-storage');
 
@@ -2348,6 +2350,19 @@ describe('notificationService', () => {
       (Notifications.cancelScheduledNotificationAsync as jest.Mock).mockResolvedValue(undefined);
       (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('new-notif-id');
       (medicationScheduleRepository.update as jest.Mock).mockResolvedValue(mockSchedule);
+      // Mock the new scheduled notification repository functions
+      (scheduledNotificationRepository.tableExists as jest.Mock).mockResolvedValue(true);
+      (scheduledNotificationRepository.deleteAllMappings as jest.Mock).mockResolvedValue(0);
+      (scheduledNotificationRepository.saveMapping as jest.Mock).mockResolvedValue({
+        id: 'mapping-1',
+        medicationId: 'med-123',
+        scheduleId: 'sched-123',
+        date: '2025-01-01',
+        notificationId: 'new-notif-id',
+        notificationType: 'reminder',
+        isGrouped: false,
+        createdAt: new Date().toISOString(),
+      });
 
       await notificationService.rescheduleAllMedicationNotifications();
 
@@ -2356,12 +2371,13 @@ describe('notificationService', () => {
       // Should only cancel medication notification, not daily check-in
       expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledTimes(1);
       expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('med-notif-1');
+      // New implementation clears database mappings
+      expect(scheduledNotificationRepository.tableExists).toHaveBeenCalled();
+      expect(scheduledNotificationRepository.deleteAllMappings).toHaveBeenCalled();
       expect(medicationRepository.getActive).toHaveBeenCalled();
       expect(medicationScheduleRepository.getByMedicationId).toHaveBeenCalledWith('med-123');
+      // New implementation uses scheduleNotificationsForDays which calls scheduleNotificationAsync
       expect(Notifications.scheduleNotificationAsync).toHaveBeenCalled();
-      expect(medicationScheduleRepository.update).toHaveBeenCalledWith('sched-123', {
-        notificationId: 'new-notif-id',
-      });
     });
 
     it('should skip disabled schedules when rescheduling', async () => {
@@ -2423,7 +2439,7 @@ describe('notificationService', () => {
       await expect(notificationService.rescheduleAllMedicationNotifications()).resolves.not.toThrow();
     });
 
-    it('should group medications at same time when rescheduling', async () => {
+    it('should reschedule notifications for multiple medications', async () => {
       const mockMed1: Medication = {
         id: 'med-1',
         name: 'Med A',
@@ -2470,20 +2486,30 @@ describe('notificationService', () => {
       (medicationScheduleRepository.getByMedicationId as jest.Mock)
         .mockResolvedValueOnce([schedule1])
         .mockResolvedValueOnce([schedule2]);
-      (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('grouped-notif-id');
+      (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('new-notif-id');
+      (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockResolvedValue([]);
+      // Mock the new scheduled notification repository functions
+      (scheduledNotificationRepository.tableExists as jest.Mock).mockResolvedValue(true);
+      (scheduledNotificationRepository.deleteAllMappings as jest.Mock).mockResolvedValue(0);
+      (scheduledNotificationRepository.saveMapping as jest.Mock).mockResolvedValue({
+        id: 'mapping-1',
+        medicationId: 'med-1',
+        scheduleId: 'sched-1',
+        date: '2025-01-01',
+        notificationId: 'new-notif-id',
+        notificationType: 'reminder',
+        isGrouped: false,
+        createdAt: new Date().toISOString(),
+      });
 
       await notificationService.rescheduleAllMedicationNotifications();
 
-      // Should create one grouped notification + one follow-up
-      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(2);
-      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(
-        expect.objectContaining({
-          content: expect.objectContaining({
-            title: 'Time for 2 Medications',
-            body: 'Med A, Med B',
-          }),
-        })
-      );
+      // New implementation uses scheduleNotificationsForDays for each medication
+      // which schedules multiple one-time notifications
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalled();
+      expect(medicationRepository.getActive).toHaveBeenCalled();
+      expect(medicationScheduleRepository.getByMedicationId).toHaveBeenCalledWith('med-1');
+      expect(medicationScheduleRepository.getByMedicationId).toHaveBeenCalledWith('med-2');
     });
   });
 

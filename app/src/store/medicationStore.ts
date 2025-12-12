@@ -262,12 +262,20 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
 
       // Dismiss any presented notifications for this medication
       // This removes the notification from the notification tray when logging from the app
-      // Note: We only dismiss presented notifications, not cancel scheduled ones.
-      // Scheduled notifications are automatically suppressed by handleIncomingNotification
-      // which checks if the medication was already logged.
       if (dose.scheduleId) {
         await notificationService.dismissMedicationNotification(dose.medicationId, dose.scheduleId);
         logger.log('[Store] Dismissed presented notification for logged medication');
+
+        // Cancel today's scheduled reminder and follow-up (one-time notification system)
+        // This ensures the notification won't fire if app is killed
+        const { cancelNotificationForDate, topUpNotifications } = await import('../services/notifications/medicationNotifications');
+        const today = new Date().toISOString().split('T')[0];
+        await cancelNotificationForDate(dose.medicationId, dose.scheduleId, today, 'reminder');
+        await cancelNotificationForDate(dose.medicationId, dose.scheduleId, today, 'follow_up');
+
+        // Top up notifications to maintain the scheduled count
+        await topUpNotifications();
+        logger.log('[Store] Cancelled scheduled notifications and topped up for logged medication');
       }
 
       // Add to doses in state

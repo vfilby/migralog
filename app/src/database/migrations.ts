@@ -161,6 +161,145 @@ const migrations: Migration[] = [
       throw new Error('Migration 19 does not support downgrade');
     },
   },
+  {
+    version: 20,
+    name: 'add_scheduled_notifications_table',
+    up: async (db: SQLite.SQLiteDatabase) => {
+      logger.log('Migration 20: Adding scheduled_notifications table for one-time notification tracking...');
+
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS scheduled_notifications (
+          id TEXT PRIMARY KEY,
+          medication_id TEXT NOT NULL,
+          schedule_id TEXT NOT NULL,
+          date TEXT NOT NULL,
+          notification_id TEXT NOT NULL,
+          notification_type TEXT NOT NULL DEFAULT 'reminder' CHECK(notification_type IN ('reminder', 'follow_up')),
+          is_grouped INTEGER DEFAULT 0 CHECK(is_grouped IN (0, 1)),
+          group_key TEXT,
+          created_at INTEGER NOT NULL CHECK(created_at > 0),
+          FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE,
+          FOREIGN KEY (schedule_id) REFERENCES medication_schedules(id) ON DELETE CASCADE,
+          UNIQUE(medication_id, schedule_id, date, notification_type)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_date
+          ON scheduled_notifications(date);
+        CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_group
+          ON scheduled_notifications(group_key, date);
+        CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_notification_id
+          ON scheduled_notifications(notification_id);
+      `);
+
+      logger.log('Migration 20: scheduled_notifications table created successfully');
+    },
+    down: async (db: SQLite.SQLiteDatabase) => {
+      logger.log('Migration 20 rollback: Dropping scheduled_notifications table...');
+      await db.execAsync('DROP TABLE IF EXISTS scheduled_notifications;');
+      logger.log('Migration 20 rollback: Complete');
+    },
+  },
+  {
+    version: 21,
+    name: 'add_daily_checkin_support_to_scheduled_notifications',
+    up: async (db: SQLite.SQLiteDatabase) => {
+      logger.log('Migration 21: Adding daily check-in support to scheduled_notifications...');
+
+      // SQLite doesn't support adding CHECK constraints or making columns nullable via ALTER TABLE
+      // Must recreate the table with the new schema
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS scheduled_notifications_new (
+          id TEXT PRIMARY KEY,
+          medication_id TEXT,
+          schedule_id TEXT,
+          date TEXT NOT NULL,
+          notification_id TEXT NOT NULL,
+          notification_type TEXT NOT NULL DEFAULT 'reminder' CHECK(notification_type IN ('reminder', 'follow_up', 'daily_checkin')),
+          is_grouped INTEGER DEFAULT 0 CHECK(is_grouped IN (0, 1)),
+          group_key TEXT,
+          source_type TEXT NOT NULL DEFAULT 'medication' CHECK(source_type IN ('medication', 'daily_checkin')),
+          created_at INTEGER NOT NULL CHECK(created_at > 0),
+          FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE,
+          FOREIGN KEY (schedule_id) REFERENCES medication_schedules(id) ON DELETE CASCADE,
+          UNIQUE(medication_id, schedule_id, date, notification_type)
+        );
+      `);
+
+      // Copy existing data
+      await db.execAsync(`
+        INSERT INTO scheduled_notifications_new
+          (id, medication_id, schedule_id, date, notification_id, notification_type, is_grouped, group_key, source_type, created_at)
+        SELECT
+          id, medication_id, schedule_id, date, notification_id, notification_type, is_grouped, group_key, 'medication', created_at
+        FROM scheduled_notifications;
+      `);
+
+      // Drop old table and rename new one
+      await db.execAsync('DROP TABLE scheduled_notifications;');
+      await db.execAsync('ALTER TABLE scheduled_notifications_new RENAME TO scheduled_notifications;');
+
+      // Recreate indexes
+      await db.execAsync(`
+        CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_date
+          ON scheduled_notifications(date);
+        CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_group
+          ON scheduled_notifications(group_key, date);
+        CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_notification_id
+          ON scheduled_notifications(notification_id);
+        CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_source_type
+          ON scheduled_notifications(source_type, date);
+      `);
+
+      logger.log('Migration 21: Daily check-in support added successfully');
+    },
+    down: async (db: SQLite.SQLiteDatabase) => {
+      logger.log('Migration 21 rollback: Reverting scheduled_notifications table...');
+
+      // Recreate the table with v20 schema (without source_type, daily_checkin type, and with NOT NULL constraints)
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS scheduled_notifications_new (
+          id TEXT PRIMARY KEY,
+          medication_id TEXT NOT NULL,
+          schedule_id TEXT NOT NULL,
+          date TEXT NOT NULL,
+          notification_id TEXT NOT NULL,
+          notification_type TEXT NOT NULL DEFAULT 'reminder' CHECK(notification_type IN ('reminder', 'follow_up')),
+          is_grouped INTEGER DEFAULT 0 CHECK(is_grouped IN (0, 1)),
+          group_key TEXT,
+          created_at INTEGER NOT NULL CHECK(created_at > 0),
+          FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE,
+          FOREIGN KEY (schedule_id) REFERENCES medication_schedules(id) ON DELETE CASCADE,
+          UNIQUE(medication_id, schedule_id, date, notification_type)
+        );
+      `);
+
+      // Copy only medication records (non-daily-checkin) - exclude records with null medication_id
+      await db.execAsync(`
+        INSERT INTO scheduled_notifications_new
+          (id, medication_id, schedule_id, date, notification_id, notification_type, is_grouped, group_key, created_at)
+        SELECT
+          id, medication_id, schedule_id, date, notification_id, notification_type, is_grouped, group_key, created_at
+        FROM scheduled_notifications
+        WHERE medication_id IS NOT NULL AND schedule_id IS NOT NULL;
+      `);
+
+      // Drop old table and rename new one
+      await db.execAsync('DROP TABLE scheduled_notifications;');
+      await db.execAsync('ALTER TABLE scheduled_notifications_new RENAME TO scheduled_notifications;');
+
+      // Recreate indexes
+      await db.execAsync(`
+        CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_date
+          ON scheduled_notifications(date);
+        CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_group
+          ON scheduled_notifications(group_key, date);
+        CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_notification_id
+          ON scheduled_notifications(notification_id);
+      `);
+
+      logger.log('Migration 21 rollback: Complete');
+    },
+  },
 ];
 
 class MigrationRunner {
@@ -178,12 +317,12 @@ class MigrationRunner {
     );
 
     if (result.length === 0) {
-      // This is a fresh database - set to version 19 (current schema)
+      // This is a fresh database - set to current SCHEMA_VERSION
       // All migrations have been squashed into the base schema (schema.ts)
       // Use INSERT OR IGNORE to handle case where row already exists
       await this.db.runAsync(
-        'INSERT OR IGNORE INTO schema_version (id, version, updated_at) VALUES (1, 19, ?)',
-        [Date.now()]
+        'INSERT OR IGNORE INTO schema_version (id, version, updated_at) VALUES (1, ?, ?)',
+        [SCHEMA_VERSION, Date.now()]
       );
     }
   }
@@ -362,6 +501,40 @@ class MigrationRunner {
           }
 
           logger.log('Migration 19: All tables recreated with CHECK constraints');
+          break;
+
+        case 20:
+          // Verify scheduled_notifications table exists
+          const v20Tables = await this.db.getAllAsync<{ name: string }>(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+          );
+          const v20TableNames = v20Tables.map(t => t.name);
+
+          if (!v20TableNames.includes('scheduled_notifications')) {
+            logger.error('Smoke test failed: scheduled_notifications table not found');
+            return false;
+          }
+
+          // Verify indexes exist
+          const v20Indexes = await this.db.getAllAsync<{ name: string }>(
+            "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='scheduled_notifications'"
+          );
+          const v20IndexNames = v20Indexes.map(i => i.name);
+
+          const expectedIndexes = [
+            'idx_scheduled_notifications_date',
+            'idx_scheduled_notifications_group',
+            'idx_scheduled_notifications_notification_id'
+          ];
+
+          for (const idx of expectedIndexes) {
+            if (!v20IndexNames.includes(idx)) {
+              logger.error(`Smoke test failed: Index ${idx} not found after migration 20`);
+              return false;
+            }
+          }
+
+          logger.log('Migration 20: scheduled_notifications table and indexes verified');
           break;
       }
 

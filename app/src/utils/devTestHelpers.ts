@@ -54,6 +54,12 @@ export async function resetDatabaseForTesting(options: {
     await db.execAsync('DELETE FROM episode_notes');
     await db.execAsync('DELETE FROM episodes');
     await db.execAsync('DELETE FROM daily_status_logs');
+    // scheduled_notifications table may not exist if migration v20 hasn't run
+    try {
+      await db.execAsync('DELETE FROM scheduled_notifications');
+    } catch {
+      // Table doesn't exist yet - safe to ignore
+    }
 
     logger.log('[TestHelpers] All tables cleared');
 
@@ -380,6 +386,12 @@ export async function loadCorruptedDatabase() {
     await db.execAsync('DELETE FROM medication_doses');
     await db.execAsync('DELETE FROM medication_schedules');
     await db.execAsync('DELETE FROM medications');
+    // scheduled_notifications table may not exist if migration v20 hasn't run
+    try {
+      await db.execAsync('DELETE FROM scheduled_notifications');
+    } catch {
+      // Table doesn't exist yet - safe to ignore
+    }
 
     // Update schema_version to current version to avoid running migrations
     logger.log('[TestHelpers] Updating schema version to current...');

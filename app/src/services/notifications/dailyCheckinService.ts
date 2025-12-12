@@ -1,9 +1,10 @@
 import * as Notifications from 'expo-notifications';
 import { logger } from '../../utils/logger';
 import { useDailyCheckinSettingsStore } from '../../store/dailyCheckinSettingsStore';
-import { format } from 'date-fns';
+import { format, addDays, startOfDay } from 'date-fns';
 import { areNotificationsGloballyEnabled } from './notificationUtils';
 import { Episode } from '../../models/types';
+import { scheduledNotificationRepository } from '../../database/scheduledNotificationRepository';
 
 // Lazy imports to avoid require cycles
 const getDailyStatusStore = () =>
@@ -269,12 +270,17 @@ class DailyCheckinService {
   }
 
   /**
-   * Schedule the daily check-in notification
+   * Number of days to schedule daily check-in notifications ahead
+   */
+  private static readonly DAYS_TO_SCHEDULE = 14;
+
+  /**
+   * Schedule the daily check-in notifications using one-time triggers
    * Should be called when settings are updated or on app start
    */
   async scheduleNotification(): Promise<void> {
     try {
-      // Cancel any existing scheduled notification
+      // Cancel any existing scheduled notifications
       await this.cancelNotification();
 
       // Check if notifications are globally enabled
@@ -300,68 +306,217 @@ class DailyCheckinService {
       // Parse the check-in time
       const { hours, minutes } = settingsStore.getCheckInTimeComponents();
 
-      logger.log('[DailyCheckin] Scheduling notification for', hours, ':', minutes);
+      logger.log('[DailyCheckin] Scheduling one-time notifications for', hours, ':', minutes);
 
-      const notificationId = await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'How was your day?',
-          body: 'Tap to log how you\'re feeling today',
-          data: {
-            type: 'daily_checkin',
+      // Schedule notifications for the next N days
+      const today = startOfDay(new Date());
+
+      for (let i = 0; i < DailyCheckinService.DAYS_TO_SCHEDULE; i++) {
+        const targetDate = addDays(today, i);
+        const dateString = format(targetDate, 'yyyy-MM-dd');
+
+        // Create the trigger date with the configured time
+        const triggerDate = new Date(targetDate);
+        triggerDate.setHours(hours, minutes, 0, 0);
+
+        // Skip if the trigger time has already passed
+        if (triggerDate <= new Date()) {
+          continue;
+        }
+
+        // Check if already scheduled for this date
+        const existingMapping = await scheduledNotificationRepository.getDailyCheckinMapping(dateString);
+        if (existingMapping) {
+          continue;
+        }
+
+        // Schedule the notification
+        const notificationId = await Notifications.scheduleNotificationAsync({
+          content: {
+            title: 'How was your day?',
+            body: 'Tap to log how you\'re feeling today',
+            data: {
+              type: 'daily_checkin',
+              date: dateString,
+            },
+            categoryIdentifier: DAILY_CHECKIN_CATEGORY,
+            sound: true,
+            // Time-sensitive notification settings
+            ...(settings.timeSensitive && {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              interruptionLevel: 'timeSensitive' as any,
+            }),
+            ...(Notifications.AndroidNotificationPriority && {
+              priority: settings.timeSensitive
+                ? Notifications.AndroidNotificationPriority.HIGH
+                : Notifications.AndroidNotificationPriority.DEFAULT,
+            }),
           },
-          categoryIdentifier: DAILY_CHECKIN_CATEGORY,
-          sound: true,
-          // Time-sensitive notification settings
-          ...(settings.timeSensitive && {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            interruptionLevel: 'timeSensitive' as any,
-          }),
-          ...(Notifications.AndroidNotificationPriority && {
-            priority: settings.timeSensitive 
-              ? Notifications.AndroidNotificationPriority.HIGH
-              : Notifications.AndroidNotificationPriority.DEFAULT,
-          }),
-          ...(Notifications.AndroidNotificationPriority && {
-            priority: settings.timeSensitive 
-              ? Notifications.AndroidNotificationPriority.HIGH
-              : Notifications.AndroidNotificationPriority.DEFAULT,
-          }),
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DAILY,
-          hour: hours,
-          minute: minutes,
-        },
-      });
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: triggerDate,
+          },
+        });
 
-      this.scheduledNotificationId = notificationId;
-      logger.log('[DailyCheckin] Scheduled notification:', notificationId);
+        // Save the mapping to database
+        await scheduledNotificationRepository.saveMapping({
+          medicationId: null,
+          scheduleId: null,
+          date: dateString,
+          notificationId,
+          notificationType: 'daily_checkin',
+          isGrouped: false,
+          sourceType: 'daily_checkin',
+        });
+
+        logger.log('[DailyCheckin] Scheduled notification for date:', dateString);
+      }
+
+      logger.log('[DailyCheckin] Finished scheduling one-time notifications');
     } catch (error) {
       logger.error('[DailyCheckin] Error scheduling notification:', error);
     }
   }
 
   /**
-   * Cancel the scheduled daily check-in notification
+   * Top up daily check-in notifications to ensure N days are always scheduled
+   * Called on app startup and after a check-in is logged
+   */
+  async topUpNotifications(): Promise<void> {
+    try {
+      // Check if notifications are globally enabled
+      const globallyEnabled = await areNotificationsGloballyEnabled();
+      if (!globallyEnabled) {
+        return;
+      }
+
+      // Load settings
+      const settingsStore = useDailyCheckinSettingsStore.getState();
+      if (!settingsStore.isLoaded) {
+        await settingsStore.loadSettings();
+      }
+
+      const { settings } = settingsStore;
+      if (!settings.enabled) {
+        return;
+      }
+
+      // Count existing future notifications
+      const count = await scheduledNotificationRepository.countDailyCheckins();
+
+      if (count >= DailyCheckinService.DAYS_TO_SCHEDULE) {
+        logger.log('[DailyCheckin] Sufficient notifications scheduled:', count);
+        return;
+      }
+
+      // Get the last scheduled date
+      const lastDate = await scheduledNotificationRepository.getLastDailyCheckinDate();
+      const { hours, minutes } = settingsStore.getCheckInTimeComponents();
+
+      // Calculate start date (day after last scheduled, or today if none)
+      let startDate: Date;
+      if (lastDate) {
+        startDate = addDays(new Date(lastDate), 1);
+      } else {
+        startDate = startOfDay(new Date());
+      }
+
+      const daysToAdd = DailyCheckinService.DAYS_TO_SCHEDULE - count;
+
+      logger.log('[DailyCheckin] Topping up notifications:', {
+        currentCount: count,
+        daysToAdd,
+        startDate: format(startDate, 'yyyy-MM-dd'),
+      });
+
+      for (let i = 0; i < daysToAdd; i++) {
+        const targetDate = addDays(startDate, i);
+        const dateString = format(targetDate, 'yyyy-MM-dd');
+
+        // Create the trigger date with the configured time
+        const triggerDate = new Date(targetDate);
+        triggerDate.setHours(hours, minutes, 0, 0);
+
+        // Skip if the trigger time has already passed
+        if (triggerDate <= new Date()) {
+          continue;
+        }
+
+        // Check if already scheduled for this date
+        const existingMapping = await scheduledNotificationRepository.getDailyCheckinMapping(dateString);
+        if (existingMapping) {
+          continue;
+        }
+
+        // Schedule the notification
+        const notificationId = await Notifications.scheduleNotificationAsync({
+          content: {
+            title: 'How was your day?',
+            body: 'Tap to log how you\'re feeling today',
+            data: {
+              type: 'daily_checkin',
+              date: dateString,
+            },
+            categoryIdentifier: DAILY_CHECKIN_CATEGORY,
+            sound: true,
+            ...(settings.timeSensitive && {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              interruptionLevel: 'timeSensitive' as any,
+            }),
+            ...(Notifications.AndroidNotificationPriority && {
+              priority: settings.timeSensitive
+                ? Notifications.AndroidNotificationPriority.HIGH
+                : Notifications.AndroidNotificationPriority.DEFAULT,
+            }),
+          },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: triggerDate,
+          },
+        });
+
+        // Save the mapping to database
+        await scheduledNotificationRepository.saveMapping({
+          medicationId: null,
+          scheduleId: null,
+          date: dateString,
+          notificationId,
+          notificationType: 'daily_checkin',
+          isGrouped: false,
+          sourceType: 'daily_checkin',
+        });
+      }
+
+      logger.log('[DailyCheckin] Top-up complete');
+    } catch (error) {
+      logger.error('[DailyCheckin] Error topping up notifications:', error);
+    }
+  }
+
+  /**
+   * Cancel all scheduled daily check-in notifications
    */
   async cancelNotification(): Promise<void> {
     try {
-      // Cancel by our tracked ID if we have one
+      // Cancel by our tracked ID if we have one (legacy)
       if (this.scheduledNotificationId) {
         await Notifications.cancelScheduledNotificationAsync(this.scheduledNotificationId);
-        logger.log('[DailyCheckin] Cancelled notification:', this.scheduledNotificationId);
+        logger.log('[DailyCheckin] Cancelled legacy notification:', this.scheduledNotificationId);
         this.scheduledNotificationId = null;
       }
 
-      // Also cancel any notifications with our identifier pattern
+      // Cancel all daily check-in notifications from OS
       const scheduled = await Notifications.getAllScheduledNotificationsAsync();
       for (const notif of scheduled) {
         const data = notif.content.data as { type?: string };
         if (data.type === 'daily_checkin') {
           await Notifications.cancelScheduledNotificationAsync(notif.identifier);
-          logger.log('[DailyCheckin] Cancelled orphaned notification:', notif.identifier);
+          logger.log('[DailyCheckin] Cancelled notification:', notif.identifier);
         }
       }
+
+      // Delete all daily check-in mappings from database
+      await scheduledNotificationRepository.deleteDailyCheckinMappings();
     } catch (error) {
       logger.error('[DailyCheckin] Error cancelling notification:', error);
     }
@@ -391,16 +546,13 @@ class DailyCheckinService {
   }
 
   /**
-   * Dismiss any presented daily check-in notifications for the specified date
-   * 
-   * Called when a day status is logged to prevent the notification 
-   * from remaining visible after the user has already logged their day.
-   * 
-   * Note: This only dismisses already-presented notifications in the notification center.
-   * We do NOT cancel the recurring DAILY notification schedule because:
-   * 1. DAILY notifications can't be cancelled for a single day (all or nothing)
-   * 2. We rely on handleDailyCheckinNotification to suppress future occurrences
-   * 3. Cancelling would break notifications for all future days
+   * Dismiss and cancel the daily check-in notification for a specific date
+   *
+   * Called when a day status is logged to:
+   * 1. Dismiss any already-presented notification in the notification center
+   * 2. Cancel the scheduled notification for that date
+   * 3. Remove the database mapping
+   * 4. Top up notifications to maintain coverage
    */
   async dismissForDate(date: string): Promise<void> {
     const today = format(new Date(), 'yyyy-MM-dd');
@@ -415,15 +567,23 @@ class DailyCheckinService {
       // Dismiss any already-presented notifications in the notification center
       const presentedNotifications = await Notifications.getPresentedNotificationsAsync();
       for (const notification of presentedNotifications) {
-        const data = notification.request.content.data as { type?: string };
-        if (data.type === 'daily_checkin') {
+        const data = notification.request.content.data as { type?: string; date?: string };
+        if (data.type === 'daily_checkin' && (!data.date || data.date === date)) {
           await Notifications.dismissNotificationAsync(notification.request.identifier);
           logger.log('[DailyCheckin] Dismissed presented notification:', notification.request.identifier);
         }
       }
-      
-      // Note: We do NOT cancel the scheduled DAILY notification here because it's recurring.
-      // The handleDailyCheckinNotification function will suppress it when it tries to fire.
+
+      // Cancel the scheduled notification for this date if it exists
+      const mapping = await scheduledNotificationRepository.getDailyCheckinMapping(date);
+      if (mapping) {
+        await Notifications.cancelScheduledNotificationAsync(mapping.notificationId);
+        await scheduledNotificationRepository.deleteMapping(mapping.id);
+        logger.log('[DailyCheckin] Cancelled and removed notification for date:', date);
+      }
+
+      // Top up notifications to maintain coverage
+      await this.topUpNotifications();
     } catch (error) {
       logger.error('[DailyCheckin] Error dismissing notifications:', error);
     }

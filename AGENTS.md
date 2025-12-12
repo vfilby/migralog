@@ -8,6 +8,6 @@ This file provides guidance for AI agents working on this codebase.
 - Use `npx tsc --noEmit` for validation instead
 
 ## Common Issues & Quick Fixes
-- E2E test hanging: `npm run test:e2e:rebuild` + restart Expo server
+- E2E test hanging: Primary cause is multiple booted simulators. Run `xcrun simctl shutdown all` before tests. Then `npm run test:ui:build` + restart Expo server if needed
 - Code validation: `npm run test:ci` + `npm run test:lint`
 - Never blame tests for being "flaky" - investigate the actual issue

@@ -78,10 +78,23 @@ function App() {
       await dailyCheckinService.initialize();
       logger.log('Daily check-in service initialized');
 
-      // Reschedule all notifications on startup to ensure they persist after app updates
-      // This handles both medication reminders and daily check-in
-      await notificationService.rescheduleAllNotifications();
-      logger.log('All notifications rescheduled on startup');
+      // Run notification system maintenance in background (non-blocking)
+      // This ensures app is ready quickly while notifications are managed async
+      (async () => {
+        try {
+          // Reconcile and top-up medication notifications
+          const { reconcileNotifications, topUpNotifications } = await import('./src/services/notifications/medicationNotifications');
+          await reconcileNotifications();
+          await topUpNotifications();
+          logger.log('Medication notification reconciliation and top-up complete');
+
+          // Top-up daily check-in notifications (uses one-time triggers)
+          await dailyCheckinService.topUpNotifications();
+          logger.log('Daily check-in notification top-up complete');
+        } catch (error) {
+          logger.error('Background notification maintenance failed:', error);
+        }
+      })();
 
       // Initialize test deep links (dev only)
       if (__DEV__) {

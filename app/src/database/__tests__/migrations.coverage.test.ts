@@ -6,6 +6,7 @@
  */
 
 import { migrationRunner } from '../migrations';
+import { SCHEMA_VERSION } from '../schema';
 import { logger, LogLevel } from '../../utils/logger';
 
 // Mock expo-sqlite
@@ -39,7 +40,7 @@ describe('Migration Coverage Tests', () => {
 
   describe('Migration Validation', () => {
     it('should validate migration version number', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: SCHEMA_VERSION }]);
       await migrationRunner.initialize(mockDatabase);
 
       // Test invalid version migration
@@ -55,26 +56,26 @@ describe('Migration Coverage Tests', () => {
     });
 
     it('should validate migration has up function', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: SCHEMA_VERSION }]);
       await migrationRunner.initialize(mockDatabase);
 
       // Test migration without up function
       const invalidMigration = {
-        version: 20,
+        version: SCHEMA_VERSION,
         name: 'missing_up',
       };
 
       const validation = await (migrationRunner as any).validateMigration(invalidMigration);
       expect(validation.valid).toBe(false);
-      expect(validation.errors).toEqual(["Migration 20 missing 'up' function"]);
+      expect(validation.errors).toEqual([`Migration ${SCHEMA_VERSION} missing 'up' function`]);
     });
 
     it('should warn about missing down function', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: SCHEMA_VERSION }]);
       await migrationRunner.initialize(mockDatabase);
 
       const migrationWithoutDown = {
-        version: 20,
+        version: SCHEMA_VERSION,
         name: 'no_down',
         up: jest.fn(),
       };
@@ -87,14 +88,14 @@ describe('Migration Coverage Tests', () => {
 
       expect(console.warn).toHaveBeenCalledWith(
         '[WARN]',
-        "Migration 20 does not have a 'down' function - rollback will not be possible"
+        `Migration ${SCHEMA_VERSION} does not have a 'down' function - rollback will not be possible`
       );
     });
 
     it('should fail validation for uninitialized runner', async () => {
       // Don't initialize the runner
       const migration = {
-        version: 20,
+        version: SCHEMA_VERSION,
         name: 'test',
         up: jest.fn(),
       };
@@ -106,13 +107,13 @@ describe('Migration Coverage Tests', () => {
 
     it('should validate database connection', async () => {
       mockDatabase.getAllAsync
-        .mockResolvedValueOnce([{ version: 19 }])  // initialization
+        .mockResolvedValueOnce([{ version: SCHEMA_VERSION }])  // initialization
         .mockRejectedValueOnce(new Error('Connection lost'));  // validation query fails
 
       await migrationRunner.initialize(mockDatabase);
 
       const migration = {
-        version: 20,
+        version: SCHEMA_VERSION,
         name: 'test',
         up: jest.fn(),
       };
@@ -126,30 +127,30 @@ describe('Migration Coverage Tests', () => {
   describe('Smoke Tests', () => {
     it('should return false when runner not initialized', async () => {
       // Don't initialize the runner
-      const result = await (migrationRunner as any).runSmokeTests(19);
-      
+      const result = await (migrationRunner as any).runSmokeTests(SCHEMA_VERSION - 1);
+
       // Wait for async logger to complete
       await new Promise(resolve => setImmediate(resolve));
-      
+
       expect(result).toBe(false);
       expect(console.error).toHaveBeenCalledWith('[ERROR]', 'Cannot run smoke tests: MigrationRunner not initialized');
     });
 
     it('should skip smoke tests in test environment (Jest worker)', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: SCHEMA_VERSION }]);
       await migrationRunner.initialize(mockDatabase);
 
       // Set Jest worker environment
       const originalJestWorkerId = process.env.JEST_WORKER_ID;
       process.env.JEST_WORKER_ID = '1';
 
-      const result = await (migrationRunner as any).runSmokeTests(19);
+      const result = await (migrationRunner as any).runSmokeTests(SCHEMA_VERSION);
       expect(result).toBe(true);
 
       // Wait for async logger to complete
       await new Promise(resolve => setImmediate(resolve));
 
-      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Skipping smoke tests in test environment for migration 19');
+      expect(console.log).toHaveBeenCalledWith('[INFO]', `Skipping smoke tests in test environment for migration ${SCHEMA_VERSION}`);
 
       // Restore environment
       if (originalJestWorkerId) {
@@ -160,7 +161,7 @@ describe('Migration Coverage Tests', () => {
     });
 
     it('should skip smoke tests when NODE_ENV is test', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: SCHEMA_VERSION }]);
       await migrationRunner.initialize(mockDatabase);
 
       const originalNodeEnv = process.env.NODE_ENV;
@@ -168,13 +169,13 @@ describe('Migration Coverage Tests', () => {
       process.env.NODE_ENV = 'test';
       process.env.JEST_WORKER_ID = undefined as any;
 
-      const result = await (migrationRunner as any).runSmokeTests(19);
+      const result = await (migrationRunner as any).runSmokeTests(SCHEMA_VERSION);
       expect(result).toBe(true);
 
       // Wait for async logger to complete
       await new Promise(resolve => setImmediate(resolve));
 
-      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Skipping smoke tests in test environment for migration 19');
+      expect(console.log).toHaveBeenCalledWith('[INFO]', `Skipping smoke tests in test environment for migration ${SCHEMA_VERSION}`);
 
       // Restore environment
       if (originalNodeEnv) {
@@ -220,7 +221,7 @@ describe('Migration Coverage Tests', () => {
     });
 
     it('should handle no migrations needed scenario', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: SCHEMA_VERSION }]);
       await migrationRunner.initialize(mockDatabase);
 
       // Already at current version, no migrations needed
@@ -285,10 +286,10 @@ describe('Migration Coverage Tests', () => {
 
   describe('Rollback Operations', () => {
     it('should handle rollback when no rollback needed (same version)', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: SCHEMA_VERSION }]);
       await migrationRunner.initialize(mockDatabase);
 
-      await migrationRunner.rollback(19);
+      await migrationRunner.rollback(SCHEMA_VERSION);
 
       // Wait for async logger to complete
       await new Promise(resolve => setImmediate(resolve));
@@ -297,10 +298,10 @@ describe('Migration Coverage Tests', () => {
     });
 
     it('should handle rollback when no rollback needed (higher version)', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: SCHEMA_VERSION }]);
       await migrationRunner.initialize(mockDatabase);
 
-      await migrationRunner.rollback(20);
+      await migrationRunner.rollback(SCHEMA_VERSION + 1);
 
       // Wait for async logger to complete
       await new Promise(resolve => setImmediate(resolve));
@@ -309,27 +310,27 @@ describe('Migration Coverage Tests', () => {
     });
 
     it('should handle rollback backup creation failure', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: SCHEMA_VERSION }]);
       await migrationRunner.initialize(mockDatabase);
 
       const failingBackup = jest.fn().mockRejectedValue(new Error('Backup failed'));
 
-      await expect(migrationRunner.rollback(18, failingBackup)).rejects.toThrow(
+      await expect(migrationRunner.rollback(SCHEMA_VERSION - 2, failingBackup)).rejects.toThrow(
         'Rollback aborted: Failed to create backup'
       );
-      
+
       // Wait for async logger to complete
       await new Promise(resolve => setImmediate(resolve));
-      
+
       expect(console.error).toHaveBeenCalledWith('[ERROR]', 'Failed to create backup before rollback:', { context: expect.any(Error), stack: undefined });
     });
 
     it('should warn when no backup function provided for rollback', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: SCHEMA_VERSION }]);
       await migrationRunner.initialize(mockDatabase);
 
-      // This test doesn't trigger the warning because no rollback is needed (version 19 -> 19)
-      await migrationRunner.rollback(19);
+      // This test doesn't trigger the warning because no rollback is needed (version N -> N)
+      await migrationRunner.rollback(SCHEMA_VERSION);
 
       // Wait for async logger to complete
       await new Promise(resolve => setImmediate(resolve));
@@ -338,10 +339,11 @@ describe('Migration Coverage Tests', () => {
     });
 
     it('should handle migration that does not support rollback', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
+      // Version 20 -> 18 requires rolling back through v19 which doesn't support downgrade
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: 20 }]);
       await migrationRunner.initialize(mockDatabase);
 
-      // Migration 19's down function throws the specific error
+      // Migration v19's down function throws the specific error
       await expect(migrationRunner.rollback(18)).rejects.toThrow('does not support downgrade');
     });
   });
@@ -368,19 +370,19 @@ describe('Migration Coverage Tests', () => {
 
     it('should return target version from migrations', async () => {
       const targetVersion = await migrationRunner.getTargetVersion();
-      expect(targetVersion).toBe(19); // Migration v19 exists
+      expect(targetVersion).toBe(SCHEMA_VERSION);
     });
 
     it('should determine if migration is needed', async () => {
-      // Test v18 database needing migration
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 18 }]);
+      // Test old database needing migration
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: SCHEMA_VERSION - 2 }]);
       await migrationRunner.initialize(mockDatabase);
 
       const needsMigration = await migrationRunner.needsMigration();
       expect(needsMigration).toBe(true);
 
       // Test current database not needing migration
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: SCHEMA_VERSION }]);
       const needsMigrationCurrent = await migrationRunner.needsMigration();
       expect(needsMigrationCurrent).toBe(false);
     });
@@ -423,18 +425,18 @@ describe('Migration Coverage Tests', () => {
     });
 
     it('should handle rollback validation', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: SCHEMA_VERSION }]);
       await migrationRunner.initialize(mockDatabase);
 
-      // Try rollback to higher version (should skip)
-      await migrationRunner.rollback(20);
+      // Try rollback to same version (should skip)
+      await migrationRunner.rollback(SCHEMA_VERSION);
       expect(console.log).toHaveBeenCalledWith('[INFO]', 'No rollback needed');
     });
   });
 
   describe('Integration Scenarios', () => {
     it('should handle multiple migration runs on up-to-date database', async () => {
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 19 }]);
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: SCHEMA_VERSION }]);
       await migrationRunner.initialize(mockDatabase);
 
       await migrationRunner.runMigrations();
@@ -469,9 +471,9 @@ describe('Migration Coverage Tests', () => {
 
     it('should log migration progress', async () => {
       mockDatabase.getAllAsync
-        .mockResolvedValueOnce([{ version: 18 }])
-        .mockResolvedValueOnce([{ version: 18 }])
-        .mockResolvedValueOnce([{ version: 18 }])
+        .mockResolvedValueOnce([{ version: SCHEMA_VERSION - 1 }])
+        .mockResolvedValueOnce([{ version: SCHEMA_VERSION - 1 }])
+        .mockResolvedValueOnce([{ version: SCHEMA_VERSION - 1 }])
         .mockResolvedValue([]);
 
       await migrationRunner.initialize(mockDatabase);
@@ -480,9 +482,10 @@ describe('Migration Coverage Tests', () => {
       // Wait for async logger to complete
       await new Promise(resolve => setImmediate(resolve));
 
-      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Migrating database from version 18 to 19');
-      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Running migration 19: add_check_constraints_to_tables');
-      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Migration 19 completed successfully');
+      expect(console.log).toHaveBeenCalledWith('[INFO]', `Migrating database from version ${SCHEMA_VERSION - 1} to ${SCHEMA_VERSION}`);
+      // Match any migration name at SCHEMA_VERSION since it can change
+      expect(console.log).toHaveBeenCalledWith('[INFO]', expect.stringMatching(new RegExp(`^Running migration ${SCHEMA_VERSION}: .+$`)));
+      expect(console.log).toHaveBeenCalledWith('[INFO]', `Migration ${SCHEMA_VERSION} completed successfully`);
       expect(console.log).toHaveBeenCalledWith('[INFO]', 'All migrations completed successfully');
     });
 
@@ -490,21 +493,21 @@ describe('Migration Coverage Tests', () => {
       // Create a mock migration that supports rollback for testing
       const originalMigrations = require('../migrations');
       const testMigration = {
-        version: 20,
+        version: SCHEMA_VERSION,
         name: 'test_rollback',
         up: jest.fn(),
         down: jest.fn().mockResolvedValue(undefined),
       };
-      
+
       const migrationModule = originalMigrations;
       const originalMigrationsArray = migrationModule.migrations || [];
       migrationModule.migrations = [testMigration];
 
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 20 }]);
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: SCHEMA_VERSION }]);
       await migrationRunner.initialize(mockDatabase);
 
       const backupFunction = jest.fn().mockResolvedValue(undefined);
-      await migrationRunner.rollback(19, backupFunction);
+      await migrationRunner.rollback(SCHEMA_VERSION - 1, backupFunction);
 
       // Wait for async logger to complete
       await new Promise(resolve => setImmediate(resolve));
@@ -521,20 +524,20 @@ describe('Migration Coverage Tests', () => {
       // Create a test migration that supports rollback
       const originalMigrations = require('../migrations');
       const testMigration = {
-        version: 20,
+        version: SCHEMA_VERSION,
         name: 'test_migration',
         up: jest.fn(),
         down: jest.fn().mockResolvedValue(undefined),
       };
-      
+
       const migrationModule = originalMigrations;
       const originalMigrationsArray = migrationModule.migrations || [];
       migrationModule.migrations = [testMigration];
 
-      mockDatabase.getAllAsync.mockResolvedValue([{ version: 20 }]);
+      mockDatabase.getAllAsync.mockResolvedValue([{ version: SCHEMA_VERSION }]);
       await migrationRunner.initialize(mockDatabase);
 
-      await migrationRunner.rollback(19); // No backup function provided
+      await migrationRunner.rollback(SCHEMA_VERSION - 1); // No backup function provided
 
       // Wait for async logger to complete
       await new Promise(resolve => setImmediate(resolve));
@@ -547,7 +550,7 @@ describe('Migration Coverage Tests', () => {
   });
 
   describe('Migration 19 Detailed Testing', () => {
-    it('should execute all table recreation steps of migration 19', async () => {
+    it('should execute all table recreation steps of migration 20', async () => {
       mockDatabase.getAllAsync
         .mockResolvedValueOnce([{ version: 18 }])
         .mockResolvedValueOnce([{ version: 18 }])

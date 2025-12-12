@@ -450,6 +450,13 @@ class NotificationService {
             opensAppToForeground: false,
           },
         },
+        {
+          identifier: 'SKIP',
+          buttonTitle: 'Skip',
+          options: {
+            opensAppToForeground: false,
+          },
+        },
       ]
     );
 
@@ -476,6 +483,13 @@ class NotificationService {
           buttonTitle: 'View Details',
           options: {
             opensAppToForeground: true,
+          },
+        },
+        {
+          identifier: 'SKIP_ALL',
+          buttonTitle: 'Skip All',
+          options: {
+            opensAppToForeground: false,
           },
         },
       ]
@@ -541,6 +555,18 @@ class NotificationService {
         case 'VIEW_DETAILS':
           // This will be handled by navigation in the app
           logger.log('[Notification] View details tapped, opening app');
+          break;
+        case 'SKIP':
+          if (data.medicationId && data.scheduleId) {
+            await medNotifications.handleSkip(data.medicationId, data.scheduleId);
+          }
+          break;
+        case 'SKIP_ALL':
+          await medNotifications.handleSkipAll({
+            medicationIds: data.medicationIds,
+            scheduleIds: data.scheduleIds,
+            time: data.time,
+          });
           break;
         default:
           // User tapped notification - cancel follow-up reminder

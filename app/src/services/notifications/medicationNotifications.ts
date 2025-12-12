@@ -5,8 +5,17 @@ import { Medication, MedicationSchedule } from '../../models/types';
 // because they run in background when app may be suspended. See docs/store-repository-guidelines.md
 import { medicationRepository, medicationScheduleRepository, medicationDoseRepository } from '../../database/medicationRepository';
 import { useNotificationSettingsStore } from '../../store/notificationSettingsStore';
-import { scheduleNotification } from './notificationScheduler';
+import {
+  scheduleNotification,
+  scheduleNotificationAtomic,
+  cancelNotificationAtomic,
+  getTodayDateString,
+  getDateStringForDaysAhead,
+  createDateTimeFromStrings,
+} from './notificationScheduler';
 import { notifyUserOfError } from './errorNotificationHelper';
+import { scheduledNotificationRepository } from '../../database/scheduledNotificationRepository';
+import { NotificationType, ScheduledNotificationMappingInput } from '../../types/notifications';
 
 // Notification categories for action buttons
 export const MEDICATION_REMINDER_CATEGORY = 'MEDICATION_REMINDER';
@@ -1137,21 +1146,28 @@ export async function dismissMedicationNotification(medicationId: string, schedu
 }
 
 /**
- * Reschedule all medication notifications with grouping
- * This should be called after any medication schedule changes
+ * Reschedule all medication notifications using the one-time notification system
+ *
+ * This function:
+ * 1. Cancels all existing OS medication notifications
+ * 2. Clears all entries from the scheduled_notifications database table
+ * 3. Schedules new one-time notifications for all active medication schedules
+ *
+ * This should be called after any medication schedule changes or to fix
+ * inconsistencies between OS notifications and database mappings.
  */
 export async function rescheduleAllMedicationNotifications(): Promise<void> {
   try {
-    // Cancel only medication-specific notifications (not daily check-in or other notifications)
+    // Step 1: Cancel all medication notifications from the OS
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
     const medicationNotifs = scheduled.filter((n) => {
       const data = n.content.data as Record<string, unknown> | null | undefined;
       if (!data) return false;
-      
+
       const medicationId = data.medicationId as string | undefined;
       const medicationIds = data.medicationIds as string[] | undefined;
       const type = data.type as string | undefined;
-      
+
       // Filter for medication reminders (have medicationId or medicationIds, but not type 'daily_checkin')
       return (medicationId || medicationIds) && type !== 'daily_checkin';
     });
@@ -1160,75 +1176,73 @@ export async function rescheduleAllMedicationNotifications(): Promise<void> {
       await Notifications.cancelScheduledNotificationAsync(notif.identifier);
     }
 
-    logger.log('[Notification] Cancelled', medicationNotifs.length, 'medication notifications');
+    logger.log('[Notification] Cancelled', medicationNotifs.length, 'OS medication notifications');
 
-    // Get all active medications with schedules
+    // Step 2: Clear all entries from scheduled_notifications database
+    const tableExists = await scheduledNotificationRepository.tableExists();
+    if (tableExists) {
+      const deletedCount = await scheduledNotificationRepository.deleteAllMappings();
+      logger.log('[Notification] Cleared', deletedCount, 'database notification mappings');
+    }
+
+    // Step 3: Get all active medications with schedules
     const medications = await medicationRepository.getActive();
-    const items: Array<{ medication: Medication; schedule: MedicationSchedule }> = [];
+    const activeMedSchedules: Array<{ medication: Medication; schedule: MedicationSchedule }> = [];
 
     for (const medication of medications) {
       if (medication.type === 'preventative' && medication.scheduleFrequency === 'daily') {
         const schedules = await medicationScheduleRepository.getByMedicationId(medication.id);
         for (const schedule of schedules) {
           if (schedule.enabled) {
-            items.push({ medication, schedule });
+            activeMedSchedules.push({ medication, schedule });
           }
         }
       }
     }
 
-    // Group by time
-    const grouped = new Map<string, Array<{ medication: Medication; schedule: MedicationSchedule }>>();
-
-    for (const item of items) {
-      const time = item.schedule.time;
-      if (!grouped.has(time)) {
-        grouped.set(time, []);
-      }
-      grouped.get(time)!.push(item);
+    if (activeMedSchedules.length === 0) {
+      logger.log('[Notification] No active medication schedules to reschedule');
+      return;
     }
 
-    const notificationIds = new Map<string, string>();
-
-    // Schedule notifications for each time group
-    for (const [time, groupItems] of grouped.entries()) {
-      if (groupItems.length === 1) {
-        // Single medication - use single notification
-        const { medication, schedule } = groupItems[0];
-        const notificationId = await scheduleSingleNotification(medication, schedule);
-        if (notificationId) {
-          notificationIds.set(schedule.id, notificationId);
-        }
-      } else {
-        // Multiple medications - use grouped notification
-        const notificationId = await scheduleMultipleNotification(groupItems, time);
-        if (notificationId) {
-          // Store the same notification ID for all schedules in this group
-          for (const { schedule } of groupItems) {
-            notificationIds.set(schedule.id, notificationId);
-          }
-        }
-      }
+    // Step 4: Calculate how many days to schedule based on actual slots needed per day
+    // Each schedule needs 1 slot for reminder, plus 1 slot for follow-up if enabled
+    const settingsStore = useNotificationSettingsStore.getState();
+    let slotsNeededPerDay = 0;
+    for (const { medication } of activeMedSchedules) {
+      const effectiveSettings = settingsStore.getEffectiveSettings(medication.id);
+      // 1 for reminder, +1 for follow-up if enabled
+      const hasFollowUp = effectiveSettings.followUpDelay !== 'off';
+      slotsNeededPerDay += hasFollowUp ? 2 : 1;
     }
 
-    // Update schedules with notification IDs
-    for (const [scheduleId, notificationId] of notificationIds.entries()) {
-      await medicationScheduleRepository.update(scheduleId, {
-        notificationId,
-      });
+    const daysToSchedule = calculateNotificationDays(slotsNeededPerDay);
+
+    logger.log('[Notification] Rescheduling notifications:', {
+      activeSchedules: activeMedSchedules.length,
+      slotsNeededPerDay,
+      daysToSchedule,
+    });
+
+    // Step 5: Schedule one-time notifications for each active schedule
+    for (const { medication, schedule } of activeMedSchedules) {
+      await scheduleNotificationsForDays(medication, schedule, daysToSchedule);
     }
 
-    logger.log('[Notification] Rescheduled all medication notifications with grouping:', notificationIds.size);
+    logger.log('[Notification] Rescheduled all medication notifications:', {
+      schedulesProcessed: activeMedSchedules.length,
+      daysPerSchedule: daysToSchedule,
+    });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    
+
     // Issue 3 (HAND-334) + Issue 4 (SCHED-324): No silent failures
     logger.error(error instanceof Error ? error : new Error(errorMessage), {
       component: 'NotificationScheduler',
       operation: 'rescheduleAllMedicationNotifications',
       errorMessage,
     });
-    
+
     // Optionally notify user if this is a critical failure
     // For now, just log - user will notice if notifications stop working
   }
@@ -1311,14 +1325,735 @@ export async function rescheduleAllNotifications(): Promise<void> {
     logger.log('[Notification] All notifications rescheduled successfully');
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    
+
     // Issue 3 (HAND-334) + Issue 4 (SCHED-324): No silent failures
     logger.error(error instanceof Error ? error : new Error(errorMessage), {
       component: 'NotificationScheduler',
       operation: 'rescheduleAllNotifications',
       errorMessage,
     });
-    
+
     throw error;
+  }
+}
+
+// ============================================================================
+// ONE-TIME NOTIFICATION SCHEDULING (New Implementation)
+// ============================================================================
+
+/**
+ * iOS limits total scheduled notifications to 64.
+ * Calculate how many days of notifications we can schedule per medication.
+ */
+const IOS_NOTIFICATION_LIMIT = 64;
+
+/**
+ * Calculate how many days of notifications to schedule based on actual slots needed per day
+ *
+ * This calculates dynamically based on the actual notification slots needed:
+ * - Each schedule with follow-up enabled needs 2 slots per day (reminder + follow-up)
+ * - Each schedule with follow-up disabled needs 1 slot per day (reminder only)
+ * - Reserved slots for daily check-in and buffer
+ *
+ * @param slotsNeededPerDay - Total notification slots needed per day (calculated by caller based on actual settings)
+ * @returns Number of days to schedule notifications for
+ */
+export function calculateNotificationDays(slotsNeededPerDay: number): number {
+  if (slotsNeededPerDay === 0) return 0;
+
+  // Reserve slots for:
+  // - 14 for daily check-in notifications (14 days)
+  // - 2 for buffer/unexpected notifications
+  const reservedSlots = 16;
+  const availableSlots = IOS_NOTIFICATION_LIMIT - reservedSlots;
+
+  // Calculate maximum days we can schedule
+  const maxDays = Math.floor(availableSlots / slotsNeededPerDay);
+
+  // Return at least 3 days, at most 14 days
+  const result = Math.max(3, Math.min(maxDays, 14));
+
+  logger.log('[Notification] calculateNotificationDays:', {
+    slotsNeededPerDay,
+    reservedSlots,
+    availableSlots,
+    maxDays,
+    result,
+  });
+
+  return result;
+}
+
+/**
+ * Cancel a notification for a specific date
+ *
+ * Handles both single and grouped notifications:
+ * - Single: Simply cancels the notification and removes the mapping
+ * - Grouped: Cancels the group notification, recreates it for remaining medications
+ *
+ * @param medicationId - ID of the medication
+ * @param scheduleId - ID of the schedule
+ * @param date - Date in YYYY-MM-DD format
+ * @param notificationType - Type of notification ('reminder' or 'follow_up')
+ */
+export async function cancelNotificationForDate(
+  medicationId: string,
+  scheduleId: string,
+  date: string,
+  notificationType: NotificationType = 'reminder'
+): Promise<void> {
+  try {
+    // Look up the mapping
+    const mapping = await scheduledNotificationRepository.getMapping(
+      medicationId,
+      scheduleId,
+      date,
+      notificationType
+    );
+
+    if (!mapping) {
+      logger.log('[Notification] No mapping found to cancel:', {
+        medicationId,
+        scheduleId,
+        date,
+        notificationType,
+      });
+      return;
+    }
+
+    if (!mapping.isGrouped) {
+      // Simple case: Cancel the notification and remove mapping
+      await cancelNotificationAtomic(mapping.notificationId);
+      logger.log('[Notification] Cancelled ungrouped notification for date:', {
+        medicationId,
+        scheduleId,
+        date,
+        notificationType,
+      });
+    } else {
+      // Complex case: This is part of a grouped notification
+      // Get all mappings for this group
+      const groupMappings = await scheduledNotificationRepository.getMappingsByGroupKey(
+        mapping.groupKey!,
+        date
+      );
+
+      // Filter out the medication we're cancelling
+      const remainingMappings = groupMappings.filter(
+        m => !(m.medicationId === medicationId && m.scheduleId === scheduleId && m.notificationType === notificationType)
+      );
+
+      // Cancel the original grouped notification
+      await Notifications.cancelScheduledNotificationAsync(mapping.notificationId);
+
+      // Delete the mapping for the cancelled medication
+      await scheduledNotificationRepository.deleteMapping(mapping.id);
+
+      if (remainingMappings.length === 0) {
+        // No remaining medications - clean up all mappings
+        for (const m of groupMappings) {
+          if (m.id !== mapping.id) {
+            await scheduledNotificationRepository.deleteMapping(m.id);
+          }
+        }
+        logger.log('[Notification] All medications in group cancelled, notification removed');
+      } else if (remainingMappings.length === 1) {
+        // Only one medication left - convert to single notification
+        const remaining = remainingMappings[0];
+        // These mappings are medication notifications, so IDs should exist
+        if (!remaining.medicationId || !remaining.scheduleId) {
+          logger.warn('[Notification] Invalid mapping in group - missing medication/schedule ID');
+          return;
+        }
+        const medication = await medicationRepository.getById(remaining.medicationId);
+        const schedule = medication?.schedule?.find(s => s.id === remaining.scheduleId);
+
+        if (medication && schedule) {
+          // Schedule a single notification
+          const triggerDate = createDateTimeFromStrings(date, schedule.time);
+
+          if (triggerDate > new Date()) {
+            const effectiveSettings = useNotificationSettingsStore.getState().getEffectiveSettings(medication.id);
+
+            const newMapping = await scheduleNotificationAtomic(
+              {
+                title: `Time for ${medication.name}`,
+                body: `${schedule.dosage} dose(s) - ${medication.dosageAmount}${medication.dosageUnit} each`,
+                data: {
+                  medicationId: medication.id,
+                  scheduleId: schedule.id,
+                },
+                categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
+                sound: true,
+                ...(effectiveSettings.timeSensitiveEnabled && { interruptionLevel: 'timeSensitive' } as unknown as Record<string, unknown>),
+              },
+              triggerDate,
+              {
+                medicationId: medication.id,
+                scheduleId: schedule.id,
+                date,
+                notificationType: remaining.notificationType,
+                isGrouped: false,
+              }
+            );
+
+            // Delete the old grouped mapping
+            await scheduledNotificationRepository.deleteMapping(remaining.id);
+
+            logger.log('[Notification] Converted group to single notification:', {
+              medicationId: medication.id,
+              newMappingId: newMapping?.id,
+            });
+          }
+        }
+      } else {
+        // Multiple medications remain - recreate grouped notification
+        const medications: Array<{ medication: Medication; schedule: MedicationSchedule }> = [];
+
+        for (const m of remainingMappings) {
+          if (!m.medicationId || !m.scheduleId) continue;
+          const medication = await medicationRepository.getById(m.medicationId);
+          const schedule = medication?.schedule?.find(s => s.id === m.scheduleId);
+          if (medication && schedule) {
+            medications.push({ medication, schedule });
+          }
+        }
+
+        if (medications.length > 1) {
+          const triggerDate = createDateTimeFromStrings(date, mapping.groupKey!);
+
+          if (triggerDate > new Date()) {
+            // Schedule new grouped notification
+            const medicationNames = medications.map(({ medication }) => medication.name).join(', ');
+            const medicationCount = medications.length;
+            const medicationIds = medications.map(({ medication }) => medication.id);
+            const scheduleIds = medications.map(({ schedule }) => schedule.id);
+
+            const settingsStore = useNotificationSettingsStore.getState();
+            const anyTimeSensitive = medications.some(({ medication }) => {
+              const settings = settingsStore.getEffectiveSettings(medication.id);
+              return settings.timeSensitiveEnabled;
+            });
+
+            // Date triggers are accepted by Expo but not typed correctly
+            const newNotificationId = await Notifications.scheduleNotificationAsync({
+              content: {
+                title: `Time for ${medicationCount} Medications`,
+                body: medicationNames,
+                data: {
+                  medicationIds,
+                  scheduleIds,
+                  time: mapping.groupKey,
+                },
+                categoryIdentifier: MULTIPLE_MEDICATION_REMINDER_CATEGORY,
+                sound: true,
+                ...(anyTimeSensitive && { interruptionLevel: 'timeSensitive' } as unknown as Record<string, unknown>),
+              },
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              trigger: triggerDate as any,
+            });
+
+            // Update mappings with new notification ID
+            for (const m of remainingMappings) {
+              if (!m.medicationId || !m.scheduleId) continue;
+              await scheduledNotificationRepository.deleteMapping(m.id);
+              await scheduledNotificationRepository.saveMapping({
+                medicationId: m.medicationId,
+                scheduleId: m.scheduleId,
+                date: m.date,
+                notificationId: newNotificationId,
+                notificationType: m.notificationType,
+                isGrouped: true,
+                groupKey: m.groupKey,
+                sourceType: 'medication',
+              });
+            }
+
+            logger.log('[Notification] Recreated grouped notification:', {
+              remainingCount: medications.length,
+              newNotificationId,
+            });
+          }
+        }
+      }
+
+      logger.log('[Notification] Cancelled grouped notification for date:', {
+        medicationId,
+        scheduleId,
+        date,
+        notificationType,
+        remainingInGroup: remainingMappings.length,
+      });
+    }
+  } catch (error) {
+    logger.error('[Notification] Error cancelling notification for date:', error);
+  }
+}
+
+/**
+ * Schedule notifications for N days for a single medication schedule
+ *
+ * @param medication - The medication
+ * @param schedule - The schedule
+ * @param days - Number of days to schedule
+ * @param startDate - Optional start date (defaults to today)
+ */
+export async function scheduleNotificationsForDays(
+  medication: Medication,
+  schedule: MedicationSchedule,
+  days: number,
+  startDate?: string
+): Promise<void> {
+  const effectiveSettings = useNotificationSettingsStore.getState().getEffectiveSettings(medication.id);
+  const today = startDate || getTodayDateString();
+
+  logger.log('[Notification] Scheduling notifications for days:', {
+    medicationId: medication.id,
+    scheduleId: schedule.id,
+    days,
+    startDate: today,
+  });
+
+  for (let i = 0; i < days; i++) {
+    const dateString = startDate
+      ? getDateStringForDaysAhead(i)
+      : getDateStringForDaysAhead(i);
+
+    const triggerDate = createDateTimeFromStrings(dateString, schedule.time);
+
+    // Skip if trigger time has already passed
+    if (triggerDate <= new Date()) {
+      continue;
+    }
+
+    // Check if already scheduled for this date
+    const existingMapping = await scheduledNotificationRepository.getMapping(
+      medication.id,
+      schedule.id,
+      dateString,
+      'reminder'
+    );
+
+    if (existingMapping) {
+      logger.log('[Notification] Already scheduled for date:', dateString);
+      continue;
+    }
+
+    // Schedule the reminder
+    const mapping: ScheduledNotificationMappingInput = {
+      medicationId: medication.id,
+      scheduleId: schedule.id,
+      date: dateString,
+      notificationType: 'reminder',
+      isGrouped: false,
+    };
+
+    await scheduleNotificationAtomic(
+      {
+        title: `Time for ${medication.name}`,
+        body: `${schedule.dosage} dose(s) - ${medication.dosageAmount}${medication.dosageUnit} each`,
+        data: {
+          medicationId: medication.id,
+          scheduleId: schedule.id,
+        },
+        categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
+        sound: true,
+        ...(effectiveSettings.timeSensitiveEnabled && { interruptionLevel: 'timeSensitive' } as unknown as Record<string, unknown>),
+      },
+      triggerDate,
+      mapping
+    );
+
+    // Schedule follow-up if enabled
+    if (effectiveSettings.followUpDelay !== 'off') {
+      const followUpDate = new Date(triggerDate.getTime() + effectiveSettings.followUpDelay * 60 * 1000);
+
+      if (followUpDate > new Date()) {
+        const followUpMapping: ScheduledNotificationMappingInput = {
+          medicationId: medication.id,
+          scheduleId: schedule.id,
+          date: dateString,
+          notificationType: 'follow_up',
+          isGrouped: false,
+        };
+
+        await scheduleNotificationAtomic(
+          {
+            title: `Reminder: ${medication.name}`,
+            body: 'Did you take your medication?',
+            data: {
+              medicationId: medication.id,
+              scheduleId: schedule.id,
+              isFollowUp: true,
+            },
+            categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
+            sound: true,
+            ...(effectiveSettings.criticalAlertsEnabled && { critical: true } as unknown as Record<string, unknown>),
+          },
+          followUpDate,
+          followUpMapping
+        );
+      }
+    }
+  }
+
+  logger.log('[Notification] Finished scheduling notifications for days:', {
+    medicationId: medication.id,
+    scheduleId: schedule.id,
+  });
+}
+
+/**
+ * Top up notifications to ensure we always have N days scheduled
+ *
+ * Called after:
+ * - Medication is logged (notification cancelled, need to add one at the end)
+ * - App startup (ensure we have enough notifications scheduled)
+ * - Skip action
+ *
+ * @param threshold - Minimum number of days to maintain (default: 3)
+ */
+export async function topUpNotifications(threshold: number = 3): Promise<void> {
+  try {
+    // Check if the scheduled_notifications table exists yet
+    // It may not exist if migration v20 hasn't run
+    if (!await scheduledNotificationRepository.tableExists()) {
+      logger.log('[Notification] Skipping top-up - table not yet created');
+      return;
+    }
+
+    logger.log('[Notification] Starting top-up with threshold:', threshold);
+
+    // Get all active medications with schedules
+    const medications = await medicationRepository.getActive();
+    const activeMedSchedules: Array<{ medication: Medication; schedule: MedicationSchedule }> = [];
+
+    for (const medication of medications) {
+      if (medication.type === 'preventative' && medication.scheduleFrequency === 'daily') {
+        const schedules = await medicationScheduleRepository.getByMedicationId(medication.id);
+        for (const schedule of schedules) {
+          if (schedule.enabled) {
+            activeMedSchedules.push({ medication, schedule });
+          }
+        }
+      }
+    }
+
+    // Calculate target number of days
+    const targetDays = calculateNotificationDays(activeMedSchedules.length);
+
+    logger.log('[Notification] Top-up calculation:', {
+      activeMedications: activeMedSchedules.length,
+      targetDays,
+      threshold,
+    });
+
+    // For each schedule, check if we need to add more notifications
+    for (const { medication, schedule } of activeMedSchedules) {
+      const count = await scheduledNotificationRepository.countBySchedule(
+        medication.id,
+        schedule.id
+      );
+
+      if (count < threshold) {
+        // Get the last scheduled date
+        const lastDate = await scheduledNotificationRepository.getLastScheduledDate(
+          medication.id,
+          schedule.id
+        );
+
+        // Calculate how many more days to schedule
+        const daysToAdd = targetDays - count;
+
+        // Start from the day after the last scheduled, or today if none scheduled
+        let startFromDay = 0;
+        if (lastDate) {
+          const lastDateObj = new Date(lastDate);
+          const todayObj = new Date(getTodayDateString());
+          const diffDays = Math.ceil((lastDateObj.getTime() - todayObj.getTime()) / (1000 * 60 * 60 * 24));
+          startFromDay = diffDays + 1;
+        }
+
+        logger.log('[Notification] Top-up needed for schedule:', {
+          medicationId: medication.id,
+          scheduleId: schedule.id,
+          currentCount: count,
+          daysToAdd,
+          startFromDay,
+        });
+
+        // Schedule additional notifications
+        for (let i = 0; i < daysToAdd; i++) {
+          const dateString = getDateStringForDaysAhead(startFromDay + i);
+          const triggerDate = createDateTimeFromStrings(dateString, schedule.time);
+
+          if (triggerDate <= new Date()) {
+            continue;
+          }
+
+          // Check if already scheduled
+          const existing = await scheduledNotificationRepository.getMapping(
+            medication.id,
+            schedule.id,
+            dateString,
+            'reminder'
+          );
+
+          if (!existing) {
+            const effectiveSettings = useNotificationSettingsStore.getState().getEffectiveSettings(medication.id);
+
+            await scheduleNotificationAtomic(
+              {
+                title: `Time for ${medication.name}`,
+                body: `${schedule.dosage} dose(s) - ${medication.dosageAmount}${medication.dosageUnit} each`,
+                data: {
+                  medicationId: medication.id,
+                  scheduleId: schedule.id,
+                },
+                categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
+                sound: true,
+                ...(effectiveSettings.timeSensitiveEnabled && { interruptionLevel: 'timeSensitive' } as unknown as Record<string, unknown>),
+              },
+              triggerDate,
+              {
+                medicationId: medication.id,
+                scheduleId: schedule.id,
+                date: dateString,
+                notificationType: 'reminder',
+                isGrouped: false,
+              }
+            );
+          }
+        }
+      }
+    }
+
+    logger.log('[Notification] Top-up complete');
+  } catch (error) {
+    logger.error('[Notification] Error in topUpNotifications:', error);
+  }
+}
+
+/**
+ * Reconcile notifications between OS and database
+ *
+ * Called on app startup to fix any inconsistencies:
+ * - Remove orphaned mappings (DB has ID, OS doesn't)
+ * - Cancel orphaned notifications (OS has ID, DB doesn't - medication-related only)
+ */
+export async function reconcileNotifications(): Promise<void> {
+  try {
+    // Check if the scheduled_notifications table exists yet
+    // It may not exist if migration v20 hasn't run
+    if (!await scheduledNotificationRepository.tableExists()) {
+      logger.log('[Notification] Skipping reconciliation - table not yet created');
+      return;
+    }
+
+    logger.log('[Notification] Starting reconciliation...');
+
+    // Get all scheduled notifications from OS
+    const osNotifications = await Notifications.getAllScheduledNotificationsAsync();
+    const osNotificationIds = new Set(osNotifications.map(n => n.identifier));
+
+    // Get all mappings from DB
+    const dbMappings = await scheduledNotificationRepository.getAllMappings();
+    const dbNotificationIds = new Set(dbMappings.map(m => m.notificationId));
+
+    // Find orphaned mappings (in DB but not in OS)
+    const orphanedMappings = dbMappings.filter(m => !osNotificationIds.has(m.notificationId));
+
+    for (const mapping of orphanedMappings) {
+      logger.log('[Notification] Removing orphaned mapping:', mapping.id);
+      await scheduledNotificationRepository.deleteMapping(mapping.id);
+    }
+
+    // Find orphaned notifications (in OS but not in DB) - only medication-related
+    const orphanedNotifications = osNotifications.filter(n => {
+      const data = n.content.data as Record<string, unknown> | null;
+      // Only consider medication notifications (have medicationId or medicationIds)
+      const isMedicationNotification = data && (data.medicationId || data.medicationIds);
+      return isMedicationNotification && !dbNotificationIds.has(n.identifier);
+    });
+
+    for (const notification of orphanedNotifications) {
+      logger.log('[Notification] Cancelling orphaned notification:', notification.identifier);
+      await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+    }
+
+    // Clean up old mappings (dates in the past)
+    const today = getTodayDateString();
+    const deletedOld = await scheduledNotificationRepository.deleteMappingsBeforeDate(today);
+
+    logger.log('[Notification] Reconciliation complete:', {
+      orphanedMappingsRemoved: orphanedMappings.length,
+      orphanedNotificationsCancelled: orphanedNotifications.length,
+      oldMappingsCleaned: deletedOld,
+    });
+  } catch (error) {
+    logger.error('[Notification] Error in reconcileNotifications:', error);
+  }
+}
+
+/**
+ * Rebalance notifications when medication count changes
+ *
+ * Called when:
+ * - Medication is added
+ * - Medication is deleted/archived
+ *
+ * Recalculates N and adjusts scheduled notifications accordingly.
+ */
+export async function rebalanceNotifications(): Promise<void> {
+  try {
+    logger.log('[Notification] Starting rebalance...');
+
+    // Get all active medications with schedules
+    const medications = await medicationRepository.getActive();
+    let scheduleCount = 0;
+
+    for (const medication of medications) {
+      if (medication.type === 'preventative' && medication.scheduleFrequency === 'daily') {
+        const schedules = await medicationScheduleRepository.getByMedicationId(medication.id);
+        scheduleCount += schedules.filter(s => s.enabled).length;
+      }
+    }
+
+    // Calculate new target days
+    const newTargetDays = calculateNotificationDays(scheduleCount);
+
+    logger.log('[Notification] Rebalance calculation:', {
+      scheduleCount,
+      newTargetDays,
+    });
+
+    // For each schedule, trim or extend as needed
+    for (const medication of medications) {
+      if (medication.type === 'preventative' && medication.scheduleFrequency === 'daily') {
+        const schedules = await medicationScheduleRepository.getByMedicationId(medication.id);
+
+        for (const schedule of schedules) {
+          if (!schedule.enabled) continue;
+
+          const mappings = await scheduledNotificationRepository.getMappingsBySchedule(
+            medication.id,
+            schedule.id
+          );
+
+          if (mappings.length > newTargetDays) {
+            // Trim excess notifications
+            const sortedMappings = mappings.sort((a, b) => a.date.localeCompare(b.date));
+            const toRemove = sortedMappings.slice(newTargetDays);
+
+            for (const mapping of toRemove) {
+              await cancelNotificationAtomic(mapping.notificationId);
+            }
+
+            logger.log('[Notification] Trimmed excess notifications:', {
+              medicationId: medication.id,
+              scheduleId: schedule.id,
+              removed: toRemove.length,
+            });
+          }
+        }
+      }
+    }
+
+    // Top up to ensure minimum threshold
+    await topUpNotifications();
+
+    logger.log('[Notification] Rebalance complete');
+  } catch (error) {
+    logger.error('[Notification] Error in rebalanceNotifications:', error);
+  }
+}
+
+/**
+ * Handle skip action - cancels today's notifications without logging a dose
+ */
+export async function handleSkip(
+  medicationId: string,
+  scheduleId: string
+): Promise<boolean> {
+  try {
+    const today = getTodayDateString();
+
+    // Cancel today's reminder mapping (cleanup - notification already shown)
+    await cancelNotificationForDate(medicationId, scheduleId, today, 'reminder');
+
+    // Cancel today's follow-up
+    await cancelNotificationForDate(medicationId, scheduleId, today, 'follow_up');
+
+    // Top up notifications
+    await topUpNotifications();
+
+    logger.log('[Notification] Skip action completed:', {
+      medicationId,
+      scheduleId,
+      date: today,
+    });
+
+    return true;
+  } catch (error) {
+    logger.error('[Notification] Error in handleSkip:', error);
+
+    await notifyUserOfError(
+      'system',
+      'Failed to skip medication. Please try again.',
+      error instanceof Error ? error : new Error(String(error)),
+      { medicationId, scheduleId, operation: 'handleSkip' }
+    );
+
+    return false;
+  }
+}
+
+/**
+ * Handle skip all action for grouped notifications
+ */
+export async function handleSkipAll(
+  data: {
+    medicationIds?: string[];
+    scheduleIds?: string[];
+    time?: string;
+  }
+): Promise<boolean> {
+  try {
+    if (!data.medicationIds || !data.scheduleIds) {
+      logger.error('[Notification] handleSkipAll called without medication data');
+      return false;
+    }
+
+    const today = getTodayDateString();
+
+    // Cancel notifications for each medication in the group
+    for (let i = 0; i < data.medicationIds.length; i++) {
+      const medicationId = data.medicationIds[i];
+      const scheduleId = data.scheduleIds[i];
+
+      await cancelNotificationForDate(medicationId, scheduleId, today, 'reminder');
+      await cancelNotificationForDate(medicationId, scheduleId, today, 'follow_up');
+    }
+
+    // Top up notifications
+    await topUpNotifications();
+
+    logger.log('[Notification] Skip all action completed:', {
+      medicationCount: data.medicationIds.length,
+      date: today,
+    });
+
+    return true;
+  } catch (error) {
+    logger.error('[Notification] Error in handleSkipAll:', error);
+
+    await notifyUserOfError(
+      'system',
+      'Failed to skip medications. Please try again.',
+      error instanceof Error ? error : new Error(String(error)),
+      { medicationCount: data.medicationIds?.length, operation: 'handleSkipAll' }
+    );
+
+    return false;
   }
 }

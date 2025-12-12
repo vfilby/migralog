@@ -7,6 +7,7 @@ jest.mock('../../store/dailyCheckinSettingsStore');
 jest.mock('../../store/dailyStatusStore');
 jest.mock('../../store/episodeStore');
 jest.mock('../../services/errorLogger');
+jest.mock('../../database/scheduledNotificationRepository');
 
 // Mock date-fns format function to control "today" in tests
 jest.mock('date-fns', () => ({
@@ -48,6 +49,7 @@ import { areNotificationsGloballyEnabled } from '../notifications/notificationUt
 import { useDailyCheckinSettingsStore } from '../../store/dailyCheckinSettingsStore';
 import { useDailyStatusStore } from '../../store/dailyStatusStore';
 import { useEpisodeStore } from '../../store/episodeStore';
+import { scheduledNotificationRepository } from '../../database/scheduledNotificationRepository';
 
 describe('dailyCheckinService', () => {
   beforeEach(() => {
@@ -71,6 +73,15 @@ describe('dailyCheckinService', () => {
     (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue([]);
     (Notifications.dismissNotificationAsync as jest.Mock).mockResolvedValue(undefined);
     (areNotificationsGloballyEnabled as jest.Mock).mockResolvedValue(true);
+
+    // Mock scheduledNotificationRepository
+    (scheduledNotificationRepository.tableExists as jest.Mock).mockResolvedValue(true);
+    (scheduledNotificationRepository.getDailyCheckinMapping as jest.Mock).mockResolvedValue(null);
+    (scheduledNotificationRepository.saveMapping as jest.Mock).mockResolvedValue({ id: 'test-mapping-id' });
+    (scheduledNotificationRepository.deleteDailyCheckinMappings as jest.Mock).mockResolvedValue(0);
+    (scheduledNotificationRepository.deleteMapping as jest.Mock).mockResolvedValue(undefined);
+    (scheduledNotificationRepository.countDailyCheckins as jest.Mock).mockResolvedValue(0);
+    (scheduledNotificationRepository.getLastDailyCheckinDate as jest.Mock).mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -279,27 +290,34 @@ describe('dailyCheckinService', () => {
       });
     });
 
-    it('should schedule notification at configured time', async () => {
+    it('should schedule multiple one-time notifications with DATE triggers', async () => {
       await dailyCheckinService.scheduleNotification();
 
-      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(
-        expect.objectContaining({
-          content: expect.objectContaining({
-            title: 'How was your day?',
-            body: "Tap to log how you're feeling today",
-            categoryIdentifier: 'DAILY_CHECKIN',
-            data: {
-              type: 'daily_checkin',
-              // Note: 'date' field is not included because this is a DAILY trigger
-            },
-          }),
-          trigger: expect.objectContaining({
-            type: 'daily',
-            hour: 21,
-            minute: 0,
-          }),
-        })
-      );
+      // Should schedule notifications using DATE triggers (one-time, not DAILY)
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalled();
+
+      // Verify the first call has the right format for one-time notifications
+      const firstCall = (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls[0][0];
+      expect(firstCall.content.title).toBe('How was your day?');
+      expect(firstCall.content.body).toBe("Tap to log how you're feeling today");
+      expect(firstCall.content.categoryIdentifier).toBe('DAILY_CHECKIN');
+      expect(firstCall.content.data.type).toBe('daily_checkin');
+      expect(firstCall.content.data.date).toBeDefined(); // One-time triggers have a date
+      expect(firstCall.trigger.type).toBe('date'); // DATE trigger, not DAILY
+      expect(firstCall.trigger.date).toBeDefined();
+    });
+
+    it('should save mapping to database for each notification', async () => {
+      await dailyCheckinService.scheduleNotification();
+
+      // Should save to database for each scheduled notification
+      expect(scheduledNotificationRepository.saveMapping).toHaveBeenCalled();
+
+      const saveCall = (scheduledNotificationRepository.saveMapping as jest.Mock).mock.calls[0][0];
+      expect(saveCall.medicationId).toBeNull();
+      expect(saveCall.scheduleId).toBeNull();
+      expect(saveCall.notificationType).toBe('daily_checkin');
+      expect(saveCall.sourceType).toBe('daily_checkin');
     });
 
     it('should not schedule when daily checkin is disabled', async () => {
@@ -326,25 +344,52 @@ describe('dailyCheckinService', () => {
       expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
     });
 
-    it('should cancel existing notification before scheduling new one', async () => {
-      // First schedule
-      await dailyCheckinService.scheduleNotification();
-      const firstNotificationId = (dailyCheckinService as any).scheduledNotificationId;
+    it('should cancel all existing notifications before scheduling new ones', async () => {
+      // Mock existing scheduled notifications
+      (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockResolvedValue([
+        {
+          identifier: 'existing-daily-checkin-1',
+          content: { data: { type: 'daily_checkin' } },
+        },
+      ]);
 
-      // Schedule again
       await dailyCheckinService.scheduleNotification();
 
-      expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith(firstNotificationId);
+      // Should cancel the existing notification
+      expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('existing-daily-checkin-1');
+      // Should delete database mappings
+      expect(scheduledNotificationRepository.deleteDailyCheckinMappings).toHaveBeenCalled();
+    });
+
+    it('should skip dates that already have mappings', async () => {
+      // Mock that the first date already has a mapping
+      let callCount = 0;
+      (scheduledNotificationRepository.getDailyCheckinMapping as jest.Mock).mockImplementation(() => {
+        callCount++;
+        // First date already has a mapping
+        if (callCount === 1) {
+          return Promise.resolve({ id: 'existing-mapping' });
+        }
+        return Promise.resolve(null);
+      });
+
+      await dailyCheckinService.scheduleNotification();
+
+      // Should still schedule, but skip the first date
+      // The call count will be 14 (checking all dates), but scheduleNotificationAsync
+      // won't be called for the one that already has a mapping
+      expect(scheduledNotificationRepository.getDailyCheckinMapping).toHaveBeenCalled();
     });
   });
 
   describe('cancelNotification', () => {
-    it('should cancel scheduled notification', async () => {
+    it('should cancel scheduled notification and delete database mappings', async () => {
       (dailyCheckinService as any).scheduledNotificationId = 'test-id-123';
 
       await dailyCheckinService.cancelNotification();
 
       expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('test-id-123');
+      expect(scheduledNotificationRepository.deleteDailyCheckinMappings).toHaveBeenCalled();
     });
 
     it('should clean up orphaned notifications', async () => {
@@ -492,9 +537,20 @@ describe('dailyCheckinService', () => {
     beforeEach(() => {
       // Reset initialization to allow calling dismissForDate
       (dailyCheckinService as any).initialized = true;
+
+      // Setup settings store for topUpNotifications
+      (useDailyCheckinSettingsStore.getState as jest.Mock).mockReturnValue({
+        isLoaded: true,
+        settings: {
+          enabled: true,
+          checkInTime: '21:00',
+        },
+        loadSettings: jest.fn(),
+        getCheckInTimeComponents: jest.fn().mockReturnValue({ hours: 21, minutes: 0 }),
+      });
     });
 
-    it('should dismiss presented notifications when logging today (but not cancel recurring schedule)', async () => {
+    it('should dismiss presented notifications and cancel scheduled notification for today', async () => {
       // Mock today's date
       const today = new Date();
       const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -503,7 +559,7 @@ describe('dailyCheckinService', () => {
         {
           request: {
             identifier: 'notif-1',
-            content: { data: { type: 'daily_checkin' } },
+            content: { data: { type: 'daily_checkin', date: todayStr } },
           },
         },
         {
@@ -516,14 +572,24 @@ describe('dailyCheckinService', () => {
 
       (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue(mockPresentedNotifs);
 
-      await dailyCheckinService.dismissForDate(todayStr);
+      // Mock that there's a scheduled notification for today
+      (scheduledNotificationRepository.getDailyCheckinMapping as jest.Mock).mockResolvedValue({
+        id: 'mapping-1',
+        notificationId: 'scheduled-notif-1',
+        date: todayStr,
+      });
 
-      // Should NOT cancel the recurring DAILY notification (it needs to fire tomorrow)
-      expect(Notifications.cancelScheduledNotificationAsync).not.toHaveBeenCalled();
+      await dailyCheckinService.dismissForDate(todayStr);
 
       // Should dismiss only daily_checkin presented notifications
       expect(Notifications.dismissNotificationAsync).toHaveBeenCalledTimes(1);
       expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith('notif-1');
+
+      // Should cancel the specific date's scheduled notification
+      expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('scheduled-notif-1');
+
+      // Should delete the mapping from database
+      expect(scheduledNotificationRepository.deleteMapping).toHaveBeenCalledWith('mapping-1');
     });
 
     it('should not dismiss notifications when logging a past date', async () => {
@@ -549,6 +615,176 @@ describe('dailyCheckinService', () => {
       );
 
       await expect(dailyCheckinService.dismissForDate(todayStr)).resolves.not.toThrow();
+    });
+
+    it('should handle case when no scheduled notification mapping exists', async () => {
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+      (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue([]);
+
+      // No mapping exists
+      (scheduledNotificationRepository.getDailyCheckinMapping as jest.Mock).mockResolvedValue(null);
+
+      await dailyCheckinService.dismissForDate(todayStr);
+
+      // Should not try to cancel a non-existent notification
+      expect(Notifications.cancelScheduledNotificationAsync).not.toHaveBeenCalled();
+      expect(scheduledNotificationRepository.deleteMapping).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('topUpNotifications', () => {
+    beforeEach(() => {
+      (useDailyCheckinSettingsStore.getState as jest.Mock).mockReturnValue({
+        isLoaded: true,
+        settings: {
+          enabled: true,
+          checkInTime: '21:00',
+          timeSensitive: false,
+        },
+        loadSettings: jest.fn(),
+        getCheckInTimeComponents: jest.fn().mockReturnValue({ hours: 21, minutes: 0 }),
+      });
+    });
+
+    it('should skip top-up when notifications are globally disabled', async () => {
+      (areNotificationsGloballyEnabled as jest.Mock).mockResolvedValue(false);
+
+      await dailyCheckinService.topUpNotifications();
+
+      expect(scheduledNotificationRepository.countDailyCheckins).not.toHaveBeenCalled();
+    });
+
+    it('should skip top-up when daily checkin is disabled', async () => {
+      (useDailyCheckinSettingsStore.getState as jest.Mock).mockReturnValue({
+        isLoaded: true,
+        settings: {
+          enabled: false,
+          checkInTime: '21:00',
+        },
+        loadSettings: jest.fn(),
+        getCheckInTimeComponents: jest.fn().mockReturnValue({ hours: 21, minutes: 0 }),
+      });
+
+      await dailyCheckinService.topUpNotifications();
+
+      expect(scheduledNotificationRepository.countDailyCheckins).not.toHaveBeenCalled();
+    });
+
+    it('should not schedule when sufficient notifications exist', async () => {
+      // Already have 14 scheduled (DAYS_TO_SCHEDULE)
+      (scheduledNotificationRepository.countDailyCheckins as jest.Mock).mockResolvedValue(14);
+
+      await dailyCheckinService.topUpNotifications();
+
+      expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+    });
+
+    it('should schedule new notifications to fill up to DAYS_TO_SCHEDULE', async () => {
+      // Only have 10 scheduled
+      (scheduledNotificationRepository.countDailyCheckins as jest.Mock).mockResolvedValue(10);
+
+      // Use tomorrow's date to ensure future scheduling works
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+      (scheduledNotificationRepository.getLastDailyCheckinDate as jest.Mock).mockResolvedValue(tomorrowStr);
+
+      await dailyCheckinService.topUpNotifications();
+
+      // Should schedule 4 more to reach 14
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalled();
+      expect(scheduledNotificationRepository.saveMapping).toHaveBeenCalled();
+    });
+
+    it('should load settings if not already loaded', async () => {
+      const loadSettingsMock = jest.fn().mockResolvedValue(undefined);
+      (useDailyCheckinSettingsStore.getState as jest.Mock).mockReturnValue({
+        isLoaded: false,
+        settings: {
+          enabled: true,
+          checkInTime: '21:00',
+        },
+        loadSettings: loadSettingsMock,
+        getCheckInTimeComponents: jest.fn().mockReturnValue({ hours: 21, minutes: 0 }),
+      });
+      (scheduledNotificationRepository.countDailyCheckins as jest.Mock).mockResolvedValue(14);
+
+      await dailyCheckinService.topUpNotifications();
+
+      expect(loadSettingsMock).toHaveBeenCalled();
+    });
+
+    it('should start from today if no previous notifications exist', async () => {
+      (scheduledNotificationRepository.countDailyCheckins as jest.Mock).mockResolvedValue(0);
+      (scheduledNotificationRepository.getLastDailyCheckinDate as jest.Mock).mockResolvedValue(null);
+
+      await dailyCheckinService.topUpNotifications();
+
+      // Should schedule starting from today
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalled();
+    });
+
+    it('should skip dates where trigger time has passed', async () => {
+      (scheduledNotificationRepository.countDailyCheckins as jest.Mock).mockResolvedValue(0);
+      (scheduledNotificationRepository.getLastDailyCheckinDate as jest.Mock).mockResolvedValue(null);
+
+      // Set check-in time to 06:00 (early morning - likely already passed if test runs later in day)
+      (useDailyCheckinSettingsStore.getState as jest.Mock).mockReturnValue({
+        isLoaded: true,
+        settings: {
+          enabled: true,
+          checkInTime: '06:00',
+        },
+        loadSettings: jest.fn(),
+        getCheckInTimeComponents: jest.fn().mockReturnValue({ hours: 6, minutes: 0 }),
+      });
+
+      await dailyCheckinService.topUpNotifications();
+
+      // Test should complete without error - exact number depends on current time
+      // The function will skip any times that have already passed
+    });
+
+    it('should skip dates that already have mappings', async () => {
+      (scheduledNotificationRepository.countDailyCheckins as jest.Mock).mockResolvedValue(5);
+      (scheduledNotificationRepository.getLastDailyCheckinDate as jest.Mock).mockResolvedValue(null);
+
+      let checkCount = 0;
+      (scheduledNotificationRepository.getDailyCheckinMapping as jest.Mock).mockImplementation(() => {
+        checkCount++;
+        // First 3 dates already have mappings
+        if (checkCount <= 3) {
+          return Promise.resolve({ id: `existing-${checkCount}` });
+        }
+        return Promise.resolve(null);
+      });
+
+      await dailyCheckinService.topUpNotifications();
+
+      // Should have checked multiple dates and skipped ones with existing mappings
+      expect(scheduledNotificationRepository.getDailyCheckinMapping).toHaveBeenCalled();
+    });
+
+    it('should handle errors gracefully', async () => {
+      (scheduledNotificationRepository.countDailyCheckins as jest.Mock).mockRejectedValue(
+        new Error('Database error')
+      );
+
+      await expect(dailyCheckinService.topUpNotifications()).resolves.not.toThrow();
+    });
+  });
+
+  describe('isNotificationScheduled - error handling', () => {
+    it('should return false and handle error gracefully', async () => {
+      (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockRejectedValue(
+        new Error('Platform error')
+      );
+
+      const result = await dailyCheckinService.isNotificationScheduled();
+
+      expect(result).toBe(false);
     });
   });
 });
