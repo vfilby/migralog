@@ -280,6 +280,13 @@ class DailyCheckinService {
    */
   async scheduleNotification(): Promise<void> {
     try {
+      // Check if the table exists (handles case where migrations haven't run yet)
+      const tableReady = await scheduledNotificationRepository.tableExists();
+      if (!tableReady) {
+        logger.log('[DailyCheckin] Table not ready, skipping schedule');
+        return;
+      }
+
       // Cancel any existing scheduled notifications
       await this.cancelNotification();
 
@@ -384,6 +391,13 @@ class DailyCheckinService {
    */
   async topUpNotifications(): Promise<void> {
     try {
+      // Check if the table exists (handles case where migrations haven't run yet)
+      const tableReady = await scheduledNotificationRepository.tableExists();
+      if (!tableReady) {
+        logger.log('[DailyCheckin] Table not ready, skipping top-up');
+        return;
+      }
+
       // Check if notifications are globally enabled
       const globallyEnabled = await areNotificationsGloballyEnabled();
       if (!globallyEnabled) {
@@ -515,8 +529,11 @@ class DailyCheckinService {
         }
       }
 
-      // Delete all daily check-in mappings from database
-      await scheduledNotificationRepository.deleteDailyCheckinMappings();
+      // Delete all daily check-in mappings from database (only if table exists)
+      const tableReady = await scheduledNotificationRepository.tableExists();
+      if (tableReady) {
+        await scheduledNotificationRepository.deleteDailyCheckinMappings();
+      }
     } catch (error) {
       logger.error('[DailyCheckin] Error cancelling notification:', error);
     }
@@ -560,6 +577,13 @@ class DailyCheckinService {
     // Only dismiss if for today or past (not future)
     if (date > today) {
       logger.log('[DailyCheckin] Not dismissing notification - date is in the future:', date);
+      return;
+    }
+
+    // Check if the table exists (handles case where migrations haven't run yet)
+    const tableReady = await scheduledNotificationRepository.tableExists();
+    if (!tableReady) {
+      logger.log('[DailyCheckin] Table not ready, skipping dismiss');
       return;
     }
 
