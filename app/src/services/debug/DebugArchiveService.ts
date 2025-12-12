@@ -20,7 +20,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
-import * as JSZip from 'jszip';
+const JSZip = require('jszip');
 import { Buffer } from 'buffer';
 import { logger } from '../../utils/logger';
 import { buildInfo } from '../../buildInfo';
@@ -88,7 +88,6 @@ export class DebugArchiveService {
   public async generateDebugArchive(options: DebugArchiveOptions = {}): Promise<string> {
     try {
       logger.log('[DebugArchive] Starting debug archive generation...');
-      this.reportProgress('Starting archive generation...', 0);
       
       const {
         includeFullDatabase = true,
@@ -102,6 +101,8 @@ export class DebugArchiveService {
       if (progressCallback) {
         this.setProgressCallback(progressCallback);
       }
+      
+      this.reportProgress('Starting archive generation...', 0);
 
       // Collect all debug data with progress reporting
       this.reportProgress('Collecting system metadata...', 10);
