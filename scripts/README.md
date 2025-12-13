@@ -55,3 +55,55 @@ migralog_export_2025-11-30.json
 - **App exports:** JSON exports and database backups
 
 This utility solves the challenge of finding files saved to the iOS Files app in simulators, making it easy to retrieve debug archives and other app exports.
+
+### `unpack-debug-archive.sh`
+
+A utility script that unpacks debug archives and restores databases to iOS simulators for investigation.
+
+**Usage:**
+```bash
+# From the app directory
+npm run sim:unpack
+
+# Or directly with archive path
+bash ../scripts/unpack-debug-archive.sh /path/to/debug_archive.zip
+
+# Or directly (will prompt for archive path)
+bash ../scripts/unpack-debug-archive.sh
+```
+
+**What it does:**
+1. **Extracts debug archive** and validates structure
+2. **Lists all booted iOS simulators** for selection
+3. **Finds MigraineTracker app directory** automatically
+4. **Backs up current database** before restoration
+5. **Restores database snapshot** from the archive
+6. **Provides debug files** for manual inspection
+
+**Features:**
+- **Safe restoration** with automatic backup of current database
+- **Multi-simulator support** with selection prompt
+- **Database validation** ensures archive contains usable data
+- **Comprehensive error handling** with clear feedback
+- **Debug file access** for logs, notifications, and mappings analysis
+
+**Why this is essential:**
+- **Reproduce issues** by restoring exact database state when problem occurred
+- **Investigate notification problems** with complete context restoration
+- **Time-travel debugging** - restore app to problematic state
+- **Complete workflow** - pack issue state, unpack for investigation
+
+**Example workflow:**
+```
+1. Issue occurs → Generate debug archive
+2. Archive contains: database snapshot + logs + notification state
+3. Later: Unpack archive → Restore database → Investigate in simulator
+4. App now has exact same state as when issue occurred
+```
+
+**Archive contents restored:**
+- **SQLite database**: Complete application state
+- **Debug files**: Logs, notifications, mappings for analysis  
+- **Metadata**: Environment info from when issue occurred
+
+This transforms debug archives from static data into actionable investigation tools by making the database state reproducible.
