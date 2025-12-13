@@ -692,6 +692,140 @@ describe('medicationStore', () => {
       expect(useMedicationStore.getState().error).toBe('Failed to log dose');
       expect(useMedicationStore.getState().loading).toBe(false);
     });
+
+    it('should use fallback cancellation for preventative medication without scheduleId', async () => {
+      const mockPreventativeMedication = {
+        id: 'med-prev-123',
+        name: 'Preventative Med',
+        type: 'preventative' as const,
+        dosageAmount: 100,
+        dosageUnit: 'mg' as const,
+        defaultQuantity: 1,
+        scheduleFrequency: 'daily' as const,
+        photoUri: undefined,
+        schedule: [],
+        active: true,
+        notes: undefined,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      const dose = {
+        medicationId: 'med-prev-123',
+        timestamp: Date.now(),
+        quantity: 1,
+        episodeId: undefined,
+        updatedAt: Date.now(),
+        // Note: no scheduleId provided
+      };
+
+      const createdDose = {
+        ...dose,
+        id: 'dose-123',
+        status: 'taken',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        effectivenessRating: undefined,
+        timeToRelief: undefined,
+        sideEffects: undefined,
+        notes: undefined,
+      };
+
+      // Mock episode repository to return null (no episode found)
+      (episodeRepository.findEpisodeByTimestamp as jest.Mock).mockResolvedValue(null);
+      
+      // Mock medication repository to return preventative medication
+      (medicationRepository.getById as jest.Mock).mockResolvedValue(mockPreventativeMedication);
+      
+      // Mock dose creation
+      (medicationDoseRepository.create as jest.Mock).mockResolvedValue(createdDose);
+
+      // Mock notification service methods
+      const mockCancelScheduledMedicationReminder = jest.fn().mockResolvedValue(undefined);
+      (notificationService.cancelScheduledMedicationReminder as jest.Mock) = mockCancelScheduledMedicationReminder;
+
+      const result = await useMedicationStore.getState().logDose(dose);
+
+      // Verify the dose was created
+      expect(result).toEqual(createdDose);
+      expect(medicationDoseRepository.create).toHaveBeenCalledWith({
+        ...dose,
+        episodeId: undefined,
+        status: 'taken',
+      });
+
+      // Verify fallback cancellation was called for preventative medication
+      expect(medicationRepository.getById).toHaveBeenCalledWith('med-prev-123');
+      expect(mockCancelScheduledMedicationReminder).toHaveBeenCalledWith('med-prev-123');
+    });
+
+    it('should not use fallback cancellation for rescue medication without scheduleId', async () => {
+      const mockRescueMedication = {
+        id: 'med-rescue-123',
+        name: 'Rescue Med',
+        type: 'rescue' as const,
+        dosageAmount: 200,
+        dosageUnit: 'mg' as const,
+        defaultQuantity: 2,
+        scheduleFrequency: undefined,
+        photoUri: undefined,
+        schedule: [],
+        active: true,
+        notes: undefined,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      const dose = {
+        medicationId: 'med-rescue-123',
+        timestamp: Date.now(),
+        quantity: 2,
+        episodeId: undefined,
+        updatedAt: Date.now(),
+        // Note: no scheduleId provided
+      };
+
+      const createdDose = {
+        ...dose,
+        id: 'dose-124',
+        status: 'taken',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        effectivenessRating: undefined,
+        timeToRelief: undefined,
+        sideEffects: undefined,
+        notes: undefined,
+      };
+
+      // Mock episode repository to return null (no episode found)
+      (episodeRepository.findEpisodeByTimestamp as jest.Mock).mockResolvedValue(null);
+      
+      // Mock medication repository to return rescue medication
+      (medicationRepository.getById as jest.Mock).mockResolvedValue(mockRescueMedication);
+      
+      // Mock dose creation
+      (medicationDoseRepository.create as jest.Mock).mockResolvedValue(createdDose);
+
+      // Mock notification service methods
+      const mockCancelScheduledMedicationReminder = jest.fn().mockResolvedValue(undefined);
+      (notificationService.cancelScheduledMedicationReminder as jest.Mock) = mockCancelScheduledMedicationReminder;
+
+      const result = await useMedicationStore.getState().logDose(dose);
+
+      // Verify the dose was created
+      expect(result).toEqual(createdDose);
+      expect(medicationDoseRepository.create).toHaveBeenCalledWith({
+        ...dose,
+        episodeId: undefined,
+        status: 'taken',
+      });
+
+      // Verify medication was looked up 
+      expect(medicationRepository.getById).toHaveBeenCalledWith('med-rescue-123');
+      
+      // Verify fallback cancellation was NOT called for rescue medication
+      expect(mockCancelScheduledMedicationReminder).not.toHaveBeenCalled();
+    });
   });
 
   describe('updateDose', () => {

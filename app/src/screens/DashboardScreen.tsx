@@ -322,6 +322,7 @@ export default function DashboardScreen() {
       // Save to database - this will update the store's doses array
       await logDose({
         medicationId: item.medication.id,
+        scheduleId: item.schedule.id,
         timestamp: now,
         quantity: item.schedule.dosage,
         dosageAmount: item.medication.dosageAmount,
@@ -344,6 +345,7 @@ export default function DashboardScreen() {
       // Save skip to database with status 'skipped' and quantity 0
       await logDose({
         medicationId: item.medication.id,
+        scheduleId: item.schedule.id,
         timestamp: now,
         quantity: 0, // 0 quantity indicates skipped
         dosageAmount: item.medication.dosageAmount,

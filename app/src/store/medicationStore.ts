@@ -276,6 +276,30 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
         // Top up notifications to maintain the scheduled count
         await topUpNotifications();
         logger.log('[Store] Cancelled scheduled notifications and topped up for logged medication');
+      } else {
+        // ERROR: Missing scheduleId for preventative medication
+        const medication = await medicationRepository.getById(dose.medicationId);
+        if (medication && medication.type === 'preventative') {
+          logger.error('[Store] CRITICAL BUG: Missing scheduleId for preventative medication dose', {
+            medicationId: dose.medicationId,
+            doseId: newDose.id,
+            medicationName: medication.name,
+            medicationType: medication.type,
+            scheduleCount: medication.schedule?.length || 0,
+            enabledSchedules: medication.schedule?.filter(s => s.enabled).length || 0,
+            bugLocation: 'Dose logging UI screens not passing scheduleId',
+            impact: 'Notifications will NOT be cancelled - user may receive unwanted notifications'
+          });
+          
+          // For now, still do fallback cancellation to prevent user annoyance,
+          // but this should be treated as a bug to fix, not normal operation
+          await notificationService.cancelScheduledMedicationReminder(dose.medicationId);
+          
+          logger.warn('[Store] EMERGENCY FALLBACK: Cancelled ALL notifications to prevent user annoyance', {
+            medicationId: dose.medicationId,
+            action: 'Fix the root cause in UI code'
+          });
+        }
       }
 
       // Add to doses in state

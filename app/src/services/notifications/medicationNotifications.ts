@@ -1177,6 +1177,30 @@ export async function rescheduleAllMedicationNotifications(): Promise<void> {
     }
 
     logger.log('[Notification] Cancelled', medicationNotifs.length, 'OS medication notifications');
+    
+    // Step 1.5: Clear all presented notifications that may be cluttering the system
+    try {
+      const presentedNotifications = await Notifications.getPresentedNotificationsAsync();
+      const medicationPresentedNotifs = presentedNotifications.filter((n) => {
+        const data = n.request.content.data as Record<string, unknown> | null | undefined;
+        if (!data) return false;
+
+        const medicationId = data.medicationId as string | undefined;
+        const medicationIds = data.medicationIds as string[] | undefined;
+        const type = data.type as string | undefined;
+
+        // Filter for medication reminders (have medicationId or medicationIds, but not type 'daily_checkin')
+        return (medicationId || medicationIds) && type !== 'daily_checkin';
+      });
+
+      for (const notif of medicationPresentedNotifs) {
+        await Notifications.dismissNotificationAsync(notif.request.identifier);
+      }
+      
+      logger.log('[Notification] Dismissed', medicationPresentedNotifs.length, 'presented medication notifications');
+    } catch (error) {
+      logger.warn('[Notification] Failed to clear presented notifications:', error);
+    }
 
     // Step 2: Clear all entries from scheduled_notifications database
     const tableExists = await scheduledNotificationRepository.tableExists();

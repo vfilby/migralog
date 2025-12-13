@@ -102,8 +102,21 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
 
     try {
       const timestamp = Date.now();
+      
+      // Find the relevant schedule for preventative medications
+      let scheduleId: string | undefined;
+      if (medication.type === 'preventative' && medication.schedule && medication.schedule.length > 0) {
+        // For preventative medications, find the most relevant active schedule
+        const activeSchedules = medication.schedule.filter(s => s.enabled);
+        if (activeSchedules.length > 0) {
+          // Use the first active schedule as default
+          scheduleId = activeSchedules[0].id;
+        }
+      }
+      
       await logDose({
         medicationId: medication.id,
+        scheduleId,
         timestamp,
         quantity: medication.defaultQuantity || 1,
         dosageAmount: medication.dosageAmount,
@@ -156,8 +169,20 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
     if (!validateTimestamp(logDoseTimestamp)) return;
 
     try {
+      // Find the relevant schedule for preventative medications
+      let scheduleId: string | undefined;
+      if (medication.type === 'preventative' && medication.schedule && medication.schedule.length > 0) {
+        // For preventative medications, find the most relevant active schedule
+        const activeSchedules = medication.schedule.filter(s => s.enabled);
+        if (activeSchedules.length > 0) {
+          // Use the first active schedule as default
+          scheduleId = activeSchedules[0].id;
+        }
+      }
+      
       await logDose({
         medicationId: medication.id,
+        scheduleId,
         timestamp: logDoseTimestamp,
         quantity: amount,
         dosageAmount: medication.dosageAmount,

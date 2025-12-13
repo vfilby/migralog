@@ -13,7 +13,7 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { useMedicationStore } from '../../store/medicationStore';
-import { Medication } from '../../models/types';
+import { Medication, MedicationSchedule } from '../../models/types';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme, ThemeColors } from '../../theme';
 import { formatDateTime } from '../../utils/dateFormatting';
@@ -271,9 +271,10 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const { medicationId } = route.params; // episodeId available in route.params if needed
-  const { rescueMedications, loadMedications, logDose, getMedicationById } = useMedicationStore();
+  const { rescueMedications, loadMedications, logDose, getMedicationById, loadSchedules, getSchedulesByMedicationId } = useMedicationStore();
   const [selectedMedId, setSelectedMedId] = useState<string | null>(medicationId || null);
   const [medication, setMedication] = useState<Medication | null>(null);
+  const [schedules, setSchedules] = useState<MedicationSchedule[]>([]);
   const [timestamp, setTimestamp] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [amount, setAmount] = useState('');
@@ -288,6 +289,7 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
   useEffect(() => {
     if (selectedMedId) {
       loadMedication(selectedMedId);
+      loadMedicationSchedules(selectedMedId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMedId]);
@@ -301,11 +303,102 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
     }
   };
 
+  const loadMedicationSchedules = async (medId: string) => {
+    try {
+      // Load schedules for this medication
+      await loadSchedules(medId);
+      // Get schedules from state
+      const medicationSchedules = getSchedulesByMedicationId(medId);
+      setSchedules(medicationSchedules);
+    } catch (error) {
+      logger.error('Failed to load medication schedules:', error);
+      // Non-critical error - schedules are optional for rescue medications
+      setSchedules([]);
+    }
+  };
+
+  /**
+   * Determines the appropriate scheduleId for logging a dose at the given timestamp.
+   * For preventative medications, finds the schedule that best matches the logging time.
+   * For rescue medications or when no matching schedule is found, returns undefined.
+   */
+  const getRelevantScheduleId = (logTimestamp: number): string | undefined => {
+    return getRelevantScheduleIdForMedication(medication, schedules, logTimestamp);
+  };
+
+  /**
+   * Determines the appropriate scheduleId for a specific medication and schedules.
+   * This version can work with any medication and schedule list.
+   */
+  const getRelevantScheduleIdForMedication = (
+    med: Medication | null,
+    medicationSchedules: MedicationSchedule[],
+    logTimestamp: number
+  ): string | undefined => {
+    // Only consider preventative medications with schedules
+    if (!med || med.type !== 'preventative' || medicationSchedules.length === 0) {
+      return undefined;
+    }
+
+    // For daily schedules, find the one closest to the logging time
+    const logDate = new Date(logTimestamp);
+    const logTimeStr = logDate.toTimeString().slice(0, 5); // HH:mm format
+
+    // Find the schedule with the closest time to when the medication was logged
+    let closestSchedule: MedicationSchedule | null = null;
+    let smallestTimeDiff = Infinity;
+
+    for (const schedule of medicationSchedules) {
+      if (!schedule.enabled) continue;
+
+      // Parse schedule time (HH:mm)
+      const [scheduleHour, scheduleMinute] = schedule.time.split(':').map(Number);
+      const scheduleMinutes = scheduleHour * 60 + scheduleMinute;
+
+      // Parse log time
+      const [logHour, logMinute] = logTimeStr.split(':').map(Number);
+      const logMinutes = logHour * 60 + logMinute;
+
+      // Calculate time difference (considering wrap-around for next day)
+      let timeDiff = Math.abs(logMinutes - scheduleMinutes);
+      if (timeDiff > 720) { // 12 hours
+        timeDiff = 1440 - timeDiff; // Use shorter path around 24-hour clock
+      }
+
+      if (timeDiff < smallestTimeDiff) {
+        smallestTimeDiff = timeDiff;
+        closestSchedule = schedule;
+      }
+    }
+
+    // Only return a schedule if it's reasonably close (within 3 hours)
+    if (closestSchedule && smallestTimeDiff <= 180) {
+      return closestSchedule.id;
+    }
+
+    return undefined;
+  };
+
   const handleQuickLog = async (med: Medication) => {
     try {
       const now = Date.now();
+      
+      // Load schedules for this medication to determine if scheduleId should be included
+      let medicationSchedules: MedicationSchedule[] = [];
+      try {
+        await loadSchedules(med.id);
+        medicationSchedules = getSchedulesByMedicationId(med.id);
+      } catch (error) {
+        logger.error('Failed to load schedules for quick log:', error);
+        // Continue without schedules - this is fine for rescue medications
+      }
+      
+      // Get the relevant schedule ID for preventative medications
+      const scheduleId = getRelevantScheduleIdForMedication(med, medicationSchedules, now);
+      
       await logDose({
         medicationId: med.id,
+        scheduleId, // Include scheduleId only if relevant (preventative medication with matching schedule)
         timestamp: now,
         quantity: med.defaultQuantity || 1,
         dosageAmount: med.dosageAmount,
@@ -332,8 +425,13 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
     setSaving(true);
     try {
       const ts = timestamp.getTime();
+      
+      // Get the relevant schedule ID for preventative medications
+      const scheduleId = getRelevantScheduleId(ts);
+      
       await logDose({
         medicationId: medication.id,
+        scheduleId, // Include scheduleId only if relevant (preventative medication with matching schedule)
         timestamp: ts,
         quantity: parseFloat(amount),
         dosageAmount: medication.dosageAmount,
