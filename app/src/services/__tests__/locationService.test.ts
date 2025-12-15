@@ -73,7 +73,7 @@ describe('locationService', () => {
 
       expect(result).toBe(false);
       expect(console.error).toHaveBeenCalledWith(
-        '[ERROR]',
+        expect.stringMatching(/^\[.*\] \[ERROR\]$/),
         'Failed to request location permission:',
         { context: expect.any(Error), stack: undefined }
       );
@@ -114,7 +114,7 @@ describe('locationService', () => {
 
       expect(result).toBe(false);
       expect(console.error).toHaveBeenCalledWith(
-        '[ERROR]',
+        expect.stringMatching(/^\[.*\] \[ERROR\]$/),
         'Failed to check location permission:',
         { context: expect.any(Error), stack: undefined }
       );
@@ -331,7 +331,7 @@ describe('locationService', () => {
 
       expect(result).toBe(null);
       expect(console.error).toHaveBeenCalledWith(
-        '[ERROR]',
+        expect.stringMatching(/^\[.*\] \[ERROR\]$/),
         'Failed to reverse geocode:',
         { context: expect.any(Error), stack: undefined }
       );

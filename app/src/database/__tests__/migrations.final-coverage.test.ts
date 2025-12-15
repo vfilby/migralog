@@ -91,7 +91,7 @@ describe('Final Migration Coverage Tests', () => {
       await new Promise(resolve => setImmediate(resolve));
 
       expect(console.error).toHaveBeenCalledWith(
-        '[ERROR]',
+        expect.stringMatching(/^\[.*\] \[ERROR\]$/),
         'Failed to create backup before migration:',
         { context: expect.any(Error), stack: undefined }
       );
@@ -124,7 +124,7 @@ describe('Final Migration Coverage Tests', () => {
       await new Promise(resolve => setImmediate(resolve));
 
       expect(console.error).toHaveBeenCalledWith(
-        '[ERROR]',
+        expect.stringMatching(/^\[.*\] \[ERROR\]$/),
         'Failed to create backup before rollback:',
         { context: expect.any(Error), stack: undefined }
       );
@@ -157,7 +157,7 @@ describe('Final Migration Coverage Tests', () => {
       await new Promise(resolve => setImmediate(resolve));
 
       expect(console.warn).toHaveBeenCalledWith(
-        '[WARN]',
+        expect.stringMatching(/^\[.*\] \[WARN\]$/),
         'No backup function provided, skipping automatic backup'
       );
 
@@ -181,10 +181,10 @@ describe('Final Migration Coverage Tests', () => {
       await new Promise(resolve => setImmediate(resolve));
 
       // Check migration progress logs
-      expect(console.log).toHaveBeenCalledWith('[INFO]', expect.stringMatching(/^Migrating database from version 18 to \d+$/));
-      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Running migration 19: add_check_constraints_to_tables');
-      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Migration 19 completed successfully');
-      expect(console.log).toHaveBeenCalledWith('[INFO]', 'All migrations completed successfully');
+      expect(console.log).toHaveBeenCalledWith(expect.stringMatching(/^\[.*\] \[INFO\]$/), expect.stringMatching(/^Migrating database from version 18 to \d+$/));
+      expect(console.log).toHaveBeenCalledWith(expect.stringMatching(/^\[.*\] \[INFO\]$/), 'Running migration 19: add_check_constraints_to_tables');
+      expect(console.log).toHaveBeenCalledWith(expect.stringMatching(/^\[.*\] \[INFO\]$/), 'Migration 19 completed successfully');
+      expect(console.log).toHaveBeenCalledWith(expect.stringMatching(/^\[.*\] \[INFO\]$/), 'All migrations completed successfully');
     });
 
     it('should handle rollback with missing down function', async () => {
@@ -219,8 +219,8 @@ describe('Final Migration Coverage Tests', () => {
       // Wait for async logger to complete
       await new Promise(resolve => setImmediate(resolve));
 
-      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Rolling back database from version 20 to 19');
-      expect(console.log).toHaveBeenCalledWith('[INFO]', 'Rollback completed successfully');
+      expect(console.log).toHaveBeenCalledWith(expect.stringMatching(/^\[.*\] \[INFO\]$/), 'Rolling back database from version 20 to 19');
+      expect(console.log).toHaveBeenCalledWith(expect.stringMatching(/^\[.*\] \[INFO\]$/), 'Rollback completed successfully');
 
       // Restore original migrations
       migrationModule.migrations = originalMigrationsArray;
@@ -247,7 +247,7 @@ describe('Final Migration Coverage Tests', () => {
       // Wait for async logger to complete
       await new Promise(resolve => setImmediate(resolve));
 
-      expect(console.error).toHaveBeenCalledWith('[ERROR]', 'Migration 19 failed:', { context: expect.any(Error), stack: undefined });
+      expect(console.error).toHaveBeenCalledWith(expect.stringMatching(/^\[.*\] \[ERROR\]$/), 'Migration 19 failed:', { context: expect.any(Error), stack: undefined });
     });
 
     it('should handle migration execution SQL failure', async () => {
@@ -285,7 +285,7 @@ describe('Final Migration Coverage Tests', () => {
       await new Promise(resolve => setImmediate(resolve));
 
       expect(console.log).toHaveBeenCalledWith(
-        '[INFO]',
+        expect.stringMatching(/^\[.*\] \[INFO\]$/),
         'Skipping smoke tests in test environment for migration 19'
       );
 
@@ -311,7 +311,7 @@ describe('Final Migration Coverage Tests', () => {
       await new Promise(resolve => setImmediate(resolve));
 
       expect(console.log).toHaveBeenCalledWith(
-        '[INFO]',
+        expect.stringMatching(/^\[.*\] \[INFO\]$/),
         'Skipping smoke tests in test environment for migration 19'
       );
 
@@ -338,7 +338,7 @@ describe('Final Migration Coverage Tests', () => {
       await new Promise(resolve => setImmediate(resolve));
 
       expect(console.log).toHaveBeenCalledWith(
-        '[INFO]',
+        expect.stringMatching(/^\[.*\] \[INFO\]$/),
         'Skipping smoke tests in test environment for migration 19'
       );
     });

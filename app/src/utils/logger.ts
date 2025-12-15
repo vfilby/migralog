@@ -184,12 +184,13 @@ class Logger {
 
     // Console log only in development
     if (__DEV__) {
+      const timestamp = entry.timestamp.toISOString();
       const levelName = LogLevel[level];
-      const prefix = `[${levelName}]`;
+      const prefix = `[${timestamp}] [${levelName}]`;
       const logFn = level === LogLevel.ERROR ? console.error :
                     level === LogLevel.WARN ? console.warn :
                     console.log;
-      
+
       if (context || stack) {
         logFn(prefix, message, { context, stack });
       } else {
