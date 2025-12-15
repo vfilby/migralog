@@ -530,7 +530,8 @@ async function scheduleFollowUpForScheduledNotification(
   medication: Medication,
   schedule: MedicationSchedule,
   delayMinutes: number,
-  useCriticalAlerts: boolean
+  useCriticalAlerts: boolean,
+  useTimeSensitive: boolean = false
 ): Promise<void> {
   try {
     // Parse the scheduled time
@@ -547,7 +548,11 @@ async function scheduleFollowUpForScheduledNotification(
     logger.log('[Notification] Scheduling daily follow-up for', medication.name, 'at', `${followUpHour}:${followUpMinute}`, {
       delayMinutes,
       useCriticalAlerts,
+      useTimeSensitive,
     });
+
+    // Determine interruption level: critical > timeSensitive > default
+    const interruptionLevel = useCriticalAlerts ? 'critical' : (useTimeSensitive ? 'timeSensitive' : undefined);
 
     await Notifications.scheduleNotificationAsync({
       content: {
@@ -565,12 +570,13 @@ async function scheduleFollowUpForScheduledNotification(
         ...(useCriticalAlerts && { critical: true } as any),
         // Time-sensitive notification settings
         ...(Notifications.AndroidNotificationPriority && {
-          priority: useCriticalAlerts 
+          priority: useCriticalAlerts
             ? Notifications.AndroidNotificationPriority.MAX
             : Notifications.AndroidNotificationPriority.HIGH,
         }),
+        // Set interruption level for iOS (critical > timeSensitive)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ...(useCriticalAlerts && { interruptionLevel: 'critical' } as any),
+        ...(interruptionLevel && { interruptionLevel } as any),
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
@@ -592,7 +598,8 @@ async function scheduleFollowUpForScheduledMultipleNotification(
   items: Array<{ medication: Medication; schedule: MedicationSchedule }>,
   time: string,
   delayMinutes: number,
-  useCriticalAlerts: boolean
+  useCriticalAlerts: boolean,
+  useTimeSensitive: boolean = false
 ): Promise<void> {
   try {
     // Parse the scheduled time
@@ -613,7 +620,11 @@ async function scheduleFollowUpForScheduledMultipleNotification(
     logger.log('[Notification] Scheduling daily follow-up for', medicationCount, 'medications at', `${followUpHour}:${followUpMinute}`, {
       delayMinutes,
       useCriticalAlerts,
+      useTimeSensitive,
     });
+
+    // Determine interruption level: critical > timeSensitive > default
+    const interruptionLevel = useCriticalAlerts ? 'critical' : (useTimeSensitive ? 'timeSensitive' : undefined);
 
     await Notifications.scheduleNotificationAsync({
       content: {
@@ -632,12 +643,13 @@ async function scheduleFollowUpForScheduledMultipleNotification(
         ...(useCriticalAlerts && { critical: true } as any),
         // Time-sensitive notification settings
         ...(Notifications.AndroidNotificationPriority && {
-          priority: useCriticalAlerts 
+          priority: useCriticalAlerts
             ? Notifications.AndroidNotificationPriority.MAX
             : Notifications.AndroidNotificationPriority.HIGH,
         }),
+        // Set interruption level for iOS (critical > timeSensitive)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ...(useCriticalAlerts && { interruptionLevel: 'critical' } as any),
+        ...(interruptionLevel && { interruptionLevel } as any),
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
@@ -703,7 +715,8 @@ export async function scheduleSingleNotification(
         medication,
         schedule,
         effectiveSettings.followUpDelay,
-        effectiveSettings.criticalAlertsEnabled
+        effectiveSettings.criticalAlertsEnabled,
+        effectiveSettings.timeSensitiveEnabled
       );
     }
 
@@ -798,7 +811,8 @@ export async function scheduleMultipleNotification(
         items,
         time,
         maxDelay,
-        anyCritical
+        anyCritical,
+        anyTimeSensitive
       );
     }
 
