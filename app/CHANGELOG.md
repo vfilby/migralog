@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ##### 🎯 User-Facing Changes
 
+- 🐛 **Fix:** UTC timezone bugs in notification scheduling and cancellation [`#293`](https://github.com/vfilby/migralog/pull/293)
 - ✨ **Feature:** Add comprehensive debug archive functionality [`#290`](https://github.com/vfilby/migralog/pull/290)
 - 🐛 **Fix:** add table existence checks to daily check-in notification service [`#288`](https://github.com/vfilby/migralog/pull/288)
 - ✨ **Feature:** implement one-time notification scheduling with database tracking [`#285`](https://github.com/vfilby/migralog/pull/285)

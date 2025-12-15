@@ -1,6 +1,6 @@
 {
   "name": "migralog",
-  "version": "1.1.104",
+  "version": "1.1.105",
   "main": "index.ts",
   "scripts": {
     "start": "npm run generate-build-info && expo start --dev-client",
@@ -20,7 +20,7 @@
     "test:ui:build": "npm run generate-build-info && npx detox build -c ios.sim.debug",
     "test:ui:onboarding": "bash scripts/trigger-onboarding.sh",
     "sim:ios:load-db": "bash scripts/load-test-db.sh",
-    "sim:ios:app": "bash scripts/launch-simulator.sh", 
+    "sim:ios:app": "bash scripts/launch-simulator.sh",
     "sim:files": "bash ../scripts/open-simulator-files.sh",
     "sim:unpack": "bash ../scripts/unpack-debug-archive.sh",
     "eas-build-post-install": "node scripts/generate-build-info.js",
