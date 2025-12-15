@@ -16,19 +16,30 @@ jest.mock('expo-notifications');
 jest.mock('../../services/errorLogger');
 jest.mock('../../utils/logger');
 jest.mock('../../database/medicationRepository');
+jest.mock('../../database/scheduledNotificationRepository');
+jest.mock('../notifications/NotificationDismissalService');
 
 // Import after mocks
 import { dismissMedicationNotification } from '../notifications/medicationNotifications';
 import { logger } from '../../utils/logger';
 import { medicationRepository, medicationDoseRepository } from '../../database/medicationRepository';
+import { notificationDismissalService } from '../notifications/NotificationDismissalService';
 
 // Setup Notifications mock methods
-(Notifications as any).getPresentedNotificationsAsync = jest.fn();
-(Notifications as any).dismissNotificationAsync = jest.fn();
+const mockGetPresentedNotificationsAsync = jest.fn();
+const mockDismissNotificationAsync = jest.fn();
+
+(Notifications as any).getPresentedNotificationsAsync = mockGetPresentedNotificationsAsync;
+(Notifications as any).dismissNotificationAsync = mockDismissNotificationAsync;
+
+// Mock the NotificationDismissalService
+const mockNotificationDismissalService = notificationDismissalService as jest.Mocked<typeof notificationDismissalService>;
 
 describe('Notification Dismiss Logic', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetPresentedNotificationsAsync.mockClear();
+    mockDismissNotificationAsync.mockClear();
     jest.spyOn(console, 'log').mockImplementation();
     jest.spyOn(console, 'error').mockImplementation();
   });
@@ -66,27 +77,45 @@ describe('Notification Dismiss Logic', () => {
         }),
       ];
 
-      (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue(
-        presentedNotifs
+      mockGetPresentedNotificationsAsync.mockResolvedValue(presentedNotifs);
+      mockDismissNotificationAsync.mockResolvedValue(undefined);
+
+      // Mock the cross-reference service to return shouldDismiss: true for notif-1
+      mockNotificationDismissalService.shouldDismissNotification.mockImplementation(
+        async (notificationId, medicationId, scheduleId) => {
+          if (notificationId === 'notif-1' && medicationId === 'med-1' && scheduleId === 'sched-1') {
+            return {
+              shouldDismiss: true,
+              strategy: 'database_id_lookup',
+              confidence: 100,
+              context: 'Test match',
+            };
+          }
+          return {
+            shouldDismiss: false,
+            strategy: 'none',
+            confidence: 0,
+            context: 'No match',
+          };
+        }
       );
-      (Notifications.dismissNotificationAsync as jest.Mock).mockResolvedValue(undefined);
 
       // Act
       await dismissMedicationNotification('med-1', 'sched-1');
 
       // Assert
-      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledTimes(1);
-      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith('notif-1');
+      expect(mockDismissNotificationAsync).toHaveBeenCalledTimes(1);
+      expect(mockDismissNotificationAsync).toHaveBeenCalledWith('notif-1');
     });
 
     it('DIS-2: should not error when notification NOT in tray', async () => {
       // Arrange
-      (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue([]);
-      (Notifications.dismissNotificationAsync as jest.Mock).mockResolvedValue(undefined);
+      mockGetPresentedNotificationsAsync.mockResolvedValue([]);
+      mockDismissNotificationAsync.mockResolvedValue(undefined);
 
       // Act & Assert - should not throw
       await expect(dismissMedicationNotification('med-999', 'sched-1')).resolves.not.toThrow();
-      expect(Notifications.dismissNotificationAsync).not.toHaveBeenCalled();
+      expect(mockDismissNotificationAsync).not.toHaveBeenCalled();
     });
 
     it('DIS-3: should only match exact scheduleId (BREAKING CHANGE: scheduleId required)', async () => {
@@ -102,8 +131,27 @@ describe('Notification Dismiss Logic', () => {
         }),
       ];
 
-      (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue(
-        presentedNotifs
+      mockGetPresentedNotificationsAsync.mockResolvedValue(presentedNotifs);
+      mockDismissNotificationAsync.mockResolvedValue(undefined);
+
+      // Mock the cross-reference service to return shouldDismiss: true only for exact match
+      mockNotificationDismissalService.shouldDismissNotification.mockImplementation(
+        async (notificationId, medicationId, scheduleId) => {
+          if (notificationId === 'notif-1' && medicationId === 'med-1' && scheduleId === 'sched-A') {
+            return {
+              shouldDismiss: true,
+              strategy: 'database_id_lookup',
+              confidence: 100,
+              context: 'Exact schedule match',
+            };
+          }
+          return {
+            shouldDismiss: false,
+            strategy: 'none',
+            confidence: 0,
+            context: 'Schedule mismatch',
+          };
+        }
       );
 
       // Act - BREAKING CHANGE (DIS-106b): scheduleId is now required
@@ -112,8 +160,8 @@ describe('Notification Dismiss Logic', () => {
 
       // Assert - Should dismiss ONLY sched-A, not sched-B
       // This removes the "dismiss all" bug vector
-      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledTimes(1);
-      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith('notif-1');
+      expect(mockDismissNotificationAsync).toHaveBeenCalledTimes(1);
+      expect(mockDismissNotificationAsync).toHaveBeenCalledWith('notif-1');
     });
   });
 
@@ -189,33 +237,35 @@ describe('Notification Dismiss Logic', () => {
         }),
       ];
 
-      (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue(
-        presentedNotifs
+      mockGetPresentedNotificationsAsync.mockResolvedValue(presentedNotifs);
+      mockDismissNotificationAsync.mockResolvedValue(undefined);
+
+      // Mock the cross-reference service to handle grouped notification safety logic
+      mockNotificationDismissalService.shouldDismissNotification.mockImplementation(
+        async (notificationId, medicationId, scheduleId) => {
+          if (notificationId === 'grouped-notif-1' && medicationId === 'med-A' && scheduleId === 'sched-1') {
+            return {
+              shouldDismiss: true,
+              strategy: 'database_id_lookup',
+              confidence: 100,
+              context: 'All medications in group are logged',
+            };
+          }
+          return {
+            shouldDismiss: false,
+            strategy: 'none',
+            confidence: 0,
+            context: 'Not all medications logged',
+          };
+        }
       );
-
-      // Mock medications with schedules
-      medicationRepository.getById = jest.fn().mockImplementation((id: string) => {
-        const scheduleId = id === 'med-A' ? 'sched-1' : 'sched-2';
-        return Promise.resolve({
-          id,
-          name: `Med ${id}`,
-          schedule: [{
-            id: scheduleId,
-            time: '08:00',
-            timezone: 'America/Los_Angeles',
-          }],
-        });
-      });
-
-      // SAFETY FIX: Mock that ALL medications are logged (med-A and med-B)
-      medicationDoseRepository.wasLoggedForScheduleToday = jest.fn().mockResolvedValue(true);
 
       // Act - med-A with correct schedule (last medication to be logged)
       await dismissMedicationNotification('med-A', 'sched-1');
 
       // Assert - Should dismiss because ALL medications are now logged
-      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledTimes(1);
-      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith('grouped-notif-1');
+      expect(mockDismissNotificationAsync).toHaveBeenCalledTimes(1);
+      expect(mockDismissNotificationAsync).toHaveBeenCalledWith('grouped-notif-1');
     });
   });
 
@@ -249,12 +299,16 @@ describe('Notification Dismiss Logic', () => {
         }),
       ];
 
-      (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue(
-        presentedNotifs
-      );
-      (Notifications.dismissNotificationAsync as jest.Mock).mockRejectedValue(
-        new Error('Dismiss failed')
-      );
+      mockGetPresentedNotificationsAsync.mockResolvedValue(presentedNotifs);
+      mockDismissNotificationAsync.mockRejectedValue(new Error('Dismiss failed'));
+
+      // Mock the cross-reference service to indicate this notification should be dismissed
+      mockNotificationDismissalService.shouldDismissNotification.mockResolvedValue({
+        shouldDismiss: true,
+        strategy: 'database_id_lookup',
+        confidence: 100,
+        context: 'Test match',
+      });
 
       // Act & Assert - should not throw
       await expect(dismissMedicationNotification('med-1', 'sched-1')).resolves.not.toThrow();
@@ -278,15 +332,22 @@ describe('Notification Dismiss Logic', () => {
         createPresentedNotification('notif-1', {}), // No medication data
       ];
 
-      (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue(
-        presentedNotifs
-      );
+      mockGetPresentedNotificationsAsync.mockResolvedValue(presentedNotifs);
+      mockDismissNotificationAsync.mockResolvedValue(undefined);
+
+      // Mock the cross-reference service to indicate notification should NOT be dismissed (missing data)
+      mockNotificationDismissalService.shouldDismissNotification.mockResolvedValue({
+        shouldDismiss: false,
+        strategy: 'none',
+        confidence: 0,
+        context: 'Missing notification data',
+      });
 
       // Act
       await dismissMedicationNotification('med-1', 'sched-1');
 
       // Assert - Should not crash, should not dismiss
-      expect(Notifications.dismissNotificationAsync).not.toHaveBeenCalled();
+      expect(mockDismissNotificationAsync).not.toHaveBeenCalled();
     });
 
     it('DIS-EDGE2: should handle empty presented notifications array', async () => {
@@ -311,18 +372,24 @@ describe('Notification Dismiss Logic', () => {
         }),
       ];
 
-      (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue(
-        presentedNotifs
-      );
-      (Notifications.dismissNotificationAsync as jest.Mock).mockResolvedValue(undefined);
+      mockGetPresentedNotificationsAsync.mockResolvedValue(presentedNotifs);
+      mockDismissNotificationAsync.mockResolvedValue(undefined);
+
+      // Mock the cross-reference service to indicate both notifications should be dismissed
+      mockNotificationDismissalService.shouldDismissNotification.mockResolvedValue({
+        shouldDismiss: true,
+        strategy: 'database_id_lookup',
+        confidence: 100,
+        context: 'Multiple matches',
+      });
 
       // Act
       await dismissMedicationNotification('med-1', 'sched-1');
 
       // Assert - Should dismiss both
-      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledTimes(2);
-      expect(Notifications.dismissNotificationAsync).toHaveBeenNthCalledWith(1, 'notif-1');
-      expect(Notifications.dismissNotificationAsync).toHaveBeenNthCalledWith(2, 'notif-2');
+      expect(mockDismissNotificationAsync).toHaveBeenCalledTimes(2);
+      expect(mockDismissNotificationAsync).toHaveBeenNthCalledWith(1, 'notif-1');
+      expect(mockDismissNotificationAsync).toHaveBeenNthCalledWith(2, 'notif-2');
     });
   });
 });

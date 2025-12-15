@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { logger } from '../../utils/logger';
 import {
   View,
@@ -37,7 +37,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
   const { medicationId } = route.params;
   const { theme } = useTheme();
   const { getStatusStyle } = useMedicationStatusStyles();
-  const { logDose, deleteDose, archiveMedication, updateDose, loadMedicationWithDetails } = useMedicationStore();
+  const { logDose, deleteDose, archiveMedication, updateDose, loadMedicationWithDetails, getSchedulesByMedicationId } = useMedicationStore();
   const { currentEpisode } = useEpisodeStore();
   const [medication, setMedication] = useState<Medication | null>(null);
   const [schedules, setSchedules] = useState<MedicationSchedule[]>([]);
@@ -58,20 +58,7 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
   const [logDoseTimestamp, setLogDoseTimestamp] = useState<number>(Date.now());
   const [showLogDoseDateTimePicker, setShowLogDoseDateTimePicker] = useState(false);
 
-  useEffect(() => {
-    loadMedicationData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [medicationId]);
-
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      loadMedicationData();
-    });
-    return unsubscribe;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigation]);
-
-  const loadMedicationData = async () => {
+  const loadMedicationData = useCallback(async () => {
     try {
       // Use store method to load medication with all details
       const result = await loadMedicationWithDetails(medicationId);
@@ -95,7 +82,104 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
     } finally {
       setLoading(false);
     }
+  }, [loadMedicationWithDetails, medicationId, navigation]);
+
+  useEffect(() => {
+    loadMedicationData();
+  }, [loadMedicationData]);
+
+  const handleFocus = useCallback(() => {
+    loadMedicationData();
+  }, [loadMedicationData]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', handleFocus);
+    return unsubscribe;
+  }, [navigation, handleFocus]);
+
+  // Constants for schedule resolution
+  const SCHEDULE_MATCH_THRESHOLD_MINUTES = 180; // 3 hours tolerance for schedule matching
+
+  /**
+   * Determines the appropriate scheduleId for a specific medication and schedules.
+   * For preventative medications, finds the schedule that best matches the logging time.
+   * For rescue medications or when no matching schedule is found, returns undefined.
+   */
+  const getRelevantScheduleIdForMedication = (
+    med: Medication | null,
+    logTimestamp: number
+  ): string | undefined => {
+    // Only consider preventative medications
+    if (!med || med.type !== 'preventative') {
+      return undefined;
+    }
+
+    // Get fresh schedules from store
+    const medicationSchedules = getSchedulesByMedicationId(med.id);
+    
+    if (medicationSchedules.length === 0) {
+      logger.warn('[MedicationDetailScreen] No schedules found for preventative medication:', {
+        medicationId: med.id,
+        medicationName: med.name
+      });
+      return undefined;
+    }
+
+    // For daily schedules, find the one closest to the logging time
+    const logDate = new Date(logTimestamp);
+    const logTimeStr = logDate.toTimeString().slice(0, 5); // HH:mm format
+
+    // Find the schedule with the closest time to when the medication was logged
+    let closestSchedule: MedicationSchedule | null = null;
+    let smallestTimeDiff = Infinity;
+
+    for (const schedule of medicationSchedules) {
+      if (!schedule.enabled) continue;
+
+      // Parse schedule time (HH:mm)
+      const [scheduleHour, scheduleMinute] = schedule.time.split(':').map(Number);
+      const scheduleMinutes = scheduleHour * 60 + scheduleMinute;
+
+      // Parse log time
+      const [logHour, logMinute] = logTimeStr.split(':').map(Number);
+      const logMinutes = logHour * 60 + logMinute;
+
+      // Calculate time difference (considering wrap-around for next day)
+      let timeDiff = Math.abs(logMinutes - scheduleMinutes);
+      if (timeDiff > 720) { // 12 hours
+        timeDiff = 1440 - timeDiff; // Use shorter path around 24-hour clock
+      }
+
+      if (timeDiff < smallestTimeDiff) {
+        smallestTimeDiff = timeDiff;
+        closestSchedule = schedule;
+      }
+    }
+
+    // Only return a schedule if it's reasonably close (within 3 hours)
+    if (closestSchedule && smallestTimeDiff <= SCHEDULE_MATCH_THRESHOLD_MINUTES) {
+      logger.log('[MedicationDetailScreen] Found relevant schedule for dose:', {
+        medicationId: med.id,
+        scheduleId: closestSchedule.id,
+        scheduledTime: closestSchedule.time,
+        logTime: logTimeStr,
+        timeDiffMinutes: smallestTimeDiff
+      });
+      return closestSchedule.id;
+    }
+
+    logger.log('[MedicationDetailScreen] No close enough schedule found for preventative medication:', {
+      medicationId: med.id,
+      medicationName: med.name,
+      scheduleCount: medicationSchedules.filter(s => s.enabled).length,
+      logTime: logTimeStr,
+      closestTimeDiffMinutes: smallestTimeDiff
+    });
+
+    return undefined;
   };
+
+
 
   const handleLogDoseNow = async () => {
     if (!medication) return;
@@ -103,16 +187,8 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
     try {
       const timestamp = Date.now();
       
-      // Find the relevant schedule for preventative medications
-      let scheduleId: string | undefined;
-      if (medication.type === 'preventative' && medication.schedule && medication.schedule.length > 0) {
-        // For preventative medications, find the most relevant active schedule
-        const activeSchedules = medication.schedule.filter(s => s.enabled);
-        if (activeSchedules.length > 0) {
-          // Use the first active schedule as default
-          scheduleId = activeSchedules[0].id;
-        }
-      }
+      // Find the relevant schedule for preventative medications using loaded schedules
+      const scheduleId = getRelevantScheduleIdForMedication(medication, timestamp);
       
       await logDose({
         medicationId: medication.id,
@@ -169,16 +245,8 @@ export default function MedicationDetailScreen({ route, navigation }: Props) {
     if (!validateTimestamp(logDoseTimestamp)) return;
 
     try {
-      // Find the relevant schedule for preventative medications
-      let scheduleId: string | undefined;
-      if (medication.type === 'preventative' && medication.schedule && medication.schedule.length > 0) {
-        // For preventative medications, find the most relevant active schedule
-        const activeSchedules = medication.schedule.filter(s => s.enabled);
-        if (activeSchedules.length > 0) {
-          // Use the first active schedule as default
-          scheduleId = activeSchedules[0].id;
-        }
-      }
+      // Find the relevant schedule for preventative medications using loaded schedules
+      const scheduleId = getRelevantScheduleIdForMedication(medication, logDoseTimestamp);
       
       await logDose({
         medicationId: medication.id,

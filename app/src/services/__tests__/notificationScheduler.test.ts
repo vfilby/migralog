@@ -26,6 +26,7 @@ jest.mock('../../services/errorLogger');
 (Notifications as any).SchedulableTriggerInputTypes = {
   DAILY: 'daily',
   DATE: 'date',
+  TIME_INTERVAL: 'timeInterval',
 };
 (Notifications.scheduleNotificationAsync as jest.Mock) = jest.fn();
 (Notifications.cancelScheduledNotificationAsync as jest.Mock) = jest.fn();
@@ -44,6 +45,8 @@ import {
   getTodayDateString,
   getDateStringForDaysAhead,
   createDateTimeFromStrings,
+  extractMedicationName,
+  calculateTriggerTime,
 } from '../notifications/notificationScheduler';
 import { scheduledNotificationRepository } from '../../database/scheduledNotificationRepository';
 import { ScheduledNotificationMappingInput } from '../../types/notifications';
@@ -117,23 +120,100 @@ describe('notificationScheduler', () => {
         },
       });
 
-      // Verify mapping was saved to database
+      // Verify mapping was saved to database with extracted metadata
       expect(scheduledNotificationRepository.saveMapping).toHaveBeenCalledWith({
         ...mockMapping,
         notificationId: 'notif-123',
+        // Metadata extracted from notification content and trigger
+        medicationName: undefined, // No medication name pattern in "Test Notification"
+        scheduledTriggerTime: mockTrigger,
+        notificationTitle: 'Test Notification',
+        notificationBody: 'Test body',
+        categoryIdentifier: undefined, // Not set in mockContent
       });
     });
 
-    it('should return null when OS returns no notification ID', async () => {
-      // Arrange
-      (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue(null);
+    it('should extract metadata from medication notification content', async () => {
+      // Arrange - medication notification content
+      const medicationContent: Notifications.NotificationContentInput = {
+        title: 'Time for Ibuprofen',
+        body: '2 dose(s) - 200mg each',
+        data: {
+          medicationId: 'med-123',
+          scheduleId: 'sched-456',
+        },
+        categoryIdentifier: 'MEDICATION_REMINDER',
+        sound: true,
+      };
+
+      const triggerDate = new Date('2024-01-15T08:30:00.000Z');
+
+      const mapping: ScheduledNotificationMappingInput = {
+        medicationId: 'med-123',
+        scheduleId: 'sched-456',
+        date: '2024-01-15',
+        notificationType: 'reminder',
+        isGrouped: false,
+      };
 
       // Act
-      const result = await scheduleNotificationAtomic(mockContent, mockTrigger, mockMapping);
+      const result = await scheduleNotificationAtomic(medicationContent, triggerDate, mapping);
 
       // Assert
-      expect(result).toBeNull();
-      expect(scheduledNotificationRepository.saveMapping).not.toHaveBeenCalled();
+      expect(result).not.toBeNull();
+
+      // Verify metadata extraction
+      expect(scheduledNotificationRepository.saveMapping).toHaveBeenCalledWith({
+        ...mapping,
+        notificationId: 'notif-123',
+        medicationName: 'Ibuprofen', // Extracted from title "Time for Ibuprofen"
+        scheduledTriggerTime: triggerDate,
+        notificationTitle: 'Time for Ibuprofen',
+        notificationBody: '2 dose(s) - 200mg each',
+        categoryIdentifier: 'MEDICATION_REMINDER',
+      });
+    });
+
+    it('should handle follow-up notification metadata extraction', async () => {
+      // Arrange - follow-up notification content
+      const followUpContent: Notifications.NotificationContentInput = {
+        title: 'Reminder: Aspirin',
+        body: 'Did you take your medication?',
+        data: {
+          medicationId: 'med-789',
+          scheduleId: 'sched-101',
+          isFollowUp: true,
+        },
+        categoryIdentifier: 'MEDICATION_REMINDER',
+        sound: true,
+      };
+
+      const triggerDate = new Date('2024-01-15T09:00:00.000Z');
+
+      const mapping: ScheduledNotificationMappingInput = {
+        medicationId: 'med-789',
+        scheduleId: 'sched-101',
+        date: '2024-01-15',
+        notificationType: 'follow_up',
+        isGrouped: false,
+      };
+
+      // Act
+      const result = await scheduleNotificationAtomic(followUpContent, triggerDate, mapping);
+
+      // Assert
+      expect(result).not.toBeNull();
+
+      // Verify metadata extraction for follow-up
+      expect(scheduledNotificationRepository.saveMapping).toHaveBeenCalledWith({
+        ...mapping,
+        notificationId: 'notif-123',
+        medicationName: 'Aspirin', // Extracted from title "Reminder: Aspirin"
+        scheduledTriggerTime: triggerDate,
+        notificationTitle: 'Reminder: Aspirin',
+        notificationBody: 'Did you take your medication?',
+        categoryIdentifier: 'MEDICATION_REMINDER',
+      });
     });
 
     it('should cancel notification when database save fails (compensating transaction)', async () => {
@@ -445,6 +525,97 @@ describe('notificationScheduler', () => {
 
       expect(result).toBeInstanceOf(Date);
       expect(isNaN(result.getTime())).toBe(false);
+    });
+  });
+
+  describe('extractMedicationName', () => {
+    it('should extract medication name from "Time for" pattern', () => {
+      expect(extractMedicationName('Time for Ibuprofen')).toBe('Ibuprofen');
+      expect(extractMedicationName('Time for Tylenol Extra Strength')).toBe('Tylenol Extra Strength');
+      expect(extractMedicationName('Time for Multi-word Med Name')).toBe('Multi-word Med Name');
+    });
+
+    it('should extract medication name from "Reminder:" pattern', () => {
+      expect(extractMedicationName('Reminder: Aspirin')).toBe('Aspirin');
+      expect(extractMedicationName('Reminder: Vitamin D3')).toBe('Vitamin D3');
+    });
+
+    it('should return null for non-medication patterns', () => {
+      expect(extractMedicationName('How was your day?')).toBeNull();
+      expect(extractMedicationName('Take your medication')).toBeNull();
+      expect(extractMedicationName('Random notification')).toBeNull();
+      expect(extractMedicationName('')).toBeNull();
+    });
+
+    it('should trim whitespace from extracted names', () => {
+      expect(extractMedicationName('Time for   Ibuprofen  ')).toBe('Ibuprofen');
+      expect(extractMedicationName('Reminder:    Aspirin   ')).toBe('Aspirin');
+    });
+  });
+
+  describe('calculateTriggerTime', () => {
+    it('should handle Date objects', () => {
+      const testDate = new Date('2024-01-15T08:30:00.000Z');
+      const result = calculateTriggerTime(testDate);
+      
+      expect(result).toEqual(testDate);
+      expect(result).not.toBe(testDate); // Should be a new Date object
+    });
+
+    it('should handle Date trigger input', () => {
+      const testDate = new Date('2024-01-15T09:00:00.000Z');
+      const trigger = {
+        type: 'date' as any,
+        date: testDate,
+      };
+      
+      const result = calculateTriggerTime(trigger);
+      expect(result).toEqual(testDate);
+    });
+
+    it('should handle time interval trigger (relative to now)', () => {
+      const currentTime = Date.now();
+      jest.useFakeTimers();
+      jest.setSystemTime(currentTime);
+
+      const trigger = {
+        type: 'timeInterval' as any,
+        seconds: 3600, // 1 hour
+      };
+      
+      const result = calculateTriggerTime(trigger);
+      const expected = new Date(currentTime + 3600 * 1000);
+      
+      expect(result).toEqual(expected);
+      
+      jest.useRealTimers();
+    });
+
+    it('should return null for calendar trigger (complex, not supported)', () => {
+      const trigger = {
+        type: 'calendar' as any,
+        dateComponents: {
+          hour: 8,
+          minute: 30,
+        },
+      };
+      
+      const result = calculateTriggerTime(trigger);
+      expect(result).toBeNull();
+    });
+
+    it('should return null for unknown trigger types', () => {
+      const unknownTrigger = {
+        unknownType: 'something',
+      };
+      
+      const result = calculateTriggerTime(unknownTrigger as any);
+      expect(result).toBeNull();
+    });
+
+    it('should return null for null/undefined input', () => {
+      expect(calculateTriggerTime(null as any)).toBeNull();
+      expect(calculateTriggerTime(undefined as any)).toBeNull();
     });
   });
 });

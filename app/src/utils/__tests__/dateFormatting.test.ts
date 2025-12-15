@@ -6,6 +6,9 @@ import {
   formatTime,
   formatDateTime,
   uses12HourClock,
+  toLocalDateString,
+  toLocalDateStringOffset,
+  localDateTimeFromStrings,
 } from '../dateFormatting';
 
 // Mock the localeUtils module to ensure consistent test behavior
@@ -334,5 +337,138 @@ describe('uses12HourClock export', () => {
   it('returns a boolean', () => {
     const result = uses12HourClock();
     expect(typeof result).toBe('boolean');
+  });
+});
+
+/**
+ * Tests for local timezone date utilities
+ *
+ * These functions exist to prevent UTC conversion bugs that occur when using:
+ * - new Date().toISOString().split('T')[0]  - returns UTC date, not local date
+ * - new Date("YYYY-MM-DD")  - parses as UTC midnight, wrong local date in western timezones
+ *
+ * BUG FIX CONTEXT:
+ * At 11pm PST on Dec 14, toISOString() returns "2025-12-15T07:00:00.000Z"
+ * which splits to "2025-12-15" - the WRONG local date.
+ * These utilities use local date components to avoid this issue.
+ */
+describe('toLocalDateString', () => {
+  it('returns YYYY-MM-DD format', () => {
+    const date = new Date(2024, 0, 15); // Jan 15, 2024 (month is 0-indexed)
+    expect(toLocalDateString(date)).toBe('2024-01-15');
+  });
+
+  it('pads single-digit months and days', () => {
+    const date = new Date(2024, 2, 5); // Mar 5, 2024
+    expect(toLocalDateString(date)).toBe('2024-03-05');
+  });
+
+  it('returns current date when called without arguments', () => {
+    const now = new Date();
+    const expected = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    expect(toLocalDateString()).toBe(expected);
+  });
+
+  it('uses local date components, NOT UTC (critical bug fix test)', () => {
+    // Simulate 11pm PST on Dec 14 (which is Dec 15 in UTC)
+    // This date would be "2025-12-15" if using toISOString()
+    const latePST = new Date(2025, 11, 14, 23, 0, 0); // Dec 14, 2025 11:00 PM local
+
+    // Should return local date "2025-12-14", NOT UTC date "2025-12-15"
+    expect(toLocalDateString(latePST)).toBe('2025-12-14');
+  });
+
+  it('differs from toISOString for late evening dates in negative UTC offset timezones', () => {
+    // At 11pm on Dec 14 in PST (UTC-8), it's already Dec 15 in UTC
+    const lateEvening = new Date(2025, 11, 14, 23, 30, 0); // Dec 14 11:30 PM local
+
+    const localResult = toLocalDateString(lateEvening);
+
+    // In PST, local should be Dec 14, but ISO (UTC) might be Dec 15
+    // The local result should always match the local date components
+    expect(localResult).toBe('2025-12-14');
+    // Note: toISOString() result depends on the test machine's timezone
+    // We intentionally don't compare against it because test results would vary by TZ
+  });
+});
+
+describe('toLocalDateStringOffset', () => {
+  it('adds days correctly', () => {
+    const from = new Date(2024, 0, 15); // Jan 15
+    expect(toLocalDateStringOffset(1, from)).toBe('2024-01-16');
+    expect(toLocalDateStringOffset(7, from)).toBe('2024-01-22');
+  });
+
+  it('subtracts days correctly with negative offset', () => {
+    const from = new Date(2024, 0, 15); // Jan 15
+    expect(toLocalDateStringOffset(-1, from)).toBe('2024-01-14');
+    expect(toLocalDateStringOffset(-7, from)).toBe('2024-01-08');
+  });
+
+  it('handles month boundaries', () => {
+    const endOfMonth = new Date(2024, 0, 31); // Jan 31
+    expect(toLocalDateStringOffset(1, endOfMonth)).toBe('2024-02-01');
+  });
+
+  it('handles year boundaries', () => {
+    const endOfYear = new Date(2024, 11, 31); // Dec 31
+    expect(toLocalDateStringOffset(1, endOfYear)).toBe('2025-01-01');
+  });
+
+  it('defaults to today when no from date provided', () => {
+    const tomorrow = toLocalDateStringOffset(1);
+    const expectedDate = new Date();
+    expectedDate.setDate(expectedDate.getDate() + 1);
+    const expected = `${expectedDate.getFullYear()}-${String(expectedDate.getMonth() + 1).padStart(2, '0')}-${String(expectedDate.getDate()).padStart(2, '0')}`;
+    expect(tomorrow).toBe(expected);
+  });
+});
+
+describe('localDateTimeFromStrings', () => {
+  it('creates Date with correct local components', () => {
+    const result = localDateTimeFromStrings('2024-01-15', '14:30');
+
+    expect(result.getFullYear()).toBe(2024);
+    expect(result.getMonth()).toBe(0); // January is 0
+    expect(result.getDate()).toBe(15);
+    expect(result.getHours()).toBe(14);
+    expect(result.getMinutes()).toBe(30);
+  });
+
+  it('handles midnight correctly', () => {
+    const result = localDateTimeFromStrings('2024-06-15', '00:00');
+
+    expect(result.getHours()).toBe(0);
+    expect(result.getMinutes()).toBe(0);
+    expect(result.getDate()).toBe(15);
+  });
+
+  it('handles end of day correctly', () => {
+    const result = localDateTimeFromStrings('2024-06-15', '23:59');
+
+    expect(result.getHours()).toBe(23);
+    expect(result.getMinutes()).toBe(59);
+    expect(result.getDate()).toBe(15);
+  });
+
+  it('differs from new Date("YYYY-MM-DD") which parses as UTC (critical bug fix test)', () => {
+    // new Date("2024-01-15") is parsed as UTC midnight
+    // In PST (UTC-8), this becomes Jan 14 4pm!
+    // We don't use this variable to avoid lint warnings, but document the bug
+
+    // Our function should create Jan 15 at the specified time in LOCAL timezone
+    const localParsed = localDateTimeFromStrings('2024-01-15', '08:00');
+
+    // The local parsed date should have local date = 15
+    expect(localParsed.getDate()).toBe(15);
+
+    // Note: new Date("2024-01-15").getDate() may be 14 in western timezones
+    // This test documents the bug that localDateTimeFromStrings fixes
+  });
+
+  it('round-trips with toLocalDateString', () => {
+    const original = localDateTimeFromStrings('2024-07-20', '15:45');
+    const dateString = toLocalDateString(original);
+    expect(dateString).toBe('2024-07-20');
   });
 });

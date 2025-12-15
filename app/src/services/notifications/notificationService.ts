@@ -3,7 +3,7 @@ import { logger } from '../../utils/logger';
 import { Medication, MedicationSchedule } from '../../models/types';
 // ARCHITECTURAL EXCEPTION: Notification handlers need direct repository access
 // because they run in background when app may be suspended. See docs/store-repository-guidelines.md
-import { medicationRepository, medicationDoseRepository } from '../../database/medicationRepository';
+import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../../database/medicationRepository';
 import { useNotificationSettingsStore } from '../../store/notificationSettingsStore';
 import { handleDailyCheckinNotification } from './dailyCheckinNotifications';
 import { notifyUserOfError } from './errorNotificationHelper';
@@ -52,6 +52,21 @@ export async function handleIncomingNotification(notification: Notifications.Not
       component: 'NotificationHandler',
     });
 
+    // DEBUG: Log the entire notification content structure to understand the issue
+    logger.debug('[Notification] Full notification content structure:', {
+      notificationId: notification.request.identifier,
+      content: {
+        title: notification.request.content.title,
+        body: notification.request.content.body,
+        data: notification.request.content.data,
+        sound: notification.request.content.sound,
+        badge: notification.request.content.badge,
+        categoryIdentifier: notification.request.content.categoryIdentifier,
+      },
+      trigger: notification.request.trigger,
+      component: 'NotificationDebug',
+    });
+
     // Check if this is a daily check-in notification
     const dailyCheckinResult = await handleDailyCheckinNotification(notification);
     if (dailyCheckinResult !== null) {
@@ -64,6 +79,16 @@ export async function handleIncomingNotification(notification: Notifications.Not
     }
 
     // Check if this is a medication reminder
+    // DEBUG: Log raw data extraction paths
+    logger.debug('[Notification] Raw notification data extraction:', {
+      notificationId: notification.request.identifier,
+      'content.data': notification.request.content.data,
+      'content.userInfo': (notification.request.content as { userInfo?: unknown }).userInfo,
+      'content keys': Object.keys(notification.request.content),
+      'entire content': JSON.stringify(notification.request.content),
+      component: 'NotificationDataDebug',
+    });
+    
     const data = notification.request.content.data as {
       medicationId?: string;
       medicationIds?: string[];
@@ -123,12 +148,14 @@ export async function handleIncomingNotification(notification: Notifications.Not
           };
         }
         
-        const schedule = medication.schedule?.find(s => s.id === data.scheduleId);
-        
+        // Load schedules from repository since medication.schedule is not populated by getById
+        const schedules = await medicationScheduleRepository.getByMedicationId(data.medicationId);
+        const schedule = schedules.find(s => s.id === data.scheduleId);
+
         // Issue 6 (SUP-162): Data inconsistency alert - schedule doesn't match
         if (!schedule) {
           const inconsistencyError = new Error(`Notification schedule doesn't match medication: scheduleId=${data.scheduleId}, medicationId=${data.medicationId}`);
-          
+
           logger.error(inconsistencyError, {
             component: 'NotificationService',
             operation: 'handleIncomingNotification',
@@ -136,17 +163,17 @@ export async function handleIncomingNotification(notification: Notifications.Not
             medicationId: data.medicationId,
             scheduleId: data.scheduleId,
             medicationName: medication.name,
-            availableScheduleIds: medication.schedule?.map(s => s.id) || [],
+            availableScheduleIds: schedules.map(s => s.id),
           });
-          
+
           // Notify user of inconsistency (Issue 6: SUP-162)
           await notifyUserOfError(
             'data',
-            "Your medication schedule has changed. Please check your medication settings.",
+            "Your medication schedule has changed. Please open the app and go to Settings > Developer Tools > 'Recreate All Schedules' to fix this issue.",
             inconsistencyError,
             { medicationId: data.medicationId, scheduleId: data.scheduleId }
           );
-          
+
           // Still show notification (fail-safe - take safest action)
           return {
             shouldPlaySound: true,
@@ -155,7 +182,7 @@ export async function handleIncomingNotification(notification: Notifications.Not
             shouldShowList: true,
           };
         }
-        
+
         if (schedule) {
           const wasLogged = await medicationDoseRepository.wasLoggedForScheduleToday(
             data.medicationId,

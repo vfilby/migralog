@@ -256,3 +256,73 @@ export function formatDateTime(
  * @returns true if 12-hour format, false if 24-hour format
  */
 export { uses12HourClock } from './localeUtils';
+
+/**
+ * Get today's date as a string in YYYY-MM-DD format using LOCAL timezone.
+ *
+ * IMPORTANT: This function uses local date components to avoid UTC conversion issues.
+ * Using `new Date().toISOString().split('T')[0]` returns UTC date, which can be
+ * a different date than the user's local date (e.g., 11pm PST on Dec 14 would
+ * return "2025-12-15" in UTC).
+ *
+ * Always use this function instead of toISOString() when you need the user's
+ * local date for notification scheduling, dose logging, or any user-facing date.
+ *
+ * @returns Date string in YYYY-MM-DD format in local timezone
+ *
+ * @example
+ * // At 11pm PST on Dec 14, 2025:
+ * toLocalDateString()  // "2025-12-14" (correct)
+ * new Date().toISOString().split('T')[0]  // "2025-12-15" (WRONG!)
+ */
+export function toLocalDateString(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Get a date string for N days from a reference date in YYYY-MM-DD format using LOCAL timezone.
+ *
+ * IMPORTANT: This function uses local date components to avoid UTC conversion issues.
+ * See toLocalDateString() for details.
+ *
+ * @param days - Number of days to add (positive) or subtract (negative)
+ * @param from - Reference date (defaults to today)
+ * @returns Date string in YYYY-MM-DD format in local timezone
+ *
+ * @example
+ * // Get tomorrow's date
+ * toLocalDateStringOffset(1)  // "2025-12-15" (if today is Dec 14)
+ *
+ * // Get yesterday's date
+ * toLocalDateStringOffset(-1)  // "2025-12-13" (if today is Dec 14)
+ */
+export function toLocalDateStringOffset(days: number, from: Date = new Date()): string {
+  const date = new Date(from);
+  date.setDate(date.getDate() + days);
+  return toLocalDateString(date);
+}
+
+/**
+ * Create a Date object for a specific date and time in LOCAL timezone.
+ *
+ * IMPORTANT: This function constructs the date using local time components directly
+ * to avoid UTC parsing issues. Using `new Date("YYYY-MM-DD")` parses as UTC midnight,
+ * which can result in the wrong local date in western timezones.
+ *
+ * @param dateString - Date in YYYY-MM-DD format
+ * @param timeString - Time in HH:MM format (24-hour)
+ * @returns Date object for the specified date and time in local timezone
+ *
+ * @example
+ * // Create a date for 2:30 PM on Dec 14, 2025 in local timezone
+ * localDateTimeFromStrings("2025-12-14", "14:30")
+ */
+export function localDateTimeFromStrings(dateString: string, timeString: string): Date {
+  const [hours, minutes] = timeString.split(':').map(Number);
+  const [year, month, day] = dateString.split('-').map(Number);
+  // Use Date constructor with local time components (month is 0-indexed)
+  return new Date(year, month - 1, day, hours, minutes, 0, 0);
+}

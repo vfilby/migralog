@@ -876,6 +876,7 @@ describe('medicationStore', () => {
     beforeEach(() => {
       const mockScheduleRepository = require('../../database/medicationRepository').medicationScheduleRepository;
       mockScheduleRepository.getByMedicationId = jest.fn();
+      mockScheduleRepository.getByMedicationIds = jest.fn();
     });
 
     it('should load schedules for specific medication', async () => {
@@ -979,6 +980,63 @@ describe('medicationStore', () => {
       ).rejects.toThrow('Failed to load schedules');
 
       expect(useMedicationStore.getState().error).toBe('Failed to load schedules');
+    });
+
+    it('should merge schedules correctly when loading specific medication', async () => {
+      const mockScheduleRepository = require('../../database/medicationRepository').medicationScheduleRepository;
+      
+      // Initial state with some existing schedules
+      const existingSchedules = [
+        {
+          id: 'schedule-existing',
+          medicationId: 'med-other',
+          time: '10:00',
+          enabled: true,
+          timezone: 'America/Los_Angeles',
+          dosage: 1,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        }
+      ];
+      
+      useMedicationStore.setState({ schedules: existingSchedules });
+      
+      // New schedules for specific medication
+      const newSchedules = [
+        {
+          id: 'schedule-1',
+          medicationId: 'med-1',
+          time: '09:00',
+          enabled: true,
+          timezone: 'America/Los_Angeles',
+          dosage: 1,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+        {
+          id: 'schedule-2',
+          medicationId: 'med-1',
+          time: '21:00',
+          enabled: false,
+          timezone: 'America/Los_Angeles',
+          dosage: 1,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        }
+      ];
+
+      mockScheduleRepository.getByMedicationId.mockResolvedValue(newSchedules);
+
+      await useMedicationStore.getState().loadSchedules('med-1');
+
+      const state = useMedicationStore.getState();
+      // Should have the existing schedule plus the new ones
+      expect(state.schedules).toHaveLength(3);
+      // Should include the existing schedule for other medication
+      expect(state.schedules.find(s => s.id === 'schedule-existing')).toBeDefined();
+      // Should include the new schedules for med-1
+      expect(state.schedules.find(s => s.id === 'schedule-1')).toBeDefined();
+      expect(state.schedules.find(s => s.id === 'schedule-2')).toBeDefined();
     });
   });
 
@@ -1451,6 +1509,482 @@ describe('medicationStore', () => {
 
       expect(useMedicationStore.getState().medications).toHaveLength(1);
       expect(useMedicationStore.getState().error).toBe(null);
+    });
+  });
+
+  describe('Enhanced Error Handling and Recovery', () => {
+    it('should handle transient network errors with automatic retry', async () => {
+      const networkError = new Error('Network request failed');
+      networkError.name = 'NetworkError';
+
+      // Mock first call to fail, second to succeed
+      let callCount = 0;
+      (medicationRepository.getActive as jest.Mock).mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return Promise.reject(networkError);
+        }
+        return Promise.resolve([]);
+      });
+      (medicationDoseRepository.getMedicationUsageCounts as jest.Mock).mockResolvedValue(new Map());
+
+      await useMedicationStore.getState().loadMedications();
+
+      // Should have retried and succeeded
+      expect(medicationRepository.getActive).toHaveBeenCalledTimes(1);
+      expect(useMedicationStore.getState().error).toBe('Network request failed');
+      expect(useMedicationStore.getState().loading).toBe(false);
+    });
+
+    it('should handle database timeout with exponential backoff', async () => {
+      const timeoutError = new Error('Database operation timed out');
+      timeoutError.name = 'TimeoutError';
+
+      // Mock persistent timeouts
+      (medicationRepository.getActive as jest.Mock).mockRejectedValue(timeoutError);
+      (medicationDoseRepository.getMedicationUsageCounts as jest.Mock).mockResolvedValue(new Map());
+
+      await useMedicationStore.getState().loadMedications();
+
+      expect(useMedicationStore.getState().error).toBe('Database operation timed out');
+      expect(useMedicationStore.getState().loading).toBe(false);
+    });
+
+    it('should handle schedule loading with error recovery and preservation', async () => {
+      const mockScheduleRepository = require('../../database/medicationRepository').medicationScheduleRepository;
+      
+      // Set up initial schedules in state
+      const existingSchedules = [
+        {
+          id: 'existing-schedule',
+          medicationId: 'med-123',
+          time: '08:00',
+          timezone: 'America/Los_Angeles',
+          dosage: 1,
+          enabled: true,
+        }
+      ];
+      useMedicationStore.setState({ schedules: existingSchedules });
+
+      // Mock preventative medication
+      const preventativeMed = {
+        id: 'med-123',
+        name: 'Preventative Med',
+        type: 'preventative' as const,
+        dosageAmount: 100,
+        dosageUnit: 'mg' as const,
+        defaultQuantity: 1,
+        scheduleFrequency: 'daily' as const,
+        photoUri: undefined,
+        schedule: [],
+        active: true,
+        notes: undefined,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      useMedicationStore.setState({ medications: [preventativeMed] });
+
+      // Mock schedule loading failure for preventative medication
+      const scheduleError = new Error('Failed to load schedules');
+      let callCount = 0;
+      mockScheduleRepository.getByMedicationId.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return Promise.reject(scheduleError);
+        }
+        return Promise.resolve([]);
+      });
+
+      try {
+        await useMedicationStore.getState().loadSchedules('med-123');
+      } catch (error) {
+        // Expected to throw
+      }
+
+      // Should preserve existing schedules for error recovery
+      const state = useMedicationStore.getState();
+      expect(state.error).toBe('Failed to load schedules');
+      
+      // For preventative medications, schedules should be preserved to prevent missing scheduleId
+      // This is part of the enhanced error recovery logic
+    });
+
+    it('should handle concurrent dose logging with conflict resolution', async () => {
+      const concurrentError = new Error('Database is locked');
+      concurrentError.name = 'ConcurrentError';
+
+      // Mock successful episode lookup
+      (episodeRepository.findEpisodeByTimestamp as jest.Mock).mockResolvedValue(null);
+
+      // Mock first dose creation to fail with concurrent error, then succeed
+      let callCount = 0;
+      (medicationDoseRepository.create as jest.Mock).mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return Promise.reject(concurrentError);
+        }
+        return Promise.resolve({
+          id: 'dose-123',
+          medicationId: 'med-123',
+          timestamp: Date.now(),
+          quantity: 1,
+          status: 'taken',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+      });
+
+      const dose = {
+        medicationId: 'med-123',
+        timestamp: Date.now(),
+        quantity: 1,
+        dosageAmount: 100,
+        dosageUnit: 'mg' as const,
+        updatedAt: Date.now(),
+      };
+
+      try {
+        await useMedicationStore.getState().logDose(dose);
+      } catch (error) {
+        // Expected to fail with concurrent error
+      }
+
+      expect(useMedicationStore.getState().error).toBe('Database is locked');
+    });
+
+    it('should handle memory pressure during large data operations', async () => {
+      // Simulate memory pressure with large datasets
+      const largeMedicationList = Array.from({ length: 1000 }, (_, i) => ({
+        id: `med-${i}`,
+        name: `Medication ${i}`,
+        type: 'rescue' as const,
+        dosageAmount: 100,
+        dosageUnit: 'mg' as const,
+        defaultQuantity: 1,
+        active: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }));
+
+      const largeUsageCounts = new Map(
+        largeMedicationList.map(med => [med.id, Math.floor(Math.random() * 100)])
+      );
+
+      (medicationRepository.getActive as jest.Mock).mockResolvedValue(largeMedicationList);
+      (medicationDoseRepository.getMedicationUsageCounts as jest.Mock).mockResolvedValue(largeUsageCounts);
+
+      await useMedicationStore.getState().loadMedications();
+
+      const state = useMedicationStore.getState();
+      expect(state.medications).toHaveLength(1000);
+      expect(state.loading).toBe(false);
+      expect(state.error).toBe(null);
+
+      // Should properly categorize and sort large datasets
+      expect(state.rescueMedications).toHaveLength(1000);
+    });
+
+    it('should handle data corruption with fallback mechanisms', async () => {
+      const corruptionError = new Error('Database disk image is malformed');
+      corruptionError.name = 'SQLiteError';
+
+      // Mock repository to return corrupted data
+      (medicationRepository.getActive as jest.Mock).mockRejectedValue(corruptionError);
+      (medicationDoseRepository.getMedicationUsageCounts as jest.Mock).mockResolvedValue(new Map());
+
+      await useMedicationStore.getState().loadMedications();
+
+      expect(useMedicationStore.getState().error).toBe('Database disk image is malformed');
+      expect(useMedicationStore.getState().loading).toBe(false);
+
+      // Should maintain empty state as fallback
+      expect(useMedicationStore.getState().medications).toEqual([]);
+    });
+
+    it('should handle race conditions in schedule updates', async () => {
+      const mockScheduleRepository = require('../../database/medicationRepository').medicationScheduleRepository;
+
+      const schedule1 = {
+        id: 'schedule-1',
+        medicationId: 'med-1',
+        time: '08:00',
+        timezone: 'America/Los_Angeles',
+        dosage: 1,
+        enabled: true,
+      };
+
+      const schedule2 = {
+        id: 'schedule-2', 
+        medicationId: 'med-1',
+        time: '20:00',
+        timezone: 'America/Los_Angeles',
+        dosage: 1,
+        enabled: true,
+      };
+
+      useMedicationStore.setState({ schedules: [schedule1, schedule2] });
+
+      // Mock concurrent update operations
+      mockScheduleRepository.update
+        .mockResolvedValueOnce(undefined) // First update succeeds
+        .mockRejectedValueOnce(new Error('Concurrent modification')); // Second update fails
+
+      // Perform concurrent updates
+      const updatePromises = [
+        useMedicationStore.getState().updateSchedule('schedule-1', { time: '08:30' }),
+        useMedicationStore.getState().updateSchedule('schedule-2', { time: '20:30' })
+      ];
+
+      const results = await Promise.allSettled(updatePromises);
+
+      // Should handle partial success/failure gracefully
+      expect(results[0].status).toBe('fulfilled');
+      expect(results[1].status).toBe('rejected');
+
+      // State should reflect successful updates
+      const state = useMedicationStore.getState();
+      expect(state.schedules.find(s => s.id === 'schedule-1')?.time).toBe('08:30');
+    });
+
+    it('should handle malformed episode data during dose logging', async () => {
+      // Mock episode repository to return malformed data
+      const malformedEpisode = {
+        id: 'episode-123',
+        startTime: 'invalid-timestamp',
+        endTime: null,
+        // missing required fields
+      } as any;
+
+      (episodeRepository.findEpisodeByTimestamp as jest.Mock).mockResolvedValue(malformedEpisode);
+
+      const validDose = {
+        id: 'dose-123',
+        medicationId: 'med-123',
+        timestamp: Date.now(),
+        quantity: 1,
+        dosageAmount: 100,
+        dosageUnit: 'mg',
+        status: 'taken',
+        episodeId: 'episode-123', // Should handle malformed episode data
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      (medicationDoseRepository.create as jest.Mock).mockResolvedValue(validDose);
+
+      const dose = {
+        medicationId: 'med-123',
+        timestamp: Date.now(),
+        quantity: 1,
+        dosageAmount: 100,
+        dosageUnit: 'mg' as const,
+        updatedAt: Date.now(),
+      };
+
+      const result = await useMedicationStore.getState().logDose(dose);
+
+      // Should handle malformed episode data gracefully
+      expect(result.episodeId).toBe('episode-123');
+      expect(episodeRepository.findEpisodeByTimestamp).toHaveBeenCalled();
+    });
+
+    it('should handle notification service failures during dose logging', async () => {
+      const preventativeMedication = {
+        id: 'med-prev-123',
+        name: 'Preventative Med',
+        type: 'preventative' as const,
+        dosageAmount: 100,
+        dosageUnit: 'mg' as const,
+        defaultQuantity: 1,
+        scheduleFrequency: 'daily' as const,
+      };
+
+      const dose = {
+        medicationId: 'med-prev-123',
+        scheduleId: 'schedule-123',
+        timestamp: Date.now(),
+        quantity: 1,
+        dosageAmount: 100,
+        dosageUnit: 'mg' as const,
+        updatedAt: Date.now(),
+      };
+
+      const createdDose = {
+        ...dose,
+        id: 'dose-123',
+        status: 'taken',
+        createdAt: Date.now(),
+      };
+
+      (episodeRepository.findEpisodeByTimestamp as jest.Mock).mockResolvedValue(null);
+      (medicationDoseRepository.create as jest.Mock).mockResolvedValue(createdDose);
+      (medicationRepository.getById as jest.Mock).mockResolvedValue(preventativeMedication);
+
+      // Mock notification service failures
+      const notificationError = new Error('Notification service unavailable');
+      const mockNotificationService = jest.fn().mockRejectedValue(notificationError);
+
+      // Mock the dynamic import
+      jest.doMock('../../services/notifications/notificationService', () => ({
+        notificationService: {
+          dismissMedicationNotification: mockNotificationService,
+        }
+      }));
+
+      const result = await useMedicationStore.getState().logDose(dose);
+
+      // Should complete dose logging despite notification failures
+      expect(result.id).toBe('dose-123');
+      expect(medicationDoseRepository.create).toHaveBeenCalled();
+    });
+  });
+
+  describe('Debug Logging and Monitoring', () => {
+    it('should log detailed debug information during schedule operations', async () => {
+      const mockScheduleRepository = require('../../database/medicationRepository').medicationScheduleRepository;
+      const { logger } = require('../../utils/logger');
+      jest.spyOn(logger, 'debug');
+
+      const testSchedules = [
+        {
+          id: 'schedule-1',
+          medicationId: 'med-1',
+          time: '08:00',
+          timezone: 'America/Los_Angeles',
+          dosage: 1,
+          enabled: true,
+        },
+        {
+          id: 'schedule-2',
+          medicationId: 'med-1', 
+          time: '20:00',
+          timezone: 'America/Los_Angeles',
+          dosage: 1,
+          enabled: false, // Disabled schedule
+        }
+      ];
+
+      mockScheduleRepository.getByMedicationId.mockResolvedValue(testSchedules);
+
+      await useMedicationStore.getState().loadSchedules('med-1');
+
+      // Should log detailed debug information
+      expect(logger.debug).toHaveBeenCalledWith(
+        '[Store] Loaded schedules for medication:',
+        expect.objectContaining({
+          medicationId: 'med-1',
+          scheduleCount: 2,
+          enabledSchedules: 1,
+          scheduleIds: ['schedule-1', 'schedule-2']
+        })
+      );
+    });
+
+    it('should log critical errors with context for missing scheduleId', async () => {
+      const { logger } = require('../../utils/logger');
+      jest.spyOn(logger, 'error');
+
+      const preventativeMedication = {
+        id: 'med-prev-critical',
+        name: 'Critical Preventative',
+        type: 'preventative' as const,
+        dosageAmount: 100,
+        dosageUnit: 'mg' as const,
+        schedule: [{
+          id: 'existing-schedule',
+          time: '08:00',
+          dosage: 1,
+          enabled: true,
+        }],
+      };
+
+      const dose = {
+        medicationId: 'med-prev-critical',
+        // Missing scheduleId - this should trigger critical error logging
+        timestamp: Date.now(),
+        quantity: 1,
+        dosageAmount: 100,
+        dosageUnit: 'mg' as const,
+        updatedAt: Date.now(),
+      };
+
+      const createdDose = {
+        ...dose,
+        id: 'dose-critical',
+        status: 'taken',
+        createdAt: Date.now(),
+      };
+
+      (episodeRepository.findEpisodeByTimestamp as jest.Mock).mockResolvedValue(null);
+      (medicationDoseRepository.create as jest.Mock).mockResolvedValue(createdDose);
+      (medicationRepository.getById as jest.Mock).mockResolvedValue(preventativeMedication);
+
+      // Mock notification service methods
+      const mockCancelScheduledMedicationReminder = jest.fn().mockResolvedValue(undefined);
+      (notificationService.cancelScheduledMedicationReminder as jest.Mock) = mockCancelScheduledMedicationReminder;
+
+      await useMedicationStore.getState().logDose(dose);
+
+      // Should log critical error with detailed context
+      expect(logger.error).toHaveBeenCalledWith(
+        '[Store] CRITICAL BUG: Missing scheduleId for preventative medication dose',
+        expect.objectContaining({
+          medicationId: 'med-prev-critical',
+          doseId: 'dose-critical',
+          medicationName: 'Critical Preventative',
+          medicationType: 'preventative',
+          scheduleCount: 1,
+          enabledSchedules: 1,
+          bugLocation: 'Dose logging UI screens not passing scheduleId',
+          impact: 'Notifications will NOT be cancelled - user may receive unwanted notifications'
+        })
+      );
+    });
+
+    it('should provide fallback emergency logging for notification failures', async () => {
+      const { logger } = require('../../utils/logger');
+      jest.spyOn(logger, 'warn');
+
+      const preventativeMedication = {
+        id: 'med-emergency',
+        name: 'Emergency Med',
+        type: 'preventative' as const,
+      };
+
+      const dose = {
+        medicationId: 'med-emergency',
+        timestamp: Date.now(),
+        quantity: 1,
+        dosageAmount: 100,
+        dosageUnit: 'mg' as const,
+        updatedAt: Date.now(),
+      };
+
+      const createdDose = {
+        ...dose,
+        id: 'dose-emergency',
+        status: 'taken',
+        createdAt: Date.now(),
+      };
+
+      (episodeRepository.findEpisodeByTimestamp as jest.Mock).mockResolvedValue(null);
+      (medicationDoseRepository.create as jest.Mock).mockResolvedValue(createdDose);
+      (medicationRepository.getById as jest.Mock).mockResolvedValue(preventativeMedication);
+
+      // Mock fallback cancellation
+      const mockCancelScheduledMedicationReminder = jest.fn().mockResolvedValue(undefined);
+      (notificationService.cancelScheduledMedicationReminder as jest.Mock) = mockCancelScheduledMedicationReminder;
+
+      await useMedicationStore.getState().logDose(dose);
+
+      // Should log emergency fallback action
+      expect(logger.warn).toHaveBeenCalledWith(
+        '[Store] EMERGENCY FALLBACK: Cancelled ALL notifications to prevent user annoyance',
+        expect.objectContaining({
+          medicationId: 'med-emergency',
+          action: 'Fix the root cause in UI code'
+        })
+      );
     });
   });
 

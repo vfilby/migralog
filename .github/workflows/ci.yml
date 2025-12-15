@@ -45,6 +45,10 @@ jobs:
       - name: Run unit tests
         run: npm run test:ci
 
+      - name: Run notification-schedule consistency tests
+        run: npm run test:ci:notification-consistency
+        continue-on-error: false
+
       # E2E tests temporarily disabled - debugging flaky tests in PR workflow
       # Re-enable once test stability issues are resolved
       # See: https://github.com/vfilby/migralog/pull/[PR_NUMBER]

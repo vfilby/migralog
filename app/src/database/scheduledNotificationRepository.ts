@@ -11,6 +11,7 @@
 import { ulid } from 'ulidx';
 import { getDatabase } from './db';
 import { logger } from '../utils/logger';
+import { toLocalDateString } from '../utils/dateFormatting';
 import {
   ScheduledNotificationMapping,
   NotificationType,
@@ -55,6 +56,11 @@ interface ScheduledNotificationRow {
   is_grouped: number;
   group_key: string | null;
   source_type: string;
+  medication_name: string | null;
+  scheduled_trigger_time: string | null;
+  notification_title: string | null;
+  notification_body: string | null;
+  category_identifier: string | null;
   created_at: number;
 }
 
@@ -72,6 +78,11 @@ function rowToMapping(row: ScheduledNotificationRow): ScheduledNotificationMappi
     isGrouped: row.is_grouped === 1,
     groupKey: row.group_key ?? undefined,
     sourceType: (row.source_type || 'medication') as NotificationSourceType,
+    medicationName: row.medication_name ?? undefined,
+    scheduledTriggerTime: row.scheduled_trigger_time ? new Date(row.scheduled_trigger_time) : undefined,
+    notificationTitle: row.notification_title ?? undefined,
+    notificationBody: row.notification_body ?? undefined,
+    categoryIdentifier: row.category_identifier ?? undefined,
     createdAt: new Date(row.created_at).toISOString(),
   };
 }
@@ -97,8 +108,8 @@ export async function saveMapping(
 
   await db.runAsync(
     `INSERT INTO scheduled_notifications
-     (id, medication_id, schedule_id, date, notification_id, notification_type, is_grouped, group_key, source_type, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     (id, medication_id, schedule_id, date, notification_id, notification_type, is_grouped, group_key, source_type, medication_name, scheduled_trigger_time, notification_title, notification_body, category_identifier, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       mapping.medicationId,
@@ -109,6 +120,11 @@ export async function saveMapping(
       mapping.isGrouped ? 1 : 0,
       mapping.groupKey ?? null,
       sourceType,
+      mapping.medicationName ?? null,
+      mapping.scheduledTriggerTime ? mapping.scheduledTriggerTime.toISOString() : null,
+      mapping.notificationTitle ?? null,
+      mapping.notificationBody ?? null,
+      mapping.categoryIdentifier ?? null,
       createdAt,
     ]
   );
@@ -153,8 +169,8 @@ export async function saveMappingsBatch(
         const sourceType = mapping.sourceType || 'medication';
         await db.runAsync(
           `INSERT INTO scheduled_notifications
-           (id, medication_id, schedule_id, date, notification_id, notification_type, is_grouped, group_key, source_type, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           (id, medication_id, schedule_id, date, notification_id, notification_type, is_grouped, group_key, source_type, medication_name, scheduled_trigger_time, notification_title, notification_body, category_identifier, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             id,
             mapping.medicationId,
@@ -165,6 +181,11 @@ export async function saveMappingsBatch(
             mapping.isGrouped ? 1 : 0,
             mapping.groupKey ?? null,
             sourceType,
+            mapping.medicationName ?? null,
+            mapping.scheduledTriggerTime ? mapping.scheduledTriggerTime.toISOString() : null,
+            mapping.notificationTitle ?? null,
+            mapping.notificationBody ?? null,
+            mapping.categoryIdentifier ?? null,
             createdAt,
           ]
         );
@@ -404,7 +425,7 @@ export async function getMappingsByDate(
  */
 export async function getFutureMappings(): Promise<ScheduledNotificationMapping[]> {
   const db = await getDatabase();
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateString();
 
   const rows = await db.getAllAsync<ScheduledNotificationRow>(
     `SELECT * FROM scheduled_notifications
@@ -492,7 +513,7 @@ export async function getDailyCheckinMapping(
  */
 export async function getFutureDailyCheckinMappings(): Promise<ScheduledNotificationMapping[]> {
   const db = await getDatabase();
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateString();
 
   const rows = await db.getAllAsync<ScheduledNotificationRow>(
     `SELECT * FROM scheduled_notifications
@@ -509,7 +530,7 @@ export async function getFutureDailyCheckinMappings(): Promise<ScheduledNotifica
  */
 export async function countDailyCheckins(): Promise<number> {
   const db = await getDatabase();
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateString();
 
   const result = await db.getFirstAsync<{ count: number }>(
     `SELECT COUNT(*) as count FROM scheduled_notifications
@@ -556,7 +577,7 @@ export async function deleteDailyCheckinMappings(): Promise<number> {
  */
 export async function getFutureMedicationMappings(): Promise<ScheduledNotificationMapping[]> {
   const db = await getDatabase();
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateString();
 
   const rows = await db.getAllAsync<ScheduledNotificationRow>(
     `SELECT * FROM scheduled_notifications
@@ -568,12 +589,126 @@ export async function getFutureMedicationMappings(): Promise<ScheduledNotificati
   return rows.map(rowToMapping);
 }
 
+/**
+ * Find notifications by time window
+ * Used for time-based matching of dismissed notifications
+ */
+export async function findByTimeWindow(
+  targetTime: Date,
+  windowMinutes: number = 5
+): Promise<ScheduledNotificationMapping[]> {
+  const db = await getDatabase();
+  
+  const windowStart = new Date(targetTime.getTime() - windowMinutes * 60 * 1000);
+  const windowEnd = new Date(targetTime.getTime() + windowMinutes * 60 * 1000);
+
+  const rows = await db.getAllAsync<ScheduledNotificationRow>(
+    `SELECT * FROM scheduled_notifications
+     WHERE scheduled_trigger_time IS NOT NULL 
+     AND scheduled_trigger_time BETWEEN ? AND ?
+     ORDER BY scheduled_trigger_time ASC`,
+    [windowStart.toISOString(), windowEnd.toISOString()]
+  );
+
+  return rows.map(rowToMapping);
+}
+
+/**
+ * Find notifications by medication name within a date range
+ * Used for text-based matching fallback
+ */
+export async function findByMedicationName(
+  name: string,
+  dateRange: [Date, Date]
+): Promise<ScheduledNotificationMapping[]> {
+  const db = await getDatabase();
+
+  // Use local timezone conversion to avoid UTC date mismatch
+  const startDate = toLocalDateString(dateRange[0]);
+  const endDate = toLocalDateString(dateRange[1]);
+
+  const rows = await db.getAllAsync<ScheduledNotificationRow>(
+    `SELECT * FROM scheduled_notifications
+     WHERE medication_name IS NOT NULL 
+     AND LOWER(medication_name) = LOWER(?)
+     AND date BETWEEN ? AND ?
+     ORDER BY date ASC, scheduled_trigger_time ASC`,
+    [name, startDate, endDate]
+  );
+
+  return rows.map(rowToMapping);
+}
+
+/**
+ * Find notifications by category and time window
+ * Used for category-based matching
+ */
+export async function findByCategoryAndTime(
+  category: string,
+  timeWindow: [Date, Date]
+): Promise<ScheduledNotificationMapping[]> {
+  const db = await getDatabase();
+
+  const rows = await db.getAllAsync<ScheduledNotificationRow>(
+    `SELECT * FROM scheduled_notifications
+     WHERE category_identifier IS NOT NULL 
+     AND category_identifier = ?
+     AND scheduled_trigger_time IS NOT NULL
+     AND scheduled_trigger_time BETWEEN ? AND ?
+     ORDER BY scheduled_trigger_time ASC`,
+    [category, timeWindow[0].toISOString(), timeWindow[1].toISOString()]
+  );
+
+  return rows.map(rowToMapping);
+}
+
+/**
+ * Find notifications by content (title and body)
+ * Used for content-based matching
+ */
+export async function findByNotificationContent(
+  title: string,
+  body: string
+): Promise<ScheduledNotificationMapping[]> {
+  const db = await getDatabase();
+
+  const rows = await db.getAllAsync<ScheduledNotificationRow>(
+    `SELECT * FROM scheduled_notifications
+     WHERE notification_title IS NOT NULL 
+     AND notification_body IS NOT NULL
+     AND LOWER(notification_title) = LOWER(?)
+     AND LOWER(notification_body) = LOWER(?)
+     ORDER BY date ASC, scheduled_trigger_time ASC`,
+    [title, body]
+  );
+
+  return rows.map(rowToMapping);
+}
+
+/**
+ * Get a single notification mapping by notification ID
+ * Used for direct lookup of notification mappings
+ */
+export async function getByNotificationId(
+  notificationId: string
+): Promise<ScheduledNotificationMapping | null> {
+  const db = await getDatabase();
+
+  const row = await db.getFirstAsync<ScheduledNotificationRow>(
+    `SELECT * FROM scheduled_notifications WHERE notification_id = ?`,
+    [notificationId]
+  );
+
+  return row ? rowToMapping(row) : null;
+}
+
 export const scheduledNotificationRepository = {
   tableExists,
   saveMapping,
   saveMappingsBatch,
   getMapping,
   getMappingsByNotificationId,
+  getByNotificationId,
   getMappingsBySchedule,
   getMappingsByGroupKey,
   deleteMapping,
@@ -594,4 +729,9 @@ export const scheduledNotificationRepository = {
   getLastDailyCheckinDate,
   deleteDailyCheckinMappings,
   getFutureMedicationMappings,
+  // New notification metadata query methods
+  findByTimeWindow,
+  findByMedicationName,
+  findByCategoryAndTime,
+  findByNotificationContent,
 };

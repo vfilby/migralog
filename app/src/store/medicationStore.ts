@@ -269,7 +269,8 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
         // Cancel today's scheduled reminder and follow-up (one-time notification system)
         // This ensures the notification won't fire if app is killed
         const { cancelNotificationForDate, topUpNotifications } = await import('../services/notifications/medicationNotifications');
-        const today = new Date().toISOString().split('T')[0];
+        const { toLocalDateString } = await import('../utils/dateFormatting');
+        const today = toLocalDateString(); // Use local timezone, not UTC
         await cancelNotificationForDate(dose.medicationId, dose.scheduleId, today, 'reminder');
         await cancelNotificationForDate(dose.medicationId, dose.scheduleId, today, 'follow_up');
 
@@ -374,20 +375,53 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       if (medicationId) {
         // Load schedules for specific medication
         schedules = await medicationScheduleRepository.getByMedicationId(medicationId);
+        
+        // Enhanced logging for debugging the missing scheduleId issue
+        logger.debug('[Store] Loaded schedules for medication:', {
+          medicationId,
+          scheduleCount: schedules.length,
+          enabledSchedules: schedules.filter(s => s.enabled).length,
+          scheduleIds: schedules.map(s => s.id)
+        });
       } else {
         // Load all schedules for active medications using batch query
         const medicationIds = get().medications.map(m => m.id);
         schedules = await medicationScheduleRepository.getByMedicationIds(medicationIds);
+        
+        logger.debug('[Store] Loaded all schedules for active medications:', {
+          medicationCount: medicationIds.length,
+          totalSchedules: schedules.length,
+          enabledSchedules: schedules.filter(s => s.enabled).length
+        });
       }
 
-      set({ schedules });
+      // Update state - merge with existing schedules for other medications
+      if (medicationId) {
+        // Update schedules for specific medication only
+        const currentSchedules = get().schedules;
+        const updatedSchedules = [
+          ...currentSchedules.filter(s => s.medicationId !== medicationId),
+          ...schedules
+        ];
+        set({ schedules: updatedSchedules });
+      } else {
+        // Replace all schedules
+        set({ schedules });
+      }
     } catch (error) {
       await errorLogger.log('database', 'Failed to load schedules', error as Error, {
         operation: 'loadSchedules',
         medicationId
       });
+      
+      logger.error('[Store] Failed to load medication schedules:', {
+        medicationId,
+        error: error instanceof Error ? error.message : String(error),
+        operation: medicationId ? 'single-medication' : 'all-medications'
+      });
+      
       set({ error: (error as Error).message });
-      throw error;
+      throw error; // Re-throw to let callers handle the error
     }
   },
 

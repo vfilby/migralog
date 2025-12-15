@@ -275,6 +275,35 @@ export function useNotificationTesting() {
     );
   };
 
+  const handleFixScheduleInconsistencies = async () => {
+    Alert.alert(
+      'Fix Schedule Inconsistencies',
+      'This will check for and cancel notifications that contain outdated schedule IDs that no longer exist in your medications. This fixes the specific issue where notifications fail because they reference old schedules.\n\nContinue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Fix',
+          style: 'default',
+          onPress: async () => {
+            try {
+              const { fixNotificationScheduleInconsistencies } = await import('../../../services/notifications');
+              const result = await fixNotificationScheduleInconsistencies();
+              
+              Alert.alert(
+                'Inconsistency Check Complete',
+                `Found and canceled ${result.orphanedNotifications} orphaned notifications with invalid schedule IDs.\n\nInvalid schedule IDs: ${result.invalidScheduleIds.length > 0 ? result.invalidScheduleIds.join(', ').substring(0, 100) + (result.invalidScheduleIds.join(', ').length > 100 ? '...' : '') : 'None'}`
+              );
+              logger.log('[DeveloperTools] Fixed notification schedule inconsistencies:', result);
+            } catch (error) {
+              logger.error('[DeveloperTools] Failed to fix schedule inconsistencies:', error);
+              Alert.alert('Error', 'Failed to fix schedule inconsistencies');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleDiagnoseCriticalAlerts = async () => {
     try {
       // Check current permissions
@@ -395,6 +424,7 @@ If Critical Alerts didn't change, check:
     handleTestNotification,
     handleTestCriticalNotification,
     handleRecreateAllSchedules,
+    handleFixScheduleInconsistencies,
     handleDiagnoseCriticalAlerts,
     handleTestCriticalAlertsRequest,
   };

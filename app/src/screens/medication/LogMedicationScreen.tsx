@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { logger } from '../../utils/logger';
 import {
   View,
@@ -294,28 +294,71 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMedId]);
 
-  const loadMedication = (medId: string) => {
+  const loadMedication = useCallback((medId: string) => {
     // Use store method to get medication from state
     const med = getMedicationById(medId);
     if (med) {
       setMedication(med);
       setAmount(med.defaultQuantity?.toString() || '1');
     }
-  };
+  }, [getMedicationById]);
 
-  const loadMedicationSchedules = async (medId: string) => {
+  const loadMedicationSchedules = useCallback(async (medId: string, isRetry: boolean = false) => {
     try {
       // Load schedules for this medication
       await loadSchedules(medId);
       // Get schedules from state
       const medicationSchedules = getSchedulesByMedicationId(medId);
       setSchedules(medicationSchedules);
+      
+      // Enhanced debugging for schedule loading
+      const scheduleCount = medicationSchedules.length;
+      const enabledSchedules = medicationSchedules.filter(s => s.enabled).length;
+      const scheduleIds = medicationSchedules.map(s => s.id);
+      
+      logger.debug('Medication schedules loaded successfully:', {
+        medicationId: medId,
+        scheduleCount,
+        enabledSchedules,
+        scheduleIds,
+        isRetry
+      });
+      
     } catch (error) {
-      logger.error('Failed to load medication schedules:', error);
-      // Non-critical error - schedules are optional for rescue medications
-      setSchedules([]);
+      logger.error('Failed to load medication schedules:', error, {
+        medicationId: medId,
+        isRetry,
+        currentSchedulesLength: schedules.length
+      });
+      
+      // Implement retry logic for transient errors
+      if (!isRetry) {
+        logger.warn('Retrying medication schedule loading once...');
+        try {
+          await loadMedicationSchedules(medId, true);
+          return; // Successful retry, exit
+        } catch (retryError) {
+          logger.error('Retry failed for medication schedule loading:', retryError);
+        }
+      }
+      
+      // Enhanced error recovery - check medication type before clearing schedules
+      const currentMedication = getMedicationById(medId);
+      if (currentMedication?.type === 'preventative') {
+        logger.warn('Failed to load schedules for preventative medication - keeping previous schedules to prevent missing scheduleId', {
+          medicationId: medId,
+          medicationType: currentMedication.type,
+          previousSchedulesCount: schedules.length
+        });
+        // Don't clear schedules for preventative medications - keep previous state
+        // This prevents the "scheduleCount: 0" issue that causes missing scheduleId
+      } else {
+        // For rescue medications, schedules are optional so it's safe to clear
+        logger.debug('Clearing schedules for rescue/other medication type after load failure');
+        setSchedules([]);
+      }
     }
-  };
+  }, [loadSchedules, getSchedulesByMedicationId, getMedicationById, schedules.length]);
 
   /**
    * Determines the appropriate scheduleId for logging a dose at the given timestamp.
@@ -351,8 +394,54 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
     for (const schedule of medicationSchedules) {
       if (!schedule.enabled) continue;
 
+      // Validate schedule has required properties
+      if (!schedule.id || !schedule.medicationId || !schedule.timezone) {
+        logger.warn('Skipping schedule with missing required properties', { 
+          scheduleId: schedule.id, 
+          medicationId: schedule.medicationId,
+          timezone: schedule.timezone,
+          targetMedicationId: med.id 
+        });
+        continue;
+      }
+
+      // Validate schedule time format before parsing
+      if (!schedule.time || typeof schedule.time !== 'string' || !schedule.time.match(/^\d{1,2}:\d{2}$/)) {
+        logger.warn('Skipping malformed schedule time', { 
+          scheduleId: schedule.id, 
+          time: schedule.time,
+          medicationId: med.id 
+        });
+        continue;
+      }
+
       // Parse schedule time (HH:mm)
       const [scheduleHour, scheduleMinute] = schedule.time.split(':').map(Number);
+      
+      // Validate parsed time values
+      if (isNaN(scheduleHour) || isNaN(scheduleMinute) || 
+          scheduleHour < 0 || scheduleHour > 23 || 
+          scheduleMinute < 0 || scheduleMinute > 59) {
+        logger.warn('Skipping schedule with invalid time values', { 
+          scheduleId: schedule.id, 
+          time: schedule.time,
+          parsedHour: scheduleHour,
+          parsedMinute: scheduleMinute,
+          medicationId: med.id 
+        });
+        continue;
+      }
+
+      // Validate dosage
+      if (typeof schedule.dosage !== 'number' || schedule.dosage <= 0) {
+        logger.warn('Skipping schedule with invalid dosage', { 
+          scheduleId: schedule.id, 
+          dosage: schedule.dosage,
+          medicationId: med.id 
+        });
+        continue;
+      }
+
       const scheduleMinutes = scheduleHour * 60 + scheduleMinute;
 
       // Parse log time
@@ -449,6 +538,20 @@ export default function LogMedicationScreen({ route, navigation }: Props) {
       setSaving(false);
     }
   };
+
+  // Add focus listener to refresh medication and schedules when screen comes into focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      // Reload medication and schedules when screen comes into focus
+      // This handles cases where schedules were updated in EditMedicationScreen
+      if (selectedMedId) {
+        loadMedication(selectedMedId);
+        loadMedicationSchedules(selectedMedId);
+      }
+    });
+    
+    return unsubscribe;
+  }, [navigation, selectedMedId, loadMedication, loadMedicationSchedules]);
 
   if (!medication) {
     return (

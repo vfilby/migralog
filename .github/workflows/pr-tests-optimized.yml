@@ -45,6 +45,10 @@ jobs:
       - name: Run unit tests with coverage
         run: npm run test:ci
 
+      - name: Run notification-schedule consistency tests
+        run: npm run test:ci:notification-consistency
+        continue-on-error: false
+
       - name: Run ESLint (errors only)
         run: npm run test:lint:ci
 

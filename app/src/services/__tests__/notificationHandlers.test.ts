@@ -119,7 +119,7 @@ describe('Notification Action Handlers', () => {
       expect(notifyUserOfError).not.toHaveBeenCalled();
     });
 
-    it('ACT-T2: should use default quantity when schedule not found', async () => {
+    it('ACT-T2: should fail when schedule not found and notify user about inconsistency', async () => {
       // Arrange
       const medWithoutSchedule = { ...mockMedication, schedule: [] };
       (medicationRepository.getById as jest.Mock).mockResolvedValue(medWithoutSchedule);
@@ -128,10 +128,16 @@ describe('Notification Action Handlers', () => {
       const result = await handleTakeNow('med-1', 'sched-999');
 
       // Assert
-      expect(result).toBe(true);
-      expect(mockMedicationStore.logDose).toHaveBeenCalledWith(
+      expect(result).toBe(false);
+      expect(mockMedicationStore.logDose).not.toHaveBeenCalled();
+      expect(notifyUserOfError).toHaveBeenCalledWith(
+        'data',
+        expect.stringContaining('medication schedule has changed'),
+        expect.any(Error),
         expect.objectContaining({
-          quantity: 1, // Falls back to defaultQuantity
+          medicationId: 'med-1',
+          scheduleId: 'sched-999',
+          operation: 'handleTakeNow',
         })
       );
     });
