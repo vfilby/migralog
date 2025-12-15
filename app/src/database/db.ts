@@ -53,25 +53,8 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
       throw error;
     }
 
-    // Initialize database schema (creates tables if they don't exist)
-    try {
-      logger.log('[DB] Creating tables...');
-      await performanceMonitor.measure('create-tables', async () => {
-        await db!.execAsync(createTables);
-      });
-      logger.log('[DB] Tables created successfully');
-    } catch (error) {
-      logger.error('[DB] FAILED to create tables:', error);
-      await errorLogger.log(
-        'database',
-        'Failed to create database tables',
-        error as Error,
-        { operation: 'createTables' }
-      ).catch(e => logger.error('[DB] Failed to log error:', e));
-      throw error;
-    }
-
-    // Initialize migration runner
+    // Initialize migration runner FIRST to check if this is an existing database
+    // that needs migrations before we can create tables with new schema
     try {
       logger.log('[DB] Initializing migration runner...');
       await migrationRunner.initialize(db);
@@ -87,7 +70,12 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
       throw error;
     }
 
-    // Run any pending migrations
+    // Run any pending migrations BEFORE createTables
+    // This is critical because:
+    // 1. For existing databases, migrations add new columns to existing tables
+    // 2. createTables includes indexes on these new columns
+    // 3. If createTables runs first, indexes fail because columns don't exist yet
+    // 4. For fresh databases, no migrations needed and createTables creates everything
     const needsMigration = await migrationRunner.needsMigration();
     if (needsMigration) {
       logger.log('[DB] Database migrations needed, running migrations...');
@@ -122,6 +110,26 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
       }
     } else {
       logger.log('[DB] No migrations needed');
+    }
+
+    // Initialize database schema (creates tables if they don't exist)
+    // For fresh databases: creates all tables with latest schema
+    // For migrated databases: tables exist, IF NOT EXISTS is a no-op
+    try {
+      logger.log('[DB] Creating tables...');
+      await performanceMonitor.measure('create-tables', async () => {
+        await db!.execAsync(createTables);
+      });
+      logger.log('[DB] Tables created successfully');
+    } catch (error) {
+      logger.error('[DB] FAILED to create tables:', error);
+      await errorLogger.log(
+        'database',
+        'Failed to create database tables',
+        error as Error,
+        { operation: 'createTables' }
+      ).catch(e => logger.error('[DB] Failed to log error:', e));
+      throw error;
     }
 
     // Check and create weekly backup if needed (non-blocking)
