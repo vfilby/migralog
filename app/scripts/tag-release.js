@@ -72,33 +72,6 @@ try {
   // Tag doesn't exist, good to proceed
 }
 
-console.log(`\n📝 Generating changelog...`);
-
-// Generate changelog
-try {
-  execSync('npm run changelog:release', { stdio: 'inherit' });
-  console.log('✅ Changelog generated');
-} catch (error) {
-  console.error('❌ Failed to generate changelog:', error.message);
-  process.exit(1);
-}
-
-// Commit changelog if it changed
-try {
-  const changelogStatus = execSync('git status --porcelain CHANGELOG.md').toString().trim();
-  if (changelogStatus) {
-    console.log('📝 Committing changelog...');
-    execSync('git add CHANGELOG.md', { stdio: 'inherit' });
-    execSync(`git commit -m "chore: update CHANGELOG.md for ${newTag}"`, { stdio: 'inherit' });
-    console.log('✅ Changelog committed');
-  } else {
-    console.log('ℹ️  Changelog unchanged');
-  }
-} catch (error) {
-  console.error('❌ Failed to commit changelog:', error.message);
-  process.exit(1);
-}
-
 console.log(`\n🏷️  Creating tag: ${newTag}`);
 
 // Extract changelog entry for this version (for tag annotation)
@@ -147,18 +120,11 @@ try {
   process.exit(1);
 }
 
-// Push tag to remote (changelog is handled by GitHub Actions)
+// Push tag to remote
 try {
   console.log('⬆️  Pushing tag to remote...');
   execSync(`git push origin ${newTag}`, { stdio: 'inherit' });
   console.log('✅ Tag pushed to remote');
-  
-  // Check if we have unpushed changelog commits
-  const ahead = execSync('git rev-list --count origin/main..HEAD').toString().trim();
-  if (ahead > 0) {
-    console.log('ℹ️  Local changelog commits detected (these will be handled by GitHub Actions)');
-    console.log('   If you want to sync local changes: git reset --hard origin/main');
-  }
 } catch (error) {
   console.error('❌ Failed to push tag:', error.message);
   console.error('   Cleaning up local tag...');
