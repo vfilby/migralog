@@ -15,8 +15,9 @@ import * as Notifications from 'expo-notifications';
 import {
   medicationRepository,
   medicationDoseRepository,
+  medicationScheduleRepository,
 } from '../../database/medicationRepository';
-import { Medication } from '../../models/types';
+import { Medication, MedicationSchedule } from '../../models/types';
 
 // Mock dependencies
 jest.mock('expo-notifications');
@@ -73,6 +74,16 @@ describe('Notification Suppression Logic', () => {
   }
 
   describe('Single Medication Notifications', () => {
+    const mockSchedule: MedicationSchedule = {
+      id: 'sched-1',
+      medicationId: 'med-1',
+      time: '08:00',
+      timezone: 'America/Los_Angeles',
+      dosage: 1,
+      enabled: true,
+      reminderEnabled: true,
+    };
+
     const mockMedication: Medication = {
       id: 'med-1',
       name: 'Test Medication',
@@ -83,17 +94,13 @@ describe('Notification Suppression Logic', () => {
       active: true,
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      schedule: [
-        {
-          id: 'sched-1',
-          medicationId: 'med-1',
-          time: '08:00',
-          timezone: 'America/Los_Angeles',
-          dosage: 1,
-          enabled: true,
-        },
-      ],
+      schedule: [mockSchedule],
     };
+
+    beforeEach(() => {
+      // Mock schedule repository to return the schedule when queried
+      (medicationScheduleRepository.getByMedicationId as jest.Mock).mockResolvedValue([mockSchedule]);
+    });
 
     it('SUP-S1: should SHOW notification when dose NOT logged for schedule today', async () => {
       // Arrange
@@ -524,6 +531,16 @@ describe('Notification Suppression Logic', () => {
   });
 
   describe('Follow-up Notifications', () => {
+    const mockSchedule: MedicationSchedule = {
+      id: 'sched-1',
+      medicationId: 'med-1',
+      time: '08:00',
+      timezone: 'America/Los_Angeles',
+      dosage: 1,
+      enabled: true,
+      reminderEnabled: true,
+    };
+
     const mockMedication: Medication = {
       id: 'med-1',
       name: 'Test Medication',
@@ -534,17 +551,13 @@ describe('Notification Suppression Logic', () => {
       active: true,
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      schedule: [
-        {
-          id: 'sched-1',
-          medicationId: 'med-1',
-          time: '08:00',
-          timezone: 'America/Los_Angeles',
-          dosage: 1,
-          enabled: true,
-        },
-      ],
+      schedule: [mockSchedule],
     };
+
+    beforeEach(() => {
+      // Mock schedule repository to return the schedule when queried
+      (medicationScheduleRepository.getByMedicationId as jest.Mock).mockResolvedValue([mockSchedule]);
+    });
 
     it('SUP-F1: should SUPPRESS follow-up when medication was logged (any time, not just after primary)', async () => {
       // Arrange

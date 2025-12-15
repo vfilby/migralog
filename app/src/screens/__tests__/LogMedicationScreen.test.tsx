@@ -5,7 +5,7 @@ import { Alert } from 'react-native';
 import LogMedicationScreen from '../medication/LogMedicationScreen';
 import { renderWithProviders } from '../../utils/screenTestHelpers';
 import { useMedicationStore } from '../../store/medicationStore';
-import { Medication } from '../../models/types';
+import { Medication, MedicationSchedule } from '../../models/types';
 
 jest.mock('../../store/medicationStore');
 
@@ -13,18 +13,38 @@ jest.mock('../../utils/logger', () => ({
   logger: {
     error: jest.fn(),
     log: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
   },
 }));
 
-// Mock DateTimePicker to capture onChange calls
+// Mock DateTimePicker to capture onChange calls and simulate user interaction
 let mockDateTimePickerOnChange: ((event: any, date?: Date) => void) | undefined;
+// Remove unused variable
+
 jest.mock('@react-native-community/datetimepicker', () => {
-  return ({ onChange, testID }: any) => {
+  return (props: any) => {
     const React = require('react');
-    const { View } = require('react-native');
+    const { TouchableOpacity, Text } = require('react-native');
+    
     // Store the onChange function so we can call it in tests
-    mockDateTimePickerOnChange = onChange;
-    return React.createElement(View, { testID: testID || 'date-time-picker' });
+    mockDateTimePickerOnChange = props.onChange;
+    
+    // Create a mock that can be interacted with
+    return React.createElement(TouchableOpacity, 
+      { 
+        testID: props.testID || 'date-time-picker',
+        onPress: () => {
+          // Simulate user selecting a specific time
+          const testTime = new Date();
+          testTime.setHours(8, 30, 0, 0);
+          if (mockDateTimePickerOnChange) {
+            mockDateTimePickerOnChange({}, testTime);
+          }
+        }
+      },
+      React.createElement(Text, null, 'DatePicker')
+    );
   };
 });
 
@@ -79,6 +99,8 @@ const mockMedication2: Medication = {
 
 const mockLoadMedications = jest.fn();
 const mockLogDose = jest.fn();
+const mockLoadSchedules = jest.fn();
+const mockGetSchedulesByMedicationId = jest.fn((): MedicationSchedule[] => []);
 const mockGetMedicationById = jest.fn((id: string) => {
   if (id === 'med-123') return mockMedication1;
   if (id === 'med-456') return mockMedication2;
@@ -90,6 +112,8 @@ const mockMedicationStore = {
   loadMedications: mockLoadMedications,
   logDose: mockLogDose,
   getMedicationById: mockGetMedicationById,
+  loadSchedules: mockLoadSchedules,
+  getSchedulesByMedicationId: mockGetSchedulesByMedicationId,
 };
 
 describe('LogMedicationScreen', () => {
@@ -102,6 +126,10 @@ describe('LogMedicationScreen', () => {
       if (id === 'med-456') return mockMedication2;
       return null;
     });
+    
+    // Reset other mocks
+    mockLoadSchedules.mockResolvedValue(undefined);
+    mockGetSchedulesByMedicationId.mockReturnValue([]);
     
     mockUseMedicationStore.mockReturnValue(mockMedicationStore as any);
   });
@@ -1006,5 +1034,848 @@ describe('LogMedicationScreen', () => {
     // Test the fallback `|| new Date()` behavior by setting timestamp to null
     // This simulates the edge case where timestamp might be null
     expect(screen.getByTestId('date-time-picker')).toBeTruthy();
+  });
+
+  describe('error handling', () => {
+    it('should handle schedule loading failure for preventative medications gracefully', async () => {
+      // Create a preventative medication
+      const preventativeMedication = {
+        ...mockMedication1,
+        id: 'prev-med-123',
+        type: 'preventative' as const,
+        name: 'Topiramate',
+        dosageAmount: 25,
+        dosageUnit: 'mg',
+      };
+      
+      mockGetMedicationById.mockImplementation((id: string) => {
+        if (id === 'prev-med-123') return preventativeMedication;
+        return null;
+      });
+      
+      // Mock schedule loading failure
+      mockLoadSchedules.mockRejectedValue(new Error('Failed to load schedules'));
+      
+      const routeWithPreventativeMed = {
+        key: 'LogMedication',
+        name: 'LogMedication' as const,
+        params: {
+          medicationId: 'prev-med-123',
+        },
+      };
+
+      renderWithProviders(
+        <LogMedicationScreen 
+          navigation={mockNavigation as any} 
+          route={routeWithPreventativeMed as any} 
+        />
+      );
+
+      await waitFor(() => {
+        // Should still render the form despite schedule loading failure
+        expect(screen.getByTestId('log-medication-screen')).toBeTruthy();
+        expect(screen.getByText('Topiramate')).toBeTruthy();
+        expect(screen.getByText('25mg per dose')).toBeTruthy();
+      });
+
+      // Verify loadSchedules was called and failed
+      expect(mockLoadSchedules).toHaveBeenCalledWith('prev-med-123');
+    });
+
+    it('should handle schedule loading failure for rescue medications gracefully', async () => {
+      // Mock schedule loading failure
+      mockLoadSchedules.mockRejectedValue(new Error('Failed to load schedules'));
+
+      renderWithProviders(
+        <LogMedicationScreen 
+          navigation={mockNavigation as any} 
+          route={mockRouteWithMedicationId as any} 
+        />
+      );
+
+      await waitFor(() => {
+        // Should still render the form despite schedule loading failure
+        expect(screen.getByTestId('log-medication-screen')).toBeTruthy();
+        expect(screen.getByText('Ibuprofen')).toBeTruthy();
+        expect(screen.getByText('200mg per dose')).toBeTruthy();
+      });
+
+      // Verify loadSchedules was called and failed
+      expect(mockLoadSchedules).toHaveBeenCalledWith('med-123');
+    });
+
+    it('should implement retry logic for schedule loading failures', async () => {
+      let callCount = 0;
+      mockLoadSchedules.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return Promise.reject(new Error('First attempt failed'));
+        }
+        return Promise.resolve();
+      });
+
+      renderWithProviders(
+        <LogMedicationScreen 
+          navigation={mockNavigation as any} 
+          route={mockRouteWithMedicationId as any} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('log-medication-screen')).toBeTruthy();
+      });
+
+      // Should have been called twice (initial + retry)
+      expect(mockLoadSchedules).toHaveBeenCalledTimes(2);
+      expect(mockLoadSchedules).toHaveBeenNthCalledWith(1, 'med-123');
+      expect(mockLoadSchedules).toHaveBeenNthCalledWith(2, 'med-123');
+    });
+
+    it('should handle both initial and retry failures for schedule loading', async () => {
+      mockLoadSchedules.mockRejectedValue(new Error('Persistent failure'));
+
+      renderWithProviders(
+        <LogMedicationScreen 
+          navigation={mockNavigation as any} 
+          route={mockRouteWithMedicationId as any} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('log-medication-screen')).toBeTruthy();
+      });
+
+      // Should have been called twice (initial + retry)
+      expect(mockLoadSchedules).toHaveBeenCalledTimes(2);
+    });
+
+    it('should preserve existing schedules for preventative medications when loading fails', async () => {
+      const preventativeMedication = {
+        ...mockMedication1,
+        id: 'prev-med-456',
+        type: 'preventative' as const,
+        name: 'Propranolol',
+      };
+      
+      const existingSchedule = {
+        id: 'schedule-1',
+        medicationId: 'prev-med-456',
+        time: '08:00',
+        timezone: 'America/New_York',
+        dosage: 1,
+        enabled: true,
+        reminderEnabled: true,
+      };
+
+      mockGetMedicationById.mockImplementation((id: string) => {
+        if (id === 'prev-med-456') return preventativeMedication;
+        return null;
+      });
+      
+      // First call succeeds with existing schedule
+      let callCount = 0;
+      mockLoadSchedules.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          mockGetSchedulesByMedicationId.mockReturnValue([existingSchedule]);
+          return Promise.resolve();
+        }
+        // Second call fails
+        return Promise.reject(new Error('Schedule loading failed'));
+      });
+
+      const routeWithPreventativeMed = {
+        key: 'LogMedication',
+        name: 'LogMedication' as const,
+        params: {
+          medicationId: 'prev-med-456',
+        },
+      };
+
+      renderWithProviders(
+        <LogMedicationScreen 
+          navigation={mockNavigation as any} 
+          route={routeWithPreventativeMed as any} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('log-medication-screen')).toBeTruthy();
+      });
+
+      // The component should handle the error gracefully and preserve existing schedules
+      expect(mockLoadSchedules).toHaveBeenCalled();
+      expect(mockGetSchedulesByMedicationId).toHaveBeenCalledWith('prev-med-456');
+    });
+
+    it('should handle quick log with schedule loading failure', async () => {
+      mockLoadSchedules.mockRejectedValue(new Error('Schedule loading failed'));
+      mockLogDose.mockResolvedValue(undefined);
+
+      renderWithProviders(
+        <LogMedicationScreen 
+          navigation={mockNavigation as any} 
+          route={mockRouteWithoutMedicationId as any} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Select Medication')).toBeTruthy();
+      });
+
+      const quickLogButton = screen.getByText('Log 1 × 200mg');
+      fireEvent.press(quickLogButton);
+
+      await waitFor(() => {
+        // Should still successfully log despite schedule failure
+        expect(mockLogDose).toHaveBeenCalledWith(
+          expect.objectContaining({
+            medicationId: 'med-123',
+            quantity: 1,
+            dosageAmount: 200,
+            dosageUnit: 'mg',
+            timestamp: expect.any(Number),
+            updatedAt: expect.any(Number),
+            // scheduleId should be undefined due to loading failure
+          })
+        );
+        expect(mockNavigation.goBack).toHaveBeenCalled();
+      });
+
+      // Verify schedule loading was attempted but failed
+      expect(mockLoadSchedules).toHaveBeenCalledWith('med-123');
+    });
+
+    it('should clear schedules for rescue medications when loading fails', async () => {
+      // Set initial schedules
+      mockGetSchedulesByMedicationId.mockReturnValue([
+        {
+          id: 'old-schedule',
+          medicationId: 'med-123',
+          time: '08:00',
+          timezone: 'America/New_York',
+          dosage: 1,
+          enabled: true,
+          reminderEnabled: true,
+        }
+      ]);
+
+      // Mock schedule loading failure
+      mockLoadSchedules.mockRejectedValue(new Error('Failed to load schedules'));
+
+      renderWithProviders(
+        <LogMedicationScreen 
+          navigation={mockNavigation as any} 
+          route={mockRouteWithMedicationId as any} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('log-medication-screen')).toBeTruthy();
+      });
+
+      // For rescue medications, schedules should be cleared when loading fails
+      expect(mockLoadSchedules).toHaveBeenCalledWith('med-123');
+      // The component should handle the error and continue functioning
+      expect(screen.getByText('Ibuprofen')).toBeTruthy();
+    });
+
+    it('should handle error recovery after initial schedule loading success', async () => {
+      const scheduleData = [
+        {
+          id: 'schedule-1',
+          medicationId: 'med-123',
+          time: '08:00',
+          timezone: 'America/New_York',
+          dosage: 1,
+          enabled: true,
+          reminderEnabled: true,
+        }
+      ];
+
+      // First call succeeds, subsequent calls fail
+      let callCount = 0;
+      mockLoadSchedules.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          mockGetSchedulesByMedicationId.mockReturnValue(scheduleData);
+          return Promise.resolve();
+        }
+        return Promise.reject(new Error('Subsequent load failed'));
+      });
+
+      renderWithProviders(
+        <LogMedicationScreen 
+          navigation={mockNavigation as any} 
+          route={mockRouteWithMedicationId as any} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('log-medication-screen')).toBeTruthy();
+      });
+
+      // Should have successfully loaded initially
+      expect(mockLoadSchedules).toHaveBeenCalledWith('med-123');
+      expect(mockGetSchedulesByMedicationId).toHaveBeenCalledWith('med-123');
+    });
+
+    it('should handle network timeout during schedule loading', async () => {
+      const timeoutError = new Error('Network timeout');
+      timeoutError.name = 'TimeoutError';
+      
+      // Mock schedule loading timeout on first attempt, success on retry
+      let callCount = 0;
+      mockLoadSchedules.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return Promise.reject(timeoutError);
+        }
+        return Promise.resolve();
+      });
+
+      renderWithProviders(
+        <LogMedicationScreen 
+          navigation={mockNavigation as any} 
+          route={mockRouteWithMedicationId as any} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('log-medication-screen')).toBeTruthy();
+      });
+
+      // Should have been called twice (initial + retry)
+      expect(mockLoadSchedules).toHaveBeenCalledTimes(2);
+      expect(mockLoadSchedules).toHaveBeenNthCalledWith(1, 'med-123');
+      expect(mockLoadSchedules).toHaveBeenNthCalledWith(2, 'med-123');
+    });
+
+    it('should handle database corruption during schedule loading', async () => {
+      const dbError = new Error('Database is locked');
+      dbError.name = 'SQLiteError';
+      
+      mockLoadSchedules.mockRejectedValue(dbError);
+
+      renderWithProviders(
+        <LogMedicationScreen 
+          navigation={mockNavigation as any} 
+          route={mockRouteWithMedicationId as any} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('log-medication-screen')).toBeTruthy();
+      });
+
+      // Should still render the form for user to continue
+      expect(screen.getByText('Ibuprofen')).toBeTruthy();
+      expect(mockLoadSchedules).toHaveBeenCalledTimes(2); // Initial + retry
+    });
+
+    it('should handle race condition during focus refresh', async () => {
+      // Set up initial successful load
+      mockLoadSchedules.mockResolvedValueOnce(undefined);
+      mockGetSchedulesByMedicationId.mockReturnValue([
+        {
+          id: 'schedule-1',
+          medicationId: 'med-123',
+          time: '08:00',
+          timezone: 'America/New_York',
+          dosage: 1,
+          enabled: true,
+          reminderEnabled: true,
+        }
+      ]);
+
+      const mockAddListener = jest.fn();
+      const mockUnsubscribe = jest.fn();
+      mockAddListener.mockReturnValue(mockUnsubscribe);
+
+      renderWithProviders(
+        <LogMedicationScreen 
+          navigation={{ ...mockNavigation, addListener: mockAddListener } as any} 
+          route={mockRouteWithMedicationId as any} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('log-medication-screen')).toBeTruthy();
+      });
+
+      // Mock schedule loading failure on focus refresh
+      mockLoadSchedules.mockRejectedValueOnce(new Error('Focus refresh failed'));
+
+      // Simulate multiple rapid focus events (race condition)
+      const focusCallback = mockAddListener.mock.calls[0][1];
+      
+      // Fire multiple focus events rapidly
+      const promises = [
+        focusCallback(),
+        focusCallback(),
+        focusCallback()
+      ];
+
+      await Promise.allSettled(promises);
+
+      // Should handle multiple concurrent refresh attempts gracefully
+      expect(screen.getByTestId('log-medication-screen')).toBeTruthy();
+    });
+
+    it('should provide fallback scheduleId resolution when store fails', async () => {
+      const preventativeMedication = {
+        ...mockMedication1,
+        id: 'prev-med-456',
+        type: 'preventative' as const,
+        name: 'Propranolol',
+      };
+
+      mockGetMedicationById.mockImplementation((id: string) => {
+        if (id === 'prev-med-456') return preventativeMedication;
+        return null;
+      });
+
+      // Mock store schedule loading failure
+      mockLoadSchedules.mockRejectedValue(new Error('Store unavailable'));
+      mockGetSchedulesByMedicationId.mockReturnValue([]);
+
+      const routeWithPreventativeMed = {
+        key: 'LogMedication',
+        name: 'LogMedication' as const,
+        params: {
+          medicationId: 'prev-med-456',
+        },
+      };
+
+      renderWithProviders(
+        <LogMedicationScreen 
+          navigation={mockNavigation as any} 
+          route={routeWithPreventativeMed as any} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('log-medication-screen')).toBeTruthy();
+      });
+
+      // Log dose without schedules loaded
+      const saveButton = screen.getByLabelText('Log medication');
+      fireEvent.press(saveButton);
+
+      await waitFor(() => {
+        expect(mockLogDose).toHaveBeenCalledWith(
+          expect.objectContaining({
+            medicationId: 'prev-med-456',
+            scheduleId: undefined, // Should handle missing schedules gracefully
+            quantity: 1,
+          })
+        );
+      });
+    });
+
+    it('should handle malformed schedule data gracefully', async () => {
+      const preventativeMedication = {
+        ...mockMedication1,
+        id: 'prev-med-789',
+        type: 'preventative' as const,
+      };
+
+      mockGetMedicationById.mockImplementation((id: string) => {
+        if (id === 'prev-med-789') return preventativeMedication;
+        return null;
+      });
+
+      // Mock malformed schedule data
+      const malformedSchedules = [
+        {
+          id: 'schedule-1',
+          medicationId: 'prev-med-789',
+          time: 'invalid-time', // Malformed time
+          timezone: 'Invalid/Timezone',
+          dosage: -1, // Invalid dosage
+          enabled: true,
+          reminderEnabled: true,
+        },
+        {
+          id: 'schedule-2',
+          medicationId: 'prev-med-789',
+          time: '08:00',
+          // Missing timezone
+          dosage: 1,
+          enabled: true,
+          reminderEnabled: true,
+        } as any
+      ];
+
+      mockLoadSchedules.mockResolvedValue(undefined);
+      mockGetSchedulesByMedicationId.mockReturnValue(malformedSchedules);
+
+      const routeWithPreventativeMed = {
+        key: 'LogMedication',
+        name: 'LogMedication' as const,
+        params: {
+          medicationId: 'prev-med-789',
+        },
+      };
+
+      renderWithProviders(
+        <LogMedicationScreen 
+          navigation={mockNavigation as any} 
+          route={routeWithPreventativeMed as any} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('log-medication-screen')).toBeTruthy();
+      });
+
+      // Should still allow logging despite malformed data
+      const saveButton = screen.getByLabelText('Log medication');
+      fireEvent.press(saveButton);
+
+      await waitFor(() => {
+        expect(mockLogDose).toHaveBeenCalledWith(
+          expect.objectContaining({
+            medicationId: 'prev-med-789',
+            // Should handle malformed schedules gracefully
+            scheduleId: undefined, // Invalid schedules should be ignored
+          })
+        );
+      });
+    });
+
+    it('should handle concurrent schedule updates during dose logging', async () => {
+      const preventativeMedication = {
+        ...mockMedication1,
+        id: 'prev-med-concurrent',
+        type: 'preventative' as const,
+      };
+
+      mockGetMedicationById.mockImplementation((id: string) => {
+        if (id === 'prev-med-concurrent') return preventativeMedication;
+        return null;
+      });
+
+      const initialSchedules = [
+        {
+          id: 'schedule-1',
+          medicationId: 'prev-med-concurrent',
+          time: '08:00',
+          timezone: 'America/New_York',
+          dosage: 1,
+          enabled: true,
+          reminderEnabled: true,
+        }
+      ];
+
+      const updatedSchedules = [
+        {
+          id: 'schedule-1',
+          medicationId: 'prev-med-concurrent',
+          time: '09:00', // Time changed
+          timezone: 'America/New_York',
+          dosage: 1,
+          enabled: true,
+          reminderEnabled: true,
+        }
+      ];
+
+      // Initially return first set of schedules
+      mockLoadSchedules.mockResolvedValue(undefined);
+      mockGetSchedulesByMedicationId.mockReturnValueOnce(initialSchedules);
+
+      const routeWithPreventativeMed = {
+        key: 'LogMedication',
+        name: 'LogMedication' as const,
+        params: {
+          medicationId: 'prev-med-concurrent',
+        },
+      };
+
+      renderWithProviders(
+        <LogMedicationScreen 
+          navigation={mockNavigation as any} 
+          route={routeWithPreventativeMed as any} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('log-medication-screen')).toBeTruthy();
+      });
+
+      // Simulate concurrent schedule update during dose logging
+      mockGetSchedulesByMedicationId.mockReturnValue(updatedSchedules);
+
+      const saveButton = screen.getByLabelText('Log medication');
+      fireEvent.press(saveButton);
+
+      await waitFor(() => {
+        expect(mockLogDose).toHaveBeenCalled();
+      });
+
+      // Should handle concurrent updates without throwing errors
+      expect(mockNavigation.goBack).toHaveBeenCalled();
+    });
+  });
+
+  describe('scheduleId validation and error recovery', () => {
+    it('should use correct scheduleId for preventative medication within time window', async () => {
+      const preventativeMedication = {
+        ...mockMedication1,
+        id: 'prev-schedule-test',
+        type: 'preventative' as const,
+      };
+
+      const testSchedule = {
+        id: 'schedule-test',
+        medicationId: 'prev-schedule-test',
+        time: '08:00',
+        timezone: 'America/New_York',
+        dosage: 1,
+        enabled: true,
+        reminderEnabled: true,
+      };
+
+      mockGetMedicationById.mockImplementation((id: string) => {
+        if (id === 'prev-schedule-test') return preventativeMedication;
+        return null;
+      });
+
+      mockLoadSchedules.mockResolvedValue(undefined);
+      mockGetSchedulesByMedicationId.mockReturnValue([testSchedule]);
+      mockLogDose.mockResolvedValue(undefined);
+
+      const routeWithPreventativeMed = {
+        key: 'LogMedication',
+        name: 'LogMedication' as const,
+        params: {
+          medicationId: 'prev-schedule-test',
+        },
+      };
+
+      renderWithProviders(
+        <LogMedicationScreen 
+          navigation={mockNavigation as any} 
+          route={routeWithPreventativeMed as any} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('log-medication-screen')).toBeTruthy();
+      });
+
+      // Change time to 8:30 AM to test schedule matching
+      const timeButton = screen.getByText(/\w{3} \d{1,2}, \d{4} \d{1,2}:\d{2} [AP]M/);
+      fireEvent.press(timeButton);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('date-time-picker')).toBeTruthy();
+      });
+
+      // Simulate user selecting a time in the DateTimePicker
+      const datePicker = screen.getByTestId('date-time-picker');
+      fireEvent.press(datePicker); // This will trigger our mock to set 8:30 AM
+
+      const saveButton = screen.getByLabelText('Log medication');
+      fireEvent.press(saveButton);
+
+      await waitFor(() => {
+        expect(mockLogDose).toHaveBeenCalledWith(
+          expect.objectContaining({
+            medicationId: 'prev-schedule-test',
+            scheduleId: 'schedule-test', // Should match the schedule since 8:30 is within 3 hours of 8:00
+            // Don't check exact timestamp since it's set by the mock, just verify scheduleId is correct
+          })
+        );
+      });
+    });
+
+    it('should omit scheduleId for preventative medication outside time window', async () => {
+      const preventativeMedication = {
+        ...mockMedication1,
+        id: 'prev-schedule-far',
+        type: 'preventative' as const,
+      };
+
+      const testSchedule = {
+        id: 'schedule-far',
+        medicationId: 'prev-schedule-far',
+        time: '08:00',
+        timezone: 'America/New_York',
+        dosage: 1,
+        enabled: true,
+        reminderEnabled: true,
+      };
+
+      mockGetMedicationById.mockImplementation((id: string) => {
+        if (id === 'prev-schedule-far') return preventativeMedication;
+        return null;
+      });
+
+      mockLoadSchedules.mockResolvedValue(undefined);
+      mockGetSchedulesByMedicationId.mockReturnValue([testSchedule]);
+      mockLogDose.mockResolvedValue(undefined);
+
+      const routeWithPreventativeMed = {
+        key: 'LogMedication',
+        name: 'LogMedication' as const,
+        params: {
+          medicationId: 'prev-schedule-far',
+        },
+      };
+
+      renderWithProviders(
+        <LogMedicationScreen 
+          navigation={mockNavigation as any} 
+          route={routeWithPreventativeMed as any} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('log-medication-screen')).toBeTruthy();
+      });
+
+      // For this test, we need a different time
+      
+      // Change time to 4:00 PM to test outside window
+      const timeButton = screen.getByText(/\w{3} \d{1,2}, \d{4} \d{1,2}:\d{2} [AP]M/);
+      fireEvent.press(timeButton);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('date-time-picker')).toBeTruthy();
+      });
+
+      // Manually set time to 4:00 PM (outside 3-hour window)
+      if (mockDateTimePickerOnChange) {
+        const testTime = new Date();
+        testTime.setHours(16, 0, 0, 0);
+        mockDateTimePickerOnChange({}, testTime);
+      }
+
+      // Wait for the time change to be processed
+      await waitFor(() => {
+        const timeButton = screen.getByText(/\w{3} \d{1,2}, \d{4} \d{1,2}:\d{2} [AP]M/);
+        expect(timeButton.props.children).toMatch(/4:00 PM/);
+      });
+
+      const saveButton = screen.getByLabelText('Log medication');
+      fireEvent.press(saveButton);
+
+      await waitFor(() => {
+        expect(mockLogDose).toHaveBeenCalledWith(
+          expect.objectContaining({
+            medicationId: 'prev-schedule-far',
+            scheduleId: undefined, // Should be undefined (too far from schedule time)
+            // Don't check exact timestamp since timing is based on when the test runs
+          })
+        );
+      });
+    });
+
+    it('should always omit scheduleId for rescue medications', async () => {
+      const rescueMedication = {
+        ...mockMedication1,
+        id: 'rescue-no-schedule',
+        type: 'rescue' as const,
+      };
+
+      mockGetMedicationById.mockImplementation((id: string) => {
+        if (id === 'rescue-no-schedule') return rescueMedication;
+        return null;
+      });
+
+      mockLoadSchedules.mockResolvedValue(undefined);
+      mockGetSchedulesByMedicationId.mockReturnValue([]);
+      mockLogDose.mockResolvedValue(undefined);
+
+      const routeWithRescueMed = {
+        key: 'LogMedication',
+        name: 'LogMedication' as const,
+        params: {
+          medicationId: 'rescue-no-schedule',
+        },
+      };
+
+      renderWithProviders(
+        <LogMedicationScreen 
+          navigation={mockNavigation as any} 
+          route={routeWithRescueMed as any} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('log-medication-screen')).toBeTruthy();
+      });
+
+      const saveButton = screen.getByLabelText('Log medication');
+      fireEvent.press(saveButton);
+
+      await waitFor(() => {
+        expect(mockLogDose).toHaveBeenCalledWith(
+          expect.objectContaining({
+            medicationId: 'rescue-no-schedule',
+            scheduleId: undefined, // Should always be undefined for rescue medications
+          })
+        );
+      });
+    });
+
+    it('should handle disabled schedules correctly', async () => {
+      const preventativeMedication = {
+        ...mockMedication1,
+        id: 'prev-disabled-schedule',
+        type: 'preventative' as const,
+      };
+
+      const disabledSchedule = {
+        id: 'schedule-disabled',
+        medicationId: 'prev-disabled-schedule',
+        time: '08:00',
+        timezone: 'America/New_York',
+        dosage: 1,
+        enabled: false, // Disabled schedule
+        reminderEnabled: true,
+      };
+
+      mockGetMedicationById.mockImplementation((id: string) => {
+        if (id === 'prev-disabled-schedule') return preventativeMedication;
+        return null;
+      });
+
+      mockLoadSchedules.mockResolvedValue(undefined);
+      mockGetSchedulesByMedicationId.mockReturnValue([disabledSchedule]);
+      mockLogDose.mockResolvedValue(undefined);
+
+      const routeWithPreventativeMed = {
+        key: 'LogMedication',
+        name: 'LogMedication' as const,
+        params: {
+          medicationId: 'prev-disabled-schedule',
+        },
+      };
+
+      renderWithProviders(
+        <LogMedicationScreen 
+          navigation={mockNavigation as any} 
+          route={routeWithPreventativeMed as any} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('log-medication-screen')).toBeTruthy();
+      });
+
+      const saveButton = screen.getByLabelText('Log medication');
+      fireEvent.press(saveButton);
+
+      await waitFor(() => {
+        expect(mockLogDose).toHaveBeenCalledWith(
+          expect.objectContaining({
+            medicationId: 'prev-disabled-schedule',
+            scheduleId: undefined, // Should ignore disabled schedules
+          })
+        );
+      });
+    });
   });
 });

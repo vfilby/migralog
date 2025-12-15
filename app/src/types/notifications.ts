@@ -24,6 +24,7 @@ export type NotificationSourceType = 'medication' | 'daily_checkin';
  * - Track which notifications are scheduled for reconciliation
  * - Handle grouped notifications (multiple meds at same time)
  * - Track daily check-in notifications
+ * - Cross-reference notifications for dismissal using multiple matching strategies
  */
 export interface ScheduledNotificationMapping {
   /** Unique identifier for this mapping */
@@ -52,6 +53,21 @@ export interface ScheduledNotificationMapping {
 
   /** Source type - 'medication' or 'daily_checkin' */
   sourceType: NotificationSourceType;
+
+  /** Medication name for text-based matching fallback */
+  medicationName?: string;
+
+  /** Exact trigger time for time-based matching */
+  scheduledTriggerTime?: Date;
+
+  /** Notification title for content matching */
+  notificationTitle?: string;
+
+  /** Notification body for content matching */
+  notificationBody?: string;
+
+  /** Category identifier for category-based matching */
+  categoryIdentifier?: string;
 
   /** When this mapping was created */
   createdAt?: string;

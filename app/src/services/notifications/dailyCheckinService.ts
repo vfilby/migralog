@@ -5,6 +5,8 @@ import { format, addDays, startOfDay } from 'date-fns';
 import { areNotificationsGloballyEnabled } from './notificationUtils';
 import { Episode } from '../../models/types';
 import { scheduledNotificationRepository } from '../../database/scheduledNotificationRepository';
+import { extractMedicationName, calculateTriggerTime } from './notificationScheduler';
+import { notificationDismissalService } from './NotificationDismissalService';
 
 // Lazy imports to avoid require cycles
 const getDailyStatusStore = () =>
@@ -462,34 +464,54 @@ class DailyCheckinService {
           continue;
         }
 
+        // Prepare notification content
+        const notificationContent = {
+          title: 'How was your day?',
+          body: 'Tap to log how you\'re feeling today',
+          data: {
+            type: 'daily_checkin',
+            date: dateString,
+          },
+          categoryIdentifier: DAILY_CHECKIN_CATEGORY,
+          sound: true,
+          ...(settings.timeSensitive && {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            interruptionLevel: 'timeSensitive' as any,
+          }),
+          ...(Notifications.AndroidNotificationPriority && {
+            priority: settings.timeSensitive
+              ? Notifications.AndroidNotificationPriority.HIGH
+              : Notifications.AndroidNotificationPriority.DEFAULT,
+          }),
+        };
+
         // Schedule the notification
         const notificationId = await Notifications.scheduleNotificationAsync({
-          content: {
-            title: 'How was your day?',
-            body: 'Tap to log how you\'re feeling today',
-            data: {
-              type: 'daily_checkin',
-              date: dateString,
-            },
-            categoryIdentifier: DAILY_CHECKIN_CATEGORY,
-            sound: true,
-            ...(settings.timeSensitive && {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              interruptionLevel: 'timeSensitive' as any,
-            }),
-            ...(Notifications.AndroidNotificationPriority && {
-              priority: settings.timeSensitive
-                ? Notifications.AndroidNotificationPriority.HIGH
-                : Notifications.AndroidNotificationPriority.DEFAULT,
-            }),
-          },
+          content: notificationContent,
           trigger: {
             type: Notifications.SchedulableTriggerInputTypes.DATE,
             date: triggerDate,
           },
         });
 
-        // Save the mapping to database
+        // Extract comprehensive metadata from notification content and trigger
+        const metadata = {
+          medicationName: extractMedicationName(notificationContent.title),
+          scheduledTriggerTime: calculateTriggerTime(triggerDate),
+          notificationTitle: notificationContent.title,
+          notificationBody: notificationContent.body,
+          categoryIdentifier: notificationContent.categoryIdentifier,
+        };
+
+        logger.log('[DailyCheckin] Extracted metadata for daily check-in:', {
+          date: dateString,
+          notificationId,
+          medicationName: metadata.medicationName,
+          triggerTime: metadata.scheduledTriggerTime?.toISOString(),
+          categoryIdentifier: metadata.categoryIdentifier,
+        });
+
+        // Save the mapping with metadata to database
         await scheduledNotificationRepository.saveMapping({
           medicationId: null,
           scheduleId: null,
@@ -498,6 +520,12 @@ class DailyCheckinService {
           notificationType: 'daily_checkin',
           isGrouped: false,
           sourceType: 'daily_checkin',
+          // Include extracted metadata (convert null to undefined for optional fields)
+          medicationName: metadata.medicationName || undefined,
+          scheduledTriggerTime: metadata.scheduledTriggerTime || undefined,
+          notificationTitle: metadata.notificationTitle || undefined,
+          notificationBody: metadata.notificationBody || undefined,
+          categoryIdentifier: metadata.categoryIdentifier || undefined,
         });
       }
 
@@ -563,7 +591,12 @@ class DailyCheckinService {
   }
 
   /**
-   * Dismiss and cancel the daily check-in notification for a specific date
+   * Dismiss and cancel the daily check-in notification for a specific date using cross-reference logic
+   *
+   * NEW IMPLEMENTATION: Uses NotificationDismissalService for consistent dismissal logic
+   * - Database cross-reference for exact matching
+   * - Fallback strategies for robust dismissal
+   * - Comprehensive logging and error handling
    *
    * Called when a day status is logged to:
    * 1. Dismiss any already-presented notification in the notification center
@@ -580,36 +613,71 @@ class DailyCheckinService {
       return;
     }
 
-    // Check if the table exists (handles case where migrations haven't run yet)
-    const tableReady = await scheduledNotificationRepository.tableExists();
-    if (!tableReady) {
-      logger.log('[DailyCheckin] Table not ready, skipping dismiss');
-      return;
-    }
-
     try {
-      // Dismiss any already-presented notifications in the notification center
-      const presentedNotifications = await Notifications.getPresentedNotificationsAsync();
-      for (const notification of presentedNotifications) {
-        const data = notification.request.content.data as { type?: string; date?: string };
-        if (data.type === 'daily_checkin' && (!data.date || data.date === date)) {
-          await Notifications.dismissNotificationAsync(notification.request.identifier);
-          logger.log('[DailyCheckin] Dismissed presented notification:', notification.request.identifier);
-        }
-      }
+      logger.info('[DailyCheckin] Dismissing notifications for date using cross-reference service', {
+        date,
+        component: 'DailyCheckinDismissal',
+      });
 
-      // Cancel the scheduled notification for this date if it exists
-      const mapping = await scheduledNotificationRepository.getDailyCheckinMapping(date);
-      if (mapping) {
-        await Notifications.cancelScheduledNotificationAsync(mapping.notificationId);
-        await scheduledNotificationRepository.deleteMapping(mapping.id);
-        logger.log('[DailyCheckin] Cancelled and removed notification for date:', date);
+      // Use the cross-reference service for consistent dismissal logic
+      const success = await notificationDismissalService.dismissDailyCheckinForDate(date);
+
+      if (success) {
+        logger.info('[DailyCheckin] Successfully dismissed daily check-in via cross-reference service', {
+          date,
+          component: 'DailyCheckinDismissal',
+        });
+      } else {
+        logger.warn('[DailyCheckin] Cross-reference service could not dismiss daily check-in', {
+          date,
+          component: 'DailyCheckinDismissal',
+        });
       }
 
       // Top up notifications to maintain coverage
       await this.topUpNotifications();
     } catch (error) {
-      logger.error('[DailyCheckin] Error dismissing notifications:', error);
+      logger.error('[DailyCheckin] Error dismissing notifications via cross-reference service:', error);
+      
+      // Fallback to original logic if cross-reference service fails
+      logger.info('[DailyCheckin] Attempting fallback dismissal logic', {
+        date,
+        component: 'DailyCheckinDismissal',
+      });
+
+      try {
+        // Check if the table exists (handles case where migrations haven't run yet)
+        const tableReady = await scheduledNotificationRepository.tableExists();
+        if (!tableReady) {
+          logger.log('[DailyCheckin] Table not ready, skipping fallback dismiss');
+          return;
+        }
+
+        // Dismiss any already-presented notifications in the notification center
+        const presentedNotifications = await Notifications.getPresentedNotificationsAsync();
+        for (const notification of presentedNotifications) {
+          const data = notification.request.content.data as { type?: string; date?: string };
+          if (data.type === 'daily_checkin' && (!data.date || data.date === date)) {
+            await Notifications.dismissNotificationAsync(notification.request.identifier);
+            logger.log('[DailyCheckin] Dismissed presented notification (fallback):', notification.request.identifier);
+          }
+        }
+
+        // Cancel the scheduled notification for this date if it exists
+        const mapping = await scheduledNotificationRepository.getDailyCheckinMapping(date);
+        if (mapping) {
+          await Notifications.cancelScheduledNotificationAsync(mapping.notificationId);
+          await scheduledNotificationRepository.deleteMapping(mapping.id);
+          logger.log('[DailyCheckin] Cancelled and removed notification for date (fallback):', date);
+        }
+
+        logger.info('[DailyCheckin] Fallback dismissal completed successfully', {
+          date,
+          component: 'DailyCheckinDismissal',
+        });
+      } catch (fallbackError) {
+        logger.error('[DailyCheckin] Fallback dismissal also failed:', fallbackError);
+      }
     }
   }
 }

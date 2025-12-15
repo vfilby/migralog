@@ -10,6 +10,7 @@ import {
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { ScheduleFrequency, MedicationSchedule } from '../../models/types';
 import { useTheme, ThemeColors } from '../../theme';
+import { toLocalDateString } from '../../utils/dateFormatting';
 
 interface MedicationScheduleManagerProps {
   scheduleFrequency: ScheduleFrequency;
@@ -125,8 +126,8 @@ export default function MedicationScheduleManager({
   const [dosageInputs, setDosageInputs] = useState<{ [key: number]: string }>({});
 
   const handleAddSchedule = () => {
-    const today = new Date();
-    const dateString = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+    // Use local timezone date to avoid UTC conversion issues
+    const dateString = toLocalDateString(); // YYYY-MM-DD format
 
     // Get device's current timezone as default
     const deviceTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -210,7 +211,8 @@ export default function MedicationScheduleManager({
     }
 
     if (selectedDate && selectedDateScheduleIndex !== null) {
-      const dateString = selectedDate.toISOString().split('T')[0]; // YYYY-MM-DD
+      // Use local timezone date to avoid UTC conversion issues
+      const dateString = toLocalDateString(selectedDate); // YYYY-MM-DD
       handleTimeChange(selectedDateScheduleIndex, dateString);
     }
   };

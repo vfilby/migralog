@@ -377,6 +377,7 @@ export default function MedicationsScreen() {
       // Log to database first to get the ID
       const dose = await logDose({
         medicationId,
+        scheduleId, // Include scheduleId for preventative medication notification cancellation
         timestamp: now,
         quantity: dosage,
         dosageAmount: medication.dosageAmount,

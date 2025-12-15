@@ -300,6 +300,126 @@ const migrations: Migration[] = [
       logger.log('Migration 21 rollback: Complete');
     },
   },
+  {
+    version: 22,
+    name: 'add_notification_metadata_to_scheduled_notifications',
+    up: async (db: SQLite.SQLiteDatabase) => {
+      logger.log('Migration 22: Adding notification metadata columns to scheduled_notifications...');
+
+      // SQLite doesn't support adding CHECK constraints via ALTER TABLE
+      // Must recreate the table with the new schema
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS scheduled_notifications_new (
+          id TEXT PRIMARY KEY,
+          medication_id TEXT,
+          schedule_id TEXT,
+          date TEXT NOT NULL,
+          notification_id TEXT NOT NULL,
+          notification_type TEXT NOT NULL DEFAULT 'reminder' CHECK(notification_type IN ('reminder', 'follow_up', 'daily_checkin')),
+          is_grouped INTEGER DEFAULT 0 CHECK(is_grouped IN (0, 1)),
+          group_key TEXT,
+          source_type TEXT NOT NULL DEFAULT 'medication' CHECK(source_type IN ('medication', 'daily_checkin')),
+          medication_name VARCHAR(200),
+          scheduled_trigger_time TEXT,
+          notification_title TEXT,
+          notification_body TEXT,
+          category_identifier VARCHAR(50),
+          created_at INTEGER NOT NULL CHECK(created_at > 0),
+          FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE,
+          FOREIGN KEY (schedule_id) REFERENCES medication_schedules(id) ON DELETE CASCADE,
+          UNIQUE(medication_id, schedule_id, date, notification_type)
+        );
+      `);
+
+      // Copy existing data - new columns will be NULL
+      await db.execAsync(`
+        INSERT INTO scheduled_notifications_new
+          (id, medication_id, schedule_id, date, notification_id, notification_type, is_grouped, group_key, source_type, created_at)
+        SELECT
+          id, medication_id, schedule_id, date, notification_id, notification_type, is_grouped, group_key, source_type, created_at
+        FROM scheduled_notifications;
+      `);
+
+      // Drop old table and rename new one
+      await db.execAsync('DROP TABLE scheduled_notifications;');
+      await db.execAsync('ALTER TABLE scheduled_notifications_new RENAME TO scheduled_notifications;');
+
+      // Recreate existing indexes
+      await db.execAsync(`
+        CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_date
+          ON scheduled_notifications(date);
+        CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_group
+          ON scheduled_notifications(group_key, date);
+        CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_notification_id
+          ON scheduled_notifications(notification_id);
+        CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_source_type
+          ON scheduled_notifications(source_type, date);
+      `);
+
+      // Add new indexes for the new metadata columns
+      await db.execAsync(`
+        CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_medication_name
+          ON scheduled_notifications(medication_name, date) WHERE medication_name IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_trigger_time
+          ON scheduled_notifications(scheduled_trigger_time) WHERE scheduled_trigger_time IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_category
+          ON scheduled_notifications(category_identifier, scheduled_trigger_time) WHERE category_identifier IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_content
+          ON scheduled_notifications(notification_title, notification_body) WHERE notification_title IS NOT NULL;
+      `);
+
+      logger.log('Migration 22: Notification metadata columns and indexes added successfully');
+    },
+    down: async (db: SQLite.SQLiteDatabase) => {
+      logger.log('Migration 22 rollback: Removing notification metadata columns...');
+
+      // Recreate the table with v21 schema (without metadata columns)
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS scheduled_notifications_new (
+          id TEXT PRIMARY KEY,
+          medication_id TEXT,
+          schedule_id TEXT,
+          date TEXT NOT NULL,
+          notification_id TEXT NOT NULL,
+          notification_type TEXT NOT NULL DEFAULT 'reminder' CHECK(notification_type IN ('reminder', 'follow_up', 'daily_checkin')),
+          is_grouped INTEGER DEFAULT 0 CHECK(is_grouped IN (0, 1)),
+          group_key TEXT,
+          source_type TEXT NOT NULL DEFAULT 'medication' CHECK(source_type IN ('medication', 'daily_checkin')),
+          created_at INTEGER NOT NULL CHECK(created_at > 0),
+          FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE,
+          FOREIGN KEY (schedule_id) REFERENCES medication_schedules(id) ON DELETE CASCADE,
+          UNIQUE(medication_id, schedule_id, date, notification_type)
+        );
+      `);
+
+      // Copy data (excluding the new metadata columns)
+      await db.execAsync(`
+        INSERT INTO scheduled_notifications_new
+          (id, medication_id, schedule_id, date, notification_id, notification_type, is_grouped, group_key, source_type, created_at)
+        SELECT
+          id, medication_id, schedule_id, date, notification_id, notification_type, is_grouped, group_key, source_type, created_at
+        FROM scheduled_notifications;
+      `);
+
+      // Drop old table and rename new one
+      await db.execAsync('DROP TABLE scheduled_notifications;');
+      await db.execAsync('ALTER TABLE scheduled_notifications_new RENAME TO scheduled_notifications;');
+
+      // Recreate v21 indexes
+      await db.execAsync(`
+        CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_date
+          ON scheduled_notifications(date);
+        CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_group
+          ON scheduled_notifications(group_key, date);
+        CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_notification_id
+          ON scheduled_notifications(notification_id);
+        CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_source_type
+          ON scheduled_notifications(source_type, date);
+      `);
+
+      logger.log('Migration 22 rollback: Complete');
+    },
+  },
 ];
 
 class MigrationRunner {
@@ -535,6 +655,62 @@ class MigrationRunner {
           }
 
           logger.log('Migration 20: scheduled_notifications table and indexes verified');
+          break;
+
+        case 22:
+          // Verify notification metadata columns exist
+          const v22Tables = await this.db.getAllAsync<{ name: string }>(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+          );
+          const v22TableNames = v22Tables.map(t => t.name);
+
+          if (!v22TableNames.includes('scheduled_notifications')) {
+            logger.error('Smoke test failed: scheduled_notifications table not found');
+            return false;
+          }
+
+          // Verify new metadata columns exist
+          const v22Columns = await this.db.getAllAsync<{ name: string }>(
+            "PRAGMA table_info(scheduled_notifications)"
+          );
+          const v22ColumnNames = v22Columns.map(c => c.name);
+
+          const requiredNewColumns = [
+            'medication_name',
+            'scheduled_trigger_time', 
+            'notification_title',
+            'notification_body',
+            'category_identifier'
+          ];
+
+          for (const column of requiredNewColumns) {
+            if (!v22ColumnNames.includes(column)) {
+              logger.error(`Smoke test failed: Column ${column} not found after migration 22`);
+              return false;
+            }
+          }
+
+          // Verify new indexes exist
+          const v22Indexes = await this.db.getAllAsync<{ name: string }>(
+            "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='scheduled_notifications'"
+          );
+          const v22IndexNames = v22Indexes.map(i => i.name);
+
+          const expectedNewIndexes = [
+            'idx_scheduled_notifications_medication_name',
+            'idx_scheduled_notifications_trigger_time',
+            'idx_scheduled_notifications_category', 
+            'idx_scheduled_notifications_content'
+          ];
+
+          for (const idx of expectedNewIndexes) {
+            if (!v22IndexNames.includes(idx)) {
+              logger.error(`Smoke test failed: Index ${idx} not found after migration 22`);
+              return false;
+            }
+          }
+
+          logger.log('Migration 22: Notification metadata columns and indexes verified');
           break;
       }
 

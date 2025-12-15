@@ -1,6 +1,6 @@
 {
   "name": "migralog",
-  "version": "1.1.103",
+  "version": "1.1.105",
   "main": "index.ts",
   "scripts": {
     "start": "npm run generate-build-info && expo start --dev-client",
@@ -21,6 +21,8 @@
     "test:ui:onboarding": "bash scripts/trigger-onboarding.sh",
     "sim:ios:load-db": "bash scripts/load-test-db.sh",
     "sim:ios:app": "bash scripts/launch-simulator.sh",
+    "sim:files": "bash ../scripts/open-simulator-files.sh",
+    "sim:unpack": "bash ../scripts/unpack-debug-archive.sh",
     "eas-build-post-install": "node scripts/generate-build-info.js",
     "release:alpha": "node scripts/tag-release.js alpha",
     "release:beta": "node scripts/tag-release.js beta",
@@ -40,6 +42,7 @@
     "@react-navigation/native-stack": "^7.3.26",
     "@sentry/react-native": "~7.2.0",
     "@types/jest": "29.5.14",
+    "buffer": "^6.0.3",
     "date-fns": "^4.1.0",
     "eas": "^0.1.0",
     "expo": "^54.0.25",
@@ -52,6 +55,7 @@
     "expo-sqlite": "~16.0.9",
     "expo-status-bar": "~3.0.8",
     "jest": "29.7.0",
+    "jszip": "^3.10.1",
     "react": "19.1.0",
     "react-dom": "^19.1.0",
     "react-native": "0.81.5",
