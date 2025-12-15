@@ -36,6 +36,7 @@ export {
   dismissMedicationNotification,
   rescheduleAllMedicationNotifications,
   rescheduleAllNotifications,
+  fixNotificationScheduleInconsistencies,
 } from './medicationNotifications';
 
 export {

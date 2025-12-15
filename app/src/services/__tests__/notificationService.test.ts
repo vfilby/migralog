@@ -14,6 +14,7 @@ jest.mock('../../database/medicationRepository');
 jest.mock('../../database/scheduledNotificationRepository');
 jest.mock('../../services/errorLogger');
 jest.mock('@react-native-async-storage/async-storage');
+jest.mock('../notifications/NotificationDismissalService');
 
 // Add AndroidNotificationPriority enum to mocked Notifications
 (Notifications as any).AndroidNotificationPriority = {
@@ -50,6 +51,10 @@ jest.mock('@react-native-async-storage/async-storage');
 
 // NOW import the service after mocks are set up
 import { notificationService, handleIncomingNotification } from '../notifications/notificationService';
+import { notificationDismissalService } from '../notifications/NotificationDismissalService';
+
+// Mock the NotificationDismissalService
+const mockNotificationDismissalService = notificationDismissalService as jest.Mocked<typeof notificationDismissalService>;
 
 describe('notificationService', () => {
   beforeEach(() => {
@@ -826,6 +831,11 @@ describe('notificationService', () => {
   });
 
   describe('dismissMedicationNotification', () => {
+    beforeEach(() => {
+      // Reset the dismissal service mock for each test
+      mockNotificationDismissalService.shouldDismissNotification.mockReset();
+    });
+
     it('should dismiss single medication notification', async () => {
       const mockPresentedNotifs = [
         {
@@ -843,6 +853,26 @@ describe('notificationService', () => {
       ];
 
       (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue(mockPresentedNotifs);
+
+      // Mock the dismissal service to return shouldDismiss: true for the matching notification
+      mockNotificationDismissalService.shouldDismissNotification.mockImplementation(
+        async (notificationId, medicationId, scheduleId) => {
+          if (notificationId === 'notif-1' && medicationId === 'med-123' && scheduleId === 'sched-1') {
+            return {
+              shouldDismiss: true,
+              strategy: 'database_id_lookup',
+              confidence: 100,
+              context: 'Test match',
+            };
+          }
+          return {
+            shouldDismiss: false,
+            strategy: 'none',
+            confidence: 0,
+            context: 'No match',
+          };
+        }
+      );
 
       // BREAKING CHANGE (DIS-106b): scheduleId is now required
       await notificationService.dismissMedicationNotification('med-123', 'sched-1');
@@ -890,6 +920,14 @@ describe('notificationService', () => {
 
       // SAFETY FIX (DIS-130): Mock that ALL medications are logged
       (medicationDoseRepository.wasLoggedForScheduleToday as jest.Mock).mockResolvedValue(true);
+
+      // Mock the dismissal service to indicate the grouped notification should be dismissed
+      mockNotificationDismissalService.shouldDismissNotification.mockResolvedValue({
+        shouldDismiss: true,
+        strategy: 'database_id_lookup',
+        confidence: 100,
+        context: 'All medications in group logged',
+      });
 
       await notificationService.dismissMedicationNotification('med-123', 'sched-1');
 
@@ -1280,17 +1318,21 @@ describe('notificationService', () => {
           active: true,
           createdAt: Date.now(),
           updatedAt: Date.now(),
-          schedule: [{
-            id: 'sched-1',
-            medicationId: 'med-1',
-            time: '21:30',
-            timezone: 'America/Los_Angeles',
-            dosage: 1,
-            enabled: true,
-          }],
+          schedule: [], // Schedules are loaded separately from repository
+        };
+
+        const mockSchedule: MedicationSchedule = {
+          id: 'sched-1',
+          medicationId: 'med-1',
+          time: '21:30',
+          timezone: 'America/Los_Angeles',
+          dosage: 1,
+          enabled: true,
+          reminderEnabled: true,
         };
 
         (medicationRepository.getById as jest.Mock).mockResolvedValue(mockMedication);
+        (medicationScheduleRepository.getByMedicationId as jest.Mock).mockResolvedValue([mockSchedule]);
         (medicationDoseRepository.wasLoggedForScheduleToday as jest.Mock).mockResolvedValue(true);
 
         const notification = {
@@ -1306,6 +1348,7 @@ describe('notificationService', () => {
 
         const result = await handleIncomingNotification(notification);
 
+        expect(medicationScheduleRepository.getByMedicationId).toHaveBeenCalledWith('med-1');
         expect(medicationDoseRepository.wasLoggedForScheduleToday).toHaveBeenCalledWith(
           'med-1',
           'sched-1',

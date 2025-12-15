@@ -6,6 +6,11 @@ import {
   ScheduledNotificationMappingInput,
 } from '../../types/notifications';
 import { scheduledNotificationRepository } from '../../database/scheduledNotificationRepository';
+import {
+  toLocalDateString,
+  toLocalDateStringOffset,
+  localDateTimeFromStrings,
+} from '../../utils/dateFormatting';
 
 /**
  * Schedule a notification for a specific date/time
@@ -130,8 +135,9 @@ export async function getPresentedNotifications(): Promise<Notifications.Notific
  *
  * This function ensures consistency between OS notifications and our database:
  * 1. Schedules the notification with the OS
- * 2. Saves the mapping to our database
- * 3. On DB failure, cancels the notification (compensating transaction)
+ * 2. Extracts comprehensive metadata from notification content and trigger
+ * 3. Saves the mapping with metadata to our database
+ * 4. On DB failure, cancels the notification (compensating transaction)
  *
  * @param content - Notification content
  * @param trigger - Date when the notification should fire
@@ -167,16 +173,42 @@ export async function scheduleNotificationAtomic(
       medicationId: mapping.medicationId,
     });
 
-    // Step 2: Save the mapping to our database
+    // Step 2: Extract comprehensive metadata from notification content and trigger
+    const metadata = {
+      medicationName: extractMedicationName(content.title || ''),
+      scheduledTriggerTime: calculateTriggerTime(trigger),
+      notificationTitle: content.title || '',
+      notificationBody: content.body || '',
+      categoryIdentifier: content.categoryIdentifier || '',
+    };
+
+    logger.log('[NotificationScheduler] Extracted metadata:', {
+      notificationId,
+      medicationName: metadata.medicationName,
+      triggerTime: metadata.scheduledTriggerTime?.toISOString(),
+      categoryIdentifier: metadata.categoryIdentifier,
+    });
+
+    // Step 3: Save the mapping with metadata to our database
     const savedMapping = await scheduledNotificationRepository.saveMapping({
       ...mapping,
       notificationId,
+      // Include extracted metadata (convert null to undefined for optional fields)
+      medicationName: metadata.medicationName || undefined,
+      scheduledTriggerTime: metadata.scheduledTriggerTime || undefined,
+      notificationTitle: metadata.notificationTitle || undefined,
+      notificationBody: metadata.notificationBody || undefined,
+      categoryIdentifier: metadata.categoryIdentifier || undefined,
     });
 
     logger.log('[NotificationScheduler] Atomic scheduling complete:', {
       mappingId: savedMapping.id,
       notificationId,
       date: mapping.date,
+      withMetadata: {
+        medicationName: metadata.medicationName,
+        categoryIdentifier: metadata.categoryIdentifier,
+      },
     });
 
     return savedMapping;
@@ -269,31 +301,94 @@ export async function cancelNotificationAtomic(notificationId: string): Promise<
 }
 
 /**
- * Get today's date in YYYY-MM-DD format
+ * Get today's date in YYYY-MM-DD format (local timezone)
+ *
+ * @deprecated Use toLocalDateString() from '../../utils/dateFormatting' directly.
+ * This is a re-export for backwards compatibility.
  */
 export function getTodayDateString(): string {
-  return new Date().toISOString().split('T')[0];
+  return toLocalDateString();
 }
 
 /**
- * Get a date string for N days from today
+ * Get a date string for N days from today in YYYY-MM-DD format (local timezone)
+ *
+ * @deprecated Use toLocalDateStringOffset() from '../../utils/dateFormatting' directly.
+ * This is a re-export for backwards compatibility.
  */
 export function getDateStringForDaysAhead(days: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  return date.toISOString().split('T')[0];
+  return toLocalDateStringOffset(days);
 }
 
 /**
- * Create a Date object for a specific date and time
+ * Create a Date object for a specific date and time in local timezone
  *
- * @param dateString - Date in YYYY-MM-DD format
- * @param timeString - Time in HH:MM format
- * @returns Date object for the specified date and time
+ * @deprecated Use localDateTimeFromStrings() from '../../utils/dateFormatting' directly.
+ * This is a re-export for backwards compatibility.
  */
 export function createDateTimeFromStrings(dateString: string, timeString: string): Date {
-  const [hours, minutes] = timeString.split(':').map(Number);
-  const date = new Date(dateString);
-  date.setHours(hours, minutes, 0, 0);
-  return date;
+  return localDateTimeFromStrings(dateString, timeString);
+}
+
+/**
+ * Extract medication name from notification title
+ * 
+ * Handles patterns like:
+ * - "Time for Ibuprofen" -> "Ibuprofen"
+ * - "Reminder: Aspirin" -> "Aspirin"
+ * - "How was your day?" -> null (daily check-in)
+ * 
+ * @param title - Notification title
+ * @returns Extracted medication name or null if not found
+ */
+export function extractMedicationName(title: string): string | null {
+  // Pattern: "Time for <medication>" or "Reminder: <medication>"
+  const timeForMatch = title.match(/^Time for (.+)$/);
+  if (timeForMatch) {
+    return timeForMatch[1].trim();
+  }
+
+  const reminderMatch = title.match(/^Reminder: (.+)$/);
+  if (reminderMatch) {
+    return reminderMatch[1].trim();
+  }
+
+  // No medication name found (e.g., daily check-in notifications)
+  return null;
+}
+
+/**
+ * Calculate exact trigger time from notification trigger
+ * 
+ * @param trigger - Notification trigger (Date or other trigger type)
+ * @returns Calculated trigger time or null if cannot be determined
+ */
+export function calculateTriggerTime(trigger: Date | Notifications.NotificationTriggerInput): Date | null {
+  // If trigger is already a Date object (used in scheduleNotificationAtomic)
+  if (trigger instanceof Date) {
+    return new Date(trigger);
+  }
+
+  // Handle different trigger types from Expo Notifications
+  if (typeof trigger === 'object' && trigger !== null) {
+    // Date trigger type
+    if ('date' in trigger && trigger.date instanceof Date) {
+      return new Date(trigger.date);
+    }
+
+    // Time interval trigger (not commonly used in this app, but handle gracefully)
+    if ('seconds' in trigger && typeof trigger.seconds === 'number') {
+      return new Date(Date.now() + trigger.seconds * 1000);
+    }
+
+    // Calendar trigger (not used in this app, but handle gracefully) 
+    if ('dateComponents' in trigger) {
+      // Complex calendar trigger - would need more logic to calculate exact time
+      // For now, return null as this isn't used in the current app
+      return null;
+    }
+  }
+
+  // Unknown trigger type
+  return null;
 }

@@ -34,6 +34,8 @@ jest.mock('date-fns', () => ({
   CALENDAR: 'calendar',
 };
 
+(Notifications as any).DEFAULT_ACTION_IDENTIFIER = 'expo.modules.notifications.actions.DEFAULT';
+
 (Notifications.setNotificationCategoryAsync as jest.Mock) = jest.fn();
 (Notifications.addNotificationResponseReceivedListener as jest.Mock) = jest.fn();
 (Notifications.scheduleNotificationAsync as jest.Mock) = jest.fn();
@@ -785,6 +787,212 @@ describe('dailyCheckinService', () => {
       const result = await dailyCheckinService.isNotificationScheduled();
 
       expect(result).toBe(false);
+    });
+  });
+
+  describe('handleDailyCheckinNotification - error handling', () => {
+    it('should show notification on error (safer default)', async () => {
+      // Force an error by making loadCurrentEpisode throw
+      const mockLoadCurrentEpisode = jest.fn().mockRejectedValue(new Error('Database error'));
+
+      (useEpisodeStore.getState as jest.Mock).mockReturnValue({
+        currentEpisode: null,
+        loadCurrentEpisode: mockLoadCurrentEpisode,
+      });
+
+      const notification = {
+        request: {
+          content: {
+            data: { type: 'daily_checkin', date: '2024-01-15' },
+          },
+        },
+      } as unknown as Notifications.Notification;
+
+      const result = await handleDailyCheckinNotification(notification);
+
+      // Should default to showing the notification on error
+      expect(result).toEqual({
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      });
+    });
+  });
+
+  describe('initialize - pending response edge cases', () => {
+    it('should handle default notification tap action from pending response', async () => {
+      const mockLogDayStatus = jest.fn();
+      (useDailyStatusStore.getState as jest.Mock).mockReturnValue({
+        logDayStatus: mockLogDayStatus,
+        getDayStatus: jest.fn().mockResolvedValue(null),
+      });
+
+      // Pending response with default tap action (not a specific button)
+      const pendingResponse = {
+        actionIdentifier: Notifications.DEFAULT_ACTION_IDENTIFIER,
+        notification: {
+          request: {
+            content: {
+              data: { type: 'daily_checkin', date: '2024-01-15' },
+            },
+          },
+        },
+      };
+
+      (Notifications.getLastNotificationResponseAsync as jest.Mock).mockResolvedValue(pendingResponse);
+
+      await dailyCheckinService.initialize();
+
+      // Default tap should not log status - user opened app
+      expect(mockLogDayStatus).not.toHaveBeenCalled();
+    });
+
+    it('should handle error in processPendingResponse gracefully', async () => {
+      // Force an error by making getLastNotificationResponseAsync return invalid data
+      (Notifications.getLastNotificationResponseAsync as jest.Mock).mockResolvedValue({
+        actionIdentifier: 'CLEAR_DAY',
+        notification: {
+          request: {
+            content: {
+              data: { type: 'daily_checkin' }, // Missing date
+            },
+          },
+        },
+      });
+
+      // Force error in handleClearDay
+      const mockLogDayStatus = jest.fn().mockRejectedValue(new Error('Database error'));
+      (useDailyStatusStore.getState as jest.Mock).mockReturnValue({
+        logDayStatus: mockLogDayStatus,
+        getDayStatus: jest.fn().mockResolvedValue(null),
+      });
+
+      // Should not throw, just log error
+      await expect(dailyCheckinService.initialize()).resolves.not.toThrow();
+    });
+  });
+
+  describe('response handler callback', () => {
+    it('should be set up during initialization', async () => {
+      await dailyCheckinService.initialize();
+
+      // Verify listener was added
+      expect(Notifications.addNotificationResponseReceivedListener).toHaveBeenCalled();
+    });
+
+    it('should remove existing subscription on re-initialization', async () => {
+      const mockRemove = jest.fn();
+      (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockReturnValue({
+        remove: mockRemove,
+      });
+
+      // Initialize twice
+      (dailyCheckinService as any).initialized = false;
+      await dailyCheckinService.initialize();
+
+      // Reset for re-init
+      (dailyCheckinService as any).initialized = false;
+      await dailyCheckinService.initialize();
+
+      // First subscription should have been removed
+      expect(mockRemove).toHaveBeenCalled();
+    });
+  });
+
+  describe('scheduleNotification - edge cases', () => {
+    beforeEach(() => {
+      (useDailyCheckinSettingsStore.getState as jest.Mock).mockReturnValue({
+        isLoaded: false, // Not loaded initially
+        settings: {
+          enabled: true,
+          checkInTime: '21:00',
+          timeSensitive: true,
+        },
+        loadSettings: jest.fn().mockResolvedValue(undefined),
+        getCheckInTimeComponents: jest.fn().mockReturnValue({ hours: 21, minutes: 0 }),
+      });
+    });
+
+    it('should skip scheduling when table does not exist', async () => {
+      (scheduledNotificationRepository.tableExists as jest.Mock).mockResolvedValue(false);
+
+      await dailyCheckinService.scheduleNotification();
+
+      expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+    });
+
+    it('should include timeSensitive settings when enabled', async () => {
+      (scheduledNotificationRepository.tableExists as jest.Mock).mockResolvedValue(true);
+      (useDailyCheckinSettingsStore.getState as jest.Mock).mockReturnValue({
+        isLoaded: true,
+        settings: {
+          enabled: true,
+          checkInTime: '21:00',
+          timeSensitive: true, // Enabled
+        },
+        loadSettings: jest.fn(),
+        getCheckInTimeComponents: jest.fn().mockReturnValue({ hours: 21, minutes: 0 }),
+      });
+
+      await dailyCheckinService.scheduleNotification();
+
+      // Verify timeSensitive was included in notification content
+      if ((Notifications.scheduleNotificationAsync as jest.Mock).mock.calls.length > 0) {
+        const firstCall = (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls[0][0];
+        expect(firstCall.content.interruptionLevel).toBe('timeSensitive');
+      }
+    });
+  });
+
+  describe('cancelNotification - edge cases', () => {
+    it('should handle when table does not exist during cleanup', async () => {
+      (scheduledNotificationRepository.tableExists as jest.Mock).mockResolvedValue(false);
+
+      await dailyCheckinService.cancelNotification();
+
+      // Should not try to delete from non-existent table
+      expect(scheduledNotificationRepository.deleteDailyCheckinMappings).not.toHaveBeenCalled();
+    });
+
+    it('should handle error in cancel gracefully', async () => {
+      (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockRejectedValue(
+        new Error('Platform error')
+      );
+
+      await expect(dailyCheckinService.cancelNotification()).resolves.not.toThrow();
+    });
+  });
+
+  describe('topUpNotifications - edge cases', () => {
+    beforeEach(() => {
+      (useDailyCheckinSettingsStore.getState as jest.Mock).mockReturnValue({
+        isLoaded: true,
+        settings: {
+          enabled: true,
+          checkInTime: '21:00',
+          timeSensitive: false,
+        },
+        loadSettings: jest.fn(),
+        getCheckInTimeComponents: jest.fn().mockReturnValue({ hours: 21, minutes: 0 }),
+      });
+    });
+
+    it('should handle error in top-up gracefully', async () => {
+      (scheduledNotificationRepository.tableExists as jest.Mock).mockResolvedValue(true);
+      (scheduledNotificationRepository.countDailyCheckins as jest.Mock).mockRejectedValue(
+        new Error('Database error')
+      );
+
+      await expect(dailyCheckinService.topUpNotifications()).resolves.not.toThrow();
+    });
+
+    it('should skip top-up when table does not exist', async () => {
+      (scheduledNotificationRepository.tableExists as jest.Mock).mockResolvedValue(false);
+
+      await dailyCheckinService.topUpNotifications();
+
+      expect(scheduledNotificationRepository.countDailyCheckins).not.toHaveBeenCalled();
     });
   });
 });

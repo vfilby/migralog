@@ -1,6 +1,6 @@
 // Database schema and initialization
 
-export const SCHEMA_VERSION = 21;
+export const SCHEMA_VERSION = 22;
 
 export const createTables = `
   -- Episodes table
@@ -141,6 +141,28 @@ export const createTables = `
     CHECK(status = 'yellow' OR status_type IS NULL)
   );
 
+  -- Scheduled notifications table (for one-time notification tracking)
+  CREATE TABLE IF NOT EXISTS scheduled_notifications (
+    id TEXT PRIMARY KEY,
+    medication_id TEXT,
+    schedule_id TEXT,
+    date TEXT NOT NULL,
+    notification_id TEXT NOT NULL,
+    notification_type TEXT NOT NULL DEFAULT 'reminder' CHECK(notification_type IN ('reminder', 'follow_up', 'daily_checkin')),
+    is_grouped INTEGER DEFAULT 0 CHECK(is_grouped IN (0, 1)),
+    group_key TEXT,
+    source_type TEXT NOT NULL DEFAULT 'medication' CHECK(source_type IN ('medication', 'daily_checkin')),
+    medication_name TEXT CHECK(medication_name IS NULL OR length(medication_name) <= 200),
+    scheduled_trigger_time TEXT,
+    notification_title TEXT,
+    notification_body TEXT,
+    category_identifier TEXT CHECK(category_identifier IS NULL OR length(category_identifier) <= 50),
+    created_at INTEGER NOT NULL CHECK(created_at > 0),
+    FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE,
+    FOREIGN KEY (schedule_id) REFERENCES medication_schedules(id) ON DELETE CASCADE,
+    UNIQUE(medication_id, schedule_id, date, notification_type)
+  );
+
   -- Indexes for better query performance
   CREATE INDEX IF NOT EXISTS idx_episodes_start_time ON episodes(start_time);
   CREATE INDEX IF NOT EXISTS idx_intensity_readings_episode ON intensity_readings(episode_id);
@@ -154,6 +176,10 @@ export const createTables = `
   CREATE INDEX IF NOT EXISTS idx_daily_status_status ON daily_status_logs(status);
   CREATE INDEX IF NOT EXISTS idx_episode_notes_episode ON episode_notes(episode_id);
   CREATE INDEX IF NOT EXISTS idx_episode_notes_timestamp ON episode_notes(episode_id, timestamp);
+  CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_date ON scheduled_notifications(date);
+  CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_group ON scheduled_notifications(group_key, date);
+  CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_notification_id ON scheduled_notifications(notification_id);
+  CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_source_type ON scheduled_notifications(source_type, date);
 
   -- Composite indexes for common query patterns (added in v9)
   CREATE INDEX IF NOT EXISTS idx_episodes_date_range ON episodes(start_time, end_time);
@@ -162,4 +188,10 @@ export const createTables = `
   CREATE INDEX IF NOT EXISTS idx_reminders_incomplete ON medication_reminders(medication_id, scheduled_time) WHERE completed = 0;
   CREATE INDEX IF NOT EXISTS idx_intensity_readings_time ON intensity_readings(episode_id, timestamp);
   CREATE INDEX IF NOT EXISTS idx_daily_status_date_status ON daily_status_logs(date, status);
+
+  -- Scheduled notifications metadata indexes (added in v22)
+  CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_medication_name ON scheduled_notifications(medication_name, date) WHERE medication_name IS NOT NULL;
+  CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_trigger_time ON scheduled_notifications(scheduled_trigger_time) WHERE scheduled_trigger_time IS NOT NULL;
+  CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_category ON scheduled_notifications(category_identifier, scheduled_trigger_time) WHERE category_identifier IS NOT NULL;
+  CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_content ON scheduled_notifications(notification_title, notification_body) WHERE notification_title IS NOT NULL;
 `;

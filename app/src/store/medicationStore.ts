@@ -269,13 +269,38 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
         // Cancel today's scheduled reminder and follow-up (one-time notification system)
         // This ensures the notification won't fire if app is killed
         const { cancelNotificationForDate, topUpNotifications } = await import('../services/notifications/medicationNotifications');
-        const today = new Date().toISOString().split('T')[0];
+        const { toLocalDateString } = await import('../utils/dateFormatting');
+        const today = toLocalDateString(); // Use local timezone, not UTC
         await cancelNotificationForDate(dose.medicationId, dose.scheduleId, today, 'reminder');
         await cancelNotificationForDate(dose.medicationId, dose.scheduleId, today, 'follow_up');
 
         // Top up notifications to maintain the scheduled count
         await topUpNotifications();
         logger.log('[Store] Cancelled scheduled notifications and topped up for logged medication');
+      } else {
+        // ERROR: Missing scheduleId for preventative medication
+        const medication = await medicationRepository.getById(dose.medicationId);
+        if (medication && medication.type === 'preventative') {
+          logger.error('[Store] CRITICAL BUG: Missing scheduleId for preventative medication dose', {
+            medicationId: dose.medicationId,
+            doseId: newDose.id,
+            medicationName: medication.name,
+            medicationType: medication.type,
+            scheduleCount: medication.schedule?.length || 0,
+            enabledSchedules: medication.schedule?.filter(s => s.enabled).length || 0,
+            bugLocation: 'Dose logging UI screens not passing scheduleId',
+            impact: 'Notifications will NOT be cancelled - user may receive unwanted notifications'
+          });
+          
+          // For now, still do fallback cancellation to prevent user annoyance,
+          // but this should be treated as a bug to fix, not normal operation
+          await notificationService.cancelScheduledMedicationReminder(dose.medicationId);
+          
+          logger.warn('[Store] EMERGENCY FALLBACK: Cancelled ALL notifications to prevent user annoyance', {
+            medicationId: dose.medicationId,
+            action: 'Fix the root cause in UI code'
+          });
+        }
       }
 
       // Add to doses in state
@@ -350,20 +375,53 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       if (medicationId) {
         // Load schedules for specific medication
         schedules = await medicationScheduleRepository.getByMedicationId(medicationId);
+        
+        // Enhanced logging for debugging the missing scheduleId issue
+        logger.debug('[Store] Loaded schedules for medication:', {
+          medicationId,
+          scheduleCount: schedules.length,
+          enabledSchedules: schedules.filter(s => s.enabled).length,
+          scheduleIds: schedules.map(s => s.id)
+        });
       } else {
         // Load all schedules for active medications using batch query
         const medicationIds = get().medications.map(m => m.id);
         schedules = await medicationScheduleRepository.getByMedicationIds(medicationIds);
+        
+        logger.debug('[Store] Loaded all schedules for active medications:', {
+          medicationCount: medicationIds.length,
+          totalSchedules: schedules.length,
+          enabledSchedules: schedules.filter(s => s.enabled).length
+        });
       }
 
-      set({ schedules });
+      // Update state - merge with existing schedules for other medications
+      if (medicationId) {
+        // Update schedules for specific medication only
+        const currentSchedules = get().schedules;
+        const updatedSchedules = [
+          ...currentSchedules.filter(s => s.medicationId !== medicationId),
+          ...schedules
+        ];
+        set({ schedules: updatedSchedules });
+      } else {
+        // Replace all schedules
+        set({ schedules });
+      }
     } catch (error) {
       await errorLogger.log('database', 'Failed to load schedules', error as Error, {
         operation: 'loadSchedules',
         medicationId
       });
+      
+      logger.error('[Store] Failed to load medication schedules:', {
+        medicationId,
+        error: error instanceof Error ? error.message : String(error),
+        operation: medicationId ? 'single-medication' : 'all-medications'
+      });
+      
       set({ error: (error as Error).message });
-      throw error;
+      throw error; // Re-throw to let callers handle the error
     }
   },
 
