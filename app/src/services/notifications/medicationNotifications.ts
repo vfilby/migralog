@@ -19,10 +19,10 @@ import { notifyUserOfError } from './errorNotificationHelper';
 import { scheduledNotificationRepository } from '../../database/scheduledNotificationRepository';
 import { NotificationType, ScheduledNotificationMappingInput } from '../../types/notifications';
 import { notificationDismissalService } from './NotificationDismissalService';
+import { MEDICATION_REMINDER_CATEGORY, MULTIPLE_MEDICATION_REMINDER_CATEGORY } from './notificationCategories';
 
-// Notification categories for action buttons
-export const MEDICATION_REMINDER_CATEGORY = 'MEDICATION_REMINDER';
-export const MULTIPLE_MEDICATION_REMINDER_CATEGORY = 'MULTIPLE_MEDICATION_REMINDER';
+// Re-export notification categories for backward compatibility
+export { MEDICATION_REMINDER_CATEGORY, MULTIPLE_MEDICATION_REMINDER_CATEGORY };
 
 /**
  * Handle "Take Now" action - log medication immediately

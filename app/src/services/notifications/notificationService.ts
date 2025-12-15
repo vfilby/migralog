@@ -22,6 +22,9 @@ import {
   cancelNotification,
 } from './notificationScheduler';
 
+// Import notification categories from shared file
+import { MEDICATION_REMINDER_CATEGORY, MULTIPLE_MEDICATION_REMINDER_CATEGORY } from './notificationCategories';
+
 // Lazy import to avoid circular dependency with medicationStore
 // medicationNotifications imports medicationStore, which imports notificationService
 let medicationNotificationsModule: typeof import('./medicationNotifications') | null = null;
@@ -35,9 +38,8 @@ const getMedicationNotifications = async () => {
 // Re-export types and functions for backwards compatibility
 export type { NotificationPermissions };
 
-// Re-export constants that are needed at module load time
-export const MEDICATION_REMINDER_CATEGORY = 'MEDICATION_REMINDER';
-export const MULTIPLE_MEDICATION_REMINDER_CATEGORY = 'MULTIPLE_MEDICATION_REMINDER';
+// Re-export constants for backwards compatibility
+export { MEDICATION_REMINDER_CATEGORY, MULTIPLE_MEDICATION_REMINDER_CATEGORY };
 
 /**
  * Handle incoming notifications and decide whether to show them

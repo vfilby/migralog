@@ -2,7 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { logger } from '../../utils/logger';
 import { medicationRepository, medicationDoseRepository } from '../../database/medicationRepository';
 import { scheduledNotificationRepository } from '../../database/scheduledNotificationRepository';
-import { MEDICATION_REMINDER_CATEGORY, MULTIPLE_MEDICATION_REMINDER_CATEGORY } from './medicationNotifications';
+import { MEDICATION_REMINDER_CATEGORY, MULTIPLE_MEDICATION_REMINDER_CATEGORY } from './notificationCategories';
 
 /**
  * Result of a notification dismissal check
