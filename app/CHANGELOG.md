@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ##### 🎯 User-Facing Changes
 
+- ✨ **Feature:** add timestamps to log output [`#302`](https://github.com/vfilby/migralog/pull/302)
 - 🐛 **Fix:** Eliminate require cycle between NotificationDismissalService and medicationNotifications [`#300`](https://github.com/vfilby/migralog/pull/300)
 - ✨ **Feature:** implement multi-select symptom and pain location editing [`#289`](https://github.com/vfilby/migralog/pull/289)
 - 🐛 **Fix:** UTC timezone bugs in notification scheduling and cancellation [`#293`](https://github.com/vfilby/migralog/pull/293)
@@ -145,6 +146,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - Fix: Medication status sync between Dashboard and Medications screen (Issue #7) [`#9`](https://github.com/vfilby/migralog/pull/9)
 - ✨ **Feature:** Improve symptom timeline UI and move episode metadata [`#6`](https://github.com/vfilby/migralog/pull/6)
 - 🐛 **Fix:** Medication tracking UI persistence bug [`#1`](https://github.com/vfilby/migralog/pull/1)
+- ✨ **Feature:** add timestamps to log output (#302) [`#296`](https://github.com/vfilby/MigraineTracker/issues/296)
 - Refactor screens and components to enforce store architecture (#275) (#276) [`#275`](https://github.com/vfilby/MigraineTracker/issues/275)
 - 🐛 **Fix:** Implement Phase 3 code review feedback for notification error handling (#265) [`#264`](https://github.com/vfilby/MigraineTracker/issues/264)
 - ✨ **Feature:** add centralized database retry mechanism for transient SQLite errors (#249) [`#56`](https://github.com/vfilby/MigraineTracker/issues/56)
