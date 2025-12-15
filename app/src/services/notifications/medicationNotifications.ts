@@ -9,10 +9,12 @@ import {
   scheduleNotification,
   scheduleNotificationAtomic,
   cancelNotificationAtomic,
-  getTodayDateString,
-  getDateStringForDaysAhead,
-  createDateTimeFromStrings,
 } from './notificationScheduler';
+import {
+  toLocalDateString,
+  toLocalDateStringOffset,
+  localDateTimeFromStrings,
+} from '../../utils/dateFormatting';
 import { notifyUserOfError } from './errorNotificationHelper';
 import { scheduledNotificationRepository } from '../../database/scheduledNotificationRepository';
 import { NotificationType, ScheduledNotificationMappingInput } from '../../types/notifications';
@@ -1591,7 +1593,7 @@ export async function cancelNotificationForDate(
 
         if (medication && schedule) {
           // Schedule a single notification
-          const triggerDate = createDateTimeFromStrings(date, schedule.time);
+          const triggerDate = localDateTimeFromStrings(date, schedule.time);
 
           if (triggerDate > new Date()) {
             const effectiveSettings = useNotificationSettingsStore.getState().getEffectiveSettings(medication.id);
@@ -1641,7 +1643,7 @@ export async function cancelNotificationForDate(
         }
 
         if (medications.length > 1) {
-          const triggerDate = createDateTimeFromStrings(date, mapping.groupKey!);
+          const triggerDate = localDateTimeFromStrings(date, mapping.groupKey!);
 
           if (triggerDate > new Date()) {
             // Schedule new grouped notification
@@ -1726,7 +1728,7 @@ export async function scheduleNotificationsForDays(
   startDate?: string
 ): Promise<void> {
   const effectiveSettings = useNotificationSettingsStore.getState().getEffectiveSettings(medication.id);
-  const today = startDate || getTodayDateString();
+  const today = startDate || toLocalDateString();
 
   logger.log('[Notification] Scheduling notifications for days:', {
     medicationId: medication.id,
@@ -1736,11 +1738,9 @@ export async function scheduleNotificationsForDays(
   });
 
   for (let i = 0; i < days; i++) {
-    const dateString = startDate
-      ? getDateStringForDaysAhead(i)
-      : getDateStringForDaysAhead(i);
+    const dateString = toLocalDateStringOffset(i);
 
-    const triggerDate = createDateTimeFromStrings(dateString, schedule.time);
+    const triggerDate = localDateTimeFromStrings(dateString, schedule.time);
 
     // Skip if trigger time has already passed
     if (triggerDate <= new Date()) {
@@ -1890,7 +1890,7 @@ export async function topUpNotifications(threshold: number = 3): Promise<void> {
         let startFromDay = 0;
         if (lastDate) {
           const lastDateObj = new Date(lastDate);
-          const todayObj = new Date(getTodayDateString());
+          const todayObj = new Date(toLocalDateString());
           const diffDays = Math.ceil((lastDateObj.getTime() - todayObj.getTime()) / (1000 * 60 * 60 * 24));
           startFromDay = diffDays + 1;
         }
@@ -1905,8 +1905,8 @@ export async function topUpNotifications(threshold: number = 3): Promise<void> {
 
         // Schedule additional notifications
         for (let i = 0; i < daysToAdd; i++) {
-          const dateString = getDateStringForDaysAhead(startFromDay + i);
-          const triggerDate = createDateTimeFromStrings(dateString, schedule.time);
+          const dateString = toLocalDateStringOffset(startFromDay + i);
+          const triggerDate = localDateTimeFromStrings(dateString, schedule.time);
 
           if (triggerDate <= new Date()) {
             continue;
@@ -2003,7 +2003,7 @@ export async function reconcileNotifications(): Promise<void> {
     }
 
     // Clean up old mappings (dates in the past)
-    const today = getTodayDateString();
+    const today = toLocalDateString();
     const deletedOld = await scheduledNotificationRepository.deleteMappingsBeforeDate(today);
 
     logger.log('[Notification] Reconciliation complete:', {
@@ -2097,7 +2097,7 @@ export async function handleSkip(
   scheduleId: string
 ): Promise<boolean> {
   try {
-    const today = getTodayDateString();
+    const today = toLocalDateString();
 
     // Cancel today's reminder mapping (cleanup - notification already shown)
     await cancelNotificationForDate(medicationId, scheduleId, today, 'reminder');
@@ -2145,7 +2145,7 @@ export async function handleSkipAll(
       return false;
     }
 
-    const today = getTodayDateString();
+    const today = toLocalDateString();
 
     // Cancel notifications for each medication in the group
     for (let i = 0; i < data.medicationIds.length; i++) {

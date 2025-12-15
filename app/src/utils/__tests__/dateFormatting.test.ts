@@ -472,3 +472,93 @@ describe('localDateTimeFromStrings', () => {
     expect(dateString).toBe('2024-07-20');
   });
 });
+
+/**
+ * DST (Daylight Saving Time) edge case tests
+ *
+ * These tests document behavior around DST transitions.
+ * Note: Actual DST behavior depends on the test machine's timezone.
+ * The tests verify that the functions don't crash and produce reasonable output.
+ */
+describe('DST Edge Cases', () => {
+  describe('toLocalDateString during DST transition', () => {
+    it('handles spring forward transition date (March 2025)', () => {
+      // March 9, 2025 is when most of the US springs forward
+      // The functions should still work correctly on this date
+      const springForward = new Date(2025, 2, 9, 2, 30, 0); // March 9, 2:30 AM
+
+      const result = toLocalDateString(springForward);
+
+      // Should return March 9 regardless of DST transition
+      expect(result).toBe('2025-03-09');
+    });
+
+    it('handles fall back transition date (November 2025)', () => {
+      // November 2, 2025 is when most of the US falls back
+      const fallBack = new Date(2025, 10, 2, 1, 30, 0); // November 2, 1:30 AM
+
+      const result = toLocalDateString(fallBack);
+
+      // Should return November 2 regardless of DST transition
+      expect(result).toBe('2025-11-02');
+    });
+  });
+
+  describe('toLocalDateStringOffset during DST transition', () => {
+    it('correctly adds days across spring forward', () => {
+      const marchBefore = new Date(2025, 2, 8); // March 8
+      const result = toLocalDateStringOffset(1, marchBefore);
+
+      // Should add 1 day correctly
+      expect(result).toBe('2025-03-09');
+    });
+
+    it('correctly adds days across fall back', () => {
+      const novemberBefore = new Date(2025, 10, 1); // November 1
+      const result = toLocalDateStringOffset(1, novemberBefore);
+
+      // Should add 1 day correctly
+      expect(result).toBe('2025-11-02');
+    });
+
+    it('correctly subtracts days across spring forward', () => {
+      const marchAfter = new Date(2025, 2, 10); // March 10
+      const result = toLocalDateStringOffset(-1, marchAfter);
+
+      // Should subtract 1 day correctly
+      expect(result).toBe('2025-03-09');
+    });
+
+    it('correctly subtracts days across fall back', () => {
+      const novemberAfter = new Date(2025, 10, 3); // November 3
+      const result = toLocalDateStringOffset(-1, novemberAfter);
+
+      // Should subtract 1 day correctly
+      expect(result).toBe('2025-11-02');
+    });
+  });
+
+  describe('localDateTimeFromStrings during DST transition', () => {
+    it('creates valid date on spring forward day', () => {
+      // 2:30 AM doesn't exist on spring forward day in most US timezones
+      // But we still create a Date object - JS handles the skipped hour
+      const result = localDateTimeFromStrings('2025-03-09', '02:30');
+
+      // Should create a Date with March 9
+      expect(result.getMonth()).toBe(2); // March
+      expect(result.getDate()).toBe(9);
+      // The exact hour may be adjusted by JS but the date should be correct
+    });
+
+    it('creates valid date on fall back day', () => {
+      // 1:30 AM occurs twice on fall back day
+      const result = localDateTimeFromStrings('2025-11-02', '01:30');
+
+      // Should create a Date with November 2
+      expect(result.getMonth()).toBe(10); // November
+      expect(result.getDate()).toBe(2);
+      expect(result.getHours()).toBe(1);
+      expect(result.getMinutes()).toBe(30);
+    });
+  });
+});
