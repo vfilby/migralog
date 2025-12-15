@@ -165,7 +165,7 @@ describe('migrationRunner (Squashed Schema)', () => {
       await new Promise(resolve => setImmediate(resolve));
 
       expect(console.log).toHaveBeenCalledWith(
-        '[INFO]',
+        expect.stringMatching(/^\[.*\] \[INFO\]$/),
         expect.stringContaining('Migration 20')
       );
     });
@@ -180,7 +180,7 @@ describe('migrationRunner (Squashed Schema)', () => {
       await new Promise(resolve => setImmediate(resolve));
 
       expect(console.log).toHaveBeenCalledWith(
-        '[INFO]',
+        expect.stringMatching(/^\[.*\] \[INFO\]$/),
         'Database is up to date, no migrations needed'
       );
     });
@@ -215,7 +215,7 @@ describe('migrationRunner (Squashed Schema)', () => {
 
       // Should not throw or cause issues
       expect(console.log).toHaveBeenCalledWith(
-        '[INFO]',
+        expect.stringMatching(/^\[.*\] \[INFO\]$/),
         'Database is up to date, no migrations needed'
       );
     });
@@ -232,7 +232,7 @@ describe('migrationRunner (Squashed Schema)', () => {
       // Wait for async logger to complete
       await new Promise(resolve => setImmediate(resolve));
 
-      expect(console.log).toHaveBeenCalledWith('[INFO]', 'No rollback needed');
+      expect(console.log).toHaveBeenCalledWith(expect.stringMatching(/^\[.*\] \[INFO\]$/), 'No rollback needed');
     });
 
     it('should handle rollback to higher version', async () => {
@@ -245,7 +245,7 @@ describe('migrationRunner (Squashed Schema)', () => {
       // Wait for async logger to complete
       await new Promise(resolve => setImmediate(resolve));
 
-      expect(console.log).toHaveBeenCalledWith('[INFO]', 'No rollback needed');
+      expect(console.log).toHaveBeenCalledWith(expect.stringMatching(/^\[.*\] \[INFO\]$/), 'No rollback needed');
     });
   });
 

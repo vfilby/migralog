@@ -375,7 +375,7 @@ describe('DailyStatusWidget', () => {
         // Wait for async logger to complete
         await new Promise(resolve => setImmediate(resolve));
          
-        expect(console.error).toHaveBeenCalledWith('[ERROR]', 'Failed to log status:', { context: expect.any(Error), stack: undefined });
+        expect(console.error).toHaveBeenCalledWith(expect.stringMatching(/^\[.*\] \[ERROR\]$/), 'Failed to log status:', { context: expect.any(Error), stack: undefined });
       });
     });
 
@@ -405,7 +405,7 @@ describe('DailyStatusWidget', () => {
         // Wait for async logger to complete
         await new Promise(resolve => setImmediate(resolve));
          
-        expect(console.error).toHaveBeenCalledWith('[ERROR]', 'Failed to undo status:', { context: expect.any(Error), stack: undefined });
+        expect(console.error).toHaveBeenCalledWith(expect.stringMatching(/^\[.*\] \[ERROR\]$/), 'Failed to undo status:', { context: expect.any(Error), stack: undefined });
       });
     });
   });
