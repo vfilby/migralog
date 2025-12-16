@@ -4,7 +4,6 @@ import { Medication, MedicationSchedule } from '../../models/types';
 // ARCHITECTURAL EXCEPTION: Notification handlers need direct repository access
 // because they run in background when app may be suspended. See docs/store-repository-guidelines.md
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../../database/medicationRepository';
-import { useNotificationSettingsStore } from '../../store/notificationSettingsStore';
 import { handleDailyCheckinNotification } from './dailyCheckinNotifications';
 import { notifyUserOfError } from './errorNotificationHelper';
 import {
@@ -424,8 +423,6 @@ Notifications.setNotificationHandler({
 
 class NotificationService {
   private initialized = false;
-  // Map to track follow-up notification IDs: key = "medicationId:scheduleId" or "multi:time"
-  private followUpNotifications = new Map<string, string>();
 
   /**
    * Initialize the notification service and register categories
@@ -551,32 +548,22 @@ class NotificationService {
       switch (actionIdentifier) {
         case 'TAKE_NOW':
           if (data.medicationId && data.scheduleId) {
-            const success = await medNotifications.handleTakeNow(data.medicationId, data.scheduleId);
-            if (success) {
-              await this.cancelFollowUpReminder(`${data.medicationId}:${data.scheduleId}`);
-            }
+            await medNotifications.handleTakeNow(data.medicationId, data.scheduleId);
           }
           break;
         case 'SNOOZE_10':
           if (data.medicationId && data.scheduleId) {
-            // Cancel follow-up reminder since user snoozed
-            await this.cancelFollowUpReminder(`${data.medicationId}:${data.scheduleId}`);
             await medNotifications.handleSnooze(data.medicationId, data.scheduleId, 10);
             // Note: Success/failure already logged by handleSnooze
           }
           break;
         case 'TAKE_ALL_NOW':
           if (data.medicationIds && data.scheduleIds) {
-            const result = await medNotifications.handleTakeAllNow(data.medicationIds, data.scheduleIds);
-            if (result.success > 0 && data.time) {
-              await this.cancelFollowUpReminder(`multi:${data.time}`);
-            }
+            await medNotifications.handleTakeAllNow(data.medicationIds, data.scheduleIds);
           }
           break;
         case 'REMIND_LATER':
           if (data.medicationIds && data.scheduleIds && data.time) {
-            // Cancel follow-up reminder since user chose to snooze
-            await this.cancelFollowUpReminder(`multi:${data.time}`);
             await medNotifications.handleRemindLater(data.medicationIds, data.scheduleIds, data.time, 10);
             // Note: Success/failure already logged by handleRemindLater
           }
@@ -598,12 +585,6 @@ class NotificationService {
           });
           break;
         default:
-          // User tapped notification - cancel follow-up reminder
-          if (data.medicationId && data.scheduleId) {
-            await this.cancelFollowUpReminder(`${data.medicationId}:${data.scheduleId}`);
-          } else if (data.medicationIds && data.time) {
-            await this.cancelFollowUpReminder(`multi:${data.time}`);
-          }
           logger.log('[Notification] Notification tapped, opening app');
           break;
       }
@@ -647,176 +628,9 @@ class NotificationService {
       await this.handleNotificationResponse(response);
     });
 
-    // Handle notifications received while app is in foreground
-    Notifications.addNotificationReceivedListener(async (notification) => {
+    Notifications.addNotificationReceivedListener((notification) => {
       logger.log('[Notification] Received in foreground:', notification);
-
-      // Schedule follow-up reminder if this is not already a follow-up
-      const data = notification.request.content.data as {
-        medicationId?: string;
-        medicationIds?: string[];
-        scheduleId?: string;
-        scheduleIds?: string[];
-        time?: string;
-        isFollowUp?: boolean;
-      };
-
-      // Don't schedule follow-up for follow-up notifications
-      if (data.isFollowUp) {
-        return;
-      }
-
-      // Schedule follow-up for single medication
-      if (data.medicationId && data.scheduleId) {
-        const medication = await medicationRepository.getById(data.medicationId);
-        if (medication) {
-          await this.scheduleFollowUpReminder(
-            data.medicationId,
-            data.scheduleId,
-            medication.name
-          );
-        }
-      }
-
-      // Schedule follow-up for multiple medications
-      if (data.medicationIds && data.scheduleIds && data.time) {
-        const medications = await Promise.all(
-          data.medicationIds.map(id => medicationRepository.getById(id))
-        );
-        const validMedications = medications.filter(m => m !== null) as Medication[];
-        if (validMedications.length > 0) {
-          const medicationNames = validMedications.map(m => m.name).join(', ');
-          await this.scheduleFollowUpReminder(
-            data.medicationIds,
-            data.scheduleIds,
-            medicationNames,
-            data.time
-          );
-        }
-      }
     });
-  }
-
-  /**
-   * Schedule a follow-up reminder after the initial notification (immediate, not recurring)
-   * This is used when a notification is received while the app is in the foreground
-   * 
-   * Note: Critical alerts require special entitlement from Apple
-   * Request at: https://developer.apple.com/contact/request/notifications-critical-alerts-entitlement/
-   * 
-   * @deprecated This method is only used for foreground notifications. Scheduled notifications
-   * should use scheduleFollowUpForScheduledNotification instead.
-   */
-  private async scheduleFollowUpReminder(
-    medicationId: string | string[],
-    scheduleId: string | string[],
-    medicationName: string,
-    time?: string
-  ): Promise<void> {
-    try {
-      const isSingle = typeof medicationId === 'string';
-      
-      // Get settings to determine delay and critical alert preference
-      const settingsStore = useNotificationSettingsStore.getState();
-      let delayMinutes: number;
-      let useCriticalAlerts: boolean;
-
-      if (isSingle) {
-        const settings = settingsStore.getEffectiveSettings(medicationId as string);
-        if (settings.followUpDelay === 'off') {
-          logger.log('[Notification] Follow-up disabled for medication, skipping');
-          return;
-        }
-        delayMinutes = settings.followUpDelay;
-        useCriticalAlerts = settings.criticalAlertsEnabled;
-      } else {
-        // For multiple medications, use maximum delay and enable critical if any has it
-        const medicationIds = medicationId as string[];
-        const delays = medicationIds.map(id => {
-          const settings = settingsStore.getEffectiveSettings(id);
-          return settings.followUpDelay;
-        }).filter(d => d !== 'off') as number[];
-
-        if (delays.length === 0) {
-          logger.log('[Notification] Follow-up disabled for all medications, skipping');
-          return;
-        }
-
-        delayMinutes = Math.max(...delays);
-        useCriticalAlerts = medicationIds.some(id => {
-          const settings = settingsStore.getEffectiveSettings(id);
-          return settings.criticalAlertsEnabled;
-        });
-      }
-
-      // Schedule follow-up notification
-      const followUpTime = new Date(Date.now() + delayMinutes * 60 * 1000);
-
-      const key = isSingle
-        ? `${medicationId}:${scheduleId}`
-        : `multi:${time}`;
-
-      const title = isSingle
-        ? `Reminder: ${medicationName}`
-        : `Reminder: ${medicationName} (${Array.isArray(medicationId) ? medicationId.length : 1} medications)`;
-
-      logger.log('[Notification] Scheduling immediate follow-up for', medicationName, {
-        delayMinutes,
-        useCriticalAlerts,
-        at: followUpTime.toLocaleTimeString(),
-      });
-
-      const notificationId = await Notifications.scheduleNotificationAsync({
-        content: {
-          title,
-          body: 'Did you take your medication?',
-          data: isSingle
-            ? { medicationId, scheduleId, isFollowUp: true }
-            : { medicationIds: medicationId, scheduleIds: scheduleId, time, isFollowUp: true },
-          categoryIdentifier: isSingle
-            ? MEDICATION_REMINDER_CATEGORY
-            : MULTIPLE_MEDICATION_REMINDER_CATEGORY,
-          sound: true,
-          // Critical alert properties (only if enabled and entitlement is granted)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ...(useCriticalAlerts && { critical: true } as any),
-          // Time-sensitive notification settings
-          ...(Notifications.AndroidNotificationPriority && {
-            priority: useCriticalAlerts 
-              ? Notifications.AndroidNotificationPriority.MAX
-              : Notifications.AndroidNotificationPriority.HIGH,
-          }),
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ...(useCriticalAlerts && { interruptionLevel: 'critical' } as any),
-        },
-        // Date trigger type is not exported by expo-notifications
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        trigger: followUpTime as any,
-      });
-
-      // Store the follow-up notification ID for later cancellation
-      this.followUpNotifications.set(key, notificationId);
-
-      logger.log('[Notification] Scheduled immediate follow-up reminder for', medicationName, 'at', followUpTime.toLocaleTimeString());
-    } catch (error) {
-      logger.error('[Notification] Error scheduling immediate follow-up reminder:', error);
-    }
-  }
-
-  /**
-   * Cancel a follow-up reminder if it exists
-   */
-  private async cancelFollowUpReminder(key: string): Promise<void> {
-    const followUpId = this.followUpNotifications.get(key);
-    if (followUpId) {
-      try {
-        await Notifications.cancelScheduledNotificationAsync(followUpId);
-        this.followUpNotifications.delete(key);
-        logger.log('[Notification] Cancelled follow-up reminder:', key);
-      } catch (error) {
-        logger.error('[Notification] Error cancelling follow-up reminder:', error);
-      }
-    }
   }
 
   // Public API methods - delegate to specialized modules
