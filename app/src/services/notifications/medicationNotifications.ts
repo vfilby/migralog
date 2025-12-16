@@ -1824,6 +1824,7 @@ export async function scheduleNotificationsForDays(
             categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
             sound: true,
             ...(effectiveSettings.criticalAlertsEnabled && { critical: true } as unknown as Record<string, unknown>),
+            ...(effectiveSettings.criticalAlertsEnabled && { interruptionLevel: 'critical' } as unknown as Record<string, unknown>),
           },
           followUpDate,
           followUpMapping
@@ -1947,7 +1948,9 @@ export async function topUpNotifications(threshold: number = 3): Promise<void> {
                 },
                 categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
                 sound: true,
-                ...(effectiveSettings.timeSensitiveEnabled && { interruptionLevel: 'timeSensitive' } as unknown as Record<string, unknown>),
+                ...(effectiveSettings.criticalAlertsEnabled && { critical: true } as unknown as Record<string, unknown>),
+                ...(effectiveSettings.criticalAlertsEnabled && { interruptionLevel: 'critical' } as unknown as Record<string, unknown>),
+                ...(!effectiveSettings.criticalAlertsEnabled && effectiveSettings.timeSensitiveEnabled && { interruptionLevel: 'timeSensitive' } as unknown as Record<string, unknown>),
               },
               triggerDate,
               {
