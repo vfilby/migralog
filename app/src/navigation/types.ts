@@ -23,6 +23,7 @@ export type RootStackParamList = {
   LocationSettingsScreen: undefined;
   DataSettingsScreen: undefined;
   DeveloperToolsScreen: undefined;
+  ScheduledNotificationsScreen: undefined;
 
   ErrorLogs: undefined;
   Performance: undefined;

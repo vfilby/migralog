@@ -42,7 +42,7 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
     handleTestNotification,
     handleTestCriticalNotification,
     handleRecreateAllSchedules,
-  } = useNotificationTesting();
+  } = useNotificationTesting(navigation);
   const {
     generateArchive,
     isGenerating,

@@ -3,166 +3,17 @@ import { logger } from '../../../utils/logger';
 import { notificationService } from '../../../services/notifications/notificationService';
 import { dailyCheckinService } from '../../../services/notifications/dailyCheckinService';
 import * as Notifications from 'expo-notifications';
-import { scheduledNotificationRepository } from '../../../database/scheduledNotificationRepository';
-import { medicationRepository } from '../../../database/medicationRepository';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../../navigation/types';
 
-export function useNotificationTesting() {
+export function useNotificationTesting(
+  navigation: NativeStackNavigationProp<RootStackParamList, 'DeveloperToolsScreen'>
+) {
   /**
-   * View scheduled notification summary by medication
-   * Shows how far out each medication has notifications scheduled
+   * Navigate to scheduled notifications screen
    */
-  const handleViewScheduledNotifications = async () => {
-    try {
-      // Get both OS notifications and database mappings
-      const osNotifications = await notificationService.getAllScheduledNotifications();
-
-      // Check if database table exists
-      const tableExists = await scheduledNotificationRepository.tableExists();
-      if (!tableExists) {
-        // Fallback to old display if table doesn't exist
-        return handleViewScheduledNotificationsLegacy(osNotifications);
-      }
-
-      // Get database mappings grouped by medication
-      const futureMappings = await scheduledNotificationRepository.getFutureMappings();
-      const medications = await medicationRepository.getActive();
-
-      // Create medication name lookup
-      const medNameMap = new Map<string, string>();
-      for (const med of medications) {
-        medNameMap.set(med.id, med.name);
-      }
-
-      // Group mappings by medication with reminder/followup breakdown
-      const byMedication = new Map<string, {
-        reminders: string[];
-        followups: string[];
-        scheduleId: string
-      }>();
-      for (const mapping of futureMappings) {
-        // Skip non-medication notifications (daily check-in)
-        if (!mapping.medicationId || !mapping.scheduleId) {
-          continue;
-        }
-        if (!byMedication.has(mapping.medicationId)) {
-          byMedication.set(mapping.medicationId, { reminders: [], followups: [], scheduleId: mapping.scheduleId });
-        }
-        const medData = byMedication.get(mapping.medicationId)!;
-        if (mapping.notificationType === 'follow_up') {
-          medData.followups.push(mapping.date);
-        } else {
-          medData.reminders.push(mapping.date);
-        }
-      }
-
-      // Get daily check-in mappings separately
-      const dailyCheckinMappings = await scheduledNotificationRepository.getFutureDailyCheckinMappings();
-
-      // Build summary message
-      // futureMappings includes ALL mappings (medication + daily check-in)
-      let message = `📊 OS Notifications: ${osNotifications.length}\n📂 DB Mappings: ${futureMappings.length}\n`;
-      if (dailyCheckinMappings.length > 0) {
-        const sortedDates = dailyCheckinMappings.map(m => m.date).sort();
-        const firstDate = sortedDates[0];
-        const lastDate = sortedDates[sortedDates.length - 1];
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const lastDateObj = new Date(lastDate);
-        const daysOut = Math.ceil((lastDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        message += `🌅 Daily Check-in: ${dailyCheckinMappings.length} (${firstDate} → ${lastDate}, ${daysOut} days)\n`;
-      }
-      message += '\n';
-
-      if (byMedication.size === 0) {
-        message += 'No medication notifications scheduled.';
-      } else {
-        message += '📅 Per-Medication Schedule:\n\n';
-
-        for (const [medId, data] of byMedication) {
-          const medName = medNameMap.get(medId) || `Unknown (${medId.slice(-8)})`;
-          const allDates = [...data.reminders, ...data.followups].sort();
-          const firstDate = allDates[0];
-          const lastDate = allDates[allDates.length - 1];
-
-          // Calculate days from today
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const lastDateObj = new Date(lastDate);
-          const daysOut = Math.ceil((lastDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-          const totalCount = data.reminders.length + data.followups.length;
-          message += `• ${medName}\n`;
-          message += `  ${totalCount} total (${data.reminders.length} reminders + ${data.followups.length} follow-ups)\n`;
-          message += `  ${firstDate} → ${lastDate} (${daysOut} days out)\n\n`;
-        }
-      }
-
-      Alert.alert(
-        'Notification Schedule',
-        message,
-        [
-          { text: 'Details', onPress: () => handleViewScheduledNotificationsLegacy(osNotifications) },
-          { text: 'OK' },
-        ],
-        { cancelable: true }
-      );
-    } catch (error) {
-      logger.error('Failed to get scheduled notifications:', error);
-      Alert.alert('Error', 'Failed to get scheduled notifications');
-    }
-  };
-
-  /**
-   * Legacy detailed view of each individual notification
-   */
-  const handleViewScheduledNotificationsLegacy = async (scheduled: Notifications.NotificationRequest[]) => {
-    if (scheduled.length === 0) {
-      Alert.alert('No Notifications', 'No notifications are currently scheduled');
-      return;
-    }
-
-    const message = scheduled.map((notif, index) => {
-      // Trigger types vary (calendar/time/date) - use dynamic access
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const trigger = notif.trigger as any;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const content = notif.content as any;
-      let timeInfo = 'Unknown trigger';
-
-      if (trigger.type === 'calendar' || (trigger.hour !== undefined && trigger.minute !== undefined)) {
-        timeInfo = `Daily at ${trigger.hour}:${String(trigger.minute).padStart(2, '0')}`;
-      } else if (trigger.date) {
-        timeInfo = `At ${new Date(trigger.date).toLocaleString()}`;
-      } else if (trigger.seconds) {
-        timeInfo = `In ${trigger.seconds} seconds`;
-      }
-
-      // Extract debugging information
-      const interruptionLevel = content.interruptionLevel || 'active';
-      const critical = content.critical ? 'Yes' : 'No';
-      const categoryId = content.categoryIdentifier || 'none';
-      const data = content.data;
-      let dataInfo = 'none';
-
-      if (data) {
-        const parts = [];
-        if (data.medicationId) parts.push(`med:${data.medicationId.slice(-8)}`);
-        if (data.medicationIds) parts.push(`meds:${data.medicationIds.length}`);
-        if (data.scheduleId) parts.push(`sched:${data.scheduleId.slice(-8)}`);
-        if (data.isFollowUp) parts.push('followUp');
-        if (data.time) parts.push(`time:${data.time}`);
-        dataInfo = parts.length > 0 ? parts.join(', ') : 'empty';
-      }
-
-      return `${index + 1}. ${notif.content.title}\n   ${timeInfo}\n   Level: ${interruptionLevel} | Critical: ${critical}\n   Category: ${categoryId}\n   Data: ${dataInfo}\n   ID: ${notif.identifier.slice(-8)}`;
-    }).join('\n\n');
-
-    Alert.alert(
-      `Scheduled Notifications (${scheduled.length})`,
-      message,
-      [{ text: 'OK' }],
-      { cancelable: true }
-    );
+  const handleViewScheduledNotifications = () => {
+    navigation.navigate('ScheduledNotificationsScreen');
   };
 
   const handleTestNotification = async (timeSensitive: boolean) => {
