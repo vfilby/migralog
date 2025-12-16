@@ -628,11 +628,8 @@ class NotificationService {
       await this.handleNotificationResponse(response);
     });
 
-    // Handle notifications received while app is in foreground
-    Notifications.addNotificationReceivedListener(async (notification) => {
+    Notifications.addNotificationReceivedListener((notification) => {
       logger.log('[Notification] Received in foreground:', notification);
-      // Foreground notifications are handled by the OS - no additional action needed
-      // Follow-up reminders are scheduled as part of the one-time notification system
     });
   }
 
