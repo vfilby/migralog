@@ -6,6 +6,8 @@ on:
       - 'alpha-v*'
       - 'beta-v*'
       - 'v*'
+  release:
+    types: [created]
   workflow_dispatch:
     inputs:
       build_profile:
@@ -34,7 +36,12 @@ jobs:
 
       - name: Determine build profile from tag
         run: |
-          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          # Handle both push (tags) and release events
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            TAG_NAME="${{ github.event.release.tag_name }}"
+          else
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+          fi
           echo "Tag: $TAG_NAME"
 
           if [[ "$TAG_NAME" == alpha-v* ]]; then
@@ -98,7 +105,8 @@ jobs:
           echo "Check build status at: https://expo.dev/accounts/akin-gulp/projects/migraine-tracker/builds"
 
       - name: Extract changelog for release notes
-        if: success() && startsWith(github.ref, 'refs/tags/')
+        # Only extract changelog for tag push events (release events already have notes)
+        if: success() && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         id: changelog
         run: |
           TAG_NAME="${GITHUB_REF#refs/tags/}"
@@ -123,7 +131,8 @@ jobs:
           } >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
-        if: success() && startsWith(github.ref, 'refs/tags/')
+        # Only create release for tag push events (release events already have a release)
+        if: success() && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           name: Release ${{ github.ref_name }}
