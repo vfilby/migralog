@@ -163,7 +163,7 @@ export async function handleSnooze(
     const medication = await medicationRepository.getById(medicationId);
     if (!medication) {
       logger.error('[Notification] Medication not found for snooze:', { medicationId, scheduleId });
-      
+
       // Issue 2 (HAND-238): User notification
       await notifyUserOfError(
         'data',
@@ -171,9 +171,15 @@ export async function handleSnooze(
         new Error(`Medication not found: ${medicationId}`),
         { medicationId, scheduleId, operation: 'handleSnooze' }
       );
-      
+
       return false;
     }
+
+    // Cancel the original notification before scheduling the snoozed one
+    const { toLocalDateString } = await import('../../utils/dateFormatting');
+    const today = toLocalDateString();
+    await cancelNotificationForDate(medicationId, scheduleId, today, 'reminder');
+    await cancelNotificationForDate(medicationId, scheduleId, today, 'follow_up');
 
     // Get effective notification settings for this medication
     const effectiveSettings = useNotificationSettingsStore.getState().getEffectiveSettings(medicationId);
@@ -451,7 +457,7 @@ export async function handleRemindLater(
         medicationIds,
         originalTime,
       });
-      
+
       // Issue 2 (HAND-238): User notification
       await notifyUserOfError(
         'data',
@@ -459,8 +465,18 @@ export async function handleRemindLater(
         new Error('No valid medications found'),
         { medicationIds, scheduleIds, originalTime, operation: 'handleRemindLater' }
       );
-      
+
       return false;
+    }
+
+    // Cancel the original notifications before scheduling the new reminder
+    const { toLocalDateString } = await import('../../utils/dateFormatting');
+    const today = toLocalDateString();
+    for (let i = 0; i < medicationIds.length; i++) {
+      const medicationId = medicationIds[i];
+      const scheduleId = scheduleIds[i];
+      await cancelNotificationForDate(medicationId, scheduleId, today, 'reminder');
+      await cancelNotificationForDate(medicationId, scheduleId, today, 'follow_up');
     }
 
     // Get effective notification settings
@@ -2114,6 +2130,9 @@ export async function handleSkip(
   scheduleId: string
 ): Promise<boolean> {
   try {
+    // Dismiss the presented notification from the tray
+    await dismissMedicationNotification(medicationId, scheduleId);
+
     const today = toLocalDateString();
 
     // Cancel today's reminder mapping (cleanup - notification already shown)
@@ -2160,6 +2179,13 @@ export async function handleSkipAll(
     if (!data.medicationIds || !data.scheduleIds) {
       logger.error('[Notification] handleSkipAll called without medication data');
       return false;
+    }
+
+    // Dismiss the presented grouped notification from the tray for each medication
+    for (let i = 0; i < data.medicationIds.length; i++) {
+      const medicationId = data.medicationIds[i];
+      const scheduleId = data.scheduleIds[i];
+      await dismissMedicationNotification(medicationId, scheduleId);
     }
 
     const today = toLocalDateString();
