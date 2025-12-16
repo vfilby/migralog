@@ -147,12 +147,93 @@ export async function handleTakeNow(medicationId: string, scheduleId: string): P
 }
 
 /**
- * Handle "Snooze" action - reschedule notification
- * 
+ * Unified snooze handler for both single and grouped medications.
+ *
+ * Snooze is only triggered from a notification action, so the notification has
+ * already been displayed and dismissed by the OS when the user taps it.
+ * We only need to schedule the new snoozed notification.
+ *
+ * Note: Follow-up notifications are NOT cancelled - they serve as the "last chance"
+ * reminder and should still fire even if the user snoozed the initial reminder.
+ *
+ * Safety: Schedule the new notification FIRST, then dismiss any lingering notifications.
+ * This ensures we never end up in a notification-less state if there's an error.
+ */
+async function handleSnoozeNotifications(
+  medicationIds: string[],
+  scheduleIds: string[],
+  medications: Medication[],
+  minutes: number,
+  categoryIdentifier: string,
+  originalTime?: string
+): Promise<boolean> {
+  const isSingle = medications.length === 1;
+  const medication = medications[0];
+
+  // Get effective notification settings
+  const settingsStore = useNotificationSettingsStore.getState();
+  const anyTimeSensitive = medications.some((med) => {
+    const settings = settingsStore.getEffectiveSettings(med.id);
+    return settings.timeSensitiveEnabled;
+  });
+
+  // Schedule a new notification in X minutes
+  const snoozeTime = new Date(Date.now() + minutes * 60 * 1000);
+
+  // Build notification content based on single vs grouped
+  const content = isSingle
+    ? {
+        title: `Reminder: ${medication.name}`,
+        body: 'Time to take your medication (snoozed)',
+        data: { medicationId: medicationIds[0], scheduleId: scheduleIds[0] },
+      }
+    : {
+        title: `Reminder: ${medications.length} Medications`,
+        body: `Time to take: ${medications.map(m => m.name).join(', ')}`,
+        data: {
+          medicationIds,
+          scheduleIds,
+          time: originalTime,
+        },
+      };
+
+  // Schedule the snoozed notification FIRST (safety: don't lose notifications on error)
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      ...content,
+      categoryIdentifier,
+      sound: true,
+      // Time-sensitive notification settings for Android and iOS
+      ...(Notifications.AndroidNotificationPriority && {
+        priority: Notifications.AndroidNotificationPriority.HIGH,
+      }),
+      // Only set time-sensitive interruption level if enabled in settings
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ...(anyTimeSensitive && { interruptionLevel: 'timeSensitive' } as any),
+    },
+    // Date trigger type is not exported by expo-notifications
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    trigger: snoozeTime as any,
+  });
+
+  // Now dismiss any lingering notifications (snooze is from notification, so this is just cleanup)
+  for (let i = 0; i < medicationIds.length; i++) {
+    await dismissMedicationNotification(medicationIds[i], scheduleIds[i]);
+  }
+
+  logger.log('[Notification] Snoozed for', minutes, 'minutes', {
+    medicationCount: medications.length,
+    isSingle,
+  });
+
+  return true;
+}
+
+/**
+ * Handle "Snooze" action - reschedule notification for a single medication.
+ * Delegates to unified handleSnoozeNotifications.
+ *
  * ISSUE FIX (HAND-138): Now returns error state and notifies user
- * 
- * NOTE (HAND-346): This is "snooze" for SINGLE medications (10 min fixed).
- * For MULTIPLE medications, use handleRemindLater() which allows custom delays.
  */
 export async function handleSnooze(
   medicationId: string,
@@ -163,7 +244,7 @@ export async function handleSnooze(
     const medication = await medicationRepository.getById(medicationId);
     if (!medication) {
       logger.error('[Notification] Medication not found for snooze:', { medicationId, scheduleId });
-      
+
       // Issue 2 (HAND-238): User notification
       await notifyUserOfError(
         'data',
@@ -171,38 +252,18 @@ export async function handleSnooze(
         new Error(`Medication not found: ${medicationId}`),
         { medicationId, scheduleId, operation: 'handleSnooze' }
       );
-      
+
       return false;
     }
 
-    // Get effective notification settings for this medication
-    const effectiveSettings = useNotificationSettingsStore.getState().getEffectiveSettings(medicationId);
-
-    // Schedule a new notification in X minutes
-    const snoozeTime = new Date(Date.now() + minutes * 60 * 1000);
-
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: `Reminder: ${medication.name}`,
-        body: `Time to take your medication (snoozed)`,
-        data: { medicationId, scheduleId },
-        categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
-        sound: true,
-        // Time-sensitive notification settings for Android and iOS
-        ...(Notifications.AndroidNotificationPriority && {
-          priority: Notifications.AndroidNotificationPriority.HIGH,
-        }),
-        // Only set time-sensitive interruption level if enabled in settings
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ...(effectiveSettings.timeSensitiveEnabled && { interruptionLevel: 'timeSensitive' } as any),
-      },
-      // Date trigger type is not exported by expo-notifications
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      trigger: snoozeTime as any,
-    });
-
-    logger.log('[Notification] Snoozed for', minutes, 'minutes');
-    return true;
+    // Delegate to unified snooze handler for single medication
+    return handleSnoozeNotifications(
+      [medicationId],
+      [scheduleId],
+      [medication],
+      minutes,
+      MEDICATION_REMINDER_CATEGORY
+    );
   } catch (error) {
     logger.error('[Notification] Error snoozing notification:', error);
     
@@ -412,13 +473,10 @@ export async function handleTakeAllNow(
 }
 
 /**
- * Handle "Remind Later" action - reschedule grouped notification
- * 
+ * Handle "Remind Later" action - reschedule grouped notification.
+ * Delegates to unified handleSnoozeNotifications.
+ *
  * ISSUE FIX (HAND-138): Now returns error state and notifies user
- * 
- * NOTE (HAND-346): This is "remind later" for MULTIPLE medications.
- * For SINGLE medication snooze, use handleSnooze() which is simpler.
- * Difference: remindLater handles groups, snooze handles single meds with fixed 10min delay.
  */
 export async function handleRemindLater(
   medicationIds: string[],
@@ -451,7 +509,7 @@ export async function handleRemindLater(
         medicationIds,
         originalTime,
       });
-      
+
       // Issue 2 (HAND-238): User notification
       await notifyUserOfError(
         'data',
@@ -459,54 +517,19 @@ export async function handleRemindLater(
         new Error('No valid medications found'),
         { medicationIds, scheduleIds, originalTime, operation: 'handleRemindLater' }
       );
-      
+
       return false;
     }
 
-    // Get effective notification settings
-    // For grouped notifications, use time-sensitive if ANY medication has it enabled
-    const settingsStore = useNotificationSettingsStore.getState();
-    const anyTimeSensitive = validMedications.some((medication) => {
-      const settings = settingsStore.getEffectiveSettings(medication.id);
-      return settings.timeSensitiveEnabled;
-    });
-
-    // Schedule a new notification in X minutes
-    const snoozeTime = new Date(Date.now() + minutes * 60 * 1000);
-
-    const medicationNames = validMedications.map(m => m.name).join(', ');
-    const medicationCount = validMedications.length;
-
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: `Reminder: ${medicationCount} Medications`,
-        body: `Time to take: ${medicationNames}`,
-        data: {
-          medicationIds,
-          scheduleIds,
-          time: originalTime,
-        },
-        categoryIdentifier: MULTIPLE_MEDICATION_REMINDER_CATEGORY,
-        sound: true,
-        // Time-sensitive notification settings for Android and iOS
-        ...(Notifications.AndroidNotificationPriority && {
-          priority: Notifications.AndroidNotificationPriority.HIGH,
-        }),
-        // Only set time-sensitive interruption level if enabled for any medication in the group
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ...(anyTimeSensitive && { interruptionLevel: 'timeSensitive' } as any),
-      },
-      // Date trigger type is not exported by expo-notifications
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      trigger: snoozeTime as any,
-    });
-
-    logger.log('[Notification] Reminder snoozed for', minutes, 'minutes', {
-      medicationCount,
-      validCount: validMedications.length,
-    });
-    
-    return true;
+    // Delegate to unified snooze handler
+    return handleSnoozeNotifications(
+      medicationIds,
+      scheduleIds,
+      validMedications,
+      minutes,
+      MULTIPLE_MEDICATION_REMINDER_CATEGORY,
+      originalTime
+    );
   } catch (error) {
     logger.error('[Notification] Error snoozing reminder:', error);
     
@@ -2114,6 +2137,9 @@ export async function handleSkip(
   scheduleId: string
 ): Promise<boolean> {
   try {
+    // Dismiss the presented notification from the tray
+    await dismissMedicationNotification(medicationId, scheduleId);
+
     const today = toLocalDateString();
 
     // Cancel today's reminder mapping (cleanup - notification already shown)
@@ -2160,6 +2186,13 @@ export async function handleSkipAll(
     if (!data.medicationIds || !data.scheduleIds) {
       logger.error('[Notification] handleSkipAll called without medication data');
       return false;
+    }
+
+    // Dismiss the presented grouped notification from the tray for each medication
+    for (let i = 0; i < data.medicationIds.length; i++) {
+      const medicationId = data.medicationIds[i];
+      const scheduleId = data.scheduleIds[i];
+      await dismissMedicationNotification(medicationId, scheduleId);
     }
 
     const today = toLocalDateString();
