@@ -72,10 +72,10 @@ try {
   // Tag doesn't exist, good to proceed
 }
 
-console.log(`\n🏷️  Creating tag: ${newTag}`);
+console.log(`\n🏷️  Creating release: ${newTag}`);
 
-// Extract changelog entry for this version (for tag annotation)
-let tagMessage = `Release ${newTag}`;
+// Extract changelog entry for release notes
+let releaseNotes = `Release ${newTag}`;
 try {
   const changelog = fs.readFileSync(path.join(__dirname, '..', 'CHANGELOG.md'), 'utf8');
 
@@ -104,31 +104,37 @@ try {
   }
 
   if (changelogLines.length > 0) {
-    tagMessage = `Release ${newTag}\n\n${changelogLines.slice(0, 20).join('\n')}`;
+    releaseNotes = changelogLines.slice(0, 20).join('\n');
   }
 } catch (error) {
   // If we can't read changelog, use simple message
-  console.log('⚠️  Could not extract changelog excerpt, using simple tag message');
+  console.log('⚠️  Could not extract changelog excerpt, using simple release notes');
 }
 
-// Create annotated tag
+// Create GitHub release via API (this creates both the tag and release)
+// Using gh CLI instead of git tag + push to ensure workflow triggers
+const isPrerelease = releaseType !== 'production';
 try {
-  execSync(`git tag -a ${newTag} -m "${tagMessage}"`, { stdio: 'inherit' });
-  console.log('✅ Tag created locally');
-} catch (error) {
-  console.error('❌ Failed to create tag:', error.message);
-  process.exit(1);
-}
+  console.log('⬆️  Creating GitHub release...');
 
-// Push tag to remote
-try {
-  console.log('⬆️  Pushing tag to remote...');
-  execSync(`git push origin ${newTag}`, { stdio: 'inherit' });
-  console.log('✅ Tag pushed to remote');
+  // Write release notes to temp file to handle special characters
+  const tempNotesFile = path.join(__dirname, '.release-notes-temp.md');
+  fs.writeFileSync(tempNotesFile, releaseNotes);
+
+  const prereleaseFlag = isPrerelease ? '--prerelease' : '';
+  execSync(
+    `gh release create ${newTag} --title "Release ${newTag}" --notes-file "${tempNotesFile}" ${prereleaseFlag}`,
+    { stdio: 'inherit' }
+  );
+
+  // Clean up temp file
+  fs.unlinkSync(tempNotesFile);
+
+  console.log('✅ GitHub release created');
 } catch (error) {
-  console.error('❌ Failed to push tag:', error.message);
-  console.error('   Cleaning up local tag...');
-  execSync(`git tag -d ${newTag}`);
+  console.error('❌ Failed to create GitHub release:', error.message);
+  console.error('   Make sure you have the GitHub CLI installed and authenticated.');
+  console.error('   Run: gh auth status');
   process.exit(1);
 }
 
