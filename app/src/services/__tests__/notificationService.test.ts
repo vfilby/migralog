@@ -15,6 +15,7 @@ jest.mock('../../database/scheduledNotificationRepository');
 jest.mock('../../services/errorLogger');
 jest.mock('@react-native-async-storage/async-storage');
 jest.mock('../notifications/NotificationDismissalService');
+jest.mock('../../store/medicationStore');
 
 // Add AndroidNotificationPriority enum to mocked Notifications
 (Notifications as any).AndroidNotificationPriority = {
@@ -52,6 +53,7 @@ jest.mock('../notifications/NotificationDismissalService');
 // NOW import the service after mocks are set up
 import { notificationService, handleIncomingNotification } from '../notifications/notificationService';
 import { notificationDismissalService } from '../notifications/NotificationDismissalService';
+import { useMedicationStore } from '../../store/medicationStore';
 
 // Mock the NotificationDismissalService
 const mockNotificationDismissalService = notificationDismissalService as jest.Mocked<typeof notificationDismissalService>;
@@ -148,9 +150,21 @@ describe('notificationService', () => {
         updatedAt: Date.now(),
       };
 
-      (medicationRepository.getById as jest.Mock).mockResolvedValue(mockMedication);
+      const mockSchedule = {
+        id: 'schedule-456',
+        medicationId: 'med-123',
+        time: '08:00',
+        timezone: 'America/Los_Angeles',
+        dosage: 1,
+        enabled: true,
+      };
 
-      // Mock the store's logDose method
+      // Mock the store's methods
+      const mockLoadMedicationWithDetails = jest.fn().mockResolvedValue({
+        medication: mockMedication,
+        schedules: [mockSchedule],
+        doses: [],
+      });
       const mockLogDose = jest.fn().mockResolvedValue({
         id: 'dose-123',
         medicationId: 'med-123',
@@ -164,13 +178,9 @@ describe('notificationService', () => {
         createdAt: expect.any(Number),
       });
 
-      // Mock the medication store
-      jest.mock('../../store/medicationStore', () => ({
-        useMedicationStore: {
-          getState: () => ({
-            logDose: mockLogDose,
-          }),
-        },
+      (useMedicationStore.getState as jest.Mock) = jest.fn(() => ({
+        loadMedicationWithDetails: mockLoadMedicationWithDetails,
+        logDose: mockLogDose,
       }));
 
       await notificationService.initialize();
@@ -181,8 +191,8 @@ describe('notificationService', () => {
       // Give time for async processing
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Verify medication was retrieved
-      expect(medicationRepository.getById).toHaveBeenCalledWith('med-123');
+      // Verify medication was retrieved via store
+      expect(mockLoadMedicationWithDetails).toHaveBeenCalledWith('med-123');
     });
 
     it('should handle TAKE_ALL_NOW action from pending response', async () => {
@@ -237,9 +247,48 @@ describe('notificationService', () => {
         updatedAt: Date.now(),
       };
 
-      (medicationRepository.getById as jest.Mock)
-        .mockResolvedValueOnce(mockMed1)
-        .mockResolvedValueOnce(mockMed2);
+      const mockSchedule1 = {
+        id: 'sched-1',
+        medicationId: 'med-1',
+        time: '09:00',
+        timezone: 'America/Los_Angeles',
+        dosage: 1,
+        enabled: true,
+      };
+
+      const mockSchedule2 = {
+        id: 'sched-2',
+        medicationId: 'med-2',
+        time: '09:00',
+        timezone: 'America/Los_Angeles',
+        dosage: 1,
+        enabled: true,
+      };
+
+      // Mock the store's methods
+      const mockLoadMedicationWithDetails = jest.fn().mockImplementation((medId: string) => {
+        if (medId === 'med-1') {
+          return Promise.resolve({
+            medication: mockMed1,
+            schedules: [mockSchedule1],
+            doses: [],
+          });
+        }
+        if (medId === 'med-2') {
+          return Promise.resolve({
+            medication: mockMed2,
+            schedules: [mockSchedule2],
+            doses: [],
+          });
+        }
+        return Promise.resolve(null);
+      });
+      const mockLogDose = jest.fn().mockResolvedValue({});
+
+      (useMedicationStore.getState as jest.Mock) = jest.fn(() => ({
+        loadMedicationWithDetails: mockLoadMedicationWithDetails,
+        logDose: mockLogDose,
+      }));
 
       await notificationService.initialize();
 
@@ -248,9 +297,9 @@ describe('notificationService', () => {
 
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Verify both medications were retrieved
-      expect(medicationRepository.getById).toHaveBeenCalledWith('med-1');
-      expect(medicationRepository.getById).toHaveBeenCalledWith('med-2');
+      // Verify both medications were retrieved via store
+      expect(mockLoadMedicationWithDetails).toHaveBeenCalledWith('med-1');
+      expect(mockLoadMedicationWithDetails).toHaveBeenCalledWith('med-2');
     });
 
     it('should handle SNOOZE_10 action from pending response', async () => {
@@ -2320,10 +2369,29 @@ describe('notificationService', () => {
         dosageAmount: 100,
         dosageUnit: 'mg',
         defaultQuantity: 1,
-        schedule: [{ id: 'sched-123', dosage: 2 }],
       };
 
-      (medicationRepository.getById as jest.Mock).mockResolvedValue(mockMedication);
+      const mockSchedule = {
+        id: 'sched-123',
+        medicationId: 'med-123',
+        time: '09:00',
+        timezone: 'America/Los_Angeles',
+        dosage: 2,
+        enabled: true,
+      };
+
+      // Mock the store's methods
+      const mockLoadMedicationWithDetails = jest.fn().mockResolvedValue({
+        medication: mockMedication,
+        schedules: [mockSchedule],
+        doses: [],
+      });
+      const mockLogDose = jest.fn().mockResolvedValue({});
+
+      (useMedicationStore.getState as jest.Mock) = jest.fn(() => ({
+        loadMedicationWithDetails: mockLoadMedicationWithDetails,
+        logDose: mockLogDose,
+      }));
 
       let responseListener: any;
 
@@ -2354,8 +2422,8 @@ describe('notificationService', () => {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
 
-      // Verify medication was retrieved
-      expect(medicationRepository.getById).toHaveBeenCalledWith('med-123');
+      // Verify medication was retrieved via store
+      expect(mockLoadMedicationWithDetails).toHaveBeenCalledWith('med-123');
 
       // Note: Due to dynamic import, we can't easily verify logDose was called in this test
       // This would be better tested in an integration test or E2E test
@@ -2368,10 +2436,29 @@ describe('notificationService', () => {
         dosageAmount: undefined, // Missing required field
         dosageUnit: 'mg',
         defaultQuantity: 1,
-        schedule: [{ id: 'sched-123', dosage: 2 }],
       };
 
-      (medicationRepository.getById as jest.Mock).mockResolvedValue(mockMedicationInvalid);
+      const mockSchedule = {
+        id: 'sched-123',
+        medicationId: 'med-123',
+        time: '09:00',
+        timezone: 'America/Los_Angeles',
+        dosage: 2,
+        enabled: true,
+      };
+
+      // Mock the store's methods with invalid medication
+      const mockLoadMedicationWithDetails = jest.fn().mockResolvedValue({
+        medication: mockMedicationInvalid,
+        schedules: [mockSchedule],
+        doses: [],
+      });
+      const mockLogDose = jest.fn().mockResolvedValue({});
+
+      (useMedicationStore.getState as jest.Mock) = jest.fn(() => ({
+        loadMedicationWithDetails: mockLoadMedicationWithDetails,
+        logDose: mockLogDose,
+      }));
 
       let responseListener: any;
 
