@@ -11,9 +11,7 @@
  */
 
 import * as Notifications from 'expo-notifications';
-import {
-  medicationRepository,
-} from '../../database/medicationRepository';
+import { medicationRepository } from '../../database/medicationRepository';
 import { Medication } from '../../models/types';
 
 // Mock dependencies
@@ -88,24 +86,38 @@ describe('Notification Action Handlers', () => {
 
     let mockMedicationStore: any;
 
+    // Mock schedules - same data as mockMedication.schedule
+    const mockSchedules = [
+      {
+        id: 'sched-1',
+        medicationId: 'med-1',
+        time: '08:00',
+        timezone: 'America/Los_Angeles',
+        dosage: 2,
+        enabled: true,
+      },
+    ];
+
     beforeEach(() => {
       mockMedicationStore = {
         logDose: jest.fn().mockResolvedValue(undefined),
+        loadMedicationWithDetails: jest.fn().mockResolvedValue({
+          medication: mockMedication,
+          schedules: mockSchedules,
+          doses: [],
+        }),
       };
 
       (useMedicationStore.getState as jest.Mock) = jest.fn(() => mockMedicationStore);
     });
 
     it('ACT-T1: should log dose with correct data when "Take Now" tapped', async () => {
-      // Arrange
-      (medicationRepository.getById as jest.Mock).mockResolvedValue(mockMedication);
-
       // Act
       const result = await handleTakeNow('med-1', 'sched-1');
 
       // Assert
       expect(result).toBe(true);
-      expect(medicationRepository.getById).toHaveBeenCalledWith('med-1');
+      expect(mockMedicationStore.loadMedicationWithDetails).toHaveBeenCalledWith('med-1');
       expect(mockMedicationStore.logDose).toHaveBeenCalledWith(
         expect.objectContaining({
           medicationId: 'med-1',
@@ -120,9 +132,12 @@ describe('Notification Action Handlers', () => {
     });
 
     it('ACT-T2: should fail when schedule not found and notify user about inconsistency', async () => {
-      // Arrange
-      const medWithoutSchedule = { ...mockMedication, schedule: [] };
-      (medicationRepository.getById as jest.Mock).mockResolvedValue(medWithoutSchedule);
+      // Arrange - override store mock to return empty schedules array
+      mockMedicationStore.loadMedicationWithDetails.mockResolvedValue({
+        medication: mockMedication,
+        schedules: [], // No schedules
+        doses: [],
+      });
 
       // Act
       const result = await handleTakeNow('med-1', 'sched-999');
@@ -143,8 +158,8 @@ describe('Notification Action Handlers', () => {
     });
 
     it('ACT-T3: should not log dose when medication not found and notify user (HAND-138, SUP-145)', async () => {
-      // Arrange
-      (medicationRepository.getById as jest.Mock).mockResolvedValue(null);
+      // Arrange - override store mock to return null (medication not found)
+      mockMedicationStore.loadMedicationWithDetails.mockResolvedValue(null);
 
       // Act
       const result = await handleTakeNow('med-999', 'sched-1');
@@ -161,9 +176,13 @@ describe('Notification Action Handlers', () => {
     });
 
     it('ACT-T4: should return false and notify user when medication has invalid configuration (HAND-138, HAND-238)', async () => {
-      // Arrange
+      // Arrange - override store mock to return medication with invalid config
       const invalidMed = { ...mockMedication, dosageAmount: undefined };
-      (medicationRepository.getById as jest.Mock).mockResolvedValue(invalidMed);
+      mockMedicationStore.loadMedicationWithDetails.mockResolvedValue({
+        medication: invalidMed,
+        schedules: mockSchedules,
+        doses: [],
+      });
 
       // Act
       const result = await handleTakeNow('med-1', 'sched-1');
@@ -227,25 +246,58 @@ describe('Notification Action Handlers', () => {
 
     let mockMedicationStore: any;
 
+    // Mock schedules for each medication
+    const mockScheduleA = {
+      id: 'sched-A',
+      medicationId: 'med-A',
+      time: '08:00',
+      timezone: 'America/Los_Angeles',
+      dosage: 1,
+      enabled: true,
+    };
+
+    const mockScheduleB = {
+      id: 'sched-B',
+      medicationId: 'med-B',
+      time: '08:00',
+      timezone: 'America/Los_Angeles',
+      dosage: 2,
+      enabled: true,
+    };
+
     beforeEach(() => {
       mockMedicationStore = {
         logDose: jest.fn().mockResolvedValue(undefined),
+        loadMedicationWithDetails: jest.fn().mockImplementation((medId: string) => {
+          if (medId === 'med-A') {
+            return Promise.resolve({
+              medication: mockMedA,
+              schedules: [mockScheduleA],
+              doses: [],
+            });
+          }
+          if (medId === 'med-B') {
+            return Promise.resolve({
+              medication: mockMedB,
+              schedules: [mockScheduleB],
+              doses: [],
+            });
+          }
+          return Promise.resolve(null);
+        }),
       };
 
       (useMedicationStore.getState as jest.Mock) = jest.fn(() => mockMedicationStore);
     });
 
     it('ACT-TA1: should log dose for EACH medication when "Take All" tapped', async () => {
-      // Arrange
-      (medicationRepository.getById as jest.Mock)
-        .mockResolvedValueOnce(mockMedA)
-        .mockResolvedValueOnce(mockMedB);
-
       // Act
       const result = await handleTakeAllNow(['med-A', 'med-B'], ['sched-A', 'sched-B']);
 
       // Assert
       expect(result).toEqual({ success: 2, total: 2 });
+      expect(mockMedicationStore.loadMedicationWithDetails).toHaveBeenCalledWith('med-A');
+      expect(mockMedicationStore.loadMedicationWithDetails).toHaveBeenCalledWith('med-B');
       expect(mockMedicationStore.logDose).toHaveBeenCalledTimes(2);
       expect(mockMedicationStore.logDose).toHaveBeenNthCalledWith(
         1,
@@ -267,10 +319,18 @@ describe('Notification Action Handlers', () => {
     });
 
     it('ACT-TA2: should continue logging even if one medication fails (resilient) and notify user', async () => {
-      // Arrange
-      (medicationRepository.getById as jest.Mock)
-        .mockResolvedValueOnce(null) // Med A not found
-        .mockResolvedValueOnce(mockMedB); // Med B found
+      // Arrange - override store mock so med-A returns null
+      mockMedicationStore.loadMedicationWithDetails.mockImplementation((medId: string) => {
+        if (medId === 'med-A') return Promise.resolve(null); // Med A not found
+        if (medId === 'med-B') {
+          return Promise.resolve({
+            medication: mockMedB,
+            schedules: [mockScheduleB],
+            doses: [],
+          });
+        }
+        return Promise.resolve(null);
+      });
 
       // Act
       const result = await handleTakeAllNow(['med-A', 'med-B'], ['sched-A', 'sched-B']);
