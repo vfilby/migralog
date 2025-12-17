@@ -118,6 +118,22 @@ export default function ScheduledNotificationsScreen({ navigation }: Props) {
       });
     }
 
+    // Sort by trigger time (soonest first)
+    filtered.sort((a, b) => {
+      const getTriggerTimestamp = (trigger: Notifications.NotificationTrigger | null): number => {
+        if (!trigger) return Infinity;
+        if ('type' in trigger && trigger.type === 'date' && 'date' in trigger && trigger.date) {
+          return new Date(trigger.date).getTime();
+        }
+        // For calendar/daily triggers, they repeat so put them at the end
+        return Infinity;
+      };
+
+      const timeA = getTriggerTimestamp(a.osNotification.trigger);
+      const timeB = getTriggerTimestamp(b.osNotification.trigger);
+      return timeA - timeB;
+    });
+
     setFilteredNotifications(filtered);
   }, [enrichedNotifications, selectedFilter, searchText]);
 
