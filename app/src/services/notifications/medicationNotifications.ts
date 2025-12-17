@@ -60,6 +60,8 @@ export async function handleTakeNow(medicationId: string, scheduleId: string): P
         scheduleId,
         medicationName: medication.name,
         availableScheduleIds: medication.schedule?.map(s => s.id) || [],
+        scheduleCount: medication.schedule?.length || 0,
+        medicationActive: medication.active,
         operation: 'handleTakeNow',
         component: 'NotificationConsistency',
       });
@@ -347,6 +349,8 @@ export async function handleTakeAllNow(
             scheduleId,
             medicationName: medication.name,
             availableScheduleIds: medication.schedule?.map(s => s.id) || [],
+            scheduleCount: medication.schedule?.length || 0,
+            medicationActive: medication.active,
             operation: 'handleTakeAllNow',
             index: i,
             component: 'NotificationConsistency',
@@ -1813,6 +1817,7 @@ export async function scheduleNotificationsForDays(
         data: {
           medicationId: medication.id,
           scheduleId: schedule.id,
+          scheduledAt: Date.now(), // DIAGNOSTIC: Track when notification was scheduled for age calculation
         },
         categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
         sound: true,
@@ -1843,6 +1848,7 @@ export async function scheduleNotificationsForDays(
               medicationId: medication.id,
               scheduleId: schedule.id,
               isFollowUp: true,
+              scheduledAt: Date.now(), // DIAGNOSTIC: Track when notification was scheduled for age calculation
             },
             categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
             sound: true,
@@ -1968,6 +1974,7 @@ export async function topUpNotifications(threshold: number = 3): Promise<void> {
                 data: {
                   medicationId: medication.id,
                   scheduleId: schedule.id,
+                  scheduledAt: Date.now(), // DIAGNOSTIC: Track when notification was scheduled for age calculation
                 },
                 categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
                 sound: true,

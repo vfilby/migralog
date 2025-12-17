@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import * as Sentry from '@sentry/react-native';
 import { logger } from '../utils/logger';
 import { Medication, MedicationDose, MedicationSchedule } from '../models/types';
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../database/medicationRepository';
@@ -670,6 +671,16 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       set({ schedules, loading: false });
 
       logger.log('[Store] Schedule added:', newSchedule.id);
+
+      // DIAGNOSTIC: Add Sentry breadcrumb for schedule creation
+      // This helps trace schedule lifecycle when debugging "Schedule not found" errors
+      Sentry.addBreadcrumb({
+        category: 'schedule',
+        message: 'Schedule created',
+        data: { scheduleId: newSchedule.id, medicationId: schedule.medicationId, time: schedule.time },
+        level: 'info',
+      });
+
       return newSchedule;
     } catch (error) {
       await errorLogger.log('database', 'Failed to add schedule', error as Error, {
@@ -703,6 +714,15 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       set({ schedules, loading: false });
 
       logger.log('[Store] Schedule updated:', id);
+
+      // DIAGNOSTIC: Add Sentry breadcrumb for schedule update
+      // This helps trace schedule lifecycle when debugging "Schedule not found" errors
+      Sentry.addBreadcrumb({
+        category: 'schedule',
+        message: 'Schedule updated',
+        data: { scheduleId: id, updates: Object.keys(updates) },
+        level: 'info',
+      });
     } catch (error) {
       await errorLogger.log('database', 'Failed to update schedule', error as Error, {
         operation: 'updateSchedule',
@@ -732,6 +752,15 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       set({ schedules, loading: false });
 
       logger.log('[Store] Schedule deleted:', id);
+
+      // DIAGNOSTIC: Add Sentry breadcrumb for schedule deletion
+      // This helps trace schedule lifecycle when debugging "Schedule not found" errors
+      Sentry.addBreadcrumb({
+        category: 'schedule',
+        message: 'Schedule deleted',
+        data: { scheduleId: id },
+        level: 'info',
+      });
     } catch (error) {
       await errorLogger.log('database', 'Failed to delete schedule', error as Error, {
         operation: 'deleteSchedule',
