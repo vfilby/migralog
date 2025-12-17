@@ -49,9 +49,13 @@ export async function handleTakeNow(medicationId: string, scheduleId: string): P
       return false;
     }
 
+    // BUGFIX: medicationRepository.getById() returns medications with empty schedule array
+    // Schedules are stored in a separate table and must be loaded explicitly
+    const schedules = await medicationScheduleRepository.getByMedicationId(medicationId);
+
     // Find the schedule to get the dosage
-    const schedule = medication.schedule?.find(s => s.id === scheduleId);
-    
+    const schedule = schedules.find(s => s.id === scheduleId);
+
     // NOTIFICATION SCHEDULE CONSISTENCY FIX: Validate that schedule exists
     if (!schedule) {
       const scheduleError = new Error(`Schedule not found in medication: scheduleId=${scheduleId}, medicationId=${medicationId}`);
@@ -59,8 +63,8 @@ export async function handleTakeNow(medicationId: string, scheduleId: string): P
         medicationId,
         scheduleId,
         medicationName: medication.name,
-        availableScheduleIds: medication.schedule?.map(s => s.id) || [],
-        scheduleCount: medication.schedule?.length || 0,
+        availableScheduleIds: schedules.map(s => s.id),
+        scheduleCount: schedules.length,
         medicationActive: medication.active,
         operation: 'handleTakeNow',
         component: 'NotificationConsistency',
@@ -338,9 +342,13 @@ export async function handleTakeAllNow(
           continue;
         }
 
+        // BUGFIX: medicationRepository.getById() returns medications with empty schedule array
+        // Schedules are stored in a separate table and must be loaded explicitly
+        const schedules = await medicationScheduleRepository.getByMedicationId(medicationId);
+
         // Find the schedule to get the dosage
-        const schedule = medication.schedule?.find(s => s.id === scheduleId);
-        
+        const schedule = schedules.find(s => s.id === scheduleId);
+
         // NOTIFICATION SCHEDULE CONSISTENCY FIX: Validate that schedule exists
         if (!schedule) {
           const scheduleError = new Error(`Schedule not found in medication: scheduleId=${scheduleId}, medicationId=${medicationId}`);
@@ -348,8 +356,8 @@ export async function handleTakeAllNow(
             medicationId,
             scheduleId,
             medicationName: medication.name,
-            availableScheduleIds: medication.schedule?.map(s => s.id) || [],
-            scheduleCount: medication.schedule?.length || 0,
+            availableScheduleIds: schedules.map(s => s.id),
+            scheduleCount: schedules.length,
             medicationActive: medication.active,
             operation: 'handleTakeAllNow',
             index: i,
@@ -1173,58 +1181,72 @@ export async function fixNotificationScheduleInconsistencies(): Promise<{
     for (const medication of medications) {
       medicationMap.set(medication.id, medication);
     }
-    
+
+    // BUGFIX: medicationRepository.getActive() returns medications with empty schedule arrays
+    // Load schedules separately and create a map for efficient lookups
+    const allSchedules = await medicationScheduleRepository.getByMedicationIds(
+      medications.map(m => m.id)
+    );
+    const schedulesByMedicationId = new Map<string, MedicationSchedule[]>();
+    for (const schedule of allSchedules) {
+      const existing = schedulesByMedicationId.get(schedule.medicationId) || [];
+      existing.push(schedule);
+      schedulesByMedicationId.set(schedule.medicationId, existing);
+    }
+
     let orphanedCount = 0;
     const invalidScheduleIds: string[] = [];
-    
+
     for (const notif of medicationNotifs) {
       const data = notif.content.data as Record<string, unknown>;
-      
+
       // Handle single medication notifications
       if (data.medicationId && data.scheduleId) {
         const medicationId = data.medicationId as string;
         const scheduleId = data.scheduleId as string;
         const medication = medicationMap.get(medicationId);
-        
-        if (!medication || !medication.schedule?.find(s => s.id === scheduleId)) {
+        const schedules = schedulesByMedicationId.get(medicationId) || [];
+
+        if (!medication || !schedules.find(s => s.id === scheduleId)) {
           logger.warn('[Notification] Canceling orphaned notification with invalid schedule:', {
             notificationId: notif.identifier,
             medicationId,
             scheduleId,
             medicationExists: !!medication,
-            availableScheduleIds: medication?.schedule?.map(s => s.id) || [],
+            availableScheduleIds: schedules.map(s => s.id),
           });
-          
+
           await Notifications.cancelScheduledNotificationAsync(notif.identifier);
           orphanedCount++;
           invalidScheduleIds.push(scheduleId);
         }
       }
-      
+
       // Handle grouped medication notifications
       if (data.medicationIds && data.scheduleIds) {
         const medicationIds = data.medicationIds as string[];
         const scheduleIds = data.scheduleIds as string[];
         let hasInvalidSchedule = false;
-        
+
         for (let i = 0; i < medicationIds.length; i++) {
           const medicationId = medicationIds[i];
           const scheduleId = scheduleIds[i];
           const medication = medicationMap.get(medicationId);
-          
-          if (!medication || !medication.schedule?.find(s => s.id === scheduleId)) {
+          const schedules = schedulesByMedicationId.get(medicationId) || [];
+
+          if (!medication || !schedules.find(s => s.id === scheduleId)) {
             hasInvalidSchedule = true;
             invalidScheduleIds.push(scheduleId);
           }
         }
-        
+
         if (hasInvalidSchedule) {
           logger.warn('[Notification] Canceling orphaned grouped notification with invalid schedules:', {
             notificationId: notif.identifier,
             medicationIds,
             scheduleIds,
           });
-          
+
           await Notifications.cancelScheduledNotificationAsync(notif.identifier);
           orphanedCount++;
         }
