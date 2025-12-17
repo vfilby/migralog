@@ -83,9 +83,17 @@ function App() {
       (async () => {
         try {
           // Reconcile and top-up medication notifications
-          const { reconcileNotifications, topUpNotifications } = await import('./src/services/notifications/medicationNotifications');
+          const { reconcileNotifications, topUpNotifications, fixNotificationScheduleInconsistencies } = await import('./src/services/notifications/medicationNotifications');
           await reconcileNotifications();
           await topUpNotifications();
+
+          // BUGFIX: Clean up any presented notifications with stale schedule IDs
+          // This prevents "Schedule not found" errors when users interact with old notifications
+          const consistencyResult = await fixNotificationScheduleInconsistencies();
+          if (consistencyResult.orphanedNotifications > 0) {
+            logger.log('Fixed notification schedule inconsistencies:', consistencyResult);
+          }
+
           logger.log('Medication notification reconciliation and top-up complete');
 
           // Top-up daily check-in notifications (uses one-time triggers)

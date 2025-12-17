@@ -13,6 +13,7 @@
 import * as Notifications from 'expo-notifications';
 import {
   medicationRepository,
+  medicationScheduleRepository,
 } from '../../database/medicationRepository';
 import { Medication } from '../../models/types';
 
@@ -88,12 +89,27 @@ describe('Notification Action Handlers', () => {
 
     let mockMedicationStore: any;
 
+    // Mock schedules - same data as mockMedication.schedule
+    const mockSchedules = [
+      {
+        id: 'sched-1',
+        medicationId: 'med-1',
+        time: '08:00',
+        timezone: 'America/Los_Angeles',
+        dosage: 2,
+        enabled: true,
+      },
+    ];
+
     beforeEach(() => {
       mockMedicationStore = {
         logDose: jest.fn().mockResolvedValue(undefined),
       };
 
       (useMedicationStore.getState as jest.Mock) = jest.fn(() => mockMedicationStore);
+
+      // BUGFIX: handleTakeNow now loads schedules separately via getByMedicationId
+      (medicationScheduleRepository.getByMedicationId as jest.Mock).mockResolvedValue(mockSchedules);
     });
 
     it('ACT-T1: should log dose with correct data when "Take Now" tapped', async () => {
@@ -121,8 +137,9 @@ describe('Notification Action Handlers', () => {
 
     it('ACT-T2: should fail when schedule not found and notify user about inconsistency', async () => {
       // Arrange
-      const medWithoutSchedule = { ...mockMedication, schedule: [] };
-      (medicationRepository.getById as jest.Mock).mockResolvedValue(medWithoutSchedule);
+      (medicationRepository.getById as jest.Mock).mockResolvedValue(mockMedication);
+      // Override schedule mock to return empty array (schedule not found)
+      (medicationScheduleRepository.getByMedicationId as jest.Mock).mockResolvedValue([]);
 
       // Act
       const result = await handleTakeNow('med-1', 'sched-999');
@@ -227,12 +244,39 @@ describe('Notification Action Handlers', () => {
 
     let mockMedicationStore: any;
 
+    // Mock schedules for each medication
+    const mockScheduleA = {
+      id: 'sched-A',
+      medicationId: 'med-A',
+      time: '08:00',
+      timezone: 'America/Los_Angeles',
+      dosage: 1,
+      enabled: true,
+    };
+
+    const mockScheduleB = {
+      id: 'sched-B',
+      medicationId: 'med-B',
+      time: '08:00',
+      timezone: 'America/Los_Angeles',
+      dosage: 2,
+      enabled: true,
+    };
+
     beforeEach(() => {
       mockMedicationStore = {
         logDose: jest.fn().mockResolvedValue(undefined),
       };
 
       (useMedicationStore.getState as jest.Mock) = jest.fn(() => mockMedicationStore);
+
+      // BUGFIX: handleTakeAllNow now loads schedules separately via getByMedicationId
+      (medicationScheduleRepository.getByMedicationId as jest.Mock)
+        .mockImplementation((medId: string) => {
+          if (medId === 'med-A') return Promise.resolve([mockScheduleA]);
+          if (medId === 'med-B') return Promise.resolve([mockScheduleB]);
+          return Promise.resolve([]);
+        });
     });
 
     it('ACT-TA1: should log dose for EACH medication when "Take All" tapped', async () => {
