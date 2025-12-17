@@ -34,10 +34,13 @@ export { MEDICATION_REMINDER_CATEGORY, MULTIPLE_MEDICATION_REMINDER_CATEGORY };
  */
 export async function handleTakeNow(medicationId: string, scheduleId: string): Promise<boolean> {
   try {
-    const medication = await medicationRepository.getById(medicationId);
-    if (!medication) {
+    // Use store to load medication and schedules together
+    const { useMedicationStore } = await import('../../store/medicationStore');
+    const result = await useMedicationStore.getState().loadMedicationWithDetails(medicationId);
+
+    if (!result || !result.medication) {
       logger.error('[Notification] Medication not found:', { medicationId, scheduleId });
-      
+
       // Issue 2 (HAND-238) + Issue 5 (SUP-145): User-friendly error notification
       await notifyUserOfError(
         'data',
@@ -45,13 +48,11 @@ export async function handleTakeNow(medicationId: string, scheduleId: string): P
         new Error(`Medication not found: ${medicationId}`),
         { medicationId, scheduleId, operation: 'handleTakeNow' }
       );
-      
+
       return false;
     }
 
-    // BUGFIX: medicationRepository.getById() returns medications with empty schedule array
-    // Schedules are stored in a separate table and must be loaded explicitly
-    const schedules = await medicationScheduleRepository.getByMedicationId(medicationId);
+    const { medication, schedules } = result;
 
     // Find the schedule to get the dosage
     const schedule = schedules.find(s => s.id === scheduleId);
@@ -84,8 +85,6 @@ export async function handleTakeNow(medicationId: string, scheduleId: string): P
     const dosage = schedule.dosage ?? medication.defaultQuantity ?? 1;
 
     // Use store's logDose to update both database and state
-    // Dynamic import to avoid circular dependency
-    const { useMedicationStore } = await import('../../store/medicationStore');
     const timestamp = Date.now();
 
     // Validate dose object before passing to store
@@ -327,10 +326,12 @@ export async function handleTakeAllNow(
       const scheduleId = scheduleIds[i];
 
       try {
-        const medication = await medicationRepository.getById(medicationId);
-        if (!medication) {
+        // Use store to load medication and schedules together
+        const result = await useMedicationStore.getState().loadMedicationWithDetails(medicationId);
+
+        if (!result || !result.medication) {
           logger.error('[Notification] Medication not found in group:', { medicationId, scheduleId });
-          
+
           // Issue 2 (HAND-238) + Issue 3 (HAND-334): Log each failure
           await notifyUserOfError(
             'data',
@@ -338,13 +339,11 @@ export async function handleTakeAllNow(
             new Error(`Medication not found: ${medicationId}`),
             { medicationId, scheduleId, operation: 'handleTakeAllNow', index: i }
           );
-          
+
           continue;
         }
 
-        // BUGFIX: medicationRepository.getById() returns medications with empty schedule array
-        // Schedules are stored in a separate table and must be loaded explicitly
-        const schedules = await medicationScheduleRepository.getByMedicationId(medicationId);
+        const { medication, schedules } = result;
 
         // Find the schedule to get the dosage
         const schedule = schedules.find(s => s.id === scheduleId);
@@ -1175,23 +1174,26 @@ export async function fixNotificationScheduleInconsistencies(): Promise<{
       return (medicationId || medicationIds) && type !== 'daily_checkin';
     });
     
-    // Get all active medications
-    const medications = await medicationRepository.getActive();
+    // Use store to load medications and schedules
+    const { useMedicationStore } = await import('../../store/medicationStore');
+    const store = useMedicationStore.getState();
+
+    // Load medications and schedules into store state
+    await store.loadMedications();
+    await store.loadSchedules();
+
+    // Get active medications from state
+    const medications = store.medications.filter(m => m.active);
     const medicationMap = new Map<string, Medication>();
     for (const medication of medications) {
       medicationMap.set(medication.id, medication);
     }
 
-    // BUGFIX: medicationRepository.getActive() returns medications with empty schedule arrays
-    // Load schedules separately and create a map for efficient lookups
-    const allSchedules = await medicationScheduleRepository.getByMedicationIds(
-      medications.map(m => m.id)
-    );
+    // Get schedules for each medication from store state
     const schedulesByMedicationId = new Map<string, MedicationSchedule[]>();
-    for (const schedule of allSchedules) {
-      const existing = schedulesByMedicationId.get(schedule.medicationId) || [];
-      existing.push(schedule);
-      schedulesByMedicationId.set(schedule.medicationId, existing);
+    for (const medication of medications) {
+      const schedules = store.getSchedulesByMedicationId(medication.id);
+      schedulesByMedicationId.set(medication.id, schedules);
     }
 
     let orphanedCount = 0;

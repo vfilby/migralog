@@ -48,6 +48,7 @@ import {
   medicationRepository,
   medicationScheduleRepository,
 } from '../../database/medicationRepository';
+import { useMedicationStore } from '../../store/medicationStore';
 import { scheduledNotificationRepository } from '../../database/scheduledNotificationRepository';
 import { useNotificationSettingsStore } from '../../store/notificationSettingsStore';
 import { notifyUserOfError } from '../notifications/errorNotificationHelper';
@@ -350,12 +351,24 @@ describe('Medication Notification Scheduling', () => {
   });
 
   describe('fixNotificationScheduleInconsistencies', () => {
+    let mockMedicationStore: any;
+
+    beforeEach(() => {
+      // Set up store mock for fixNotificationScheduleInconsistencies tests
+      mockMedicationStore = {
+        medications: [],
+        loadMedications: jest.fn().mockResolvedValue(undefined),
+        loadSchedules: jest.fn().mockResolvedValue(undefined),
+        getSchedulesByMedicationId: jest.fn().mockReturnValue([]),
+      };
+      (useMedicationStore.getState as jest.Mock) = jest.fn(() => mockMedicationStore);
+    });
+
     it('should cancel orphaned notifications with invalid schedules', async () => {
       const mockMedications = [
-        { id: 'med-1' },
+        { id: 'med-1', active: true },
       ];
 
-      // Schedules are now loaded separately via getByMedicationIds
       const mockSchedules = [
         { id: 'sched-valid', medicationId: 'med-1' },
       ];
@@ -375,8 +388,12 @@ describe('Medication Notification Scheduling', () => {
         },
       ];
 
-      (medicationRepository.getActive as jest.Mock).mockResolvedValue(mockMedications);
-      (medicationScheduleRepository.getByMedicationIds as jest.Mock).mockResolvedValue(mockSchedules);
+      // Set up store state and methods
+      mockMedicationStore.medications = mockMedications;
+      mockMedicationStore.getSchedulesByMedicationId.mockImplementation((medId: string) => {
+        if (medId === 'med-1') return mockSchedules;
+        return [];
+      });
       (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockResolvedValue(mockNotifications);
 
       const result = await fixNotificationScheduleInconsistencies();
@@ -388,8 +405,8 @@ describe('Medication Notification Scheduling', () => {
 
     it('should handle grouped notifications with invalid schedules', async () => {
       const mockMedications = [
-        { id: 'med-1' },
-        { id: 'med-2' },
+        { id: 'med-1', active: true },
+        { id: 'med-2', active: true },
       ];
 
       // med-1 has a valid schedule, med-2 has no schedules
@@ -409,8 +426,12 @@ describe('Medication Notification Scheduling', () => {
         },
       ];
 
-      (medicationRepository.getActive as jest.Mock).mockResolvedValue(mockMedications);
-      (medicationScheduleRepository.getByMedicationIds as jest.Mock).mockResolvedValue(mockSchedules);
+      // Set up store state and methods
+      mockMedicationStore.medications = mockMedications;
+      mockMedicationStore.getSchedulesByMedicationId.mockImplementation((medId: string) => {
+        if (medId === 'med-1') return mockSchedules;
+        return [];
+      });
       (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockResolvedValue(mockNotifications);
 
       const result = await fixNotificationScheduleInconsistencies();
@@ -421,7 +442,7 @@ describe('Medication Notification Scheduling', () => {
 
     it('should not cancel valid notifications', async () => {
       const mockMedications = [
-        { id: 'med-1' },
+        { id: 'med-1', active: true },
       ];
 
       const mockSchedules = [
@@ -437,8 +458,12 @@ describe('Medication Notification Scheduling', () => {
         },
       ];
 
-      (medicationRepository.getActive as jest.Mock).mockResolvedValue(mockMedications);
-      (medicationScheduleRepository.getByMedicationIds as jest.Mock).mockResolvedValue(mockSchedules);
+      // Set up store state and methods
+      mockMedicationStore.medications = mockMedications;
+      mockMedicationStore.getSchedulesByMedicationId.mockImplementation((medId: string) => {
+        if (medId === 'med-1') return mockSchedules;
+        return [];
+      });
       (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockResolvedValue(mockNotifications);
 
       const result = await fixNotificationScheduleInconsistencies();
