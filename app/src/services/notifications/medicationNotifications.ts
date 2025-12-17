@@ -1249,96 +1249,14 @@ export async function fixNotificationScheduleInconsistencies(): Promise<{
       }
     }
     
-    logger.log('[Notification] Scheduled notification consistency check completed:', {
+    logger.log('[Notification] Consistency check completed:', {
       totalChecked: medicationNotifs.length,
       orphanedCanceled: orphanedCount,
       invalidScheduleIds: [...new Set(invalidScheduleIds)],
     });
 
-    // BUGFIX: Also check PRESENTED notifications for stale schedule IDs
-    // These are notifications that have already fired and are sitting in the notification tray
-    // If they have invalid schedule IDs, dismiss them to prevent "Schedule not found" errors
-    // when the user interacts with them
-    const presented = await Notifications.getPresentedNotificationsAsync();
-    const presentedMedicationNotifs = presented.filter((n) => {
-      const data = n.request.content.data as Record<string, unknown> | null | undefined;
-      if (!data) return false;
-      const medicationId = data.medicationId as string | undefined;
-      const medicationIds = data.medicationIds as string[] | undefined;
-      const type = data.type as string | undefined;
-      return (medicationId || medicationIds) && type !== 'daily_checkin';
-    });
-
-    let dismissedPresentedCount = 0;
-
-    for (const notif of presentedMedicationNotifs) {
-      const data = notif.request.content.data as Record<string, unknown>;
-
-      // Handle single medication notifications
-      if (data.medicationId && data.scheduleId) {
-        const medicationId = data.medicationId as string;
-        const scheduleId = data.scheduleId as string;
-        const medication = medicationMap.get(medicationId);
-        const schedules = schedulesByMedicationId.get(medicationId) || [];
-
-        if (!medication || !schedules.find(s => s.id === scheduleId)) {
-          logger.warn('[Notification] Dismissing presented notification with invalid schedule:', {
-            notificationId: notif.request.identifier,
-            medicationId,
-            scheduleId,
-            medicationExists: !!medication,
-            availableScheduleIds: schedules.map(s => s.id),
-            isFollowUp: data.isFollowUp || false,
-          });
-
-          await Notifications.dismissNotificationAsync(notif.request.identifier);
-          dismissedPresentedCount++;
-          invalidScheduleIds.push(scheduleId);
-        }
-      }
-
-      // Handle grouped medication notifications
-      if (data.medicationIds && data.scheduleIds) {
-        const medicationIds = data.medicationIds as string[];
-        const scheduleIds = data.scheduleIds as string[];
-        let hasInvalidSchedule = false;
-
-        for (let i = 0; i < medicationIds.length; i++) {
-          const medicationId = medicationIds[i];
-          const scheduleId = scheduleIds[i];
-          const medication = medicationMap.get(medicationId);
-          const schedules = schedulesByMedicationId.get(medicationId) || [];
-
-          if (!medication || !schedules.find(s => s.id === scheduleId)) {
-            hasInvalidSchedule = true;
-            invalidScheduleIds.push(scheduleId);
-          }
-        }
-
-        if (hasInvalidSchedule) {
-          logger.warn('[Notification] Dismissing presented grouped notification with invalid schedules:', {
-            notificationId: notif.request.identifier,
-            medicationIds,
-            scheduleIds,
-            isFollowUp: data.isFollowUp || false,
-          });
-
-          await Notifications.dismissNotificationAsync(notif.request.identifier);
-          dismissedPresentedCount++;
-        }
-      }
-    }
-
-    logger.log('[Notification] Full consistency check completed:', {
-      scheduledChecked: medicationNotifs.length,
-      scheduledCanceled: orphanedCount,
-      presentedChecked: presentedMedicationNotifs.length,
-      presentedDismissed: dismissedPresentedCount,
-      invalidScheduleIds: [...new Set(invalidScheduleIds)],
-    });
-
     return {
-      orphanedNotifications: orphanedCount + dismissedPresentedCount,
+      orphanedNotifications: orphanedCount,
       invalidScheduleIds: [...new Set(invalidScheduleIds)],
     };
   } catch (error) {

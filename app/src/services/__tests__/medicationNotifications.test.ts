@@ -350,11 +350,6 @@ describe('Medication Notification Scheduling', () => {
   });
 
   describe('fixNotificationScheduleInconsistencies', () => {
-    beforeEach(() => {
-      // Default mock for presented notifications (empty)
-      (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue([]);
-    });
-
     it('should cancel orphaned notifications with invalid schedules', async () => {
       const mockMedications = [
         { id: 'med-1' },
@@ -450,89 +445,6 @@ describe('Medication Notification Scheduling', () => {
 
       expect(result.orphanedNotifications).toBe(0);
       expect(Notifications.cancelScheduledNotificationAsync).not.toHaveBeenCalled();
-    });
-
-    it('should dismiss presented notifications with invalid schedules', async () => {
-      const mockMedications = [
-        { id: 'med-1' },
-      ];
-
-      const mockSchedules = [
-        { id: 'sched-valid', medicationId: 'med-1' },
-      ];
-
-      // No scheduled notifications to process
-      (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockResolvedValue([]);
-
-      // Presented notification with stale schedule ID
-      const mockPresentedNotifications = [
-        {
-          request: {
-            identifier: 'presented-orphan',
-            content: {
-              data: { medicationId: 'med-1', scheduleId: 'sched-stale', isFollowUp: true },
-            },
-          },
-        },
-        {
-          request: {
-            identifier: 'presented-valid',
-            content: {
-              data: { medicationId: 'med-1', scheduleId: 'sched-valid' },
-            },
-          },
-        },
-      ];
-      (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue(mockPresentedNotifications);
-
-      (medicationRepository.getActive as jest.Mock).mockResolvedValue(mockMedications);
-      (medicationScheduleRepository.getByMedicationIds as jest.Mock).mockResolvedValue(mockSchedules);
-
-      const result = await fixNotificationScheduleInconsistencies();
-
-      expect(result.orphanedNotifications).toBe(1);
-      expect(result.invalidScheduleIds).toContain('sched-stale');
-      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith('presented-orphan');
-      expect(Notifications.dismissNotificationAsync).not.toHaveBeenCalledWith('presented-valid');
-    });
-
-    it('should dismiss presented grouped notifications with invalid schedules', async () => {
-      const mockMedications = [
-        { id: 'med-1' },
-        { id: 'med-2' },
-      ];
-
-      // med-1 has valid schedule, med-2 has no schedules
-      const mockSchedules = [
-        { id: 'sched-1', medicationId: 'med-1' },
-      ];
-
-      (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockResolvedValue([]);
-
-      const mockPresentedNotifications = [
-        {
-          request: {
-            identifier: 'group-presented-orphan',
-            content: {
-              data: {
-                medicationIds: ['med-1', 'med-2'],
-                scheduleIds: ['sched-1', 'sched-orphan'],
-                isFollowUp: true,
-              },
-            },
-          },
-        },
-      ];
-      (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue(mockPresentedNotifications);
-
-      (medicationRepository.getActive as jest.Mock).mockResolvedValue(mockMedications);
-      (medicationScheduleRepository.getByMedicationIds as jest.Mock).mockResolvedValue(mockSchedules);
-
-      const result = await fixNotificationScheduleInconsistencies();
-
-      expect(result.orphanedNotifications).toBe(1);
-      expect(result.invalidScheduleIds).toContain('sched-orphan');
-      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith('group-presented-orphan');
     });
   });
 
