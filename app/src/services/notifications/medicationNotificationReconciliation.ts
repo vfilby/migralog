@@ -19,7 +19,8 @@ import { MEDICATION_REMINDER_CATEGORY } from './notificationCategories';
 import {
   scheduleSingleNotification,
   scheduleMultipleNotification,
-  scheduleNotificationsForDays,
+  scheduleGroupedNotificationsForDays,
+  scheduleGroupedNotificationForTime,
 } from './medicationNotificationScheduling';
 
 /**
@@ -298,10 +299,9 @@ export async function rescheduleAllMedicationNotifications(): Promise<void> {
       daysToSchedule,
     });
 
-    // Step 5: Schedule one-time notifications for each active schedule
-    for (const { medication, schedule } of activeMedSchedules) {
-      await scheduleNotificationsForDays(medication, schedule, daysToSchedule);
-    }
+    // Step 5: Schedule one-time notifications using grouped scheduling
+    // This ensures medications at the same time are grouped together
+    await scheduleGroupedNotificationsForDays(activeMedSchedules, daysToSchedule);
 
     logger.log('[Notification] Rescheduled all medication notifications:', {
       schedulesProcessed: activeMedSchedules.length,
@@ -442,6 +442,198 @@ export async function rescheduleAllNotifications(): Promise<void> {
 }
 
 /**
+ * Build a map of dates that need scheduling for each time slot
+ *
+ * @param activeMedSchedules - Array of active medication/schedule pairs
+ * @param threshold - Minimum number of days to maintain
+ * @param targetDays - Target number of days to schedule
+ * @returns Object containing dates to schedule by time and schedules grouped by time
+ */
+async function buildScheduleDates(
+  activeMedSchedules: Array<{ medication: Medication; schedule: MedicationSchedule }>,
+  threshold: number,
+  targetDays: number
+): Promise<{
+  datesToScheduleByTime: Map<string, Set<string>>;
+  schedulesByTime: Map<string, Array<{ medication: Medication; schedule: MedicationSchedule }>>;
+  maxDaysToAdd: number;
+}> {
+  const datesToScheduleByTime = new Map<string, Set<string>>();
+  const schedulesByTime = new Map<string, Array<{ medication: Medication; schedule: MedicationSchedule }>>();
+  let maxDaysToAdd = 0;
+
+  for (const { medication, schedule } of activeMedSchedules) {
+    const count = await scheduledNotificationRepository.countBySchedule(
+      medication.id,
+      schedule.id
+    );
+
+    if (count < threshold) {
+      // Get the last scheduled date
+      const lastDate = await scheduledNotificationRepository.getLastScheduledDate(
+        medication.id,
+        schedule.id
+      );
+
+      // Calculate how many more days to schedule
+      const daysToAdd = targetDays - count;
+      maxDaysToAdd = Math.max(maxDaysToAdd, daysToAdd);
+
+      // Start from the day after the last scheduled, or today if none scheduled
+      let startFromDay = 0;
+      if (lastDate) {
+        const lastDateObj = new Date(lastDate);
+        const todayObj = new Date(toLocalDateString());
+        const diffDays = Math.ceil((lastDateObj.getTime() - todayObj.getTime()) / (1000 * 60 * 60 * 24));
+        startFromDay = diffDays + 1;
+      }
+
+      logger.log('[Notification] Top-up needed for schedule:', {
+        medicationId: medication.id,
+        scheduleId: schedule.id,
+        currentCount: count,
+        daysToAdd,
+        startFromDay,
+      });
+
+      // Track which dates need to be scheduled for this time slot
+      const time = schedule.time;
+      if (!datesToScheduleByTime.has(time)) {
+        datesToScheduleByTime.set(time, new Set<string>());
+      }
+      if (!schedulesByTime.has(time)) {
+        schedulesByTime.set(time, []);
+      }
+
+      const dateSet = datesToScheduleByTime.get(time)!;
+      for (let i = 0; i < daysToAdd; i++) {
+        const dateString = toLocalDateStringOffset(startFromDay + i);
+        dateSet.add(dateString);
+      }
+
+      // Add this schedule to the time group
+      if (!schedulesByTime.get(time)!.find(s => s.schedule.id === schedule.id)) {
+        schedulesByTime.get(time)!.push({ medication, schedule });
+      }
+    }
+  }
+
+  return { datesToScheduleByTime, schedulesByTime, maxDaysToAdd };
+}
+
+/**
+ * Schedule a single medication notification for a specific date
+ *
+ * @param medication - The medication
+ * @param schedule - The schedule
+ * @param dateString - The date string (YYYY-MM-DD format)
+ * @param triggerDate - The trigger date/time
+ */
+async function scheduleSingleReminder(
+  medication: Medication,
+  schedule: MedicationSchedule,
+  dateString: string,
+  triggerDate: Date
+): Promise<void> {
+  const effectiveSettings = useNotificationSettingsStore.getState().getEffectiveSettings(medication.id);
+
+  // Check if already scheduled
+  const existing = await scheduledNotificationRepository.getMapping(
+    medication.id,
+    schedule.id,
+    dateString,
+    'reminder'
+  );
+
+  if (!existing) {
+    await scheduleNotificationAtomic(
+      {
+        title: `Time for ${medication.name}`,
+        body: `${schedule.dosage} dose(s) - ${medication.dosageAmount}${medication.dosageUnit} each`,
+        data: {
+          medicationId: medication.id,
+          scheduleId: schedule.id,
+          scheduledAt: Date.now(),
+        },
+        categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
+        sound: true,
+        ...(effectiveSettings.timeSensitiveEnabled && { interruptionLevel: 'timeSensitive' } as unknown as Record<string, unknown>),
+      },
+      triggerDate,
+      {
+        medicationId: medication.id,
+        scheduleId: schedule.id,
+        date: dateString,
+        notificationType: 'reminder',
+        isGrouped: false,
+      }
+    );
+  }
+
+  // Schedule follow-up if enabled
+  if (effectiveSettings.followUpDelay !== 'off') {
+    await scheduleSingleFollowUp(medication, schedule, dateString, triggerDate, effectiveSettings);
+  }
+}
+
+/**
+ * Schedule a follow-up notification for a single medication
+ *
+ * @param medication - The medication
+ * @param schedule - The schedule
+ * @param dateString - The date string
+ * @param triggerDate - The original trigger date
+ * @param effectiveSettings - The effective notification settings
+ */
+async function scheduleSingleFollowUp(
+  medication: Medication,
+  schedule: MedicationSchedule,
+  dateString: string,
+  triggerDate: Date,
+  effectiveSettings: { followUpDelay: number | 'off'; criticalAlertsEnabled: boolean; timeSensitiveEnabled: boolean }
+): Promise<void> {
+  if (effectiveSettings.followUpDelay === 'off') return;
+
+  const followUpDate = new Date(triggerDate.getTime() + effectiveSettings.followUpDelay * 60 * 1000);
+
+  if (followUpDate > new Date()) {
+    const existingFollowUp = await scheduledNotificationRepository.getMapping(
+      medication.id,
+      schedule.id,
+      dateString,
+      'follow_up'
+    );
+
+    if (!existingFollowUp) {
+      await scheduleNotificationAtomic(
+        {
+          title: `Reminder: ${medication.name}`,
+          body: 'Did you take your medication?',
+          data: {
+            medicationId: medication.id,
+            scheduleId: schedule.id,
+            isFollowUp: true,
+            scheduledAt: Date.now(),
+          },
+          categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
+          sound: true,
+          ...(effectiveSettings.criticalAlertsEnabled && { critical: true } as unknown as Record<string, unknown>),
+          ...(effectiveSettings.criticalAlertsEnabled && { interruptionLevel: 'critical' } as unknown as Record<string, unknown>),
+        },
+        followUpDate,
+        {
+          medicationId: medication.id,
+          scheduleId: schedule.id,
+          date: dateString,
+          notificationType: 'follow_up',
+          isGrouped: false,
+        }
+      );
+    }
+  }
+}
+
+/**
  * Top up notifications to ensure we always have N days scheduled
  *
  * Called after:
@@ -486,85 +678,42 @@ export async function topUpNotifications(threshold: number = 3): Promise<void> {
       threshold,
     });
 
-    // For each schedule, check if we need to add more notifications
-    for (const { medication, schedule } of activeMedSchedules) {
-      const count = await scheduledNotificationRepository.countBySchedule(
-        medication.id,
-        schedule.id
-      );
+    // Build schedule dates
+    const { datesToScheduleByTime, schedulesByTime, maxDaysToAdd } = await buildScheduleDates(
+      activeMedSchedules,
+      threshold,
+      targetDays
+    );
 
-      if (count < threshold) {
-        // Get the last scheduled date
-        const lastDate = await scheduledNotificationRepository.getLastScheduledDate(
-          medication.id,
-          schedule.id
-        );
+    // If no top-up needed, exit early
+    if (maxDaysToAdd === 0) {
+      logger.log('[Notification] No top-up needed');
+      return;
+    }
 
-        // Calculate how many more days to schedule
-        const daysToAdd = targetDays - count;
+    // Now schedule notifications using grouped scheduling for the specific dates needed
+    for (const [time, dateSet] of datesToScheduleByTime.entries()) {
+      const groupItems = schedulesByTime.get(time) || [];
+      if (groupItems.length === 0) continue;
 
-        // Start from the day after the last scheduled, or today if none scheduled
-        let startFromDay = 0;
-        if (lastDate) {
-          const lastDateObj = new Date(lastDate);
-          const todayObj = new Date(toLocalDateString());
-          const diffDays = Math.ceil((lastDateObj.getTime() - todayObj.getTime()) / (1000 * 60 * 60 * 24));
-          startFromDay = diffDays + 1;
+      // Sort dates to schedule them in order
+      const sortedDates = Array.from(dateSet).sort();
+
+      for (const dateString of sortedDates) {
+        const triggerDate = localDateTimeFromStrings(dateString, time);
+
+        // Skip if trigger time has already passed
+        if (triggerDate <= new Date()) {
+          continue;
         }
 
-        logger.log('[Notification] Top-up needed for schedule:', {
-          medicationId: medication.id,
-          scheduleId: schedule.id,
-          currentCount: count,
-          daysToAdd,
-          startFromDay,
-        });
-
-        // Schedule additional notifications
-        for (let i = 0; i < daysToAdd; i++) {
-          const dateString = toLocalDateStringOffset(startFromDay + i);
-          const triggerDate = localDateTimeFromStrings(dateString, schedule.time);
-
-          if (triggerDate <= new Date()) {
-            continue;
-          }
-
-          // Check if already scheduled
-          const existing = await scheduledNotificationRepository.getMapping(
-            medication.id,
-            schedule.id,
-            dateString,
-            'reminder'
-          );
-
-          if (!existing) {
-            const effectiveSettings = useNotificationSettingsStore.getState().getEffectiveSettings(medication.id);
-
-            await scheduleNotificationAtomic(
-              {
-                title: `Time for ${medication.name}`,
-                body: `${schedule.dosage} dose(s) - ${medication.dosageAmount}${medication.dosageUnit} each`,
-                data: {
-                  medicationId: medication.id,
-                  scheduleId: schedule.id,
-                  scheduledAt: Date.now(), // DIAGNOSTIC: Track when notification was scheduled for age calculation
-                },
-                categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
-                sound: true,
-                ...(effectiveSettings.criticalAlertsEnabled && { critical: true } as unknown as Record<string, unknown>),
-                ...(effectiveSettings.criticalAlertsEnabled && { interruptionLevel: 'critical' } as unknown as Record<string, unknown>),
-                ...(!effectiveSettings.criticalAlertsEnabled && effectiveSettings.timeSensitiveEnabled && { interruptionLevel: 'timeSensitive' } as unknown as Record<string, unknown>),
-              },
-              triggerDate,
-              {
-                medicationId: medication.id,
-                scheduleId: schedule.id,
-                date: dateString,
-                notificationType: 'reminder',
-                isGrouped: false,
-              }
-            );
-          }
+        if (groupItems.length === 1) {
+          // Single medication at this time - schedule individually using helper
+          const { medication, schedule } = groupItems[0];
+          await scheduleSingleReminder(medication, schedule, dateString, triggerDate);
+        } else {
+          // Multiple medications at this time - schedule as grouped using helper function
+          await scheduleGroupedNotificationForTime(groupItems, time, triggerDate, dateString);
         }
       }
     }
