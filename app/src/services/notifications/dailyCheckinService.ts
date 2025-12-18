@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import * as Sentry from '@sentry/react-native';
 import { logger } from '../../utils/logger';
 import { useDailyCheckinSettingsStore } from '../../store/dailyCheckinSettingsStore';
 import { format, addDays, startOfDay } from 'date-fns';
@@ -34,24 +35,74 @@ export async function handleDailyCheckinNotification(
     return null; // Not handled by this service
   }
 
+  const timestamp = new Date().toISOString();
+  const today = format(new Date(), 'yyyy-MM-dd');
+
+  // Log notification received
+  logger.info('[DailyCheckin] Notification handler called', {
+    timestamp,
+    date: data.date || today,
+    notificationId: notification.request.identifier,
+  });
+
+  Sentry.addBreadcrumb({
+    category: 'notification',
+    message: 'Daily check-in notification received',
+    level: 'info',
+    data: {
+      date: data.date || today,
+      timestamp,
+      notificationId: notification.request.identifier,
+    },
+  });
+
   try {
-    // Check if we should show the notification
-    const today = format(new Date(), 'yyyy-MM-dd');
     const dailyStatusStore = getDailyStatusStore().getState();
     const episodeStore = getEpisodeStore().getState();
 
-    logger.log('[DailyCheckin] Evaluating notification for date:', today);
+    logger.debug('[DailyCheckin] Evaluating notification for date:', today);
+
+    // Log before loading current episode
+    logger.debug('[DailyCheckin] Loading current episode from store');
+
+    Sentry.addBreadcrumb({
+      category: 'notification',
+      message: 'Loading current episode',
+      level: 'debug',
+      data: { date: today },
+    });
 
     // Load current episode if not already loaded
     // This will use cache if available (5 second TTL) or query database
     await episodeStore.loadCurrentEpisode();
 
-    // Don't show if user is currently in an active episode
+    // Log the result of loadCurrentEpisode
     if (episodeStore.currentEpisode) {
-      logger.log('[DailyCheckin] User has active episode, suppressing notification', {
-        episodeId: episodeStore.currentEpisode.id,
-        startTime: new Date(episodeStore.currentEpisode.startTime).toISOString(),
+      const episode = episodeStore.currentEpisode;
+      logger.info('[DailyCheckin] Current episode found', {
+        episodeId: episode.id,
+        startTime: new Date(episode.startTime).toISOString(),
+        endTime: episode.endTime ? new Date(episode.endTime).toISOString() : null,
+        isActive: !episode.endTime,
       });
+
+      Sentry.addBreadcrumb({
+        category: 'notification',
+        message: 'Current episode exists - suppressing notification',
+        level: 'info',
+        data: {
+          episodeId: episode.id,
+          startTime: new Date(episode.startTime).toISOString(),
+          endTime: episode.endTime ? new Date(episode.endTime).toISOString() : null,
+          decision: 'suppress',
+        },
+      });
+
+      logger.info('[DailyCheckin] User has active episode, suppressing notification', {
+        episodeId: episode.id,
+        startTime: new Date(episode.startTime).toISOString(),
+      });
+
       return {
         shouldPlaySound: false,
         shouldSetBadge: false,
@@ -59,20 +110,53 @@ export async function handleDailyCheckinNotification(
         shouldShowList: false,
       };
     }
+
+    // Log when no current episode found
+    logger.info('[DailyCheckin] No current episode found');
+
+    Sentry.addBreadcrumb({
+      category: 'notification',
+      message: 'No current episode - checking episodes for today',
+      level: 'info',
+      data: { date: today },
+    });
 
     // SAFETY FIX (SUP-454): Business rule - ANY episode on the day = red day = suppress notification
     // Check if ANY episode exists for today (active or ended)
+    logger.debug('[DailyCheckin] Checking for any episodes today');
     const episodesToday = await dailyStatusStore.getEpisodesForDate(today);
+
+    logger.info('[DailyCheckin] Episodes for today query result', {
+      date: today,
+      episodeCount: episodesToday.length,
+      episodeIds: episodesToday.map((ep: Episode) => ep.id),
+    });
+
     if (episodesToday.length > 0) {
-      logger.log('[DailyCheckin] Episode exists for today, suppressing notification (red day)', {
+      const episodeDetails = episodesToday.map((ep: Episode) => ({
+        id: ep.id,
+        startTime: new Date(ep.startTime).toISOString(),
+        endTime: ep.endTime ? new Date(ep.endTime).toISOString() : 'ongoing',
+      }));
+
+      logger.info('[DailyCheckin] Episode exists for today, suppressing notification (red day)', {
         date: today,
         episodeCount: episodesToday.length,
-        episodes: episodesToday.map((ep: Episode) => ({
-          id: ep.id,
-          startTime: new Date(ep.startTime).toISOString(),
-          endTime: ep.endTime ? new Date(ep.endTime).toISOString() : 'ongoing',
-        })),
+        episodes: episodeDetails,
       });
+
+      Sentry.addBreadcrumb({
+        category: 'notification',
+        message: 'Episodes found for today - suppressing notification',
+        level: 'info',
+        data: {
+          date: today,
+          episodeCount: episodesToday.length,
+          episodes: episodeDetails,
+          decision: 'suppress',
+        },
+      });
+
       return {
         shouldPlaySound: false,
         shouldSetBadge: false,
@@ -80,11 +164,37 @@ export async function handleDailyCheckinNotification(
         shouldShowList: false,
       };
     }
+
+    logger.info('[DailyCheckin] No episodes found for today');
+
+    Sentry.addBreadcrumb({
+      category: 'notification',
+      message: 'No episodes for today - checking day status',
+      level: 'info',
+      data: { date: today },
+    });
 
     // Check if today already has a status logged
+    logger.debug('[DailyCheckin] Checking if day status already logged');
     const todayStatus = await dailyStatusStore.getDayStatus(today);
+
     if (todayStatus) {
-      logger.log('[DailyCheckin] Day already has status logged, suppressing notification:', todayStatus.status);
+      logger.info('[DailyCheckin] Day already has status logged, suppressing notification', {
+        status: todayStatus.status,
+        date: today,
+      });
+
+      Sentry.addBreadcrumb({
+        category: 'notification',
+        message: 'Day status already logged - suppressing notification',
+        level: 'info',
+        data: {
+          date: today,
+          status: todayStatus.status,
+          decision: 'suppress',
+        },
+      });
+
       return {
         shouldPlaySound: false,
         shouldSetBadge: false,
@@ -93,8 +203,24 @@ export async function handleDailyCheckinNotification(
       };
     }
 
+    logger.info('[DailyCheckin] No day status logged');
+
     // Show the notification
-    logger.log('[DailyCheckin] Showing daily check-in notification for date:', today);
+    logger.info('[DailyCheckin] All checks passed - showing notification', {
+      date: today,
+      timestamp: new Date().toISOString(),
+    });
+
+    Sentry.addBreadcrumb({
+      category: 'notification',
+      message: 'All checks passed - showing daily check-in notification',
+      level: 'info',
+      data: {
+        date: today,
+        decision: 'show',
+      },
+    });
+
     return {
       shouldPlaySound: true,
       shouldSetBadge: true,
@@ -103,6 +229,17 @@ export async function handleDailyCheckinNotification(
     };
   } catch (error) {
     logger.error('[DailyCheckin] Error checking if notification should be shown:', error);
+
+    Sentry.addBreadcrumb({
+      category: 'notification',
+      message: 'Error in notification handler - defaulting to show',
+      level: 'error',
+      data: {
+        error: error instanceof Error ? error.message : String(error),
+        decision: 'show',
+      },
+    });
+
     // Default to SHOWING the notification on error (safer)
     // Better to show the notification than risk missing a daily check-in
     return {
