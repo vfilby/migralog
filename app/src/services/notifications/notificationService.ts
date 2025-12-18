@@ -117,7 +117,7 @@ export async function handleIncomingNotification(notification: Notifications.Not
         // Get the medication to find the schedule time and timezone
         const medication = await medicationRepository.getById(data.medicationId);
         
-        // Issue 5 (SUP-145): Clear error messaging when medication data is missing/corrupt
+        // Clear error messaging when medication data is missing/corrupt
         if (!medication) {
           // Log error with diagnostic info - logger handles Sentry integration
           const missingMedicationError = new Error(`Notification fired but medication data is missing: ${data.medicationId}`);
@@ -153,7 +153,7 @@ export async function handleIncomingNotification(notification: Notifications.Not
         const schedules = await medicationScheduleRepository.getByMedicationId(data.medicationId);
         const schedule = schedules.find(s => s.id === data.scheduleId);
 
-        // Issue 6 (SUP-162): Data inconsistency alert - schedule doesn't match
+        // Data inconsistency alert - schedule doesn't match
         if (!schedule) {
           const inconsistencyError = new Error(`Notification schedule doesn't match medication: scheduleId=${data.scheduleId}, medicationId=${data.medicationId}`);
 
@@ -167,7 +167,7 @@ export async function handleIncomingNotification(notification: Notifications.Not
             availableScheduleIds: schedules.map(s => s.id),
           });
 
-          // Notify user of inconsistency (Issue 6: SUP-162)
+          // Notify user of inconsistency
           await notifyUserOfError(
             'data',
             "Your medication schedule has changed. Please open the app and go to Settings > Developer Tools > 'Recreate All Schedules' to fix this issue.",
@@ -214,8 +214,8 @@ export async function handleIncomingNotification(notification: Notifications.Not
           }
         }
       } catch (error) {
-        // Issue 3 (HAND-334): No silent failures - log database errors
-        // Issue 7 (SUP-182): Categorize as 'transient' (database error)
+        // No silent failures - log database errors
+        // Categorize as 'transient' (database error)
         logger.error(error instanceof Error ? error : new Error(String(error)), {
           component: 'NotificationService',
           operation: 'handleIncomingNotification',
@@ -225,7 +225,7 @@ export async function handleIncomingNotification(notification: Notifications.Not
           errorMessage: error instanceof Error ? error.message : String(error),
         });
         
-        // Issue 8 (SUP-340): Clear, actionable error message
+        // Clear, actionable error message
         await notifyUserOfError(
           'system',
           'A temporary issue occurred checking your medication. Please try again.',
@@ -252,7 +252,7 @@ export async function handleIncomingNotification(notification: Notifications.Not
           // Get medication and schedule to find timezone
           const medication = await medicationRepository.getById(medicationId);
           
-          // Issue 5 (SUP-145): Handle missing medication in group
+          // Handle missing medication in group
           if (!medication) {
             logger.error(new Error(`Grouped notification: medication not found ${medicationId}`), {
               component: 'NotificationService',
@@ -271,7 +271,7 @@ export async function handleIncomingNotification(notification: Notifications.Not
           
           const schedule = medication?.schedule?.find(s => s.id === scheduleId);
 
-          // Issue 6 (SUP-162): Data inconsistency in grouped notification
+          // Data inconsistency in grouped notification
           if (!schedule) {
             logger.error(new Error(`Grouped notification: schedule mismatch ${scheduleId}`), {
               component: 'NotificationService',
@@ -301,7 +301,7 @@ export async function handleIncomingNotification(notification: Notifications.Not
             notLoggedMedicationNames.push(medication.name);
           }
         } catch (error) {
-          // Issue 3 (HAND-334) + Issue 7 (SUP-182): Log transient errors
+          // Log transient errors
           logger.error(error instanceof Error ? error : new Error(String(error)), {
             component: 'NotificationService',
             operation: 'handleIncomingNotification',
@@ -339,7 +339,7 @@ export async function handleIncomingNotification(notification: Notifications.Not
         };
       }
 
-      // Issue 11 (SUP-313): Dynamic notification content
+      // Dynamic notification content
       // TODO: Update notification content to show only remaining medications
       // This requires re-scheduling or updating the notification content dynamically
       // For now, log the intent and show original notification
@@ -353,7 +353,7 @@ export async function handleIncomingNotification(notification: Notifications.Not
           remainingMeds: notLoggedMedicationNames.join(', '),
         });
         
-        // Issue 11 (SUP-313): Show which medications remain
+        // Show which medications remain
         // Ideally we'd update the notification content here to show:
         // "Time to take: [Medication A, Medication B]" (only unlogged ones)
         // This would require updating the notification object which isn't currently possible
@@ -363,7 +363,7 @@ export async function handleIncomingNotification(notification: Notifications.Not
         // but the suppression logic ensures we don't suppress if ANY remain unlogged.
       }
     } catch (error) {
-      // Issue 3 (HAND-334): No silent failures
+      // No silent failures
       logger.error(error instanceof Error ? error : new Error(String(error)), {
         component: 'NotificationService',
         operation: 'handleIncomingNotification',
@@ -374,7 +374,7 @@ export async function handleIncomingNotification(notification: Notifications.Not
         errorMessage: error instanceof Error ? error.message : String(error),
       });
       
-      // Issue 8 (SUP-340): Clear error message
+      // Clear error message
       await notifyUserOfError(
         'system',
         'A temporary issue occurred with your medication reminder. Please check the app.',
@@ -524,8 +524,8 @@ class NotificationService {
 
   /**
    * Handle a notification response (shared logic for listener and pending responses)
-   * 
-   * ISSUE FIX (HAND-334): Improved error handling with Sentry logging
+   *
+   * Improved error handling with Sentry logging
    */
   private async handleNotificationResponse(response: Notifications.NotificationResponse): Promise<void> {
     try {
@@ -591,7 +591,7 @@ class NotificationService {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       
-      // Issue 3 (HAND-334): No silent failures - log error
+      // No silent failures - log error
       logger.error(error instanceof Error ? error : new Error(errorMessage), {
         component: 'NotificationService',
         operation: 'handleNotificationResponse',
@@ -609,7 +609,7 @@ class NotificationService {
         { context: 'notification_response_handling' }
       );
       
-      // Issue 2 (HAND-238) + Issue 8 (SUP-340): User-friendly notification
+      // User-friendly notification
       await notifyUserOfError(
         'system',
         'An error occurred processing your action. Please try again from the app.',
