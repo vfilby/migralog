@@ -9,6 +9,7 @@ import {
   toLocalDateString,
   toLocalDateStringOffset,
   localDateTimeFromStrings,
+  formatTimeUntil,
 } from '../dateFormatting';
 
 // Mock the localeUtils module to ensure consistent test behavior
@@ -560,5 +561,50 @@ describe('DST Edge Cases', () => {
       expect(result.getHours()).toBe(1);
       expect(result.getMinutes()).toBe(30);
     });
+  });
+});
+
+describe('formatTimeUntil', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2025-01-15T12:00:00'));
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('returns "now" for times less than a minute away', () => {
+    const date = new Date('2025-01-15T12:00:20'); // 20 seconds from now (rounds to 0m)
+    expect(formatTimeUntil(date)).toBe('now');
+  });
+
+  it('returns minutes for times less than an hour away', () => {
+    const date = new Date('2025-01-15T12:30:00'); // 30 minutes from now
+    expect(formatTimeUntil(date)).toBe('30m');
+  });
+
+  it('returns hours for times less than a day away', () => {
+    const date = new Date('2025-01-15T14:00:00'); // 2 hours from now
+    expect(formatTimeUntil(date)).toBe('2h');
+  });
+
+  it('returns "1 day" for times about a day away', () => {
+    const date = new Date('2025-01-16T12:00:00'); // 24 hours from now
+    expect(formatTimeUntil(date)).toBe('1 day');
+  });
+
+  it('returns plural days for times multiple days away', () => {
+    const date = new Date('2025-01-18T12:00:00'); // 3 days from now
+    expect(formatTimeUntil(date)).toBe('3 days');
+  });
+
+  it('accepts timestamp numbers', () => {
+    const timestamp = new Date('2025-01-15T14:00:00').getTime();
+    expect(formatTimeUntil(timestamp)).toBe('2h');
+  });
+
+  it('returns "Unknown" for invalid dates', () => {
+    expect(formatTimeUntil(new Date('invalid'))).toBe('Unknown');
   });
 });

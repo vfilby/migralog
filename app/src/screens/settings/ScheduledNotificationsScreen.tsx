@@ -18,6 +18,9 @@ import { logger } from '../../utils/logger';
 import { scheduledNotificationRepository } from '../../database/scheduledNotificationRepository';
 import { medicationRepository } from '../../database/medicationRepository';
 import { ScheduledNotificationMapping } from '../../types/notifications';
+import { formatTimeUntil } from '../../utils/dateFormatting';
+import { getShortDateTimeFormatString, getDeviceLocale } from '../../utils/localeUtils';
+import { format } from 'date-fns';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ScheduledNotificationsScreen'>;
 
@@ -162,7 +165,7 @@ export default function ScheduledNotificationsScreen({ navigation }: Props) {
     });
   }, []);
 
-  // Format date/time for display
+  // Format date/time for display using device locale
   const formatTriggerTime = (trigger: Notifications.NotificationTrigger | null): string => {
     if (!trigger) return 'Unknown trigger';
 
@@ -172,14 +175,11 @@ export default function ScheduledNotificationsScreen({ navigation }: Props) {
         const triggerDate = 'date' in trigger ? trigger.date : null;
         if (triggerDate) {
           const date = new Date(triggerDate);
-          return date.toLocaleString('en-US', {
-            weekday: 'short',
-            month: 'short',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true,
-          });
+          const locale = getDeviceLocale();
+          const formatStr = getShortDateTimeFormatString();
+          const formattedDate = format(date, formatStr, { locale });
+          const relativeTime = formatTimeUntil(date);
+          return `${formattedDate} (${relativeTime})`;
         }
       }
       if (trigger.type === 'calendar') {
