@@ -28,7 +28,6 @@ export {
 
 // Re-export reconciliation/management functions for backward compatibility
 export {
-  IOS_NOTIFICATION_LIMIT,
   calculateNotificationDays,
   fixNotificationScheduleInconsistencies,
   rescheduleAllMedicationNotifications,

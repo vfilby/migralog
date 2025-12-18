@@ -26,7 +26,7 @@ import {
  * iOS limits total scheduled notifications to 64.
  * Calculate how many days of notifications we can schedule per medication.
  */
-export const IOS_NOTIFICATION_LIMIT = 64;
+const IOS_NOTIFICATION_LIMIT = 64;
 
 /**
  * Calculate how many days of notifications to schedule based on actual slots needed per day
