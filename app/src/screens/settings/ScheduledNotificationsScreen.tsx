@@ -18,6 +18,9 @@ import { logger } from '../../utils/logger';
 import { scheduledNotificationRepository } from '../../database/scheduledNotificationRepository';
 import { medicationRepository } from '../../database/medicationRepository';
 import { ScheduledNotificationMapping } from '../../types/notifications';
+import { formatTimeUntil } from '../../utils/dateFormatting';
+import { getShortDateTimeFormatString, getDeviceLocale } from '../../utils/localeUtils';
+import { format } from 'date-fns';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ScheduledNotificationsScreen'>;
 
@@ -162,22 +165,7 @@ export default function ScheduledNotificationsScreen({ navigation }: Props) {
     });
   }, []);
 
-  // Format relative time (e.g., "about 2 hours", "about 30 minutes")
-  const formatRelativeTime = (date: Date): string => {
-    const now = new Date();
-    const diffMs = date.getTime() - now.getTime();
-    const diffMinutes = Math.round(diffMs / (1000 * 60));
-    const diffHours = Math.round(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffMinutes < 1) return 'now';
-    if (diffMinutes < 60) return `${diffMinutes}m`;
-    if (diffHours < 24) return `${diffHours}h`;
-    if (diffDays === 1) return '1 day';
-    return `${diffDays} days`;
-  };
-
-  // Format date/time for display
+  // Format date/time for display using device locale
   const formatTriggerTime = (trigger: Notifications.NotificationTrigger | null): string => {
     if (!trigger) return 'Unknown trigger';
 
@@ -187,14 +175,10 @@ export default function ScheduledNotificationsScreen({ navigation }: Props) {
         const triggerDate = 'date' in trigger ? trigger.date : null;
         if (triggerDate) {
           const date = new Date(triggerDate);
-          const formattedDate = date.toLocaleString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true,
-          });
-          const relativeTime = formatRelativeTime(date);
+          const locale = getDeviceLocale();
+          const formatStr = getShortDateTimeFormatString();
+          const formattedDate = format(date, formatStr, { locale });
+          const relativeTime = formatTimeUntil(date);
           return `${formattedDate} (${relativeTime})`;
         }
       }

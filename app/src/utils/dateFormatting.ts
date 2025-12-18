@@ -326,3 +326,46 @@ export function localDateTimeFromStrings(dateString: string, timeString: string)
   // Use Date constructor with local time components (month is 0-indexed)
   return new Date(year, month - 1, day, hours, minutes, 0, 0);
 }
+
+/**
+ * Format time until a future date as a compact relative string
+ *
+ * Returns a short representation of how long until the given date,
+ * useful for showing when scheduled events will occur.
+ *
+ * @param date - The future date/time
+ * @returns Compact relative time like "now", "30m", "2h", "1 day", "3 days"
+ *
+ * @example
+ * // 30 minutes from now
+ * formatTimeUntil(futureDate)  // "30m"
+ *
+ * // 2 hours from now
+ * formatTimeUntil(futureDate)  // "2h"
+ *
+ * // Tomorrow
+ * formatTimeUntil(futureDate)  // "1 day"
+ */
+export function formatTimeUntil(date: Date | number): string {
+  try {
+    const targetDate = date instanceof Date ? date : new Date(date);
+
+    if (isNaN(targetDate.getTime())) {
+      return 'Unknown';
+    }
+
+    const now = new Date();
+    const diffMs = targetDate.getTime() - now.getTime();
+    const diffMinutes = Math.round(diffMs / (1000 * 60));
+    const diffHours = Math.round(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMinutes < 1) return 'now';
+    if (diffMinutes < 60) return `${diffMinutes}m`;
+    if (diffHours < 24) return `${diffHours}h`;
+    if (diffDays === 1) return '1 day';
+    return `${diffDays} days`;
+  } catch {
+    return 'Unknown';
+  }
+}
