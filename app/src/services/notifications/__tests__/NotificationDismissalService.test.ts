@@ -70,34 +70,6 @@ describe('NotificationDismissalService', () => {
       expect(result.confidence).toBe(100);
     });
 
-    it('should return false when no database mapping found', async () => {
-      // Arrange
-      const notificationId = 'test-notification-id';
-      const medicationId = 'test-medication-id';
-      const scheduleId = 'test-schedule-id';
-
-      // Mock no database mapping found
-      mockScheduledNotificationRepository.getMappingsByNotificationId.mockResolvedValue([]);
-      
-      // Mock other strategies also fail
-      mockScheduledNotificationRepository.findByTimeWindow.mockResolvedValue([]);
-      mockMedicationRepository.getById.mockResolvedValue(null);
-      mockGetPresentedNotificationsAsync.mockResolvedValue([]);
-      mockScheduledNotificationRepository.findByMedicationName.mockResolvedValue([]);
-      mockScheduledNotificationRepository.findByCategoryAndTime.mockResolvedValue([]);
-
-      // Act
-      const result = await service.shouldDismissNotification(
-        notificationId,
-        medicationId,
-        scheduleId
-      );
-
-      // Assert
-      expect(result.shouldDismiss).toBe(false);
-      expect(result.strategy).toBe('none');
-      expect(result.confidence).toBe(0);
-    });
 
     it('should handle grouped notifications with safety check', async () => {
       // Arrange
@@ -157,12 +129,6 @@ describe('NotificationDismissalService', () => {
         return medId === medicationId; // Only our target medication is logged
       });
 
-      // Mock fallback strategies to ensure they don't interfere
-      mockScheduledNotificationRepository.findByTimeWindow.mockResolvedValue([]);
-      mockScheduledNotificationRepository.findByMedicationName.mockResolvedValue([]);
-      mockScheduledNotificationRepository.findByCategoryAndTime.mockResolvedValue([]);
-      mockGetPresentedNotificationsAsync.mockResolvedValue([]);
-
       // Act
       const result = await service.shouldDismissNotification(
         notificationId,
@@ -204,7 +170,7 @@ describe('NotificationDismissalService', () => {
   });
 
   describe('getDiagnosticInfo', () => {
-    it('should return diagnostic information with strategies', async () => {
+    it('should return diagnostic information with database strategy only', async () => {
       // Arrange
       const notificationId = 'test-notification-id';
 
@@ -214,27 +180,21 @@ describe('NotificationDismissalService', () => {
       // Act
       const result = await service.getDiagnosticInfo(notificationId);
 
-      // Assert
+      // Assert - Only database strategy is returned
       expect(result.strategies.database).toBeDefined();
       expect(result.strategies.database.strategy).toBe('database_id_lookup');
+      expect(result.strategies.database.confidence).toBe(0);
+      expect(result.strategies.database.shouldDismiss).toBe(false);
     });
 
-    it('should return all strategy results when target medication/schedule provided', async () => {
+    it('should return database strategy result when target medication/schedule provided', async () => {
       // Arrange
       const notificationId = 'test-notification-id';
       const targetMedicationId = 'med-123';
       const targetScheduleId = 'sched-456';
 
       mockScheduledNotificationRepository.getMappingsByNotificationId.mockResolvedValue([]);
-      mockScheduledNotificationRepository.findByTimeWindow.mockResolvedValue([]);
-      mockMedicationRepository.getById.mockResolvedValue({
-        id: targetMedicationId,
-        name: 'Test Med',
-        schedule: [{ id: targetScheduleId, time: '09:00' }],
-      } as any);
-      mockScheduledNotificationRepository.findByMedicationName.mockResolvedValue([]);
       mockGetPresentedNotificationsAsync.mockResolvedValue([]);
-      mockScheduledNotificationRepository.findByCategoryAndTime.mockResolvedValue([]);
 
       // Act
       const result = await service.getDiagnosticInfo(
@@ -243,22 +203,24 @@ describe('NotificationDismissalService', () => {
         targetScheduleId
       );
 
-      // Assert - getDiagnosticInfo runs strategies and includes results
+      // Assert - Only database strategy is returned
       expect(result.strategies.database).toBeDefined();
-      // The other strategies are only populated if target medication/schedule provided
-      // and the strategies actually run. Check that it doesn't crash.
-      expect(result.strategies).toBeDefined();
+      expect(result.strategies.database.strategy).toBe('database_id_lookup');
+      expect(result.strategies.database.shouldDismiss).toBe(false);
+      expect(result.strategies.database.confidence).toBe(0);
     });
 
     it('should return mappings when they exist', async () => {
       // Arrange
       const notificationId = 'test-notification-id';
+      const targetMedicationId = 'med-123';
+      const targetScheduleId = 'sched-456';
 
       mockScheduledNotificationRepository.getMappingsByNotificationId.mockResolvedValue([
         {
           id: 'mapping-1',
-          medicationId: 'med-123',
-          scheduleId: 'sched-456',
+          medicationId: targetMedicationId,
+          scheduleId: targetScheduleId,
           date: '2024-01-01',
           notificationId,
           notificationType: 'reminder',
@@ -270,74 +232,30 @@ describe('NotificationDismissalService', () => {
       mockGetPresentedNotificationsAsync.mockResolvedValue([]);
 
       // Act
-      const result = await service.getDiagnosticInfo(notificationId);
+      const result = await service.getDiagnosticInfo(
+        notificationId,
+        targetMedicationId,
+        targetScheduleId
+      );
 
       // Assert - mappings are returned from database lookup
       expect(result.mappings).toBeDefined();
       expect(Array.isArray(result.mappings)).toBe(true);
+      // Diagnostic info should successfully retrieve mappings
+      expect(result.strategies.database).toBeDefined();
     });
   });
 
-  describe('time-based strategy', () => {
-    it('should dismiss when time-based matching succeeds with high confidence', async () => {
+  describe('database-only strategy (no fallbacks)', () => {
+    it('should NOT dismiss when database lookup finds no mapping', async () => {
       // Arrange
       const notificationId = 'test-notification-id';
       const medicationId = 'test-medication-id';
       const scheduleId = 'test-schedule-id';
-      const now = new Date();
 
       // No database mapping found
       mockScheduledNotificationRepository.getMappingsByNotificationId.mockResolvedValue([]);
 
-      // Time-based match found
-      mockScheduledNotificationRepository.findByTimeWindow.mockResolvedValue([
-        {
-          id: 'mapping-1',
-          medicationId,
-          scheduleId,
-          date: '2024-01-01',
-          notificationId: 'other-notification',
-          notificationType: 'reminder',
-          isGrouped: false,
-          sourceType: 'medication',
-          scheduledTriggerTime: now,
-          createdAt: '2024-01-01T00:00:00Z',
-        },
-      ]);
-
-      // Ensure other strategies fail
-      mockMedicationRepository.getById.mockResolvedValue(null);
-      mockGetPresentedNotificationsAsync.mockResolvedValue([]);
-      mockScheduledNotificationRepository.findByMedicationName.mockResolvedValue([]);
-      mockScheduledNotificationRepository.findByCategoryAndTime.mockResolvedValue([]);
-
-      // Act
-      const result = await service.shouldDismissNotification(
-        notificationId,
-        medicationId,
-        scheduleId,
-        now
-      );
-
-      // Assert
-      expect(result.shouldDismiss).toBe(true);
-      expect(result.strategy).toBe('time_based');
-      expect(result.confidence).toBeGreaterThanOrEqual(60);
-    });
-
-    it('should return low confidence when no time-based match found', async () => {
-      // Arrange
-      const notificationId = 'test-notification-id';
-      const medicationId = 'test-medication-id';
-      const scheduleId = 'test-schedule-id';
-
-      mockScheduledNotificationRepository.getMappingsByNotificationId.mockResolvedValue([]);
-      mockScheduledNotificationRepository.findByTimeWindow.mockResolvedValue([]);
-      mockMedicationRepository.getById.mockResolvedValue(null);
-      mockGetPresentedNotificationsAsync.mockResolvedValue([]);
-      mockScheduledNotificationRepository.findByMedicationName.mockResolvedValue([]);
-      mockScheduledNotificationRepository.findByCategoryAndTime.mockResolvedValue([]);
-
       // Act
       const result = await service.shouldDismissNotification(
         notificationId,
@@ -345,151 +263,31 @@ describe('NotificationDismissalService', () => {
         scheduleId
       );
 
-      // Assert
+      // Assert - Should NOT dismiss because database lookup failed
       expect(result.shouldDismiss).toBe(false);
       expect(result.strategy).toBe('none');
+      expect(result.confidence).toBe(0);
+      // The context could be either "Database lookup failed" or "No matching mapping found in database"
+      expect(result.context).toBeDefined();
     });
-  });
 
-  describe('content-based strategy', () => {
-    it('should dismiss when medication name matches in database', async () => {
+    it('should NOT dismiss when database mapping exists for different medication', async () => {
       // Arrange
       const notificationId = 'test-notification-id';
       const medicationId = 'test-medication-id';
       const scheduleId = 'test-schedule-id';
 
-      // No primary or time-based match
-      mockScheduledNotificationRepository.getMappingsByNotificationId.mockResolvedValue([]);
-      mockScheduledNotificationRepository.findByTimeWindow.mockResolvedValue([]);
-
-      // Medication found
-      mockMedicationRepository.getById.mockResolvedValue({
-        id: medicationId,
-        name: 'Aspirin',
-        schedule: [{ id: scheduleId, time: '09:00' }],
-      } as any);
-
-      // Content-based match in database
-      mockScheduledNotificationRepository.findByMedicationName.mockResolvedValue([
+      // Database mapping exists but for different medication
+      mockScheduledNotificationRepository.getMappingsByNotificationId.mockResolvedValue([
         {
           id: 'mapping-1',
-          medicationId,
-          scheduleId,
-          date: '2024-01-01',
-          notificationId, // Same notification ID
-          notificationType: 'reminder',
-          isGrouped: false,
-          sourceType: 'medication',
-          medicationName: 'Aspirin',
-          createdAt: '2024-01-01T00:00:00Z',
-        },
-      ]);
-
-      mockGetPresentedNotificationsAsync.mockResolvedValue([]);
-      mockScheduledNotificationRepository.findByCategoryAndTime.mockResolvedValue([]);
-
-      // Act
-      const result = await service.shouldDismissNotification(
-        notificationId,
-        medicationId,
-        scheduleId
-      );
-
-      // Assert
-      expect(result.shouldDismiss).toBe(true);
-      expect(result.strategy).toBe('content_based');
-      expect(result.confidence).toBe(85);
-    });
-
-    it('should dismiss when medication name matches in notification content', async () => {
-      // Arrange
-      const notificationId = 'test-notification-id';
-      const medicationId = 'test-medication-id';
-      const scheduleId = 'test-schedule-id';
-
-      mockScheduledNotificationRepository.getMappingsByNotificationId.mockResolvedValue([]);
-      mockScheduledNotificationRepository.findByTimeWindow.mockResolvedValue([]);
-      mockMedicationRepository.getById.mockResolvedValue({
-        id: medicationId,
-        name: 'Ibuprofen',
-        schedule: [{ id: scheduleId, time: '09:00' }],
-      } as any);
-      mockScheduledNotificationRepository.findByMedicationName.mockResolvedValue([]);
-
-      // Notification contains medication name
-      mockGetPresentedNotificationsAsync.mockResolvedValue([
-        {
-          request: {
-            identifier: notificationId,
-            content: {
-              title: 'Time for Ibuprofen',
-              body: 'Take your medication',
-              data: { medicationId },
-            },
-          },
-        },
-      ]);
-
-      mockScheduledNotificationRepository.findByCategoryAndTime.mockResolvedValue([]);
-
-      // Act
-      const result = await service.shouldDismissNotification(
-        notificationId,
-        medicationId,
-        scheduleId
-      );
-
-      // Assert
-      expect(result.shouldDismiss).toBe(false); // 75 confidence is below threshold of 80
-      expect(result.strategy).toBe('none');
-    });
-  });
-
-  describe('category-based strategy', () => {
-    it('should dismiss when category matches with time correlation', async () => {
-      // Arrange
-      const notificationId = 'test-notification-id';
-      const medicationId = 'test-medication-id';
-      const scheduleId = 'test-schedule-id';
-      const now = new Date();
-
-      mockScheduledNotificationRepository.getMappingsByNotificationId.mockResolvedValue([]);
-      mockScheduledNotificationRepository.findByTimeWindow.mockResolvedValue([]);
-      mockMedicationRepository.getById.mockResolvedValue({
-        id: medicationId,
-        name: 'Test Med',
-        schedule: [{ id: scheduleId, time: '09:00' }],
-      } as any);
-      mockScheduledNotificationRepository.findByMedicationName.mockResolvedValue([]);
-
-      // Notification with medication category
-      mockGetPresentedNotificationsAsync.mockResolvedValue([
-        {
-          request: {
-            identifier: notificationId,
-            content: {
-              title: 'Medication Reminder',
-              body: 'Time to take your medication',
-              data: { medicationId },
-              categoryIdentifier: 'MEDICATION_REMINDER',
-            },
-          },
-        },
-      ]);
-
-      // Category and time match
-      mockScheduledNotificationRepository.findByCategoryAndTime.mockResolvedValue([
-        {
-          id: 'mapping-1',
-          medicationId,
-          scheduleId,
+          medicationId: 'other-medication-id',
+          scheduleId: 'other-schedule-id',
           date: '2024-01-01',
           notificationId,
           notificationType: 'reminder',
           isGrouped: false,
           sourceType: 'medication',
-          categoryIdentifier: 'MEDICATION_REMINDER',
-          scheduledTriggerTime: now,
           createdAt: '2024-01-01T00:00:00Z',
         },
       ]);
@@ -498,39 +296,16 @@ describe('NotificationDismissalService', () => {
       const result = await service.shouldDismissNotification(
         notificationId,
         medicationId,
-        scheduleId,
-        now
-      );
-
-      // Assert - Category-based has 70 confidence for single med which is below threshold
-      expect(result.shouldDismiss).toBe(false);
-      expect(result.strategy).toBe('none');
-    });
-
-    it('should not dismiss when notification is not in presented list', async () => {
-      // Arrange
-      const notificationId = 'test-notification-id';
-      const medicationId = 'test-medication-id';
-      const scheduleId = 'test-schedule-id';
-
-      mockScheduledNotificationRepository.getMappingsByNotificationId.mockResolvedValue([]);
-      mockScheduledNotificationRepository.findByTimeWindow.mockResolvedValue([]);
-      mockMedicationRepository.getById.mockResolvedValue(null);
-      mockGetPresentedNotificationsAsync.mockResolvedValue([]);
-      mockScheduledNotificationRepository.findByMedicationName.mockResolvedValue([]);
-      mockScheduledNotificationRepository.findByCategoryAndTime.mockResolvedValue([]);
-
-      // Act
-      const result = await service.shouldDismissNotification(
-        notificationId,
-        medicationId,
         scheduleId
       );
 
-      // Assert
+      // Assert - Should NOT dismiss because no match for target medication
       expect(result.shouldDismiss).toBe(false);
+      expect(result.strategy).toBe('none');
+      expect(result.confidence).toBe(0);
     });
   });
+
 
   describe('error handling', () => {
     it('should return safe default when database lookup throws', async () => {
@@ -542,11 +317,6 @@ describe('NotificationDismissalService', () => {
       mockScheduledNotificationRepository.getMappingsByNotificationId.mockRejectedValue(
         new Error('Database error')
       );
-      mockScheduledNotificationRepository.findByTimeWindow.mockResolvedValue([]);
-      mockMedicationRepository.getById.mockResolvedValue(null);
-      mockGetPresentedNotificationsAsync.mockResolvedValue([]);
-      mockScheduledNotificationRepository.findByMedicationName.mockResolvedValue([]);
-      mockScheduledNotificationRepository.findByCategoryAndTime.mockResolvedValue([]);
 
       // Act
       const result = await service.shouldDismissNotification(
@@ -555,12 +325,14 @@ describe('NotificationDismissalService', () => {
         scheduleId
       );
 
-      // Assert
+      // Assert - Should NOT dismiss when database lookup fails
       expect(result.shouldDismiss).toBe(false);
+      expect(result.strategy).toBe('none');
       expect(result.confidence).toBe(0);
+      expect(result.context).toContain('Database lookup');
     });
 
-    it('should return false when all strategies throw errors', async () => {
+    it('should return false and log error when database lookup throws', async () => {
       // Arrange
       const notificationId = 'test-notification-id';
       const medicationId = 'test-medication-id';
@@ -569,15 +341,6 @@ describe('NotificationDismissalService', () => {
       mockScheduledNotificationRepository.getMappingsByNotificationId.mockRejectedValue(
         new Error('Database error')
       );
-      mockScheduledNotificationRepository.findByTimeWindow.mockRejectedValue(
-        new Error('Time window error')
-      );
-      mockMedicationRepository.getById.mockRejectedValue(
-        new Error('Medication lookup error')
-      );
-      mockGetPresentedNotificationsAsync.mockRejectedValue(
-        new Error('Notifications error')
-      );
 
       // Act
       const result = await service.shouldDismissNotification(
@@ -586,11 +349,10 @@ describe('NotificationDismissalService', () => {
         scheduleId
       );
 
-      // Assert - The service catches top-level errors and returns safe default
+      // Assert - The service catches errors and returns safe default
       expect(result.shouldDismiss).toBe(false);
       expect(result.strategy).toBe('none');
-      // The context can be either "Error" or "failed to meet confidence threshold"
-      expect(result.context).toBeDefined();
+      expect(result.confidence).toBe(0);
     });
   });
 
