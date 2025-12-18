@@ -443,6 +443,195 @@ export async function scheduleNotificationsForDays(
 }
 
 /**
+ * Helper function to schedule a grouped notification for multiple medications at a specific time
+ *
+ * This function handles the common logic for scheduling grouped notifications:
+ * - Schedules a single notification for multiple medications
+ * - Creates database mappings with isGrouped=true and groupKey set
+ * - Schedules follow-up notifications if any medication has follow-up enabled
+ *
+ * @param groupItems - Array of medication/schedule pairs scheduled at the same time
+ * @param time - The scheduled time (HH:mm format)
+ * @param triggerDate - The date/time when the notification should fire
+ * @param dateString - The date string for database mapping (YYYY-MM-DD format)
+ */
+export async function scheduleGroupedNotificationForTime(
+  groupItems: Array<{ medication: Medication; schedule: MedicationSchedule }>,
+  time: string,
+  triggerDate: Date,
+  dateString: string
+): Promise<void> {
+  const medicationIds = groupItems.map(({ medication }) => medication.id);
+  const scheduleIds = groupItems.map(({ schedule }) => schedule.id);
+  const medicationNames = groupItems.map(({ medication }) => medication.name).join(', ');
+
+  // Check if all medications in the group already have a mapping for this date
+  let allScheduled = true;
+  for (const { medication, schedule } of groupItems) {
+    const existing = await scheduledNotificationRepository.getMapping(
+      medication.id,
+      schedule.id,
+      dateString,
+      'reminder'
+    );
+    if (!existing) {
+      allScheduled = false;
+      break;
+    }
+  }
+
+  if (!allScheduled) {
+    // Get effective settings for all medications
+    const settingsStore = useNotificationSettingsStore.getState();
+    const anyTimeSensitive = groupItems.some(({ medication }) => {
+      const settings = settingsStore.getEffectiveSettings(medication.id);
+      return settings.timeSensitiveEnabled;
+    });
+
+    // Schedule the grouped notification once
+    const notificationId = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: `Time for ${groupItems.length} Medications`,
+        body: medicationNames,
+        data: {
+          medicationIds,
+          scheduleIds,
+          time,
+          scheduledAt: Date.now(),
+        },
+        categoryIdentifier: MULTIPLE_MEDICATION_REMINDER_CATEGORY,
+        sound: true,
+        ...(anyTimeSensitive && { interruptionLevel: 'timeSensitive' } as unknown as Record<string, unknown>),
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: triggerDate,
+      },
+    });
+
+    if (!notificationId) {
+      logger.error('[Notification] Failed to schedule grouped reminder notification', {
+        component: 'NotificationScheduler',
+        operation: 'scheduleGroupedNotificationForTime',
+        medicationIds,
+        medicationNames,
+        time,
+        date: dateString,
+        triggerDate: triggerDate.toISOString(),
+      });
+    }
+
+    // Create mappings for all medications in the group
+    for (const { medication, schedule } of groupItems) {
+      if (notificationId) {
+        await scheduledNotificationRepository.saveMapping({
+          notificationId,
+          medicationId: medication.id,
+          scheduleId: schedule.id,
+          date: dateString,
+          notificationType: 'reminder',
+          isGrouped: true,
+          groupKey: time,
+        });
+      }
+    }
+  }
+
+  // Schedule grouped follow-up if any medication has it enabled
+  const settingsStore = useNotificationSettingsStore.getState();
+  const delays = groupItems.map(({ medication }) => {
+    const settings = settingsStore.getEffectiveSettings(medication.id);
+    return settings.followUpDelay;
+  }).filter(d => d !== 'off') as number[];
+
+  if (delays.length > 0) {
+    // Use the maximum delay from all medications in the group
+    const maxDelay = Math.max(...delays);
+    const followUpDate = new Date(triggerDate.getTime() + maxDelay * 60 * 1000);
+
+    if (followUpDate > new Date()) {
+      // Check if all medications already have follow-up scheduled
+      let allFollowUpsScheduled = true;
+      for (const { medication, schedule } of groupItems) {
+        const existing = await scheduledNotificationRepository.getMapping(
+          medication.id,
+          schedule.id,
+          dateString,
+          'follow_up'
+        );
+        if (!existing) {
+          allFollowUpsScheduled = false;
+          break;
+        }
+      }
+
+      if (!allFollowUpsScheduled) {
+        const anyCritical = groupItems.some(({ medication }) => {
+          const settings = settingsStore.getEffectiveSettings(medication.id);
+          return settings.criticalAlertsEnabled;
+        });
+
+        const anyTimeSensitive = groupItems.some(({ medication }) => {
+          const settings = settingsStore.getEffectiveSettings(medication.id);
+          return settings.timeSensitiveEnabled;
+        });
+
+        const followUpNotificationId = await Notifications.scheduleNotificationAsync({
+          content: {
+            title: `Reminder: ${groupItems.length} Medications`,
+            body: `Did you take: ${medicationNames}?`,
+            data: {
+              medicationIds,
+              scheduleIds,
+              time,
+              isFollowUp: true,
+              scheduledAt: Date.now(),
+            },
+            categoryIdentifier: MULTIPLE_MEDICATION_REMINDER_CATEGORY,
+            sound: true,
+            ...(anyCritical && { critical: true } as unknown as Record<string, unknown>),
+            ...(anyCritical && { interruptionLevel: 'critical' } as unknown as Record<string, unknown>),
+            ...(!anyCritical && anyTimeSensitive && { interruptionLevel: 'timeSensitive' } as unknown as Record<string, unknown>),
+          },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: followUpDate,
+          },
+        });
+
+        if (!followUpNotificationId) {
+          logger.error('[Notification] Failed to schedule grouped follow-up notification', {
+            component: 'NotificationScheduler',
+            operation: 'scheduleGroupedNotificationForTime',
+            medicationIds,
+            medicationNames,
+            time,
+            date: dateString,
+            followUpDate: followUpDate.toISOString(),
+            maxDelay,
+          });
+        }
+
+        // Create follow-up mappings for all medications in the group
+        for (const { medication, schedule } of groupItems) {
+          if (followUpNotificationId) {
+            await scheduledNotificationRepository.saveMapping({
+              notificationId: followUpNotificationId,
+              medicationId: medication.id,
+              scheduleId: schedule.id,
+              date: dateString,
+              notificationType: 'follow_up',
+              isGrouped: true,
+              groupKey: time,
+            });
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
  * Schedule grouped notifications for N days
  * Groups medications by time and schedules them together
  *
@@ -582,194 +771,8 @@ export async function scheduleGroupedNotificationsForDays(
           }
         }
       } else {
-        // Multiple medications at this time - schedule as grouped
-        const medicationIds = groupItems.map(({ medication }) => medication.id);
-        const scheduleIds = groupItems.map(({ schedule }) => schedule.id);
-        const medicationNames = groupItems.map(({ medication }) => medication.name).join(', ');
-
-        // Check if all medications in the group already have a mapping for this date
-        let allScheduled = true;
-        for (const { medication, schedule } of groupItems) {
-          const existing = await scheduledNotificationRepository.getMapping(
-            medication.id,
-            schedule.id,
-            dateString,
-            'reminder'
-          );
-          if (!existing) {
-            allScheduled = false;
-            break;
-          }
-        }
-
-        if (!allScheduled) {
-          // Get effective settings for all medications
-          const settingsStore = useNotificationSettingsStore.getState();
-          const anyTimeSensitive = groupItems.some(({ medication }) => {
-            const settings = settingsStore.getEffectiveSettings(medication.id);
-            return settings.timeSensitiveEnabled;
-          });
-
-          // Schedule the grouped notification once using scheduleNotification
-          const notificationId = await Notifications.scheduleNotificationAsync({
-            content: {
-              title: `Time for ${groupItems.length} Medications`,
-              body: medicationNames,
-              data: {
-                medicationIds,
-                scheduleIds,
-                time,
-                scheduledAt: Date.now(),
-              },
-              categoryIdentifier: MULTIPLE_MEDICATION_REMINDER_CATEGORY,
-              sound: true,
-              ...(anyTimeSensitive && { interruptionLevel: 'timeSensitive' } as unknown as Record<string, unknown>),
-            },
-            trigger: {
-              type: Notifications.SchedulableTriggerInputTypes.DATE,
-              date: triggerDate,
-            },
-          });
-
-          if (!notificationId) {
-            logger.error('[Notification] Failed to schedule grouped reminder notification', {
-              component: 'NotificationScheduler',
-              operation: 'scheduleGroupedNotificationsForDays',
-              medicationIds,
-              medicationNames,
-              time,
-              date: dateString,
-              triggerDate: triggerDate.toISOString(),
-            });
-          }
-
-          // Create mappings for all medications in the group
-          for (const { medication, schedule } of groupItems) {
-            const mapping: ScheduledNotificationMappingInput = {
-              medicationId: medication.id,
-              scheduleId: schedule.id,
-              date: dateString,
-              notificationType: 'reminder',
-              isGrouped: true,
-              groupKey: time,
-            };
-
-            // Store the mapping with the shared notification ID
-            if (notificationId) {
-              await scheduledNotificationRepository.saveMapping({
-                notificationId,
-                medicationId: mapping.medicationId,
-                scheduleId: mapping.scheduleId,
-                date: mapping.date,
-                notificationType: mapping.notificationType,
-                isGrouped: mapping.isGrouped,
-                groupKey: mapping.groupKey,
-              });
-            }
-          }
-        }
-
-        // Schedule grouped follow-up if any medication has it enabled
-        const settingsStore = useNotificationSettingsStore.getState();
-        const delays = groupItems.map(({ medication }) => {
-          const settings = settingsStore.getEffectiveSettings(medication.id);
-          return settings.followUpDelay;
-        }).filter(d => d !== 'off') as number[];
-
-        if (delays.length > 0) {
-          // Use the maximum delay from all medications in the group
-          const maxDelay = Math.max(...delays);
-          const followUpDate = new Date(triggerDate.getTime() + maxDelay * 60 * 1000);
-
-          if (followUpDate > new Date()) {
-            // Check if all medications already have follow-up scheduled
-            let allFollowUpsScheduled = true;
-            for (const { medication, schedule } of groupItems) {
-              const existing = await scheduledNotificationRepository.getMapping(
-                medication.id,
-                schedule.id,
-                dateString,
-                'follow_up'
-              );
-              if (!existing) {
-                allFollowUpsScheduled = false;
-                break;
-              }
-            }
-
-            if (!allFollowUpsScheduled) {
-              const anyCritical = groupItems.some(({ medication }) => {
-                const settings = settingsStore.getEffectiveSettings(medication.id);
-                return settings.criticalAlertsEnabled;
-              });
-
-              const anyTimeSensitive = groupItems.some(({ medication }) => {
-                const settings = settingsStore.getEffectiveSettings(medication.id);
-                return settings.timeSensitiveEnabled;
-              });
-
-              const followUpNotificationId = await Notifications.scheduleNotificationAsync({
-                content: {
-                  title: `Reminder: ${groupItems.length} Medications`,
-                  body: `Did you take: ${medicationNames}?`,
-                  data: {
-                    medicationIds,
-                    scheduleIds,
-                    time,
-                    isFollowUp: true,
-                    scheduledAt: Date.now(),
-                  },
-                  categoryIdentifier: MULTIPLE_MEDICATION_REMINDER_CATEGORY,
-                  sound: true,
-                  ...(anyCritical && { critical: true } as unknown as Record<string, unknown>),
-                  ...(anyCritical && { interruptionLevel: 'critical' } as unknown as Record<string, unknown>),
-                  ...(!anyCritical && anyTimeSensitive && { interruptionLevel: 'timeSensitive' } as unknown as Record<string, unknown>),
-                },
-                trigger: {
-                  type: Notifications.SchedulableTriggerInputTypes.DATE,
-                  date: followUpDate,
-                },
-              });
-
-              if (!followUpNotificationId) {
-                logger.error('[Notification] Failed to schedule grouped follow-up notification', {
-                  component: 'NotificationScheduler',
-                  operation: 'scheduleGroupedNotificationsForDays',
-                  medicationIds,
-                  medicationNames,
-                  time,
-                  date: dateString,
-                  followUpDate: followUpDate.toISOString(),
-                  maxDelay,
-                });
-              }
-
-              // Create follow-up mappings for all medications in the group
-              for (const { medication, schedule } of groupItems) {
-                const followUpMapping: ScheduledNotificationMappingInput = {
-                  medicationId: medication.id,
-                  scheduleId: schedule.id,
-                  date: dateString,
-                  notificationType: 'follow_up',
-                  isGrouped: true,
-                  groupKey: time,
-                };
-
-                if (followUpNotificationId) {
-                  await scheduledNotificationRepository.saveMapping({
-                    notificationId: followUpNotificationId,
-                    medicationId: followUpMapping.medicationId,
-                    scheduleId: followUpMapping.scheduleId,
-                    date: followUpMapping.date,
-                    notificationType: followUpMapping.notificationType,
-                    isGrouped: followUpMapping.isGrouped,
-                    groupKey: followUpMapping.groupKey,
-                  });
-                }
-              }
-            }
-          }
-        }
+        // Multiple medications at this time - schedule as grouped using helper function
+        await scheduleGroupedNotificationForTime(groupItems, time, triggerDate, dateString);
       }
     }
   }
