@@ -15,11 +15,11 @@ import {
   localDateTimeFromStrings,
 } from '../../utils/dateFormatting';
 import { scheduledNotificationRepository } from '../../database/scheduledNotificationRepository';
-import { MEDICATION_REMINDER_CATEGORY } from './notificationCategories';
+import { MEDICATION_REMINDER_CATEGORY, MULTIPLE_MEDICATION_REMINDER_CATEGORY } from './notificationCategories';
 import {
   scheduleSingleNotification,
   scheduleMultipleNotification,
-  scheduleNotificationsForDays,
+  scheduleGroupedNotificationsForDays,
 } from './medicationNotificationScheduling';
 
 /**
@@ -298,10 +298,9 @@ export async function rescheduleAllMedicationNotifications(): Promise<void> {
       daysToSchedule,
     });
 
-    // Step 5: Schedule one-time notifications for each active schedule
-    for (const { medication, schedule } of activeMedSchedules) {
-      await scheduleNotificationsForDays(medication, schedule, daysToSchedule);
-    }
+    // Step 5: Schedule one-time notifications using grouped scheduling
+    // This ensures medications at the same time are grouped together
+    await scheduleGroupedNotificationsForDays(activeMedSchedules, daysToSchedule);
 
     logger.log('[Notification] Rescheduled all medication notifications:', {
       schedulesProcessed: activeMedSchedules.length,
@@ -486,7 +485,12 @@ export async function topUpNotifications(threshold: number = 3): Promise<void> {
       threshold,
     });
 
-    // For each schedule, check if we need to add more notifications
+    // Determine which dates need to be scheduled for each medication/schedule
+    // Build a set of dates that need scheduling, organized by time slot
+    const datesToScheduleByTime = new Map<string, Set<string>>();
+    const schedulesByTime = new Map<string, Array<{ medication: Medication; schedule: MedicationSchedule }>>();
+    let maxDaysToAdd = 0;
+
     for (const { medication, schedule } of activeMedSchedules) {
       const count = await scheduledNotificationRepository.countBySchedule(
         medication.id,
@@ -502,6 +506,7 @@ export async function topUpNotifications(threshold: number = 3): Promise<void> {
 
         // Calculate how many more days to schedule
         const daysToAdd = targetDays - count;
+        maxDaysToAdd = Math.max(maxDaysToAdd, daysToAdd);
 
         // Start from the day after the last scheduled, or today if none scheduled
         let startFromDay = 0;
@@ -520,14 +525,55 @@ export async function topUpNotifications(threshold: number = 3): Promise<void> {
           startFromDay,
         });
 
-        // Schedule additional notifications
+        // Track which dates need to be scheduled for this time slot
+        const time = schedule.time;
+        if (!datesToScheduleByTime.has(time)) {
+          datesToScheduleByTime.set(time, new Set<string>());
+        }
+        if (!schedulesByTime.has(time)) {
+          schedulesByTime.set(time, []);
+        }
+
+        const dateSet = datesToScheduleByTime.get(time)!;
         for (let i = 0; i < daysToAdd; i++) {
           const dateString = toLocalDateStringOffset(startFromDay + i);
-          const triggerDate = localDateTimeFromStrings(dateString, schedule.time);
+          dateSet.add(dateString);
+        }
 
-          if (triggerDate <= new Date()) {
-            continue;
-          }
+        // Add this schedule to the time group
+        if (!schedulesByTime.get(time)!.find(s => s.schedule.id === schedule.id)) {
+          schedulesByTime.get(time)!.push({ medication, schedule });
+        }
+      }
+    }
+
+    // If no top-up needed, exit early
+    if (maxDaysToAdd === 0) {
+      logger.log('[Notification] No top-up needed');
+      return;
+    }
+
+    // Now schedule notifications using grouped scheduling for the specific dates needed
+    // Group by time and schedule grouped notifications
+    for (const [time, dateSet] of datesToScheduleByTime.entries()) {
+      const groupItems = schedulesByTime.get(time) || [];
+      if (groupItems.length === 0) continue;
+
+      // Sort dates to schedule them in order
+      const sortedDates = Array.from(dateSet).sort();
+
+      for (const dateString of sortedDates) {
+        const triggerDate = localDateTimeFromStrings(dateString, time);
+
+        // Skip if trigger time has already passed
+        if (triggerDate <= new Date()) {
+          continue;
+        }
+
+        if (groupItems.length === 1) {
+          // Single medication at this time - schedule individually
+          const { medication, schedule } = groupItems[0];
+          const effectiveSettings = useNotificationSettingsStore.getState().getEffectiveSettings(medication.id);
 
           // Check if already scheduled
           const existing = await scheduledNotificationRepository.getMapping(
@@ -538,8 +584,6 @@ export async function topUpNotifications(threshold: number = 3): Promise<void> {
           );
 
           if (!existing) {
-            const effectiveSettings = useNotificationSettingsStore.getState().getEffectiveSettings(medication.id);
-
             await scheduleNotificationAtomic(
               {
                 title: `Time for ${medication.name}`,
@@ -547,13 +591,11 @@ export async function topUpNotifications(threshold: number = 3): Promise<void> {
                 data: {
                   medicationId: medication.id,
                   scheduleId: schedule.id,
-                  scheduledAt: Date.now(), // DIAGNOSTIC: Track when notification was scheduled for age calculation
+                  scheduledAt: Date.now(),
                 },
                 categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
                 sound: true,
-                ...(effectiveSettings.criticalAlertsEnabled && { critical: true } as unknown as Record<string, unknown>),
-                ...(effectiveSettings.criticalAlertsEnabled && { interruptionLevel: 'critical' } as unknown as Record<string, unknown>),
-                ...(!effectiveSettings.criticalAlertsEnabled && effectiveSettings.timeSensitiveEnabled && { interruptionLevel: 'timeSensitive' } as unknown as Record<string, unknown>),
+                ...(effectiveSettings.timeSensitiveEnabled && { interruptionLevel: 'timeSensitive' } as unknown as Record<string, unknown>),
               },
               triggerDate,
               {
@@ -564,6 +606,188 @@ export async function topUpNotifications(threshold: number = 3): Promise<void> {
                 isGrouped: false,
               }
             );
+          }
+
+          // Schedule follow-up if enabled
+          if (effectiveSettings.followUpDelay !== 'off') {
+            const followUpDate = new Date(triggerDate.getTime() + effectiveSettings.followUpDelay * 60 * 1000);
+
+            if (followUpDate > new Date()) {
+              const existingFollowUp = await scheduledNotificationRepository.getMapping(
+                medication.id,
+                schedule.id,
+                dateString,
+                'follow_up'
+              );
+
+              if (!existingFollowUp) {
+                await scheduleNotificationAtomic(
+                  {
+                    title: `Reminder: ${medication.name}`,
+                    body: 'Did you take your medication?',
+                    data: {
+                      medicationId: medication.id,
+                      scheduleId: schedule.id,
+                      isFollowUp: true,
+                      scheduledAt: Date.now(),
+                    },
+                    categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
+                    sound: true,
+                    ...(effectiveSettings.criticalAlertsEnabled && { critical: true } as unknown as Record<string, unknown>),
+                    ...(effectiveSettings.criticalAlertsEnabled && { interruptionLevel: 'critical' } as unknown as Record<string, unknown>),
+                  },
+                  followUpDate,
+                  {
+                    medicationId: medication.id,
+                    scheduleId: schedule.id,
+                    date: dateString,
+                    notificationType: 'follow_up',
+                    isGrouped: false,
+                  }
+                );
+              }
+            }
+          }
+        } else {
+          // Multiple medications at this time - schedule as grouped
+          const medicationIds = groupItems.map(({ medication }) => medication.id);
+          const scheduleIds = groupItems.map(({ schedule }) => schedule.id);
+          const medicationNames = groupItems.map(({ medication }) => medication.name).join(', ');
+
+          // Check if all medications in the group already have a mapping for this date
+          let allScheduled = true;
+          for (const { medication, schedule } of groupItems) {
+            const existing = await scheduledNotificationRepository.getMapping(
+              medication.id,
+              schedule.id,
+              dateString,
+              'reminder'
+            );
+            if (!existing) {
+              allScheduled = false;
+              break;
+            }
+          }
+
+          if (!allScheduled) {
+            const settingsStore = useNotificationSettingsStore.getState();
+            const anyTimeSensitive = groupItems.some(({ medication }) => {
+              const settings = settingsStore.getEffectiveSettings(medication.id);
+              return settings.timeSensitiveEnabled;
+            });
+
+            // Schedule the grouped notification once
+            const notificationId = await Notifications.scheduleNotificationAsync({
+              content: {
+                title: `Time for ${groupItems.length} Medications`,
+                body: medicationNames,
+                data: {
+                  medicationIds,
+                  scheduleIds,
+                  time,
+                  scheduledAt: Date.now(),
+                },
+                categoryIdentifier: MULTIPLE_MEDICATION_REMINDER_CATEGORY,
+                sound: true,
+                ...(anyTimeSensitive && { interruptionLevel: 'timeSensitive' } as unknown as Record<string, unknown>),
+              },
+              trigger: {
+                type: Notifications.SchedulableTriggerInputTypes.DATE,
+                date: triggerDate,
+              },
+            });
+
+            // Create mappings for all medications in the group
+            for (const { medication, schedule } of groupItems) {
+              if (notificationId) {
+                await scheduledNotificationRepository.saveMapping({
+                  notificationId,
+                  medicationId: medication.id,
+                  scheduleId: schedule.id,
+                  date: dateString,
+                  notificationType: 'reminder',
+                  isGrouped: true,
+                });
+              }
+            }
+          }
+
+          // Schedule grouped follow-up if any medication has it enabled
+          const settingsStore = useNotificationSettingsStore.getState();
+          const delays = groupItems.map(({ medication }) => {
+            const settings = settingsStore.getEffectiveSettings(medication.id);
+            return settings.followUpDelay;
+          }).filter(d => d !== 'off') as number[];
+
+          if (delays.length > 0) {
+            const maxDelay = Math.max(...delays);
+            const followUpDate = new Date(triggerDate.getTime() + maxDelay * 60 * 1000);
+
+            if (followUpDate > new Date()) {
+              // Check if all medications already have follow-up scheduled
+              let allFollowUpsScheduled = true;
+              for (const { medication, schedule } of groupItems) {
+                const existing = await scheduledNotificationRepository.getMapping(
+                  medication.id,
+                  schedule.id,
+                  dateString,
+                  'follow_up'
+                );
+                if (!existing) {
+                  allFollowUpsScheduled = false;
+                  break;
+                }
+              }
+
+              if (!allFollowUpsScheduled) {
+                const anyCritical = groupItems.some(({ medication }) => {
+                  const settings = settingsStore.getEffectiveSettings(medication.id);
+                  return settings.criticalAlertsEnabled;
+                });
+
+                const anyTimeSensitive = groupItems.some(({ medication }) => {
+                  const settings = settingsStore.getEffectiveSettings(medication.id);
+                  return settings.timeSensitiveEnabled;
+                });
+
+                const followUpNotificationId = await Notifications.scheduleNotificationAsync({
+                  content: {
+                    title: `Reminder: ${groupItems.length} Medications`,
+                    body: `Did you take: ${medicationNames}?`,
+                    data: {
+                      medicationIds,
+                      scheduleIds,
+                      time,
+                      isFollowUp: true,
+                      scheduledAt: Date.now(),
+                    },
+                    categoryIdentifier: MULTIPLE_MEDICATION_REMINDER_CATEGORY,
+                    sound: true,
+                    ...(anyCritical && { critical: true } as unknown as Record<string, unknown>),
+                    ...(anyCritical && { interruptionLevel: 'critical' } as unknown as Record<string, unknown>),
+                    ...(!anyCritical && anyTimeSensitive && { interruptionLevel: 'timeSensitive' } as unknown as Record<string, unknown>),
+                  },
+                  trigger: {
+                    type: Notifications.SchedulableTriggerInputTypes.DATE,
+                    date: followUpDate,
+                  },
+                });
+
+                // Create follow-up mappings for all medications in the group
+                for (const { medication, schedule } of groupItems) {
+                  if (followUpNotificationId) {
+                    await scheduledNotificationRepository.saveMapping({
+                      notificationId: followUpNotificationId,
+                      medicationId: medication.id,
+                      scheduleId: schedule.id,
+                      date: dateString,
+                      notificationType: 'follow_up',
+                      isGrouped: true,
+                    });
+                  }
+                }
+              }
+            }
           }
         }
       }
