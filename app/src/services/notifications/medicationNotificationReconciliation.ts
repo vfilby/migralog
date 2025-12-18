@@ -340,7 +340,7 @@ export async function rescheduleAllMedicationNotifications(): Promise<void> {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
-    // Issue 3 (HAND-334) + Issue 4 (SCHED-324): No silent failures
+    // No silent failures
     logger.error(error instanceof Error ? error : new Error(errorMessage), {
       component: 'NotificationScheduler',
       operation: 'rescheduleAllMedicationNotifications',
@@ -430,7 +430,7 @@ export async function rescheduleAllNotifications(): Promise<void> {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
-    // Issue 3 (HAND-334) + Issue 4 (SCHED-324): No silent failures
+    // No silent failures
     logger.error(error instanceof Error ? error : new Error(errorMessage), {
       component: 'NotificationScheduler',
       operation: 'rescheduleAllNotifications',

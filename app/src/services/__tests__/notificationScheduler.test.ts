@@ -42,9 +42,6 @@ import {
   dismissNotification,
   getPresentedNotifications,
   getAllScheduledNotifications,
-  getTodayDateString,
-  getDateStringForDaysAhead,
-  createDateTimeFromStrings,
   extractMedicationName,
   calculateTriggerTime,
 } from '../notifications/notificationScheduler';
@@ -441,90 +438,6 @@ describe('notificationScheduler', () => {
 
       // Assert
       expect(result).toEqual(mockNotifications);
-    });
-  });
-
-  describe('getTodayDateString', () => {
-    it('should return date in YYYY-MM-DD format', () => {
-      // Arrange - freeze time
-      jest.useFakeTimers();
-      jest.setSystemTime(new Date('2024-06-15T10:30:00Z'));
-
-      // Act
-      const result = getTodayDateString();
-
-      // Assert
-      expect(result).toBe('2024-06-15');
-
-      jest.useRealTimers();
-    });
-  });
-
-  describe('getDateStringForDaysAhead', () => {
-    beforeEach(() => {
-      jest.useFakeTimers();
-      // Use UTC noon to avoid date boundary issues in any timezone
-      jest.setSystemTime(new Date('2024-06-15T12:00:00.000Z'));
-    });
-
-    afterEach(() => {
-      jest.useRealTimers();
-    });
-
-    it('should return today for days=0', () => {
-      const result = getDateStringForDaysAhead(0);
-      // Result should be the local date representation
-      expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    });
-
-    it('should return a date 1 day ahead for days=1', () => {
-      const today = getDateStringForDaysAhead(0);
-      const tomorrow = getDateStringForDaysAhead(1);
-      // Tomorrow should be different from today
-      expect(tomorrow).not.toBe(today);
-      // Both should be valid date strings
-      expect(tomorrow).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    });
-
-    it('should return a date 7 days ahead for days=7', () => {
-      const today = getDateStringForDaysAhead(0);
-      const weekLater = getDateStringForDaysAhead(7);
-      expect(weekLater).not.toBe(today);
-      expect(weekLater).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    });
-  });
-
-  describe('createDateTimeFromStrings', () => {
-    it('should set correct hours and minutes from time string', () => {
-      // Act
-      const result = createDateTimeFromStrings('2024-06-15', '08:30');
-
-      // Assert - focus on time components which are timezone-independent
-      expect(result.getHours()).toBe(8);
-      expect(result.getMinutes()).toBe(30);
-      expect(result.getSeconds()).toBe(0);
-      expect(result.getMilliseconds()).toBe(0);
-    });
-
-    it('should handle midnight', () => {
-      const result = createDateTimeFromStrings('2024-06-15', '00:00');
-
-      expect(result.getHours()).toBe(0);
-      expect(result.getMinutes()).toBe(0);
-    });
-
-    it('should handle end of day time', () => {
-      const result = createDateTimeFromStrings('2024-06-15', '23:59');
-
-      expect(result.getHours()).toBe(23);
-      expect(result.getMinutes()).toBe(59);
-    });
-
-    it('should return a valid Date object', () => {
-      const result = createDateTimeFromStrings('2024-06-15', '14:45');
-
-      expect(result).toBeInstanceOf(Date);
-      expect(isNaN(result.getTime())).toBe(false);
     });
   });
 

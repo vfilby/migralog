@@ -157,7 +157,7 @@ describe('Notification Action Handlers', () => {
       );
     });
 
-    it('ACT-T3: should not log dose when medication not found and notify user (HAND-138, SUP-145)', async () => {
+    it('ACT-T3: should not log dose when medication not found and notify user', async () => {
       // Arrange - override store mock to return null (medication not found)
       mockMedicationStore.loadMedicationWithDetails.mockResolvedValue(null);
 
@@ -175,7 +175,7 @@ describe('Notification Action Handlers', () => {
       );
     });
 
-    it('ACT-T4: should return false and notify user when medication has invalid configuration (HAND-138, HAND-238)', async () => {
+    it('ACT-T4: should return false and notify user when medication has invalid configuration', async () => {
       // Arrange - override store mock to return medication with invalid config
       const invalidMed = { ...mockMedication, dosageAmount: undefined };
       mockMedicationStore.loadMedicationWithDetails.mockResolvedValue({
@@ -343,7 +343,7 @@ describe('Notification Action Handlers', () => {
           medicationId: 'med-B',
         })
       );
-      // Verify error notification for failed medication (HAND-238)
+      // Verify error notification for failed medication
       expect(notifyUserOfError).toHaveBeenCalledWith(
         'data',
         expect.stringContaining('could not be logged'),
@@ -352,7 +352,7 @@ describe('Notification Action Handlers', () => {
       );
     });
 
-    it('ACT-TA3: should handle empty medication arrays and log error (HAND-254)', async () => {
+    it('ACT-TA3: should handle empty medication arrays and log error', async () => {
       // Act
       const result = await handleTakeAllNow([], []);
 
@@ -444,7 +444,7 @@ describe('Notification Action Handlers', () => {
       expect(scheduleCall.content.interruptionLevel).toBe('timeSensitive');
     });
 
-    it('ACT-SN3: should not schedule if medication not found and notify user (HAND-138, HAND-238)', async () => {
+    it('ACT-SN3: should not schedule if medication not found and notify user', async () => {
       // Arrange
       (medicationRepository.getById as jest.Mock).mockResolvedValue(null);
 

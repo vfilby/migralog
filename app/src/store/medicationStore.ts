@@ -6,7 +6,6 @@ import { medicationRepository, medicationDoseRepository, medicationScheduleRepos
 import { episodeRepository } from '../database/episodeRepository';
 import { errorLogger } from '../services/errorLogger';
 // Lazy import to avoid circular dependency with notificationService
-// import { notificationService } from '../services/notifications/notificationService';
 import { toastService } from '../services/toastService';
 import { cacheManager } from '../utils/cacheManager';
 

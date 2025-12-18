@@ -6,16 +6,11 @@ import {
   ScheduledNotificationMappingInput,
 } from '../../types/notifications';
 import { scheduledNotificationRepository } from '../../database/scheduledNotificationRepository';
-import {
-  toLocalDateString,
-  toLocalDateStringOffset,
-  localDateTimeFromStrings,
-} from '../../utils/dateFormatting';
 
 /**
  * Schedule a notification for a specific date/time
- * 
- * ISSUE FIX (SCHED-324): Added comprehensive error handling
+ *
+ * Added comprehensive error handling:
  * - Logs scheduling failures to Sentry with context
  * - Returns null on failure instead of throwing
  * - Notifies user for critical scheduling failures
@@ -39,7 +34,7 @@ export async function scheduleNotification(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     
-    // Log with full context (Issue 3: HAND-334 - No silent failures)
+    // Log with full context - No silent failures
     logger.error(error instanceof Error ? error : new Error(errorMessage), {
       component: 'NotificationScheduler',
       operation: 'scheduleNotification',
@@ -56,7 +51,7 @@ export async function scheduleNotification(
       scheduleIds: content.data?.scheduleIds,
     });
     
-    // Notify user for critical failures (Issue 2: HAND-238)
+    // Notify user for critical failures
     // Only notify for medication reminders (has medicationId or medicationIds)
     // Don't spam user with notifications for every scheduling failure
     if (content.data?.medicationId || content.data?.medicationIds) {
@@ -73,15 +68,15 @@ export async function scheduleNotification(
       );
     }
     
-    // Return null to indicate failure (Issue 1: HAND-138 - Graceful failure)
+    // Return null to indicate graceful failure
     return null;
   }
 }
 
 /**
  * Cancel a scheduled notification
- * 
- * ISSUE FIX (SCHED-324): Added Sentry logging for cancellation failures
+ *
+ * Added Sentry logging for cancellation failures
  */
 export async function cancelNotification(notificationId: string): Promise<boolean> {
   try {
@@ -89,7 +84,7 @@ export async function cancelNotification(notificationId: string): Promise<boolea
     logger.log('[Notification] Cancelled:', notificationId);
     return true;
   } catch (error) {
-    // Log (Issue 3: HAND-334 - No silent failures)
+    // Log - No silent failures
     logger.warn(error instanceof Error ? error : new Error(String(error)), {
       component: 'NotificationScheduler',
       operation: 'cancelNotification',
@@ -298,36 +293,6 @@ export async function cancelNotificationAtomic(notificationId: string): Promise<
     logger.error('[NotificationScheduler] Failed to cancel notification atomically:', error);
     return false;
   }
-}
-
-/**
- * Get today's date in YYYY-MM-DD format (local timezone)
- *
- * @deprecated Use toLocalDateString() from '../../utils/dateFormatting' directly.
- * This is a re-export for backwards compatibility.
- */
-export function getTodayDateString(): string {
-  return toLocalDateString();
-}
-
-/**
- * Get a date string for N days from today in YYYY-MM-DD format (local timezone)
- *
- * @deprecated Use toLocalDateStringOffset() from '../../utils/dateFormatting' directly.
- * This is a re-export for backwards compatibility.
- */
-export function getDateStringForDaysAhead(days: number): string {
-  return toLocalDateStringOffset(days);
-}
-
-/**
- * Create a Date object for a specific date and time in local timezone
- *
- * @deprecated Use localDateTimeFromStrings() from '../../utils/dateFormatting' directly.
- * This is a re-export for backwards compatibility.
- */
-export function createDateTimeFromStrings(dateString: string, timeString: string): Date {
-  return localDateTimeFromStrings(dateString, timeString);
 }
 
 /**

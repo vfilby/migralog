@@ -14,7 +14,7 @@ import { topUpNotifications } from './medicationNotificationReconciliation';
 /**
  * Handle "Take Now" action - log medication immediately
  *
- * ISSUE FIX (HAND-138): Now returns error state instead of throwing
+ * Now returns error state instead of throwing
  * - Uses notifyUserOfError() for user feedback
  * - Logs to Sentry with full context
  * - Returns boolean to indicate success/failure
@@ -28,7 +28,7 @@ export async function handleTakeNow(medicationId: string, scheduleId: string): P
     if (!result || !result.medication) {
       logger.error('[Notification] Medication not found:', { medicationId, scheduleId });
 
-      // Issue 2 (HAND-238) + Issue 5 (SUP-145): User-friendly error notification
+      // User-friendly error notification
       await notifyUserOfError(
         'data',
         'There was a problem with your medication reminder. Please check your medications.',
@@ -87,7 +87,7 @@ export async function handleTakeNow(medicationId: string, scheduleId: string): P
         dosageUnit: medication.dosageUnit,
       });
 
-      // Issue 2 (HAND-238): User notification for validation errors
+      // User notification for validation errors
       await notifyUserOfError(
         'data',
         'There was a problem with your medication data. Please update your medication settings.',
@@ -125,7 +125,7 @@ export async function handleTakeNow(medicationId: string, scheduleId: string): P
       error: errorMessage,
     });
 
-    // Issue 2 (HAND-238) + Issue 3 (HAND-334): No silent failures
+    // No silent failures
     await notifyUserOfError(
       'system',
       'Failed to log your medication. Please try again.',
@@ -225,7 +225,7 @@ async function handleSnoozeNotifications(
  * Handle "Snooze" action - reschedule notification for a single medication.
  * Delegates to unified handleSnoozeNotifications.
  *
- * ISSUE FIX (HAND-138): Now returns error state and notifies user
+ * Now returns error state and notifies user
  */
 export async function handleSnooze(
   medicationId: string,
@@ -237,7 +237,7 @@ export async function handleSnooze(
     if (!medication) {
       logger.error('[Notification] Medication not found for snooze:', { medicationId, scheduleId });
 
-      // Issue 2 (HAND-238): User notification
+      // User notification
       await notifyUserOfError(
         'data',
         'Could not snooze medication reminder. Please check your medications.',
@@ -259,7 +259,7 @@ export async function handleSnooze(
   } catch (error) {
     logger.error('[Notification] Error snoozing notification:', error);
 
-    // Issue 2 (HAND-238) + Issue 3 (HAND-334): No silent failures
+    // No silent failures
     await notifyUserOfError(
       'system',
       'Failed to snooze your medication reminder. Please try again.',
@@ -274,12 +274,12 @@ export async function handleSnooze(
 /**
  * Handle "Take All Now" action - log all medications immediately
  *
- * SAFETY NOTE (HAND-111): This action requires explicit user tap on the "Take All" button.
+ * This action requires explicit user tap on the "Take All" button.
  * It is NOT automatic - the user must consciously choose to take all medications.
  * The button is a convenience feature for users who want to log multiple medications at once,
  * but it defers to the user for the final decision.
  *
- * ISSUE FIX (HAND-138, HAND-254): Now returns error state and handles empty lists
+ * Now returns error state and handles empty lists
  * - Returns object with success count and total count
  * - Uses notifyUserOfError() for failures
  * - Logs each error to Sentry
@@ -289,7 +289,7 @@ export async function handleTakeAllNow(
   scheduleIds: string[]
 ): Promise<{ success: number; total: number }> {
   try {
-    // Issue 9 (HAND-254): Empty medication list edge case
+    // Empty medication list edge case
     if (medicationIds.length === 0 || scheduleIds.length === 0) {
       // Log as this indicates a bug in notification scheduling
       logger.error(new Error('handleTakeAllNow called with empty medication list'), {
@@ -319,7 +319,7 @@ export async function handleTakeAllNow(
         if (!result || !result.medication) {
           logger.error('[Notification] Medication not found in group:', { medicationId, scheduleId });
 
-          // Issue 2 (HAND-238) + Issue 3 (HAND-334): Log each failure
+          // Log each failure
           await notifyUserOfError(
             'data',
             'One of your medications could not be logged. Please check your medications.',
@@ -350,7 +350,7 @@ export async function handleTakeAllNow(
             component: 'NotificationConsistency',
           });
 
-          // Issue 2 (HAND-238): User notification for each failure
+          // User notification for each failure
           await notifyUserOfError(
             'data',
             `Schedule mismatch for ${medication.name}. Please recreate notification schedules.`,
@@ -375,7 +375,7 @@ export async function handleTakeAllNow(
             medicationName: medication.name,
           });
 
-          // Issue 2 (HAND-238): User notification for each failure
+          // User notification for each failure
           await notifyUserOfError(
             'data',
             `Problem with ${medication.name} settings. Please update your medication.`,
@@ -416,7 +416,7 @@ export async function handleTakeAllNow(
           error: errorMessage,
         });
 
-        // Issue 2 (HAND-238) + Issue 3 (HAND-334): Log individual failures
+        // Log individual failures
         await notifyUserOfError(
           'system',
           'Failed to log one of your medications. Please check the app.',
@@ -440,7 +440,7 @@ export async function handleTakeAllNow(
         totalCount: medicationIds.length,
       });
 
-      // Issue 2 (HAND-238): Notify user if ALL failed
+      // Notify user if ALL failed
       await notifyUserOfError(
         'system',
         'Failed to log your medications. Please open the app and try again.',
@@ -457,7 +457,7 @@ export async function handleTakeAllNow(
       error: errorMessage,
     });
 
-    // Issue 2 (HAND-238) + Issue 3 (HAND-334): No silent failures
+    // No silent failures
     await notifyUserOfError(
       'system',
       'An error occurred while logging your medications. Please try again.',
@@ -474,7 +474,7 @@ export async function handleTakeAllNow(
  * Handle "Remind Later" action - reschedule grouped notification.
  * Delegates to unified handleSnoozeNotifications.
  *
- * ISSUE FIX (HAND-138): Now returns error state and notifies user
+ * Now returns error state and notifies user
  */
 export async function handleRemindLater(
   medicationIds: string[],
@@ -483,7 +483,7 @@ export async function handleRemindLater(
   minutes: number
 ): Promise<boolean> {
   try {
-    // Issue 9 (HAND-254): Empty medication list edge case
+    // Empty medication list edge case
     if (medicationIds.length === 0 || scheduleIds.length === 0) {
       // Log as this indicates a bug
       logger.error(new Error('handleRemindLater called with empty medication list'), {
@@ -508,7 +508,7 @@ export async function handleRemindLater(
         originalTime,
       });
 
-      // Issue 2 (HAND-238): User notification
+      // User notification
       await notifyUserOfError(
         'data',
         'Could not find medications for reminder. Please check your medications.',
@@ -531,7 +531,7 @@ export async function handleRemindLater(
   } catch (error) {
     logger.error('[Notification] Error snoozing reminder:', error);
 
-    // Issue 2 (HAND-238) + Issue 3 (HAND-334): No silent failures
+    // No silent failures
     await notifyUserOfError(
       'system',
       'Failed to snooze your medication reminder. Please try again.',
