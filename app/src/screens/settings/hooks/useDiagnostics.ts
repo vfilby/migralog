@@ -49,11 +49,17 @@ export function useDiagnostics() {
       const clientDsn = client?.getOptions().dsn;
       const enabled = client?.getOptions().enabled ?? false;
       const environment = client?.getOptions().environment ?? 'unknown';
-      
+
       // Use the same DSN logic as displayed to user - check environment variable as fallback
       const envDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
       const effectiveDsn = clientDsn || envDsn;
-      const isConfigured = !!effectiveDsn && enabled;
+
+      // DSN being configured is separate from being enabled
+      // isConfigured = DSN exists (ready for use)
+      // isEnabled = Sentry is actively sending events
+      const hasDsn = !!effectiveDsn;
+      const isConfigured = hasDsn; // Configured means DSN is set
+      const isDevelopment = __DEV__ || environment === 'development';
 
       // Get configuration values from Constants and environment
       const expoConfig = Constants.expoConfig || {};
@@ -61,12 +67,12 @@ export function useDiagnostics() {
       const bundleId = ((expoConfig as Record<string, unknown>)?.ios as Record<string, unknown>)?.bundleIdentifier;
 
       let reason: string | undefined;
-      if (!isConfigured) {
-        if (!effectiveDsn) {
-          reason = 'DSN not configured\n\nCheck EXPO_PUBLIC_SENTRY_DSN environment variable in GitHub Actions secrets';
-        } else if (!enabled) {
-          reason = 'Sentry is disabled\n\nCheck EXPO_PUBLIC_SENTRY_ENABLED environment variable in GitHub Actions secrets';
-        }
+      if (!hasDsn) {
+        reason = 'DSN not configured\n\nCheck EXPO_PUBLIC_SENTRY_DSN environment variable in GitHub Actions secrets';
+      } else if (!enabled && isDevelopment) {
+        reason = 'Sentry is disabled in development builds (this is expected)';
+      } else if (!enabled) {
+        reason = 'Sentry is disabled\n\nCheck EXPO_PUBLIC_SENTRY_ENABLED environment variable';
       }
 
       setSentryStatus({

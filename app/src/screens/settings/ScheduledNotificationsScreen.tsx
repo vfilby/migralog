@@ -24,7 +24,7 @@ import { format } from 'date-fns';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ScheduledNotificationsScreen'>;
 
-type NotificationFilter = 'all' | 'reminder' | 'follow_up' | 'daily_checkin' | 'unmapped';
+type NotificationFilter = 'all' | 'reminder' | 'follow_up' | 'daily_checkin';
 
 interface EnrichedNotification {
   osNotification: Notifications.NotificationRequest;
@@ -95,9 +95,7 @@ export default function ScheduledNotificationsScreen({ navigation }: Props) {
     let filtered = enrichedNotifications;
 
     // Filter by type
-    if (selectedFilter === 'unmapped') {
-      filtered = filtered.filter(n => !n.dbMapping);
-    } else if (selectedFilter !== 'all') {
+    if (selectedFilter !== 'all') {
       filtered = filtered.filter(n =>
         n.dbMapping?.notificationType === selectedFilter
       );
@@ -122,11 +120,17 @@ export default function ScheduledNotificationsScreen({ navigation }: Props) {
     }
 
     // Sort by trigger time (soonest first)
+    const now = Date.now();
     filtered.sort((a, b) => {
       const getTriggerTimestamp = (trigger: Notifications.NotificationTrigger | null): number => {
         if (!trigger) return Infinity;
-        if ('type' in trigger && trigger.type === 'date' && 'date' in trigger && trigger.date) {
-          return new Date(trigger.date).getTime();
+        if ('type' in trigger) {
+          if (trigger.type === 'date' && 'date' in trigger && trigger.date) {
+            return new Date(trigger.date).getTime();
+          }
+          if (trigger.type === 'timeInterval' && 'seconds' in trigger) {
+            return now + trigger.seconds * 1000;
+          }
         }
         // For calendar/daily triggers, they repeat so put them at the end
         return Infinity;
@@ -194,7 +198,13 @@ export default function ScheduledNotificationsScreen({ navigation }: Props) {
       }
       if (trigger.type === 'timeInterval' && 'seconds' in trigger) {
         const repeats = 'repeats' in trigger ? trigger.repeats : false;
-        return `In ${trigger.seconds} seconds${repeats ? ' (repeating)' : ''}`;
+        // Convert seconds to a future date and format nicely
+        const futureDate = new Date(Date.now() + trigger.seconds * 1000);
+        const locale = getDeviceLocale();
+        const formatStr = getShortDateTimeFormatString();
+        const formattedDate = format(futureDate, formatStr, { locale });
+        const relativeTime = formatTimeUntil(futureDate);
+        return `${formattedDate} (${relativeTime})${repeats ? ' - repeating' : ''}`;
       }
     }
 
@@ -362,13 +372,11 @@ export default function ScheduledNotificationsScreen({ navigation }: Props) {
       reminder: 0,
       follow_up: 0,
       daily_checkin: 0,
-      unmapped: 0,
     };
 
     enrichedNotifications.forEach(n => {
       const type = n.dbMapping?.notificationType;
-      if (!n.dbMapping) counts.unmapped++;
-      else if (type === 'reminder') counts.reminder++;
+      if (type === 'reminder') counts.reminder++;
       else if (type === 'follow_up') counts.follow_up++;
       else if (type === 'daily_checkin') counts.daily_checkin++;
     });
@@ -376,13 +384,12 @@ export default function ScheduledNotificationsScreen({ navigation }: Props) {
     return counts;
   }, [enrichedNotifications]);
 
-  const FILTERS: NotificationFilter[] = ['all', 'reminder', 'follow_up', 'daily_checkin', 'unmapped'];
+  const FILTERS: NotificationFilter[] = ['all', 'reminder', 'follow_up', 'daily_checkin'];
   const FILTER_LABELS: Record<NotificationFilter, string> = {
     all: 'All',
     reminder: 'Remind',
     follow_up: 'Follow',
     daily_checkin: 'Check-in',
-    unmapped: 'Other',
   };
 
   return (

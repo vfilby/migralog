@@ -330,19 +330,36 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
                 <View
                   style={[
                     styles.developerButton,
-                    sentryStatus.isConfigured
-                      ? { backgroundColor: theme.background }
-                      : { backgroundColor: theme.background, borderColor: theme.danger, borderWidth: 1 },
+                    !sentryStatus.isConfigured
+                      ? { backgroundColor: theme.background, borderColor: theme.danger, borderWidth: 1 }
+                      : { backgroundColor: theme.background },
                   ]}
                 >
                   <Ionicons
-                    name={sentryStatus.isConfigured ? 'checkmark-circle' : 'alert-circle'}
+                    name={
+                      sentryStatus.isEnabled
+                        ? 'checkmark-circle'
+                        : sentryStatus.isConfigured
+                          ? 'pause-circle'
+                          : 'alert-circle'
+                    }
                     size={24}
-                    color={sentryStatus.isConfigured ? '#34C759' : theme.danger}
+                    color={
+                      sentryStatus.isEnabled
+                        ? '#34C759'
+                        : sentryStatus.isConfigured
+                          ? theme.warning
+                          : theme.danger
+                    }
                   />
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text style={styles.developerButtonText}>
-                      Sentry: {sentryStatus.isConfigured ? '✅ Active' : '❌ Not Configured'}
+                      Sentry:{' '}
+                      {sentryStatus.isEnabled
+                        ? '✅ Active'
+                        : sentryStatus.isConfigured
+                          ? '⏸️ Configured (Disabled)'
+                          : '❌ Not Configured'}
                     </Text>
                     <Text style={{ fontSize: 12, color: theme.textTertiary, marginTop: 4 }}>
                       Environment: {sentryStatus.environment}
@@ -350,7 +367,7 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
                   </View>
                 </View>
 
-                {!sentryStatus.isConfigured && sentryStatus.reason && (
+                {sentryStatus.reason && (
                   <View
                     style={{
                       backgroundColor: theme.card,
@@ -359,7 +376,7 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
                       marginTop: 8,
                       marginBottom: 12,
                       borderLeftWidth: 4,
-                      borderLeftColor: theme.danger,
+                      borderLeftColor: sentryStatus.isConfigured ? theme.warning : theme.danger,
                     }}
                   >
                     <Text style={{ fontSize: 13, color: theme.text, lineHeight: 20 }}>
