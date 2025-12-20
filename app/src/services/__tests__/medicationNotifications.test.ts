@@ -528,6 +528,83 @@ describe('Medication Notification Scheduling', () => {
       expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('group-notif');
       expect(scheduledNotificationRepository.deleteMapping).toHaveBeenCalledWith('mapping-1');
     });
+
+    it('should only include same notification type in remaining group (mixed types bug)', async () => {
+      // This test would have caught the bug where remainingMappings included
+      // different notification types (e.g., follow_up when cancelling reminder)
+
+      // Use a future date to ensure the notification gets rescheduled
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + 1);
+      const futureDateStr = futureDate.toISOString().split('T')[0];
+
+      const mockMapping = {
+        id: 'mapping-1',
+        medicationId: 'med-1',
+        scheduleId: 'sched-1',
+        notificationId: 'group-notif',
+        isGrouped: true,
+        groupKey: '09:00',
+        notificationType: 'reminder',
+        date: futureDateStr,
+      };
+
+      // Group mappings include:
+      // - med-1 reminder (being cancelled)
+      // - med-1 follow_up (DIFFERENT type - should NOT be recreated)
+      // - med-2 reminder (SAME type - should be recreated)
+      const mockGroupMappings = [
+        mockMapping,
+        {
+          id: 'mapping-2',
+          medicationId: 'med-1',
+          scheduleId: 'sched-1',
+          notificationId: 'group-notif',
+          isGrouped: true,
+          groupKey: '09:00',
+          notificationType: 'follow_up', // Different type!
+          date: futureDateStr,
+        },
+        {
+          id: 'mapping-3',
+          medicationId: 'med-2',
+          scheduleId: 'sched-2',
+          notificationId: 'group-notif',
+          isGrouped: true,
+          groupKey: '09:00',
+          notificationType: 'reminder', // Same type - should remain
+          date: futureDateStr,
+        },
+      ];
+
+      const mockMedication2 = {
+        id: 'med-2',
+        name: 'Test Med 2',
+        dosageAmount: 100,
+        dosageUnit: 'mg',
+        schedule: [{ id: 'sched-2', time: '09:00', dosage: 1 }],
+      };
+
+      (scheduledNotificationRepository.getMapping as jest.Mock).mockResolvedValue(mockMapping);
+      (scheduledNotificationRepository.getMappingsByGroupKey as jest.Mock).mockResolvedValue(mockGroupMappings);
+      (medicationRepository.getById as jest.Mock).mockResolvedValue(mockMedication2);
+      (scheduleNotificationAtomic as jest.Mock).mockResolvedValue({ id: 'new-mapping' });
+
+      await cancelNotificationForDate('med-1', 'sched-1', futureDateStr, 'reminder');
+
+      // Should cancel the original group notification
+      expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('group-notif');
+      // Should delete the cancelled mapping
+      expect(scheduledNotificationRepository.deleteMapping).toHaveBeenCalledWith('mapping-1');
+
+      // With only one medication remaining (med-2 reminder), should convert to single notification
+      // The follow_up for med-1 should NOT be included because it's a different type
+      expect(scheduleNotificationAtomic).toHaveBeenCalled();
+      expect(medicationRepository.getById).toHaveBeenCalledWith('med-2');
+
+      // The med-1 follow_up mapping should NOT trigger a new notification (different type)
+      expect(medicationRepository.getById).not.toHaveBeenCalledWith('med-1');
+    });
   });
 
   describe('scheduleNotificationsForDays', () => {
