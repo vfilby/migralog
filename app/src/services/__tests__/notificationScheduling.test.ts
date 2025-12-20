@@ -466,7 +466,7 @@ describe('Notification Scheduling', () => {
           { medication: mockMedA, schedule: mockScheduleA },
           { medication: mockMedB, schedule: mockScheduleB }
         ],
-        1 // 1 day
+        2 // 2 days to ensure at least tomorrow is scheduled (today might be past 08:00)
       );
 
       // Assert - Should schedule 1 grouped notification (not 2 individual ones)
@@ -492,7 +492,7 @@ describe('Notification Scheduling', () => {
           { medication: mockMedA, schedule: mockScheduleA },
           { medication: mockMedB, schedule: mockScheduleB }
         ],
-        1
+        2 // 2 days to ensure at least tomorrow is scheduled (today might be past 08:00)
       );
 
       // Assert - Check saveMapping calls
@@ -519,7 +519,7 @@ describe('Notification Scheduling', () => {
           { medication: mockMedA, schedule: mockScheduleA },
           { medication: mockMedB, schedule: mockScheduleB }
         ],
-        1
+        2 // 2 days to ensure at least tomorrow is scheduled (today might be past 08:00)
       );
 
       // Assert
@@ -539,7 +539,7 @@ describe('Notification Scheduling', () => {
         [
           { medication: mockMedA, schedule: mockScheduleA }
         ],
-        1
+        2 // 2 days to ensure at least tomorrow is scheduled (today might be past 08:00)
       );
 
       // Assert - Check saveMapping calls
@@ -570,7 +570,7 @@ describe('Notification Scheduling', () => {
           { medication: mockMedA, schedule: mockScheduleA },
           { medication: mockMedB, schedule: mockScheduleB }
         ],
-        1
+        2 // 2 days to ensure at least tomorrow is scheduled (today might be past 08:00)
       );
 
       // Assert - Check for grouped follow-up notification
@@ -608,7 +608,7 @@ describe('Notification Scheduling', () => {
           { medication: mockMedA, schedule: mockScheduleA },
           { medication: mockMedB, schedule: mockScheduleB }
         ],
-        1
+        2 // 2 days to ensure at least tomorrow is in the future and we're testing the skip logic
       );
 
       // Assert - Should not schedule new notifications if all are already scheduled
@@ -634,7 +634,7 @@ describe('Notification Scheduling', () => {
           { medication: mockMedA, schedule: mockScheduleA }, // 08:00
           { medication: mockMedB, schedule: mockScheduleC }  // 12:00
         ],
-        1
+        2 // 2 days to ensure at least tomorrow is scheduled (today might be past 08:00 or 12:00)
       );
 
       // Assert - Should schedule 2 separate notifications, not grouped
