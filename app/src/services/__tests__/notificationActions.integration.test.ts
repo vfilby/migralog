@@ -53,7 +53,12 @@ import { notificationDismissalService } from '../notifications/NotificationDismi
 import {
   handleSkip,
   handleSkipAll,
+  handleTakeNow,
+  handleTakeAllNow,
+  handleSnooze,
+  handleRemindLater,
   cancelNotificationForDate,
+  dismissMedicationNotification,
 } from '../notifications/medicationNotifications';
 
 describe('Notification Actions Integration', () => {
@@ -116,7 +121,191 @@ describe('Notification Actions Integration', () => {
     jest.restoreAllMocks();
   });
 
-  describe('Skip Action Flow', () => {
+  // ============================================================================
+  // SINGLE MEDICATION NOTIFICATION TESTS
+  // ============================================================================
+
+  describe('Single Medication: Log/Take Action', () => {
+    it('should record taken dose with correct quantity and status', async () => {
+      // Setup: A medication exists with schedule
+      const medication = {
+        id: 'med-123',
+        name: 'Aspirin',
+        dosageAmount: 500,
+        dosageUnit: 'mg',
+        defaultQuantity: 1,
+      };
+
+      mockMedicationStore.loadMedicationWithDetails.mockResolvedValue({
+        medication,
+        schedules: [{ id: 'sched-1', time: '09:00', dosage: 2 }],
+      });
+
+      // Action: User taps "Take Now" on notification
+      const result = await handleTakeNow('med-123', 'sched-1');
+
+      // Verify: Take was successful
+      expect(result).toBe(true);
+
+      // Verify: Dose was recorded with taken status and correct quantity
+      expect(loggedDoses).toHaveLength(1);
+      expect(loggedDoses[0]).toMatchObject({
+        medicationId: 'med-123',
+        scheduleId: 'sched-1',
+        quantity: 2, // From schedule.dosage
+        dosageAmount: 500,
+        dosageUnit: 'mg',
+        notes: 'Logged from notification',
+      });
+      // Status should NOT be 'skipped' (default is taken/undefined)
+      expect(loggedDoses[0].status).toBeUndefined();
+    });
+
+    it('should use defaultQuantity when schedule dosage is not set', async () => {
+      const medication = {
+        id: 'med-123',
+        name: 'Aspirin',
+        dosageAmount: 500,
+        dosageUnit: 'mg',
+        defaultQuantity: 3,
+      };
+
+      mockMedicationStore.loadMedicationWithDetails.mockResolvedValue({
+        medication,
+        schedules: [{ id: 'sched-1', time: '09:00' }], // No dosage set
+      });
+
+      const result = await handleTakeNow('med-123', 'sched-1');
+
+      expect(result).toBe(true);
+      expect(loggedDoses[0].quantity).toBe(3); // From defaultQuantity
+    });
+
+    it('should return false when medication not found', async () => {
+      mockMedicationStore.loadMedicationWithDetails.mockResolvedValue(null);
+
+      const result = await handleTakeNow('med-123', 'sched-1');
+
+      expect(result).toBe(false);
+      expect(loggedDoses).toHaveLength(0);
+    });
+
+    it('should return false when schedule not found', async () => {
+      const medication = {
+        id: 'med-123',
+        name: 'Aspirin',
+        dosageAmount: 500,
+        dosageUnit: 'mg',
+      };
+
+      mockMedicationStore.loadMedicationWithDetails.mockResolvedValue({
+        medication,
+        schedules: [{ id: 'different-sched', time: '09:00', dosage: 1 }],
+      });
+
+      const result = await handleTakeNow('med-123', 'sched-1');
+
+      expect(result).toBe(false);
+      expect(loggedDoses).toHaveLength(0);
+    });
+  });
+
+  describe('Single Medication: Snooze Action', () => {
+    it('should schedule new notification for snooze delay', async () => {
+      const medication = {
+        id: 'med-123',
+        name: 'Aspirin',
+        dosageAmount: 500,
+        dosageUnit: 'mg',
+      };
+
+      (medicationRepository.getById as jest.Mock).mockResolvedValue(medication);
+      (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('new-notif-id');
+
+      // Action: User taps "Snooze" (10 minutes)
+      const result = await handleSnooze('med-123', 'sched-1', 10);
+
+      // Verify: Snooze was successful
+      expect(result).toBe(true);
+
+      // Verify: New notification was scheduled
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+      const scheduleCall = (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls[0][0];
+      expect(scheduleCall.content.title).toContain('Aspirin');
+      expect(scheduleCall.content.body).toContain('snoozed');
+
+      // Verify: NO dose was logged (snooze doesn't record a dose)
+      expect(loggedDoses).toHaveLength(0);
+    });
+
+    it('should return false when medication not found', async () => {
+      (medicationRepository.getById as jest.Mock).mockResolvedValue(null);
+
+      const result = await handleSnooze('med-123', 'sched-1', 10);
+
+      expect(result).toBe(false);
+      expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Single Medication: Pre-notification Logging (via app)', () => {
+    it('should dismiss presented notification when dose logged via app', async () => {
+      // Setup: A notification is currently displayed
+      const presentedNotifications = [
+        {
+          request: {
+            identifier: 'notif-123',
+            content: {
+              data: { medicationId: 'med-123', scheduleId: 'sched-1' },
+            },
+          },
+        },
+      ];
+
+      (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue(presentedNotifications);
+      (notificationDismissalService.shouldDismissNotification as jest.Mock).mockResolvedValue({
+        shouldDismiss: true,
+        strategy: 'database_id_lookup',
+        confidence: 'high',
+        context: { matched: true },
+      });
+
+      // Action: User logs dose via app (triggers dismiss)
+      await dismissMedicationNotification('med-123', 'sched-1');
+
+      // Verify: Notification was dismissed
+      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith('notif-123');
+    });
+
+    it('should not dismiss notification for different medication', async () => {
+      const presentedNotifications = [
+        {
+          request: {
+            identifier: 'notif-456',
+            content: {
+              data: { medicationId: 'med-456', scheduleId: 'sched-2' },
+            },
+          },
+        },
+      ];
+
+      (Notifications.getPresentedNotificationsAsync as jest.Mock).mockResolvedValue(presentedNotifications);
+      (notificationDismissalService.shouldDismissNotification as jest.Mock).mockResolvedValue({
+        shouldDismiss: false,
+        strategy: 'none',
+        confidence: 'low',
+        context: { reason: 'no match' },
+      });
+
+      // Action: User logs different medication
+      await dismissMedicationNotification('med-123', 'sched-1');
+
+      // Verify: Other notification was NOT dismissed
+      expect(Notifications.dismissNotificationAsync).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Single Medication: Skip Action', () => {
     it('should record skipped dose with correct status and quantity', async () => {
       // Setup: A medication exists
       const medication = {
@@ -211,6 +400,195 @@ describe('Notification Actions Integration', () => {
       expect(result).toEqual({ success: 1, total: 2 });
       expect(loggedDoses).toHaveLength(1);
       expect(loggedDoses[0].medicationId).toBe('med-2');
+    });
+  });
+
+  // ============================================================================
+  // MULTI-MEDICATION (GROUPED) NOTIFICATION TESTS
+  // ============================================================================
+
+  describe('Multi-Medication: Log All Action', () => {
+    it('should record taken doses for all medications', async () => {
+      const med1 = {
+        id: 'med-1',
+        name: 'Aspirin',
+        dosageAmount: 500,
+        dosageUnit: 'mg',
+        defaultQuantity: 1,
+      };
+      const med2 = {
+        id: 'med-2',
+        name: 'Ibuprofen',
+        dosageAmount: 400,
+        dosageUnit: 'mg',
+        defaultQuantity: 1,
+      };
+
+      mockMedicationStore.loadMedicationWithDetails
+        .mockResolvedValueOnce({
+          medication: med1,
+          schedules: [{ id: 'sched-1', time: '09:00', dosage: 1 }],
+        })
+        .mockResolvedValueOnce({
+          medication: med2,
+          schedules: [{ id: 'sched-2', time: '09:00', dosage: 2 }],
+        });
+
+      // Action: User taps "Take All" on grouped notification
+      const result = await handleTakeAllNow(['med-1', 'med-2'], ['sched-1', 'sched-2']);
+
+      // Verify: All medications logged
+      expect(result).toEqual({ success: 2, total: 2 });
+      expect(loggedDoses).toHaveLength(2);
+
+      // Verify: Each dose has correct data
+      expect(loggedDoses[0]).toMatchObject({
+        medicationId: 'med-1',
+        quantity: 1,
+        dosageAmount: 500,
+        notes: 'Logged from notification',
+      });
+      expect(loggedDoses[1]).toMatchObject({
+        medicationId: 'med-2',
+        quantity: 2,
+        dosageAmount: 400,
+      });
+    });
+
+    it('should continue logging remaining medications when one fails', async () => {
+      const med2 = {
+        id: 'med-2',
+        name: 'Ibuprofen',
+        dosageAmount: 400,
+        dosageUnit: 'mg',
+      };
+
+      mockMedicationStore.loadMedicationWithDetails
+        .mockRejectedValueOnce(new Error('Database error'))
+        .mockResolvedValueOnce({
+          medication: med2,
+          schedules: [{ id: 'sched-2', time: '09:00', dosage: 1 }],
+        });
+
+      const result = await handleTakeAllNow(['med-1', 'med-2'], ['sched-1', 'sched-2']);
+
+      // Verify: Partial success
+      expect(result).toEqual({ success: 1, total: 2 });
+      expect(loggedDoses).toHaveLength(1);
+      expect(loggedDoses[0].medicationId).toBe('med-2');
+    });
+
+    it('should return empty result for empty medication list', async () => {
+      const result = await handleTakeAllNow([], []);
+
+      expect(result).toEqual({ success: 0, total: 0 });
+      expect(loggedDoses).toHaveLength(0);
+    });
+  });
+
+  describe('Multi-Medication: Snooze All Action', () => {
+    it('should schedule new grouped notification for snooze delay', async () => {
+      const med1 = { id: 'med-1', name: 'Aspirin', dosageAmount: 500, dosageUnit: 'mg' };
+      const med2 = { id: 'med-2', name: 'Ibuprofen', dosageAmount: 400, dosageUnit: 'mg' };
+
+      (medicationRepository.getById as jest.Mock)
+        .mockResolvedValueOnce(med1)
+        .mockResolvedValueOnce(med2);
+      (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('new-group-notif');
+
+      // Action: User taps "Remind Later" (15 minutes)
+      const result = await handleRemindLater(
+        ['med-1', 'med-2'],
+        ['sched-1', 'sched-2'],
+        '09:00',
+        15
+      );
+
+      // Verify: Snooze was successful
+      expect(result).toBe(true);
+
+      // Verify: New grouped notification was scheduled
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+      const scheduleCall = (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls[0][0];
+      expect(scheduleCall.content.title).toContain('2 Medications');
+      expect(scheduleCall.content.data.medicationIds).toEqual(['med-1', 'med-2']);
+
+      // Verify: NO doses were logged (snooze doesn't record doses)
+      expect(loggedDoses).toHaveLength(0);
+    });
+
+    it('should return false when no valid medications found', async () => {
+      (medicationRepository.getById as jest.Mock).mockResolvedValue(null);
+
+      const result = await handleRemindLater(
+        ['med-1', 'med-2'],
+        ['sched-1', 'sched-2'],
+        '09:00',
+        15
+      );
+
+      expect(result).toBe(false);
+      expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+    });
+
+    it('should return false for empty medication list', async () => {
+      const result = await handleRemindLater([], [], '09:00', 15);
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('Multi-Medication: Partial Skip (one from group)', () => {
+    it('should skip only selected medication and leave others pending', async () => {
+      // Setup: Two medications, only skip the first
+      const med1 = { id: 'med-1', name: 'Aspirin', dosageAmount: 500, dosageUnit: 'mg' };
+
+      mockMedicationStore.loadMedicationWithDetails.mockResolvedValue({
+        medication: med1,
+        schedules: [{ id: 'sched-1', time: '09:00', dosage: 1 }],
+      });
+
+      // Action: User skips just med-1 (not skipAll)
+      const result = await handleSkip('med-1', 'sched-1');
+
+      // Verify: Only one medication was skipped
+      expect(result).toBe(true);
+      expect(loggedDoses).toHaveLength(1);
+      expect(loggedDoses[0]).toMatchObject({
+        medicationId: 'med-1',
+        status: 'skipped',
+        quantity: 0,
+      });
+
+      // med-2 was NOT affected (no log for it)
+    });
+  });
+
+  describe('Multi-Medication: Partial Log (one from group)', () => {
+    it('should log only selected medication from group', async () => {
+      const med1 = {
+        id: 'med-1',
+        name: 'Aspirin',
+        dosageAmount: 500,
+        dosageUnit: 'mg',
+      };
+
+      mockMedicationStore.loadMedicationWithDetails.mockResolvedValue({
+        medication: med1,
+        schedules: [{ id: 'sched-1', time: '09:00', dosage: 1 }],
+      });
+
+      // Action: User taps "Take" on just med-1 from the group
+      const result = await handleTakeNow('med-1', 'sched-1');
+
+      // Verify: Only one medication was logged
+      expect(result).toBe(true);
+      expect(loggedDoses).toHaveLength(1);
+      expect(loggedDoses[0]).toMatchObject({
+        medicationId: 'med-1',
+        quantity: 1,
+      });
+      expect(loggedDoses[0].status).toBeUndefined(); // Not skipped
     });
   });
 
