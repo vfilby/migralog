@@ -8,8 +8,7 @@ import { useNotificationSettingsStore } from '../../store/notificationSettingsSt
 import { toLocalDateString } from '../../utils/dateFormatting';
 import { notifyUserOfError } from './errorNotificationHelper';
 import { MEDICATION_REMINDER_CATEGORY, MULTIPLE_MEDICATION_REMINDER_CATEGORY } from './notificationCategories';
-import { dismissMedicationNotification, cancelNotificationForDate } from './medicationNotificationCancellation';
-import { topUpNotifications } from './medicationNotificationReconciliation';
+import { dismissMedicationNotification } from './medicationNotificationCancellation';
 
 /**
  * Handle "Take Now" action - log medication immediately
@@ -544,32 +543,87 @@ export async function handleRemindLater(
 }
 
 /**
- * Handle skip action - cancels today's notifications without logging a dose
+ * Unified skip handler for both single and grouped medications.
+ * Records skipped doses for each medication in the list.
+ *
+ * Similar pattern to handleSnoozeNotifications - consolidates logic for
+ * single (handleSkip) and multi (handleSkipAll) operations.
+ */
+async function handleSkipNotifications(
+  medicationIds: string[],
+  scheduleIds: string[]
+): Promise<{ success: number; total: number }> {
+  const { useMedicationStore } = await import('../../store/medicationStore');
+  let successCount = 0;
+
+  for (let i = 0; i < medicationIds.length; i++) {
+    const medicationId = medicationIds[i];
+    const scheduleId = scheduleIds[i];
+
+    try {
+      const result = await useMedicationStore.getState().loadMedicationWithDetails(medicationId);
+
+      if (!result || !result.medication) {
+        logger.error('[Notification] Medication not found for skip:', { medicationId, scheduleId });
+        continue;
+      }
+
+      const { medication } = result;
+
+      // Record the skipped dose in the database
+      const timestamp = Date.now();
+      await useMedicationStore.getState().logDose({
+        medicationId,
+        scheduleId,
+        timestamp,
+        quantity: 0, // Skipped doses have quantity 0
+        dosageAmount: medication.dosageAmount,
+        dosageUnit: medication.dosageUnit,
+        status: 'skipped',
+        notes: 'Skipped from notification',
+        updatedAt: timestamp,
+      });
+
+      successCount++;
+    } catch (itemError) {
+      logger.error('[Notification] Failed to skip medication:', {
+        medicationId,
+        scheduleId,
+        error: itemError instanceof Error ? itemError.message : String(itemError),
+      });
+      // Continue with other medications
+    }
+  }
+
+  logger.log('[Notification] Skip action completed:', {
+    successCount,
+    totalCount: medicationIds.length,
+    date: toLocalDateString(),
+  });
+
+  return { success: successCount, total: medicationIds.length };
+}
+
+/**
+ * Handle skip action for a single medication.
+ * Delegates to handleSkipNotifications.
  */
 export async function handleSkip(
   medicationId: string,
   scheduleId: string
 ): Promise<boolean> {
   try {
-    // Dismiss the presented notification from the tray
-    await dismissMedicationNotification(medicationId, scheduleId);
+    const result = await handleSkipNotifications([medicationId], [scheduleId]);
 
-    const today = toLocalDateString();
-
-    // Cancel today's reminder mapping (cleanup - notification already shown)
-    await cancelNotificationForDate(medicationId, scheduleId, today, 'reminder');
-
-    // Cancel today's follow-up
-    await cancelNotificationForDate(medicationId, scheduleId, today, 'follow_up');
-
-    // Top up notifications
-    await topUpNotifications();
-
-    logger.log('[Notification] Skip action completed:', {
-      medicationId,
-      scheduleId,
-      date: today,
-    });
+    if (result.success === 0) {
+      await notifyUserOfError(
+        'data',
+        'Could not skip medication. Please check your medications.',
+        new Error(`Failed to skip medication: ${medicationId}`),
+        { medicationId, scheduleId, operation: 'handleSkip' }
+      );
+      return false;
+    }
 
     return true;
   } catch (error) {
@@ -587,7 +641,8 @@ export async function handleSkip(
 }
 
 /**
- * Handle skip all action for grouped notifications
+ * Handle skip all action for grouped notifications.
+ * Delegates to handleSkipNotifications.
  */
 export async function handleSkipAll(
   data: {
@@ -595,40 +650,25 @@ export async function handleSkipAll(
     scheduleIds?: string[];
     time?: string;
   }
-): Promise<boolean> {
+): Promise<{ success: number; total: number }> {
   try {
     if (!data.medicationIds || !data.scheduleIds) {
       logger.error('[Notification] handleSkipAll called without medication data');
-      return false;
+      return { success: 0, total: 0 };
     }
 
-    // Dismiss the presented grouped notification from the tray for each medication
-    for (let i = 0; i < data.medicationIds.length; i++) {
-      const medicationId = data.medicationIds[i];
-      const scheduleId = data.scheduleIds[i];
-      await dismissMedicationNotification(medicationId, scheduleId);
+    const result = await handleSkipNotifications(data.medicationIds, data.scheduleIds);
+
+    if (result.success === 0 && result.total > 0) {
+      await notifyUserOfError(
+        'system',
+        'Failed to skip medications. Please try again.',
+        new Error('All medications failed to skip'),
+        { medicationCount: result.total, operation: 'handleSkipAll' }
+      );
     }
 
-    const today = toLocalDateString();
-
-    // Cancel notifications for each medication in the group
-    for (let i = 0; i < data.medicationIds.length; i++) {
-      const medicationId = data.medicationIds[i];
-      const scheduleId = data.scheduleIds[i];
-
-      await cancelNotificationForDate(medicationId, scheduleId, today, 'reminder');
-      await cancelNotificationForDate(medicationId, scheduleId, today, 'follow_up');
-    }
-
-    // Top up notifications
-    await topUpNotifications();
-
-    logger.log('[Notification] Skip all action completed:', {
-      medicationCount: data.medicationIds.length,
-      date: today,
-    });
-
-    return true;
+    return result;
   } catch (error) {
     logger.error('[Notification] Error in handleSkipAll:', error);
 
@@ -639,6 +679,6 @@ export async function handleSkipAll(
       { medicationCount: data.medicationIds?.length, operation: 'handleSkipAll' }
     );
 
-    return false;
+    return { success: 0, total: data.medicationIds?.length ?? 0 };
   }
 }

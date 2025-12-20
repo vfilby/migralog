@@ -764,38 +764,85 @@ describe('Medication Notification Scheduling', () => {
   });
 
   describe('handleSkip', () => {
-    it('should cancel today\'s notifications and top up', async () => {
-      (scheduledNotificationRepository.getMapping as jest.Mock).mockResolvedValue({
-        id: 'mapping-1',
-        notificationId: 'notif-1',
-        isGrouped: false,
+    let mockMedicationStore: any;
+
+    beforeEach(() => {
+      mockMedicationStore = {
+        loadMedicationWithDetails: jest.fn(),
+        logDose: jest.fn(),
+      };
+      (useMedicationStore.getState as jest.Mock) = jest.fn(() => mockMedicationStore);
+    });
+
+    it('should record skipped dose and cancel notifications', async () => {
+      const mockMedication = {
+        id: 'med-123',
+        name: 'Test Med',
+        dosageAmount: 500,
+        dosageUnit: 'mg',
+      };
+
+      mockMedicationStore.loadMedicationWithDetails.mockResolvedValue({
+        medication: mockMedication,
+        schedules: [{ id: 'sched-1' }],
       });
-      (scheduledNotificationRepository.tableExists as jest.Mock).mockResolvedValue(true);
+      mockMedicationStore.logDose.mockResolvedValue({ id: 'dose-1' });
 
       const result = await handleSkip('med-123', 'sched-1');
 
       expect(result).toBe(true);
-      // Should try to cancel reminder and follow_up
-      expect(scheduledNotificationRepository.getMapping).toHaveBeenCalled();
+      expect(mockMedicationStore.loadMedicationWithDetails).toHaveBeenCalledWith('med-123');
+      expect(mockMedicationStore.logDose).toHaveBeenCalledWith(
+        expect.objectContaining({
+          medicationId: 'med-123',
+          scheduleId: 'sched-1',
+          quantity: 0,
+          status: 'skipped',
+          notes: 'Skipped from notification',
+        })
+      );
     });
 
-    it('should handle internal errors gracefully and still return true', async () => {
-      // cancelNotificationForDate catches its own errors internally, so handleSkip succeeds
-      (scheduledNotificationRepository.getMapping as jest.Mock).mockRejectedValue(
+    it('should return false when medication not found', async () => {
+      mockMedicationStore.loadMedicationWithDetails.mockResolvedValue(null);
+
+      const result = await handleSkip('med-123', 'sched-1');
+
+      expect(result).toBe(false);
+      expect(notifyUserOfError).toHaveBeenCalled();
+    });
+
+    it('should return false on error and notify user', async () => {
+      mockMedicationStore.loadMedicationWithDetails.mockRejectedValue(
         new Error('Database error')
       );
 
       const result = await handleSkip('med-123', 'sched-1');
 
-      // handleSkip returns true because internal errors are caught in cancelNotificationForDate
-      expect(result).toBe(true);
+      expect(result).toBe(false);
+      expect(notifyUserOfError).toHaveBeenCalled();
     });
   });
 
   describe('handleSkipAll', () => {
-    it('should skip all medications in a group', async () => {
-      (scheduledNotificationRepository.getMapping as jest.Mock).mockResolvedValue(null);
-      (scheduledNotificationRepository.tableExists as jest.Mock).mockResolvedValue(true);
+    let mockMedicationStore: any;
+
+    beforeEach(() => {
+      mockMedicationStore = {
+        loadMedicationWithDetails: jest.fn(),
+        logDose: jest.fn(),
+      };
+      (useMedicationStore.getState as jest.Mock) = jest.fn(() => mockMedicationStore);
+    });
+
+    it('should skip all medications in a group and record doses', async () => {
+      const mockMed1 = { id: 'med-1', name: 'Med 1', dosageAmount: 100, dosageUnit: 'mg' };
+      const mockMed2 = { id: 'med-2', name: 'Med 2', dosageAmount: 200, dosageUnit: 'mg' };
+
+      mockMedicationStore.loadMedicationWithDetails
+        .mockResolvedValueOnce({ medication: mockMed1, schedules: [{ id: 'sched-1' }] })
+        .mockResolvedValueOnce({ medication: mockMed2, schedules: [{ id: 'sched-2' }] });
+      mockMedicationStore.logDose.mockResolvedValue({ id: 'dose-1' });
 
       const result = await handleSkipAll({
         medicationIds: ['med-1', 'med-2'],
@@ -803,29 +850,38 @@ describe('Medication Notification Scheduling', () => {
         time: '09:00',
       });
 
-      expect(result).toBe(true);
+      expect(result).toEqual({ success: 2, total: 2 });
+      expect(mockMedicationStore.logDose).toHaveBeenCalledTimes(2);
+      expect(mockMedicationStore.logDose).toHaveBeenCalledWith(
+        expect.objectContaining({
+          medicationId: 'med-1',
+          status: 'skipped',
+          quantity: 0,
+        })
+      );
     });
 
-    it('should return false when no medication data provided', async () => {
+    it('should return empty result when no medication data provided', async () => {
       const result = await handleSkipAll({});
 
-      expect(result).toBe(false);
+      expect(result).toEqual({ success: 0, total: 0 });
       expect(logger.error).toHaveBeenCalled();
     });
 
-    it('should handle internal errors gracefully and still return true', async () => {
-      // cancelNotificationForDate catches its own errors internally, so handleSkipAll succeeds
-      (scheduledNotificationRepository.getMapping as jest.Mock).mockRejectedValue(
-        new Error('Database error')
-      );
+    it('should continue with remaining medications on individual errors', async () => {
+      const mockMed2 = { id: 'med-2', name: 'Med 2', dosageAmount: 200, dosageUnit: 'mg' };
+
+      mockMedicationStore.loadMedicationWithDetails
+        .mockRejectedValueOnce(new Error('Database error'))
+        .mockResolvedValueOnce({ medication: mockMed2, schedules: [{ id: 'sched-2' }] });
+      mockMedicationStore.logDose.mockResolvedValue({ id: 'dose-1' });
 
       const result = await handleSkipAll({
-        medicationIds: ['med-1'],
-        scheduleIds: ['sched-1'],
+        medicationIds: ['med-1', 'med-2'],
+        scheduleIds: ['sched-1', 'sched-2'],
       });
 
-      // handleSkipAll returns true because internal errors are caught in cancelNotificationForDate
-      expect(result).toBe(true);
+      expect(result).toEqual({ success: 1, total: 2 });
     });
   });
 

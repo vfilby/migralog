@@ -351,9 +351,12 @@ export async function cancelNotificationForDate(
         date
       );
 
-      // Filter out the medication we're cancelling
+      // Filter to only include mappings of the SAME notification type, excluding the one we're cancelling
+      // This prevents the cancelled medication's other notification type (e.g., follow_up when cancelling reminder)
+      // from being included in the recreated group
       const remainingMappings = groupMappings.filter(
-        m => !(m.medicationId === medicationId && m.scheduleId === scheduleId && m.notificationType === notificationType)
+        m => m.notificationType === notificationType &&
+             !(m.medicationId === medicationId && m.scheduleId === scheduleId)
       );
 
       // Cancel the original grouped notification
