@@ -485,37 +485,11 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
     try {
       await medicationRepository.update(id, { active: true });
 
-      // Re-enable notifications for preventative medications
-      const medication = await medicationRepository.getById(id);
-      if (medication && medication.type === 'preventative') {
-        const schedules = await medicationScheduleRepository.getByMedicationId(id);
-        
-        // Dynamic import to avoid circular dependency
-        const { notificationService } = await import('../services/notifications/notificationService');
-        const permissions = await notificationService.getPermissions();
-
-        if (permissions.granted) {
-          for (const schedule of schedules) {
-            if (schedule.enabled && medication.scheduleFrequency === 'daily') {
-              try {
-                const notificationId = await notificationService.scheduleNotification(
-                  medication,
-                  schedule
-                );
-
-                if (notificationId) {
-                  await medicationScheduleRepository.update(schedule.id, {
-                    notificationId,
-                  });
-                  logger.log('[Store] Notification rescheduled for restored medication:', notificationId);
-                }
-              } catch (error) {
-                logger.error('[Store] Failed to schedule notification for restored medication:', error);
-              }
-            }
-          }
-        }
-      }
+      // Reschedule all medication notifications (handles restored medication)
+      // Dynamic import to avoid circular dependency
+      const { notificationService } = await import('../services/notifications/notificationService');
+      await notificationService.rescheduleAllMedicationNotifications();
+      logger.log('[Store] Notifications rescheduled after restoring medication');
 
       // Reload to get the medication back in the active lists
       await get().loadMedications();

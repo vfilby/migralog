@@ -13,9 +13,8 @@ export {
 
 // Re-export scheduling functions for backward compatibility
 export {
-  scheduleSingleNotification,
-  scheduleMultipleNotification,
   scheduleNotificationsForDays,
+  scheduleGroupedNotificationsForDays,
 } from './medicationNotificationScheduling';
 
 // Re-export cancellation/dismissal functions for backward compatibility
