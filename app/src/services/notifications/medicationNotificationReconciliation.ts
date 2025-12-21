@@ -17,8 +17,6 @@ import {
 import { scheduledNotificationRepository } from '../../database/scheduledNotificationRepository';
 import { MEDICATION_REMINDER_CATEGORY } from './notificationCategories';
 import {
-  scheduleSingleNotification,
-  scheduleMultipleNotification,
   scheduleGroupedNotificationsForDays,
   scheduleGroupedNotificationForTime,
 } from './medicationNotificationScheduling';
@@ -360,67 +358,8 @@ export async function rescheduleAllNotifications(): Promise<void> {
   try {
     logger.log('[Notification] Rescheduling all notifications (medications and daily check-in)');
 
-    // Cancel ALL scheduled notifications once
-    await Notifications.cancelAllScheduledNotificationsAsync();
-    logger.log('[Notification] Cancelled all scheduled notifications');
-
-    // Get all active medications with schedules
-    const medications = await medicationRepository.getActive();
-    const items: Array<{ medication: Medication; schedule: MedicationSchedule }> = [];
-
-    for (const medication of medications) {
-      if (medication.type === 'preventative' && medication.scheduleFrequency === 'daily') {
-        const schedules = await medicationScheduleRepository.getByMedicationId(medication.id);
-        for (const schedule of schedules) {
-          if (schedule.enabled) {
-            items.push({ medication, schedule });
-          }
-        }
-      }
-    }
-
-    // Group by time
-    const grouped = new Map<string, Array<{ medication: Medication; schedule: MedicationSchedule }>>();
-
-    for (const item of items) {
-      const time = item.schedule.time;
-      if (!grouped.has(time)) {
-        grouped.set(time, []);
-      }
-      grouped.get(time)!.push(item);
-    }
-
-    const notificationIds = new Map<string, string>();
-
-    // Schedule notifications for each time group
-    for (const [time, groupItems] of grouped.entries()) {
-      if (groupItems.length === 1) {
-        // Single medication - use single notification
-        const { medication, schedule } = groupItems[0];
-        const notificationId = await scheduleSingleNotification(medication, schedule);
-        if (notificationId) {
-          notificationIds.set(schedule.id, notificationId);
-        }
-      } else {
-        // Multiple medications - use grouped notification
-        const notificationId = await scheduleMultipleNotification(groupItems, time);
-        if (notificationId) {
-          // Store the same notification ID for all schedules in this group
-          for (const { schedule } of groupItems) {
-            notificationIds.set(schedule.id, notificationId);
-          }
-        }
-      }
-    }
-
-    // Update schedules with notification IDs
-    for (const [scheduleId, notificationId] of notificationIds.entries()) {
-      await medicationScheduleRepository.update(scheduleId, {
-        notificationId,
-      });
-    }
-
-    logger.log('[Notification] Rescheduled', notificationIds.size, 'medication notifications');
+    // Reschedule medication notifications using managed one-off approach
+    await rescheduleAllMedicationNotifications();
 
     // Reschedule daily check-in notification
     const { dailyCheckinService } = await import('./dailyCheckinService');

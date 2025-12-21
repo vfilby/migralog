@@ -1331,14 +1331,7 @@ describe('medicationStore', () => {
   });
 
   describe('unarchiveMedication - preventative with schedules', () => {
-    beforeEach(() => {
-      const mockScheduleRepository = require('../../database/medicationRepository').medicationScheduleRepository;
-      mockScheduleRepository.getByMedicationId = jest.fn();
-      mockScheduleRepository.update = jest.fn();
-    });
-
-    it('should reschedule notifications for preventative medication with schedules', async () => {
-      const mockScheduleRepository = require('../../database/medicationRepository').medicationScheduleRepository;
+    it('should reschedule all notifications when unarchiving medication', async () => {
       const preventativeMed: Medication = {
         id: 'med-1',
         name: 'Preventative Med',
@@ -1355,121 +1348,14 @@ describe('medicationStore', () => {
         updatedAt: Date.now(),
       };
 
-      const mockSchedules = [
-        {
-          id: 'schedule-1',
-          medicationId: 'med-1',
-          time: '09:00',
-          enabled: true,
-          timezone: 'America/Los_Angeles',
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        },
-      ];
-
       (medicationRepository.update as jest.Mock).mockResolvedValue(undefined);
-      (medicationRepository.getById as jest.Mock).mockResolvedValue({ ...preventativeMed, active: true });
       (medicationRepository.getActive as jest.Mock).mockResolvedValue([{ ...preventativeMed, active: true }]);
-      mockScheduleRepository.getByMedicationId.mockResolvedValue(mockSchedules);
-      (notificationService.getPermissions as jest.Mock).mockResolvedValue({ granted: true });
-      (notificationService.scheduleNotification as jest.Mock).mockResolvedValue('notif-123');
+      (notificationService.rescheduleAllMedicationNotifications as jest.Mock).mockResolvedValue(undefined);
       (medicationDoseRepository.getMedicationUsageCounts as jest.Mock).mockResolvedValue(new Map());
 
       await useMedicationStore.getState().unarchiveMedication('med-1');
 
-      expect(notificationService.scheduleNotification).toHaveBeenCalledWith(
-        { ...preventativeMed, active: true },
-        mockSchedules[0]
-      );
-      expect(mockScheduleRepository.update).toHaveBeenCalledWith('schedule-1', {
-        notificationId: 'notif-123',
-      });
-    });
-
-    it('should not reschedule notifications when permissions not granted', async () => {
-      const mockScheduleRepository = require('../../database/medicationRepository').medicationScheduleRepository;
-      const preventativeMed: Medication = {
-        id: 'med-1',
-        name: 'Preventative Med',
-        type: 'preventative',
-        dosageAmount: 100,
-        dosageUnit: 'mg',
-        defaultQuantity: 1,
-        scheduleFrequency: 'daily',
-        photoUri: undefined,
-        schedule: [],
-        active: false,
-        notes: undefined,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-
-      const mockSchedules = [
-        {
-          id: 'schedule-1',
-          medicationId: 'med-1',
-          time: '09:00',
-          enabled: true,
-          timezone: 'America/Los_Angeles',
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        },
-      ];
-
-      (medicationRepository.update as jest.Mock).mockResolvedValue(undefined);
-      (medicationRepository.getById as jest.Mock).mockResolvedValue({ ...preventativeMed, active: true });
-      (medicationRepository.getActive as jest.Mock).mockResolvedValue([{ ...preventativeMed, active: true }]);
-      mockScheduleRepository.getByMedicationId.mockResolvedValue(mockSchedules);
-      (notificationService.getPermissions as jest.Mock).mockResolvedValue({ granted: false });
-      (medicationDoseRepository.getMedicationUsageCounts as jest.Mock).mockResolvedValue(new Map());
-
-      await useMedicationStore.getState().unarchiveMedication('med-1');
-
-      expect(notificationService.scheduleNotification).not.toHaveBeenCalled();
-    });
-
-    it('should handle notification scheduling errors gracefully', async () => {
-      const mockScheduleRepository = require('../../database/medicationRepository').medicationScheduleRepository;
-      const preventativeMed: Medication = {
-        id: 'med-1',
-        name: 'Preventative Med',
-        type: 'preventative',
-        dosageAmount: 100,
-        dosageUnit: 'mg',
-        defaultQuantity: 1,
-        scheduleFrequency: 'daily',
-        photoUri: undefined,
-        schedule: [],
-        active: false,
-        notes: undefined,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-
-      const mockSchedules = [
-        {
-          id: 'schedule-1',
-          medicationId: 'med-1',
-          time: '09:00',
-          enabled: true,
-          timezone: 'America/Los_Angeles',
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        },
-      ];
-
-      (medicationRepository.update as jest.Mock).mockResolvedValue(undefined);
-      (medicationRepository.getById as jest.Mock).mockResolvedValue({ ...preventativeMed, active: true });
-      (medicationRepository.getActive as jest.Mock).mockResolvedValue([{ ...preventativeMed, active: true }]);
-      mockScheduleRepository.getByMedicationId.mockResolvedValue(mockSchedules);
-      (notificationService.getPermissions as jest.Mock).mockResolvedValue({ granted: true });
-      (notificationService.scheduleNotification as jest.Mock).mockRejectedValue(new Error('Notification error'));
-      (medicationDoseRepository.getMedicationUsageCounts as jest.Mock).mockResolvedValue(new Map());
-
-      // Should not throw - error is caught and logged
-      await expect(
-        useMedicationStore.getState().unarchiveMedication('med-1')
-      ).resolves.not.toThrow();
+      expect(notificationService.rescheduleAllMedicationNotifications).toHaveBeenCalled();
     });
   });
 

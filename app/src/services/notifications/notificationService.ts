@@ -1,6 +1,5 @@
 import * as Notifications from 'expo-notifications';
 import { logger } from '../../utils/logger';
-import { Medication, MedicationSchedule } from '../../models/types';
 // ARCHITECTURAL EXCEPTION: Notification handlers need direct repository access
 // because they run in background when app may be suspended. See docs/store-repository-guidelines.md
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../../database/medicationRepository';
@@ -641,81 +640,6 @@ class NotificationService {
 
   async getPermissions(): Promise<NotificationPermissions> {
     return getPermissions();
-  }
-
-  async scheduleGroupedNotifications(
-    medications: Array<{ medication: Medication; schedule: MedicationSchedule }>
-  ): Promise<Map<string, string>> {
-    const notificationIds = new Map<string, string>();
-
-    try {
-      // Check if notifications are globally enabled
-      const globallyEnabled = await this.areNotificationsGloballyEnabled();
-      if (!globallyEnabled) {
-        logger.log('[Notification] Notifications globally disabled, skipping scheduling');
-        return notificationIds;
-      }
-
-      // Group by time
-      const grouped = new Map<string, Array<{ medication: Medication; schedule: MedicationSchedule }>>();
-
-      for (const item of medications) {
-        if (!item.schedule.enabled) {
-          logger.log('[Notification] Schedule disabled, skipping:', item.schedule.id);
-          continue;
-        }
-
-        const time = item.schedule.time;
-        if (!grouped.has(time)) {
-          grouped.set(time, []);
-        }
-        grouped.get(time)!.push(item);
-      }
-
-      // Schedule notifications for each time group
-      const medNotifications = await getMedicationNotifications();
-      
-      for (const [time, items] of grouped.entries()) {
-        if (items.length === 1) {
-          // Single medication - use single notification
-          const { medication, schedule } = items[0];
-          const notificationId = await medNotifications.scheduleSingleNotification(medication, schedule);
-          if (notificationId) {
-            notificationIds.set(schedule.id, notificationId);
-          }
-        } else {
-          // Multiple medications - use grouped notification
-          const notificationId = await medNotifications.scheduleMultipleNotification(items, time);
-          if (notificationId) {
-            // Store the same notification ID for all schedules in this group
-            for (const { schedule } of items) {
-              notificationIds.set(schedule.id, notificationId);
-            }
-          }
-        }
-      }
-
-      return notificationIds;
-    } catch (error) {
-      logger.error('[Notification] Error scheduling grouped notifications:', error);
-      return notificationIds;
-    }
-  }
-
-  /**
-   * Schedule a notification for a medication schedule (legacy method, now uses grouped scheduling)
-   * @deprecated Use scheduleGroupedNotifications instead for better grouping support
-   */
-  async scheduleNotification(
-    medication: Medication,
-    schedule: MedicationSchedule
-  ): Promise<string | null> {
-    if (!schedule.enabled) {
-      logger.log('[Notification] Schedule disabled, skipping:', schedule.id);
-      return null;
-    }
-    const medNotifications = await getMedicationNotifications();
-    return medNotifications.scheduleSingleNotification(medication, schedule);
   }
 
   async cancelNotification(notificationId: string): Promise<void> {
