@@ -46,6 +46,13 @@ import { notifyUserOfError } from '../notifications/errorNotificationHelper';
   HIGH: 1,
   MAX: 2,
 };
+(Notifications as any).SchedulableTriggerInputTypes = {
+  DATE: 'date',
+  DAILY: 'daily',
+  WEEKLY: 'weekly',
+  CALENDAR: 'calendar',
+  TIME_INTERVAL: 'timeInterval',
+};
 
 describe('Notification Action Handlers', () => {
   beforeEach(() => {
@@ -421,8 +428,9 @@ describe('Notification Action Handlers', () => {
         scheduleId: 'sched-1',
       });
       
-      // Verify trigger is a Date (one-time), not DAILY
-      const triggerTime = scheduleCall.trigger.getTime();
+      // Verify trigger uses DATE type with proper date (one-time), not DAILY
+      expect(scheduleCall.trigger.type).toBe('date');
+      const triggerTime = scheduleCall.trigger.date.getTime();
       const expectedTime = beforeSnooze + 10 * 60 * 1000;
       expect(triggerTime).toBeGreaterThanOrEqual(expectedTime - 1000); // Allow 1s tolerance
       expect(triggerTime).toBeLessThanOrEqual(expectedTime + 1000);
@@ -527,8 +535,9 @@ describe('Notification Action Handlers', () => {
       expect(scheduleCall.content.data.scheduleIds).toEqual(['sched-A', 'sched-B']);
       expect(scheduleCall.content.data.time).toBe('08:00');
       
-      // Verify one-time trigger
-      const triggerTime = scheduleCall.trigger.getTime();
+      // Verify trigger uses DATE type with proper date (one-time), not DAILY
+      expect(scheduleCall.trigger.type).toBe('date');
+      const triggerTime = scheduleCall.trigger.date.getTime();
       const expectedTime = beforeRemind + 10 * 60 * 1000;
       expect(triggerTime).toBeGreaterThanOrEqual(expectedTime - 1000);
       expect(triggerTime).toBeLessThanOrEqual(expectedTime + 1000);

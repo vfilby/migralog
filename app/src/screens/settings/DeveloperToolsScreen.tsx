@@ -42,6 +42,9 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
     handleTestNotification,
     handleTestCriticalNotification,
     handleRecreateAllSchedules,
+    handleSetupNotificationTests,
+    handleSetupNotificationTestsBurst,
+    handleSetupGroupedNotificationTest,
   } = useNotificationTesting(navigation);
   const {
     generateArchive,
@@ -472,6 +475,51 @@ export default function DeveloperToolsScreen({ navigation }: Props) {
           </Text>
 
           <View style={styles.developerActions}>
+            {/* Quick setup for test scenarios */}
+            {__DEV__ && (
+              <View style={styles.groupedActionsBlock}>
+                <TouchableOpacity
+                  style={styles.groupedActionButton}
+                  onPress={handleSetupNotificationTests}
+                  testID="setup-notification-tests-button"
+                  accessibilityRole="button"
+                  accessibilityLabel="Setup notification test scenarios"
+                  accessibilityHint="Schedules test notifications at 1 minute intervals"
+                >
+                  <Ionicons name="flask-outline" size={24} color={theme.primary} />
+                  <Text style={styles.developerButtonText}>Setup Notification Tests (1 min)</Text>
+                </TouchableOpacity>
+
+                <View style={styles.actionSeparator} />
+
+                <TouchableOpacity
+                  style={styles.groupedActionButton}
+                  onPress={handleSetupNotificationTestsBurst}
+                  testID="setup-notification-tests-burst-button"
+                  accessibilityRole="button"
+                  accessibilityLabel="Setup burst notification test scenarios"
+                  accessibilityHint="Schedules test notifications at 10 second intervals to test rapid notification handling"
+                >
+                  <Ionicons name="flash-outline" size={24} color={theme.primary} />
+                  <Text style={styles.developerButtonText}>Setup Notification Tests (Burst 10s)</Text>
+                </TouchableOpacity>
+
+                <View style={styles.actionSeparator} />
+
+                <TouchableOpacity
+                  style={styles.groupedActionButton}
+                  onPress={handleSetupGroupedNotificationTest}
+                  testID="setup-grouped-notification-test-button"
+                  accessibilityRole="button"
+                  accessibilityLabel="Setup grouped notification test"
+                  accessibilityHint="Creates 4 medications at the same time to test partial group logging"
+                >
+                  <Ionicons name="people-outline" size={24} color={theme.primary} />
+                  <Text style={styles.developerButtonText}>Setup Grouped Notification Test</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             {/* Schedule management block with separator */}
             <View style={styles.groupedActionsBlock}>
               <TouchableOpacity

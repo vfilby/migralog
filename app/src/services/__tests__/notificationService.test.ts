@@ -1157,22 +1157,21 @@ describe('notificationService', () => {
       it('should suppress notification if all medications were logged', async () => {
         (medicationDoseRepository.wasLoggedForScheduleToday as jest.Mock).mockResolvedValue(true);
 
-        // Mock medications with schedules that have timezones
+        // Mock medications (schedule is loaded separately)
         (medicationRepository.getById as jest.Mock).mockImplementation((id: string) => {
           const result = id === 'med-1'
-            ? {
-                id: 'med-1',
-                name: 'Med 1',
-                schedule: [{ id: 'schedule-1', time: '09:00', timezone: 'America/Los_Angeles' }],
-              }
+            ? { id: 'med-1', name: 'Med 1', schedule: [] }
             : id === 'med-2'
-            ? {
-                id: 'med-2',
-                name: 'Med 2',
-                schedule: [{ id: 'schedule-2', time: '09:00', timezone: 'America/Los_Angeles' }],
-              }
+            ? { id: 'med-2', name: 'Med 2', schedule: [] }
             : null;
           return Promise.resolve(result);
+        });
+
+        // Mock schedule lookup
+        (medicationScheduleRepository.getByMedicationId as jest.Mock).mockImplementation((id: string) => {
+          if (id === 'med-1') return Promise.resolve([{ id: 'schedule-1', medicationId: 'med-1', time: '09:00', timezone: 'America/Los_Angeles', dosage: 1, enabled: true }]);
+          if (id === 'med-2') return Promise.resolve([{ id: 'schedule-2', medicationId: 'med-2', time: '09:00', timezone: 'America/Los_Angeles', dosage: 1, enabled: true }]);
+          return Promise.resolve([]);
         });
 
         const notification = {
@@ -1206,22 +1205,21 @@ describe('notificationService', () => {
           return Promise.resolve(callCount === 1); // First call true, second false
         });
 
-        // Mock medications with schedules that have timezones
+        // Mock medications (schedule is loaded separately)
         (medicationRepository.getById as jest.Mock).mockImplementation((id: string) => {
           if (id === 'med-1') {
-            return Promise.resolve({
-              id: 'med-1',
-              name: 'Med 1',
-              schedule: [{ id: 'schedule-1', time: '09:00', timezone: 'America/Los_Angeles' }],
-            });
+            return Promise.resolve({ id: 'med-1', name: 'Med 1', schedule: [] });
           } else if (id === 'med-2') {
-            return Promise.resolve({
-              id: 'med-2',
-              name: 'Med 2',
-              schedule: [{ id: 'schedule-2', time: '09:00', timezone: 'America/Los_Angeles' }],
-            });
+            return Promise.resolve({ id: 'med-2', name: 'Med 2', schedule: [] });
           }
           return Promise.resolve(null);
+        });
+
+        // Mock schedule lookup
+        (medicationScheduleRepository.getByMedicationId as jest.Mock).mockImplementation((id: string) => {
+          if (id === 'med-1') return Promise.resolve([{ id: 'schedule-1', medicationId: 'med-1', time: '09:00', timezone: 'America/Los_Angeles', dosage: 1, enabled: true }]);
+          if (id === 'med-2') return Promise.resolve([{ id: 'schedule-2', medicationId: 'med-2', time: '09:00', timezone: 'America/Los_Angeles', dosage: 1, enabled: true }]);
+          return Promise.resolve([]);
         });
 
         const notification = {
@@ -1250,22 +1248,21 @@ describe('notificationService', () => {
       it('should show notification if no medications were logged', async () => {
         (medicationDoseRepository.wasLoggedForScheduleToday as jest.Mock).mockResolvedValue(false);
 
-        // Mock medications with schedules that have timezones
+        // Mock medications (schedule is loaded separately)
         (medicationRepository.getById as jest.Mock).mockImplementation((id: string) => {
           if (id === 'med-1') {
-            return Promise.resolve({
-              id: 'med-1',
-              name: 'Med 1',
-              schedule: [{ id: 'schedule-1', time: '09:00', timezone: 'America/Los_Angeles' }],
-            });
+            return Promise.resolve({ id: 'med-1', name: 'Med 1', schedule: [] });
           } else if (id === 'med-2') {
-            return Promise.resolve({
-              id: 'med-2',
-              name: 'Med 2',
-              schedule: [{ id: 'schedule-2', time: '09:00', timezone: 'America/Los_Angeles' }],
-            });
+            return Promise.resolve({ id: 'med-2', name: 'Med 2', schedule: [] });
           }
           return Promise.resolve(null);
+        });
+
+        // Mock schedule lookup
+        (medicationScheduleRepository.getByMedicationId as jest.Mock).mockImplementation((id: string) => {
+          if (id === 'med-1') return Promise.resolve([{ id: 'schedule-1', medicationId: 'med-1', time: '09:00', timezone: 'America/Los_Angeles', dosage: 1, enabled: true }]);
+          if (id === 'med-2') return Promise.resolve([{ id: 'schedule-2', medicationId: 'med-2', time: '09:00', timezone: 'America/Los_Angeles', dosage: 1, enabled: true }]);
+          return Promise.resolve([]);
         });
 
         const notification = {

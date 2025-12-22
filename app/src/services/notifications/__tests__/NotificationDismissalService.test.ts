@@ -1,6 +1,6 @@
 import { NotificationDismissalService } from '../NotificationDismissalService';
 import { scheduledNotificationRepository } from '../../../database/scheduledNotificationRepository';
-import { medicationRepository, medicationDoseRepository } from '../../../database/medicationRepository';
+import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../../../database/medicationRepository';
 import * as Notifications from 'expo-notifications';
 
 // Mock dependencies
@@ -12,6 +12,7 @@ jest.mock('../../../utils/logger');
 const mockScheduledNotificationRepository = scheduledNotificationRepository as jest.Mocked<typeof scheduledNotificationRepository>;
 const mockMedicationRepository = medicationRepository as jest.Mocked<typeof medicationRepository>;
 const mockMedicationDoseRepository = medicationDoseRepository as jest.Mocked<typeof medicationDoseRepository>;
+const mockMedicationScheduleRepository = medicationScheduleRepository as jest.Mocked<typeof medicationScheduleRepository>;
 
 // Mock Notifications properly
 const mockGetPresentedNotificationsAsync = jest.fn();
@@ -397,17 +398,28 @@ describe('NotificationDismissalService', () => {
           return {
             id: medicationId,
             name: 'Test Med 1',
-            schedule: [{ id: scheduleId, time: '09:00', timezone: 'America/New_York' }],
+            schedule: [], // Schedule is always empty - loaded separately
           } as any;
         }
         if (id === 'other-medication-id') {
           return {
             id: 'other-medication-id',
             name: 'Test Med 2',
-            schedule: [{ id: 'other-schedule-id', time: '09:00', timezone: 'America/New_York' }],
+            schedule: [], // Schedule is always empty - loaded separately
           } as any;
         }
         return null;
+      });
+
+      // Mock schedule lookup
+      mockMedicationScheduleRepository.getByMedicationId.mockImplementation(async (id) => {
+        if (id === medicationId) {
+          return [{ id: scheduleId, medicationId, time: '09:00', timezone: 'America/New_York', dosage: 1, enabled: true }] as any;
+        }
+        if (id === 'other-medication-id') {
+          return [{ id: 'other-schedule-id', medicationId: 'other-medication-id', time: '09:00', timezone: 'America/New_York', dosage: 1, enabled: true }] as any;
+        }
+        return [];
       });
 
       // ALL medications are logged

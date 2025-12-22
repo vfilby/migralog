@@ -1,6 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import { logger } from '../../utils/logger';
-import { medicationRepository, medicationDoseRepository } from '../../database/medicationRepository';
+import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../../database/medicationRepository';
 import { scheduledNotificationRepository } from '../../database/scheduledNotificationRepository';
 
 /**
@@ -227,10 +227,15 @@ export class NotificationDismissalService {
         }
 
         // Get medication and schedule info
+        // Note: We use repositories directly rather than the Zustand store because this
+        // service runs during notification handling, which can occur in background contexts
+        // where the store may not be populated. Direct DB access ensures reliable data.
         const medication = await medicationRepository.getById(mapping.medicationId);
         if (!medication) continue;
 
-        const schedule = medication.schedule?.find(s => s.id === mapping.scheduleId);
+        // Load schedules from database since medication.schedule is always empty
+        const schedules = await medicationScheduleRepository.getByMedicationId(mapping.medicationId);
+        const schedule = schedules.find(s => s.id === mapping.scheduleId);
         if (!schedule) continue;
 
         // Check if this medication was logged for this schedule today

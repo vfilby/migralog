@@ -202,9 +202,7 @@ async function handleSnoozeNotifications(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ...(anyTimeSensitive && { interruptionLevel: 'timeSensitive' } as any),
     },
-    // Date trigger type is not exported by expo-notifications
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    trigger: snoozeTime as any,
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: snoozeTime },
   });
 
   // Now dismiss any lingering notifications (snooze is from notification, so this is just cleanup)
