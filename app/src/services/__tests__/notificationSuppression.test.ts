@@ -204,6 +204,34 @@ describe('Notification Suppression Logic', () => {
   });
 
   describe('Grouped Medication Notifications', () => {
+    // Schedules are loaded separately via medicationScheduleRepository
+    const mockScheduleA: MedicationSchedule = {
+      id: 'sched-A',
+      medicationId: 'med-A',
+      time: '08:00',
+      timezone: 'America/Los_Angeles',
+      dosage: 1,
+      enabled: true,
+    };
+
+    const mockScheduleB: MedicationSchedule = {
+      id: 'sched-B',
+      medicationId: 'med-B',
+      time: '08:00',
+      timezone: 'America/Los_Angeles',
+      dosage: 2,
+      enabled: true,
+    };
+
+    const mockScheduleC: MedicationSchedule = {
+      id: 'sched-C',
+      medicationId: 'med-C',
+      time: '08:00',
+      timezone: 'America/Los_Angeles',
+      dosage: 1,
+      enabled: true,
+    };
+
     const mockMedA: Medication = {
       id: 'med-A',
       name: 'Medication A',
@@ -214,16 +242,7 @@ describe('Notification Suppression Logic', () => {
       active: true,
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      schedule: [
-        {
-          id: 'sched-A',
-          medicationId: 'med-A',
-          time: '08:00',
-          timezone: 'America/Los_Angeles',
-          dosage: 1,
-          enabled: true,
-        },
-      ],
+      schedule: [], // Schedule loaded separately
     };
 
     const mockMedB: Medication = {
@@ -236,17 +255,18 @@ describe('Notification Suppression Logic', () => {
       active: true,
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      schedule: [
-        {
-          id: 'sched-B',
-          medicationId: 'med-B',
-          time: '08:00',
-          timezone: 'America/Los_Angeles',
-          dosage: 2,
-          enabled: true,
-        },
-      ],
+      schedule: [], // Schedule loaded separately
     };
+
+    // Setup schedule mock before each grouped test
+    beforeEach(() => {
+      (medicationScheduleRepository.getByMedicationId as jest.Mock).mockImplementation((id: string) => {
+        if (id === 'med-A') return Promise.resolve([mockScheduleA]);
+        if (id === 'med-B') return Promise.resolve([mockScheduleB]);
+        if (id === 'med-C') return Promise.resolve([mockScheduleC]);
+        return Promise.resolve([]);
+      });
+    });
 
     const mockMedC: Medication = {
       id: 'med-C',
@@ -258,16 +278,7 @@ describe('Notification Suppression Logic', () => {
       active: true,
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      schedule: [
-        {
-          id: 'sched-C',
-          medicationId: 'med-C',
-          time: '08:00',
-          timezone: 'America/Los_Angeles',
-          dosage: 1,
-          enabled: true,
-        },
-      ],
+      schedule: [], // Schedule loaded separately
     };
 
     it('SUP-G1: should SHOW notification when NONE of the medications logged', async () => {

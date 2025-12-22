@@ -582,12 +582,15 @@ describe('Medication Notification Scheduling', () => {
         name: 'Test Med 2',
         dosageAmount: 100,
         dosageUnit: 'mg',
-        schedule: [{ id: 'sched-2', time: '09:00', dosage: 1 }],
+        schedule: [], // Schedule loaded separately
       };
+
+      const mockSchedule2 = { id: 'sched-2', medicationId: 'med-2', time: '09:00', dosage: 1, timezone: 'America/Los_Angeles', enabled: true };
 
       (scheduledNotificationRepository.getMapping as jest.Mock).mockResolvedValue(mockMapping);
       (scheduledNotificationRepository.getMappingsByGroupKey as jest.Mock).mockResolvedValue(mockGroupMappings);
       (medicationRepository.getById as jest.Mock).mockResolvedValue(mockMedication2);
+      (medicationScheduleRepository.getByMedicationId as jest.Mock).mockResolvedValue([mockSchedule2]);
       (scheduleNotificationAtomic as jest.Mock).mockResolvedValue({ id: 'new-mapping' });
 
       await cancelNotificationForDate('med-1', 'sched-1', futureDateStr, 'reminder');

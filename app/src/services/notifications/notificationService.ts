@@ -268,7 +268,9 @@ export async function handleIncomingNotification(notification: Notifications.Not
             continue;
           }
           
-          const schedule = medication?.schedule?.find(s => s.id === scheduleId);
+          // Load schedules from database since medication.schedule is always empty
+          const schedules = await medicationScheduleRepository.getByMedicationId(medicationId);
+          const schedule = schedules.find(s => s.id === scheduleId);
 
           // Data inconsistency in grouped notification
           if (!schedule) {
@@ -280,7 +282,7 @@ export async function handleIncomingNotification(notification: Notifications.Not
               medicationId,
               scheduleId,
               medicationName: medication.name,
-              availableScheduleIds: medication.schedule?.map(s => s.id) || [],
+              availableScheduleIds: schedules.map(s => s.id),
             });
             
             // Skip this medication

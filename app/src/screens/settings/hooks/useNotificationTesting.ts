@@ -5,6 +5,7 @@ import { dailyCheckinService } from '../../../services/notifications/dailyChecki
 import * as Notifications from 'expo-notifications';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../navigation/types';
+import { confirmAndSetupNotificationTests, confirmAndSetupNotificationTestsBurst, confirmAndSetupGroupedNotificationTest } from '../../../utils/devTestHelpers';
 
 export function useNotificationTesting(
   navigation: NativeStackNavigationProp<RootStackParamList, 'DeveloperToolsScreen'>
@@ -40,8 +41,7 @@ export function useNotificationTesting(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ...(timeSensitive && { interruptionLevel: 'timeSensitive' } as any),
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        trigger: testTime as any,
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: testTime },
       });
 
       Alert.alert(
@@ -84,8 +84,7 @@ export function useNotificationTesting(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ...({ interruptionLevel: 'critical' } as any),
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        trigger: testTime as any,
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: testTime },
       });
 
       Alert.alert(
@@ -227,15 +226,15 @@ Development builds may not show Critical Alerts in iOS Settings even with proper
             onPress: async () => {
               try {
                 logger.log('[DeveloperTools] Testing critical alerts request...');
-                
+
                 // Check current status first
                 const beforePermissions = await notificationService.getPermissions();
                 logger.log('[DeveloperTools] Permissions before request:', beforePermissions);
-                
+
                 // Make the request
                 const afterPermissions = await notificationService.requestPermissions();
                 logger.log('[DeveloperTools] Permissions after request:', afterPermissions);
-                
+
                 const resultMessage = `Test Results:
 
 BEFORE REQUEST:
@@ -243,7 +242,7 @@ BEFORE REQUEST:
 • Critical: ${beforePermissions.ios?.allowsCriticalAlerts ? 'Enabled' : 'Disabled'}
 
 AFTER REQUEST:
-• General: ${afterPermissions.granted ? 'Granted' : 'Denied'}  
+• General: ${afterPermissions.granted ? 'Granted' : 'Denied'}
 • Critical: ${afterPermissions.ios?.allowsCriticalAlerts ? 'Enabled' : 'Disabled'}
 
 CHANGED:
@@ -270,6 +269,66 @@ If Critical Alerts didn't change, check:
     }
   };
 
+  /**
+   * Setup notification test scenarios for manual testing
+   * Schedules various notification types with short delays (1-6 minutes)
+   */
+  const handleSetupNotificationTests = async () => {
+    try {
+      // Check if notifications are enabled first
+      const permissions = await notificationService.getPermissions();
+      if (!permissions.granted) {
+        Alert.alert('Notifications Disabled', 'Please enable notifications in Settings first.');
+        return;
+      }
+
+      await confirmAndSetupNotificationTests();
+    } catch (error) {
+      logger.error('[DeveloperTools] Failed to setup notification tests:', error);
+      Alert.alert('Error', 'Failed to setup notification tests');
+    }
+  };
+
+  /**
+   * Setup notification test scenarios in BURST mode (10-second intervals)
+   * Tests how multiple simultaneous notifications are handled
+   */
+  const handleSetupNotificationTestsBurst = async () => {
+    try {
+      // Check if notifications are enabled first
+      const permissions = await notificationService.getPermissions();
+      if (!permissions.granted) {
+        Alert.alert('Notifications Disabled', 'Please enable notifications in Settings first.');
+        return;
+      }
+
+      await confirmAndSetupNotificationTestsBurst();
+    } catch (error) {
+      logger.error('[DeveloperTools] Failed to setup burst notification tests:', error);
+      Alert.alert('Error', 'Failed to setup burst notification tests');
+    }
+  };
+
+  /**
+   * Setup grouped notification test scenario
+   * Creates medications at the same time to test partial group logging
+   */
+  const handleSetupGroupedNotificationTest = async () => {
+    try {
+      // Check if notifications are enabled first
+      const permissions = await notificationService.getPermissions();
+      if (!permissions.granted) {
+        Alert.alert('Notifications Disabled', 'Please enable notifications in Settings first.');
+        return;
+      }
+
+      await confirmAndSetupGroupedNotificationTest();
+    } catch (error) {
+      logger.error('[DeveloperTools] Failed to setup grouped notification test:', error);
+      Alert.alert('Error', 'Failed to setup grouped notification test');
+    }
+  };
+
   return {
     handleViewScheduledNotifications,
     handleTestNotification,
@@ -278,5 +337,8 @@ If Critical Alerts didn't change, check:
     handleFixScheduleInconsistencies,
     handleDiagnoseCriticalAlerts,
     handleTestCriticalAlertsRequest,
+    handleSetupNotificationTests,
+    handleSetupNotificationTestsBurst,
+    handleSetupGroupedNotificationTest,
   };
 }

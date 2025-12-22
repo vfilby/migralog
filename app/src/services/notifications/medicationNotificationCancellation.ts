@@ -3,7 +3,7 @@ import { logger } from '../../utils/logger';
 import { Medication, MedicationSchedule } from '../../models/types';
 // ARCHITECTURAL EXCEPTION: Notification handlers need direct repository access
 // because they run in background when app may be suspended. See docs/store-repository-guidelines.md
-import { medicationRepository } from '../../database/medicationRepository';
+import { medicationRepository, medicationScheduleRepository } from '../../database/medicationRepository';
 import { useNotificationSettingsStore } from '../../store/notificationSettingsStore';
 import {
   scheduleNotificationAtomic,
@@ -382,26 +382,56 @@ export async function cancelNotificationForDate(
           return;
         }
         const medication = await medicationRepository.getById(remaining.medicationId);
-        const schedule = medication?.schedule?.find(s => s.id === remaining.scheduleId);
+        // Load schedules from database since medication.schedule is always empty
+        const schedules = await medicationScheduleRepository.getByMedicationId(remaining.medicationId);
+        const schedule = schedules.find(s => s.id === remaining.scheduleId);
 
         if (medication && schedule) {
           // Schedule a single notification
-          const triggerDate = localDateTimeFromStrings(date, schedule.time);
+          const effectiveSettings = useNotificationSettingsStore.getState().getEffectiveSettings(medication.id);
+
+          // Use appropriate content based on notification type
+          const isFollowUp = remaining.notificationType === 'follow_up';
+
+          // Use the stored trigger time from the mapping if available (preserves test timing)
+          // Otherwise fall back to recalculating from schedule time + settings
+          let triggerDate: Date;
+          if (remaining.scheduledTriggerTime) {
+            triggerDate = new Date(remaining.scheduledTriggerTime);
+          } else {
+            const baseTriggerDate = localDateTimeFromStrings(date, schedule.time);
+            triggerDate = baseTriggerDate;
+            if (isFollowUp && effectiveSettings.followUpDelay !== 'off') {
+              triggerDate = new Date(baseTriggerDate.getTime() + effectiveSettings.followUpDelay * 60 * 1000);
+            }
+          }
 
           if (triggerDate > new Date()) {
-            const effectiveSettings = useNotificationSettingsStore.getState().getEffectiveSettings(medication.id);
+            const title = isFollowUp
+              ? `Reminder: ${medication.name}`
+              : `Time for ${medication.name}`;
+            const body = isFollowUp
+              ? 'Did you take your medication?'
+              : `${schedule.dosage} dose(s) - ${medication.dosageAmount}${medication.dosageUnit} each`;
+
+            // Delete the old grouped mapping BEFORE creating new one to avoid unique constraint violation
+            await scheduledNotificationRepository.deleteMapping(remaining.id);
 
             const newMapping = await scheduleNotificationAtomic(
               {
-                title: `Time for ${medication.name}`,
-                body: `${schedule.dosage} dose(s) - ${medication.dosageAmount}${medication.dosageUnit} each`,
+                title,
+                body,
                 data: {
                   medicationId: medication.id,
                   scheduleId: schedule.id,
+                  ...(isFollowUp && { isFollowUp: true }),
                 },
                 categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
                 sound: true,
-                ...(effectiveSettings.timeSensitiveEnabled && { interruptionLevel: 'timeSensitive' } as unknown as Record<string, unknown>),
+                ...(isFollowUp && effectiveSettings.criticalAlertsEnabled && { critical: true } as unknown as Record<string, unknown>),
+                ...(isFollowUp && effectiveSettings.criticalAlertsEnabled && { interruptionLevel: 'critical' } as unknown as Record<string, unknown>),
+                ...(isFollowUp && !effectiveSettings.criticalAlertsEnabled && effectiveSettings.timeSensitiveEnabled && { interruptionLevel: 'timeSensitive' } as unknown as Record<string, unknown>),
+                ...(!isFollowUp && effectiveSettings.timeSensitiveEnabled && { interruptionLevel: 'timeSensitive' } as unknown as Record<string, unknown>),
               },
               triggerDate,
               {
@@ -412,9 +442,6 @@ export async function cancelNotificationForDate(
                 isGrouped: false,
               }
             );
-
-            // Delete the old grouped mapping
-            await scheduledNotificationRepository.deleteMapping(remaining.id);
 
             logger.log('[Notification] Converted group to single notification:', {
               medicationId: medication.id,
@@ -429,14 +456,42 @@ export async function cancelNotificationForDate(
         for (const m of remainingMappings) {
           if (!m.medicationId || !m.scheduleId) continue;
           const medication = await medicationRepository.getById(m.medicationId);
-          const schedule = medication?.schedule?.find(s => s.id === m.scheduleId);
+          // Load schedules from database since medication.schedule is always empty
+          const schedules = await medicationScheduleRepository.getByMedicationId(m.medicationId);
+          const schedule = schedules.find(s => s.id === m.scheduleId);
           if (medication && schedule) {
             medications.push({ medication, schedule });
           }
         }
 
         if (medications.length > 1) {
-          const triggerDate = localDateTimeFromStrings(date, mapping.groupKey!);
+          // Use appropriate content based on notification type
+          const isFollowUp = notificationType === 'follow_up';
+
+          // Use the stored trigger time from the first remaining mapping if available (preserves test timing)
+          // Otherwise fall back to recalculating from schedule time + settings
+          const settingsStore = useNotificationSettingsStore.getState();
+          let triggerDate: Date;
+
+          const firstMappingWithTriggerTime = remainingMappings.find(m => m.scheduledTriggerTime);
+          if (firstMappingWithTriggerTime?.scheduledTriggerTime) {
+            triggerDate = new Date(firstMappingWithTriggerTime.scheduledTriggerTime);
+          } else {
+            const baseTriggerDate = localDateTimeFromStrings(date, mapping.groupKey!);
+            triggerDate = baseTriggerDate;
+            if (isFollowUp) {
+              // Get the maximum follow-up delay from all medications in the group
+              const delays = medications.map(({ medication }) => {
+                const settings = settingsStore.getEffectiveSettings(medication.id);
+                return settings.followUpDelay;
+              }).filter(d => d !== 'off') as number[];
+
+              if (delays.length > 0) {
+                const maxDelay = Math.max(...delays);
+                triggerDate = new Date(baseTriggerDate.getTime() + maxDelay * 60 * 1000);
+              }
+            }
+          }
 
           if (triggerDate > new Date()) {
             // Schedule new grouped notification
@@ -445,34 +500,49 @@ export async function cancelNotificationForDate(
             const medicationIds = medications.map(({ medication }) => medication.id);
             const scheduleIds = medications.map(({ schedule }) => schedule.id);
 
-            const settingsStore = useNotificationSettingsStore.getState();
             const anyTimeSensitive = medications.some(({ medication }) => {
               const settings = settingsStore.getEffectiveSettings(medication.id);
               return settings.timeSensitiveEnabled;
             });
+            const anyCritical = medications.some(({ medication }) => {
+              const settings = settingsStore.getEffectiveSettings(medication.id);
+              return settings.criticalAlertsEnabled;
+            });
+
+            const title = isFollowUp
+              ? `Reminder: ${medicationCount} Medications`
+              : `Time for ${medicationCount} Medications`;
+            const body = isFollowUp
+              ? `Did you take: ${medicationNames}?`
+              : medicationNames;
 
             // Import the category here to avoid circular dependency
             const { MULTIPLE_MEDICATION_REMINDER_CATEGORY } = await import('./notificationCategories');
 
-            // Date triggers are accepted by Expo but not typed correctly
             const newNotificationId = await Notifications.scheduleNotificationAsync({
               content: {
-                title: `Time for ${medicationCount} Medications`,
-                body: medicationNames,
+                title,
+                body,
                 data: {
                   medicationIds,
                   scheduleIds,
                   time: mapping.groupKey,
+                  ...(isFollowUp && { isFollowUp: true }),
                 },
                 categoryIdentifier: MULTIPLE_MEDICATION_REMINDER_CATEGORY,
                 sound: true,
-                ...(anyTimeSensitive && { interruptionLevel: 'timeSensitive' } as unknown as Record<string, unknown>),
+                ...(isFollowUp && anyCritical && { critical: true } as unknown as Record<string, unknown>),
+                ...(isFollowUp && anyCritical && { interruptionLevel: 'critical' } as unknown as Record<string, unknown>),
+                ...(isFollowUp && !anyCritical && anyTimeSensitive && { interruptionLevel: 'timeSensitive' } as unknown as Record<string, unknown>),
+                ...(!isFollowUp && anyTimeSensitive && { interruptionLevel: 'timeSensitive' } as unknown as Record<string, unknown>),
               },
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              trigger: triggerDate as any,
+              trigger: {
+                type: Notifications.SchedulableTriggerInputTypes.DATE,
+                date: triggerDate,
+              },
             });
 
-            // Update mappings with new notification ID
+            // Update mappings with new notification ID, preserving scheduledTriggerTime
             for (const m of remainingMappings) {
               if (!m.medicationId || !m.scheduleId) continue;
               await scheduledNotificationRepository.deleteMapping(m.id);
@@ -485,6 +555,7 @@ export async function cancelNotificationForDate(
                 isGrouped: true,
                 groupKey: m.groupKey,
                 sourceType: 'medication',
+                scheduledTriggerTime: triggerDate,
               });
             }
 

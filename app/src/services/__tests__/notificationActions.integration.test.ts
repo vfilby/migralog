@@ -46,7 +46,7 @@ jest.mock('../notifications/NotificationDismissalService');
 
 import { useMedicationStore } from '../../store/medicationStore';
 import { scheduledNotificationRepository } from '../../database/scheduledNotificationRepository';
-import { medicationRepository } from '../../database/medicationRepository';
+import { medicationRepository, medicationScheduleRepository } from '../../database/medicationRepository';
 import { useNotificationSettingsStore } from '../../store/notificationSettingsStore';
 import { scheduleNotificationAtomic } from '../notifications/notificationScheduler';
 import { notificationDismissalService } from '../notifications/NotificationDismissalService';
@@ -642,7 +642,7 @@ describe('Notification Actions Integration', () => {
         name: 'Ibuprofen',
         dosageAmount: 400,
         dosageUnit: 'mg',
-        schedule: [{ id: 'sched-2', time: '09:00', dosage: 1 }],
+        schedule: [], // Empty - schedules loaded from repository
       };
 
       // First getMapping returns the reminder being cancelled
@@ -651,6 +651,12 @@ describe('Notification Actions Integration', () => {
       (medicationRepository.getById as jest.Mock).mockImplementation((id) => {
         if (id === 'med-2') return Promise.resolve(med2);
         return Promise.resolve(null);
+      });
+
+      // Mock schedule repository to return schedules
+      (medicationScheduleRepository.getByMedicationId as jest.Mock).mockImplementation((id) => {
+        if (id === 'med-2') return Promise.resolve([{ id: 'sched-2', medicationId: 'med-2', time: '09:00', dosage: 1, timezone: 'America/New_York', enabled: true }]);
+        return Promise.resolve([]);
       });
 
       // Action: Cancel the reminder for med-1
@@ -714,7 +720,7 @@ describe('Notification Actions Integration', () => {
         name: 'Ibuprofen',
         dosageAmount: 400,
         dosageUnit: 'mg',
-        schedule: [{ id: 'sched-2', time: '09:00', dosage: 1 }],
+        schedule: [], // Empty - schedules loaded from repository
       };
 
       const med3 = {
@@ -722,7 +728,7 @@ describe('Notification Actions Integration', () => {
         name: 'Acetaminophen',
         dosageAmount: 500,
         dosageUnit: 'mg',
-        schedule: [{ id: 'sched-3', time: '09:00', dosage: 1 }],
+        schedule: [], // Empty - schedules loaded from repository
       };
 
       (scheduledNotificationRepository.getMapping as jest.Mock).mockResolvedValue(groupMappings[0]);
@@ -731,6 +737,13 @@ describe('Notification Actions Integration', () => {
         if (id === 'med-2') return Promise.resolve(med2);
         if (id === 'med-3') return Promise.resolve(med3);
         return Promise.resolve(null);
+      });
+
+      // Mock schedule repository to return schedules
+      (medicationScheduleRepository.getByMedicationId as jest.Mock).mockImplementation((id) => {
+        if (id === 'med-2') return Promise.resolve([{ id: 'sched-2', medicationId: 'med-2', time: '09:00', dosage: 1, timezone: 'America/New_York', enabled: true }]);
+        if (id === 'med-3') return Promise.resolve([{ id: 'sched-3', medicationId: 'med-3', time: '09:00', dosage: 1, timezone: 'America/New_York', enabled: true }]);
+        return Promise.resolve([]);
       });
 
       // Action: Cancel med-1's reminder

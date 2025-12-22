@@ -516,8 +516,7 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ...(timeSensitive && { interruptionLevel: 'timeSensitive' } as any),
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        trigger: testTime as any,
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: testTime },
       });
 
       Alert.alert(
@@ -560,8 +559,7 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ...({ interruptionLevel: 'critical' } as any),
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        trigger: testTime as any,
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: testTime },
       });
 
       Alert.alert(

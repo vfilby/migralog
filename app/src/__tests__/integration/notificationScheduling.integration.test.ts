@@ -575,7 +575,9 @@ describe('Integration: Notification Scheduling Workflow', () => {
       expect(snoozeCall.content.data.scheduleId).toBe('sched-snooze');
 
       // Verify trigger time is approximately 10 minutes from now
-      const triggerDate = snoozeCall.trigger;
+      // Trigger is { type: 'date', date: Date }
+      expect(snoozeCall.trigger.type).toBe('date');
+      const triggerDate = snoozeCall.trigger.date;
       const expectedTime = Date.now() + 10 * 60 * 1000;
       expect(triggerDate.getTime()).toBeGreaterThan(expectedTime - 5000); // 5 second tolerance
       expect(triggerDate.getTime()).toBeLessThan(expectedTime + 5000);
@@ -788,16 +790,7 @@ describe('Integration: Notification Scheduling Workflow', () => {
         dosageUnit: 'mg',
         defaultQuantity: 1,
         active: true,
-        schedule: [
-          {
-            id: 'sched-group-show-1',
-            medicationId: 'med-group-show-1',
-            time: '09:00',
-            dosage: 1,
-            enabled: true,
-            timezone: 'UTC',
-          },
-        ],
+        schedule: [], // Empty - schedules loaded from repository
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -810,24 +803,40 @@ describe('Integration: Notification Scheduling Workflow', () => {
         dosageUnit: 'mg',
         defaultQuantity: 1,
         active: true,
-        schedule: [
-          {
-            id: 'sched-group-show-2',
-            medicationId: 'med-group-show-2',
-            time: '09:00',
-            dosage: 1,
-            enabled: true,
-            timezone: 'UTC',
-          },
-        ],
+        schedule: [], // Empty - schedules loaded from repository
         createdAt: Date.now(),
         updatedAt: Date.now(),
+      };
+
+      // Schedules are loaded separately
+      const sched1: MedicationSchedule = {
+        id: 'sched-group-show-1',
+        medicationId: 'med-group-show-1',
+        time: '09:00',
+        dosage: 1,
+        enabled: true,
+        timezone: 'UTC',
+      };
+
+      const sched2: MedicationSchedule = {
+        id: 'sched-group-show-2',
+        medicationId: 'med-group-show-2',
+        time: '09:00',
+        dosage: 1,
+        enabled: true,
+        timezone: 'UTC',
       };
 
       // Mock: Med A logged, Med B not logged
       (medicationRepository.getById as jest.Mock)
         .mockResolvedValueOnce(med1)
         .mockResolvedValueOnce(med2);
+      (medicationScheduleRepository.getByMedicationId as jest.Mock)
+        .mockImplementation((id) => {
+          if (id === 'med-group-show-1') return Promise.resolve([sched1]);
+          if (id === 'med-group-show-2') return Promise.resolve([sched2]);
+          return Promise.resolve([]);
+        });
       (medicationDoseRepository.wasLoggedForScheduleToday as jest.Mock)
         .mockResolvedValueOnce(true)  // Med A logged
         .mockResolvedValueOnce(false); // Med B NOT logged
