@@ -227,6 +227,9 @@ export class NotificationDismissalService {
         }
 
         // Get medication and schedule info
+        // Note: We use repositories directly rather than the Zustand store because this
+        // service runs during notification handling, which can occur in background contexts
+        // where the store may not be populated. Direct DB access ensures reliable data.
         const medication = await medicationRepository.getById(mapping.medicationId);
         if (!medication) continue;
 
