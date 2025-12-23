@@ -384,6 +384,7 @@ export default function MonthlyCalendarView({
     startDate: format(new Date(), 'yyyy-MM-dd'),
     endDate: format(new Date(), 'yyyy-MM-dd'),
     notes: '',
+    excludeFromStats: false,
   });
   const [rangeSelectionMode, setRangeSelectionMode] = useState<'start' | 'end'>('start');
 
@@ -455,6 +456,7 @@ export default function MonthlyCalendarView({
       startDate: today,
       endDate: today,
       notes: '',
+      excludeFromStats: false,
     });
     setRangeSelectionMode('start');
     setShowOverlayModal(true);

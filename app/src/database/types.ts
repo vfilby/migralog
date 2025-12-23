@@ -180,6 +180,7 @@ export interface CalendarOverlayRow {
   end_date: string;   // YYYY-MM-DD format
   label: string;
   notes: string | null;
+  exclude_from_stats: number; // 0 or 1
   created_at: number;
   updated_at: number;
 }

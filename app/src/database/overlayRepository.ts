@@ -28,14 +28,15 @@ export const overlayRepository = {
 
     await database.runAsync(
       `INSERT INTO calendar_overlays (
-        id, start_date, end_date, label, notes, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        id, start_date, end_date, label, notes, exclude_from_stats, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         newOverlay.id,
         newOverlay.startDate,
         newOverlay.endDate,
         newOverlay.label,
         newOverlay.notes || null,
+        newOverlay.excludeFromStats ? 1 : 0,
         newOverlay.createdAt,
         newOverlay.updatedAt,
       ]
@@ -70,6 +71,10 @@ export const overlayRepository = {
     if (updates.notes !== undefined) {
       fields.push('notes = ?');
       values.push(updates.notes || null);
+    }
+    if (updates.excludeFromStats !== undefined) {
+      fields.push('exclude_from_stats = ?');
+      values.push(updates.excludeFromStats ? 1 : 0);
     }
 
     fields.push('updated_at = ?');
@@ -147,6 +152,7 @@ export const overlayRepository = {
       endDate: row.end_date,
       label: row.label,
       notes: row.notes || undefined,
+      excludeFromStats: row.exclude_from_stats === 1,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

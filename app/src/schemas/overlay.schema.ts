@@ -33,6 +33,7 @@ export const CalendarOverlaySchema = z.object({
   endDate: OverlayDateStringSchema,
   label: z.string().min(1, 'Label is required').max(200, 'Label must be <= 200 characters'),
   notes: NotesSchema,
+  excludeFromStats: z.boolean(),
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema,
 }).refine(
