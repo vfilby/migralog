@@ -50,6 +50,7 @@ class BackupCreator {
       // Get counts for metadata (quick queries)
       const episodeCount = await this.getEpisodeCount(db);
       const medicationCount = await this.getMedicationCount(db);
+      const overlayCount = await this.getOverlayCount(db);
       const schemaVersion = await migrationRunner.getCurrentVersion();
 
       // Get file size
@@ -64,6 +65,7 @@ class BackupCreator {
         schemaVersion,
         episodeCount,
         medicationCount,
+        overlayCount,
         fileSize,
         fileName: `${backupId}.db`,
         backupType: 'snapshot',
@@ -137,6 +139,27 @@ class BackupCreator {
     }
   }
 
+  /**
+   * Helper method to get calendar overlay count for metadata
+   */
+  private async getOverlayCount(db?: SQLite.SQLiteDatabase): Promise<number> {
+    try {
+      let database: SQLite.SQLiteDatabase;
+      if (db) {
+        database = db;
+      } else {
+        database = await import('../../database/db').then(m => m.getDatabase());
+      }
+
+      const result = await database.getAllAsync<{ count: number }>(
+        'SELECT COUNT(*) as count FROM calendar_overlays WHERE is_active = 1'
+      );
+      return result[0]?.count || 0;
+    } catch (error) {
+      logger.error('[Backup] Failed to get overlay count:', error);
+      return 0;
+    }
+  }
 
 }
 

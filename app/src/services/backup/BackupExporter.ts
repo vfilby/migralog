@@ -7,6 +7,7 @@ import { logger } from '../../utils/logger';
 import { episodeRepository, episodeNoteRepository, intensityRepository } from '../../database/episodeRepository';
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../../database/medicationRepository';
 import { dailyStatusRepository } from '../../database/dailyStatusRepository';
+import { overlayRepository } from '../../database/overlayRepository';
 import { migrationRunner } from '../../database/migrations';
 import { buildInfo } from '../../buildInfo';
 import {
@@ -15,6 +16,7 @@ import {
   IntensityReading,
   BackupMetadata,
   BackupData,
+  CalendarOverlay,
 } from '../../models/types';
 import {
   generateBackupId,
@@ -87,6 +89,8 @@ class BackupExporter {
         medicationSchedules.push(...schedules);
       }
 
+      const calendarOverlays: CalendarOverlay[] = await overlayRepository.getAll(db);
+
       const schemaVersion = await migrationRunner.getCurrentVersion();
 
       // Create export data structure
@@ -108,6 +112,7 @@ class BackupExporter {
         medications,
         medicationDoses,
         medicationSchedules,
+        calendarOverlays,
       };
 
       // Create temporary file for sharing (in cache directory, will be auto-cleaned)

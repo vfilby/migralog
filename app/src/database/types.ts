@@ -171,6 +171,21 @@ export interface DailyStatusLogRow {
 }
 
 /**
+ * Calendar Overlays Table Row
+ * Date ranges with contextual labels
+ */
+export interface CalendarOverlayRow {
+  id: string;
+  start_date: string; // YYYY-MM-DD format
+  end_date: string;   // YYYY-MM-DD format
+  label: string;
+  notes: string | null;
+  is_active: number;  // 0 or 1
+  created_at: number;
+  updated_at: number;
+}
+
+/**
  * Type guard to check if a value is a valid array
  */
 export function isArray(value: unknown): value is unknown[] {

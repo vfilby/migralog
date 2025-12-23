@@ -185,6 +185,18 @@ export interface DailyStatusLog {
   updatedAt: number;
 }
 
+// Calendar Overlay types for marking date ranges with contextual information
+export interface CalendarOverlay {
+  id: string;
+  startDate: string;      // YYYY-MM-DD format
+  endDate: string;        // YYYY-MM-DD format
+  label: string;          // User-friendly name (e.g., "Cold - on medication")
+  notes?: string;         // Optional detailed notes
+  isActive: boolean;      // Soft delete flag
+  createdAt: number;
+  updatedAt: number;
+}
+
 // Backup/Restore types
 export interface BackupMetadata {
   id: string;
@@ -193,6 +205,7 @@ export interface BackupMetadata {
   schemaVersion: number;
   episodeCount: number;
   medicationCount: number;
+  overlayCount?: number; // Optional for backward compatibility with older backups
   fileSize: number;
   fileName: string;
   // Note: Only snapshot (.db) backups are supported (Issue #194)
@@ -208,6 +221,7 @@ export interface BackupData {
   episodeNotes?: EpisodeNote[]; // Optional for backward compatibility
   intensityReadings?: IntensityReading[]; // Optional for backward compatibility
   dailyStatusLogs?: DailyStatusLog[]; // Optional for backward compatibility
+  calendarOverlays?: CalendarOverlay[]; // Optional for backward compatibility
   medications: Medication[];
   medicationDoses: MedicationDose[];
   medicationSchedules: MedicationSchedule[];
