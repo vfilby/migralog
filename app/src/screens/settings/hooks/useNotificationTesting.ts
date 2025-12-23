@@ -5,7 +5,6 @@ import { dailyCheckinService } from '../../../services/notifications/dailyChecki
 import * as Notifications from 'expo-notifications';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../navigation/types';
-import { confirmAndSetupNotificationTests, confirmAndSetupNotificationTestsBurst, confirmAndSetupGroupedNotificationTest } from '../../../utils/devTestHelpers';
 
 export function useNotificationTesting(
   navigation: NativeStackNavigationProp<RootStackParamList, 'DeveloperToolsScreen'>
@@ -282,6 +281,8 @@ If Critical Alerts didn't change, check:
         return;
       }
 
+      // Dynamic import to avoid bundling in production
+      const { confirmAndSetupNotificationTests } = await import('../../../utils/devTestHelpers');
       await confirmAndSetupNotificationTests();
     } catch (error) {
       logger.error('[DeveloperTools] Failed to setup notification tests:', error);
@@ -302,6 +303,8 @@ If Critical Alerts didn't change, check:
         return;
       }
 
+      // Dynamic import to avoid bundling in production
+      const { confirmAndSetupNotificationTestsBurst } = await import('../../../utils/devTestHelpers');
       await confirmAndSetupNotificationTestsBurst();
     } catch (error) {
       logger.error('[DeveloperTools] Failed to setup burst notification tests:', error);
@@ -322,6 +325,8 @@ If Critical Alerts didn't change, check:
         return;
       }
 
+      // Dynamic import to avoid bundling in production
+      const { confirmAndSetupGroupedNotificationTest } = await import('../../../utils/devTestHelpers');
       await confirmAndSetupGroupedNotificationTest();
     } catch (error) {
       logger.error('[DeveloperTools] Failed to setup grouped notification test:', error);
