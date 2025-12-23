@@ -43,6 +43,7 @@ jest.mock('../../database/migrations');
 jest.mock('../../database/episodeRepository');
 jest.mock('../../database/medicationRepository');
 jest.mock('../../database/dailyStatusRepository');
+jest.mock('../../database/overlayRepository');
 jest.mock('../../services/errorLogger', () => ({
   errorLogger: {
     log: jest.fn(() => Promise.resolve()),

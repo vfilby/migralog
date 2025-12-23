@@ -50,3 +50,10 @@ export {
   DateStringSchema,
   type ValidatedDailyStatusLog,
 } from './dailyStatus.schema';
+
+// Calendar overlay schemas
+export {
+  CalendarOverlaySchema,
+  OverlayDateStringSchema,
+  type ValidatedCalendarOverlay,
+} from './overlay.schema';

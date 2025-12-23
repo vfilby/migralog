@@ -420,6 +420,36 @@ const migrations: Migration[] = [
       logger.log('Migration 22 rollback: Complete');
     },
   },
+  {
+    version: 23,
+    name: 'add_calendar_overlays_table',
+    up: async (db: SQLite.SQLiteDatabase) => {
+      logger.log('Migration 23: Adding calendar_overlays table for date range tracking...');
+
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS calendar_overlays (
+          id TEXT PRIMARY KEY,
+          start_date TEXT NOT NULL CHECK(start_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
+          end_date TEXT NOT NULL CHECK(end_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
+          label TEXT NOT NULL CHECK(length(label) > 0 AND length(label) <= 200),
+          notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
+          exclude_from_stats INTEGER NOT NULL DEFAULT 0 CHECK(exclude_from_stats IN (0, 1)),
+          created_at INTEGER NOT NULL CHECK(created_at > 0),
+          updated_at INTEGER NOT NULL CHECK(updated_at > 0),
+          CHECK(end_date >= start_date)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_calendar_overlays_dates ON calendar_overlays(start_date, end_date);
+      `);
+
+      logger.log('Migration 23: calendar_overlays table created successfully');
+    },
+    down: async (db: SQLite.SQLiteDatabase) => {
+      logger.log('Migration 23 rollback: Dropping calendar_overlays table...');
+      await db.execAsync('DROP TABLE IF EXISTS calendar_overlays;');
+      logger.log('Migration 23 rollback: Complete');
+    },
+  },
 ];
 
 class MigrationRunner {
@@ -711,6 +741,65 @@ class MigrationRunner {
           }
 
           logger.log('Migration 22: Notification metadata columns and indexes verified');
+          break;
+
+        case 23:
+          // Verify calendar_overlays table exists
+          const v23Tables = await this.db.getAllAsync<{ name: string }>(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+          );
+          const v23TableNames = v23Tables.map(t => t.name);
+
+          if (!v23TableNames.includes('calendar_overlays')) {
+            logger.error('Smoke test failed: calendar_overlays table not found');
+            return false;
+          }
+
+          // Verify calendar_overlays columns exist
+          const v23Columns = await this.db.getAllAsync<{ name: string }>(
+            "PRAGMA table_info(calendar_overlays)"
+          );
+          const v23ColumnNames = v23Columns.map(c => c.name);
+
+          const requiredOverlayColumns = [
+            'id',
+            'start_date',
+            'end_date',
+            'category',
+            'label',
+            'notes',
+            'is_active',
+            'created_at',
+            'updated_at'
+          ];
+
+          for (const column of requiredOverlayColumns) {
+            if (!v23ColumnNames.includes(column)) {
+              logger.error(`Smoke test failed: Column ${column} not found in calendar_overlays after migration 23`);
+              return false;
+            }
+          }
+
+          // Verify indexes exist
+          const v23Indexes = await this.db.getAllAsync<{ name: string }>(
+            "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='calendar_overlays'"
+          );
+          const v23IndexNames = v23Indexes.map(i => i.name);
+
+          const expectedOverlayIndexes = [
+            'idx_calendar_overlays_dates',
+            'idx_calendar_overlays_active',
+            'idx_calendar_overlays_category'
+          ];
+
+          for (const idx of expectedOverlayIndexes) {
+            if (!v23IndexNames.includes(idx)) {
+              logger.error(`Smoke test failed: Index ${idx} not found after migration 23`);
+              return false;
+            }
+          }
+
+          logger.log('Migration 23: calendar_overlays table and indexes verified');
           break;
       }
 

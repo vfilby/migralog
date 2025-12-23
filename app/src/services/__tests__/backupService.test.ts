@@ -42,6 +42,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 jest.mock('../../database/episodeRepository');
 jest.mock('../../database/medicationRepository');
 jest.mock('../../database/dailyStatusRepository');
+jest.mock('../../database/overlayRepository');
 jest.mock('../../database/migrations');
 jest.mock('../errorLogger', () => ({
   errorLogger: {
@@ -180,6 +181,9 @@ describe('backupService', () => {
         }
         if (query.includes('COUNT') && query.includes('medications')) {
           return Promise.resolve([{ count: 1 }]);
+        }
+        if (query.includes('COUNT') && query.includes('calendar_overlays')) {
+          return Promise.resolve([{ count: 0 }]);
         }
         if (query.includes('sqlite_master')) {
           return Promise.resolve([{ sql: 'CREATE TABLE episodes (...)' }]);
@@ -1078,6 +1082,9 @@ describe('backupService', () => {
         }
         if (query.includes('COUNT') && query.includes('medications')) {
           return Promise.resolve([{ count: 1 }]);
+        }
+        if (query.includes('COUNT') && query.includes('calendar_overlays')) {
+          return Promise.resolve([{ count: 0 }]);
         }
         if (query.includes('sqlite_master')) {
           return Promise.resolve([{ sql: 'CREATE TABLE episodes (...)' }]);

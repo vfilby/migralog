@@ -11,14 +11,17 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { useDailyStatusStore } from '../store/dailyStatusStore';
-import { YellowDayType, Episode } from '../models/types';
+import { YellowDayType, Episode, CalendarOverlay } from '../models/types';
 import { useTheme, ThemeColors } from '../theme';
 import { format, subDays } from 'date-fns';
 import { formatEpisodeTimeRange, formatEpisodeDuration } from '../utils/dateFormatting';
+import { useOverlayStore } from '../store/overlayStore';
+import { Calendar, DateData } from 'react-native-calendars';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DailyStatusPrompt'>;
 
@@ -27,6 +30,19 @@ const YELLOW_TYPES: { value: YellowDayType; label: string; description: string }
   { value: 'postdrome', label: 'Postdrome', description: 'Recovery period after episode' },
   { value: 'anxiety', label: 'Migraine Anxiety', description: 'Worried about potential episode' },
 ];
+
+// Helper to format overlay date range
+const formatOverlayDateRange = (startDate: string, endDate: string): string => {
+  const start = new Date(startDate + 'T00:00:00');
+  const end = new Date(endDate + 'T00:00:00');
+  if (startDate === endDate) {
+    return format(start, 'MMM d, yyyy');
+  }
+  if (start.getFullYear() === end.getFullYear()) {
+    return `${format(start, 'MMM d')} - ${format(end, 'MMM d, yyyy')}`;
+  }
+  return `${format(start, 'MMM d, yyyy')} - ${format(end, 'MMM d, yyyy')}`;
+};
 
 const createStyles = (theme: ThemeColors) => StyleSheet.create({
   container: {
@@ -231,6 +247,179 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     padding: 40,
     alignItems: 'center',
   },
+  overlaySection: {
+    marginTop: 24,
+    marginBottom: 16,
+  },
+  overlaySectionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.text,
+    marginBottom: 12,
+  },
+  overlayCard: {
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  overlayCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  overlayCardLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.text,
+    flex: 1,
+  },
+  overlayCardDates: {
+    fontSize: 14,
+    color: theme.textSecondary,
+    marginBottom: 12,
+  },
+  overlayActions: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  overlayActionButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: theme.background,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  overlayActionButtonText: {
+    fontSize: 13,
+    color: theme.text,
+    fontWeight: '500',
+  },
+  overlayActionButtonDelete: {
+    backgroundColor: '#ffebee',
+    borderColor: '#ef5350',
+  },
+  overlayActionButtonDeleteText: {
+    color: '#c62828',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: theme.background,
+  },
+  modalContent: {
+    flex: 1,
+    paddingTop: 20,
+    paddingHorizontal: 16,
+    paddingBottom: 34,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.text,
+  },
+  modalCloseButton: {
+    fontSize: 16,
+    color: theme.primary,
+  },
+  modalScrollView: {
+    flex: 1,
+  },
+  modalLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.text,
+    marginBottom: 8,
+    marginTop: 16,
+  },
+  modalInput: {
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    color: theme.text,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  modalTextArea: {
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    color: theme.text,
+    textAlignVertical: 'top',
+    minHeight: 100,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  dateRangeInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    gap: 16,
+  },
+  dateRangeItem: {
+    alignItems: 'center',
+  },
+  dateRangeLabel: {
+    fontSize: 12,
+    color: theme.textSecondary,
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  dateRangeLabelActive: {
+    color: theme.primary,
+  },
+  dateRangeButton: {
+    backgroundColor: theme.card,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 2,
+    borderColor: theme.border,
+  },
+  dateRangeButtonActive: {
+    borderColor: theme.primary,
+    backgroundColor: theme.background,
+  },
+  dateRangeButtonText: {
+    fontSize: 14,
+    color: theme.text,
+    fontWeight: '500',
+  },
+  dateRangeArrow: {
+    fontSize: 18,
+    color: theme.textSecondary,
+  },
+  dateRangeHint: {
+    fontSize: 13,
+    color: theme.textSecondary,
+    textAlign: 'center',
+    marginBottom: 12,
+    fontStyle: 'italic',
+  },
+  modalSaveButton: {
+    backgroundColor: theme.primary,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  modalSaveButtonText: {
+    color: theme.primaryText,
+    fontSize: 17,
+    fontWeight: '600',
+  },
 });
 
 export default function DailyStatusPromptScreen({ navigation, route }: Props) {
@@ -240,6 +429,7 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const { logDayStatus, getEpisodesForDate, getDayStatus } = useDailyStatusStore();
+  const { getOverlaysForDate, updateOverlay, deleteOverlay } = useOverlayStore();
 
   const [selectedStatus, setSelectedStatus] = useState<'green' | 'yellow' | null>(null);
   const [selectedType, setSelectedType] = useState<YellowDayType | null>(null);
@@ -247,6 +437,20 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
   const [saving, setSaving] = useState(false);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+
+  // Overlay state
+  const [dateOverlays, setDateOverlays] = useState<CalendarOverlay[]>([]);
+  const [showOverlayModal, setShowOverlayModal] = useState(false);
+  const [editingOverlay, setEditingOverlay] = useState<CalendarOverlay | null>(null);
+  const [savingOverlay, setSavingOverlay] = useState(false);
+  const [overlayForm, setOverlayForm] = useState({
+    label: '',
+    startDate: targetDate,
+    endDate: targetDate,
+    notes: '',
+  });
+  // Range selection: 'start' means next tap sets start date, 'end' means next tap sets end date
+  const [rangeSelectionMode, setRangeSelectionMode] = useState<'start' | 'end'>('start');
 
   // Computed values for readability
   const hasEpisodes = episodes.length > 0;
@@ -260,13 +464,15 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
   const loadData = async () => {
     setLoadingData(true);
     try {
-      // Load episodes and existing status in parallel
-      const [episodesForDate, existingStatus] = await Promise.all([
+      // Load episodes, existing status, and overlays in parallel
+      const [episodesForDate, existingStatus, overlaysForDate] = await Promise.all([
         getEpisodesForDate(targetDate),
         getDayStatus(targetDate),
+        getOverlaysForDate(targetDate),
       ]);
 
       setEpisodes(episodesForDate);
+      setDateOverlays(overlaysForDate);
 
       // Pre-populate form with existing status data
       if (existingStatus) {
@@ -359,6 +565,92 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
     }
   };
 
+  // Overlay handlers
+  const handleEditOverlay = (overlay: CalendarOverlay) => {
+    setEditingOverlay(overlay);
+    setOverlayForm({
+      label: overlay.label,
+      startDate: overlay.startDate,
+      endDate: overlay.endDate,
+      notes: overlay.notes || '',
+    });
+    setRangeSelectionMode('start');
+    setShowOverlayModal(true);
+  };
+
+  const handleEndToday = async (overlay: CalendarOverlay) => {
+    try {
+      await updateOverlay(overlay.id, { endDate: targetDate });
+      const updatedOverlays = await getOverlaysForDate(targetDate);
+      setDateOverlays(updatedOverlays);
+    } catch (error) {
+      logger.error('[DailyStatusPrompt] Failed to end overlay:', error);
+      Alert.alert('Error', 'Failed to update overlay. Please try again.');
+    }
+  };
+
+  const handleDeleteOverlay = (overlay: CalendarOverlay) => {
+    Alert.alert(
+      'Delete Overlay',
+      `Are you sure you want to delete "${overlay.label}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteOverlay(overlay.id);
+              const updatedOverlays = await getOverlaysForDate(targetDate);
+              setDateOverlays(updatedOverlays);
+            } catch (error) {
+              logger.error('[DailyStatusPrompt] Failed to delete overlay:', error);
+              Alert.alert('Error', 'Failed to delete overlay. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleSaveOverlay = async () => {
+    if (!overlayForm.label.trim()) {
+      Alert.alert('Required', 'Please enter a label for this overlay.');
+      return;
+    }
+
+    if (overlayForm.startDate > overlayForm.endDate) {
+      Alert.alert('Invalid Dates', 'End date must be on or after start date.');
+      return;
+    }
+
+    // Validate against future dates
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const endDate = new Date(overlayForm.endDate + 'T00:00:00');
+    if (endDate > today) {
+      Alert.alert('Invalid Date', 'Overlay end date cannot be in the future.');
+      return;
+    }
+
+    if (!editingOverlay) {
+      return;
+    }
+
+    setSavingOverlay(true);
+    try {
+      await updateOverlay(editingOverlay.id, overlayForm);
+
+      const updatedOverlays = await getOverlaysForDate(targetDate);
+      setDateOverlays(updatedOverlays);
+      setShowOverlayModal(false);
+    } catch (error) {
+      logger.error('[DailyStatusPrompt] Failed to save overlay:', error);
+      Alert.alert('Error', 'Failed to save overlay. Please try again.');
+    } finally {
+      setSavingOverlay(false);
+    }
+  };
 
   if (loadingData) {
     return (
@@ -442,6 +734,48 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
               onChangeText={setNotes}
               testID="red-day-notes-input"
             />
+          </View>
+        )}
+
+        {/* Overlays section for red days */}
+        {isRedDay && dateOverlays.length > 0 && (
+          <View style={styles.overlaySection}>
+            <Text style={styles.overlaySectionTitle}>Active Overlays</Text>
+            {dateOverlays.map((overlay) => (
+              <View key={overlay.id} style={styles.overlayCard}>
+                <View style={styles.overlayCardHeader}>
+                  <Text style={styles.overlayCardLabel}>{overlay.label}</Text>
+                </View>
+                <Text style={styles.overlayCardDates}>
+                  {formatOverlayDateRange(overlay.startDate, overlay.endDate)}
+                </Text>
+                <View style={styles.overlayActions}>
+                  <TouchableOpacity
+                    style={styles.overlayActionButton}
+                    onPress={() => handleEditOverlay(overlay)}
+                    testID={`edit-overlay-${overlay.id}`}
+                  >
+                    <Text style={styles.overlayActionButtonText}>Edit</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.overlayActionButton}
+                    onPress={() => handleEndToday(overlay)}
+                    testID={`end-overlay-${overlay.id}`}
+                  >
+                    <Text style={styles.overlayActionButtonText}>End Today</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.overlayActionButton, styles.overlayActionButtonDelete]}
+                    onPress={() => handleDeleteOverlay(overlay)}
+                    testID={`delete-overlay-${overlay.id}`}
+                  >
+                    <Text style={[styles.overlayActionButtonText, styles.overlayActionButtonDeleteText]}>
+                      Delete
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
           </View>
         )}
 
@@ -547,6 +881,48 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
             />
           </View>
         )}
+
+        {/* Overlays section for non-red days */}
+        {!isRedDay && dateOverlays.length > 0 && (
+          <View style={styles.overlaySection}>
+            <Text style={styles.overlaySectionTitle}>Active Overlays</Text>
+            {dateOverlays.map((overlay) => (
+              <View key={overlay.id} style={styles.overlayCard}>
+                <View style={styles.overlayCardHeader}>
+                  <Text style={styles.overlayCardLabel}>{overlay.label}</Text>
+                </View>
+                <Text style={styles.overlayCardDates}>
+                  {formatOverlayDateRange(overlay.startDate, overlay.endDate)}
+                </Text>
+                <View style={styles.overlayActions}>
+                  <TouchableOpacity
+                    style={styles.overlayActionButton}
+                    onPress={() => handleEditOverlay(overlay)}
+                    testID={`edit-overlay-${overlay.id}`}
+                  >
+                    <Text style={styles.overlayActionButtonText}>Edit</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.overlayActionButton}
+                    onPress={() => handleEndToday(overlay)}
+                    testID={`end-overlay-${overlay.id}`}
+                  >
+                    <Text style={styles.overlayActionButtonText}>End Today</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.overlayActionButton, styles.overlayActionButtonDelete]}
+                    onPress={() => handleDeleteOverlay(overlay)}
+                    testID={`delete-overlay-${overlay.id}`}
+                  >
+                    <Text style={[styles.overlayActionButtonText, styles.overlayActionButtonDeleteText]}>
+                      Delete
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
       </ScrollView>
 
       {/* Save Button Footer for green/yellow days */}
@@ -598,6 +974,166 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
           </View>
         </KeyboardAvoidingView>
       )}
+
+      {/* Overlay Modal */}
+      <Modal
+        visible={showOverlayModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowOverlayModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity onPress={() => setShowOverlayModal(false)}>
+                <Text style={styles.modalCloseButton}>Cancel</Text>
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>Edit Overlay</Text>
+              <View style={{ width: 60 }} />
+            </View>
+
+            <ScrollView style={styles.modalScrollView}>
+              <Text style={styles.modalLabel}>Label</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="e.g., Cold - on medication"
+                placeholderTextColor={theme.textTertiary}
+                value={overlayForm.label}
+                onChangeText={(text) => setOverlayForm({ ...overlayForm, label: text })}
+                testID="overlay-label-input"
+              />
+
+              <Text style={styles.modalLabel}>Date Range</Text>
+              <View style={styles.dateRangeInfo}>
+                <View style={styles.dateRangeItem}>
+                  <Text style={[
+                    styles.dateRangeLabel,
+                    rangeSelectionMode === 'start' && styles.dateRangeLabelActive
+                  ]}>Start</Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.dateRangeButton,
+                      rangeSelectionMode === 'start' && styles.dateRangeButtonActive
+                    ]}
+                    onPress={() => setRangeSelectionMode('start')}
+                    testID="start-date-button"
+                  >
+                    <Text style={styles.dateRangeButtonText}>
+                      {format(new Date(overlayForm.startDate + 'T00:00:00'), 'MMM d, yyyy')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.dateRangeArrow}>→</Text>
+                <View style={styles.dateRangeItem}>
+                  <Text style={[
+                    styles.dateRangeLabel,
+                    rangeSelectionMode === 'end' && styles.dateRangeLabelActive
+                  ]}>End</Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.dateRangeButton,
+                      rangeSelectionMode === 'end' && styles.dateRangeButtonActive
+                    ]}
+                    onPress={() => setRangeSelectionMode('end')}
+                    testID="end-date-button"
+                  >
+                    <Text style={styles.dateRangeButtonText}>
+                      {format(new Date(overlayForm.endDate + 'T00:00:00'), 'MMM d, yyyy')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <Text style={styles.dateRangeHint}>
+                {rangeSelectionMode === 'start' ? 'Tap a date to set the start' : 'Tap a date to set the end'}
+              </Text>
+              <Calendar
+                markingType="period"
+                markedDates={(() => {
+                  const marks: Record<string, { startingDay?: boolean; endingDay?: boolean; color: string; textColor: string }> = {};
+                  const start = overlayForm.startDate;
+                  const end = overlayForm.endDate;
+
+                  if (start === end) {
+                    marks[start] = { startingDay: true, endingDay: true, color: theme.primary, textColor: theme.primaryText };
+                  } else {
+                    // Start date
+                    marks[start] = { startingDay: true, color: theme.primary, textColor: theme.primaryText };
+                    // End date
+                    marks[end] = { endingDay: true, color: theme.primary, textColor: theme.primaryText };
+                    // Days in between
+                    const startDate = new Date(start + 'T00:00:00');
+                    const endDate = new Date(end + 'T00:00:00');
+                    const current = new Date(startDate);
+                    current.setDate(current.getDate() + 1);
+                    while (current < endDate) {
+                      const dateStr = format(current, 'yyyy-MM-dd');
+                      marks[dateStr] = { color: theme.primary + '80', textColor: theme.text };
+                      current.setDate(current.getDate() + 1);
+                    }
+                  }
+                  return marks;
+                })()}
+                onDayPress={(day: DateData) => {
+                  const selectedDate = day.dateString;
+                  if (rangeSelectionMode === 'start') {
+                    // Set start date, and if it's after current end, also update end
+                    if (selectedDate > overlayForm.endDate) {
+                      setOverlayForm({ ...overlayForm, startDate: selectedDate, endDate: selectedDate });
+                    } else {
+                      setOverlayForm({ ...overlayForm, startDate: selectedDate });
+                    }
+                    setRangeSelectionMode('end');
+                  } else {
+                    // Set end date, ensure it's not before start
+                    if (selectedDate < overlayForm.startDate) {
+                      setOverlayForm({ ...overlayForm, startDate: selectedDate, endDate: overlayForm.startDate });
+                    } else {
+                      setOverlayForm({ ...overlayForm, endDate: selectedDate });
+                    }
+                    setRangeSelectionMode('start');
+                  }
+                }}
+                maxDate={format(new Date(), 'yyyy-MM-dd')}
+                theme={{
+                  backgroundColor: theme.card,
+                  calendarBackground: theme.card,
+                  textSectionTitleColor: theme.textSecondary,
+                  dayTextColor: theme.text,
+                  todayTextColor: theme.primary,
+                  monthTextColor: theme.text,
+                  arrowColor: theme.primary,
+                  textDisabledColor: theme.textTertiary,
+                }}
+                testID="date-range-calendar"
+              />
+
+              <Text style={styles.modalLabel}>Notes (optional)</Text>
+              <TextInput
+                style={styles.modalTextArea}
+                placeholder="Additional details..."
+                placeholderTextColor={theme.textTertiary}
+                value={overlayForm.notes}
+                onChangeText={(text) => setOverlayForm({ ...overlayForm, notes: text })}
+                multiline
+                numberOfLines={4}
+                testID="overlay-notes-input"
+              />
+
+              <TouchableOpacity
+                style={[styles.modalSaveButton, savingOverlay && styles.saveButtonDisabled]}
+                onPress={handleSaveOverlay}
+                disabled={savingOverlay}
+                testID="save-overlay-button"
+              >
+                <Text style={styles.modalSaveButtonText}>
+                  {savingOverlay ? 'Saving...' : 'Save Changes'}
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+
+      </Modal>
     </View>
   );
 }

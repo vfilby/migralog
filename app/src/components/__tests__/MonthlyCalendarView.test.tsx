@@ -3,10 +3,12 @@ import { Text } from 'react-native';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react-native';
 import MonthlyCalendarView from '../analytics/MonthlyCalendarView';
 import { useDailyStatusStore } from '../../store/dailyStatusStore';
+import { useOverlayStore } from '../../store/overlayStore';
 import { ThemeProvider } from '../../theme/ThemeContext';
 import { DailyStatusLog } from '../../models/types';
 
 jest.mock('../../store/dailyStatusStore');
+jest.mock('../../store/overlayStore');
 
 const mockNavigation = {
   navigate: jest.fn(),
@@ -34,6 +36,7 @@ const renderWithTheme = (component: React.ReactElement) => {
 
 describe('MonthlyCalendarView', () => {
   const mockLoadDailyStatuses = jest.fn();
+  const mockLoadOverlaysForDateRange = jest.fn();
   const testDate = new Date('2024-01-15T10:00:00');
   
   const sampleStatuses: DailyStatusLog[] = [
@@ -74,7 +77,14 @@ describe('MonthlyCalendarView', () => {
       loading: false,
     });
 
+    (useOverlayStore as unknown as jest.Mock).mockReturnValue({
+      overlays: [],
+      loadOverlaysForDateRange: mockLoadOverlaysForDateRange,
+      loading: false,
+    });
+
     mockLoadDailyStatuses.mockResolvedValue(undefined);
+    mockLoadOverlaysForDateRange.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -244,12 +254,14 @@ describe('MonthlyCalendarView', () => {
 
       await waitFor(() => {
         expect(mockLoadDailyStatuses).toHaveBeenCalledWith('2023-12-01', '2023-12-31');
+        expect(mockLoadOverlaysForDateRange).toHaveBeenCalledWith('2023-12-01', '2023-12-31');
       });
 
       fireEvent.press(screen.getByTestId('next-month-button'));
 
       await waitFor(() => {
         expect(mockLoadDailyStatuses).toHaveBeenCalledWith('2024-01-01', '2024-01-31');
+        expect(mockLoadOverlaysForDateRange).toHaveBeenCalledWith('2024-01-01', '2024-01-31');
       });
     });
 
@@ -508,6 +520,7 @@ describe('MonthlyCalendarView', () => {
 
       await waitFor(() => {
         expect(mockLoadDailyStatuses).toHaveBeenCalledWith('2024-01-01', '2024-01-31');
+        expect(mockLoadOverlaysForDateRange).toHaveBeenCalledWith('2024-01-01', '2024-01-31');
       });
     });
 

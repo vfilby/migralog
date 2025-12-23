@@ -5,6 +5,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { episodeRepository, episodeNoteRepository, intensityRepository } from '../../database/episodeRepository';
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../../database/medicationRepository';
 import { dailyStatusRepository } from '../../database/dailyStatusRepository';
+import { overlayRepository } from '../../database/overlayRepository';
 import { migrationRunner } from '../../database/migrations';
 import { getBackupMetadata } from '../backup/backupUtils';
 
@@ -60,6 +61,12 @@ jest.mock('../../database/medicationRepository', () => ({
 jest.mock('../../database/dailyStatusRepository', () => ({
   dailyStatusRepository: {
     getDateRange: jest.fn(),
+  },
+}));
+
+jest.mock('../../database/overlayRepository', () => ({
+  overlayRepository: {
+    getAll: jest.fn(),
   },
 }));
 
@@ -224,6 +231,7 @@ describe('BackupExporter', () => {
       (episodeNoteRepository.getByEpisodeId as jest.Mock).mockResolvedValue(mockEpisodeNotes);
       (intensityRepository.getByEpisodeId as jest.Mock).mockResolvedValue(mockIntensityReadings);
       (dailyStatusRepository.getDateRange as jest.Mock).mockResolvedValue(mockDailyStatusLogs);
+      (overlayRepository.getAll as jest.Mock).mockResolvedValue([]);
       (medicationScheduleRepository.getByMedicationId as jest.Mock).mockResolvedValue(mockMedicationSchedules);
       (migrationRunner.getCurrentVersion as jest.Mock).mockResolvedValue(6);
       (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true);

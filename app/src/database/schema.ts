@@ -1,6 +1,6 @@
 // Database schema and initialization
 
-export const SCHEMA_VERSION = 22;
+export const SCHEMA_VERSION = 23;
 
 export const createTables = `
   -- Episodes table
@@ -141,6 +141,19 @@ export const createTables = `
     CHECK(status = 'yellow' OR status_type IS NULL)
   );
 
+  -- Calendar overlays table (date ranges with contextual labels)
+  CREATE TABLE IF NOT EXISTS calendar_overlays (
+    id TEXT PRIMARY KEY,
+    start_date TEXT NOT NULL CHECK(start_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
+    end_date TEXT NOT NULL CHECK(end_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
+    label TEXT NOT NULL CHECK(length(label) > 0 AND length(label) <= 200),
+    notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
+    exclude_from_stats INTEGER NOT NULL DEFAULT 0 CHECK(exclude_from_stats IN (0, 1)),
+    created_at INTEGER NOT NULL CHECK(created_at > 0),
+    updated_at INTEGER NOT NULL CHECK(updated_at > 0),
+    CHECK(end_date >= start_date)
+  );
+
   -- Scheduled notifications table (for one-time notification tracking)
   CREATE TABLE IF NOT EXISTS scheduled_notifications (
     id TEXT PRIMARY KEY,
@@ -194,4 +207,7 @@ export const createTables = `
   CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_trigger_time ON scheduled_notifications(scheduled_trigger_time) WHERE scheduled_trigger_time IS NOT NULL;
   CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_category ON scheduled_notifications(category_identifier, scheduled_trigger_time) WHERE category_identifier IS NOT NULL;
   CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_content ON scheduled_notifications(notification_title, notification_body) WHERE notification_title IS NOT NULL;
+
+  -- Calendar overlays indexes (added in v23, updated in v25)
+  CREATE INDEX IF NOT EXISTS idx_calendar_overlays_dates ON calendar_overlays(start_date, end_date);
 `;
