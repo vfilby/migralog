@@ -152,7 +152,7 @@ class BackupCreator {
       }
 
       const result = await database.getAllAsync<{ count: number }>(
-        'SELECT COUNT(*) as count FROM calendar_overlays WHERE is_active = 1'
+        'SELECT COUNT(*) as count FROM calendar_overlays'
       );
       return result[0]?.count || 0;
     } catch (error) {

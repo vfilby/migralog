@@ -10,10 +10,11 @@ interface OverlayState {
   error: string | null;
 
   // Actions
-  loadOverlays: () => Promise<void>;
+  /** Load all overlays - use for backup/export only. For app layer, use loadOverlaysForDateRange */
+  getAllForExport: () => Promise<void>;
   loadOverlaysForDateRange: (startDate: string, endDate: string) => Promise<void>;
   getOverlaysForDate: (date: string) => Promise<CalendarOverlay[]>;
-  createOverlay: (overlay: Omit<CalendarOverlay, 'id' | 'createdAt' | 'updatedAt' | 'isActive'>) => Promise<CalendarOverlay>;
+  createOverlay: (overlay: Omit<CalendarOverlay, 'id' | 'createdAt' | 'updatedAt'>) => Promise<CalendarOverlay>;
   updateOverlay: (id: string, updates: Partial<CalendarOverlay>) => Promise<void>;
   deleteOverlay: (id: string) => Promise<void>;
   reset: () => void;
@@ -24,14 +25,15 @@ export const useOverlayStore = create<OverlayState>((set, get) => ({
   loading: false,
   error: null,
 
-  loadOverlays: async () => {
+  /** Load all overlays - use for backup/export only. For app layer, use loadOverlaysForDateRange */
+  getAllForExport: async () => {
     set({ loading: true, error: null });
     try {
       const overlays = await overlayRepository.getAll();
       set({ overlays, loading: false });
     } catch (error) {
-      await errorLogger.log('database', 'Failed to load overlays', error as Error, {
-        operation: 'loadOverlays'
+      await errorLogger.log('database', 'Failed to load overlays for export', error as Error, {
+        operation: 'getAllForExport'
       });
       set({ error: (error as Error).message, loading: false });
     }
@@ -69,10 +71,7 @@ export const useOverlayStore = create<OverlayState>((set, get) => ({
   createOverlay: async (overlay) => {
     set({ loading: true, error: null });
     try {
-      const newOverlay = await overlayRepository.create({
-        ...overlay,
-        isActive: true
-      });
+      const newOverlay = await overlayRepository.create(overlay);
 
       // Update local state - add and sort
       const updatedOverlays = [...get().overlays, newOverlay].sort((a, b) =>

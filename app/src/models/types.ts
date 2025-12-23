@@ -192,7 +192,6 @@ export interface CalendarOverlay {
   endDate: string;        // YYYY-MM-DD format
   label: string;          // User-friendly name (e.g., "Cold - on medication")
   notes?: string;         // Optional detailed notes
-  isActive: boolean;      // Soft delete flag
   createdAt: number;
   updatedAt: number;
 }

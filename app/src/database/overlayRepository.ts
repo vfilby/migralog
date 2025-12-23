@@ -28,15 +28,14 @@ export const overlayRepository = {
 
     await database.runAsync(
       `INSERT INTO calendar_overlays (
-        id, start_date, end_date, label, notes, is_active, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        id, start_date, end_date, label, notes, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         newOverlay.id,
         newOverlay.startDate,
         newOverlay.endDate,
         newOverlay.label,
         newOverlay.notes || null,
-        newOverlay.isActive ? 1 : 0,
         newOverlay.createdAt,
         newOverlay.updatedAt,
       ]
@@ -72,10 +71,6 @@ export const overlayRepository = {
       fields.push('notes = ?');
       values.push(updates.notes || null);
     }
-    if (updates.isActive !== undefined) {
-      fields.push('is_active = ?');
-      values.push(updates.isActive ? 1 : 0);
-    }
 
     fields.push('updated_at = ?');
     values.push(now);
@@ -89,23 +84,13 @@ export const overlayRepository = {
 
   async delete(id: string, db?: SQLite.SQLiteDatabase): Promise<void> {
     const database = db || await getDatabase();
-    // Soft delete - set isActive to false
-    await database.runAsync(
-      'UPDATE calendar_overlays SET is_active = 0, updated_at = ? WHERE id = ?',
-      [Date.now(), id]
-    );
-  },
-
-  async hardDelete(id: string, db?: SQLite.SQLiteDatabase): Promise<void> {
-    const database = db || await getDatabase();
-    // Hard delete - actually remove from database
     await database.runAsync('DELETE FROM calendar_overlays WHERE id = ?', [id]);
   },
 
   async getById(id: string, db?: SQLite.SQLiteDatabase): Promise<CalendarOverlay | null> {
     const database = db || await getDatabase();
     const result = await database.getFirstAsync<CalendarOverlayRow>(
-      'SELECT * FROM calendar_overlays WHERE id = ? AND is_active = 1',
+      'SELECT * FROM calendar_overlays WHERE id = ?',
       [id]
     );
 
@@ -119,7 +104,7 @@ export const overlayRepository = {
     // Find overlays that intersect with the date range
     // An overlay intersects if: overlay.start_date <= endDate AND overlay.end_date >= startDate
     const results = await database.getAllAsync<CalendarOverlayRow>(
-      'SELECT * FROM calendar_overlays WHERE start_date <= ? AND end_date >= ? AND is_active = 1 ORDER BY start_date ASC',
+      'SELECT * FROM calendar_overlays WHERE start_date <= ? AND end_date >= ? ORDER BY start_date ASC',
       [endDate, startDate]
     );
 
@@ -130,17 +115,21 @@ export const overlayRepository = {
     const database = db || await getDatabase();
     // Find all overlays that contain this specific date
     const results = await database.getAllAsync<CalendarOverlayRow>(
-      'SELECT * FROM calendar_overlays WHERE start_date <= ? AND end_date >= ? AND is_active = 1 ORDER BY start_date ASC',
+      'SELECT * FROM calendar_overlays WHERE start_date <= ? AND end_date >= ? ORDER BY start_date ASC',
       [date, date]
     );
 
     return results.map(this.mapRowToOverlay);
   },
 
+  /**
+   * Get all overlays - use for backup/export only.
+   * For app layer queries, use getDateRange or getByDate instead.
+   */
   async getAll(db?: SQLite.SQLiteDatabase): Promise<CalendarOverlay[]> {
     const database = db || await getDatabase();
     const results = await database.getAllAsync<CalendarOverlayRow>(
-      'SELECT * FROM calendar_overlays WHERE is_active = 1 ORDER BY start_date DESC'
+      'SELECT * FROM calendar_overlays ORDER BY start_date DESC'
     );
 
     return results.map(this.mapRowToOverlay);
@@ -158,7 +147,6 @@ export const overlayRepository = {
       endDate: row.end_date,
       label: row.label,
       notes: row.notes || undefined,
-      isActive: row.is_active === 1,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

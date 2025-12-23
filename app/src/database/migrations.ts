@@ -533,6 +533,83 @@ const migrations: Migration[] = [
       logger.log('Migration 24 rollback: Complete');
     },
   },
+  {
+    version: 25,
+    name: 'remove_is_active_from_calendar_overlays',
+    up: async (db: SQLite.SQLiteDatabase) => {
+      logger.log('Migration 25: Removing is_active column from calendar_overlays (switching to hard delete)...');
+
+      // SQLite doesn't support DROP COLUMN directly, so we need to recreate the table
+      await db.execAsync(`
+        -- Drop the is_active index first
+        DROP INDEX IF EXISTS idx_calendar_overlays_active;
+
+        -- Create new table without is_active column
+        CREATE TABLE calendar_overlays_new (
+          id TEXT PRIMARY KEY,
+          start_date TEXT NOT NULL CHECK(start_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
+          end_date TEXT NOT NULL CHECK(end_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
+          label TEXT NOT NULL CHECK(length(label) > 0 AND length(label) <= 200),
+          notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
+          created_at INTEGER NOT NULL CHECK(created_at > 0),
+          updated_at INTEGER NOT NULL CHECK(updated_at > 0),
+          CHECK(end_date >= start_date)
+        );
+
+        -- Copy only active records (is_active = 1) - soft-deleted records are discarded
+        INSERT INTO calendar_overlays_new (id, start_date, end_date, label, notes, created_at, updated_at)
+        SELECT id, start_date, end_date, label, notes, created_at, updated_at
+        FROM calendar_overlays
+        WHERE is_active = 1;
+
+        -- Drop old table
+        DROP TABLE calendar_overlays;
+
+        -- Rename new table
+        ALTER TABLE calendar_overlays_new RENAME TO calendar_overlays;
+
+        -- Recreate date index (no longer need is_active index)
+        CREATE INDEX IF NOT EXISTS idx_calendar_overlays_dates ON calendar_overlays(start_date, end_date);
+      `);
+
+      logger.log('Migration 25: is_active column removed successfully');
+    },
+    down: async (db: SQLite.SQLiteDatabase) => {
+      logger.log('Migration 25 rollback: Re-adding is_active column to calendar_overlays table...');
+
+      await db.execAsync(`
+        -- Create table with is_active column
+        CREATE TABLE calendar_overlays_new (
+          id TEXT PRIMARY KEY,
+          start_date TEXT NOT NULL CHECK(start_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
+          end_date TEXT NOT NULL CHECK(end_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
+          label TEXT NOT NULL CHECK(length(label) > 0 AND length(label) <= 200),
+          notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
+          is_active INTEGER NOT NULL DEFAULT 1 CHECK(is_active IN (0, 1)),
+          created_at INTEGER NOT NULL CHECK(created_at > 0),
+          updated_at INTEGER NOT NULL CHECK(updated_at > 0),
+          CHECK(end_date >= start_date)
+        );
+
+        -- Copy data with is_active = 1 (all existing records are active)
+        INSERT INTO calendar_overlays_new (id, start_date, end_date, label, notes, is_active, created_at, updated_at)
+        SELECT id, start_date, end_date, label, notes, 1, created_at, updated_at
+        FROM calendar_overlays;
+
+        -- Drop old table
+        DROP TABLE calendar_overlays;
+
+        -- Rename new table
+        ALTER TABLE calendar_overlays_new RENAME TO calendar_overlays;
+
+        -- Recreate indexes
+        CREATE INDEX IF NOT EXISTS idx_calendar_overlays_dates ON calendar_overlays(start_date, end_date);
+        CREATE INDEX IF NOT EXISTS idx_calendar_overlays_active ON calendar_overlays(is_active, start_date, end_date) WHERE is_active = 1;
+      `);
+
+      logger.log('Migration 25 rollback: Complete');
+    },
+  },
 ];
 
 class MigrationRunner {

@@ -495,7 +495,7 @@ export default function MonthlyCalendarView({
 
   const getOverlaysForDate = (dateStr: string): CalendarOverlay[] => {
     return overlays.filter(overlay =>
-      dateStr >= overlay.startDate && dateStr <= overlay.endDate && overlay.isActive
+      dateStr >= overlay.startDate && dateStr <= overlay.endDate
     );
   };
 
