@@ -101,8 +101,16 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     gap: 16,
   },
-  statusEmoji: {
-    fontSize: 36,
+  statusCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  statusCircleGreen: {
+    backgroundColor: '#22c55e',
+  },
+  statusCircleYellow: {
+    backgroundColor: '#eab308',
   },
   statusTextContainer: {
     flex: 1,
@@ -792,7 +800,7 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
               testID="green-day-button"
             >
               <View style={styles.statusButtonContent}>
-                <Text style={styles.statusEmoji}>🟢</Text>
+                <View style={[styles.statusCircle, styles.statusCircleGreen]} />
                 <View style={styles.statusTextContainer}>
                   <Text style={styles.statusTitle}>Clear Day</Text>
                   <Text style={styles.statusDescription}>
@@ -812,7 +820,7 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
               testID="yellow-day-button"
             >
               <View style={styles.statusButtonContent}>
-                <Text style={styles.statusEmoji}>🟡</Text>
+                <View style={[styles.statusCircle, styles.statusCircleYellow]} />
                 <View style={styles.statusTextContainer}>
                   <Text style={styles.statusTitle}>Not Clear</Text>
                   <Text style={styles.statusDescription}>
