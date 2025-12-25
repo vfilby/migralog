@@ -339,7 +339,7 @@ const createStyles = (theme: ThemeColors) =>
     },
     modalScrollView: {
       flex: 1,
-      paddingRight: 8,
+      paddingRight: 16,
     },
     modalLabel: {
       fontSize: 15,
