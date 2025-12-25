@@ -82,6 +82,25 @@ const OverlayLineIndicator = ({ position, styles }: OverlayLineIndicatorProps) =
   return <View style={styles.overlayLine} />;
 };
 
+// Helper to format overlay date range
+const formatOverlayDateRange = (startDate: string, endDate: string | undefined): string => {
+  const start = new Date(startDate + 'T00:00:00');
+
+  // Handle ongoing overlays (no end date)
+  if (!endDate) {
+    return `${format(start, 'MMM d, yyyy')} - Ongoing`;
+  }
+
+  const end = new Date(endDate + 'T00:00:00');
+  if (startDate === endDate) {
+    return format(start, 'MMM d, yyyy');
+  }
+  if (start.getFullYear() === end.getFullYear()) {
+    return `${format(start, 'MMM d')} - ${format(end, 'MMM d, yyyy')}`;
+  }
+  return `${format(start, 'MMM d, yyyy')} - ${format(end, 'MMM d, yyyy')}`;
+};
+
 const createStyles = (theme: ThemeColors) =>
   StyleSheet.create({
     container: {
@@ -247,6 +266,52 @@ const createStyles = (theme: ThemeColors) =>
       color: theme.text,
       fontWeight: '500',
     },
+    overlayListSection: {
+      marginTop: 16,
+      paddingTop: 16,
+      borderTopWidth: 1,
+      borderTopColor: theme.border,
+    },
+    overlayListTitle: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: theme.text,
+      marginBottom: 12,
+    },
+    overlayListItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: theme.background,
+      padding: 12,
+      borderRadius: 8,
+      marginBottom: 8,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    overlayListContent: {
+      flex: 1,
+      marginRight: 8,
+    },
+    overlayListLabel: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: theme.text,
+      marginBottom: 2,
+    },
+    overlayListDates: {
+      fontSize: 13,
+      color: theme.textSecondary,
+    },
+    overlayListActions: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    overlayListActionButton: {
+      padding: 8,
+      borderRadius: 6,
+      backgroundColor: theme.card,
+    },
     modalOverlay: {
       flex: 1,
       backgroundColor: theme.background,
@@ -396,11 +461,12 @@ export default function MonthlyCalendarView({
 
   const [currentMonth, setCurrentMonth] = useState(initialDate);
   const { dailyStatuses, loadDailyStatuses, loading } = useDailyStatusStore();
-  const { overlays, loadOverlaysForDateRange, createOverlay } = useOverlayStore();
+  const { overlays, loadOverlaysForDateRange, createOverlay, updateOverlay, deleteOverlay } = useOverlayStore();
 
   // Overlay modal state
   const [showOverlayModal, setShowOverlayModal] = useState(false);
   const [savingOverlay, setSavingOverlay] = useState(false);
+  const [editingOverlay, setEditingOverlay] = useState<CalendarOverlay | null>(null);
   const [overlayForm, setOverlayForm] = useState({
     label: '',
     startDate: format(new Date(), 'yyyy-MM-dd'),
@@ -474,6 +540,7 @@ export default function MonthlyCalendarView({
   // Overlay handlers
   const handleAddOverlay = () => {
     const today = format(new Date(), 'yyyy-MM-dd');
+    setEditingOverlay(null);
     setOverlayForm({
       label: '',
       startDate: today,
@@ -484,6 +551,54 @@ export default function MonthlyCalendarView({
     });
     setRangeSelectionMode('start');
     setShowOverlayModal(true);
+  };
+
+  const handleEditOverlay = (overlay: CalendarOverlay) => {
+    setEditingOverlay(overlay);
+    setOverlayForm({
+      label: overlay.label,
+      startDate: overlay.startDate,
+      endDate: overlay.endDate,
+      notes: overlay.notes || '',
+      excludeFromStats: overlay.excludeFromStats,
+      isOngoing: overlay.endDate === undefined,
+    });
+    setRangeSelectionMode('start');
+    setShowOverlayModal(true);
+  };
+
+  const handleEndOverlayToday = async (overlay: CalendarOverlay) => {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    try {
+      await updateOverlay(overlay.id, { endDate: today });
+      await loadMonthData();
+    } catch (error) {
+      logger.error('[MonthlyCalendarView] Failed to end overlay:', error);
+      Alert.alert('Error', 'Failed to update overlay. Please try again.');
+    }
+  };
+
+  const handleDeleteOverlay = (overlay: CalendarOverlay) => {
+    Alert.alert(
+      'Delete Overlay',
+      `Are you sure you want to delete "${overlay.label}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteOverlay(overlay.id);
+              await loadMonthData();
+            } catch (error) {
+              logger.error('[MonthlyCalendarView] Failed to delete overlay:', error);
+              Alert.alert('Error', 'Failed to delete overlay. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleSaveOverlay = async () => {
@@ -511,15 +626,22 @@ export default function MonthlyCalendarView({
 
     setSavingOverlay(true);
     try {
-      await createOverlay({
+      const overlayData = {
         label: overlayForm.label,
         startDate: overlayForm.startDate,
         endDate: overlayForm.isOngoing ? undefined : overlayForm.endDate,
         notes: overlayForm.notes,
         excludeFromStats: overlayForm.excludeFromStats,
-      });
-      await loadMonthData(); // Reload to show new overlay
+      };
+
+      if (editingOverlay) {
+        await updateOverlay(editingOverlay.id, overlayData);
+      } else {
+        await createOverlay(overlayData);
+      }
+      await loadMonthData(); // Reload to show changes
       setShowOverlayModal(false);
+      setEditingOverlay(null);
     } catch (error) {
       logger.error('[MonthlyCalendarView] Failed to save overlay:', error);
       Alert.alert('Error', 'Failed to save overlay. Please try again.');
@@ -577,15 +699,20 @@ export default function MonthlyCalendarView({
               const dateStr = format(day, 'yyyy-MM-dd');
               const status = getStatusForDate(dateStr);
               const dayOverlays = getOverlaysForDate(dateStr);
-              const hasOverlays = dayOverlays.length > 0;
-
-              // Determine overlay position ('none' if no overlays for consistent alignment)
-              const overlayPosition: OverlayPosition = hasOverlays ? 'active' : 'none';
 
               const isCurrentMonth = isSameMonth(day, currentMonth);
               const today = startOfDay(new Date());
               const selectedDay = startOfDay(day);
               const isFuture = isAfter(selectedDay, today);
+
+              // For future dates, don't show visual indicators for ongoing overlays
+              const visibleOverlays = isFuture
+                ? dayOverlays.filter(overlay => overlay.endDate !== undefined)
+                : dayOverlays;
+              const hasOverlays = visibleOverlays.length > 0;
+
+              // Determine overlay position ('none' if no overlays for consistent alignment)
+              const overlayPosition: OverlayPosition = hasOverlays ? 'active' : 'none';
               const isTodayDate = isToday(day);
 
               return (
@@ -601,7 +728,7 @@ export default function MonthlyCalendarView({
                   disabled={isFuture}
                   testID={`calendar-day-${dateStr}`}
                   accessibilityRole="button"
-                  accessibilityLabel={`${format(day, 'MMMM d, yyyy')}${status ? `, Status: ${status.status}` : ', No status recorded'}${hasOverlays ? `, ${dayOverlays.length} overlay${dayOverlays.length > 1 ? 's' : ''}` : ''}`}
+                  accessibilityLabel={`${format(day, 'MMMM d, yyyy')}${status ? `, Status: ${status.status}` : ', No status recorded'}${hasOverlays ? `, ${visibleOverlays.length} overlay${visibleOverlays.length > 1 ? 's' : ''}` : ''}`}
                   accessibilityHint={isFuture ? 'Future date, cannot be edited' : 'Double tap to view or edit daily status'}
                   accessibilityState={{ disabled: isFuture }}
                 >
@@ -699,6 +826,48 @@ export default function MonthlyCalendarView({
         </View>
       </View>
 
+      {/* Overlay List */}
+      {overlays.length > 0 && (
+        <View style={styles.overlayListSection}>
+          <Text style={styles.overlayListTitle}>Overlays</Text>
+          {overlays.map((overlay) => (
+            <View key={overlay.id} style={styles.overlayListItem}>
+              <View style={styles.overlayListContent}>
+                <Text style={styles.overlayListLabel}>{overlay.label}</Text>
+                <Text style={styles.overlayListDates}>
+                  {formatOverlayDateRange(overlay.startDate, overlay.endDate)}
+                </Text>
+              </View>
+              <View style={styles.overlayListActions}>
+                {overlay.endDate === undefined && (
+                  <TouchableOpacity
+                    style={styles.overlayListActionButton}
+                    onPress={() => handleEndOverlayToday(overlay)}
+                    testID={`end-overlay-${overlay.id}`}
+                  >
+                    <Ionicons name="stop-circle-outline" size={18} color={theme.text} />
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  style={styles.overlayListActionButton}
+                  onPress={() => handleEditOverlay(overlay)}
+                  testID={`edit-overlay-${overlay.id}`}
+                >
+                  <Ionicons name="pencil" size={18} color={theme.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.overlayListActionButton}
+                  onPress={() => handleDeleteOverlay(overlay)}
+                  testID={`delete-overlay-${overlay.id}`}
+                >
+                  <Ionicons name="trash-outline" size={18} color="#c62828" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+
       {/* Add Overlay Button */}
       <TouchableOpacity
         style={styles.addOverlayButton}
@@ -709,7 +878,7 @@ export default function MonthlyCalendarView({
         <Text style={styles.addOverlayButtonText}>Add Overlay</Text>
       </TouchableOpacity>
 
-      {/* Add Overlay Modal */}
+      {/* Overlay Modal */}
       <Modal
         visible={showOverlayModal}
         animationType="slide"
@@ -725,7 +894,7 @@ export default function MonthlyCalendarView({
               <TouchableOpacity onPress={() => setShowOverlayModal(false)}>
                 <Text style={styles.modalCloseButton}>Cancel</Text>
               </TouchableOpacity>
-              <Text style={styles.modalTitle}>Add Overlay</Text>
+              <Text style={styles.modalTitle}>{editingOverlay ? 'Edit Overlay' : 'Add Overlay'}</Text>
               <View style={{ width: 60 }} />
             </View>
 

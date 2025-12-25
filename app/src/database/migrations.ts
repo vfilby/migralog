@@ -585,7 +585,6 @@ const migrations: Migration[] = [
         // Table exists - check if it has all required columns
         const columnNames = tableInfo.map(col => col.name);
         const hasExcludeFromStats = columnNames.includes('exclude_from_stats');
-        const hasNullableEndDate = true; // We'll recreate to ensure this
 
         if (!hasExcludeFromStats) {
           logger.log('Migration 25: Rebuilding calendar_overlays with correct schema...');
@@ -629,7 +628,7 @@ const migrations: Migration[] = [
 
       logger.log('Migration 25: calendar_overlays schema verified');
     },
-    down: async (db: SQLite.SQLiteDatabase) => {
+    down: async (_db: SQLite.SQLiteDatabase) => {
       logger.log('Migration 25 rollback: No action needed');
       // This migration only fixes schema issues, no rollback needed
     },
