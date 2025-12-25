@@ -1,6 +1,6 @@
 // Database schema and initialization
 
-export const SCHEMA_VERSION = 23;
+export const SCHEMA_VERSION = 25;
 
 export const createTables = `
   -- Episodes table
@@ -142,16 +142,17 @@ export const createTables = `
   );
 
   -- Calendar overlays table (date ranges with contextual labels)
+  -- end_date can be NULL to represent ongoing/open-ended overlays
   CREATE TABLE IF NOT EXISTS calendar_overlays (
     id TEXT PRIMARY KEY,
     start_date TEXT NOT NULL CHECK(start_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
-    end_date TEXT NOT NULL CHECK(end_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
+    end_date TEXT CHECK(end_date IS NULL OR end_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
     label TEXT NOT NULL CHECK(length(label) > 0 AND length(label) <= 200),
     notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
     exclude_from_stats INTEGER NOT NULL DEFAULT 0 CHECK(exclude_from_stats IN (0, 1)),
     created_at INTEGER NOT NULL CHECK(created_at > 0),
     updated_at INTEGER NOT NULL CHECK(updated_at > 0),
-    CHECK(end_date >= start_date)
+    CHECK(end_date IS NULL OR end_date >= start_date)
   );
 
   -- Scheduled notifications table (for one-time notification tracking)
