@@ -11,6 +11,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Calendar, DateData } from 'react-native-calendars';
@@ -363,6 +364,27 @@ const createStyles = (theme: ThemeColors) =>
       fontSize: 17,
       fontWeight: '600',
     },
+    ongoingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: theme.card,
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    ongoingLabel: {
+      fontSize: 16,
+      color: theme.text,
+      fontWeight: '500',
+    },
+    ongoingDescription: {
+      fontSize: 13,
+      color: theme.textSecondary,
+      marginTop: 4,
+    },
   });
 
 export default function MonthlyCalendarView({
@@ -382,9 +404,10 @@ export default function MonthlyCalendarView({
   const [overlayForm, setOverlayForm] = useState({
     label: '',
     startDate: format(new Date(), 'yyyy-MM-dd'),
-    endDate: format(new Date(), 'yyyy-MM-dd'),
+    endDate: format(new Date(), 'yyyy-MM-dd') as string | undefined,
     notes: '',
     excludeFromStats: false,
+    isOngoing: false,  // When true, endDate is undefined (ongoing overlay)
   });
   const [rangeSelectionMode, setRangeSelectionMode] = useState<'start' | 'end'>('start');
 
@@ -457,6 +480,7 @@ export default function MonthlyCalendarView({
       endDate: today,
       notes: '',
       excludeFromStats: false,
+      isOngoing: false,
     });
     setRangeSelectionMode('start');
     setShowOverlayModal(true);
@@ -468,23 +492,32 @@ export default function MonthlyCalendarView({
       return;
     }
 
-    if (overlayForm.startDate > overlayForm.endDate) {
-      Alert.alert('Invalid Dates', 'End date must be on or after start date.');
-      return;
-    }
+    // For non-ongoing overlays, validate end date
+    if (!overlayForm.isOngoing) {
+      if (!overlayForm.endDate || overlayForm.startDate > overlayForm.endDate) {
+        Alert.alert('Invalid Dates', 'End date must be on or after start date.');
+        return;
+      }
 
-    // Validate against future dates
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const endDate = new Date(overlayForm.endDate + 'T00:00:00');
-    if (endDate > today) {
-      Alert.alert('Invalid Date', 'Overlay end date cannot be in the future.');
-      return;
+      // Validate against future dates
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const endDate = new Date(overlayForm.endDate + 'T00:00:00');
+      if (endDate > today) {
+        Alert.alert('Invalid Date', 'Overlay end date cannot be in the future.');
+        return;
+      }
     }
 
     setSavingOverlay(true);
     try {
-      await createOverlay(overlayForm);
+      await createOverlay({
+        label: overlayForm.label,
+        startDate: overlayForm.startDate,
+        endDate: overlayForm.isOngoing ? undefined : overlayForm.endDate,
+        notes: overlayForm.notes,
+        excludeFromStats: overlayForm.excludeFromStats,
+      });
       await loadMonthData(); // Reload to show new overlay
       setShowOverlayModal(false);
     } catch (error) {
@@ -497,7 +530,7 @@ export default function MonthlyCalendarView({
 
   const getOverlaysForDate = (dateStr: string): CalendarOverlay[] => {
     return overlays.filter(overlay =>
-      dateStr >= overlay.startDate && dateStr <= overlay.endDate
+      dateStr >= overlay.startDate && (overlay.endDate === undefined || dateStr <= overlay.endDate)
     );
   };
 
@@ -707,7 +740,26 @@ export default function MonthlyCalendarView({
                 testID="overlay-label-input"
               />
 
-              <Text style={styles.modalLabel}>Date Range</Text>
+              <Text style={styles.modalLabel}>Duration</Text>
+              <View style={styles.ongoingRow}>
+                <View>
+                  <Text style={styles.ongoingLabel}>Ongoing</Text>
+                  <Text style={styles.ongoingDescription}>No end date (still active)</Text>
+                </View>
+                <Switch
+                  value={overlayForm.isOngoing}
+                  onValueChange={(value) => {
+                    setOverlayForm({ ...overlayForm, isOngoing: value });
+                    if (value) {
+                      setRangeSelectionMode('start');
+                    }
+                  }}
+                  trackColor={{ false: theme.border, true: theme.primary }}
+                  testID="ongoing-toggle"
+                />
+              </View>
+
+              <Text style={styles.modalLabel}>{overlayForm.isOngoing ? 'Start Date' : 'Date Range'}</Text>
               <View style={styles.dateRangeInfo}>
                 <View style={styles.dateRangeItem}>
                   <Text style={[
@@ -727,28 +779,34 @@ export default function MonthlyCalendarView({
                     </Text>
                   </TouchableOpacity>
                 </View>
-                <Text style={styles.dateRangeArrow}>→</Text>
-                <View style={styles.dateRangeItem}>
-                  <Text style={[
-                    styles.dateRangeLabel,
-                    rangeSelectionMode === 'end' && styles.dateRangeLabelActive
-                  ]}>End</Text>
-                  <TouchableOpacity
-                    style={[
-                      styles.dateRangeButton,
-                      rangeSelectionMode === 'end' && styles.dateRangeButtonActive
-                    ]}
-                    onPress={() => setRangeSelectionMode('end')}
-                    testID="end-date-button"
-                  >
-                    <Text style={styles.dateRangeButtonText}>
-                      {format(new Date(overlayForm.endDate + 'T00:00:00'), 'MMM d, yyyy')}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                {!overlayForm.isOngoing && (
+                  <>
+                    <Text style={styles.dateRangeArrow}>→</Text>
+                    <View style={styles.dateRangeItem}>
+                      <Text style={[
+                        styles.dateRangeLabel,
+                        rangeSelectionMode === 'end' && styles.dateRangeLabelActive
+                      ]}>End</Text>
+                      <TouchableOpacity
+                        style={[
+                          styles.dateRangeButton,
+                          rangeSelectionMode === 'end' && styles.dateRangeButtonActive
+                        ]}
+                        onPress={() => setRangeSelectionMode('end')}
+                        testID="end-date-button"
+                      >
+                        <Text style={styles.dateRangeButtonText}>
+                          {overlayForm.endDate ? format(new Date(overlayForm.endDate + 'T00:00:00'), 'MMM d, yyyy') : 'Select'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                )}
               </View>
               <Text style={styles.dateRangeHint}>
-                {rangeSelectionMode === 'start' ? 'Tap a date to set the start' : 'Tap a date to set the end'}
+                {overlayForm.isOngoing
+                  ? 'Tap a date to set when this started'
+                  : (rangeSelectionMode === 'start' ? 'Tap a date to set the start' : 'Tap a date to set the end')}
               </Text>
               <Calendar
                 markingType="period"
@@ -757,7 +815,10 @@ export default function MonthlyCalendarView({
                   const start = overlayForm.startDate;
                   const end = overlayForm.endDate;
 
-                  if (start === end) {
+                  if (overlayForm.isOngoing) {
+                    // For ongoing overlays, just mark the start date
+                    marks[start] = { startingDay: true, endingDay: true, color: theme.primary, textColor: theme.primaryText };
+                  } else if (!end || start === end) {
                     marks[start] = { startingDay: true, endingDay: true, color: theme.primary, textColor: theme.primaryText };
                   } else {
                     marks[start] = { startingDay: true, color: theme.primary, textColor: theme.primaryText };
@@ -776,8 +837,11 @@ export default function MonthlyCalendarView({
                 })()}
                 onDayPress={(day: DateData) => {
                   const selectedDate = day.dateString;
-                  if (rangeSelectionMode === 'start') {
-                    if (selectedDate > overlayForm.endDate) {
+                  if (overlayForm.isOngoing) {
+                    // For ongoing overlays, only set start date
+                    setOverlayForm({ ...overlayForm, startDate: selectedDate });
+                  } else if (rangeSelectionMode === 'start') {
+                    if (overlayForm.endDate && selectedDate > overlayForm.endDate) {
                       setOverlayForm({ ...overlayForm, startDate: selectedDate, endDate: selectedDate });
                     } else {
                       setOverlayForm({ ...overlayForm, startDate: selectedDate });

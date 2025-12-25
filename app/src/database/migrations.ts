@@ -450,6 +450,89 @@ const migrations: Migration[] = [
       logger.log('Migration 23 rollback: Complete');
     },
   },
+  {
+    version: 24,
+    name: 'allow_nullable_end_date_in_calendar_overlays',
+    up: async (db: SQLite.SQLiteDatabase) => {
+      logger.log('Migration 24: Making end_date nullable in calendar_overlays for ongoing overlays...');
+
+      // SQLite doesn't support ALTER TABLE to modify column constraints
+      // Must recreate the table with the new schema
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS calendar_overlays_new (
+          id TEXT PRIMARY KEY,
+          start_date TEXT NOT NULL CHECK(start_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
+          end_date TEXT CHECK(end_date IS NULL OR end_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
+          label TEXT NOT NULL CHECK(length(label) > 0 AND length(label) <= 200),
+          notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
+          exclude_from_stats INTEGER NOT NULL DEFAULT 0 CHECK(exclude_from_stats IN (0, 1)),
+          created_at INTEGER NOT NULL CHECK(created_at > 0),
+          updated_at INTEGER NOT NULL CHECK(updated_at > 0),
+          CHECK(end_date IS NULL OR end_date >= start_date)
+        );
+      `);
+
+      // Copy existing data
+      await db.execAsync(`
+        INSERT INTO calendar_overlays_new
+          (id, start_date, end_date, label, notes, exclude_from_stats, created_at, updated_at)
+        SELECT
+          id, start_date, end_date, label, notes, exclude_from_stats, created_at, updated_at
+        FROM calendar_overlays;
+      `);
+
+      // Drop old table and rename new one
+      await db.execAsync('DROP TABLE calendar_overlays;');
+      await db.execAsync('ALTER TABLE calendar_overlays_new RENAME TO calendar_overlays;');
+
+      // Recreate indexes
+      await db.execAsync(`
+        CREATE INDEX IF NOT EXISTS idx_calendar_overlays_dates ON calendar_overlays(start_date, end_date);
+      `);
+
+      logger.log('Migration 24: calendar_overlays end_date is now nullable');
+    },
+    down: async (db: SQLite.SQLiteDatabase) => {
+      logger.log('Migration 24 rollback: Making end_date NOT NULL again...');
+
+      // Recreate the table with v23 schema (end_date NOT NULL)
+      // Note: This will fail if there are any rows with NULL end_date
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS calendar_overlays_new (
+          id TEXT PRIMARY KEY,
+          start_date TEXT NOT NULL CHECK(start_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
+          end_date TEXT NOT NULL CHECK(end_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
+          label TEXT NOT NULL CHECK(length(label) > 0 AND length(label) <= 200),
+          notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
+          exclude_from_stats INTEGER NOT NULL DEFAULT 0 CHECK(exclude_from_stats IN (0, 1)),
+          created_at INTEGER NOT NULL CHECK(created_at > 0),
+          updated_at INTEGER NOT NULL CHECK(updated_at > 0),
+          CHECK(end_date >= start_date)
+        );
+      `);
+
+      // Copy data - only rows with non-NULL end_date can be migrated back
+      await db.execAsync(`
+        INSERT INTO calendar_overlays_new
+          (id, start_date, end_date, label, notes, exclude_from_stats, created_at, updated_at)
+        SELECT
+          id, start_date, end_date, label, notes, exclude_from_stats, created_at, updated_at
+        FROM calendar_overlays
+        WHERE end_date IS NOT NULL;
+      `);
+
+      // Drop old table and rename new one
+      await db.execAsync('DROP TABLE calendar_overlays;');
+      await db.execAsync('ALTER TABLE calendar_overlays_new RENAME TO calendar_overlays;');
+
+      // Recreate indexes
+      await db.execAsync(`
+        CREATE INDEX IF NOT EXISTS idx_calendar_overlays_dates ON calendar_overlays(start_date, end_date);
+      `);
+
+      logger.log('Migration 24 rollback: Complete');
+    },
+  },
 ];
 
 class MigrationRunner {

@@ -12,6 +12,7 @@ import {
   Platform,
   ActivityIndicator,
   Modal,
+  Switch,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -32,8 +33,14 @@ const YELLOW_TYPES: { value: YellowDayType; label: string; description: string }
 ];
 
 // Helper to format overlay date range
-const formatOverlayDateRange = (startDate: string, endDate: string): string => {
+const formatOverlayDateRange = (startDate: string, endDate: string | undefined): string => {
   const start = new Date(startDate + 'T00:00:00');
+
+  // Handle ongoing overlays (no end date)
+  if (!endDate) {
+    return `${format(start, 'MMM d, yyyy')} - Ongoing`;
+  }
+
   const end = new Date(endDate + 'T00:00:00');
   if (startDate === endDate) {
     return format(start, 'MMM d, yyyy');
@@ -428,6 +435,27 @@ const createStyles = (theme: ThemeColors) => StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
   },
+  ongoingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  ongoingLabel: {
+    fontSize: 16,
+    color: theme.text,
+    fontWeight: '500',
+  },
+  ongoingDescription: {
+    fontSize: 13,
+    color: theme.textSecondary,
+    marginTop: 4,
+  },
 });
 
 export default function DailyStatusPromptScreen({ navigation, route }: Props) {
@@ -454,8 +482,9 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
   const [overlayForm, setOverlayForm] = useState({
     label: '',
     startDate: targetDate,
-    endDate: targetDate,
+    endDate: targetDate as string | undefined,
     notes: '',
+    isOngoing: false,
   });
   // Range selection: 'start' means next tap sets start date, 'end' means next tap sets end date
   const [rangeSelectionMode, setRangeSelectionMode] = useState<'start' | 'end'>('start');
@@ -581,6 +610,7 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
       startDate: overlay.startDate,
       endDate: overlay.endDate,
       notes: overlay.notes || '',
+      isOngoing: overlay.endDate === undefined,
     });
     setRangeSelectionMode('start');
     setShowOverlayModal(true);
@@ -627,18 +657,21 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
       return;
     }
 
-    if (overlayForm.startDate > overlayForm.endDate) {
-      Alert.alert('Invalid Dates', 'End date must be on or after start date.');
-      return;
-    }
+    // For non-ongoing overlays, validate end date
+    if (!overlayForm.isOngoing) {
+      if (!overlayForm.endDate || overlayForm.startDate > overlayForm.endDate) {
+        Alert.alert('Invalid Dates', 'End date must be on or after start date.');
+        return;
+      }
 
-    // Validate against future dates
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const endDate = new Date(overlayForm.endDate + 'T00:00:00');
-    if (endDate > today) {
-      Alert.alert('Invalid Date', 'Overlay end date cannot be in the future.');
-      return;
+      // Validate against future dates
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const endDate = new Date(overlayForm.endDate + 'T00:00:00');
+      if (endDate > today) {
+        Alert.alert('Invalid Date', 'Overlay end date cannot be in the future.');
+        return;
+      }
     }
 
     if (!editingOverlay) {
@@ -647,7 +680,12 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
 
     setSavingOverlay(true);
     try {
-      await updateOverlay(editingOverlay.id, overlayForm);
+      await updateOverlay(editingOverlay.id, {
+        label: overlayForm.label,
+        startDate: overlayForm.startDate,
+        endDate: overlayForm.isOngoing ? undefined : overlayForm.endDate,
+        notes: overlayForm.notes,
+      });
 
       const updatedOverlays = await getOverlaysForDate(targetDate);
       setDateOverlays(updatedOverlays);
@@ -1011,7 +1049,26 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
                 testID="overlay-label-input"
               />
 
-              <Text style={styles.modalLabel}>Date Range</Text>
+              <Text style={styles.modalLabel}>Duration</Text>
+              <View style={styles.ongoingRow}>
+                <View>
+                  <Text style={styles.ongoingLabel}>Ongoing</Text>
+                  <Text style={styles.ongoingDescription}>No end date (still active)</Text>
+                </View>
+                <Switch
+                  value={overlayForm.isOngoing}
+                  onValueChange={(value) => {
+                    setOverlayForm({ ...overlayForm, isOngoing: value });
+                    if (value) {
+                      setRangeSelectionMode('start');
+                    }
+                  }}
+                  trackColor={{ false: theme.border, true: theme.primary }}
+                  testID="ongoing-toggle"
+                />
+              </View>
+
+              <Text style={styles.modalLabel}>{overlayForm.isOngoing ? 'Start Date' : 'Date Range'}</Text>
               <View style={styles.dateRangeInfo}>
                 <View style={styles.dateRangeItem}>
                   <Text style={[
@@ -1031,28 +1088,34 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
                     </Text>
                   </TouchableOpacity>
                 </View>
-                <Text style={styles.dateRangeArrow}>→</Text>
-                <View style={styles.dateRangeItem}>
-                  <Text style={[
-                    styles.dateRangeLabel,
-                    rangeSelectionMode === 'end' && styles.dateRangeLabelActive
-                  ]}>End</Text>
-                  <TouchableOpacity
-                    style={[
-                      styles.dateRangeButton,
-                      rangeSelectionMode === 'end' && styles.dateRangeButtonActive
-                    ]}
-                    onPress={() => setRangeSelectionMode('end')}
-                    testID="end-date-button"
-                  >
-                    <Text style={styles.dateRangeButtonText}>
-                      {format(new Date(overlayForm.endDate + 'T00:00:00'), 'MMM d, yyyy')}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                {!overlayForm.isOngoing && (
+                  <>
+                    <Text style={styles.dateRangeArrow}>→</Text>
+                    <View style={styles.dateRangeItem}>
+                      <Text style={[
+                        styles.dateRangeLabel,
+                        rangeSelectionMode === 'end' && styles.dateRangeLabelActive
+                      ]}>End</Text>
+                      <TouchableOpacity
+                        style={[
+                          styles.dateRangeButton,
+                          rangeSelectionMode === 'end' && styles.dateRangeButtonActive
+                        ]}
+                        onPress={() => setRangeSelectionMode('end')}
+                        testID="end-date-button"
+                      >
+                        <Text style={styles.dateRangeButtonText}>
+                          {overlayForm.endDate ? format(new Date(overlayForm.endDate + 'T00:00:00'), 'MMM d, yyyy') : 'Select'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                )}
               </View>
               <Text style={styles.dateRangeHint}>
-                {rangeSelectionMode === 'start' ? 'Tap a date to set the start' : 'Tap a date to set the end'}
+                {overlayForm.isOngoing
+                  ? 'Tap a date to set when this started'
+                  : (rangeSelectionMode === 'start' ? 'Tap a date to set the start' : 'Tap a date to set the end')}
               </Text>
               <Calendar
                 markingType="period"
@@ -1061,7 +1124,10 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
                   const start = overlayForm.startDate;
                   const end = overlayForm.endDate;
 
-                  if (start === end) {
+                  if (overlayForm.isOngoing) {
+                    // For ongoing overlays, just mark the start date
+                    marks[start] = { startingDay: true, endingDay: true, color: theme.primary, textColor: theme.primaryText };
+                  } else if (!end || start === end) {
                     marks[start] = { startingDay: true, endingDay: true, color: theme.primary, textColor: theme.primaryText };
                   } else {
                     // Start date
@@ -1083,9 +1149,12 @@ export default function DailyStatusPromptScreen({ navigation, route }: Props) {
                 })()}
                 onDayPress={(day: DateData) => {
                   const selectedDate = day.dateString;
-                  if (rangeSelectionMode === 'start') {
+                  if (overlayForm.isOngoing) {
+                    // For ongoing overlays, only set start date
+                    setOverlayForm({ ...overlayForm, startDate: selectedDate });
+                  } else if (rangeSelectionMode === 'start') {
                     // Set start date, and if it's after current end, also update end
-                    if (selectedDate > overlayForm.endDate) {
+                    if (overlayForm.endDate && selectedDate > overlayForm.endDate) {
                       setOverlayForm({ ...overlayForm, startDate: selectedDate, endDate: selectedDate });
                     } else {
                       setOverlayForm({ ...overlayForm, startDate: selectedDate });

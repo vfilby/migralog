@@ -189,7 +189,7 @@ export interface DailyStatusLog {
 export interface CalendarOverlay {
   id: string;
   startDate: string;          // YYYY-MM-DD format
-  endDate: string;            // YYYY-MM-DD format
+  endDate?: string;           // YYYY-MM-DD format, undefined means ongoing/open-ended
   label: string;              // User-friendly name (e.g., "Cold - on medication")
   notes?: string;             // Optional detailed notes
   excludeFromStats: boolean;  // When true, days in this range are excluded from statistics

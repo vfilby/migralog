@@ -33,7 +33,7 @@ export const overlayRepository = {
       [
         newOverlay.id,
         newOverlay.startDate,
-        newOverlay.endDate,
+        newOverlay.endDate || null,  // undefined becomes NULL for ongoing overlays
         newOverlay.label,
         newOverlay.notes || null,
         newOverlay.excludeFromStats ? 1 : 0,
@@ -62,7 +62,7 @@ export const overlayRepository = {
     }
     if (updates.endDate !== undefined) {
       fields.push('end_date = ?');
-      values.push(updates.endDate);
+      values.push(updates.endDate || null);  // undefined/empty becomes NULL for ongoing
     }
     if (updates.label !== undefined) {
       fields.push('label = ?');
@@ -107,9 +107,10 @@ export const overlayRepository = {
   async getDateRange(startDate: string, endDate: string, db?: SQLite.SQLiteDatabase): Promise<CalendarOverlay[]> {
     const database = db || await getDatabase();
     // Find overlays that intersect with the date range
-    // An overlay intersects if: overlay.start_date <= endDate AND overlay.end_date >= startDate
+    // An overlay intersects if: overlay.start_date <= endDate AND (overlay.end_date >= startDate OR end_date IS NULL)
+    // NULL end_date means ongoing, so it always matches dates after start_date
     const results = await database.getAllAsync<CalendarOverlayRow>(
-      'SELECT * FROM calendar_overlays WHERE start_date <= ? AND end_date >= ? ORDER BY start_date ASC',
+      'SELECT * FROM calendar_overlays WHERE start_date <= ? AND (end_date >= ? OR end_date IS NULL) ORDER BY start_date ASC',
       [endDate, startDate]
     );
 
@@ -119,8 +120,9 @@ export const overlayRepository = {
   async getByDate(date: string, db?: SQLite.SQLiteDatabase): Promise<CalendarOverlay[]> {
     const database = db || await getDatabase();
     // Find all overlays that contain this specific date
+    // NULL end_date means ongoing, so date just needs to be >= start_date
     const results = await database.getAllAsync<CalendarOverlayRow>(
-      'SELECT * FROM calendar_overlays WHERE start_date <= ? AND end_date >= ? ORDER BY start_date ASC',
+      'SELECT * FROM calendar_overlays WHERE start_date <= ? AND (end_date >= ? OR end_date IS NULL) ORDER BY start_date ASC',
       [date, date]
     );
 
@@ -149,7 +151,7 @@ export const overlayRepository = {
     return {
       id: row.id,
       startDate: row.start_date,
-      endDate: row.end_date,
+      endDate: row.end_date || undefined,  // NULL becomes undefined (ongoing)
       label: row.label,
       notes: row.notes || undefined,
       excludeFromStats: row.exclude_from_stats === 1,

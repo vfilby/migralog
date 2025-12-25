@@ -173,11 +173,12 @@ export interface DailyStatusLogRow {
 /**
  * Calendar Overlays Table Row
  * Date ranges with contextual labels
+ * end_date can be NULL to represent ongoing/open-ended overlays
  */
 export interface CalendarOverlayRow {
   id: string;
-  start_date: string; // YYYY-MM-DD format
-  end_date: string;   // YYYY-MM-DD format
+  start_date: string;       // YYYY-MM-DD format
+  end_date: string | null;  // YYYY-MM-DD format, NULL means ongoing
   label: string;
   notes: string | null;
   exclude_from_stats: number; // 0 or 1
