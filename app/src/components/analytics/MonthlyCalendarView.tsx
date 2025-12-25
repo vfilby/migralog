@@ -1058,7 +1058,7 @@ export default function MonthlyCalendarView({
                 testID="save-overlay-button"
               >
                 <Text style={styles.modalSaveButtonText}>
-                  {savingOverlay ? 'Saving...' : 'Create Overlay'}
+                  {savingOverlay ? 'Saving...' : (editingOverlay ? 'Save Changes' : 'Create Overlay')}
                 </Text>
               </TouchableOpacity>
             </ScrollView>
