@@ -948,10 +948,9 @@ class MigrationRunner {
             'id',
             'start_date',
             'end_date',
-            'category',
             'label',
             'notes',
-            'is_active',
+            'exclude_from_stats',
             'created_at',
             'updated_at'
           ];
@@ -970,9 +969,7 @@ class MigrationRunner {
           const v23IndexNames = v23Indexes.map(i => i.name);
 
           const expectedOverlayIndexes = [
-            'idx_calendar_overlays_dates',
-            'idx_calendar_overlays_active',
-            'idx_calendar_overlays_category'
+            'idx_calendar_overlays_dates'
           ];
 
           for (const idx of expectedOverlayIndexes) {
