@@ -57,6 +57,12 @@ export async function resetDatabaseForTesting(options: {
     await db.execAsync('DELETE FROM episode_notes');
     await db.execAsync('DELETE FROM episodes');
     await db.execAsync('DELETE FROM daily_status_logs');
+    // calendar_overlays table may not exist if migration v23 hasn't run
+    try {
+      await db.execAsync('DELETE FROM calendar_overlays');
+    } catch {
+      // Table doesn't exist yet - safe to ignore
+    }
     // scheduled_notifications table may not exist if migration v20 hasn't run
     try {
       await db.execAsync('DELETE FROM scheduled_notifications');
@@ -79,6 +85,8 @@ export async function resetDatabaseForTesting(options: {
     // 4. Reset Zustand stores to clear in-memory state
     logger.log('[TestHelpers] Resetting stores...');
     useDailyStatusStore.getState().reset();
+    const { useOverlayStore } = await import('../store/overlayStore');
+    useOverlayStore.getState().reset();
 
     // 4a. Clear cache manager to prevent stale data after reset
     const { cacheManager } = await import('./cacheManager');
