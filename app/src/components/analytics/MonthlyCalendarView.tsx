@@ -341,6 +341,10 @@ const createStyles = (theme: ThemeColors) =>
       flex: 1,
       paddingRight: 16,
     },
+    calendarContainer: {
+      borderRadius: 12,
+      overflow: 'hidden',
+    },
     modalLabel: {
       fontSize: 15,
       fontWeight: '600',
@@ -978,6 +982,7 @@ export default function MonthlyCalendarView({
                   ? 'Tap a date to set when this started'
                   : (rangeSelectionMode === 'start' ? 'Tap a date to set the start' : 'Tap a date to set the end')}
               </Text>
+              <View style={styles.calendarContainer}>
               <Calendar
                 markingType="period"
                 markedDates={(() => {
@@ -1039,6 +1044,7 @@ export default function MonthlyCalendarView({
                 }}
                 testID="date-range-calendar"
               />
+              </View>
 
               <Text style={styles.modalLabel}>Notes (optional)</Text>
               <TextInput
