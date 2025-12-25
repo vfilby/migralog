@@ -344,6 +344,8 @@ const createStyles = (theme: ThemeColors) =>
     calendarContainer: {
       borderRadius: 12,
       overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: theme.border,
     },
     modalLabel: {
       fontSize: 15,
