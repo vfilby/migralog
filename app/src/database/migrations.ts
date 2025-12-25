@@ -551,6 +551,89 @@ const migrations: Migration[] = [
       logger.log('Migration 24 rollback: Complete');
     },
   },
+  {
+    version: 25,
+    name: 'fix_calendar_overlays_schema',
+    up: async (db: SQLite.SQLiteDatabase) => {
+      logger.log('Migration 25: Ensuring calendar_overlays has correct schema...');
+
+      // Clean up any leftover temp table from failed v24 migration
+      await db.execAsync('DROP TABLE IF EXISTS calendar_overlays_new;');
+
+      // Check current table structure
+      const tableInfo = await db.getAllAsync<{ name: string }>(
+        "PRAGMA table_info(calendar_overlays)"
+      );
+
+      if (!tableInfo || tableInfo.length === 0) {
+        // Table doesn't exist - create it fresh
+        logger.log('Migration 25: calendar_overlays table missing, creating...');
+        await db.execAsync(`
+          CREATE TABLE calendar_overlays (
+            id TEXT PRIMARY KEY,
+            start_date TEXT NOT NULL CHECK(start_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
+            end_date TEXT CHECK(end_date IS NULL OR end_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
+            label TEXT NOT NULL CHECK(length(label) > 0 AND length(label) <= 200),
+            notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
+            exclude_from_stats INTEGER NOT NULL DEFAULT 0 CHECK(exclude_from_stats IN (0, 1)),
+            created_at INTEGER NOT NULL CHECK(created_at > 0),
+            updated_at INTEGER NOT NULL CHECK(updated_at > 0),
+            CHECK(end_date IS NULL OR end_date >= start_date)
+          );
+        `);
+      } else {
+        // Table exists - check if it has all required columns
+        const columnNames = tableInfo.map(col => col.name);
+        const hasExcludeFromStats = columnNames.includes('exclude_from_stats');
+        const hasNullableEndDate = true; // We'll recreate to ensure this
+
+        if (!hasExcludeFromStats) {
+          logger.log('Migration 25: Rebuilding calendar_overlays with correct schema...');
+
+          // Create new table with correct schema
+          await db.execAsync(`
+            CREATE TABLE calendar_overlays_fixed (
+              id TEXT PRIMARY KEY,
+              start_date TEXT NOT NULL CHECK(start_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
+              end_date TEXT CHECK(end_date IS NULL OR end_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
+              label TEXT NOT NULL CHECK(length(label) > 0 AND length(label) <= 200),
+              notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
+              exclude_from_stats INTEGER NOT NULL DEFAULT 0 CHECK(exclude_from_stats IN (0, 1)),
+              created_at INTEGER NOT NULL CHECK(created_at > 0),
+              updated_at INTEGER NOT NULL CHECK(updated_at > 0),
+              CHECK(end_date IS NULL OR end_date >= start_date)
+            );
+          `);
+
+          // Copy existing data with default for missing column
+          await db.execAsync(`
+            INSERT INTO calendar_overlays_fixed
+              (id, start_date, end_date, label, notes, exclude_from_stats, created_at, updated_at)
+            SELECT
+              id, start_date, end_date, label, notes, 0, created_at, updated_at
+            FROM calendar_overlays;
+          `);
+
+          // Drop old table and rename
+          await db.execAsync('DROP TABLE calendar_overlays;');
+          await db.execAsync('ALTER TABLE calendar_overlays_fixed RENAME TO calendar_overlays;');
+        } else {
+          logger.log('Migration 25: calendar_overlays already has correct schema');
+        }
+      }
+
+      // Ensure index exists
+      await db.execAsync(`
+        CREATE INDEX IF NOT EXISTS idx_calendar_overlays_dates ON calendar_overlays(start_date, end_date);
+      `);
+
+      logger.log('Migration 25: calendar_overlays schema verified');
+    },
+    down: async (db: SQLite.SQLiteDatabase) => {
+      logger.log('Migration 25 rollback: No action needed');
+      // This migration only fixes schema issues, no rollback needed
+    },
+  },
 ];
 
 class MigrationRunner {
