@@ -472,14 +472,32 @@ const migrations: Migration[] = [
         );
       `);
 
-      // Copy existing data
-      await db.execAsync(`
-        INSERT INTO calendar_overlays_new
-          (id, start_date, end_date, label, notes, exclude_from_stats, created_at, updated_at)
-        SELECT
-          id, start_date, end_date, label, notes, exclude_from_stats, created_at, updated_at
-        FROM calendar_overlays;
-      `);
+      // Check if source table has exclude_from_stats column
+      // Some databases may have been created before this column was added
+      const tableInfo = await db.getAllAsync<{ name: string }>(
+        "PRAGMA table_info(calendar_overlays)"
+      );
+      const hasExcludeFromStats = tableInfo?.some(col => col.name === 'exclude_from_stats') ?? false;
+
+      // Copy existing data, using default 0 for exclude_from_stats if column doesn't exist
+      if (hasExcludeFromStats) {
+        await db.execAsync(`
+          INSERT INTO calendar_overlays_new
+            (id, start_date, end_date, label, notes, exclude_from_stats, created_at, updated_at)
+          SELECT
+            id, start_date, end_date, label, notes, exclude_from_stats, created_at, updated_at
+          FROM calendar_overlays;
+        `);
+      } else {
+        logger.log('Migration 24: Source table missing exclude_from_stats, using default value 0');
+        await db.execAsync(`
+          INSERT INTO calendar_overlays_new
+            (id, start_date, end_date, label, notes, exclude_from_stats, created_at, updated_at)
+          SELECT
+            id, start_date, end_date, label, notes, 0, created_at, updated_at
+          FROM calendar_overlays;
+        `);
+      }
 
       // Drop old table and rename new one
       await db.execAsync('DROP TABLE calendar_overlays;');
