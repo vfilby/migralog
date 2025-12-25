@@ -16,7 +16,6 @@ import * as Notifications from 'expo-notifications';
 import { notificationService } from '../../services/notifications/notificationService';
 import { logger } from '../../utils/logger';
 import { scheduledNotificationRepository } from '../../database/scheduledNotificationRepository';
-import { medicationRepository } from '../../database/medicationRepository';
 import { ScheduledNotificationMapping } from '../../types/notifications';
 import { formatTimeUntil } from '../../utils/dateFormatting';
 import { getShortDateTimeFormatString, getDeviceLocale } from '../../utils/localeUtils';
@@ -26,123 +25,118 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ScheduledNotificationsS
 
 type NotificationFilter = 'all' | 'reminder' | 'follow_up' | 'daily_checkin';
 
-interface EnrichedNotification {
-  osNotification: Notifications.NotificationRequest;
-  dbMapping?: ScheduledNotificationMapping;
-  medicationName?: string;
+interface EnrichedMapping {
+  dbMapping: ScheduledNotificationMapping;
+  osNotification?: Notifications.NotificationRequest;
+  hasOsNotification: boolean;
 }
 
 export default function ScheduledNotificationsScreen({ navigation }: Props) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
 
-  const [osNotifications, setOsNotifications] = useState<Notifications.NotificationRequest[]>([]);
-  const [dbMappings, setDbMappings] = useState<ScheduledNotificationMapping[]>([]);
-  const [dailyCheckinMappings, setDailyCheckinMappings] = useState<ScheduledNotificationMapping[]>([]);
-  const [enrichedNotifications, setEnrichedNotifications] = useState<EnrichedNotification[]>([]);
-  const [filteredNotifications, setFilteredNotifications] = useState<EnrichedNotification[]>([]);
+  const [osNotificationCount, setOsNotificationCount] = useState<number>(0);
+  const [dbMappingCount, setDbMappingCount] = useState<number>(0);
+  const [missingOsCount, setMissingOsCount] = useState<number>(0);
+  const [enrichedMappings, setEnrichedMappings] = useState<EnrichedMapping[]>([]);
+  const [filteredMappings, setFilteredMappings] = useState<EnrichedMapping[]>([]);
   const [selectedFilter, setSelectedFilter] = useState<NotificationFilter>('all');
   const [searchText, setSearchText] = useState('');
-  const [expandedNotificationIds, setExpandedNotificationIds] = useState<Set<string>>(new Set());
+  const [expandedMappingIds, setExpandedMappingIds] = useState<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load all data
+  // Load all data - database mappings are the source of truth
   const loadData = useCallback(async () => {
     setError(null);
     try {
-      const [osNotes, medicationMappings, checkinMappings, activeMedications] = await Promise.all([
+      // Use getFutureMedicationMappings (not getFutureMappings) to avoid duplicates
+      // getFutureMappings returns ALL mappings including daily check-ins
+      const [osNotes, medicationMappings, checkinMappings] = await Promise.all([
         notificationService.getAllScheduledNotifications(),
-        scheduledNotificationRepository.getFutureMappings(),
+        scheduledNotificationRepository.getFutureMedicationMappings(),
         scheduledNotificationRepository.getFutureDailyCheckinMappings(),
-        medicationRepository.getActive(),
       ]);
 
-      setOsNotifications(osNotes);
-      setDbMappings(medicationMappings);
-      setDailyCheckinMappings(checkinMappings);
+      // Create a map of OS notification IDs for quick lookup
+      const osNotificationMap = new Map(osNotes.map(n => [n.identifier, n]));
 
-      // Create a map of medication IDs to names
-      const medicationMap = new Map(activeMedications.map(m => [m.id, m.name]));
+      // Combine all DB mappings
+      const allMappings = [...medicationMappings, ...checkinMappings];
 
-      // Enrich OS notifications with DB mappings
-      const enriched: EnrichedNotification[] = osNotes.map(osNote => {
-        // Find matching DB mapping by notification ID
-        const allMappings = [...medicationMappings, ...checkinMappings];
-        const mapping = allMappings.find(m => m.notificationId === osNote.identifier);
-
-        // Get medication name if available
-        const medicationName = mapping?.medicationId
-          ? medicationMap.get(mapping.medicationId) || mapping.medicationName
-          : undefined;
-
+      // Enrich DB mappings with OS notification status
+      const enriched: EnrichedMapping[] = allMappings.map(mapping => {
+        const osNotification = osNotificationMap.get(mapping.notificationId);
         return {
-          osNotification: osNote,
           dbMapping: mapping,
-          medicationName,
+          osNotification,
+          hasOsNotification: !!osNotification,
         };
       });
 
-      setEnrichedNotifications(enriched);
-    } catch (error) {
-      logger.error('[ScheduledNotifications] Error loading data:', error);
+      // Count missing OS notifications
+      const missingCount = enriched.filter(e => !e.hasOsNotification).length;
+
+      setOsNotificationCount(osNotes.length);
+      setDbMappingCount(allMappings.length);
+      setMissingOsCount(missingCount);
+      setEnrichedMappings(enriched);
+    } catch (err) {
+      logger.error('[ScheduledNotifications] Error loading data:', err);
       setError('Failed to load notifications. Please try again.');
     }
   }, []);
 
-  // Filter notifications based on filter and search text
+  // Filter and sort mappings based on filter and search text
   useEffect(() => {
-    let filtered = enrichedNotifications;
+    let filtered = enrichedMappings;
 
     // Filter by type
     if (selectedFilter !== 'all') {
-      filtered = filtered.filter(n =>
-        n.dbMapping?.notificationType === selectedFilter
+      filtered = filtered.filter(m =>
+        m.dbMapping.notificationType === selectedFilter
       );
     }
 
     // Filter by search text
     if (searchText.trim()) {
       const searchLower = searchText.toLowerCase();
-      filtered = filtered.filter(n => {
-        const title = n.osNotification.content.title?.toLowerCase() || '';
-        const body = n.osNotification.content.body?.toLowerCase() || '';
-        const medName = n.medicationName?.toLowerCase() || '';
-        const notificationId = n.osNotification.identifier.toLowerCase();
+      filtered = filtered.filter(m => {
+        const title = m.dbMapping.notificationTitle?.toLowerCase() || '';
+        const body = m.dbMapping.notificationBody?.toLowerCase() || '';
+        const medName = m.dbMapping.medicationName?.toLowerCase() || '';
+        const notificationId = m.dbMapping.notificationId.toLowerCase();
+        const date = m.dbMapping.date.toLowerCase();
 
         return (
           title.includes(searchLower) ||
           body.includes(searchLower) ||
           medName.includes(searchLower) ||
-          notificationId.includes(searchLower)
+          notificationId.includes(searchLower) ||
+          date.includes(searchLower)
         );
       });
     }
 
-    // Sort by trigger time (soonest first)
-    const now = Date.now();
+    // Sort by scheduledTriggerTime from database (soonest first)
+    // Missing OS notifications sort to the top (they're problems to address)
     filtered.sort((a, b) => {
-      const getTriggerTimestamp = (trigger: Notifications.NotificationTrigger | null): number => {
-        if (!trigger) return Infinity;
-        if ('type' in trigger) {
-          if (trigger.type === 'date' && 'date' in trigger && trigger.date) {
-            return new Date(trigger.date).getTime();
-          }
-          if (trigger.type === 'timeInterval' && 'seconds' in trigger) {
-            return now + trigger.seconds * 1000;
-          }
-        }
-        // For calendar/daily triggers, they repeat so put them at the end
-        return Infinity;
-      };
+      // Missing OS notifications come first (they're issues)
+      if (!a.hasOsNotification && b.hasOsNotification) return -1;
+      if (a.hasOsNotification && !b.hasOsNotification) return 1;
 
-      const timeA = getTriggerTimestamp(a.osNotification.trigger);
-      const timeB = getTriggerTimestamp(b.osNotification.trigger);
+      // Then sort by scheduled trigger time
+      const timeA = a.dbMapping.scheduledTriggerTime
+        ? new Date(a.dbMapping.scheduledTriggerTime).getTime()
+        : Infinity;
+      const timeB = b.dbMapping.scheduledTriggerTime
+        ? new Date(b.dbMapping.scheduledTriggerTime).getTime()
+        : Infinity;
       return timeA - timeB;
     });
 
-    setFilteredNotifications(filtered);
-  }, [enrichedNotifications, selectedFilter, searchText]);
+    setFilteredMappings(filtered);
+  }, [enrichedMappings, selectedFilter, searchText]);
 
   // Initial load
   useEffect(() => {
@@ -156,68 +150,41 @@ export default function ScheduledNotificationsScreen({ navigation }: Props) {
     setRefreshing(false);
   }, [loadData]);
 
-  // Toggle notification expansion
-  const toggleNotificationExpansion = useCallback((notificationId: string) => {
-    setExpandedNotificationIds(prev => {
+  // Toggle mapping expansion
+  const toggleMappingExpansion = useCallback((mappingId: string) => {
+    setExpandedMappingIds(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(notificationId)) {
-        newSet.delete(notificationId);
+      if (newSet.has(mappingId)) {
+        newSet.delete(mappingId);
       } else {
-        newSet.add(notificationId);
+        newSet.add(mappingId);
       }
       return newSet;
     });
   }, []);
 
-  // Format date/time for display using device locale
-  const formatTriggerTime = (trigger: Notifications.NotificationTrigger | null): string => {
-    if (!trigger) return 'Unknown trigger';
-
-    if ('type' in trigger) {
-      if (trigger.type === 'date') {
-        // DateTriggerInput has a date property, not value
-        const triggerDate = 'date' in trigger ? trigger.date : null;
-        if (triggerDate) {
-          const date = new Date(triggerDate);
-          const locale = getDeviceLocale();
-          const formatStr = getShortDateTimeFormatString();
-          const formattedDate = format(date, formatStr, { locale });
-          const relativeTime = formatTimeUntil(date);
-          return `${formattedDate} (${relativeTime})`;
-        }
-      }
-      if (trigger.type === 'calendar') {
-        const parts: string[] = [];
-        if ('hour' in trigger && trigger.hour !== undefined && 'minute' in trigger && trigger.minute !== undefined) {
-          parts.push(`${trigger.hour.toString().padStart(2, '0')}:${trigger.minute.toString().padStart(2, '0')}`);
-        }
-        if ('weekday' in trigger && trigger.weekday !== undefined) {
-          parts.push(`Weekday ${trigger.weekday}`);
-        }
-        return parts.join(' ') || 'Calendar trigger';
-      }
-      if (trigger.type === 'timeInterval' && 'seconds' in trigger) {
-        const repeats = 'repeats' in trigger ? trigger.repeats : false;
-        // Convert seconds to a future date and format nicely
-        const futureDate = new Date(Date.now() + trigger.seconds * 1000);
-        const locale = getDeviceLocale();
-        const formatStr = getShortDateTimeFormatString();
-        const formattedDate = format(futureDate, formatStr, { locale });
-        const relativeTime = formatTimeUntil(futureDate);
-        return `${formattedDate} (${relativeTime})${repeats ? ' - repeating' : ''}`;
-      }
+  // Format scheduled time from database mapping
+  const formatScheduledTime = (mapping: ScheduledNotificationMapping): string => {
+    if (mapping.scheduledTriggerTime) {
+      const date = new Date(mapping.scheduledTriggerTime);
+      const locale = getDeviceLocale();
+      const formatStr = getShortDateTimeFormatString();
+      const formattedDate = format(date, formatStr, { locale });
+      const relativeTime = formatTimeUntil(date);
+      return `${formattedDate} (${relativeTime})`;
     }
 
-    return 'Unknown trigger';
+    // Fallback to date + groupKey if no scheduledTriggerTime
+    if (mapping.groupKey) {
+      return `${mapping.date} at ${mapping.groupKey}`;
+    }
+
+    return `${mapping.date} (time unknown)`;
   };
 
   // Get notification type badge info
-  const getNotificationTypeBadge = (notification: EnrichedNotification): { text: string; color: string } | null => {
-    if (!notification.dbMapping) {
-      return null;
-    }
-
-    const type = notification.dbMapping.notificationType;
+  const getNotificationTypeBadge = (mapping: ScheduledNotificationMapping): { text: string; color: string } => {
+    const type = mapping.notificationType;
     switch (type) {
       case 'reminder':
         return { text: 'Reminder', color: theme.primary };
@@ -230,121 +197,135 @@ export default function ScheduledNotificationsScreen({ navigation }: Props) {
     }
   };
 
-  // Render notification item
-  const renderNotificationItem = ({ item }: { item: EnrichedNotification }) => {
-    const isExpanded = expandedNotificationIds.has(item.osNotification.identifier);
-    const badge = getNotificationTypeBadge(item);
-    const trigger = item.osNotification.trigger;
+  // Render mapping item (database-centric view)
+  const renderMappingItem = ({ item }: { item: EnrichedMapping }) => {
+    const { dbMapping, osNotification, hasOsNotification } = item;
+    const isExpanded = expandedMappingIds.has(dbMapping.id);
+    const badge = getNotificationTypeBadge(dbMapping);
 
     return (
       <TouchableOpacity
-        style={styles.notificationItem}
-        onPress={() => toggleNotificationExpansion(item.osNotification.identifier)}
+        style={[
+          styles.notificationItem,
+          !hasOsNotification && styles.notificationItemWarning,
+        ]}
+        onPress={() => toggleMappingExpansion(dbMapping.id)}
         activeOpacity={0.7}
         accessibilityRole="button"
-        accessibilityLabel={`Notification: ${item.osNotification.content.title}`}
+        accessibilityLabel={`Notification: ${dbMapping.notificationTitle || dbMapping.medicationName || 'Unknown'}`}
         accessibilityHint="Tap to expand and view details"
       >
+        {/* Warning banner for missing OS notification */}
+        {!hasOsNotification && (
+          <View style={styles.warningBanner}>
+            <Ionicons name="warning" size={14} color={theme.error} />
+            <Text style={styles.warningText}>Missing from OS - will not fire!</Text>
+          </View>
+        )}
+
         {/* Header */}
         <View style={styles.notificationHeader}>
           <View style={styles.notificationHeaderLeft}>
-            {badge && (
-              <View style={[styles.typeBadge, { backgroundColor: badge.color + '20' }]}>
-                <Text style={[styles.typeBadgeText, { color: badge.color }]}>
-                  {badge.text}
-                </Text>
-              </View>
-            )}
-            {item.medicationName && (
-              <Text style={styles.medicationName}>{item.medicationName}</Text>
+            <View style={[styles.typeBadge, { backgroundColor: badge.color + '20' }]}>
+              <Text style={[styles.typeBadgeText, { color: badge.color }]}>
+                {badge.text}
+              </Text>
+            </View>
+            {dbMapping.medicationName && (
+              <Text style={styles.medicationName}>{dbMapping.medicationName}</Text>
             )}
           </View>
-          <Ionicons
-            name={isExpanded ? 'chevron-up' : 'chevron-down'}
-            size={16}
-            color={theme.textSecondary}
-          />
+          <View style={styles.notificationHeaderRight}>
+            {hasOsNotification && (
+              <Ionicons name="checkmark-circle" size={16} color={theme.success} />
+            )}
+            <Ionicons
+              name={isExpanded ? 'chevron-up' : 'chevron-down'}
+              size={16}
+              color={theme.textSecondary}
+            />
+          </View>
         </View>
 
         {/* Title and Body */}
         <Text style={styles.notificationTitle} numberOfLines={isExpanded ? undefined : 1}>
-          {item.osNotification.content.title || 'No title'}
+          {dbMapping.notificationTitle || 'No title'}
         </Text>
-        {item.osNotification.content.body && (
+        {dbMapping.notificationBody && (
           <Text style={styles.notificationBody} numberOfLines={isExpanded ? undefined : 2}>
-            {item.osNotification.content.body}
+            {dbMapping.notificationBody}
           </Text>
         )}
 
         {/* Scheduled Time */}
         <Text style={styles.scheduledTime}>
-          {formatTriggerTime(trigger)}
+          {formatScheduledTime(dbMapping)}
         </Text>
 
         {/* Expanded details */}
         {isExpanded && (
           <View style={styles.notificationDetails}>
-            {/* Notification ID */}
+            {/* OS Notification Status */}
             <View style={styles.detailSection}>
-              <Text style={styles.detailTitle}>Notification ID:</Text>
-              <View style={styles.detailContent}>
-                <Text style={styles.detailText}>{item.osNotification.identifier}</Text>
-              </View>
-            </View>
-
-            {/* Trigger Details */}
-            <View style={styles.detailSection}>
-              <Text style={styles.detailTitle}>Trigger:</Text>
-              <View style={styles.detailContent}>
-                <Text style={styles.detailText}>
-                  {JSON.stringify(trigger, null, 2)}
+              <Text style={styles.detailTitle}>OS Notification Status:</Text>
+              <View style={[
+                styles.detailContent,
+                !hasOsNotification && styles.detailContentWarning,
+              ]}>
+                <Text style={[
+                  styles.detailText,
+                  !hasOsNotification && { color: theme.error },
+                ]}>
+                  {hasOsNotification
+                    ? `✓ Scheduled in OS (ID: ${dbMapping.notificationId})`
+                    : `✗ NOT FOUND in OS scheduler!\nExpected ID: ${dbMapping.notificationId}\n\nThis notification will NOT fire. Use "Recreate All Schedules" to fix.`
+                  }
                 </Text>
               </View>
             </View>
 
-            {/* Notification Settings */}
+            {/* Database Mapping Info */}
             <View style={styles.detailSection}>
-              <Text style={styles.detailTitle}>Settings:</Text>
+              <Text style={styles.detailTitle}>Database Mapping:</Text>
               <View style={styles.detailContent}>
                 <Text style={styles.detailText}>
-                  {`Category: ${item.osNotification.content.categoryIdentifier || 'none'}\n`}
-                  {/* iOS-specific properties - type checking */}
-                  {'interruptionLevel' in item.osNotification.content && item.osNotification.content.interruptionLevel &&
-                    `Interruption Level: ${item.osNotification.content.interruptionLevel}\n`}
-                  {'critical' in item.osNotification.content && item.osNotification.content.critical !== undefined &&
-                    `Critical: ${item.osNotification.content.critical}`}
+                  {`Mapping ID: ${dbMapping.id}\n`}
+                  {`Date: ${dbMapping.date}\n`}
+                  {dbMapping.scheduledTriggerTime && `Trigger Time: ${new Date(dbMapping.scheduledTriggerTime).toISOString()}\n`}
+                  {dbMapping.medicationId && `Medication ID: ${dbMapping.medicationId}\n`}
+                  {dbMapping.scheduleId && `Schedule ID: ${dbMapping.scheduleId}\n`}
+                  {`Type: ${dbMapping.notificationType}\n`}
+                  {`Grouped: ${dbMapping.isGrouped ? 'Yes' : 'No'}\n`}
+                  {dbMapping.groupKey && `Group Key: ${dbMapping.groupKey}\n`}
+                  {`Source: ${dbMapping.sourceType}\n`}
+                  {dbMapping.categoryIdentifier && `Category: ${dbMapping.categoryIdentifier}`}
                 </Text>
               </View>
             </View>
 
-            {/* Data Payload */}
-            {item.osNotification.content.data && Object.keys(item.osNotification.content.data).length > 0 && (
-              <View style={styles.detailSection}>
-                <Text style={styles.detailTitle}>Data Payload:</Text>
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailText}>
-                    {JSON.stringify(item.osNotification.content.data, null, 2)}
-                  </Text>
+            {/* OS Notification Details (if exists) */}
+            {osNotification && (
+              <>
+                <View style={styles.detailSection}>
+                  <Text style={styles.detailTitle}>OS Trigger:</Text>
+                  <View style={styles.detailContent}>
+                    <Text style={styles.detailText}>
+                      {JSON.stringify(osNotification.trigger, null, 2)}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            )}
 
-            {/* DB Mapping Info */}
-            {item.dbMapping && (
-              <View style={styles.detailSection}>
-                <Text style={styles.detailTitle}>Database Mapping:</Text>
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailText}>
-                    {`Date: ${item.dbMapping.date}\n`}
-                    {item.dbMapping.medicationId && `Medication ID: ${item.dbMapping.medicationId}\n`}
-                    {item.dbMapping.scheduleId && `Schedule ID: ${item.dbMapping.scheduleId}\n`}
-                    {`Type: ${item.dbMapping.notificationType}\n`}
-                    {`Grouped: ${item.dbMapping.isGrouped ? 'Yes' : 'No'}\n`}
-                    {item.dbMapping.groupKey && `Group Key: ${item.dbMapping.groupKey}\n`}
-                    {`Source: ${item.dbMapping.sourceType}`}
-                  </Text>
-                </View>
-              </View>
+                {osNotification.content.data && Object.keys(osNotification.content.data).length > 0 && (
+                  <View style={styles.detailSection}>
+                    <Text style={styles.detailTitle}>Data Payload:</Text>
+                    <View style={styles.detailContent}>
+                      <Text style={styles.detailText}>
+                        {JSON.stringify(osNotification.content.data, null, 2)}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+              </>
             )}
           </View>
         )}
@@ -368,21 +349,21 @@ export default function ScheduledNotificationsScreen({ navigation }: Props) {
   // Calculate filter counts with memoization
   const filterCounts = useMemo(() => {
     const counts: Record<NotificationFilter, number> = {
-      all: enrichedNotifications.length,
+      all: enrichedMappings.length,
       reminder: 0,
       follow_up: 0,
       daily_checkin: 0,
     };
 
-    enrichedNotifications.forEach(n => {
-      const type = n.dbMapping?.notificationType;
+    enrichedMappings.forEach(m => {
+      const type = m.dbMapping.notificationType;
       if (type === 'reminder') counts.reminder++;
       else if (type === 'follow_up') counts.follow_up++;
       else if (type === 'daily_checkin') counts.daily_checkin++;
     });
 
     return counts;
-  }, [enrichedNotifications]);
+  }, [enrichedMappings]);
 
   const FILTERS: NotificationFilter[] = ['all', 'reminder', 'follow_up', 'daily_checkin'];
   const FILTER_LABELS: Record<NotificationFilter, string> = {
@@ -424,18 +405,28 @@ export default function ScheduledNotificationsScreen({ navigation }: Props) {
         {/* Summary Stats */}
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{osNotifications.length}</Text>
-            <Text style={styles.statLabel}>OS Notifications</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{dbMappings.length}</Text>
+            <Text style={styles.statValue}>{dbMappingCount}</Text>
             <Text style={styles.statLabel}>DB Mappings</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{dailyCheckinMappings.length}</Text>
-            <Text style={styles.statLabel}>Daily Check-ins</Text>
+            <Text style={styles.statValue}>{osNotificationCount}</Text>
+            <Text style={styles.statLabel}>OS Scheduled</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={[
+              styles.statValue,
+              missingOsCount > 0 && { color: theme.error },
+            ]}>
+              {missingOsCount}
+            </Text>
+            <Text style={[
+              styles.statLabel,
+              missingOsCount > 0 && { color: theme.error },
+            ]}>
+              Missing
+            </Text>
           </View>
         </View>
       </View>
@@ -534,12 +525,12 @@ export default function ScheduledNotificationsScreen({ navigation }: Props) {
 
       {/* Notification list */}
       <FlatList
-        data={filteredNotifications}
-        renderItem={renderNotificationItem}
-        keyExtractor={item => item.osNotification.identifier}
+        data={filteredMappings}
+        renderItem={renderMappingItem}
+        keyExtractor={item => item.dbMapping.id}
         contentContainerStyle={[
           styles.listContent,
-          filteredNotifications.length === 0 && styles.listContentEmpty,
+          filteredMappings.length === 0 && styles.listContentEmpty,
         ]}
         ListEmptyComponent={renderEmptyState}
         refreshControl={
@@ -724,6 +715,28 @@ const createStyles = (theme: ThemeColors) =>
       borderWidth: 1,
       borderColor: theme.border,
     },
+    notificationItemWarning: {
+      borderColor: theme.error,
+      borderWidth: 2,
+      backgroundColor: theme.error + '08',
+    },
+    warningBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.error + '20',
+      marginBottom: 8,
+      marginHorizontal: -4,
+      marginTop: -4,
+      paddingHorizontal: 8,
+      paddingVertical: 6,
+      borderRadius: 6,
+      gap: 6,
+    },
+    warningText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: theme.error,
+    },
     notificationHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -735,6 +748,11 @@ const createStyles = (theme: ThemeColors) =>
       alignItems: 'center',
       gap: 8,
       flex: 1,
+    },
+    notificationHeaderRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
     },
     typeBadge: {
       paddingHorizontal: 8,
@@ -789,6 +807,11 @@ const createStyles = (theme: ThemeColors) =>
       backgroundColor: theme.background,
       borderRadius: 8,
       padding: 10,
+    },
+    detailContentWarning: {
+      backgroundColor: theme.error + '15',
+      borderWidth: 1,
+      borderColor: theme.error + '40',
     },
     detailText: {
       fontSize: 12,
