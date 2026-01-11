@@ -131,7 +131,10 @@ const EpisodeCard = React.memo(({ episode, onPress, compact = false, isLast = fa
     : Math.round((Date.now() - episode.startTime) / 3600000);
 
   useEffect(() => {
-    // Load geocoded location if available
+    // Load geocoded location if available using fire-and-forget pattern.
+    // This ensures the card renders immediately without waiting for network.
+    // Key principle: Poor network should NEVER block user from viewing health data.
+    // The location address is a nice-to-have enhancement that updates asynchronously.
     if (episode.location) {
       locationService
         .reverseGeocode(episode.location.latitude, episode.location.longitude)

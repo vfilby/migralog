@@ -166,12 +166,19 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
       setMedications(medsWithDetails);
 
       // Reverse geocode location if available
+      // Fire-and-forget pattern: don't block episode display for geocoding
+      // Poor network should never prevent users from viewing their health data
       if (episodeWithDetails.location) {
-        const address = await locationService.reverseGeocode(
-          episodeWithDetails.location.latitude,
-          episodeWithDetails.location.longitude
-        );
-        setLocationAddress(address);
+        locationService
+          .reverseGeocode(
+            episodeWithDetails.location.latitude,
+            episodeWithDetails.location.longitude
+          )
+          .then(setLocationAddress)
+          .catch(() => {
+            // Silently fail - location address is a nice-to-have enhancement
+            setLocationAddress(null);
+          });
       }
     } catch (error) {
       logger.error('Failed to load episode:', error);
