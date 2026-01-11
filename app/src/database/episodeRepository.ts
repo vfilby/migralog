@@ -557,8 +557,8 @@ export const painLocationLogRepository = {
     }
 
     await database.runAsync(
-      'INSERT INTO pain_location_logs (id, episode_id, timestamp, pain_locations, created_at) VALUES (?, ?, ?, ?, ?)',
-      [newLog.id, newLog.episodeId, newLog.timestamp, JSON.stringify(newLog.painLocations), newLog.createdAt]
+      'INSERT INTO pain_location_logs (id, episode_id, timestamp, pain_locations, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      [newLog.id, newLog.episodeId, newLog.timestamp, JSON.stringify(newLog.painLocations), newLog.createdAt, newLog.updatedAt ?? now]
     );
 
     return newLog;
