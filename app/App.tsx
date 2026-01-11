@@ -8,6 +8,7 @@ import { ThemeProvider } from './src/theme';
 import { getDatabase } from './src/database/db';
 import { notificationService } from './src/services/notifications/notificationService';
 import { dailyCheckinService } from './src/services/notifications/dailyCheckinService';
+import { verifyNotificationIntegrity } from './src/services/notifications/NotificationIntegrityService';
 import { useOnboardingStore } from './src/store/onboardingStore';
 import { logger } from './src/utils/logger';
 import { performanceMonitor } from './src/utils/performance';
@@ -91,6 +92,10 @@ function App() {
           // Top-up daily check-in notifications (uses one-time triggers)
           await dailyCheckinService.topUpNotifications();
           logger.log('Daily check-in notification top-up complete');
+
+          // Verify notification integrity and log any deviations to Sentry
+          await verifyNotificationIntegrity();
+          logger.log('Notification integrity verification complete');
         } catch (error) {
           logger.error('Background notification maintenance failed:', error);
         }

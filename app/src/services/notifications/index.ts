@@ -42,3 +42,17 @@ export {
 export {
   handleDailyCheckinNotification,
 } from './dailyCheckinNotifications';
+
+export {
+  NotificationIntegrityService,
+  notificationIntegrityService,
+  verifyNotificationIntegrity,
+  checkNotificationHealth,
+} from './NotificationIntegrityService';
+
+export type {
+  DeviationType,
+  NotificationDeviation,
+  IntegritySummary,
+  IntegrityVerificationResult,
+} from './NotificationIntegrityService';
