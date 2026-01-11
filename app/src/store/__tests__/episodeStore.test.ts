@@ -1360,6 +1360,30 @@ describe('episodeStore', () => {
 
         expect(toastService.error).toHaveBeenCalledWith('Failed to add pain location log');
       });
+
+      it('should allow adding pain location log with empty pain locations array', async () => {
+        const newLog: PainLocationLog = {
+          id: 'pl-1',
+          episodeId: 'ep-123',
+          timestamp: Date.now(),
+          painLocations: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+
+        (painLocationLogRepository.create as jest.Mock).mockResolvedValue(newLog);
+
+        await useEpisodeStore.getState().addPainLocationLog({
+          episodeId: 'ep-123',
+          timestamp: newLog.timestamp,
+          painLocations: [],
+          updatedAt: Date.now(),
+        });
+
+        const state = useEpisodeStore.getState();
+        expect(state.painLocationLogs).toHaveLength(1);
+        expect(state.painLocationLogs[0].painLocations).toEqual([]);
+      });
     });
 
     describe('updatePainLocationLog', () => {
