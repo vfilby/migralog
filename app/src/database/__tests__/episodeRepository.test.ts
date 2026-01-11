@@ -1071,13 +1071,14 @@ describe('episodeNoteRepository', () => {
         expect(result.painLocations).toEqual([]);
         // Verify that the database insert was called with empty pain locations
         expect(mockDatabase.runAsync).toHaveBeenCalledWith(
-          'INSERT INTO pain_location_logs (id, episode_id, timestamp, pain_locations, created_at) VALUES (?, ?, ?, ?, ?)',
+          'INSERT INTO pain_location_logs (id, episode_id, timestamp, pain_locations, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
           expect.arrayContaining([
             expect.any(String), // ID can be any string
             'episode-123',
             1000,
             '[]', // Empty JSON array - this is the key validation!
-            expect.any(Number),
+            expect.any(Number), // created_at
+            expect.any(Number), // updated_at
           ])
         );
       });
@@ -1097,13 +1098,14 @@ describe('episodeNoteRepository', () => {
         expect(result.painLocations).toEqual(['left_temple', 'right_eye']);
         // Verify that the database insert was called with the correct pain locations  
         expect(mockDatabase.runAsync).toHaveBeenCalledWith(
-          'INSERT INTO pain_location_logs (id, episode_id, timestamp, pain_locations, created_at) VALUES (?, ?, ?, ?, ?)',
+          'INSERT INTO pain_location_logs (id, episode_id, timestamp, pain_locations, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
           expect.arrayContaining([
             expect.any(String), // ID can be any string
             'episode-123',
             1000,
             '["left_temple","right_eye"]',
-            expect.any(Number),
+            expect.any(Number), // created_at
+            expect.any(Number), // updated_at
           ])
         );
       });

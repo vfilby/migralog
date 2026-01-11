@@ -584,7 +584,7 @@ describe('LogUpdateScreen', () => {
     it('should save when pain locations are changed', async () => {
       const { useEpisodeStore } = require('../../store/episodeStore');
       const mockAddPainLocationLog = jest.fn().mockResolvedValue(undefined);
-      
+
       useEpisodeStore.mockReturnValue({
         loadEpisodeWithDetails: jest.fn().mockResolvedValue({
           id: 'episode-123',
@@ -600,7 +600,7 @@ describe('LogUpdateScreen', () => {
         symptomLogs: [],
         painLocationLogs: [],
       });
-      
+
       const mockRoute = {
         params: { episodeId: 'episode-123' },
       };
@@ -623,6 +623,64 @@ describe('LogUpdateScreen', () => {
 
       await waitFor(() => {
         expect(mockAddPainLocationLog).toHaveBeenCalled();
+        expect(mockNavigation.goBack).toHaveBeenCalled();
+      });
+    });
+
+    it('should save when all pain locations are removed', async () => {
+      const { useEpisodeStore } = require('../../store/episodeStore');
+      const mockAddPainLocationLog = jest.fn().mockResolvedValue(undefined);
+
+      useEpisodeStore.mockReturnValue({
+        loadEpisodeWithDetails: jest.fn().mockResolvedValue({
+          id: 'episode-123',
+          startTime: Date.now() - 1000000,
+          symptoms: ['nausea'],
+          locations: ['left_temple'],
+        }),
+        addIntensityReading: jest.fn(),
+        addSymptomLog: jest.fn(),
+        addEpisodeNote: jest.fn(),
+        addPainLocationLog: mockAddPainLocationLog,
+        intensityReadings: [],
+        symptomLogs: [],
+        painLocationLogs: [
+          {
+            id: '1',
+            episodeId: 'episode-123',
+            timestamp: Date.now() - 1000,
+            painLocations: ['left_temple'],
+          },
+        ],
+      });
+
+      const mockRoute = {
+        params: { episodeId: 'episode-123' },
+      };
+
+      renderWithProviders(
+        <LogUpdateScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      await waitFor(() => {
+        const temples = screen.getAllByText('Temple');
+        expect(temples.length).toBeGreaterThan(0);
+      });
+
+      // Remove the selected pain location (left temple)
+      const temples = screen.getAllByText('Temple');
+      fireEvent.press(temples[0]); // This should deselect left temple
+
+      // Save
+      fireEvent.press(screen.getByText('Save Update'));
+
+      await waitFor(() => {
+        expect(mockAddPainLocationLog).toHaveBeenCalledWith(
+          expect.objectContaining({
+            episodeId: 'episode-123',
+            painLocations: [],
+          })
+        );
         expect(mockNavigation.goBack).toHaveBeenCalled();
       });
     });

@@ -998,8 +998,9 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       if (!log.episodeId) {
         throw new Error('Episode ID is required');
       }
-      if (!log.painLocations || log.painLocations.length === 0) {
-        throw new Error('Pain locations are required');
+      // Empty array is valid - user may want to clear all pain locations during an update
+      if (!log.painLocations) {
+        throw new Error('Pain locations array is required');
       }
 
       logger.log('[EpisodeStore] Adding pain location log:', log);
