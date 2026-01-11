@@ -287,7 +287,13 @@ describe('Medication Notification Scheduling', () => {
         'presented-1',
         'med-123',
         'sched-1',
-        expect.any(Date)
+        expect.any(Date),
+        {
+          medicationId: 'med-123',
+          scheduleId: 'sched-1',
+          medicationIds: undefined,
+          scheduleIds: undefined,
+        }
       );
       expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith('presented-1');
     });

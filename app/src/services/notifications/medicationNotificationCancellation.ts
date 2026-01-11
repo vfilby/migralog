@@ -148,11 +148,9 @@ export async function dismissMedicationNotification(medicationId: string, schedu
     let dismissedCount = 0;
     let dismissedInitial = 0;
     let dismissedFollowUps = 0;
-    let strategyCounts = {
+    let strategyCounts: Record<string, number> = {
       database_id_lookup: 0,
-      time_based: 0,
-      content_based: 0,
-      category_based: 0,
+      payload_match: 0,
       none: 0,
     };
 
@@ -193,11 +191,18 @@ export async function dismissMedicationNotification(medicationId: string, schedu
       });
 
       // Use the cross-reference service to determine if this notification should be dismissed
+      // Pass the notification payload for fallback matching (MIGRALOG-V fix)
       const dismissalResult = await notificationDismissalService.shouldDismissNotification(
         notificationId,
         medicationId,
         scheduleId,
-        new Date()
+        new Date(),
+        {
+          medicationId: data.medicationId,
+          scheduleId: data.scheduleId,
+          medicationIds: data.medicationIds,
+          scheduleIds: data.scheduleIds,
+        }
       );
 
       strategyCounts[dismissalResult.strategy]++;

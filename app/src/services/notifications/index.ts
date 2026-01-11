@@ -42,3 +42,9 @@ export {
 export {
   handleDailyCheckinNotification,
 } from './dailyCheckinNotifications';
+
+export {
+  NotificationDismissalService,
+  notificationDismissalService,
+} from './NotificationDismissalService';
+export type { DismissalResult, NotificationPayloadData } from './NotificationDismissalService';

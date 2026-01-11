@@ -4,13 +4,23 @@ import { medicationRepository, medicationDoseRepository, medicationScheduleRepos
 import { scheduledNotificationRepository } from '../../database/scheduledNotificationRepository';
 
 /**
+ * Notification payload data for payload-based matching fallback
+ */
+export interface NotificationPayloadData {
+  medicationId?: string;
+  scheduleId?: string;
+  medicationIds?: string[];
+  scheduleIds?: string[];
+}
+
+/**
  * Result of a notification dismissal check
  */
 export interface DismissalResult {
   /** Whether the notification should be dismissed */
   shouldDismiss: boolean;
   /** Strategy that determined the dismissal decision */
-  strategy: 'database_id_lookup' | 'none';
+  strategy: 'database_id_lookup' | 'payload_match' | 'none';
   /** Confidence score for the dismissal decision (0-100) */
   confidence: number;
   /** Additional context about the decision */
@@ -39,13 +49,15 @@ export class NotificationDismissalService {
    * @param targetMedicationId - Medication ID that was logged/acted upon
    * @param targetScheduleId - Schedule ID that was logged/acted upon
    * @param loggedTime - Time when the dose was logged (unused, kept for API compatibility)
+   * @param notificationPayload - Optional payload data from the notification for fallback matching
    * @returns Promise<DismissalResult> - Decision and reasoning
    */
   async shouldDismissNotification(
     notificationId: string,
     targetMedicationId: string,
     targetScheduleId: string,
-    loggedTime: Date = new Date()
+    loggedTime: Date = new Date(),
+    notificationPayload?: NotificationPayloadData
   ): Promise<DismissalResult> {
     try {
       logger.debug('[NotificationDismissal] Evaluating notification for dismissal', {
@@ -53,10 +65,11 @@ export class NotificationDismissalService {
         targetMedicationId,
         targetScheduleId,
         loggedTime: loggedTime.toISOString(),
+        hasPayload: !!notificationPayload,
         component: 'NotificationDismissalService',
       });
 
-      // Database ID Lookup (ONLY strategy)
+      // Database ID Lookup (primary strategy)
       const result = await this.checkDatabaseIdLookup(
         notificationId,
         targetMedicationId,
@@ -86,11 +99,44 @@ export class NotificationDismissalService {
         return result;
       }
 
-      // Database lookup failed - log warning for diagnostics
-      logger.warn('[NotificationDismissal] Database lookup failed - notification will NOT be dismissed', {
+      // Database lookup failed - try payload fallback (MIGRALOG-V fix)
+      if (notificationPayload) {
+        const payloadResult = this.checkPayloadMatch(
+          notificationPayload,
+          targetMedicationId,
+          targetScheduleId
+        );
+
+        if (payloadResult.shouldDismiss) {
+          logger.info('[NotificationDismissal] Payload match succeeded - dismissing notification (MIGRALOG-V fallback)', {
+            notificationId,
+            strategy: payloadResult.strategy,
+            confidence: payloadResult.confidence,
+            context: payloadResult.context,
+            component: 'NotificationDismissalService',
+          });
+          return payloadResult;
+        }
+
+        // Payload did not match - log at debug level
+        logger.debug('[NotificationDismissal] Payload fallback did not match', {
+          notificationId,
+          targetMedicationId,
+          targetScheduleId,
+          payloadMedicationId: notificationPayload.medicationId,
+          payloadScheduleId: notificationPayload.scheduleId,
+          isGrouped: !!(notificationPayload.medicationIds?.length),
+          context: payloadResult.context,
+          component: 'NotificationDismissalService',
+        });
+      }
+
+      // All strategies failed - log warning for diagnostics
+      logger.warn('[NotificationDismissal] All strategies failed - notification will NOT be dismissed', {
         notificationId,
         targetMedicationId,
         targetScheduleId,
+        hasPayload: !!notificationPayload,
         confidence: result.confidence,
         context: result.context,
         component: 'NotificationDismissalService',
@@ -100,7 +146,7 @@ export class NotificationDismissalService {
         shouldDismiss: false,
         strategy: 'none',
         confidence: 0,
-        context: result.context || 'Database lookup failed',
+        context: result.context || 'Database lookup failed and no payload fallback available',
       };
     } catch (error) {
       logger.error('[NotificationDismissal] Error evaluating dismissal', error instanceof Error ? error : new Error(String(error)), {
@@ -197,6 +243,51 @@ export class NotificationDismissalService {
         context: 'Database lookup error',
       };
     }
+  }
+
+  /**
+   * Payload-based matching fallback (MIGRALOG-V fix)
+   *
+   * When database lookup fails (e.g., mapping cleaned up by reconciliation),
+   * use the notification's embedded payload to verify the match.
+   *
+   * SAFETY: Only applies to single medication notifications.
+   * Grouped notifications are NOT auto-dismissed via payload because
+   * we cannot verify all medications in the group were logged.
+   */
+  private checkPayloadMatch(
+    payload: NotificationPayloadData,
+    targetMedicationId: string,
+    targetScheduleId: string
+  ): DismissalResult {
+    // Safety check: Do NOT dismiss grouped notifications via payload
+    // We can't verify all medications in the group were logged without DB lookup
+    if (payload.medicationIds && payload.medicationIds.length > 0) {
+      return {
+        shouldDismiss: false,
+        strategy: 'payload_match',
+        confidence: 0,
+        context: 'Grouped notification - cannot verify all medications logged via payload only',
+      };
+    }
+
+    // Single medication notification - check exact match
+    if (payload.medicationId === targetMedicationId && payload.scheduleId === targetScheduleId) {
+      return {
+        shouldDismiss: true,
+        strategy: 'payload_match',
+        confidence: 95, // Slightly lower than DB lookup since mapping was missing
+        context: 'Payload match - DB mapping missing but notification payload matches target',
+      };
+    }
+
+    // No match
+    return {
+      shouldDismiss: false,
+      strategy: 'payload_match',
+      confidence: 0,
+      context: 'Payload does not match target medication/schedule',
+    };
   }
 
   /**
