@@ -2,6 +2,36 @@ import * as Location from 'expo-location';
 import { logger } from '../utils/logger';
 import { EpisodeLocation } from '../models/types';
 
+/**
+ * Timeout for geocoding operations in milliseconds.
+ * Geocoding should never block user operations - 5 seconds is generous
+ * for a network operation that can fail gracefully.
+ */
+const GEOCODE_TIMEOUT_MS = 5000;
+
+/**
+ * Wraps a promise with a timeout. If the promise doesn't resolve within
+ * the specified time, rejects with a timeout error.
+ * Used to ensure network operations never block user interactions.
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number, operation: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error(`${operation} timed out after ${ms}ms`));
+    }, ms);
+
+    promise
+      .then((result) => {
+        clearTimeout(timeoutId);
+        resolve(result);
+      })
+      .catch((error) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
+}
+
 interface GeocodeQueueItem {
   latitude: number;
   longitude: number;
@@ -157,10 +187,15 @@ class LocationService {
       }
 
       try {
-        const results = await Location.reverseGeocodeAsync({
-          latitude: item.latitude,
-          longitude: item.longitude,
-        });
+        // Wrap geocoding with timeout to ensure poor network never blocks user operations
+        const results = await withTimeout(
+          Location.reverseGeocodeAsync({
+            latitude: item.latitude,
+            longitude: item.longitude,
+          }),
+          GEOCODE_TIMEOUT_MS,
+          'Reverse geocoding'
+        );
 
         this.lastGeocodeTime = Date.now();
 
@@ -186,7 +221,9 @@ class LocationService {
           item.resolve(null);
         }
       } catch (error) {
-        logger.error('Failed to reverse geocode:', error);
+        // Use warn instead of error - geocoding failures are expected and non-critical
+        // (e.g., poor network, rate limiting, timeouts). Location address is a nice-to-have.
+        logger.warn('Failed to reverse geocode:', error);
         item.resolve(null); // Resolve with null instead of rejecting to avoid breaking UI
       }
     }
