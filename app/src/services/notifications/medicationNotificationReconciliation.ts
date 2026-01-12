@@ -20,6 +20,7 @@ import {
   scheduleGroupedNotificationsForDays,
   scheduleGroupedNotificationForTime,
 } from './medicationNotificationScheduling';
+import { verifyNotificationIntegrity } from './NotificationIntegrityService';
 
 /**
  * iOS limits total scheduled notifications to 64.
@@ -366,6 +367,10 @@ export async function rescheduleAllNotifications(): Promise<void> {
     await dailyCheckinService.scheduleNotification();
 
     logger.log('[Notification] All notifications rescheduled successfully');
+
+    // Verify notification integrity and log any deviations to Sentry
+    await verifyNotificationIntegrity();
+    logger.log('[Notification] Post-reschedule integrity verification complete');
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
@@ -792,6 +797,10 @@ export async function rebalanceNotifications(): Promise<void> {
     await topUpNotifications();
 
     logger.log('[Notification] Rebalance complete');
+
+    // Verify notification integrity and log any deviations to Sentry
+    await verifyNotificationIntegrity();
+    logger.log('[Notification] Post-rebalance integrity verification complete');
   } catch (error) {
     logger.error('[Notification] Error in rebalanceNotifications:', error);
   }
