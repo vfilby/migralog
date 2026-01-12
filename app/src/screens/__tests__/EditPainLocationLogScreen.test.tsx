@@ -274,7 +274,7 @@ describe('EditPainLocationLogScreen', () => {
     });
   });
 
-  it('should disable save button when all locations are deselected', async () => {
+  it('should keep save button enabled when all locations are deselected', async () => {
     renderWithProviders(
       <EditPainLocationLogScreen
         navigation={mockNavigation as any}
@@ -296,9 +296,9 @@ describe('EditPainLocationLogScreen', () => {
     const rightEyeButton = screen.getByLabelText('Right Eye');
     fireEvent.press(rightEyeButton);
 
-    // Now the save button should be disabled
+    // Save button should remain enabled even with no locations selected
     await waitFor(() => {
-      expect(saveButton).toHaveAccessibilityState({ disabled: true });
+      expect(saveButton).toHaveAccessibilityState({ disabled: false });
     });
   });
 
@@ -410,7 +410,7 @@ describe('EditPainLocationLogScreen', () => {
     });
   });
 
-  it('should disable save button when no locations are selected', async () => {
+  it('should keep save button enabled when no locations are selected initially', async () => {
     const { useEpisodeStore } = require('../../store/episodeStore');
     const emptyLocationLog = { ...mockPainLocationLog, painLocations: [] };
     useEpisodeStore.mockReturnValue({
@@ -428,7 +428,50 @@ describe('EditPainLocationLogScreen', () => {
 
     await waitFor(() => {
       const saveButton = screen.getByLabelText('Save changes');
-      expect(saveButton).toHaveAccessibilityState({ disabled: true });
+      // Save button should be enabled even with no locations selected
+      expect(saveButton).toHaveAccessibilityState({ disabled: false });
+    });
+  });
+
+  it('should save with empty pain locations successfully', async () => {
+    const { useEpisodeStore } = require('../../store/episodeStore');
+    const mockUpdatePainLocationLog = jest.fn().mockResolvedValue(undefined);
+    useEpisodeStore.mockReturnValue({
+      getPainLocationLogById: jest.fn().mockReturnValue(mockPainLocationLog),
+      updatePainLocationLog: mockUpdatePainLocationLog,
+      deletePainLocationLog: jest.fn(),
+    });
+
+    renderWithProviders(
+      <EditPainLocationLogScreen
+        navigation={mockNavigation as any}
+        route={mockRoute as any}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Save Changes')).toBeTruthy();
+    });
+
+    // Deselect all currently selected locations (left_temple and right_eye)
+    const leftTempleButton = screen.getByLabelText('Left Temple');
+    fireEvent.press(leftTempleButton);
+    const rightEyeButton = screen.getByLabelText('Right Eye');
+    fireEvent.press(rightEyeButton);
+
+    // Save with empty locations
+    const saveButton = screen.getByText('Save Changes');
+    fireEvent.press(saveButton);
+
+    await waitFor(() => {
+      expect(mockUpdatePainLocationLog).toHaveBeenCalledWith(
+        'test-pain-123',
+        expect.objectContaining({
+          painLocations: [],
+          timestamp: expect.any(Number),
+        })
+      );
+      expect(mockNavigation.goBack).toHaveBeenCalled();
     });
   });
 });

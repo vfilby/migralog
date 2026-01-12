@@ -799,7 +799,7 @@ describe('MedicationDetailScreen', () => {
       });
 
       // Find and long press on dose item
-      const doseItems = screen.getAllByText(/Dec \d+, \d{4}/);
+      const doseItems = screen.getAllByText(/[A-Z][a-z]{2} \d+, \d{4}/);
       fireEvent(doseItems[0], 'longPress');
 
       expect(ActionSheetIOS.showActionSheetWithOptions).toHaveBeenCalledWith(
@@ -848,7 +848,7 @@ describe('MedicationDetailScreen', () => {
         expect(screen.getByText('Test Medication')).toBeTruthy();
       });
 
-      const doseItems = screen.getAllByText(/Dec \d+, \d{4}/);
+      const doseItems = screen.getAllByText(/[A-Z][a-z]{2} \d+, \d{4}/);
       fireEvent(doseItems[0], 'longPress');
 
       // Simulate pressing Edit button (index 1)
@@ -898,7 +898,7 @@ describe('MedicationDetailScreen', () => {
         expect(screen.getByText('Test Medication')).toBeTruthy();
       });
 
-      const doseItems = screen.getAllByText(/Dec \d+, \d{4}/);
+      const doseItems = screen.getAllByText(/[A-Z][a-z]{2} \d+, \d{4}/);
       fireEvent(doseItems[0], 'longPress');
 
       // Simulate pressing Delete button (index 2)
@@ -949,7 +949,7 @@ describe('MedicationDetailScreen', () => {
         expect(screen.getByText('Test Medication')).toBeTruthy();
       });
 
-      const doseItems = screen.getAllByText(/Dec \d+, \d{4}/);
+      const doseItems = screen.getAllByText(/[A-Z][a-z]{2} \d+, \d{4}/);
       fireEvent(doseItems[0], 'longPress');
 
       // Simulate pressing Cancel button (index 0)
@@ -998,12 +998,12 @@ describe('MedicationDetailScreen', () => {
         expect(screen.getByText('Test Medication')).toBeTruthy();
       });
 
-      const doseItems = screen.getAllByText(/Dec \d+, \d{4}/);
+      const doseItems = screen.getAllByText(/[A-Z][a-z]{2} \d+, \d{4}/);
       fireEvent(doseItems[0], 'longPress');
 
       expect(Alert.alert).toHaveBeenCalledWith(
         'Dose Actions',
-        expect.stringContaining('Dec'),
+        expect.stringMatching(/[A-Z][a-z]{2} \d+, \d{4}/),
         expect.arrayContaining([
           { text: 'Cancel', style: 'cancel' },
           { text: 'Edit', onPress: expect.any(Function) },
@@ -1048,7 +1048,7 @@ describe('MedicationDetailScreen', () => {
         expect(screen.getByText('Test Medication')).toBeTruthy();
       });
 
-      const doseItems = screen.getAllByText(/Dec \d+, \d{4}/);
+      const doseItems = screen.getAllByText(/[A-Z][a-z]{2} \d+, \d{4}/);
       fireEvent(doseItems[0], 'longPress');
 
       // Simulate pressing Edit button
@@ -1100,7 +1100,7 @@ describe('MedicationDetailScreen', () => {
         expect(screen.getByText('Test Medication')).toBeTruthy();
       });
 
-      const doseItems = screen.getAllByText(/Dec \d+, \d{4}/);
+      const doseItems = screen.getAllByText(/[A-Z][a-z]{2} \d+, \d{4}/);
       fireEvent(doseItems[0], 'longPress');
 
       await act(async () => {
@@ -1150,7 +1150,7 @@ describe('MedicationDetailScreen', () => {
         expect(screen.getByText('Test Medication')).toBeTruthy();
       });
 
-      const doseItems = screen.getAllByText(/Dec \d+, \d{4}/);
+      const doseItems = screen.getAllByText(/[A-Z][a-z]{2} \d+, \d{4}/);
       fireEvent(doseItems[0], 'longPress');
 
       await act(async () => {
@@ -1213,7 +1213,7 @@ describe('MedicationDetailScreen', () => {
         expect(screen.getByText('Test Medication')).toBeTruthy();
       });
 
-      const doseItems = screen.getAllByText(/Dec \d+, \d{4}/);
+      const doseItems = screen.getAllByText(/[A-Z][a-z]{2} \d+, \d{4}/);
       fireEvent(doseItems[0], 'longPress');
 
       await act(async () => {
@@ -1269,7 +1269,7 @@ describe('MedicationDetailScreen', () => {
         expect(screen.getByText('Test Medication')).toBeTruthy();
       });
 
-      const doseItems = screen.getAllByText(/Dec \d+, \d{4}/);
+      const doseItems = screen.getAllByText(/[A-Z][a-z]{2} \d+, \d{4}/);
       fireEvent(doseItems[0], 'longPress');
 
       await act(async () => {
@@ -1326,7 +1326,7 @@ describe('MedicationDetailScreen', () => {
         expect(screen.getByText('Test Medication')).toBeTruthy();
       });
 
-      const doseItems = screen.getAllByText(/Dec \d+, \d{4}/);
+      const doseItems = screen.getAllByText(/[A-Z][a-z]{2} \d+, \d{4}/);
       fireEvent(doseItems[0], 'longPress');
 
       await act(async () => {
@@ -1380,7 +1380,7 @@ describe('MedicationDetailScreen', () => {
         expect(screen.getByText('Test Medication')).toBeTruthy();
       });
 
-      const doseItems = screen.getAllByText(/Dec \d+, \d{4}/);
+      const doseItems = screen.getAllByText(/[A-Z][a-z]{2} \d+, \d{4}/);
       fireEvent(doseItems[0], 'longPress');
 
       await act(async () => {
@@ -1392,7 +1392,7 @@ describe('MedicationDetailScreen', () => {
       });
 
       // Find and press the datetime button
-      const datetimeButton = screen.getByText(/Dec \d+, \d{4} \d+:\d+/);
+      const datetimeButton = screen.getByText(/[A-Z][a-z]{2} \d+, \d{4} \d+:\d+/);
       fireEvent.press(datetimeButton);
 
       // Simulate DateTimePicker onChange for Android
@@ -1444,7 +1444,7 @@ describe('MedicationDetailScreen', () => {
         expect(screen.getByText('Test Medication')).toBeTruthy();
       });
 
-      const doseItems = screen.getAllByText(/Dec \d+, \d{4}/);
+      const doseItems = screen.getAllByText(/[A-Z][a-z]{2} \d+, \d{4}/);
       fireEvent(doseItems[0], 'longPress');
 
       await act(async () => {
@@ -1456,7 +1456,7 @@ describe('MedicationDetailScreen', () => {
       });
 
       // Find and press the datetime button to show picker
-      const datetimeButton = screen.getByText(/Dec \d+, \d{4} \d+:\d+/);
+      const datetimeButton = screen.getByText(/[A-Z][a-z]{2} \d+, \d{4} \d+:\d+/);
       fireEvent.press(datetimeButton);
     });
   });
@@ -1505,7 +1505,7 @@ describe('MedicationDetailScreen', () => {
         expect(screen.getByText('Test Medication')).toBeTruthy();
       });
 
-      const doseItems = screen.getAllByText(/Dec \d+, \d{4}/);
+      const doseItems = screen.getAllByText(/[A-Z][a-z]{2} \d+, \d{4}/);
       fireEvent(doseItems[0], 'longPress');
 
       await act(async () => {
@@ -1571,7 +1571,7 @@ describe('MedicationDetailScreen', () => {
         expect(screen.getByText('Test Medication')).toBeTruthy();
       });
 
-      const doseItems = screen.getAllByText(/Dec \d+, \d{4}/);
+      const doseItems = screen.getAllByText(/[A-Z][a-z]{2} \d+, \d{4}/);
       fireEvent(doseItems[0], 'longPress');
 
       await act(async () => {
@@ -2469,7 +2469,7 @@ describe('MedicationDetailScreen', () => {
         expect(screen.getByText('Test Medication')).toBeTruthy();
       });
 
-      const doseItems = screen.getAllByText(/Dec \d+, \d{4}/);
+      const doseItems = screen.getAllByText(/[A-Z][a-z]{2} \d+, \d{4}/);
       
       // Simulate rapid multiple edit attempts (race condition)
       let actionSheetCallback: Function | undefined;
@@ -2629,7 +2629,7 @@ describe('MedicationDetailScreen', () => {
         actionSheetCallback = callback;
       });
 
-      const doseItems = screen.getAllByText(/Dec \d+, \d{4}/);
+      const doseItems = screen.getAllByText(/[A-Z][a-z]{2} \d+, \d{4}/);
       fireEvent(doseItems[0], 'longPress');
       
       await act(async () => {

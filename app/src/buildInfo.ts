@@ -1,10 +1,10 @@
 // Auto-generated file - do not edit manually
-// Generated at: 2025-11-29T15:27:03.816Z
+// Generated at: 2026-01-11T17:49:12.369Z
 
 export const buildInfo = {
-  "version": "1.1.64",
+  "version": "1.1.138",
   "buildNumber": "dev",
-  "commitHash": "cbd587b",
-  "branch": "refactor/codebase-cleanup",
-  "buildTime": "2025-11-29T15:27:03.816Z"
+  "commitHash": "e2c95ff",
+  "branch": "fix/pain-location-validation-MIGRALOG-Y",
+  "buildTime": "2026-01-11T17:49:12.369Z"
 };

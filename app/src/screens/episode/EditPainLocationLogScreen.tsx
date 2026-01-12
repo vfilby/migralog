@@ -221,11 +221,6 @@ export default function EditPainLocationLogScreen({ route, navigation }: Props) 
   const handleSave = async () => {
     if (!painLocationLog || !timestamp) return;
 
-    if (painLocations.length === 0) {
-      Alert.alert('No Locations', 'Please select at least one pain location');
-      return;
-    }
-
     setSaving(true);
     try {
       await updatePainLocationLog(painLocationLog.id, {
@@ -404,13 +399,13 @@ export default function EditPainLocationLogScreen({ route, navigation }: Props) 
       {/* Save and Delete Buttons */}
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.saveButton, (saving || painLocations.length === 0) && styles.saveButtonDisabled]}
+          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
           onPress={handleSave}
-          disabled={saving || painLocations.length === 0}
+          disabled={saving}
           accessibilityRole="button"
           accessibilityLabel="Save changes"
           accessibilityHint="Saves the edited pain location log and returns to previous screen"
-          accessibilityState={{ disabled: saving || painLocations.length === 0 }}
+          accessibilityState={{ disabled: saving }}
         >
           <Text style={styles.saveButtonText}>
             {saving ? 'Saving...' : 'Save Changes'}
