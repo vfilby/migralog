@@ -495,4 +495,152 @@ describe('NotificationDismissalService', () => {
       expect(result).toBe(false);
     });
   });
+
+  describe('payload fallback strategy (MIGRALOG-V fix)', () => {
+    it('should dismiss single medication notification when payload matches and DB lookup fails', async () => {
+      // Arrange
+      const notificationId = 'test-notification-id';
+      const medicationId = 'test-medication-id';
+      const scheduleId = 'test-schedule-id';
+
+      // No database mapping found (simulates reconciliation cleanup)
+      mockScheduledNotificationRepository.getMappingsByNotificationId.mockResolvedValue([]);
+
+      // Act
+      const result = await service.shouldDismissNotification(
+        notificationId,
+        medicationId,
+        scheduleId,
+        new Date(),
+        {
+          medicationId,
+          scheduleId,
+        }
+      );
+
+      // Assert - Should dismiss via payload fallback
+      expect(result.shouldDismiss).toBe(true);
+      expect(result.strategy).toBe('payload_match');
+      expect(result.confidence).toBe(95);
+      expect(result.context).toContain('Payload match');
+    });
+
+    it('should NOT dismiss when payload does not match target medication', async () => {
+      // Arrange
+      const notificationId = 'test-notification-id';
+      const targetMedicationId = 'target-medication-id';
+      const targetScheduleId = 'target-schedule-id';
+
+      // No database mapping found
+      mockScheduledNotificationRepository.getMappingsByNotificationId.mockResolvedValue([]);
+
+      // Act
+      const result = await service.shouldDismissNotification(
+        notificationId,
+        targetMedicationId,
+        targetScheduleId,
+        new Date(),
+        {
+          medicationId: 'different-medication-id',
+          scheduleId: 'different-schedule-id',
+        }
+      );
+
+      // Assert - Should NOT dismiss because payload doesn't match
+      expect(result.shouldDismiss).toBe(false);
+      expect(result.strategy).toBe('none');
+      expect(result.confidence).toBe(0);
+    });
+
+    it('should NOT dismiss grouped notifications via payload (safety)', async () => {
+      // Arrange
+      const notificationId = 'test-notification-id';
+      const medicationId = 'test-medication-id';
+      const scheduleId = 'test-schedule-id';
+
+      // No database mapping found
+      mockScheduledNotificationRepository.getMappingsByNotificationId.mockResolvedValue([]);
+
+      // Act - Grouped notification payload
+      const result = await service.shouldDismissNotification(
+        notificationId,
+        medicationId,
+        scheduleId,
+        new Date(),
+        {
+          medicationIds: ['test-medication-id', 'other-medication-id'],
+          scheduleIds: ['test-schedule-id', 'other-schedule-id'],
+        }
+      );
+
+      // Assert - Should NOT dismiss grouped notification via payload
+      expect(result.shouldDismiss).toBe(false);
+      expect(result.strategy).toBe('none');
+      expect(result.confidence).toBe(0);
+      // Verify we didn't dismiss due to safety
+    });
+
+    it('should not use payload fallback when no payload provided', async () => {
+      // Arrange
+      const notificationId = 'test-notification-id';
+      const medicationId = 'test-medication-id';
+      const scheduleId = 'test-schedule-id';
+
+      // No database mapping found
+      mockScheduledNotificationRepository.getMappingsByNotificationId.mockResolvedValue([]);
+
+      // Act - No payload provided
+      const result = await service.shouldDismissNotification(
+        notificationId,
+        medicationId,
+        scheduleId,
+        new Date()
+        // No payload parameter
+      );
+
+      // Assert - Should NOT dismiss (no fallback available)
+      expect(result.shouldDismiss).toBe(false);
+      expect(result.strategy).toBe('none');
+      expect(result.confidence).toBe(0);
+    });
+
+    it('should prefer database lookup over payload match when both available', async () => {
+      // Arrange
+      const notificationId = 'test-notification-id';
+      const medicationId = 'test-medication-id';
+      const scheduleId = 'test-schedule-id';
+
+      // Database mapping exists
+      mockScheduledNotificationRepository.getMappingsByNotificationId.mockResolvedValue([
+        {
+          id: 'mapping-1',
+          medicationId,
+          scheduleId,
+          date: '2024-01-01',
+          notificationId,
+          notificationType: 'reminder',
+          isGrouped: false,
+          sourceType: 'medication',
+          createdAt: '2024-01-01T00:00:00Z',
+        },
+      ]);
+
+      // Act - Both DB mapping and payload provided
+      const result = await service.shouldDismissNotification(
+        notificationId,
+        medicationId,
+        scheduleId,
+        new Date(),
+        {
+          medicationId,
+          scheduleId,
+        }
+      );
+
+      // Assert - Should use database lookup (primary strategy)
+      expect(result.shouldDismiss).toBe(true);
+      expect(result.strategy).toBe('database_id_lookup');
+      expect(result.confidence).toBe(100);
+    });
+  });
 });
