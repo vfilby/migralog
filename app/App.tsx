@@ -10,6 +10,7 @@ import { notificationService } from './src/services/notifications/notificationSe
 import { dailyCheckinService } from './src/services/notifications/dailyCheckinService';
 import { verifyNotificationIntegrity } from './src/services/notifications/NotificationIntegrityService';
 import { useOnboardingStore } from './src/store/onboardingStore';
+import { useLiveActivityIntegration } from './src/services/liveActivity';
 import { logger } from './src/utils/logger';
 import { performanceMonitor } from './src/utils/performance';
 import ErrorBoundary from './src/components/shared/ErrorBoundary';
@@ -51,6 +52,9 @@ function App() {
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
+
+  // Initialize Live Activity integration
+  useLiveActivityIntegration();
 
   const initialize = async () => {
     const startupTimer = performanceMonitor.startTimer('app-startup', {
