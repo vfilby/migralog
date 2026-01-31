@@ -11,6 +11,12 @@ import { errorLogger } from '../services/errorLogger';
 import { toastService } from '../services/toastService';
 import { cacheManager } from '../utils/cacheManager';
 import { logger } from '../utils/logger';
+import {
+  isLiveActivityAvailable,
+  startEpisodeLiveActivity,
+  updateEpisodeLiveActivity,
+  endEpisodeLiveActivity
+} from '../services/liveActivityService';
 
 /**
  * Episode with all related data loaded
@@ -197,6 +203,11 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
         loading: false
       });
 
+      // Start Live Activity if available (with initial intensity of 0)
+      if (isLiveActivityAvailable()) {
+        startEpisodeLiveActivity(newEpisode, 0);
+      }
+
       return newEpisode;
     } catch (error) {
       await errorLogger.log('database', 'Failed to start episode', error as Error, {
@@ -231,6 +242,11 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
         episodes: updatedEpisodes,
         loading: false
       });
+
+      // End Live Activity if available
+      if (isLiveActivityAvailable()) {
+        endEpisodeLiveActivity();
+      }
     } catch (error) {
       set({ error: (error as Error).message, loading: false });
 
@@ -438,10 +454,16 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
 
       // Update state with new reading
       const currentReadings = get().intensityReadings || [];
-      set({ 
+      set({
         intensityReadings: [...currentReadings, reading],
-        loading: false 
+        loading: false
       });
+
+      // Update Live Activity with new intensity if this is the current episode
+      const currentEpisode = get().currentEpisode;
+      if (currentEpisode && currentEpisode.id === episodeId && isLiveActivityAvailable()) {
+        updateEpisodeLiveActivity(currentEpisode, intensity);
+      }
     } catch (error) {
       await errorLogger.log('database', 'Failed to add intensity reading', error as Error, {
         operation: 'addIntensityReading',

@@ -68,6 +68,12 @@ module.exports = {
         }
       ],
       [
+        "expo-live-activity",
+        {
+          enablePushNotifications: false
+        }
+      ],
+      [
         "@sentry/react-native/expo",
         {
           "url": "https://sentry.io/",

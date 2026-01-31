@@ -10,7 +10,7 @@ import { notificationService } from './src/services/notifications/notificationSe
 import { dailyCheckinService } from './src/services/notifications/dailyCheckinService';
 import { verifyNotificationIntegrity } from './src/services/notifications/NotificationIntegrityService';
 import { useOnboardingStore } from './src/store/onboardingStore';
-import { useLiveActivityIntegration } from './src/services/liveActivity';
+// Live Activities integration happens automatically in episodeStore
 import { logger } from './src/utils/logger';
 import { performanceMonitor } from './src/utils/performance';
 import ErrorBoundary from './src/components/shared/ErrorBoundary';
@@ -54,7 +54,7 @@ function App() {
   const [isRetrying, setIsRetrying] = useState(false);
 
   // Initialize Live Activity integration
-  useLiveActivityIntegration();
+  // Live Activities are automatically managed by episodeStore
 
   const initialize = async () => {
     const startupTimer = performanceMonitor.startTimer('app-startup', {
