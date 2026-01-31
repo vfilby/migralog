@@ -49,6 +49,7 @@
     "expo-document-picker": "~14.0.8",
     "expo-file-system": "~19.0.16",
     "expo-image-picker": "~17.0.10",
+    "expo-live-activity": "^0.4.2",
     "expo-location": "~19.0.8",
     "expo-notifications": "~0.32.15",
     "expo-sharing": "~14.0.8",
