@@ -819,9 +819,9 @@ Consider adding ESLint rule:
 ## Related Documentation
 
 - [Store Repository Audit](./store-repository-audit.md) - Complete audit of current codebase
-- [State Management](../../docs/state-management.md) - Overview of state management
+- [State Management](../../spec/state-management.md) - Overview of state management
 - [Error Handling Patterns](./error-handling-patterns.md) - Error handling best practices
-- [Testing Guide](../../docs/wiki/Testing-Guide.md) - Testing patterns and practices
+- [Testing Guide](./wiki/Testing-Guide.md) - Testing patterns and practices
 
 ---
 

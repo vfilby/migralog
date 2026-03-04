@@ -65,11 +65,11 @@ Your health data stays with you:
 **iOS** (Primary Platform)  
 - **TestFlight**: Currently available for beta testing ([App Store ID: 6753635113](https://apps.apple.com/app/id6753635113))
 - **App Store**: Production release coming soon
-- **Build from source**: See [DEVELOPMENT.md](DEVELOPMENT.md) for developer setup
+- **Build from source**: See developer setup instructions in `app/`
 
 **Android**  
 - Under evaluation for future release
-- Build from source available (see [DEVELOPMENT.md](DEVELOPMENT.md))
+- Build from source available (see developer setup in `app/`)
 
 ### Quick Start Guide
 
@@ -117,7 +117,7 @@ MigraLog is open source and welcomes contributions! Whether you're a developer, 
 - 📝 **Documentation**: Improve our guides and documentation
 - 🌐 **Translations**: Help make MigraLog available in more languages
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) for developer setup instructions and [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
 
 ## Developer Tools
 

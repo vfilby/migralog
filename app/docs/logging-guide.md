@@ -893,7 +893,7 @@ class APIService {
 - [Error Handling Patterns](error-handling-patterns.md) - Error handling best practices
 - [Sentry Setup](sentry-setup.md) - Production error monitoring
 - [Testing Guide](../TESTING.md) - Testing strategies including log assertions
-- [Developer Tools](../../docs/wiki/Features.md#developer-tools) - Overview of developer features
+- [Developer Tools](./wiki/Features.md#developer-tools) - Overview of developer features
 
 ## Reference
 
