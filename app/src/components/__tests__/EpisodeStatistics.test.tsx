@@ -3,11 +3,13 @@ import { render, screen, waitFor } from '@testing-library/react-native';
 import EpisodeStatistics from '../analytics/EpisodeStatistics';
 import { useAnalyticsStore } from '../../store/analyticsStore';
 import { dailyStatusRepository } from '../../database/dailyStatusRepository';
+import { episodeRepository } from '../../database/episodeRepository';
 import { ThemeProvider } from '../../theme/ThemeContext';
 import { DailyStatusLog, Episode } from '../../models/types';
 
 jest.mock('../../store/analyticsStore');
 jest.mock('../../database/dailyStatusRepository');
+jest.mock('../../database/episodeRepository');
 
 const mockUseAnalyticsStore = useAnalyticsStore as unknown as jest.Mock;
 
@@ -107,6 +109,7 @@ describe('EpisodeStatistics', () => {
     mockUseAnalyticsStore.mockReturnValue(createMockStoreState());
 
     (dailyStatusRepository.getDateRange as jest.Mock).mockResolvedValue(mockDailyStatuses);
+    (episodeRepository.getByDateRange as jest.Mock).mockResolvedValue(mockEpisodes);
   });
 
   afterEach(() => {
@@ -398,18 +401,17 @@ describe('EpisodeStatistics', () => {
       });
 
       (dailyStatusRepository.getDateRange as jest.Mock).mockResolvedValue([]);
+      (episodeRepository.getByDateRange as jest.Mock).mockResolvedValue(ongoingEpisode);
 
       renderWithTheme(<EpisodeStatistics selectedRange={7} />);
-
-      await waitFor(() => {
-        const migraineDaysRow = screen.getByTestId('migraine-days-row');
-        expect(migraineDaysRow).toBeTruthy();
-      });
 
       // Date range for last 7 days: Jan 19-25 (7 days total)
       // Episode started Jan 20, ongoing through Jan 25 = 6 days
       // 6 migraine days out of 7 total = 86%
-      expect(screen.getByText(/6 \(86%\)/)).toBeTruthy();
+      await waitFor(() => {
+        expect(screen.getByTestId('migraine-days-row')).toBeTruthy();
+        expect(screen.getByText(/6 \(86%\)/)).toBeTruthy();
+      });
     });
 
     it('should count ongoing episode that spans entire range', async () => {
@@ -440,18 +442,17 @@ describe('EpisodeStatistics', () => {
       });
 
       (dailyStatusRepository.getDateRange as jest.Mock).mockResolvedValue([]);
+      (episodeRepository.getByDateRange as jest.Mock).mockResolvedValue(ongoingEpisode);
 
       renderWithTheme(<EpisodeStatistics selectedRange={7} />);
-
-      await waitFor(() => {
-        const migraineDaysRow = screen.getByTestId('migraine-days-row');
-        expect(migraineDaysRow).toBeTruthy();
-      });
 
       // Date range for last 7 days: Jan 19-25 (7 days total)
       // Episode started Jan 10, covers entire range = 7 days
       // 7 migraine days out of 7 total = 100%
-      expect(screen.getByText(/7 \(100%\)/)).toBeTruthy();
+      await waitFor(() => {
+        expect(screen.getByTestId('migraine-days-row')).toBeTruthy();
+        expect(screen.getByText(/7 \(100%\)/)).toBeTruthy();
+      });
     });
 
     it('should handle mix of completed and ongoing episodes', async () => {
@@ -493,19 +494,18 @@ describe('EpisodeStatistics', () => {
       });
 
       (dailyStatusRepository.getDateRange as jest.Mock).mockResolvedValue([]);
+      (episodeRepository.getByDateRange as jest.Mock).mockResolvedValue(mixedEpisodes);
 
       renderWithTheme(<EpisodeStatistics selectedRange={7} />);
-
-      await waitFor(() => {
-        const migraineDaysRow = screen.getByTestId('migraine-days-row');
-        expect(migraineDaysRow).toBeTruthy();
-      });
 
       // Date range for last 7 days: Jan 19-25 (7 days total)
       // Completed episode: Jan 19, 20 = 2 days
       // Ongoing episode: Jan 23, 24, 25 = 3 days
       // Total unique migraine days: 5 out of 7 = 71%
-      expect(screen.getByText(/5 \(71%\)/)).toBeTruthy();
+      await waitFor(() => {
+        expect(screen.getByTestId('migraine-days-row')).toBeTruthy();
+        expect(screen.getByText(/5 \(71%\)/)).toBeTruthy();
+      });
     });
 
     it('should correctly categorize days with ongoing episode and daily statuses', async () => {
@@ -565,27 +565,21 @@ describe('EpisodeStatistics', () => {
       });
 
       (dailyStatusRepository.getDateRange as jest.Mock).mockResolvedValue(dailyStatuses);
+      (episodeRepository.getByDateRange as jest.Mock).mockResolvedValue(ongoingEpisode);
 
       renderWithTheme(<EpisodeStatistics selectedRange={7} />);
-
-      await waitFor(() => {
-        const migraineDaysRow = screen.getByTestId('migraine-days-row');
-        expect(migraineDaysRow).toBeTruthy();
-      });
 
       // Date range for last 7 days: Jan 19-25 (7 days total)
       // Migraine days: Jan 23, 24, 25 = 3 days (43%)
       // Not clear days: Jan 20 = 1 day (14%)
       // Clear days: Jan 19, 21 = 2 days (29%)
       // Unknown days: Jan 22 = 1 day (14%)
-      expect(screen.getByTestId('migraine-days-row')).toBeTruthy();
-      expect(screen.getByText(/3 \(43%\)/)).toBeTruthy(); // Migraine days
-
-      // Check that clear days and unknown days show correct values
-      const clearDaysRow = screen.getByTestId('clear-days-row');
-      const unknownDaysRow = screen.getByTestId('unknown-days-row');
-      expect(clearDaysRow).toBeTruthy();
-      expect(unknownDaysRow).toBeTruthy();
+      await waitFor(() => {
+        expect(screen.getByTestId('migraine-days-row')).toBeTruthy();
+        expect(screen.getByText(/3 \(43%\)/)).toBeTruthy(); // Migraine days
+        expect(screen.getByTestId('clear-days-row')).toBeTruthy();
+        expect(screen.getByTestId('unknown-days-row')).toBeTruthy();
+      });
     });
   });
 
