@@ -542,6 +542,7 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ##### 🔧 Technical Changes
 
+- 🔧 Chore: update changelog for v1.1.143 release [`#356`](https://github.com/vfilby/migralog/pull/356)
 - 🔧 Chore: update Expo SDK and related packages [`#339`](https://github.com/vfilby/migralog/pull/339)
 - ♻️ Refactor: remove dead DAILY trigger notification code [`#331`](https://github.com/vfilby/migralog/pull/331)
 - ✅ Test: increase integration test coverage for critical user flows [`#330`](https://github.com/vfilby/migralog/pull/330)
