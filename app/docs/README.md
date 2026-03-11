@@ -4,7 +4,7 @@ This directory contains technical implementation details, strategies, and histor
 
 ## Quick Reference
 
-📖 **For general project documentation, see [/docs/README.md](../../docs/README.md)**
+📖 **For project specifications and data models, see [/spec/](../../spec/)**
 
 ## Contents
 
@@ -48,12 +48,11 @@ This directory contains technical implementation details, strategies, and histor
 - Setup and configuration guides
 - Historical analysis and completed work
 
-**General Project Documentation ([/docs/](../../docs/)):**
+**Shared Specifications ([/spec/](../../spec/)):**
 - Feature specifications
 - Architecture overview
 - Data model documentation
-- User-facing documentation
-- Project-wide policies and standards
+- Project-wide standards
 
 ### Archive Policy
 
@@ -69,8 +68,8 @@ When adding new implementation documentation:
 
 1. **Choose the right location:**
    - App-specific implementation details → this directory
-   - Project-wide specifications → `/docs/`
-   - User-facing guides → `/docs/wiki/`
+   - Project-wide specifications → `/spec/`
+   - User-facing guides → `./wiki/`
 
 2. **Use clear, descriptive filenames:**
    - Include the domain/area (e.g., `migration-`, `testing-`, `setup-`)
@@ -88,7 +87,6 @@ When adding new implementation documentation:
 
 ## See Also
 
-- [Main Project Documentation](../../docs/README.md)
-- [Testing Guide](../../docs/testing.md)
-- [Architecture Overview](../../docs/wiki/Architecture.md)
-- [Development Setup](../../DEVELOPMENT.md)
+- [Shared Specifications](../../spec/)
+- [Testing Guide](./testing.md)
+- [Architecture Overview](./wiki/Architecture.md)
