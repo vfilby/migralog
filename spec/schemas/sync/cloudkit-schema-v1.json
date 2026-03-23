@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://migralog.app/schemas/sync/cloudkit/v1",
+  "title": "MigraLog CloudKit Schema v1",
+  "description": "Defines the CKRecord types promoted to the CloudKit container. IMMUTABLE once in production: record types and fields cannot be renamed or deleted. Design principle: keep this minimal — CloudKit is a dumb sync pipe, not a queryable backend.",
+
+  "$defs": {
+    "SyncRecord": {
+      "description": "Single CKRecord type for all synced data. Each local SQLite row becomes one SyncRecord in CloudKit.",
+      "type": "object",
+      "required": ["tableName", "recordId", "payload", "schemaVersion", "updatedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "tableName": {
+          "type": "string",
+          "description": "CKRecord field (String). The local SQLite table this record belongs to (e.g. 'episodes', 'medications')."
+        },
+        "recordId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "CKRecord field (String). The local UUID primary key. Also used as the CKRecord.recordName for deduplication."
+        },
+        "payload": {
+          "type": "string",
+          "description": "CKRecord field (String). JSON-serialized row data. Schema interpretation is client-side only."
+        },
+        "schemaVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "CKRecord field (Int64). Local SQLite schema version that produced this payload. Allows the client to handle migrations on read."
+        },
+        "updatedAt": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "description": "CKRecord field (Int64). Unix epoch milliseconds from the local record's updated_at. Used for last-write-wins conflict resolution."
+        },
+        "deleted": {
+          "type": "integer",
+          "enum": [0, 1],
+          "description": "CKRecord field (Int64). Soft-delete flag. 1 = tombstone. Allows delete propagation without losing the CKRecord."
+        }
+      }
+    }
+  },
+
+  "_design_notes": {
+    "why_opaque": "CloudKit schema is immutable once promoted to production. By storing row data as a JSON payload, the local SQLite schema can evolve freely (add tables, rename columns, change types) without ever needing to touch the CloudKit schema.",
+    "record_name_strategy": "CKRecord.recordName = '{tableName}:{recordId}' — guarantees uniqueness across tables and allows the client to parse the source table from the record name alone.",
+    "zone": "All SyncRecords live in a single custom CKRecordZone ('MigraLogZone') in the user's private database. Zone-based sync gives us atomic commits and server change tokens.",
+    "conflict_resolution": "Last-write-wins using the updatedAt field. CloudKit's built-in modificationDate is set by the server and reflects upload time, not edit time — so we carry our own.",
+    "soft_deletes": "We use a 'deleted' flag instead of deleting CKRecords. This ensures the delete propagates to other devices via zone change tokens. Tombstones can be purged after a retention period.",
+    "data_safety": "Data loss prevention is a core design tenet. Three layers: (1) Automatic local backup before first-ever sync on a device. (2) On conflict, the losing payload is preserved in the local sync_conflicts table for 90 days — restoring is just writing the payload back and queuing for sync. (3) Soft deletes in CloudKit mean no record is ever truly destroyed by sync. The existing backup/export system remains the nuclear recovery option.",
+    "future_expansion": "New fields can be added to SyncRecord if needed (e.g. a 'priority' field for sync ordering). New record types can be added. Nothing existing can be changed."
+  }
+}

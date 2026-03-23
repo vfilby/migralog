@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://migralog.app/schemas/sync/config/v1",
+  "title": "MigraLog iCloud Sync Configuration",
+  "description": "Schema for iCloud sync user preferences. Stored locally in sync_config table; not synced to CloudKit.",
+  "type": "object",
+  "required": ["enabled"],
+  "additionalProperties": false,
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether iCloud sync is active"
+    },
+    "wifiOnly": {
+      "type": "boolean",
+      "default": false,
+      "description": "Restrict sync to Wi-Fi connections only"
+    }
+  }
+}
