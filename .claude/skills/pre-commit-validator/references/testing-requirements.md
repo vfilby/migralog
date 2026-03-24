@@ -20,7 +20,7 @@ This document outlines the testing requirements and standards for the MigraineTr
 ### Unit/Integration Testing
 - **Framework**: Jest
 - **Test Location**: `__tests__` directories alongside source files
-- **Run Command**: `npm test` (from `/app` directory)
+- **Run Command**: `npm test` (from `/react-native` directory)
 - **Coverage Command**: `npm run test:coverage`
 - **Watch Mode**: `npm run test:watch`
 
@@ -104,7 +104,7 @@ Per `.clinerules`, tests should cover:
 
 ## Running Commands
 
-**All commands must be run from the `/app` directory:**
+**All commands must be run from the `/react-native` directory:**
 
 ```bash
 cd app

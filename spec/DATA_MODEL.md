@@ -839,5 +839,5 @@ CREATE INDEX IF NOT EXISTS idx_medication_doses_med_time ON medication_doses(med
 | pain_location_logs | pain_locations | PainLocation[] | `["left_temple","right_eye"]` |
 | medication_doses | side_effects | string[] | `["nausea","dizziness"]` |
 
-For complete table definitions including symptom_logs, pain_location_logs, medication_schedules, and medication_reminders, see the database migration files in `/app/src/database/migrations/`.
+For complete table definitions including symptom_logs, pain_location_logs, medication_schedules, and medication_reminders, see the database migration files in `/react-native/src/database/migrations/`.
 

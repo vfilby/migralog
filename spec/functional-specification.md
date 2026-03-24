@@ -69,25 +69,42 @@ A mobile/web application for tracking pain episodes, symptoms, and medication us
 
 ## 4. User Interface Components
 
+### 4.0 Layout Guidelines
+- **Full-width elements**: Cards, buttons, and sections should use the full available width. Avoid narrow centered boxes with excessive whitespace on the sides.
+- **Consistent padding**: Use a single level of horizontal padding (16pt) from screen edge to content. Cards that sit inside a padded scroll view should NOT add their own horizontal padding — only internal content padding.
+- **Side-by-side elements**: When two elements are side by side (e.g., "Clear" / "Not Clear" buttons), they should together span the full available width.
+- **Minimum touch targets**: All interactive elements must be at least 44×44pt.
+- **Pain location selector**: Pain locations MUST be displayed in a two-column grid with "Left" and "Right" column headers. Each row represents a body region (Eye, Temple, Neck, Head, Teeth) with the left variant in the left column and right variant in the right column. This makes it intuitive to select the side of the head affected. This layout applies everywhere pain locations are selectable (new episode, edit episode, log update).
+
 ### 4.1 Dashboard
 - Current status (in episode vs. pain-free)
 - Days since last episode
 - Quick-start episode button
 - Quick-log medication button
 - Weekly/monthly summary cards
+- Daily status widget spans full width
 
-### 4.2 Episode Log View
+### 4.2 Episode Detail View
+- **Info section**: Shows pain locations, symptoms, triggers, notes, duration. Pain locations displayed as chips/tags.
+- **Chronological timeline**: All events (intensity readings, symptom changes, pain location changes, notes) displayed in a single merged timeline sorted by timestamp
+- **Intensity sparkline**: Line chart showing intensity over time, minimum 80pt height, colored dots at each reading point
+- **Timeline entries**: Each entry shows a colored indicator, timestamp, event type icon, and description
+- **Live updates**: Adding a new intensity reading or other event must immediately update both the sparkline and the timeline without requiring a reload
+- **Edit episode**: Must allow editing pain locations (using left/right grid), symptoms, triggers, and notes
+- **Log update**: Must allow logging new pain locations (using left/right grid), intensity, symptoms, and notes during an active episode
+
+### 4.3 Episode Log View
 - Calendar view with episode markers
 - List view with episode details
 - Filter/search capabilities
 
-### 4.3 Medication Management
+### 4.4 Medication Management
 - Active medications list
 - Medication history
 - Refill reminders (optional)
 - Usage statistics
 
-### 4.4 Analytics Screen
+### 4.5 Analytics Screen
 - Charts and graphs
 - Pattern insights
 - Trigger analysis
