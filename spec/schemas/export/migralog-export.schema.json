@@ -1,0 +1,294 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://migralog.app/schemas/export/v1",
+  "title": "MigraLog JSON Export",
+  "description": "Schema for MigraLog JSON data exports. Used for healthcare provider sharing and third-party data portability. NOT for backup/restore.",
+  "type": "object",
+  "required": ["metadata", "episodes", "medications", "medicationDoses", "medicationSchedules"],
+  "additionalProperties": false,
+  "properties": {
+    "metadata": { "$ref": "#/$defs/ExportMetadata" },
+    "episodes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Episode" }
+    },
+    "episodeNotes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/EpisodeNote" }
+    },
+    "intensityReadings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/IntensityReading" }
+    },
+    "dailyStatusLogs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/DailyStatusLog" }
+    },
+    "calendarOverlays": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/CalendarOverlay" }
+    },
+    "medications": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Medication" }
+    },
+    "medicationDoses": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/MedicationDose" }
+    },
+    "medicationSchedules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/MedicationSchedule" }
+    }
+  },
+
+  "$defs": {
+    "Timestamp": {
+      "description": "Unix epoch milliseconds, must be positive",
+      "type": "integer",
+      "exclusiveMinimum": 0
+    },
+
+    "DateString": {
+      "description": "Date in YYYY-MM-DD format",
+      "type": "string",
+      "pattern": "^[0-9]{4}-[01][0-9]-[0-3][0-9]$"
+    },
+
+    "PainLocation": {
+      "type": "string",
+      "enum": [
+        "left_eye", "right_eye",
+        "left_temple", "right_temple",
+        "left_neck", "right_neck",
+        "left_head", "right_head",
+        "left_teeth", "right_teeth"
+      ]
+    },
+
+    "PainQuality": {
+      "type": "string",
+      "enum": ["throbbing", "sharp", "dull", "pressure", "stabbing", "burning"]
+    },
+
+    "Symptom": {
+      "type": "string",
+      "enum": [
+        "nausea", "vomiting", "visual_disturbances", "aura",
+        "light_sensitivity", "sound_sensitivity", "smell_sensitivity",
+        "dizziness", "confusion"
+      ]
+    },
+
+    "Trigger": {
+      "type": "string",
+      "enum": [
+        "stress", "lack_of_sleep", "weather_change",
+        "bright_lights", "loud_sounds", "alcohol",
+        "caffeine", "food", "hormonal", "exercise"
+      ]
+    },
+
+    "MedicationType": {
+      "type": "string",
+      "enum": ["preventative", "rescue", "other"]
+    },
+
+    "ScheduleFrequency": {
+      "type": "string",
+      "enum": ["daily", "monthly", "quarterly"]
+    },
+
+    "MedicationCategory": {
+      "type": "string",
+      "enum": ["otc", "nsaid", "triptan", "cgrp", "preventive", "supplement", "other"]
+    },
+
+    "DayStatus": {
+      "type": "string",
+      "enum": ["green", "yellow", "red"]
+    },
+
+    "YellowDayType": {
+      "type": "string",
+      "enum": ["prodrome", "postdrome", "anxiety", "other"]
+    },
+
+    "DoseStatus": {
+      "type": "string",
+      "enum": ["taken", "skipped"]
+    },
+
+    "EpisodeLocation": {
+      "type": "object",
+      "required": ["latitude", "longitude", "timestamp"],
+      "additionalProperties": false,
+      "properties": {
+        "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
+        "longitude": { "type": "number", "minimum": -180, "maximum": 180 },
+        "accuracy": { "type": "number", "minimum": 0, "description": "Location accuracy in meters" },
+        "timestamp": { "$ref": "#/$defs/Timestamp" }
+      }
+    },
+
+    "ExportMetadata": {
+      "type": "object",
+      "required": ["id", "timestamp", "version", "schemaVersion", "episodeCount", "medicationCount"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "timestamp": { "$ref": "#/$defs/Timestamp" },
+        "version": { "type": "string", "description": "MigraLog app version" },
+        "schemaVersion": { "type": "integer", "minimum": 1, "description": "Database schema version" },
+        "episodeCount": { "type": "integer", "minimum": 0 },
+        "medicationCount": { "type": "integer", "minimum": 0 },
+        "overlayCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+
+    "Episode": {
+      "type": "object",
+      "required": ["id", "startTime", "locations", "qualities", "symptoms", "triggers", "createdAt", "updatedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "startTime": { "$ref": "#/$defs/Timestamp" },
+        "endTime": { "$ref": "#/$defs/Timestamp" },
+        "locations": { "type": "array", "items": { "$ref": "#/$defs/PainLocation" } },
+        "qualities": { "type": "array", "items": { "$ref": "#/$defs/PainQuality" } },
+        "symptoms": { "type": "array", "items": { "$ref": "#/$defs/Symptom" } },
+        "triggers": { "type": "array", "items": { "$ref": "#/$defs/Trigger" } },
+        "notes": { "type": "string", "maxLength": 5000 },
+        "location": { "$ref": "#/$defs/EpisodeLocation" },
+        "createdAt": { "$ref": "#/$defs/Timestamp" },
+        "updatedAt": { "$ref": "#/$defs/Timestamp" }
+      }
+    },
+
+    "EpisodeNote": {
+      "type": "object",
+      "required": ["id", "episodeId", "timestamp", "note", "createdAt"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "episodeId": { "type": "string", "minLength": 1 },
+        "timestamp": { "$ref": "#/$defs/Timestamp" },
+        "note": { "type": "string", "minLength": 1, "maxLength": 5000 },
+        "createdAt": { "$ref": "#/$defs/Timestamp" }
+      }
+    },
+
+    "IntensityReading": {
+      "type": "object",
+      "required": ["id", "episodeId", "timestamp", "intensity", "createdAt", "updatedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "episodeId": { "type": "string", "minLength": 1 },
+        "timestamp": { "$ref": "#/$defs/Timestamp" },
+        "intensity": { "type": "number", "minimum": 0, "maximum": 10 },
+        "createdAt": { "$ref": "#/$defs/Timestamp" },
+        "updatedAt": { "$ref": "#/$defs/Timestamp" }
+      }
+    },
+
+    "DailyStatusLog": {
+      "type": "object",
+      "required": ["id", "date", "status", "prompted", "createdAt", "updatedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "date": { "$ref": "#/$defs/DateString" },
+        "status": { "$ref": "#/$defs/DayStatus" },
+        "statusType": { "$ref": "#/$defs/YellowDayType" },
+        "notes": { "type": "string", "maxLength": 5000 },
+        "prompted": { "type": "boolean" },
+        "createdAt": { "$ref": "#/$defs/Timestamp" },
+        "updatedAt": { "$ref": "#/$defs/Timestamp" }
+      },
+      "if": { "properties": { "status": { "const": "yellow" } } },
+      "then": {},
+      "else": { "properties": { "statusType": false } }
+    },
+
+    "CalendarOverlay": {
+      "type": "object",
+      "required": ["id", "startDate", "label", "excludeFromStats", "createdAt", "updatedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "startDate": { "$ref": "#/$defs/DateString" },
+        "endDate": { "$ref": "#/$defs/DateString" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "notes": { "type": "string", "maxLength": 5000 },
+        "excludeFromStats": { "type": "boolean" },
+        "createdAt": { "$ref": "#/$defs/Timestamp" },
+        "updatedAt": { "$ref": "#/$defs/Timestamp" }
+      }
+    },
+
+    "Medication": {
+      "type": "object",
+      "required": ["id", "name", "type", "dosageAmount", "dosageUnit", "active", "createdAt", "updatedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "type": { "$ref": "#/$defs/MedicationType" },
+        "dosageAmount": { "type": "number", "exclusiveMinimum": 0 },
+        "dosageUnit": { "type": "string", "minLength": 1, "maxLength": 50 },
+        "defaultQuantity": { "type": "number", "exclusiveMinimum": 0 },
+        "scheduleFrequency": { "$ref": "#/$defs/ScheduleFrequency" },
+        "photoUri": { "type": "string", "maxLength": 500 },
+        "schedule": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/MedicationSchedule" }
+        },
+        "active": { "type": "boolean" },
+        "notes": { "type": "string", "maxLength": 5000 },
+        "category": { "$ref": "#/$defs/MedicationCategory" },
+        "createdAt": { "$ref": "#/$defs/Timestamp" },
+        "updatedAt": { "$ref": "#/$defs/Timestamp" }
+      }
+    },
+
+    "MedicationDose": {
+      "type": "object",
+      "required": ["id", "medicationId", "timestamp", "quantity", "createdAt", "updatedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "medicationId": { "type": "string", "minLength": 1 },
+        "scheduleId": { "type": "string", "minLength": 1 },
+        "timestamp": { "$ref": "#/$defs/Timestamp" },
+        "quantity": { "type": "number", "minimum": 0 },
+        "dosageAmount": { "type": "number" },
+        "dosageUnit": { "type": "string" },
+        "status": { "$ref": "#/$defs/DoseStatus" },
+        "episodeId": { "type": "string", "minLength": 1 },
+        "effectivenessRating": { "type": "number", "minimum": 0, "maximum": 10 },
+        "timeToRelief": { "type": "integer", "minimum": 1, "maximum": 1440, "description": "Minutes to pain relief" },
+        "sideEffects": { "type": "array", "items": { "type": "string" } },
+        "notes": { "type": "string", "maxLength": 5000 },
+        "createdAt": { "$ref": "#/$defs/Timestamp" },
+        "updatedAt": { "$ref": "#/$defs/Timestamp" }
+      }
+    },
+
+    "MedicationSchedule": {
+      "type": "object",
+      "required": ["id", "medicationId", "time", "timezone", "dosage", "enabled"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "medicationId": { "type": "string", "minLength": 1 },
+        "time": { "type": "string", "pattern": "^[0-2][0-9]:[0-5][0-9]$", "description": "HH:mm 24-hour format" },
+        "timezone": { "type": "string", "minLength": 1, "description": "IANA timezone identifier" },
+        "dosage": { "type": "number", "exclusiveMinimum": 0 },
+        "enabled": { "type": "boolean" },
+        "notificationId": { "type": "string" },
+        "reminderEnabled": { "type": "boolean" }
+      }
+    }
+  }
+}

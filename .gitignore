@@ -1,25 +1,30 @@
-# App build artifacts
-app/node_modules/
-app/.expo/
-app/dist/
-app/npm-debug.*
-app/*.jks
-app/*.p8
-app/*.p12
-app/*.key
-app/*.mobileprovision
-app/*.orig.*
-app/web-build/
+# React Native build artifacts
+react-native/node_modules/
+react-native/.expo/
+react-native/dist/
+react-native/npm-debug.*
+react-native/*.jks
+react-native/*.p8
+react-native/*.p12
+react-native/*.key
+react-native/*.mobileprovision
+react-native/*.orig.*
+react-native/web-build/
+
+# iOS Swift build artifacts
+ios-swift/.build/
+ios-swift/DerivedData/
+ios-swift/*.xcuserdata
 
 # macOS
 .DS_Store
 
 # Temporary files created by Metro to check the health of the file watcher
-app/.metro-health-check*
+react-native/.metro-health-check*
 
 # Environment files
-app/.env
-app/.env.local
+react-native/.env
+react-native/.env.local
 
 # IDE
 .vscode/
@@ -38,6 +43,6 @@ yarn-error.log*
 .playwright-mcp/
 
 # Temporary files
-app/expo-logs.txt
+react-native/expo-logs.txt
 todo.md
 TodoWrite.md

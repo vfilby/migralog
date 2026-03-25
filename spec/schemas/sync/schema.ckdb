@@ -1,0 +1,19 @@
+DEFINE SCHEMA
+
+    RECORD TYPE SyncRecord (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        tableName       STRING QUERYABLE,
+        recordId        STRING,
+        payload         STRING,
+        schemaVersion   INT64,
+        updatedAt       INT64,
+        deleted         INT64,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_creator"
+    );

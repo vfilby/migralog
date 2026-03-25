@@ -22,10 +22,10 @@ Invoke this skill when:
 
 ### Step 1: Verify Working Directory
 
-Ensure the current working directory is `/app` (the React Native application root). All validation commands must run from this directory.
+Ensure the current working directory is `/react-native` (the React Native application root). All validation commands must run from this directory.
 
 ```bash
-cd /Users/vfilby/Projects/MigraineTracker/app
+cd /Users/vfilby/Projects/MigraineTracker/react-native
 ```
 
 ### Step 2: Run TypeScript Type Checking
@@ -121,7 +121,7 @@ This skill includes an automated validation script at `scripts/validate.sh` that
 To use the script:
 
 ```bash
-cd /Users/vfilby/Projects/MigraineTracker/app
+cd /Users/vfilby/Projects/MigraineTracker/react-native
 bash /path/to/scripts/validate.sh
 ```
 
@@ -147,7 +147,7 @@ For comprehensive information about the MigraineTracker testing requirements, re
 
 ## Key Reminders
 
-- **All commands run from `/app` directory**
+- **All commands run from `/react-native` directory**
 - **Never skip or delete failing tests** - always fix the root cause
 - **80% coverage required** for repositories, stores, and utilities
 - **Never commit directly to main/master** - always use feature branches

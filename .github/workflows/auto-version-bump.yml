@@ -32,10 +32,10 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: app/package-lock.json
+          cache-dependency-path: react-native/package-lock.json
 
       - name: Install dependencies
-        working-directory: ./app
+        working-directory: ./react-native
         run: npm ci
 
       - name: Configure Git
@@ -44,7 +44,7 @@ jobs:
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
       - name: Bump patch version
-        working-directory: ./app
+        working-directory: ./react-native
         run: |
           # Get current version
           CURRENT_VERSION=$(node -p "require('./package.json').version")
@@ -59,7 +59,7 @@ jobs:
           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
 
       - name: Generate changelog
-        working-directory: ./app
+        working-directory: ./react-native
         run: |
           npm run changelog:generate
 
@@ -73,7 +73,7 @@ jobs:
           fi
 
       - name: Commit version bump
-        working-directory: ./app
+        working-directory: ./react-native
         run: |
           git add package.json package-lock.json
 
