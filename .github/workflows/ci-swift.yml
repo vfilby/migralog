@@ -1,0 +1,54 @@
+name: CI (Swift)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'ios-swift/**'
+      - '.github/workflows/ci-swift.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'ios-swift/**'
+      - '.github/workflows/ci-swift.yml'
+
+jobs:
+  test:
+    name: Build & Test
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: ./ios-swift
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Resolve SPM dependencies
+        run: xcodebuild -resolvePackageDependencies -scheme MigraLog
+
+      - name: Build
+        run: >
+          xcodebuild build
+          -scheme MigraLog
+          -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest'
+          -quiet
+
+      - name: Run unit tests
+        run: >
+          xcodebuild test
+          -scheme MigraLog
+          -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest'
+          -only-testing:MigraLogTests
+          -resultBundlePath TestResults.xcresult
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: swift-test-results
+          path: ios-swift/TestResults.xcresult
+          retention-days: 30
