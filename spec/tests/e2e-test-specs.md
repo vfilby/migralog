@@ -3,7 +3,7 @@
 Framework-agnostic end-to-end test specifications for MigraineTracker.
 These specs describe **what** to test and **expected behavior**, not **how** to automate it.
 
-> **Current implementation**: Detox (JavaScript) — `/react-native/e2e/`
+> **Current implementation**: Detox (JavaScript) — `/mobile-apps/react-native/e2e/`
 >
 > These specs should be sufficient to rewrite E2E tests in any framework
 > (Maestro, Appium, XCUITest, etc.).

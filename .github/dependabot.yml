@@ -2,7 +2,7 @@ version: 2
 updates:
   # Enable version updates for npm in the app directory
   - package-ecosystem: "npm"
-    directory: "/app"
+    directory: "/mobile-apps/react-native"
     schedule:
       interval: "weekly"
       day: "monday"

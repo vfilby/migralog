@@ -7,7 +7,7 @@ on:
       - master
       - develop
     paths:
-      - 'react-native/**'
+      - 'mobile-apps/react-native/**'
       - '.github/workflows/pr-tests-optimized.yml'
 
 jobs:
@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./react-native
+        working-directory: ./mobile-apps/react-native
 
     steps:
       - name: Checkout code
@@ -30,7 +30,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: react-native/package-lock.json
+          cache-dependency-path: mobile-apps/react-native/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -52,7 +52,7 @@ jobs:
         uses: codecov/codecov-action@v5
         if: always()
         with:
-          directory: ./react-native/coverage
+          directory: ./mobile-apps/react-native/coverage
           flags: unit
           fail_ci_if_error: false
         env:
@@ -63,7 +63,7 @@ jobs:
         if: always()
         with:
           name: coverage-report
-          path: react-native/coverage
+          path: mobile-apps/react-native/coverage
           retention-days: 30
 
   # Note: iOS build and E2E tests removed from PR checks

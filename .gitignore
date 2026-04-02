@@ -1,30 +1,31 @@
 # React Native build artifacts
-react-native/node_modules/
-react-native/.expo/
-react-native/dist/
-react-native/npm-debug.*
-react-native/*.jks
-react-native/*.p8
-react-native/*.p12
-react-native/*.key
-react-native/*.mobileprovision
-react-native/*.orig.*
-react-native/web-build/
+mobile-apps/react-native/node_modules/
+mobile-apps/react-native/.expo/
+mobile-apps/react-native/dist/
+mobile-apps/react-native/npm-debug.*
+mobile-apps/react-native/*.jks
+mobile-apps/react-native/*.p8
+mobile-apps/react-native/*.p12
+mobile-apps/react-native/*.key
+mobile-apps/react-native/*.mobileprovision
+mobile-apps/react-native/*.orig.*
+mobile-apps/react-native/web-build/
 
 # iOS Swift build artifacts
-ios-swift/.build/
-ios-swift/DerivedData/
-ios-swift/*.xcuserdata
+mobile-apps/ios/.build/
+mobile-apps/ios/DerivedData/
+mobile-apps/ios/*.xcuserdata
+mobile-apps/ios/build/
 
 # macOS
 .DS_Store
 
 # Temporary files created by Metro to check the health of the file watcher
-react-native/.metro-health-check*
+mobile-apps/react-native/.metro-health-check*
 
 # Environment files
-react-native/.env
-react-native/.env.local
+mobile-apps/react-native/.env
+mobile-apps/react-native/.env.local
 
 # IDE
 .vscode/
@@ -43,6 +44,6 @@ yarn-error.log*
 .playwright-mcp/
 
 # Temporary files
-react-native/expo-logs.txt
+mobile-apps/react-native/expo-logs.txt
 todo.md
 TodoWrite.md

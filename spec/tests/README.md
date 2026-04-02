@@ -9,13 +9,13 @@ Framework-agnostic test specifications for MigraineTracker.
     dose edit/delete, archiving, trends/analytics, notification settings,
     error handling, accessibility
   - Includes fixture data requirements, test IDs, and step-by-step flows
-  - Currently implemented in Detox (`/react-native/e2e/`)
+  - Currently implemented in Detox (`/mobile-apps/react-native/e2e/`)
 
 - **[unit-integration-test-specs.md](unit-integration-test-specs.md)** — Unit & integration test specifications
   - Coverage target: **75% line coverage** across business logic
   - Database repositories, state stores, services, utilities, schemas
   - Includes coverage gap analysis and prioritized modules to test
-  - Currently implemented in Jest (`/react-native/src/**/__tests__/`)
+  - Currently implemented in Jest (`/mobile-apps/react-native/src/**/__tests__/`)
 
 ## Current Implementation Status
 
