@@ -45,12 +45,12 @@ struct PainLocationGrid: View {
                 selectedLocations.insert(location)
             }
         } label: {
-            Text(location.displayName)
-                .font(.caption)
+            Text(location.regionName)
+                .font(.subheadline)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: 44)
-                .background(isSelected ? Color.accentColor.opacity(0.2) : Color(.tertiarySystemBackground))
-                .foregroundStyle(isSelected ? Color.accentColor : .primary)
+                .background(isSelected ? Color.accentColor : Color(.tertiarySystemBackground))
+                .foregroundStyle(isSelected ? .white : .primary)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)

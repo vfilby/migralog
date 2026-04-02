@@ -1,35 +1,49 @@
 import SwiftUI
 
+/// Pain scale definitions — MUST match react-native/src/utils/painScale.ts exactly.
+/// Reference: https://www.painscale.com/tools/migraine-pain-scale/
 enum PainScale {
+    struct Level {
+        let value: Int
+        let label: String
+        let description: String
+        let color: Color
+    }
+
+    static let levels: [Level] = [
+        Level(value: 0, label: "No Pain", description: "Pain-free", color: Color(hex: "#2E7D32")),
+        Level(value: 1, label: "Minimal", description: "Very mild, barely noticeable", color: Color(hex: "#558B2F")),
+        Level(value: 2, label: "Mild", description: "Minor annoyance, can be ignored", color: Color(hex: "#689F38")),
+        Level(value: 3, label: "Mild", description: "Noticeable but can function normally", color: Color(hex: "#F9A825")),
+        Level(value: 4, label: "Uncomfortable", description: "Distracting but manageable", color: Color(hex: "#FF8F00")),
+        Level(value: 5, label: "Moderate", description: "Interferes with concentration", color: Color(hex: "#EF6C00")),
+        Level(value: 6, label: "Distressing", description: "Difficult to ignore, limits activities", color: Color(hex: "#E65100")),
+        Level(value: 7, label: "Severe", description: "Dominant focus, impedes daily function", color: Color(hex: "#D84315")),
+        Level(value: 8, label: "Intense", description: "Overwhelming, unable to function", color: Color(hex: "#C62828")),
+        Level(value: 9, label: "Excruciating", description: "Unbearable, incapacitating", color: Color(hex: "#EC407A")),
+        Level(value: 10, label: "Debilitating", description: "Worst imaginable, requires emergency care", color: Color(hex: "#AB47BC")),
+    ]
+
+    /// Get the pain level for an intensity value (0-10)
+    static func level(for intensity: Double) -> Level {
+        let index = max(0, min(10, Int(intensity.rounded())))
+        return levels[index]
+    }
+
     /// Get color for a pain intensity (0-10)
     static func color(for intensity: Double) -> Color {
-        switch intensity {
-        case 0..<1: return Color(hex: "#4CAF50")    // Green
-        case 1..<2: return Color(hex: "#66BB6A")
-        case 2..<3: return Color(hex: "#8BC34A")    // Light green
-        case 3..<4: return Color(hex: "#CDDC39")    // Lime
-        case 4..<5: return Color(hex: "#FFC107")    // Amber
-        case 5..<6: return Color(hex: "#FF9800")    // Orange
-        case 6..<7: return Color(hex: "#FF5722")    // Deep orange
-        case 7..<8: return Color(hex: "#F44336")    // Red
-        case 8..<9: return Color(hex: "#E91E63")    // Pink
-        case 9...10: return Color(hex: "#9C27B0")   // Purple
-        default: return Color.gray
-        }
+        level(for: intensity).color
     }
 
     /// Get label for a pain intensity (0-10)
     static func label(for intensity: Double) -> String {
-        switch intensity {
-        case 0: return "No Pain"
-        case 0..<2: return "Minimal"
-        case 2..<4: return "Mild"
-        case 4..<6: return "Moderate"
-        case 6..<8: return "Severe"
-        case 8..<10: return "Very Severe"
-        case 10: return "Worst Possible"
-        default: return "Unknown"
-        }
+        level(for: intensity).label
+    }
+
+    /// Get full description for a pain intensity (0-10)
+    static func description(for intensity: Double) -> String {
+        let l = level(for: intensity)
+        return "\(l.label): \(l.description)"
     }
 }
 

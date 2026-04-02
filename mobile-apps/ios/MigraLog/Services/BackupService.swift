@@ -203,8 +203,13 @@ final class BackupService: BackupServiceProtocol {
         // Verify the backup database can be opened and has the expected tables
         do {
             let backupDb = try DatabaseManager(path: path)
-            // Verify we can read from it by checking tables exist
             try backupDb.dbQueue.read { db in
+                // Log tables found for debugging
+                let tables = try String.fetchAll(db, sql: """
+                    SELECT name FROM sqlite_master WHERE type='table' ORDER BY name
+                """)
+                self.logger.info("Backup contains tables: \(tables.joined(separator: ", "))")
+
                 _ = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM episodes")
                 _ = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM medications")
             }
@@ -244,7 +249,7 @@ final class BackupService: BackupServiceProtocol {
         // Try to open as SQLite database
         do {
             let db = try DatabaseManager(path: path)
-            try db.dbQueue.read { db in
+            let hasRequiredTables = try db.dbQueue.read { db -> Bool in
                 // Verify key tables exist
                 let tables = try String.fetchAll(db, sql: """
                     SELECT name FROM sqlite_master WHERE type='table'
@@ -252,7 +257,7 @@ final class BackupService: BackupServiceProtocol {
                 """)
                 return tables.count == 3
             }
-            return true
+            return hasRequiredTables
         } catch {
             logger.warn("Backup validation failed: \(error.localizedDescription)")
             return false
@@ -273,205 +278,196 @@ final class BackupService: BackupServiceProtocol {
         return Int64(Date().timeIntervalSince1970 * 1000).databaseValue
     }
 
+    /// Get column names for a table in the given database
+    private func columnNames(for table: String, in db: Database) throws -> Set<String> {
+        let rows = try Row.fetchAll(db, sql: "PRAGMA table_info(\(table))")
+        return Set(rows.map { $0["name"] as String })
+    }
+
+    /// Check if a table exists in the given database
+    private func tableExists(_ table: String, in db: Database) throws -> Bool {
+        let count = try Int.fetchOne(db, sql: """
+            SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?
+        """, arguments: [table])
+        return (count ?? 0) > 0
+    }
+
     private func restoreData(from source: DatabaseManager, to destination: DatabaseManager) throws {
         try source.dbQueue.read { sourceDb in
             try destination.dbQueue.write { destDb in
                 // Restore episodes
-                let episodeRows = try Row.fetchAll(sourceDb, sql: "SELECT * FROM episodes")
-                for row in episodeRows {
-                    try destDb.execute(
-                        sql: """
-                            INSERT INTO episodes (id, start_time, end_time, locations, qualities,
-                                symptoms, triggers, notes, latitude, longitude, location_accuracy,
-                                location_timestamp, created_at, updated_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        arguments: [
-                            row["id"], row["start_time"], row["end_time"],
-                            row["locations"], row["qualities"], row["symptoms"],
-                            row["triggers"], row["notes"], row["latitude"],
-                            row["longitude"], row["location_accuracy"],
-                            row["location_timestamp"], row["created_at"], sanitizeTimestamp(row, column: "updated_at")
-                        ]
-                    )
-                }
+                try self.restoreTable("episodes", from: sourceDb, to: destDb,
+                    columns: ["id", "start_time", "end_time", "locations", "qualities",
+                              "symptoms", "triggers", "notes", "latitude", "longitude",
+                              "location_accuracy", "location_timestamp", "created_at", "updated_at"])
 
                 // Restore medications
-                let medRows = try Row.fetchAll(sourceDb, sql: "SELECT * FROM medications")
-                for row in medRows {
-                    try destDb.execute(
-                        sql: """
-                            INSERT INTO medications (id, name, type, dosage_amount, dosage_unit,
-                                default_quantity, schedule_frequency, photo_uri, active, notes,
-                                category, created_at, updated_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        arguments: [
-                            row["id"], row["name"], row["type"], row["dosage_amount"],
-                            row["dosage_unit"], row["default_quantity"], row["schedule_frequency"],
-                            row["photo_uri"], row["active"], row["notes"], row["category"],
-                            row["created_at"], sanitizeTimestamp(row, column: "updated_at")
-                        ]
-                    )
-                }
+                try self.restoreTable("medications", from: sourceDb, to: destDb,
+                    columns: ["id", "name", "type", "dosage_amount", "dosage_unit",
+                              "default_quantity", "schedule_frequency", "photo_uri", "active",
+                              "notes", "category", "created_at", "updated_at"])
 
                 // Restore intensity readings
-                let readingRows = try Row.fetchAll(sourceDb, sql: "SELECT * FROM intensity_readings")
-                for row in readingRows {
-                    try destDb.execute(
-                        sql: """
-                            INSERT INTO intensity_readings (id, episode_id, timestamp, intensity,
-                                created_at, updated_at)
-                            VALUES (?, ?, ?, ?, ?, ?)
-                        """,
-                        arguments: [
-                            row["id"], row["episode_id"], row["timestamp"],
-                            row["intensity"], row["created_at"], sanitizeTimestamp(row, column: "updated_at")
-                        ]
-                    )
-                }
+                try self.restoreTable("intensity_readings", from: sourceDb, to: destDb,
+                    columns: ["id", "episode_id", "timestamp", "intensity", "created_at", "updated_at"])
 
                 // Restore symptom logs
-                let symptomRows = try Row.fetchAll(sourceDb, sql: "SELECT * FROM symptom_logs")
-                for row in symptomRows {
-                    try destDb.execute(
-                        sql: """
-                            INSERT INTO symptom_logs (id, episode_id, symptom, onset_time,
-                                resolution_time, severity, created_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        arguments: [
-                            row["id"], row["episode_id"], row["symptom"],
-                            row["onset_time"], row["resolution_time"],
-                            row["severity"], row["created_at"]
-                        ]
-                    )
-                }
+                try self.restoreTable("symptom_logs", from: sourceDb, to: destDb,
+                    columns: ["id", "episode_id", "symptom", "onset_time",
+                              "resolution_time", "severity", "created_at"])
 
                 // Restore pain location logs
-                let painRows = try Row.fetchAll(sourceDb, sql: "SELECT * FROM pain_location_logs")
-                for row in painRows {
-                    try destDb.execute(
-                        sql: """
-                            INSERT INTO pain_location_logs (id, episode_id, timestamp,
-                                pain_locations, created_at, updated_at)
-                            VALUES (?, ?, ?, ?, ?, ?)
-                        """,
-                        arguments: [
-                            row["id"], row["episode_id"], row["timestamp"],
-                            row["pain_locations"], row["created_at"], sanitizeTimestamp(row, column: "updated_at")
-                        ]
-                    )
+                // RN migrated databases (v19) have different columns: onset_time, resolution_time,
+                // location, severity, notes. Fresh/Swift schema uses: timestamp, pain_locations.
+                let sourcePainCols = try self.columnNames(for: "pain_location_logs", in: sourceDb)
+                if sourcePainCols.contains("pain_locations") {
+                    // Source matches Swift schema
+                    try self.restoreTable("pain_location_logs", from: sourceDb, to: destDb,
+                        columns: ["id", "episode_id", "timestamp", "pain_locations", "created_at", "updated_at"])
+                } else if sourcePainCols.contains("location") {
+                    // Source is RN migrated schema - convert to Swift schema
+                    let rows = try Row.fetchAll(sourceDb, sql: "SELECT * FROM pain_location_logs")
+                    let hasUpdatedAt = sourcePainCols.contains("updated_at")
+                    for row in rows {
+                        // Map onset_time -> timestamp, wrap location in JSON array -> pain_locations
+                        let location: String? = row["location"]
+                        let painLocations = location.map { "[\"\($0)\"]" } ?? "[]"
+                        let timestamp: DatabaseValue = row["onset_time"]
+                        let createdAt: DatabaseValue = row["created_at"]
+                        let updatedAt: DatabaseValue = hasUpdatedAt ? row["updated_at"] : createdAt
+                        try destDb.execute(
+                            sql: """
+                                INSERT INTO pain_location_logs (id, episode_id, timestamp,
+                                    pain_locations, created_at, updated_at)
+                                VALUES (?, ?, ?, ?, ?, ?)
+                            """,
+                            arguments: [row["id"], row["episode_id"], timestamp,
+                                        painLocations, createdAt, updatedAt]
+                        )
+                    }
                 }
+                // else: table missing or empty columns - skip
 
                 // Restore episode notes
-                let noteRows = try Row.fetchAll(sourceDb, sql: "SELECT * FROM episode_notes")
-                for row in noteRows {
-                    try destDb.execute(
-                        sql: """
-                            INSERT INTO episode_notes (id, episode_id, timestamp, note, created_at)
-                            VALUES (?, ?, ?, ?, ?)
-                        """,
-                        arguments: [
-                            row["id"], row["episode_id"], row["timestamp"],
-                            row["note"], row["created_at"]
-                        ]
-                    )
-                }
+                try self.restoreTable("episode_notes", from: sourceDb, to: destDb,
+                    columns: ["id", "episode_id", "timestamp", "note", "created_at"])
 
                 // Restore medication schedules
-                let timePattern = try! NSRegularExpression(pattern: "^[0-2][0-9]:[0-5][0-9]$")
-                let scheduleRows = try Row.fetchAll(sourceDb, sql: "SELECT * FROM medication_schedules")
-                for row in scheduleRows {
-                    let timeValue = row["time"] as? String ?? ""
-                    let range = NSRange(timeValue.startIndex..., in: timeValue)
-                    guard timePattern.firstMatch(in: timeValue, range: range) != nil else {
-                        logger.warn("Skipping medication schedule \(row["id"] as? String ?? "?") with invalid time: \(timeValue)")
-                        continue
-                    }
-                    try destDb.execute(
-                        sql: """
-                            INSERT INTO medication_schedules (id, medication_id, time, timezone,
-                                dosage, enabled, notification_id, reminder_enabled)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        arguments: [
-                            row["id"], row["medication_id"], row["time"],
-                            row["timezone"], row["dosage"], row["enabled"],
-                            row["notification_id"], row["reminder_enabled"]
-                        ]
-                    )
-                }
+                try self.restoreTable("medication_schedules", from: sourceDb, to: destDb,
+                    columns: ["id", "medication_id", "time", "timezone", "dosage",
+                              "enabled", "notification_id", "reminder_enabled"])
 
                 // Restore medication doses
-                let doseRows = try Row.fetchAll(sourceDb, sql: "SELECT * FROM medication_doses")
-                for row in doseRows {
-                    try destDb.execute(
-                        sql: """
-                            INSERT INTO medication_doses (id, medication_id, timestamp, quantity,
-                                dosage_amount, dosage_unit, status, episode_id, effectiveness_rating,
-                                time_to_relief, side_effects, notes, created_at, updated_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        arguments: [
-                            row["id"], row["medication_id"], row["timestamp"],
-                            row["quantity"], row["dosage_amount"], row["dosage_unit"],
-                            row["status"], row["episode_id"], row["effectiveness_rating"],
-                            row["time_to_relief"], row["side_effects"], row["notes"],
-                            row["created_at"], sanitizeTimestamp(row, column: "updated_at")
-                        ]
-                    )
-                }
+                try self.restoreTable("medication_doses", from: sourceDb, to: destDb,
+                    columns: ["id", "medication_id", "timestamp", "quantity", "dosage_amount",
+                              "dosage_unit", "status", "episode_id", "effectiveness_rating",
+                              "time_to_relief", "side_effects", "notes", "created_at", "updated_at"])
 
                 // Restore daily status logs
-                let statusRows = try Row.fetchAll(sourceDb, sql: "SELECT * FROM daily_status_logs")
-                for row in statusRows {
-                    try destDb.execute(
-                        sql: """
-                            INSERT INTO daily_status_logs (id, date, status, status_type, notes,
-                                prompted, created_at, updated_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        arguments: [
-                            row["id"], row["date"], row["status"], row["status_type"],
-                            row["notes"], row["prompted"], row["created_at"], sanitizeTimestamp(row, column: "updated_at")
-                        ]
-                    )
+                // RN migrated databases (v19) have severity but no updated_at.
+                // Fresh/Swift schema has updated_at but no severity.
+                let sourceStatusCols = try self.columnNames(for: "daily_status_logs", in: sourceDb)
+                if sourceStatusCols.contains("updated_at") {
+                    // Source matches Swift schema
+                    try self.restoreTable("daily_status_logs", from: sourceDb, to: destDb,
+                        columns: ["id", "date", "status", "status_type", "notes",
+                                  "prompted", "created_at", "updated_at"])
+                } else {
+                    // Source is RN migrated schema - use created_at as updated_at
+                    let rows = try Row.fetchAll(sourceDb, sql: "SELECT * FROM daily_status_logs")
+                    for row in rows {
+                        let createdAt: DatabaseValue = row["created_at"]
+                        try destDb.execute(
+                            sql: """
+                                INSERT INTO daily_status_logs (id, date, status, status_type, notes,
+                                    prompted, created_at, updated_at)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            arguments: [
+                                row["id"], row["date"], row["status"], row["status_type"],
+                                row["notes"], row["prompted"], createdAt, createdAt
+                            ]
+                        )
+                    }
                 }
 
-                // Restore calendar overlays
-                let overlayRows = try Row.fetchAll(sourceDb, sql: "SELECT * FROM calendar_overlays")
-                for row in overlayRows {
-                    try destDb.execute(
-                        sql: """
-                            INSERT INTO calendar_overlays (id, start_date, end_date, label, notes,
-                                exclude_from_stats, created_at, updated_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        arguments: [
-                            row["id"], row["start_date"], row["end_date"],
-                            row["label"], row["notes"], row["exclude_from_stats"],
-                            row["created_at"], sanitizeTimestamp(row, column: "updated_at")
-                        ]
-                    )
+                // Restore calendar overlays (may not exist in older backups)
+                if try self.tableExists("calendar_overlays", in: sourceDb) {
+                    try self.restoreTable("calendar_overlays", from: sourceDb, to: destDb,
+                        columns: ["id", "start_date", "end_date", "label", "notes",
+                                  "exclude_from_stats", "created_at", "updated_at"])
                 }
 
                 // Restore medication reminders
-                let reminderRows = try Row.fetchAll(sourceDb, sql: "SELECT * FROM medication_reminders")
-                for row in reminderRows {
-                    try destDb.execute(
-                        sql: """
-                            INSERT INTO medication_reminders (id, medication_id, scheduled_time,
-                                completed, snoozed_until, completed_at)
-                            VALUES (?, ?, ?, ?, ?, ?)
-                        """,
-                        arguments: [
-                            row["id"], row["medication_id"], row["scheduled_time"],
-                            row["completed"], row["snoozed_until"], row["completed_at"]
-                        ]
-                    )
-                }
+                try self.restoreTable("medication_reminders", from: sourceDb, to: destDb,
+                    columns: ["id", "medication_id", "scheduled_time", "completed",
+                              "snoozed_until", "completed_at"])
             }
         }
+    }
+
+    /// Restore a table by copying only the columns that exist in both source and destination.
+    /// Fixes timestamp columns with invalid zero values by falling back to created_at.
+    private func restoreTable(
+        _ table: String,
+        from sourceDb: Database,
+        to destDb: Database,
+        columns destColumns: [String]
+    ) throws {
+        guard try tableExists(table, in: sourceDb) else {
+            logger.info("Skipping restore of \(table): table not found in backup")
+            return
+        }
+
+        let sourceCols = try columnNames(for: table, in: sourceDb)
+
+        // Only copy columns that exist in both source and destination
+        let commonColumns = destColumns.filter { sourceCols.contains($0) }
+        guard !commonColumns.isEmpty else {
+            logger.warn("No common columns for \(table), skipping")
+            return
+        }
+
+        let columnList = commonColumns.joined(separator: ", ")
+        let placeholders = commonColumns.map { _ in "?" }.joined(separator: ", ")
+        let hasCreatedAt = commonColumns.contains("created_at")
+
+        var skipped = 0
+        let rows = try Row.fetchAll(sourceDb, sql: "SELECT \(columnList) FROM \(table)")
+        for row in rows {
+            let args: [DatabaseValue] = commonColumns.map { col in
+                let value: DatabaseValue = row[col]
+                // Fix zero/null timestamp columns (updated_at, created_at) that violate CHECK(col > 0).
+                // RN backups may have DEFAULT 0 for updated_at in some tables.
+                if col == "updated_at" || col == "created_at" {
+                    if value.isNull || value == 0.databaseValue {
+                        if hasCreatedAt && col == "updated_at" {
+                            let fallback: DatabaseValue = row["created_at"]
+                            if !fallback.isNull && fallback != 0.databaseValue {
+                                return fallback
+                            }
+                        }
+                        // Last resort: use current timestamp
+                        return Int64(Date().timeIntervalSince1970 * 1000).databaseValue
+                    }
+                }
+                return value
+            }
+            do {
+                try destDb.execute(
+                    sql: "INSERT INTO \(table) (\(columnList)) VALUES (\(placeholders))",
+                    arguments: StatementArguments(args)
+                )
+            } catch {
+                // Skip rows that violate CHECK constraints (e.g. bad data from RN app)
+                // rather than failing the entire restore
+                skipped += 1
+                let rowId: DatabaseValue = row["id"]
+                self.logger.warn("Skipped \(table) row \(rowId): \(error.localizedDescription)")
+            }
+        }
+
+        let skippedMsg = skipped > 0 ? ", skipped: \(skipped)" : ""
+        logger.info("Restored \(rows.count - skipped) rows in \(table) (columns: \(commonColumns.count)/\(destColumns.count)\(skippedMsg))")
     }
 }

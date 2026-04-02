@@ -18,6 +18,8 @@ final class DashboardViewModel {
     // MARK: - State
 
     var currentEpisode: Episode?
+    var recentEpisodes: [Episode] = []
+    var recentReadings: [String: [IntensityReading]] = [:]
     var todaysMedications: [MedicationScheduleItem] = []
     var yesterdayStatus: DailyStatusLog?
     var showNewEpisode = false
@@ -59,10 +61,12 @@ final class DashboardViewModel {
         error = nil
         do {
             async let episodeTask = episodeRepository.getCurrentEpisode()
+            async let recentTask = loadRecentEpisodes()
             async let medsTask = loadTodaysMedications()
             async let statusTask = loadYesterdayStatus()
 
             currentEpisode = try await episodeTask
+            recentEpisodes = try await recentTask
             todaysMedications = try await medsTask
             yesterdayStatus = try await statusTask
             isLoading = false
@@ -187,6 +191,20 @@ final class DashboardViewModel {
     }
 
     // MARK: - Private
+
+    private func loadRecentEpisodes() async throws -> [Episode] {
+        let all = try episodeRepository.getAllEpisodes()
+        let recent = Array(all.filter { !$0.isActive }.prefix(3))
+        // Load intensity readings for sparklines
+        var readings: [String: [IntensityReading]] = [:]
+        for ep in recent {
+            if let details = try episodeRepository.getEpisodeWithDetails(ep.id) {
+                readings[ep.id] = details.intensityReadings
+            }
+        }
+        await MainActor.run { recentReadings = readings }
+        return recent
+    }
 
     private func loadTodaysMedications() async throws -> [MedicationScheduleItem] {
         let activeMeds = try await medicationRepository.getActiveMedications()

@@ -13,14 +13,11 @@ struct EpisodeDetailScreen: View {
             if let details = viewModel.details {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        // Status card
-                        episodeStatusSection(details.episode)
-
-                        // Info cards
-                        episodeInfoSection(details.episode)
+                        // Episode summary card
+                        episodeSummarySection(details.episode)
 
                         // Timeline
-                        if !details.intensityReadings.isEmpty || !details.symptomLogs.isEmpty || !details.painLocationLogs.isEmpty || !details.episodeNotes.isEmpty {
+                        if !details.intensityReadings.isEmpty || !details.symptomLogs.isEmpty || !details.painLocationLogs.isEmpty || !details.episodeNotes.isEmpty || !viewModel.episodeDoses.isEmpty {
                             timelineSection(details)
                         }
 
@@ -86,60 +83,62 @@ struct EpisodeDetailScreen: View {
     }
 
     @ViewBuilder
-    private func episodeStatusSection(_ episode: Episode) -> some View {
-        HStack {
-            VStack(alignment: .leading) {
-                Text("Started")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(DateFormatting.displayDateTime(episode.startDate))
-                    .font(.subheadline)
-            }
-            Spacer()
-            if episode.isActive {
-                Text("Ongoing")
-                    .font(.caption.weight(.bold))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.red.opacity(0.2))
-                    .foregroundStyle(.red)
-                    .clipShape(Capsule())
-            } else if let endDate = episode.endDate {
-                VStack(alignment: .trailing) {
-                    Text("Ended")
+    private func episodeSummarySection(_ episode: Episode) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Dates row
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Started")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text(DateFormatting.displayDateTime(endDate))
+                    Text(DateFormatting.displayDateTime(episode.startDate))
                         .font(.subheadline)
                 }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
 
-    @ViewBuilder
-    private func episodeInfoSection(_ episode: Episode) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if !episode.locations.isEmpty {
-                LabeledContent("Pain Locations") {
-                    FlowLayout(spacing: 4) {
-                        ForEach(episode.locations) { location in
-                            Text(location.displayName)
-                                .font(.caption)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.blue.opacity(0.1))
-                                .clipShape(Capsule())
-                        }
+                Spacer()
+
+                if episode.isActive {
+                    Text("Ongoing")
+                        .font(.caption.weight(.bold))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.red.opacity(0.2))
+                        .foregroundStyle(.red)
+                        .clipShape(Capsule())
+                } else if let endDate = episode.endDate {
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text("Ended")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(DateFormatting.displayDateTime(endDate))
+                            .font(.subheadline)
                     }
                 }
             }
 
+            Divider()
+
+            // Duration
+            HStack {
+                Text("Duration")
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if let duration = episode.durationMillis {
+                    Text(DateFormatting.formatDuration(milliseconds: duration))
+                } else {
+                    Text(DateFormatting.formatDuration(from: episode.startTime, to: nil))
+                }
+            }
+            .font(.subheadline)
+
+            // Symptoms
             if !episode.symptoms.isEmpty {
-                LabeledContent("Symptoms") {
+                Divider()
+                HStack(alignment: .top) {
+                    Text("Symptoms")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Spacer()
                     FlowLayout(spacing: 4) {
                         ForEach(episode.symptoms) { symptom in
                             Text(symptom.displayName)
@@ -153,8 +152,14 @@ struct EpisodeDetailScreen: View {
                 }
             }
 
+            // Triggers
             if !episode.triggers.isEmpty {
-                LabeledContent("Triggers") {
+                Divider()
+                HStack(alignment: .top) {
+                    Text("Triggers")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Spacer()
                     FlowLayout(spacing: 4) {
                         ForEach(episode.triggers) { trigger in
                             Text(trigger.displayName)
@@ -168,20 +173,15 @@ struct EpisodeDetailScreen: View {
                 }
             }
 
+            // Notes
             if let notes = episode.notes, !notes.isEmpty {
-                LabeledContent("Notes") {
+                Divider()
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Notes")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                     Text(notes)
                         .font(.subheadline)
-                }
-            }
-
-            if let duration = episode.durationMillis {
-                LabeledContent("Duration") {
-                    Text(DateFormatting.formatDuration(milliseconds: duration))
-                }
-            } else {
-                LabeledContent("Duration") {
-                    Text(DateFormatting.formatDuration(from: episode.startTime, to: nil))
                 }
             }
         }
@@ -193,7 +193,7 @@ struct EpisodeDetailScreen: View {
 
     @ViewBuilder
     private func timelineSection(_ details: EpisodeWithDetails) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("Timeline")
                 .font(.headline)
 
@@ -201,45 +201,56 @@ struct EpisodeDetailScreen: View {
             if !details.intensityReadings.isEmpty {
                 IntensitySparklineView(
                     readings: details.intensityReadings,
-                    episodeStartTime: details.episode.startTime,
-                    episodeEndTime: details.episode.endTime
+                    episodeStart: details.episode.startTime,
+                    episodeEnd: details.episode.endTime
                 )
-                    .frame(height: 80)
+                .frame(height: 80)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+                .padding(.bottom, 4)
             }
 
             // Merge all events into a chronological timeline
             let events = buildTimelineEvents(from: details)
 
             ForEach(Array(events.enumerated()), id: \.element.id) { index, event in
-                HStack(alignment: .top, spacing: 12) {
-                    // Vertical timeline line + icon
-                    VStack(spacing: 0) {
-                        if index > 0 {
-                            Rectangle()
-                                .fill(Color.secondary.opacity(0.3))
-                                .frame(width: 2, height: 8)
-                        }
-                        timelineIcon(for: event)
-                        if index < events.count - 1 {
-                            Rectangle()
-                                .fill(Color.secondary.opacity(0.3))
-                                .frame(width: 2)
-                                .frame(maxHeight: .infinity)
-                        }
+                let isLast = index == events.count - 1
+                let isEpisodeEnd = event.kind.isEpisodeEnded
+                let showLineBelow = !isLast && !isEpisodeEnd
+
+                VStack(spacing: 0) {
+                    // Top row: time, dot, title — all vertically centered
+                    HStack(spacing: 0) {
+                        Text(DateFormatting.displayTime(event.date))
+                            .font(.subheadline.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .frame(width: 75, alignment: .trailing)
+
+                        timelineDot(for: event)
+                            .frame(width: 32)
+
+                        timelineTitle(for: event)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .frame(width: 20)
 
-                    // Timestamp
-                    Text(DateFormatting.displayTime(event.date))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 60, alignment: .leading)
+                    // Detail content + line below dot
+                    HStack(alignment: .top, spacing: 0) {
+                        // Spacer for time column
+                        Color.clear
+                            .frame(width: 75)
 
-                    // Description
-                    timelineDescription(for: event)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        // Vertical line below the dot
+                        Rectangle()
+                            .fill(showLineBelow ? Color.secondary.opacity(0.2) : .clear)
+                            .frame(width: 1)
+                            .frame(maxHeight: .infinity)
+                            .frame(width: 32)
+
+                        // Detail content (bar, chips, subtitle, etc.)
+                        timelineDetail(for: event)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
-                .padding(.vertical, 2)
+                .padding(.vertical, 6)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -274,11 +285,42 @@ struct EpisodeDetailScreen: View {
             }
         }
 
-        for log in details.painLocationLogs {
+        // Initial pain locations from the episode itself
+        let initialLocations = details.episode.locations
+        var previousLocations: Set<PainLocation> = Set(initialLocations)
+        if !initialLocations.isEmpty {
+            let initialDelta = PainLocationDelta(
+                added: [], removed: [], unchanged: initialLocations, isInitial: true
+            )
+            // Use a synthetic PainLocationLog for the initial entry
+            let initialLog = PainLocationLog(
+                id: "initial-pain-locations",
+                episodeId: details.episode.id,
+                timestamp: details.episode.startTime,
+                painLocations: initialLocations,
+                createdAt: details.episode.createdAt,
+                updatedAt: details.episode.updatedAt
+            )
+            events.append(TimelineEvent(
+                id: "pain-location-initial",
+                timestamp: details.episode.startTime,
+                kind: .painLocation(initialLog, initialDelta)
+            ))
+        }
+
+        // Subsequent pain location logs — always computed as changes
+        let sortedPainLogs = details.painLocationLogs.sorted { $0.timestamp < $1.timestamp }
+        for log in sortedPainLogs {
+            let currentSet = Set(log.painLocations)
+            let added = log.painLocations.filter { !previousLocations.contains($0) }
+            let removed = Array(previousLocations.subtracting(currentSet))
+            let unchanged = log.painLocations.filter { previousLocations.contains($0) }
+            let delta = PainLocationDelta(added: added, removed: removed, unchanged: unchanged, isInitial: false)
+            previousLocations = currentSet
             events.append(TimelineEvent(
                 id: "pain-location-\(log.id)",
                 timestamp: log.timestamp,
-                kind: .painLocation(log)
+                kind: .painLocation(log, delta)
             ))
         }
 
@@ -290,63 +332,140 @@ struct EpisodeDetailScreen: View {
             ))
         }
 
+        // Medication doses during the episode (exclude preventative — only rescue/other)
+        for doseWithMed in viewModel.episodeDoses where doseWithMed.medication.type != .preventative {
+            events.append(TimelineEvent(
+                id: "medication-\(doseWithMed.dose.id)",
+                timestamp: doseWithMed.dose.timestamp,
+                kind: .medication(doseWithMed)
+            ))
+        }
+
+        // Episode ended event
+        if let endTime = details.episode.endTime {
+            events.append(TimelineEvent(
+                id: "episode-ended",
+                timestamp: endTime,
+                kind: .episodeEnded
+            ))
+        }
+
         events.sort { $0.timestamp < $1.timestamp }
         return events
     }
 
     @ViewBuilder
-    private func timelineIcon(for event: TimelineEvent) -> some View {
-        switch event.kind {
-        case .intensity(let reading):
-            Circle()
-                .fill(PainScale.color(for: reading.intensity))
-                .frame(width: 12, height: 12)
-        case .symptomOnset, .symptomResolved:
-            Image(systemName: "allergens")
-                .font(.system(size: 10))
-                .foregroundStyle(.purple)
-                .frame(width: 12, height: 12)
-        case .painLocation:
-            Image(systemName: "mappin.circle.fill")
-                .font(.system(size: 10))
-                .foregroundStyle(.blue)
-                .frame(width: 12, height: 12)
-        case .note:
-            Image(systemName: "note.text")
-                .font(.system(size: 10))
-                .foregroundStyle(.secondary)
-                .frame(width: 12, height: 12)
+    private func timelineDot(for event: TimelineEvent) -> some View {
+        let color: Color = switch event.kind {
+        case .intensity(let reading): PainScale.color(for: reading.intensity)
+        case .symptomOnset, .symptomResolved: .purple
+        case .painLocation(_, _): .secondary
+        case .note: .secondary
+        case .medication: .secondary
+        case .episodeEnded: .secondary
         }
+        Circle()
+            .fill(color)
+            .frame(width: 12, height: 12)
     }
 
+    /// First line of the timeline event — displayed inline with the dot and timestamp.
+    /// Always bold and primary color for consistency.
     @ViewBuilder
-    private func timelineDescription(for event: TimelineEvent) -> some View {
+    private func timelineTitle(for event: TimelineEvent) -> some View {
+        let title: String = switch event.kind {
+        case .intensity: "Intensity Update"
+        case .symptomOnset(let log): "\(log.symptom.displayName) — onset"
+        case .symptomResolved(let log): "\(log.symptom.displayName) — resolved"
+        case .painLocation(_, let delta): delta.isInitial ? "Initial Pain Locations" : "Pain Location Changes"
+        case .note: "Note"
+        case .medication(let d): d.dose.status == .taken ? "Medication Taken" : "Medication Skipped"
+        case .episodeEnded: "Episode Ended"
+        }
+        Text(title)
+            .font(.subheadline.weight(.medium))
+    }
+
+    /// Detail content below the title line
+    @ViewBuilder
+    private func timelineDetail(for event: TimelineEvent) -> some View {
         switch event.kind {
         case .intensity(let reading):
-            HStack {
-                Text("Intensity")
-                    .font(.caption)
-                Spacer()
-                Text(String(format: "%.1f", reading.intensity))
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(PainScale.color(for: reading.intensity))
+            let intensityColor = PainScale.color(for: reading.intensity)
+            VStack(alignment: .leading, spacing: 4) {
+                // Intensity bar
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color(.systemGray4))
+                            .frame(height: 22)
+                        Capsule()
+                            .fill(intensityColor)
+                            .frame(width: max(22, geo.size.width * CGFloat(reading.intensity / 10.0)), height: 22)
+                    }
+                }
+                .frame(height: 22)
+
+                Text("\(Int(reading.intensity)) - \(PainScale.label(for: reading.intensity))")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(intensityColor)
             }
-        case .symptomOnset(let log):
-            Text("\(log.symptom.displayName) — onset")
-                .font(.caption)
-                .foregroundStyle(.purple)
-        case .symptomResolved(let log):
-            Text("\(log.symptom.displayName) — resolved")
-                .font(.caption)
-                .foregroundStyle(.purple)
-        case .painLocation(let log):
-            Text(log.painLocations.map(\.displayName).joined(separator: ", "))
-                .font(.caption)
-                .foregroundStyle(.blue)
+            .padding(.top, 4)
+
+        case .symptomOnset, .symptomResolved:
+            EmptyView()
+
+        case .painLocation(_, let delta):
+            FlowLayout(spacing: 6) {
+                // Added locations — light bg, green text, green border
+                ForEach(delta.added) { location in
+                    Text("+ \(location.displayName)")
+                        .font(.caption.weight(.medium))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .foregroundStyle(Color(hex: "#2E7D32"))
+                        .background(Color(hex: "#E8F5E9"))
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(Color(hex: "#66BB6A"), lineWidth: 1))
+                }
+                // Removed locations — light bg, red text
+                ForEach(delta.removed) { location in
+                    Text("− \(location.displayName)")
+                        .font(.caption.weight(.medium))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .foregroundStyle(Color(hex: "#C62828"))
+                        .background(Color(hex: "#FFEBEE"))
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(Color(hex: "#FFCDD2"), lineWidth: 1))
+                }
+                // Unchanged locations (neutral gray)
+                ForEach(delta.unchanged) { location in
+                    Text(location.displayName)
+                        .font(.caption)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color(.systemGray5))
+                        .clipShape(Capsule())
+                }
+            }
+            .padding(.top, 4)
+
         case .note(let note):
             Text(note.note)
-                .font(.caption)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
                 .lineLimit(3)
+                .padding(.top, 2)
+
+        case .medication(let doseWithMed):
+            Text("\(doseWithMed.medication.name) • \(MedicationFormatting.formatDose(quantity: doseWithMed.dose.quantity, amount: doseWithMed.dose.dosageAmount ?? doseWithMed.medication.dosageAmount, unit: doseWithMed.dose.dosageUnit ?? doseWithMed.medication.dosageUnit))")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .padding(.top, 2)
+
+        case .episodeEnded:
+            EmptyView()
         }
     }
 
@@ -412,9 +531,25 @@ struct TimelineEvent: Identifiable {
         case intensity(IntensityReading)
         case symptomOnset(SymptomLog)
         case symptomResolved(SymptomLog)
-        case painLocation(PainLocationLog)
+        case painLocation(PainLocationLog, PainLocationDelta)
         case note(EpisodeNote)
+        case medication(DoseWithMedication)
+        case episodeEnded
+
+        var isEpisodeEnded: Bool {
+            if case .episodeEnded = self { return true }
+            return false
+        }
     }
+}
+
+/// Represents changes in pain locations between timeline entries
+struct PainLocationDelta {
+    let added: [PainLocation]
+    let removed: [PainLocation]
+    let unchanged: [PainLocation]
+    /// True if this is the first pain location log (all locations are "initial", shown as neutral)
+    let isInitial: Bool
 }
 
 // MARK: - Custom End Time Sheet
@@ -489,53 +624,91 @@ struct FlowLayout: Layout {
 
 struct IntensitySparklineView: View {
     let readings: [IntensityReading]
-    var episodeStartTime: Int64?
-    var episodeEndTime: Int64?
+    /// Episode start time — chart X axis starts here
+    var episodeStart: Int64?
+    /// Episode end time (nil for ongoing — uses current time)
+    var episodeEnd: Int64?
+
+    /// Pain scale gradient colors from 0 (green) to 10 (purple)
+    private static let gradientColors: [Color] = [
+        Color(hex: "#2E7D32"), // 0 - Dark Green
+        Color(hex: "#558B2F"), // 1
+        Color(hex: "#689F38"), // 2
+        Color(hex: "#F9A825"), // 3
+        Color(hex: "#FF8F00"), // 4
+        Color(hex: "#EF6C00"), // 5
+        Color(hex: "#E65100"), // 6
+        Color(hex: "#D84315"), // 7
+        Color(hex: "#C62828"), // 8
+        Color(hex: "#EC407A"), // 9
+        Color(hex: "#AB47BC"), // 10
+    ]
 
     var body: some View {
         GeometryReader { geo in
-            let sorted = readings.sorted { $0.timestamp < $1.timestamp }
+            let sorted = readings
+                .filter { $0.intensity >= 0 }
+                .sorted { $0.timestamp < $1.timestamp }
 
             if !sorted.isEmpty {
-                let startT = episodeStartTime ?? sorted.first!.timestamp
-                let endT = episodeEndTime ?? Int64(Date().timeIntervalSince1970 * 1000)
-                let range = max(Double(endT - startT), 1)
+                let startT = episodeStart ?? sorted.first!.timestamp
+                let endT = episodeEnd ?? Int64(Date().timeIntervalSince1970 * 1000)
+                let timeRange = max(Double(endT - startT), 1)
+                let padding: CGFloat = 4
+                let chartW = geo.size.width - padding * 2
+                let chartH = geo.size.height - padding * 2
 
-                // Sample-and-hold path (step function)
+                // Background gradient (green at bottom, purple at top)
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(
+                        LinearGradient(
+                            colors: Self.gradientColors.map { $0.opacity(0.15) },
+                            startPoint: .bottom,
+                            endPoint: .top
+                        )
+                    )
+
+                // Sample-and-hold step function line
                 Path { path in
-                    for (index, reading) in sorted.enumerated() {
-                        let x = geo.size.width * CGFloat(Double(reading.timestamp - startT) / range)
-                        let y = geo.size.height * (1 - CGFloat(reading.intensity / 10.0))
-
-                        if index == 0 {
+                    for (i, reading) in sorted.enumerated() {
+                        let x = padding + chartW * CGFloat(Double(reading.timestamp - startT) / timeRange)
+                        let y = padding + chartH * (1 - CGFloat(reading.intensity / 10.0))
+                        if i == 0 {
                             path.move(to: CGPoint(x: x, y: y))
                         } else {
-                            // Horizontal line to the new x at the previous y (step)
-                            let prevY = geo.size.height * (1 - CGFloat(sorted[index - 1].intensity / 10.0))
-                            path.addLine(to: CGPoint(x: x, y: prevY))
-                            // Vertical line to the new y
+                            // Horizontal segment at previous intensity, then vertical jump
+                            path.addLine(to: CGPoint(x: x, y: path.currentPoint?.y ?? y))
                             path.addLine(to: CGPoint(x: x, y: y))
                         }
                     }
-
-                    // Hold the last value to the end of the episode
-                    if let last = sorted.last {
-                        let lastY = geo.size.height * (1 - CGFloat(last.intensity / 10.0))
-                        path.addLine(to: CGPoint(x: geo.size.width, y: lastY))
+                    // Hold last value to end of episode
+                    if let lastY = path.currentPoint?.y {
+                        let endX = padding + chartW
+                        path.addLine(to: CGPoint(x: endX, y: lastY))
                     }
                 }
-                .stroke(Color.red, lineWidth: 2)
+                .stroke(
+                    LinearGradient(
+                        colors: Self.gradientColors,
+                        startPoint: .bottom,
+                        endPoint: .top
+                    ),
+                    style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round)
+                )
 
-                // Data point markers
+                // Reading dots
                 ForEach(sorted) { reading in
-                    let x = geo.size.width * CGFloat(Double(reading.timestamp - startT) / range)
-                    let y = geo.size.height * (1 - CGFloat(reading.intensity / 10.0))
+                    let x = padding + chartW * CGFloat(Double(reading.timestamp - startT) / timeRange)
+                    let y = padding + chartH * (1 - CGFloat(reading.intensity / 10.0))
                     Circle()
                         .fill(PainScale.color(for: reading.intensity))
-                        .frame(width: 8, height: 8)
+                        .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
+                        .frame(width: 7, height: 7)
                         .position(x: x, y: y)
                 }
             }
         }
     }
+
+    /// Sample-and-hold interpolation at fixed intervals
 }
