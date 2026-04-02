@@ -65,11 +65,11 @@ Your health data stays with you:
 **iOS** (Primary Platform)  
 - **TestFlight**: Currently available for beta testing ([App Store ID: 6753635113](https://apps.apple.com/app/id6753635113))
 - **App Store**: Production release coming soon
-- **Build from source**: See developer setup instructions in `react-native/`
+- **Build from source**: See developer setup instructions in `mobile-apps/react-native/`
 
 **Android**  
 - Under evaluation for future release
-- Build from source available (see developer setup in `react-native/`)
+- Build from source available (see developer setup in `mobile-apps/react-native/`)
 
 ### Quick Start Guide
 

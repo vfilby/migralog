@@ -25,7 +25,7 @@ Invoke this skill when:
 **IMPORTANT: Always capture output and kill tests early on first failure**
 
 ```bash
-cd /Users/vfilby/Projects/MigraineTracker/react-native
+cd /Users/vfilby/Projects/MigraineTracker/mobile-apps/react-native
 
 # Run with output capture and monitoring
 npm run test:ui -- e2e/specificTest.test.js 2>&1 | tee /tmp/e2e-test-output.log &
@@ -49,7 +49,7 @@ kill $MONITOR_PID 2>/dev/null || true
 
 ```bash
 # Locate the most recent test run directory
-LATEST_ARTIFACTS=$(ls -td react-native/e2e/artifacts/ios.sim.debug.* 2>/dev/null | head -1)
+LATEST_ARTIFACTS=$(ls -td mobile-apps/react-native/e2e/artifacts/ios.sim.debug.* 2>/dev/null | head -1)
 echo "Latest artifacts: $LATEST_ARTIFACTS"
 
 # List failed tests
@@ -183,8 +183,8 @@ log show /tmp/sim.logarchive | grep -i error
 ### Test Infrastructure
 - **Framework**: Detox for E2E testing
 - **Device**: iPhone 16 Pro Max simulator (primary)
-- **Test Location**: `react-native/e2e/*.test.js`
-- **Artifacts**: `react-native/e2e/artifacts/ios.sim.debug.*`
+- **Test Location**: `mobile-apps/react-native/e2e/*.test.js`
+- **Artifacts**: `mobile-apps/react-native/e2e/artifacts/ios.sim.debug.*`
 - **Deep Links**: Tests use `migraine-tracker://test/*` for database control
 
 ### Database Reset Mechanism
