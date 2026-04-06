@@ -201,11 +201,43 @@ final class AnalyticsViewModel {
         let components = calendar.dateComponents([.year, .month], from: month)
         guard let year = components.year, let monthNum = components.month else { return }
         do {
+            // Load manual daily statuses
             let statuses = try dailyStatusRepository.getMonthStats(year: year, month: monthNum)
             var statusMap: [String: DayStatus] = [:]
             for status in statuses {
                 statusMap[status.date] = status.status
             }
+
+            // Load episodes that may overlap this month and mark those days as red
+            guard let monthStart = calendar.date(from: DateComponents(year: year, month: monthNum, day: 1)),
+                  let monthEnd = calendar.date(byAdding: .month, value: 1, to: monthStart) else {
+                calendarStatuses = statusMap
+                return
+            }
+            let monthStartMs = TimestampHelper.fromDate(monthStart)
+            let monthEndMs = TimestampHelper.fromDate(monthEnd)
+
+            // Fetch episodes that could overlap: started before month end AND ended after month start (or still active)
+            let monthEpisodes = try episodeRepository.getEpisodesByDateRange(start: monthStartMs, end: monthEndMs)
+
+            // For each episode, mark every overlapping day as red
+            for episode in monthEpisodes {
+                let epStart = TimestampHelper.toDate(episode.startTime)
+                let epEnd = episode.endTime.map { TimestampHelper.toDate($0) } ?? Date()
+
+                // Clamp to month boundaries
+                let rangeStart = max(calendar.startOfDay(for: epStart), monthStart)
+                let rangeEnd = min(epEnd, monthEnd)
+
+                var day = calendar.startOfDay(for: rangeStart)
+                while day < rangeEnd {
+                    let dateString = TimestampHelper.dateString(from: day)
+                    statusMap[dateString] = .red
+                    guard let nextDay = calendar.date(byAdding: .day, value: 1, to: day) else { break }
+                    day = nextDay
+                }
+            }
+
             calendarStatuses = statusMap
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "AnalyticsViewModel", "action": "loadCalendarData"])
