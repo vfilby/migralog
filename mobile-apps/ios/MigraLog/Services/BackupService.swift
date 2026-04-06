@@ -380,8 +380,15 @@ final class BackupService: BackupServiceProtocol {
                 }
 
                 // Restore medication schedules
+                let timePattern = try! NSRegularExpression(pattern: "^[0-2][0-9]:[0-5][0-9]$")
                 let scheduleRows = try Row.fetchAll(sourceDb, sql: "SELECT * FROM medication_schedules")
                 for row in scheduleRows {
+                    let timeValue = row["time"] as? String ?? ""
+                    let range = NSRange(timeValue.startIndex..., in: timeValue)
+                    guard timePattern.firstMatch(in: timeValue, range: range) != nil else {
+                        logger.warn("Skipping medication schedule \(row["id"] as? String ?? "?") with invalid time: \(timeValue)")
+                        continue
+                    }
                     try destDb.execute(
                         sql: """
                             INSERT INTO medication_schedules (id, medication_id, time, timezone,
