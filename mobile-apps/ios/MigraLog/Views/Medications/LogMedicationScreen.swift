@@ -62,8 +62,10 @@ struct LogMedicationScreen: View {
     }
 
     private func quickLog(_ med: Medication) async {
-        let repo = MedicationRepository(dbManager: DatabaseManager.shared)
+        let medicationRepo = MedicationRepository(dbManager: DatabaseManager.shared)
+        let episodeRepo = EpisodeRepository(dbManager: DatabaseManager.shared)
         let now = TimestampHelper.now
+        let activeEpisode = try? episodeRepo.getEpisodeByTimestamp(now)
         let dose = MedicationDose(
             id: UUID().uuidString,
             medicationId: med.id,
@@ -72,7 +74,7 @@ struct LogMedicationScreen: View {
             dosageAmount: med.dosageAmount,
             dosageUnit: med.dosageUnit,
             status: .taken,
-            episodeId: nil,
+            episodeId: activeEpisode?.id,
             effectivenessRating: nil,
             timeToRelief: nil,
             sideEffects: [],
@@ -80,7 +82,7 @@ struct LogMedicationScreen: View {
             createdAt: now,
             updatedAt: now
         )
-        try? await repo.createDose(dose)
+        try? await medicationRepo.createDose(dose)
         dismiss()
     }
 }
@@ -170,15 +172,18 @@ struct LogMedicationDetailSheet: View {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {
                     let now = TimestampHelper.now
+                    let doseTimestamp = TimestampHelper.fromDate(timestamp)
+                    let episodeRepo = EpisodeRepository(dbManager: DatabaseManager.shared)
+                    let activeEpisode = try? episodeRepo.getEpisodeByTimestamp(doseTimestamp)
                     let dose = MedicationDose(
                         id: UUID().uuidString,
                         medicationId: medication.id,
-                        timestamp: TimestampHelper.fromDate(timestamp),
+                        timestamp: doseTimestamp,
                         quantity: quantity,
                         dosageAmount: medication.dosageAmount,
                         dosageUnit: medication.dosageUnit,
                         status: .taken,
-                        episodeId: nil,
+                        episodeId: activeEpisode?.id,
                         effectivenessRating: nil,
                         timeToRelief: nil,
                         sideEffects: [],

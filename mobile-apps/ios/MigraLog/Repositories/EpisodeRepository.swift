@@ -80,6 +80,23 @@ final class EpisodeRepository: EpisodeRepositoryProtocol {
         }
     }
 
+    func getEpisodeByTimestamp(_ timestamp: Int64) throws -> Episode? {
+        try dbManager.dbQueue.read { db in
+            let row = try Row.fetchOne(
+                db,
+                sql: """
+                    SELECT * FROM episodes
+                    WHERE start_time <= ?
+                    AND (end_time IS NULL OR end_time >= ?)
+                    ORDER BY start_time DESC
+                    LIMIT 1
+                    """,
+                arguments: [timestamp, timestamp]
+            )
+            return row.map { Self.episodeFromRow($0) }
+        }
+    }
+
     func updateEpisode(_ episode: Episode) throws -> Episode {
         let now = TimestampHelper.now
         var updated = episode

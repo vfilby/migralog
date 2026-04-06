@@ -9,6 +9,7 @@ protocol EpisodeRepositoryProtocol: Sendable {
     func getAllEpisodes() throws -> [Episode]
     func getEpisodesByDateRange(start: Int64, end: Int64) throws -> [Episode]
     func getCurrentEpisode() throws -> Episode?
+    func getEpisodeByTimestamp(_ timestamp: Int64) throws -> Episode?
     func updateEpisode(_ episode: Episode) throws -> Episode
     func updateEpisodeTimestamps(episodeId: String, offset: Int64) throws
     func deleteEpisode(_ id: String) throws
