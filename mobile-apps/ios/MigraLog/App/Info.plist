@@ -44,6 +44,8 @@
 	<string>MigraLog uses your location to help identify environmental triggers for your migraines.</string>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>MigraLog sends reminders for medications and daily check-ins.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
