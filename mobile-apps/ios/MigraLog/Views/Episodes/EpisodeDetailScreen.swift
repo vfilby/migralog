@@ -199,7 +199,11 @@ struct EpisodeDetailScreen: View {
 
             // Sparkline
             if !details.intensityReadings.isEmpty {
-                IntensitySparklineView(readings: details.intensityReadings)
+                IntensitySparklineView(
+                    readings: details.intensityReadings,
+                    episodeStartTime: details.episode.startTime,
+                    episodeEndTime: details.episode.endTime
+                )
                     .frame(height: 80)
             }
 
@@ -485,41 +489,52 @@ struct FlowLayout: Layout {
 
 struct IntensitySparklineView: View {
     let readings: [IntensityReading]
+    var episodeStartTime: Int64?
+    var episodeEndTime: Int64?
 
     var body: some View {
         GeometryReader { geo in
-            if readings.count > 1 {
-                let sorted = readings.sorted { $0.timestamp < $1.timestamp }
-                let minT = sorted.first!.timestamp
-                let maxT = sorted.last!.timestamp
-                let range = max(Double(maxT - minT), 1)
+            let sorted = readings.sorted { $0.timestamp < $1.timestamp }
 
+            if !sorted.isEmpty {
+                let startT = episodeStartTime ?? sorted.first!.timestamp
+                let endT = episodeEndTime ?? Int64(Date().timeIntervalSince1970 * 1000)
+                let range = max(Double(endT - startT), 1)
+
+                // Sample-and-hold path (step function)
                 Path { path in
                     for (index, reading) in sorted.enumerated() {
-                        let x = geo.size.width * CGFloat(Double(reading.timestamp - minT) / range)
+                        let x = geo.size.width * CGFloat(Double(reading.timestamp - startT) / range)
                         let y = geo.size.height * (1 - CGFloat(reading.intensity / 10.0))
+
                         if index == 0 {
                             path.move(to: CGPoint(x: x, y: y))
                         } else {
+                            // Horizontal line to the new x at the previous y (step)
+                            let prevY = geo.size.height * (1 - CGFloat(sorted[index - 1].intensity / 10.0))
+                            path.addLine(to: CGPoint(x: x, y: prevY))
+                            // Vertical line to the new y
                             path.addLine(to: CGPoint(x: x, y: y))
                         }
+                    }
+
+                    // Hold the last value to the end of the episode
+                    if let last = sorted.last {
+                        let lastY = geo.size.height * (1 - CGFloat(last.intensity / 10.0))
+                        path.addLine(to: CGPoint(x: geo.size.width, y: lastY))
                     }
                 }
                 .stroke(Color.red, lineWidth: 2)
 
+                // Data point markers
                 ForEach(sorted) { reading in
-                    let x = geo.size.width * CGFloat(Double(reading.timestamp - minT) / range)
+                    let x = geo.size.width * CGFloat(Double(reading.timestamp - startT) / range)
                     let y = geo.size.height * (1 - CGFloat(reading.intensity / 10.0))
                     Circle()
                         .fill(PainScale.color(for: reading.intensity))
                         .frame(width: 8, height: 8)
                         .position(x: x, y: y)
                 }
-            } else if let reading = readings.first {
-                Circle()
-                    .fill(PainScale.color(for: reading.intensity))
-                    .frame(width: 12, height: 12)
-                    .position(x: geo.size.width / 2, y: geo.size.height / 2)
             }
         }
     }
