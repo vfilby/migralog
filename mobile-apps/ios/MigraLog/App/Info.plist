@@ -32,7 +32,14 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSHealthShareUsageDescription</key>
+	<string>MigraLog reads your health data to help correlate health metrics with your migraine patterns.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>MigraLog saves migraine episode data to Apple Health so you can share it with your healthcare provider.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>MigraLog uses your location to help identify environmental triggers for your migraines.</string>
 	<key>NSUserNotificationsUsageDescription</key>
