@@ -54,6 +54,7 @@ struct DailyStatusPromptScreen: View {
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Done") { dismiss() }
+                    .accessibilityIdentifier("skip-button")
             }
         }
         .task { await loadDayData() }
@@ -228,6 +229,7 @@ struct DailyStatusPromptScreen: View {
                 Button("Save") {
                     Task { await save() }
                 }
+                .accessibilityIdentifier("save-status-button")
                 .buttonStyle(.borderedProminent)
                 .disabled(selectedStatus == nil || isSaving)
                 .frame(maxWidth: .infinity)
