@@ -101,15 +101,35 @@ struct MedicationRowView: View {
             Text(MedicationFormatting.formatDosage(amount: medication.dosageAmount, unit: medication.dosageUnit))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            if let category = medication.category {
-                Text(category.displayName)
-                    .font(.caption)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color.blue.opacity(0.1))
-                    .clipShape(Capsule())
+            HStack(spacing: 6) {
+                MedicationTypeBadge(type: medication.type)
+                if let category = medication.category {
+                    Text(category.displayName)
+                        .font(.caption2.weight(.semibold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .foregroundStyle(.secondary)
+                        .background(Color(.systemGray5))
+                        .clipShape(Capsule())
+                }
             }
         }
         .padding(.vertical, 2)
+    }
+}
+
+/// Colored badge for medication type (Preventative/Rescue/Other)
+struct MedicationTypeBadge: View {
+    let type: MedicationType
+
+    var body: some View {
+        let badgeColor = MedicationTypeColors.color(for: type)
+        Text(MedicationTypeColors.label(for: type))
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .foregroundStyle(badgeColor)
+            .background(badgeColor.opacity(0.2))
+            .clipShape(Capsule())
     }
 }

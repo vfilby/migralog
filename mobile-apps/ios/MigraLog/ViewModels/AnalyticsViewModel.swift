@@ -19,6 +19,8 @@ final class AnalyticsViewModel {
     var dayStats: [DayStatistic] = []
     var dailyStatuses: [DailyStatusLog] = []
     var calendarStatuses: [String: DayStatus] = [:]
+    var calendarOverlayDates: Set<String> = []
+    var calendarOverlays: [CalendarOverlay] = []
     var showDailyStatusPrompt = false
     var selectedCalendarDate: Date?
     var rescueDoses: [MedicationDose] = []
@@ -36,6 +38,7 @@ final class AnalyticsViewModel {
     private let episodeRepository: EpisodeRepositoryProtocol
     private let dailyStatusRepository: DailyStatusRepositoryProtocol
     private let medicationRepository: MedicationRepositoryProtocol
+    private let overlayRepository: CalendarOverlayRepositoryProtocol
 
     /// Maps medication ID to medication name for display purposes.
     private var medicationNames: [String: String] = [:]
@@ -45,11 +48,13 @@ final class AnalyticsViewModel {
     init(
         episodeRepository: EpisodeRepositoryProtocol = EpisodeRepository(dbManager: DatabaseManager.shared),
         dailyStatusRepository: DailyStatusRepositoryProtocol = DailyStatusRepository(dbManager: DatabaseManager.shared),
-        medicationRepository: MedicationRepositoryProtocol = MedicationRepository(dbManager: DatabaseManager.shared)
+        medicationRepository: MedicationRepositoryProtocol = MedicationRepository(dbManager: DatabaseManager.shared),
+        overlayRepository: CalendarOverlayRepositoryProtocol = OverlayRepository(dbManager: DatabaseManager.shared)
     ) {
         self.episodeRepository = episodeRepository
         self.dailyStatusRepository = dailyStatusRepository
         self.medicationRepository = medicationRepository
+        self.overlayRepository = overlayRepository
     }
 
     // MARK: - Computed
@@ -196,19 +201,40 @@ final class AnalyticsViewModel {
     // MARK: - Calendar
 
     @MainActor
+    func saveOverlay(_ overlay: CalendarOverlay) async {
+        do {
+            if (try? overlayRepository.getOverlaysByDateRange(start: overlay.startDate, end: overlay.endDate ?? overlay.startDate)).flatMap({ $0.first { $0.id == overlay.id } }) != nil {
+                _ = try overlayRepository.updateOverlay(overlay)
+            } else {
+                _ = try overlayRepository.createOverlay(overlay)
+            }
+        } catch {
+            ErrorLogger.shared.logError(error, context: ["viewModel": "AnalyticsViewModel", "action": "saveOverlay"])
+        }
+    }
+
+    func deleteOverlay(_ id: String) async {
+        do {
+            try overlayRepository.deleteOverlay(id)
+        } catch {
+            ErrorLogger.shared.logError(error, context: ["viewModel": "AnalyticsViewModel", "action": "deleteOverlay"])
+        }
+    }
+
     func loadCalendarData(for month: Date) async {
         let calendar = Calendar.current
         let components = calendar.dateComponents([.year, .month], from: month)
         guard let year = components.year, let monthNum = components.month else { return }
         do {
-            // Load manual daily statuses
+            // 1. Get manually logged statuses
             let statuses = try dailyStatusRepository.getMonthStats(year: year, month: monthNum)
             var statusMap: [String: DayStatus] = [:]
             for status in statuses {
                 statusMap[status.date] = status.status
             }
 
-            // Load episodes that may overlap this month and mark those days as red
+            // 2. Overlay implicit red days from episodes
+            // Any day where an episode overlaps any part of it is automatically red
             guard let monthStart = calendar.date(from: DateComponents(year: year, month: monthNum, day: 1)),
                   let monthEnd = calendar.date(byAdding: .month, value: 1, to: monthStart) else {
                 calendarStatuses = statusMap
@@ -232,6 +258,7 @@ final class AnalyticsViewModel {
                 var day = calendar.startOfDay(for: rangeStart)
                 while day < rangeEnd {
                     let dateString = TimestampHelper.dateString(from: day)
+                    // Priority: episode overlap (red) > manual status > unknown
                     statusMap[dateString] = .red
                     guard let nextDay = calendar.date(byAdding: .day, value: 1, to: day) else { break }
                     day = nextDay
@@ -239,6 +266,38 @@ final class AnalyticsViewModel {
             }
 
             calendarStatuses = statusMap
+
+            // 3. Load calendar overlays for this month
+            let startStr = String(format: "%04d-%02d-01", year, monthNum)
+            let endStr: String
+            if monthNum == 12 {
+                endStr = String(format: "%04d-01-01", year + 1)
+            } else {
+                endStr = String(format: "%04d-%02d-01", year, monthNum + 1)
+            }
+            let overlays = try overlayRepository.getOverlaysByDateRange(start: startStr, end: endStr)
+            calendarOverlays = overlays
+
+            // Build set of dates that have overlays
+            var overlayDates: Set<String> = []
+            for overlay in overlays {
+                // Walk each day in the overlay range
+                var date = overlay.startDate
+                let overlayEnd = overlay.endDate ?? TimestampHelper.dateString()
+                while date <= overlayEnd && date < endStr {
+                    if date >= startStr {
+                        overlayDates.insert(date)
+                    }
+                    // Advance by one day
+                    if let d = TimestampHelper.dateFromString(date),
+                       let next = calendar.date(byAdding: .day, value: 1, to: d) {
+                        date = TimestampHelper.dateString(from: next)
+                    } else {
+                        break
+                    }
+                }
+            }
+            calendarOverlayDates = overlayDates
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "AnalyticsViewModel", "action": "loadCalendarData"])
             self.error = error.localizedDescription
@@ -261,6 +320,7 @@ final class AnalyticsViewModel {
 
         while currentDate <= now {
             let dateString = TimestampHelper.dateString(from: currentDate)
+
             let dayStart = calendar.startOfDay(for: currentDate)
             let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart)!
 
@@ -278,11 +338,14 @@ final class AnalyticsViewModel {
             let avgIntensity: Double? = dayReadings.isEmpty ? nil :
                 dayReadings.map(\.intensity).reduce(0, +) / Double(dayReadings.count)
 
-            let status = statuses.first { $0.date == dateString }
+            let manualStatus = statuses.first { $0.date == dateString }
+
+            // Priority: episode overlap (red) > manual status > unknown
+            let effectiveStatus: DayStatus? = !dayEpisodes.isEmpty ? .red : manualStatus?.status
 
             stats.append(DayStatistic(
                 date: dateString,
-                status: status?.status,
+                status: effectiveStatus,
                 episodeCount: dayEpisodes.count,
                 averageIntensity: avgIntensity
             ))

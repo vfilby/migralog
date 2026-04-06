@@ -6,12 +6,14 @@ final class EpisodeDetailViewModel {
     // MARK: - State
 
     var details: EpisodeWithDetails?
+    var episodeDoses: [DoseWithMedication] = []
     var isLoading = false
     var error: String?
 
     // MARK: - Dependencies
 
     private let episodeRepository: EpisodeRepositoryProtocol
+    private let medicationRepository: MedicationRepositoryProtocol
     private let dailyCheckinService: DailyCheckinNotificationServiceProtocol
     private var episodeId: String
 
@@ -20,6 +22,7 @@ final class EpisodeDetailViewModel {
     init(
         episodeId: String = "",
         episodeRepository: EpisodeRepositoryProtocol = EpisodeRepository(dbManager: DatabaseManager.shared),
+        medicationRepository: MedicationRepositoryProtocol = MedicationRepository(dbManager: DatabaseManager.shared),
         dailyCheckinService: DailyCheckinNotificationServiceProtocol = DailyCheckinNotificationService(
             notificationService: NotificationService.shared,
             scheduledNotificationRepo: ScheduledNotificationRepository(dbManager: DatabaseManager.shared),
@@ -29,6 +32,7 @@ final class EpisodeDetailViewModel {
     ) {
         self.episodeId = episodeId
         self.episodeRepository = episodeRepository
+        self.medicationRepository = medicationRepository
         self.dailyCheckinService = dailyCheckinService
     }
 
@@ -48,6 +52,7 @@ final class EpisodeDetailViewModel {
         error = nil
         do {
             details = try episodeRepository.getEpisodeWithDetails(episodeId)
+            episodeDoses = try loadDosesForEpisode(episodeId)
             isLoading = false
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "EpisodeDetailViewModel", "action": "loadEpisode"])
@@ -64,6 +69,7 @@ final class EpisodeDetailViewModel {
         error = nil
         do {
             details = try episodeRepository.getEpisodeWithDetails(id)
+            episodeDoses = try loadDosesForEpisode(id)
             isLoading = false
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "EpisodeDetailViewModel", "action": "loadEpisode"])
@@ -337,6 +343,18 @@ final class EpisodeDetailViewModel {
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "EpisodeDetailViewModel", "action": "deletePainLocationLog"])
             self.error = error.localizedDescription
+        }
+    }
+
+    // MARK: - Private
+
+    private func loadDosesForEpisode(_ episodeId: String) throws -> [DoseWithMedication] {
+        let doses = try medicationRepository.getDosesByEpisodeId(episodeId)
+        return doses.compactMap { dose in
+            guard let med = try? medicationRepository.getMedicationById(dose.medicationId) else {
+                return nil
+            }
+            return DoseWithMedication(dose: dose, medication: med)
         }
     }
 }

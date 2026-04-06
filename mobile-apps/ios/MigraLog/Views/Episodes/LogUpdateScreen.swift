@@ -14,18 +14,7 @@ struct LogUpdateScreen: View {
     var body: some View {
         Form {
             Section("Pain Intensity") {
-                VStack {
-                    HStack {
-                        Text(String(format: "%.0f", intensity))
-                            .font(.title2.weight(.bold))
-                            .foregroundStyle(PainScale.color(for: intensity))
-                        Text(PainScale.label(for: intensity))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    Slider(value: $intensity, in: 0...10, step: 1)
-                        .tint(PainScale.color(for: intensity))
-                }
+                PainIntensitySlider(intensity: $intensity)
             }
 
             Section("Pain Locations") {
@@ -35,15 +24,16 @@ struct LogUpdateScreen: View {
             Section("Additional Symptoms") {
                 FlowLayout(spacing: 8) {
                     ForEach(Symptom.allCases) { symptom in
-                        Toggle(isOn: Binding(
-                            get: { selectedSymptoms.contains(symptom) },
-                            set: { if $0 { selectedSymptoms.insert(symptom) } else { selectedSymptoms.remove(symptom) } }
-                        )) {
-                            Text(symptom.displayName)
-                                .font(.caption)
+                        SelectableChip(
+                            title: symptom.displayName,
+                            isSelected: selectedSymptoms.contains(symptom)
+                        ) {
+                            if selectedSymptoms.contains(symptom) {
+                                selectedSymptoms.remove(symptom)
+                            } else {
+                                selectedSymptoms.insert(symptom)
+                            }
                         }
-                        .toggleStyle(.button)
-                        .buttonStyle(.bordered)
                     }
                 }
             }

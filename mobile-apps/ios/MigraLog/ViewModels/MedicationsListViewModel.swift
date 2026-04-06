@@ -36,6 +36,7 @@ final class MedicationsListViewModel {
         error = nil
         do {
             let active = try await medicationRepository.getActiveMedications()
+
             preventativeMedications = active.filter { $0.type == .preventative }
             otherMedications = active.filter { $0.type == .other }
 

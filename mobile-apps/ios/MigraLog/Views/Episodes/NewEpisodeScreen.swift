@@ -12,19 +12,8 @@ struct NewEpisodeScreen: View {
 
     var body: some View {
         Form {
-            Section("Initial Intensity") {
-                VStack {
-                    HStack {
-                        Text(String(format: "%.0f", initialIntensity))
-                            .font(.title2.weight(.bold))
-                            .foregroundStyle(PainScale.color(for: initialIntensity))
-                        Text(PainScale.label(for: initialIntensity))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    Slider(value: $initialIntensity, in: 0...10, step: 1)
-                        .tint(PainScale.color(for: initialIntensity))
-                }
+            Section("Initial Pain Intensity") {
+                PainIntensitySlider(intensity: $initialIntensity)
             }
 
             Section("Pain Locations") {
@@ -34,15 +23,16 @@ struct NewEpisodeScreen: View {
             Section("Pain Qualities") {
                 FlowLayout(spacing: 8) {
                     ForEach(PainQuality.allCases) { quality in
-                        Toggle(isOn: Binding(
-                            get: { selectedQualities.contains(quality) },
-                            set: { if $0 { selectedQualities.insert(quality) } else { selectedQualities.remove(quality) } }
-                        )) {
-                            Text(quality.displayName)
-                                .font(.caption)
+                        SelectableChip(
+                            title: quality.displayName,
+                            isSelected: selectedQualities.contains(quality)
+                        ) {
+                            if selectedQualities.contains(quality) {
+                                selectedQualities.remove(quality)
+                            } else {
+                                selectedQualities.insert(quality)
+                            }
                         }
-                        .toggleStyle(.button)
-                        .buttonStyle(.bordered)
                     }
                 }
             }
@@ -50,31 +40,33 @@ struct NewEpisodeScreen: View {
             Section("Symptoms") {
                 FlowLayout(spacing: 8) {
                     ForEach(Symptom.allCases) { symptom in
-                        Toggle(isOn: Binding(
-                            get: { selectedSymptoms.contains(symptom) },
-                            set: { if $0 { selectedSymptoms.insert(symptom) } else { selectedSymptoms.remove(symptom) } }
-                        )) {
-                            Text(symptom.displayName)
-                                .font(.caption)
+                        SelectableChip(
+                            title: symptom.displayName,
+                            isSelected: selectedSymptoms.contains(symptom)
+                        ) {
+                            if selectedSymptoms.contains(symptom) {
+                                selectedSymptoms.remove(symptom)
+                            } else {
+                                selectedSymptoms.insert(symptom)
+                            }
                         }
-                        .toggleStyle(.button)
-                        .buttonStyle(.bordered)
                     }
                 }
             }
 
-            Section("Triggers") {
+            Section("Possible Triggers") {
                 FlowLayout(spacing: 8) {
                     ForEach(Trigger.allCases) { trigger in
-                        Toggle(isOn: Binding(
-                            get: { selectedTriggers.contains(trigger) },
-                            set: { if $0 { selectedTriggers.insert(trigger) } else { selectedTriggers.remove(trigger) } }
-                        )) {
-                            Text(trigger.displayName)
-                                .font(.caption)
+                        SelectableChip(
+                            title: trigger.displayName,
+                            isSelected: selectedTriggers.contains(trigger)
+                        ) {
+                            if selectedTriggers.contains(trigger) {
+                                selectedTriggers.remove(trigger)
+                            } else {
+                                selectedTriggers.insert(trigger)
+                            }
                         }
-                        .toggleStyle(.button)
-                        .buttonStyle(.bordered)
                     }
                 }
             }

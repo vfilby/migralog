@@ -231,6 +231,60 @@ final class BackupServiceTests: XCTestCase {
         try? backupService.deleteBackup(id: metadata.id)
     }
 
+    // MARK: - Restore from RN Backup
+
+    func testRestoreFromReactNativeBackup() throws {
+        // Use the actual prod backup file to test cross-platform restore
+        let backupPath = "/Users/vfilby/Downloads/backup_1774484184169_ty08gybj0.db"
+
+        guard FileManager.default.fileExists(atPath: backupPath) else {
+            throw XCTSkip("Prod backup file not found at \(backupPath)")
+        }
+
+        // Copy to temp location (same as the app does)
+        let tempPath = FileManager.default.temporaryDirectory
+            .appendingPathComponent("restore_test_\(UUID().uuidString).db")
+        try FileManager.default.copyItem(
+            atPath: backupPath,
+            toPath: tempPath.path
+        )
+        defer { try? FileManager.default.removeItem(at: tempPath) }
+
+        // Validate
+        XCTAssertTrue(
+            backupService.validateBackup(path: tempPath.path),
+            "Backup should pass validation"
+        )
+
+        // Restore into our test in-memory DB
+        XCTAssertNoThrow(
+            try backupService.restoreFromBackup(path: tempPath.path, dbManager: dbManager),
+            "Restore should not throw"
+        )
+
+        // Verify data was restored
+        try dbManager.dbQueue.read { db in
+            let episodes = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM episodes")
+            XCTAssertEqual(episodes, 70, "Should restore 70 episodes")
+
+            let medications = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM medications")
+            XCTAssertEqual(medications, 12, "Should restore 12 medications")
+
+            let dailyStatus = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM daily_status_logs")
+            XCTAssertEqual(dailyStatus, 80, "Should restore 80 daily status logs")
+
+            let painLogs = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM pain_location_logs")
+            XCTAssertEqual(painLogs, 49, "Should restore 49 pain location logs")
+
+            let doses = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM medication_doses")
+            XCTAssertEqual(doses, 594, "Should restore 594 medication doses")
+
+            // 1 of 5 schedules has bad data (date instead of time), so 4 should restore
+            let schedules = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM medication_schedules")
+            XCTAssertEqual(schedules, 4, "Should restore 4 valid medication schedules (1 skipped due to bad time format)")
+        }
+    }
+
     // MARK: - File Size
 
     func testBackupFileSize() throws {

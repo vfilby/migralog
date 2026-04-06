@@ -30,6 +30,17 @@ enum PainLocation: String, Codable, CaseIterable, Identifiable {
         case .rightTeeth: return "Right Teeth"
         }
     }
+
+    /// Short region name without Left/Right prefix (for the grid where columns are labeled)
+    var regionName: String {
+        switch self {
+        case .leftEye, .rightEye: return "Eye"
+        case .leftTemple, .rightTemple: return "Temple"
+        case .leftNeck, .rightNeck: return "Neck"
+        case .leftHead, .rightHead: return "Head"
+        case .leftTeeth, .rightTeeth: return "Teeth"
+        }
+    }
 }
 
 enum PainQuality: String, Codable, CaseIterable, Identifiable {

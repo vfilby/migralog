@@ -12,15 +12,20 @@ struct EpisodesScreen: View {
                     description: Text("Start tracking your first migraine episode from the Dashboard.")
                 )
             } else {
-                List(viewModel.episodes) { episode in
-                    NavigationLink {
-                        EpisodeDetailScreen(episodeId: episode.id)
-                    } label: {
-                        EpisodeCardView(episode: episode, readings: viewModel.readingsMap[episode.id] ?? [])
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(viewModel.episodes) { episode in
+                            NavigationLink {
+                                EpisodeDetailScreen(episodeId: episode.id)
+                            } label: {
+                                EpisodeCardView(episode: episode, readings: viewModel.readingsMap[episode.id] ?? [])
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("episode-card-\(viewModel.episodes.firstIndex(where: { $0.id == episode.id }) ?? 0)")
+                        }
                     }
-                    .accessibilityIdentifier("episode-card-\(viewModel.episodes.firstIndex(where: { $0.id == episode.id }) ?? 0)")
+                    .padding()
                 }
-                .listStyle(.plain)
             }
         }
         .navigationTitle("Episodes")
@@ -36,51 +41,69 @@ struct EpisodeCardView: View {
     let readings: [IntensityReading]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(DateFormatting.relativeDate(episode.startDate))
-                    .font(.headline)
-                Spacer()
-                if episode.isActive {
-                    Text("Ongoing")
-                        .font(.caption)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.red.opacity(0.2))
-                        .foregroundStyle(.red)
-                        .clipShape(Capsule())
+        HStack(alignment: .center, spacing: 12) {
+            // Left side: text info
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(DateFormatting.relativeDate(episode.startDate))
+                        .font(.headline)
+                    if episode.isActive {
+                        Text("Ongoing")
+                            .font(.caption)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.red.opacity(0.2))
+                            .foregroundStyle(.red)
+                            .clipShape(Capsule())
+                    }
                 }
-            }
 
-            if !readings.isEmpty {
-                IntensitySparklineView(
-                    readings: readings,
-                    episodeStartTime: episode.startTime,
-                    episodeEndTime: episode.endTime
-                )
-                    .frame(height: 30)
-            }
-
-            HStack {
-                Text(DateFormatting.displayTime(episode.startDate))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                if let endDate = episode.endDate {
-                    Text("— \(DateFormatting.displayTime(endDate))")
+                if episode.latitude != nil {
+                    // Location was recorded (reverse geocoding TBD)
+                    Label("Location recorded", systemImage: "location.fill")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
 
-                Spacer()
+                HStack {
+                    Text(DateFormatting.displayTime(episode.startDate))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    if let endDate = episode.endDate {
+                        Text("— \(DateFormatting.displayTime(endDate))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
 
                 if let duration = episode.durationMillis {
                     Text(DateFormatting.formatDuration(milliseconds: duration))
-                        .font(.caption)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text(DateFormatting.formatDuration(from: episode.startTime, to: nil))
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
             }
+
+            Spacer(minLength: 8)
+
+            // Right side: sparkline (fixed width)
+            if !readings.isEmpty {
+                IntensitySparklineView(
+                    readings: readings,
+                    episodeStart: episode.startTime,
+                    episodeEnd: episode.endTime
+                )
+                .frame(width: 160, height: 50)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+            }
         }
-        .padding(.vertical, 4)
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }

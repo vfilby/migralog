@@ -2,12 +2,21 @@ import SwiftUI
 
 struct AnalyticsScreen: View {
     @State private var viewModel = AnalyticsViewModel()
+    @State private var showAddOverlay = false
+    @State private var editingOverlay: CalendarOverlay?
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 // Monthly Calendar
                 MonthlyCalendarView(viewModel: viewModel)
+
+                // Overlays section
+                OverlayListCard(
+                    overlays: viewModel.calendarOverlays,
+                    onAdd: { showAddOverlay = true },
+                    onEdit: { editingOverlay = $0 }
+                )
 
                 // Time Range Selector
                 TimeRangeSelectorView(viewModel: viewModel)
@@ -30,6 +39,22 @@ struct AnalyticsScreen: View {
         .accessibilityIdentifier("trends-screen")
         .task {
             await viewModel.fetchData()
+        }
+        .sheet(isPresented: $showAddOverlay, onDismiss: { Task { await viewModel.loadCalendarData(for: Date()) } }) {
+            NavigationStack {
+                OverlayFormSheet { overlay in
+                    Task { await viewModel.saveOverlay(overlay) }
+                }
+            }
+        }
+        .sheet(item: $editingOverlay, onDismiss: { Task { await viewModel.loadCalendarData(for: Date()) } }) { overlay in
+            NavigationStack {
+                OverlayFormSheet(overlay: overlay, onSave: { updated in
+                    Task { await viewModel.saveOverlay(updated) }
+                }, onDelete: { id in
+                    Task { await viewModel.deleteOverlay(id) }
+                })
+            }
         }
     }
 }
@@ -80,12 +105,14 @@ struct MonthlyCalendarView: View {
 
             // Calendar grid
             let days = calendarDays(for: displayMonth)
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 4) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 7), spacing: 6) {
                 ForEach(days, id: \.self) { date in
                     if let date = date {
+                        let dateStr = DateFormatting.dateString(from: date)
                         CalendarDayCell(
                             date: date,
-                            status: viewModel.calendarStatuses[DateFormatting.dateString(from: date)],
+                            status: viewModel.calendarStatuses[dateStr],
+                            hasOverlay: viewModel.calendarOverlayDates.contains(dateStr),
                             onTap: {
                                 viewModel.selectedCalendarDate = date
                                 viewModel.showDailyStatusPrompt = true
@@ -93,8 +120,8 @@ struct MonthlyCalendarView: View {
                         )
                         .accessibilityIdentifier("calendar-day-\(DateFormatting.dateString(from: date))")
                     } else {
-                        Text("")
-                            .frame(maxWidth: .infinity, minHeight: 36)
+                        Color.clear
+                            .frame(maxWidth: .infinity, minHeight: 44)
                     }
                 }
             }
@@ -148,37 +175,49 @@ struct MonthlyCalendarView: View {
 struct CalendarDayCell: View {
     let date: Date
     let status: DayStatus?
+    let hasOverlay: Bool
     let onTap: () -> Void
 
     private var isToday: Bool {
         Calendar.current.isDateInToday(date)
     }
 
+    private var isFuture: Bool {
+        date > Date()
+    }
+
     var body: some View {
         Button(action: onTap) {
             VStack(spacing: 2) {
-                Text("\(Calendar.current.component(.day, from: date))")
-                    .font(.caption)
-                    .fontWeight(isToday ? .bold : .regular)
-
                 Circle()
                     .fill(statusColor)
-                    .frame(width: 8, height: 8)
-                    .opacity(status != nil ? 1 : 0)
+                    .frame(width: 12, height: 12)
+
+                Text("\(Calendar.current.component(.day, from: date))")
+                    .font(.subheadline)
+                    .fontWeight(isToday ? .bold : .regular)
+                    .foregroundStyle(isFuture ? .tertiary : .primary)
+
+                // Overlay line at bottom
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(hasOverlay ? Color(.systemGray3) : .clear)
+                    .frame(height: 4)
             }
-            .frame(maxWidth: .infinity, minHeight: 36)
+            .frame(maxWidth: .infinity, minHeight: 44)
             .background(isToday ? Color.accentColor.opacity(0.1) : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: 6))
         }
         .buttonStyle(.plain)
+        .disabled(isFuture)
     }
 
     private var statusColor: Color {
+        if isFuture { return .clear }
         switch status {
         case .green: return .green
         case .yellow: return .yellow
         case .red: return .red
-        case nil: return .clear
+        case nil: return Color(.systemGray4)
         }
     }
 }
@@ -351,5 +390,72 @@ struct MedicationUsageCard: View {
         .padding()
         .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+// MARK: - Overlay List
+
+struct OverlayListCard: View {
+    let overlays: [CalendarOverlay]
+    var onAdd: (() -> Void)?
+    var onEdit: ((CalendarOverlay) -> Void)?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Overlays")
+                    .font(.headline)
+                Spacer()
+                if let onAdd = onAdd {
+                    Button {
+                        onAdd()
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title3)
+                    }
+                }
+            }
+
+            if overlays.isEmpty {
+                Text("No active overlays")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(overlays) { overlay in
+                    Button {
+                        onEdit?(overlay)
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(overlay.label)
+                                    .font(.subheadline.weight(.medium))
+                                Text(formatDateRange(overlay))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    if overlay.id != overlays.last?.id {
+                        Divider()
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func formatDateRange(_ overlay: CalendarOverlay) -> String {
+        if let endDate = overlay.endDate {
+            return "\(overlay.startDate) — \(endDate)"
+        }
+        return "\(overlay.startDate) — Ongoing"
     }
 }

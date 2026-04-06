@@ -8,43 +8,47 @@ struct DashboardScreen: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                // Daily Status Widget
-                DailyStatusWidgetView(viewModel: viewModel)
-
-                // Active Episode Card
-                if let episode = viewModel.currentEpisode {
-                    ActiveEpisodeCard(episode: episode)
-                }
-
-                // Start Episode Button
-                Button {
-                    viewModel.showNewEpisode = true
-                } label: {
-                    Label("Start Episode", systemImage: "plus.circle.fill")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.accentColor)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-                .accessibilityIdentifier("start-episode-button")
-                .accessibilityHint("Start tracking a new migraine episode")
-
-                // Today's Medications Card
+                // 1. Today's Medications
                 TodaysMedicationsCard(viewModel: viewModel)
 
-                // Log Medication Button
-                Button {
-                    viewModel.showLogMedication = true
-                } label: {
-                    Label("Log Medication", systemImage: "pills.circle.fill")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.blue.opacity(0.1))
-                        .foregroundStyle(.blue)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                // 2. Daily Status Widget (Log Your Day)
+                DailyStatusWidgetView(viewModel: viewModel)
+
+                // 3. Action Buttons - side by side
+                HStack(spacing: 12) {
+                    Button {
+                        viewModel.showNewEpisode = true
+                    } label: {
+                        Label("Start Episode", systemImage: "plus.circle.fill")
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Color.accentColor)
+                            .foregroundStyle(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    .accessibilityIdentifier("start-episode-button")
+                    .accessibilityHint("Start tracking a new migraine episode")
+
+                    Button {
+                        viewModel.showLogMedication = true
+                    } label: {
+                        Label("Log Medication", systemImage: "pills.circle.fill")
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Color.blue.opacity(0.1))
+                            .foregroundStyle(.blue)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    .accessibilityIdentifier("log-medication-button")
                 }
-                .accessibilityIdentifier("log-medication-button")
+
+                // 4/5/6. Recent Episodes (title, ongoing, closed)
+                RecentEpisodesCard(viewModel: viewModel)
             }
             .padding()
         }
@@ -117,10 +121,10 @@ struct DailyStatusWidgetView: View {
                         } label: {
                             Text("Clear")
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 8)
+                                .padding(.vertical, 10)
                                 .background(Color.green.opacity(0.2))
                                 .foregroundStyle(.green)
-                                .clipShape(Capsule())
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
                         .accessibilityLabel("Clear day")
                         .accessibilityIdentifier("green-day-button")
@@ -130,10 +134,10 @@ struct DailyStatusWidgetView: View {
                         } label: {
                             Text("Not Clear")
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 8)
+                                .padding(.vertical, 10)
                                 .background(Color.yellow.opacity(0.2))
                                 .foregroundStyle(.orange)
-                                .clipShape(Capsule())
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
                         .accessibilityLabel("Not clear day")
                         .accessibilityIdentifier("yellow-day-button")
@@ -197,12 +201,15 @@ struct TodaysMedicationsCard: View {
 
     var body: some View {
         if !viewModel.todaysMedications.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text("Today's Medications")
                     .font(.headline)
 
                 ForEach(viewModel.todaysMedications) { item in
                     MedicationScheduleRow(item: item, viewModel: viewModel)
+                    if item.id != viewModel.todaysMedications.last?.id {
+                        Divider()
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -218,44 +225,103 @@ struct MedicationScheduleRow: View {
     let item: MedicationScheduleItem
     @Bindable var viewModel: DashboardViewModel
 
+    private var doseLabel: String {
+        MedicationFormatting.formatDose(
+            quantity: item.schedule.dosage,
+            amount: item.medication.dosageAmount,
+            unit: item.medication.dosageUnit
+        )
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        HStack {
             Text(item.medication.name)
                 .font(.subheadline.weight(.medium))
 
-            if let dose = item.dose {
-                HStack {
-                    if dose.status == .taken {
-                        Label("Taken at \(DateFormatting.displayTime(dose.date))", systemImage: "checkmark.circle.fill")
-                            .font(.caption)
-                            .foregroundStyle(.green)
-                    } else {
-                        Label("Skipped", systemImage: "xmark.circle.fill")
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    }
-                    Spacer()
-                    Button("Undo") {
-                        Task { await viewModel.undoDose(scheduleItem: item) }
-                    }
-                    .font(.caption)
-                }
-            } else {
-                HStack(spacing: 8) {
-                    Button("Log \(MedicationFormatting.formatDose(quantity: 1, amount: item.medication.dosageAmount, unit: item.medication.dosageUnit))") {
-                        Task { await viewModel.logDose(scheduleItem: item) }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
+            Spacer()
 
-                    Button("Skip") {
-                        Task { await viewModel.skipDose(scheduleItem: item) }
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+            if let dose = item.dose {
+                if dose.status == .taken {
+                    Label("Taken at \(DateFormatting.displayTime(dose.date))", systemImage: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                } else {
+                    Label("Skipped", systemImage: "xmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+                Button("Undo") {
+                    Task { await viewModel.undoDose(scheduleItem: item) }
+                }
+                .font(.caption)
+            } else {
+                Button {
+                    Task { await viewModel.logDose(scheduleItem: item) }
+                } label: {
+                    Text("Log \(doseLabel)")
+                        .font(.caption.weight(.medium))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.accentColor)
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+
+                Button {
+                    Task { await viewModel.skipDose(scheduleItem: item) }
+                } label: {
+                    Text("Skip")
+                        .font(.caption.weight(.medium))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.red.opacity(0.15))
+                        .foregroundStyle(.red)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
             }
         }
         .padding(.vertical, 4)
+    }
+}
+
+// MARK: - Recent Episodes Card
+
+struct RecentEpisodesCard: View {
+    @Bindable var viewModel: DashboardViewModel
+
+    private var hasContent: Bool {
+        viewModel.currentEpisode != nil || !viewModel.recentEpisodes.isEmpty
+    }
+
+    var body: some View {
+        if hasContent {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Recent Episodes")
+                    .font(.headline)
+
+                // Ongoing episode first
+                if let episode = viewModel.currentEpisode {
+                    NavigationLink {
+                        EpisodeDetailScreen(episodeId: episode.id)
+                    } label: {
+                        ActiveEpisodeCard(episode: episode)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                // Recent closed episodes
+                ForEach(viewModel.recentEpisodes) { episode in
+                    NavigationLink {
+                        EpisodeDetailScreen(episodeId: episode.id)
+                    } label: {
+                        EpisodeCardView(
+                            episode: episode,
+                            readings: viewModel.recentReadings[episode.id] ?? []
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
     }
 }
