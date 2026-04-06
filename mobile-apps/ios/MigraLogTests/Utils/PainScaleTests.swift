@@ -13,59 +13,67 @@ final class PainScaleTests: XCTestCase {
     func testLabelForMinimal() {
         XCTAssertEqual(PainScale.label(for: 0.5), "Minimal")
         XCTAssertEqual(PainScale.label(for: 1.0), "Minimal")
-        XCTAssertEqual(PainScale.label(for: 1.9), "Minimal")
     }
 
     func testLabelForMild() {
+        XCTAssertEqual(PainScale.label(for: 1.5), "Mild")
         XCTAssertEqual(PainScale.label(for: 2.0), "Mild")
-        XCTAssertEqual(PainScale.label(for: 3.5), "Mild")
+        XCTAssertEqual(PainScale.label(for: 3.0), "Mild")
+    }
+
+    func testLabelForUncomfortable() {
+        XCTAssertEqual(PainScale.label(for: 4.0), "Uncomfortable")
     }
 
     func testLabelForModerate() {
-        XCTAssertEqual(PainScale.label(for: 4.0), "Moderate")
-        XCTAssertEqual(PainScale.label(for: 5.5), "Moderate")
+        XCTAssertEqual(PainScale.label(for: 5.0), "Moderate")
+    }
+
+    func testLabelForDistressing() {
+        XCTAssertEqual(PainScale.label(for: 6.0), "Distressing")
     }
 
     func testLabelForSevere() {
-        XCTAssertEqual(PainScale.label(for: 6.0), "Severe")
-        XCTAssertEqual(PainScale.label(for: 7.5), "Severe")
+        XCTAssertEqual(PainScale.label(for: 7.0), "Severe")
     }
 
-    func testLabelForVerySevere() {
-        XCTAssertEqual(PainScale.label(for: 8.0), "Very Severe")
-        XCTAssertEqual(PainScale.label(for: 9.5), "Very Severe")
+    func testLabelForIntense() {
+        XCTAssertEqual(PainScale.label(for: 8.0), "Intense")
     }
 
-    func testLabelForWorstPossible() {
-        XCTAssertEqual(PainScale.label(for: 10.0), "Worst Possible")
+    func testLabelForExcruciating() {
+        XCTAssertEqual(PainScale.label(for: 9.0), "Excruciating")
+    }
+
+    func testLabelForDebilitating() {
+        XCTAssertEqual(PainScale.label(for: 10.0), "Debilitating")
     }
 
     func testLabelForNegative() {
-        XCTAssertEqual(PainScale.label(for: -1.0), "Unknown")
+        // Clamped to 0
+        XCTAssertEqual(PainScale.label(for: -1.0), "No Pain")
     }
 
     func testLabelForAboveTen() {
-        XCTAssertEqual(PainScale.label(for: 11.0), "Unknown")
+        // Clamped to 10
+        XCTAssertEqual(PainScale.label(for: 11.0), "Debilitating")
     }
 
     // MARK: - Color Tests
 
     func testColorReturnsValueForEachRange() {
-        // Verify each range returns a color without crashing
-        let intensities: [Double] = [0, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10]
-        for intensity in intensities {
-            // Just ensure it returns a Color without crashing
-            let _ = PainScale.color(for: intensity)
+        // Verify each level returns a color without crashing
+        for i in 0...10 {
+            let _ = PainScale.color(for: Double(i))
         }
     }
 
     func testColorForOutOfRange() {
-        // Negative and above 10 should return gray
+        // Negative clamps to 0 (green), above 10 clamps to 10 (purple)
         let negColor = PainScale.color(for: -1.0)
         let overColor = PainScale.color(for: 11.0)
-        // Both should be gray (default case)
-        XCTAssertEqual(negColor, Color.gray)
-        XCTAssertEqual(overColor, Color.gray)
+        XCTAssertEqual(negColor, PainScale.color(for: 0))
+        XCTAssertEqual(overColor, PainScale.color(for: 10))
     }
 
     // MARK: - Color Hex Extension
