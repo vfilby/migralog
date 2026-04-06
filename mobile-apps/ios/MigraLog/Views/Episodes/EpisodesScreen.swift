@@ -53,7 +53,11 @@ struct EpisodeCardView: View {
             }
 
             if !readings.isEmpty {
-                IntensitySparklineView(readings: readings)
+                IntensitySparklineView(
+                    readings: readings,
+                    episodeStartTime: episode.startTime,
+                    episodeEndTime: episode.endTime
+                )
                     .frame(height: 30)
             }
 

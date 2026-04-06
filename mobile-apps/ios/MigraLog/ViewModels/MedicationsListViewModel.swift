@@ -37,8 +37,24 @@ final class MedicationsListViewModel {
         do {
             let active = try await medicationRepository.getActiveMedications()
             preventativeMedications = active.filter { $0.type == .preventative }
-            rescueMedications = active.filter { $0.type == .rescue }
             otherMedications = active.filter { $0.type == .other }
+
+            // Sort rescue medications by usage count (most used first),
+            // with alphabetical name as tiebreaker
+            let rescue = active.filter { $0.type == .rescue }
+            let usageCounts = try medicationRepository.getMedicationUsageCounts(
+                start: 0,
+                end: Int64.max
+            )
+            rescueMedications = rescue.sorted { a, b in
+                let usageA = usageCounts[a.id] ?? 0
+                let usageB = usageCounts[b.id] ?? 0
+                if usageA != usageB {
+                    return usageA > usageB
+                }
+                return a.name.localizedCompare(b.name) == .orderedAscending
+            }
+
             isLoading = false
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "MedicationsListViewModel"])
