@@ -17,7 +17,7 @@ on:
 jobs:
   test:
     name: Build & Test
-    runs-on: macos-15
+    runs-on: macos-26
     defaults:
       run:
         working-directory: ./mobile-apps/ios
@@ -26,6 +26,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+
+      - name: Select Xcode 26
+        run: sudo xcode-select -s /Applications/Xcode_26.2.app/Contents/Developer
 
       - name: Resolve SPM dependencies
         run: xcodebuild -resolvePackageDependencies -scheme MigraLog
