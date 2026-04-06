@@ -261,6 +261,18 @@ final class BackupService: BackupServiceProtocol {
 
     // MARK: - Private Helpers
 
+    /// Ensures a timestamp column value satisfies CHECK(col > 0).
+    /// Falls back to created_at, then current time.
+    private func sanitizeTimestamp(_ row: Row, column: String, fallback: String = "created_at") -> DatabaseValue {
+        if let value = row[column] as? Int64, value > 0 {
+            return value.databaseValue
+        }
+        if let fallbackValue = row[fallback] as? Int64, fallbackValue > 0 {
+            return fallbackValue.databaseValue
+        }
+        return Int64(Date().timeIntervalSince1970 * 1000).databaseValue
+    }
+
     private func restoreData(from source: DatabaseManager, to destination: DatabaseManager) throws {
         try source.dbQueue.read { sourceDb in
             try destination.dbQueue.write { destDb in
@@ -279,7 +291,7 @@ final class BackupService: BackupServiceProtocol {
                             row["locations"], row["qualities"], row["symptoms"],
                             row["triggers"], row["notes"], row["latitude"],
                             row["longitude"], row["location_accuracy"],
-                            row["location_timestamp"], row["created_at"], row["updated_at"]
+                            row["location_timestamp"], row["created_at"], sanitizeTimestamp(row, column: "updated_at")
                         ]
                     )
                 }
@@ -298,7 +310,7 @@ final class BackupService: BackupServiceProtocol {
                             row["id"], row["name"], row["type"], row["dosage_amount"],
                             row["dosage_unit"], row["default_quantity"], row["schedule_frequency"],
                             row["photo_uri"], row["active"], row["notes"], row["category"],
-                            row["created_at"], row["updated_at"]
+                            row["created_at"], sanitizeTimestamp(row, column: "updated_at")
                         ]
                     )
                 }
@@ -314,7 +326,7 @@ final class BackupService: BackupServiceProtocol {
                         """,
                         arguments: [
                             row["id"], row["episode_id"], row["timestamp"],
-                            row["intensity"], row["created_at"], row["updated_at"]
+                            row["intensity"], row["created_at"], sanitizeTimestamp(row, column: "updated_at")
                         ]
                     )
                 }
@@ -347,7 +359,7 @@ final class BackupService: BackupServiceProtocol {
                         """,
                         arguments: [
                             row["id"], row["episode_id"], row["timestamp"],
-                            row["pain_locations"], row["created_at"], row["updated_at"]
+                            row["pain_locations"], row["created_at"], sanitizeTimestamp(row, column: "updated_at")
                         ]
                     )
                 }
@@ -399,7 +411,7 @@ final class BackupService: BackupServiceProtocol {
                             row["quantity"], row["dosage_amount"], row["dosage_unit"],
                             row["status"], row["episode_id"], row["effectiveness_rating"],
                             row["time_to_relief"], row["side_effects"], row["notes"],
-                            row["created_at"], row["updated_at"]
+                            row["created_at"], sanitizeTimestamp(row, column: "updated_at")
                         ]
                     )
                 }
@@ -415,7 +427,7 @@ final class BackupService: BackupServiceProtocol {
                         """,
                         arguments: [
                             row["id"], row["date"], row["status"], row["status_type"],
-                            row["notes"], row["prompted"], row["created_at"], row["updated_at"]
+                            row["notes"], row["prompted"], row["created_at"], sanitizeTimestamp(row, column: "updated_at")
                         ]
                     )
                 }
@@ -432,7 +444,7 @@ final class BackupService: BackupServiceProtocol {
                         arguments: [
                             row["id"], row["start_date"], row["end_date"],
                             row["label"], row["notes"], row["exclude_from_stats"],
-                            row["created_at"], row["updated_at"]
+                            row["created_at"], sanitizeTimestamp(row, column: "updated_at")
                         ]
                     )
                 }
