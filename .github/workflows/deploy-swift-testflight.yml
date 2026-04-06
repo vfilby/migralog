@@ -1,0 +1,156 @@
+name: Deploy Swift to TestFlight
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump type'
+        required: true
+        default: 'build'
+        type: choice
+        options:
+          - build
+          - patch
+          - minor
+
+concurrency:
+  group: swift-deploy
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: mobile-apps/ios
+
+    env:
+      SCHEME: MigraLog
+      PROJECT: MigraLog.xcodeproj
+      ARCHIVE_PATH: build/MigraLog.xcarchive
+      EXPORT_PATH: build/export
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Resolve Swift packages
+        run: xcodebuild -resolvePackageDependencies -scheme $SCHEME -project $PROJECT
+
+      # --- Install signing certificate ---
+      - name: Install certificate
+        env:
+          CERTIFICATE_P12: ${{ secrets.SWIFT_CERTIFICATE_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.SWIFT_CERTIFICATE_PASSWORD }}
+        run: |
+          # Create temporary keychain
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Import certificate
+          CERT_PATH=$RUNNER_TEMP/certificate.p12
+          echo -n "$CERTIFICATE_P12" | base64 --decode -o "$CERT_PATH"
+          security import "$CERT_PATH" \
+            -P "$CERTIFICATE_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+
+          # Allow codesign to access the keychain without prompting
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Set keychain search list
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+          # Verify certificate was imported
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+
+      # --- Install provisioning profile ---
+      - name: Install provisioning profile
+        env:
+          PROVISIONING_PROFILE: ${{ secrets.SWIFT_PROVISIONING_PROFILE }}
+        run: |
+          PROFILE_PATH=$RUNNER_TEMP/profile.mobileprovision
+          echo -n "$PROVISIONING_PROFILE" | base64 --decode -o "$PROFILE_PATH"
+
+          # Extract UUID from provisioning profile and install with correct filename
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< $(security cms -D -i "$PROFILE_PATH"))
+          echo "Profile UUID: $PROFILE_UUID"
+
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp "$PROFILE_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/${PROFILE_UUID}.mobileprovision
+
+          # Extract and display profile name for verification
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c "Print Name" /dev/stdin <<< $(security cms -D -i "$PROFILE_PATH"))
+          echo "Profile Name: $PROFILE_NAME"
+
+      # --- Build archive ---
+      - name: Set version numbers
+        run: |
+          VERSION="1.0.${{ github.run_number }}"
+          BUILD="${{ github.run_number }}"
+          echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "APP_BUILD=$BUILD" >> $GITHUB_ENV
+          echo "Setting version to $VERSION (build $BUILD)"
+
+      - name: Build archive
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          # Verify signing identity
+          security find-identity -v -p codesigning $RUNNER_TEMP/app-signing.keychain-db
+
+          xcodebuild archive \
+            -scheme $SCHEME \
+            -project $PROJECT \
+            -archivePath $ARCHIVE_PATH \
+            -destination 'generic/platform=iOS' \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            MARKETING_VERSION="$APP_VERSION" \
+            CURRENT_PROJECT_VERSION="$APP_BUILD"
+
+      # --- Setup API key (needed for export and upload) ---
+      - name: Setup App Store Connect API key
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: |
+          mkdir -p ~/.private_keys
+          echo -n "$ASC_API_KEY_P8" > ~/.private_keys/AuthKey_${ASC_KEY_ID}.p8
+
+      # --- Export and upload to TestFlight ---
+      - name: Export and upload to TestFlight
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath $ARCHIVE_PATH \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath $EXPORT_PATH \
+            -authenticationKeyPath ~/.private_keys/AuthKey_${ASC_KEY_ID}.p8 \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+
+      # --- Cleanup keychain ---
+      - name: Cleanup
+        if: always()
+        run: |
+          security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
+          rm -f $RUNNER_TEMP/certificate.p12 || true
+          rm -f $RUNNER_TEMP/profile.mobileprovision || true
+          rm -rf ~/.private_keys || true
+
+      - name: Summary
+        run: |
+          echo "## MigraLog Swift Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** $APP_VERSION (build $APP_BUILD)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Ref:** ${{ github.ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Build submitted to TestFlight. Check App Store Connect for processing status." >> $GITHUB_STEP_SUMMARY

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AA00BB11CC22DD33EE44FF01 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA00BB11CC22DD33EE44FF02 /* Assets.xcassets */; };
 		01A2B3C4D5E6F70800000001 /* EpisodesListViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01A2B3C4D5E6F70800000002 /* EpisodesListViewModelTests.swift */; };
 		01A2B3C4D5E6F70800000003 /* MedicationsListViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01A2B3C4D5E6F70800000004 /* MedicationsListViewModelTests.swift */; };
 		02755879A237973FD67FE2B5 /* DailyStatusViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 615C6E4CE39CB6D882770C7F /* DailyStatusViewModel.swift */; };
@@ -149,6 +150,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		AA00BB11CC22DD33EE44FF02 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		01A2B3C4D5E6F70800000002 /* EpisodesListViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpisodesListViewModelTests.swift; sourceTree = "<group>"; };
 		01A2B3C4D5E6F70800000004 /* MedicationsListViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationsListViewModelTests.swift; sourceTree = "<group>"; };
 		02485161F9226C6D742EC36C /* ErrorLoggerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorLoggerTests.swift; sourceTree = "<group>"; };
@@ -554,6 +556,7 @@
 				A7599109F35F271996411FDA /* Database */,
 				EA204E7D1D405D16EEF31DCE /* Models */,
 				B326CEF8168558C56AED0B34 /* Repositories */,
+				AA00BB11CC22DD33EE44FF03 /* Resources */,
 				856EEA12E6EB2CDAF998A5C5 /* Services */,
 				7201C61C998CB8085521B2C8 /* Utils */,
 				3AACDD14550FC70A92CBD671 /* ViewModels */,
@@ -629,7 +632,26 @@
 			path = Models;
 			sourceTree = "<group>";
 		};
+		AA00BB11CC22DD33EE44FF03 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				AA00BB11CC22DD33EE44FF02 /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
+
+/* Begin PBXResourcesBuildPhase section */
+		AA00BB11CC22DD33EE44FF04 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA00BB11CC22DD33EE44FF01 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXNativeTarget section */
 		3695A06F02E66C96E46AB30C /* MigraLog */ = {
@@ -638,6 +660,7 @@
 			buildPhases = (
 				5CAD2274C8D0724BA676289D /* Sources */,
 				2112E471CE0AD3A61445F297 /* Frameworks */,
+				AA00BB11CC22DD33EE44FF04 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -900,7 +923,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.migralog.MigraLogTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.eff3.migralog.tests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MigraLog.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MigraLog";
@@ -971,7 +994,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 43DNX2P3T6;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = MigraLog/App/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -979,7 +1002,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.migralog.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.eff3.migralog;
 				SDKROOT = iphoneos;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -996,7 +1019,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.migralog.MigraLogUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.eff3.migralog.uitests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = MigraLog;
@@ -1013,7 +1036,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.migralog.MigraLogUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.eff3.migralog.uitests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = MigraLog;
@@ -1030,7 +1053,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.migralog.MigraLogTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.eff3.migralog.tests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MigraLog.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MigraLog";
@@ -1105,10 +1128,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = MigraLog/App/MigraLog.entitlements;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 43DNX2P3T6;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = MigraLog/App/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1116,7 +1139,8 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.migralog.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.eff3.migralog;
+				PROVISIONING_PROFILE_SPECIFIER = "MigraLog App Store";
 				SDKROOT = iphoneos;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				TARGETED_DEVICE_FAMILY = "1,2";
