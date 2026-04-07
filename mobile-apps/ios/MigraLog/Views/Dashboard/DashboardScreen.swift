@@ -4,6 +4,7 @@ struct DashboardScreen: View {
     @Environment(AppState.self) private var appState
     @State private var viewModel = DashboardViewModel()
     @State private var refreshId = UUID()
+    @State private var refreshTask: Task<Void, Never>?
 
     var body: some View {
         ScrollView {
@@ -87,7 +88,12 @@ struct DashboardScreen: View {
             refreshId = UUID()
         }
         .onReceive(NotificationCenter.default.publisher(for: .medicationDataChanged)) { _ in
-            refreshId = UUID()
+            refreshTask?.cancel()
+            refreshTask = Task {
+                try? await Task.sleep(for: .milliseconds(300))
+                guard !Task.isCancelled else { return }
+                refreshId = UUID()
+            }
         }
     }
 }
