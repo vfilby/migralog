@@ -38,6 +38,11 @@ struct IntensitySparklineView: View {
                 let chartW = geo.size.width - padding * 2
                 let chartH = geo.size.height - padding * 2
 
+                // Interpolate at 5-minute intervals with sample-and-hold, then smooth
+                let smoothed = Self.smoothedData(
+                    readings: sorted, start: startT, end: endT
+                )
+
                 // Background gradient (green at bottom, purple at top)
                 RoundedRectangle(cornerRadius: 4)
                     .fill(
@@ -48,35 +53,41 @@ struct IntensitySparklineView: View {
                         )
                     )
 
-                // Sample-and-hold step function line
-                Path { path in
-                    for (i, reading) in sorted.enumerated() {
-                        let x = padding + chartW * CGFloat(Double(reading.timestamp - startT) / timeRange)
-                        let y = padding + chartH * (1 - CGFloat(reading.intensity / 10.0))
-                        if i == 0 {
-                            path.move(to: CGPoint(x: x, y: y))
-                        } else {
-                            // Horizontal segment at previous intensity, then vertical jump
-                            path.addLine(to: CGPoint(x: x, y: path.currentPoint?.y ?? y))
-                            path.addLine(to: CGPoint(x: x, y: y))
+                // Smoothed line with gradient stroke
+                if smoothed.count > 1 {
+                    Path { path in
+                        for (i, point) in smoothed.enumerated() {
+                            let x = padding + chartW * CGFloat(Double(point.timestamp - startT) / timeRange)
+                            let y = padding + chartH * (1 - CGFloat(point.intensity / 10.0))
+                            if i == 0 {
+                                path.move(to: CGPoint(x: x, y: y))
+                            } else {
+                                path.addLine(to: CGPoint(x: x, y: y))
+                            }
                         }
                     }
-                    // Hold last value to end of episode
-                    if let lastY = path.currentPoint?.y {
-                        let endX = padding + chartW
-                        path.addLine(to: CGPoint(x: endX, y: lastY))
+                    .stroke(
+                        LinearGradient(
+                            colors: Self.gradientColors,
+                            startPoint: .bottom,
+                            endPoint: .top
+                        ),
+                        style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round)
+                    )
+                } else if sorted.count == 1 {
+                    // Single reading: flat line across full width
+                    let y = padding + chartH * (1 - CGFloat(sorted[0].intensity / 10.0))
+                    Path { path in
+                        path.move(to: CGPoint(x: padding, y: y))
+                        path.addLine(to: CGPoint(x: padding + chartW, y: y))
                     }
+                    .stroke(
+                        PainScale.color(for: sorted[0].intensity),
+                        style: StrokeStyle(lineWidth: 2, lineCap: .round)
+                    )
                 }
-                .stroke(
-                    LinearGradient(
-                        colors: Self.gradientColors,
-                        startPoint: .bottom,
-                        endPoint: .top
-                    ),
-                    style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round)
-                )
 
-                // Reading dots
+                // Reading dots at actual data points
                 ForEach(sorted) { reading in
                     let x = padding + chartW * CGFloat(Double(reading.timestamp - startT) / timeRange)
                     let y = padding + chartH * (1 - CGFloat(reading.intensity / 10.0))
@@ -90,5 +101,55 @@ struct IntensitySparklineView: View {
         }
     }
 
-    /// Sample-and-hold interpolation at fixed intervals
+    // MARK: - Smoothing
+
+    /// Interpolate readings at 5-minute intervals using sample-and-hold,
+    /// then apply reverse (look-ahead) EMA smoothing.
+    /// Matches the React Native IntensitySparkline implementation.
+    private static func smoothedData(
+        readings: [IntensityReading], start: Int64, end: Int64
+    ) -> [(timestamp: Int64, intensity: Double)] {
+        guard !readings.isEmpty else { return [] }
+
+        let intervalMs: Int64 = 5 * 60 * 1000 // 5 minutes
+
+        // Step 1: Interpolate at fixed intervals with sample-and-hold
+        var interpolated: [(timestamp: Int64, intensity: Double)] = []
+        var time = start
+        while time <= end {
+            var intensity: Double = 0
+            for i in stride(from: readings.count - 1, through: 0, by: -1) {
+                if readings[i].timestamp <= time {
+                    intensity = readings[i].intensity
+                    break
+                }
+            }
+            interpolated.append((timestamp: time, intensity: intensity))
+            time += intervalMs
+        }
+        // Ensure end point is included
+        if interpolated.last?.timestamp != end {
+            var intensity: Double = 0
+            for i in stride(from: readings.count - 1, through: 0, by: -1) {
+                if readings[i].timestamp <= end {
+                    intensity = readings[i].intensity
+                    break
+                }
+            }
+            interpolated.append((timestamp: end, intensity: intensity))
+        }
+
+        guard interpolated.count > 1 else { return interpolated }
+
+        // Step 2: Apply reverse (look-ahead) EMA smoothing
+        // Process backwards so the curve anticipates changes instead of lagging
+        let alpha = 0.30
+        var smoothed = interpolated
+        for i in stride(from: interpolated.count - 2, through: 0, by: -1) {
+            let ema = alpha * interpolated[i].intensity + (1 - alpha) * smoothed[i + 1].intensity
+            smoothed[i] = (timestamp: interpolated[i].timestamp, intensity: ema)
+        }
+
+        return smoothed
+    }
 }
