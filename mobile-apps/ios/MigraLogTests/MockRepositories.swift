@@ -69,6 +69,13 @@ final class MockEpisodeRepository: EpisodeRepositoryProtocol, @unchecked Sendabl
         return episodes.first { $0.isActive }
     }
 
+    func getEpisodeByTimestamp(_ timestamp: Int64) throws -> Episode? {
+        try throwIfNeeded()
+        return episodes.first { ep in
+            ep.startTime <= timestamp && (ep.endTime ?? Int64.max) >= timestamp
+        }
+    }
+
     func updateEpisode(_ episode: Episode) throws -> Episode {
         try throwIfNeeded()
         updateEpisodeCalled = true
