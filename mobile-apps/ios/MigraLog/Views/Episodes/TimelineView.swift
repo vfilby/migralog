@@ -52,6 +52,8 @@ struct TimelineView: View {
     @Binding var pendingDeleteLabel: String
     @Binding var customEndTime: Date
     @Binding var showEndTimePicker: Bool
+    @Binding var editingDose: DoseWithMedication?
+    @Binding var showEditEpisodeSheet: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -361,7 +363,11 @@ struct TimelineView: View {
             }
 
         case .painLocation(let log, let delta):
-            if !delta.isInitial {
+            if delta.isInitial {
+                Button { showEditEpisodeSheet = true } label: {
+                    Label("Edit Episode Details", systemImage: "pencil")
+                }
+            } else {
                 Button { editingPainLocationLog = log } label: {
                     Label("Edit Pain Locations", systemImage: "pencil")
                 }
@@ -386,9 +392,17 @@ struct TimelineView: View {
                 Label("Delete", systemImage: "trash")
             }
 
-        case .medication:
-            // Dose editing handled via medication detail screen
-            EmptyView()
+        case .medication(let doseWithMed):
+            Button { editingDose = doseWithMed } label: {
+                Label("Edit Dose", systemImage: "pencil")
+            }
+            Button(role: .destructive) {
+                pendingDeleteLabel = "medication dose"
+                pendingDeleteAction = { await viewModel.deleteDose(doseWithMed.dose.id) }
+                showDeleteConfirmation = true
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
 
         case .episodeEnded:
             Button {

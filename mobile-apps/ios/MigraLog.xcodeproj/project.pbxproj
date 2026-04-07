@@ -11,6 +11,7 @@
 		BB11CC22DD33EE44FF550003 /* EditSymptomLogScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB11CC22DD33EE44FF550004 /* EditSymptomLogScreen.swift */; };
 		BB11CC22DD33EE44FF550005 /* EditPainLocationLogScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB11CC22DD33EE44FF550006 /* EditPainLocationLogScreen.swift */; };
 		BB11CC22DD33EE44FF550007 /* EditEpisodeNoteScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB11CC22DD33EE44FF550008 /* EditEpisodeNoteScreen.swift */; };
+		CC22DD33EE44FF550009 /* EditDoseFromTimelineScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC22DD33EE44FF55000A /* EditDoseFromTimelineScreen.swift */; };
 		AA00BB11CC22DD33EE44FF01 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA00BB11CC22DD33EE44FF02 /* Assets.xcassets */; };
 		01A2B3C4D5E6F70800000001 /* EpisodesListViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01A2B3C4D5E6F70800000002 /* EpisodesListViewModelTests.swift */; };
 		01A2B3C4D5E6F70800000003 /* MedicationsListViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01A2B3C4D5E6F70800000004 /* MedicationsListViewModelTests.swift */; };
@@ -168,6 +169,7 @@
 		BB11CC22DD33EE44FF550004 /* EditSymptomLogScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditSymptomLogScreen.swift; sourceTree = "<group>"; };
 		BB11CC22DD33EE44FF550006 /* EditPainLocationLogScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditPainLocationLogScreen.swift; sourceTree = "<group>"; };
 		BB11CC22DD33EE44FF550008 /* EditEpisodeNoteScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditEpisodeNoteScreen.swift; sourceTree = "<group>"; };
+		CC22DD33EE44FF55000A /* EditDoseFromTimelineScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditDoseFromTimelineScreen.swift; sourceTree = "<group>"; };
 		AA00BB11CC22DD33EE44FF02 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		01A2B3C4D5E6F70800000002 /* EpisodesListViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpisodesListViewModelTests.swift; sourceTree = "<group>"; };
 		01A2B3C4D5E6F70800000004 /* MedicationsListViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationsListViewModelTests.swift; sourceTree = "<group>"; };
@@ -374,6 +376,7 @@
 			isa = PBXGroup;
 			children = (
 				ABEC0599D7949FE34645717A /* EditEpisodeScreen.swift */,
+				CC22DD33EE44FF55000A /* EditDoseFromTimelineScreen.swift */,
 				BB11CC22DD33EE44FF550008 /* EditEpisodeNoteScreen.swift */,
 				BB11CC22DD33EE44FF550002 /* EditIntensityReadingScreen.swift */,
 				BB11CC22DD33EE44FF550006 /* EditPainLocationLogScreen.swift */,
@@ -898,6 +901,7 @@
 				BB11CC22DD33EE44FF550001 /* EditIntensityReadingScreen.swift in Sources */,
 				BB11CC22DD33EE44FF550003 /* EditSymptomLogScreen.swift in Sources */,
 				BB11CC22DD33EE44FF550005 /* EditPainLocationLogScreen.swift in Sources */,
+				CC22DD33EE44FF550009 /* EditDoseFromTimelineScreen.swift in Sources */,
 				BB11CC22DD33EE44FF550007 /* EditEpisodeNoteScreen.swift in Sources */,
 				A7D5C82C319DA925E7BA5193 /* EpisodeDetailScreen.swift in Sources */,
 				CC11AA22BB33DD44EE550001 /* TimelineView.swift in Sources */,
