@@ -35,26 +35,21 @@ final class MedicationsListViewModel {
         isLoading = true
         error = nil
         do {
-            let active = try await medicationRepository.getActiveMedications()
+            let results = try await medicationRepository.getActiveMedicationsWithUsageCounts()
 
+            let active = results.map(\.medication)
             preventativeMedications = active.filter { $0.type == .preventative }
             otherMedications = active.filter { $0.type == .other }
 
             // Sort rescue medications by usage count (most used first),
             // with alphabetical name as tiebreaker
-            let rescue = active.filter { $0.type == .rescue }
-            let usageCounts = try medicationRepository.getMedicationUsageCounts(
-                start: 0,
-                end: Int64.max
-            )
-            rescueMedications = rescue.sorted { a, b in
-                let usageA = usageCounts[a.id] ?? 0
-                let usageB = usageCounts[b.id] ?? 0
-                if usageA != usageB {
-                    return usageA > usageB
+            let rescueWithCounts = results.filter { $0.medication.type == .rescue }
+            rescueMedications = rescueWithCounts.sorted { a, b in
+                if a.usageCount != b.usageCount {
+                    return a.usageCount > b.usageCount
                 }
-                return a.name.localizedCompare(b.name) == .orderedAscending
-            }
+                return a.medication.name.localizedCompare(b.medication.name) == .orderedAscending
+            }.map(\.medication)
 
             isLoading = false
         } catch {

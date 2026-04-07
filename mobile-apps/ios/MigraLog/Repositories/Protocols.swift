@@ -63,6 +63,7 @@ protocol MedicationRepositoryProtocol: Sendable {
     func getDosesByEpisodeId(_ episodeId: String) throws -> [MedicationDose]
     func getDosesByDateRange(start: Int64, end: Int64) throws -> [MedicationDose]
     func getMedicationUsageCounts(start: Int64, end: Int64) throws -> [String: Int]
+    func getActiveMedicationsWithUsageCounts() throws -> [(medication: Medication, usageCount: Int)]
     func updateDose(_ dose: MedicationDose) throws -> MedicationDose
     func deleteDose(_ id: String) throws
 

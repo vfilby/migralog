@@ -373,6 +373,15 @@ final class MockMedicationRepository: MedicationRepositoryProtocol, @unchecked S
         return counts
     }
 
+    func getActiveMedicationsWithUsageCounts() throws -> [(medication: Medication, usageCount: Int)] {
+        try throwIfNeeded()
+        let active = medications.filter { $0.active }
+        let counts = try getMedicationUsageCounts(start: 0, end: Int64.max)
+        return active.map { med in
+            (medication: med, usageCount: counts[med.id] ?? 0)
+        }
+    }
+
     func updateDose(_ dose: MedicationDose) throws -> MedicationDose {
         try throwIfNeeded()
         if let index = doses.firstIndex(where: { $0.id == dose.id }) {

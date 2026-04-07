@@ -7,24 +7,52 @@ final class LogMedicationViewModel {
     var isLoading = false
 
     private let medicationRepository: MedicationRepositoryProtocol
+    private let episodeRepository: EpisodeRepositoryProtocol
 
-    init(medicationRepository: MedicationRepositoryProtocol = MedicationRepository(dbManager: DatabaseManager.shared)) {
+    init(
+        medicationRepository: MedicationRepositoryProtocol = MedicationRepository(dbManager: DatabaseManager.shared),
+        episodeRepository: EpisodeRepositoryProtocol = EpisodeRepository(dbManager: DatabaseManager.shared)
+    ) {
         self.medicationRepository = medicationRepository
+        self.episodeRepository = episodeRepository
     }
 
     @MainActor
     func loadMedications() async {
         isLoading = true
         do {
-            let active = try await medicationRepository.getActiveMedications()
-            let counts = try medicationRepository.getMedicationUsageCounts(start: 0, end: Int64.max)
-            medications = active.sorted { a, b in
-                (counts[a.id] ?? 0) > (counts[b.id] ?? 0)
-            }
+            let results = try await medicationRepository.getActiveMedicationsWithUsageCounts()
+            medications = results.sorted { $0.usageCount > $1.usageCount }.map(\.medication)
             isLoading = false
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "LogMedicationViewModel"])
             isLoading = false
+        }
+    }
+
+    func quickLog(_ medication: Medication) async {
+        let now = TimestampHelper.now
+        let activeEpisode = try? episodeRepository.getEpisodeByTimestamp(now)
+        let dose = MedicationDose(
+            id: UUID().uuidString,
+            medicationId: medication.id,
+            timestamp: now,
+            quantity: medication.defaultQuantity ?? 1,
+            dosageAmount: medication.dosageAmount,
+            dosageUnit: medication.dosageUnit,
+            status: .taken,
+            episodeId: activeEpisode?.id,
+            effectivenessRating: nil,
+            timeToRelief: nil,
+            sideEffects: [],
+            notes: nil,
+            createdAt: now,
+            updatedAt: now
+        )
+        do {
+            try await medicationRepository.createDose(dose)
+        } catch {
+            ErrorLogger.shared.logError(error, context: ["action": "quickLog", "medication": medication.name])
         }
     }
 }
