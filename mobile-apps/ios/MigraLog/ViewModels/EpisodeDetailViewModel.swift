@@ -346,6 +346,34 @@ final class EpisodeDetailViewModel {
         }
     }
 
+    // MARK: - Dose Editing
+
+    @MainActor
+    func updateDose(_ dose: MedicationDose) async {
+        do {
+            var updated = dose
+            updated.updatedAt = TimestampHelper.now
+            _ = try medicationRepository.updateDose(updated)
+            if let index = episodeDoses.firstIndex(where: { $0.dose.id == dose.id }) {
+                episodeDoses[index] = DoseWithMedication(dose: updated, medication: episodeDoses[index].medication)
+            }
+        } catch {
+            ErrorLogger.shared.logError(error, context: ["viewModel": "EpisodeDetailViewModel", "action": "updateDose"])
+            self.error = error.localizedDescription
+        }
+    }
+
+    @MainActor
+    func deleteDose(_ id: String) async {
+        do {
+            try medicationRepository.deleteDose(id)
+            episodeDoses.removeAll { $0.dose.id == id }
+        } catch {
+            ErrorLogger.shared.logError(error, context: ["viewModel": "EpisodeDetailViewModel", "action": "deleteDose"])
+            self.error = error.localizedDescription
+        }
+    }
+
     // MARK: - Private
 
     private func loadDosesForEpisode(_ episodeId: String) throws -> [DoseWithMedication] {

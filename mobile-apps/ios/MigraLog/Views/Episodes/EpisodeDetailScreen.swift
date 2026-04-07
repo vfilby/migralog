@@ -13,6 +13,7 @@ struct EpisodeDetailScreen: View {
     @State private var editingSymptomLog: SymptomLog?
     @State private var editingPainLocationLog: PainLocationLog?
     @State private var editingNote: EpisodeNote?
+    @State private var editingDose: DoseWithMedication?
     @State private var showDeleteConfirmation = false
     @State private var pendingDeleteAction: (() async -> Void)?
     @State private var pendingDeleteLabel: String = ""
@@ -38,7 +39,9 @@ struct EpisodeDetailScreen: View {
                                 pendingDeleteAction: $pendingDeleteAction,
                                 pendingDeleteLabel: $pendingDeleteLabel,
                                 customEndTime: $customEndTime,
-                                showEndTimePicker: $showEndTimePicker
+                                showEndTimePicker: $showEndTimePicker,
+                                editingDose: $editingDose,
+                                showEditEpisodeSheet: $showEditSheet
                             )
                         }
 
@@ -123,6 +126,15 @@ struct EpisodeDetailScreen: View {
         .sheet(item: $editingNote) { note in
             NavigationStack {
                 EditEpisodeNoteScreen(note: note, viewModel: viewModel)
+            }
+        }
+        .sheet(item: $editingDose) { doseWithMed in
+            NavigationStack {
+                EditDoseFromTimelineScreen(
+                    dose: doseWithMed.dose,
+                    medicationName: doseWithMed.medication.name,
+                    viewModel: viewModel
+                )
             }
         }
         .alert("Delete \(pendingDeleteLabel)?", isPresented: $showDeleteConfirmation) {
