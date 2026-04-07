@@ -8,6 +8,15 @@ struct EpisodeDetailScreen: View {
     @State private var showLogUpdate = false
     @State private var customEndTime = Date()
 
+    // Timeline editing state
+    @State private var editingReading: IntensityReading?
+    @State private var editingSymptomLog: SymptomLog?
+    @State private var editingPainLocationLog: PainLocationLog?
+    @State private var editingNote: EpisodeNote?
+    @State private var showDeleteConfirmation = false
+    @State private var pendingDeleteAction: (() async -> Void)?
+    @State private var pendingDeleteLabel: String = ""
+
     var body: some View {
         Group {
             if let details = viewModel.details {
@@ -76,6 +85,36 @@ struct EpisodeDetailScreen: View {
                     onCancel: { showEndTimePicker = false }
                 )
             }
+        }
+        .sheet(item: $editingReading) { reading in
+            NavigationStack {
+                EditIntensityReadingScreen(reading: reading, viewModel: viewModel)
+            }
+        }
+        .sheet(item: $editingSymptomLog) { log in
+            NavigationStack {
+                EditSymptomLogScreen(log: log, viewModel: viewModel)
+            }
+        }
+        .sheet(item: $editingPainLocationLog) { log in
+            NavigationStack {
+                EditPainLocationLogScreen(log: log, viewModel: viewModel)
+            }
+        }
+        .sheet(item: $editingNote) { note in
+            NavigationStack {
+                EditEpisodeNoteScreen(note: note, viewModel: viewModel)
+            }
+        }
+        .alert("Delete \(pendingDeleteLabel)?", isPresented: $showDeleteConfirmation) {
+            Button("Delete", role: .destructive) {
+                if let action = pendingDeleteAction {
+                    Task { await action() }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This cannot be undone.")
         }
         .task {
             await viewModel.loadEpisode(episodeId)
@@ -251,6 +290,7 @@ struct EpisodeDetailScreen: View {
                     }
                 }
                 .padding(.vertical, 6)
+                .contextMenu { timelineContextMenu(for: event) }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -466,6 +506,82 @@ struct EpisodeDetailScreen: View {
 
         case .episodeEnded:
             EmptyView()
+        }
+    }
+
+    // MARK: - Context Menus
+
+    @ViewBuilder
+    private func timelineContextMenu(for event: TimelineEvent) -> some View {
+        switch event.kind {
+        case .intensity(let reading):
+            Button { editingReading = reading } label: {
+                Label("Edit Intensity", systemImage: "pencil")
+            }
+            Button(role: .destructive) {
+                pendingDeleteLabel = "intensity reading"
+                pendingDeleteAction = { await viewModel.deleteReading(reading.id) }
+                showDeleteConfirmation = true
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+
+        case .symptomOnset(let log), .symptomResolved(let log):
+            Button { editingSymptomLog = log } label: {
+                Label("Edit Symptom", systemImage: "pencil")
+            }
+            Button(role: .destructive) {
+                pendingDeleteLabel = "symptom log"
+                pendingDeleteAction = { await viewModel.deleteSymptomLog(log.id) }
+                showDeleteConfirmation = true
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+
+        case .painLocation(let log, let delta):
+            if !delta.isInitial {
+                Button { editingPainLocationLog = log } label: {
+                    Label("Edit Pain Locations", systemImage: "pencil")
+                }
+                Button(role: .destructive) {
+                    pendingDeleteLabel = "pain location log"
+                    pendingDeleteAction = { await viewModel.deletePainLocationLog(log.id) }
+                    showDeleteConfirmation = true
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
+
+        case .note(let note):
+            Button { editingNote = note } label: {
+                Label("Edit Note", systemImage: "pencil")
+            }
+            Button(role: .destructive) {
+                pendingDeleteLabel = "note"
+                pendingDeleteAction = { await viewModel.deleteNote(note.id) }
+                showDeleteConfirmation = true
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+
+        case .medication:
+            // Dose editing handled via medication detail screen
+            EmptyView()
+
+        case .episodeEnded:
+            Button {
+                if let endTime = viewModel.episode?.endTime {
+                    customEndTime = Date(timeIntervalSince1970: Double(endTime) / 1000.0)
+                }
+                showEndTimePicker = true
+            } label: {
+                Label("Edit End Time", systemImage: "clock")
+            }
+            Button {
+                Task { await viewModel.reopenEpisode() }
+            } label: {
+                Label("Reopen Episode", systemImage: "arrow.uturn.backward")
+            }
         }
     }
 
