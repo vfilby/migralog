@@ -59,6 +59,8 @@
 		AA11BB22CC33DD44EE55FF04 /* NotificationIntegrityServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF14 /* NotificationIntegrityServiceTests.swift */; };
 		AA11BB22CC33DD44EE55FF05 /* NotificationResponseHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF15 /* NotificationResponseHandlerTests.swift */; };
 		580BD01E7022EB5494AD7CA8 /* MigraLogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69B8D2570A843C4069DD91CA /* MigraLogTests.swift */; };
+		DD11EE22FF33AA44BB55CC01 /* LogMedicationViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD11EE22FF33AA44BB55CC02 /* LogMedicationViewModelTests.swift */; };
+		DD11EE22FF33AA44BB55CC03 /* OverlayViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD11EE22FF33AA44BB55CC04 /* OverlayViewModelTests.swift */; };
 		5B4F7E5827C42A9A80403425 /* AnalyticsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90A66B0ABA189E553063FC3D /* AnalyticsViewModel.swift */; };
 		5B55987A3DDDC73867B409C9 /* ErrorLoggerIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6CD3CFDD21A77E702EE03EA /* ErrorLoggerIntegrationTests.swift */; };
 		5D598ECF458B861B5872A63E /* ExportServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8085FE18D6FA8E5EE15EEF8B /* ExportServiceTests.swift */; };
@@ -98,6 +100,9 @@
 		BBCC1122AABB33DD44EE5502 /* DailyCheckinSettingsViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDEE1122AABB33CC44FF5502 /* DailyCheckinSettingsViewModelTests.swift */; };
 		A721A6CD0194E63346C295D9 /* ScheduledNotificationRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE30277775F68FCEA93A7E4D /* ScheduledNotificationRepositoryTests.swift */; };
 		A7D5C82C319DA925E7BA5193 /* EpisodeDetailScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 113CA1FF77A2157F0AA0DD18 /* EpisodeDetailScreen.swift */; };
+		CC11AA22BB33DD44EE550001 /* TimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC11AA22BB33DD44FF550001 /* TimelineView.swift */; };
+		CC11AA22BB33DD44EE550002 /* IntensitySparklineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC11AA22BB33DD44FF550002 /* IntensitySparklineView.swift */; };
+		CC11AA22BB33DD44EE550003 /* EpisodeActionButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC11AA22BB33DD44FF550003 /* EpisodeActionButtons.swift */; };
 		A833B2FF669024EE0A6B7AF4 /* OverlayRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 344065F3C1F6EDCC4EC84CC3 /* OverlayRepositoryTests.swift */; };
 		AB9927A99FFE04573DD797A4 /* NotificationSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F27D19F38C235C0F81CB5738 /* NotificationSettingsScreen.swift */; };
 		B198B47C0F880F123164B743 /* DateFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 359A69C4722F9B57FC8FB98C /* DateFormatting.swift */; };
@@ -168,6 +173,9 @@
 		01A2B3C4D5E6F70800000004 /* MedicationsListViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationsListViewModelTests.swift; sourceTree = "<group>"; };
 		02485161F9226C6D742EC36C /* ErrorLoggerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorLoggerTests.swift; sourceTree = "<group>"; };
 		113CA1FF77A2157F0AA0DD18 /* EpisodeDetailScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpisodeDetailScreen.swift; sourceTree = "<group>"; };
+		CC11AA22BB33DD44FF550001 /* TimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineView.swift; sourceTree = "<group>"; };
+		CC11AA22BB33DD44FF550002 /* IntensitySparklineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntensitySparklineView.swift; sourceTree = "<group>"; };
+		CC11AA22BB33DD44FF550003 /* EpisodeActionButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpisodeActionButtons.swift; sourceTree = "<group>"; };
 		11EFBDDC04C82745B1D2D08A /* OverlayRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayRepository.swift; sourceTree = "<group>"; };
 		158207F7E5E35F65C5CC154B /* AddMedicationScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddMedicationScreen.swift; sourceTree = "<group>"; };
 		16B045A32358BEE5636C8C7D /* MedicationDetailScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationDetailScreen.swift; sourceTree = "<group>"; };
@@ -212,6 +220,8 @@
 		67A30B1978FA36B8ECAC71F5 /* NotificationSettingsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSettingsUITests.swift; sourceTree = "<group>"; };
 		68E2B05FCEFB6493EF0C2FE1 /* DailyCheckinSettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyCheckinSettingsViewModel.swift; sourceTree = "<group>"; };
 		69B8D2570A843C4069DD91CA /* MigraLogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MigraLogTests.swift; sourceTree = "<group>"; };
+		DD11EE22FF33AA44BB55CC02 /* LogMedicationViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogMedicationViewModelTests.swift; sourceTree = "<group>"; };
+		DD11EE22FF33AA44BB55CC04 /* OverlayViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayViewModelTests.swift; sourceTree = "<group>"; };
 		6B437D8468CA5BAD36F5009D /* NewEpisodeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewEpisodeViewModel.swift; sourceTree = "<group>"; };
 		6EE19AF6509CF8DC4DB455A7 /* UITestHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestHelpers.swift; sourceTree = "<group>"; };
 		73F297C313657784597A4A5B /* LogUpdateScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogUpdateScreen.swift; sourceTree = "<group>"; };
@@ -368,8 +378,11 @@
 				BB11CC22DD33EE44FF550002 /* EditIntensityReadingScreen.swift */,
 				BB11CC22DD33EE44FF550006 /* EditPainLocationLogScreen.swift */,
 				BB11CC22DD33EE44FF550004 /* EditSymptomLogScreen.swift */,
+				CC11AA22BB33DD44FF550003 /* EpisodeActionButtons.swift */,
 				113CA1FF77A2157F0AA0DD18 /* EpisodeDetailScreen.swift */,
 				1EE092383622BB8F899CBA49 /* EpisodesScreen.swift */,
+				CC11AA22BB33DD44FF550002 /* IntensitySparklineView.swift */,
+				CC11AA22BB33DD44FF550001 /* TimelineView.swift */,
 				73F297C313657784597A4A5B /* LogUpdateScreen.swift */,
 				F8F03791D799269B5B3B07E6 /* NewEpisodeScreen.swift */,
 			);
@@ -386,8 +399,10 @@
 				01A2B3C4D5E6F70800000002 /* EpisodesListViewModelTests.swift */,
 				F1E2D3C4B5A60798E9F0A1B2 /* AddMedicationViewModelTests.swift */,
 				214A8765DEC2DF37F06DAA67 /* MedicationDetailViewModelTests.swift */,
+				DD11EE22FF33AA44BB55CC02 /* LogMedicationViewModelTests.swift */,
 				01A2B3C4D5E6F70800000004 /* MedicationsListViewModelTests.swift */,
 				DDEE1122AABB33CC44FF5501 /* NotificationSettingsViewModelTests.swift */,
+				DD11EE22FF33AA44BB55CC04 /* OverlayViewModelTests.swift */,
 				DDEE1122AABB33CC44FF5502 /* DailyCheckinSettingsViewModelTests.swift */,
 				A7F4C91D3B8E2A5F70D16E84 /* NewEpisodeViewModelTests.swift */,
 			);
@@ -843,7 +858,9 @@
 				4AE7FADF45973AAEBF646209 /* PresetMedicationsTests.swift in Sources */,
 				A721A6CD0194E63346C295D9 /* ScheduledNotificationRepositoryTests.swift in Sources */,
 				6C0537DA51CA320AA3F579C4 /* ToastServiceTests.swift in Sources */,
+				DD11EE22FF33AA44BB55CC01 /* LogMedicationViewModelTests.swift in Sources */,
 				BBCC1122AABB33DD44EE5501 /* NotificationSettingsViewModelTests.swift in Sources */,
+				DD11EE22FF33AA44BB55CC03 /* OverlayViewModelTests.swift in Sources */,
 				BBCC1122AABB33DD44EE5502 /* DailyCheckinSettingsViewModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -883,6 +900,9 @@
 				BB11CC22DD33EE44FF550005 /* EditPainLocationLogScreen.swift in Sources */,
 				BB11CC22DD33EE44FF550007 /* EditEpisodeNoteScreen.swift in Sources */,
 				A7D5C82C319DA925E7BA5193 /* EpisodeDetailScreen.swift in Sources */,
+				CC11AA22BB33DD44EE550001 /* TimelineView.swift in Sources */,
+				CC11AA22BB33DD44EE550002 /* IntensitySparklineView.swift in Sources */,
+				CC11AA22BB33DD44EE550003 /* EpisodeActionButtons.swift in Sources */,
 				81D0543475BA0D1E9C380EB7 /* EpisodeDetailViewModel.swift in Sources */,
 				CE89028DFCD76F0258993640 /* EpisodeRepository.swift in Sources */,
 				5339F16DC70F87218207B58D /* EpisodeValidation.swift in Sources */,

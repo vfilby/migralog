@@ -26,6 +26,17 @@ struct EditMedicationScreen: View {
         Form {
             Section("Name") {
                 TextField("Name", text: $name)
+                    .onChange(of: name) { _, newValue in
+                        if newValue.count > 100 {
+                            name = String(newValue.prefix(100))
+                        }
+                    }
+
+                if name.count == 100 {
+                    Text("Maximum 100 characters reached")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
             }
             Section("Dosage") {
                 TextField("Amount", text: $dosageAmount)

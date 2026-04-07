@@ -221,6 +221,31 @@ final class MedicationRepository: MedicationRepositoryProtocol {
         }
     }
 
+    func getActiveMedicationsWithUsageCounts() throws -> [(medication: Medication, usageCount: Int)] {
+        try dbManager.dbQueue.read { db in
+            let rows = try Row.fetchAll(
+                db,
+                sql: """
+                    SELECT m.*, COALESCE(d.usage_count, 0) AS usage_count
+                    FROM medications m
+                    LEFT JOIN (
+                        SELECT medication_id, COUNT(*) AS usage_count
+                        FROM medication_doses
+                        WHERE status = 'taken'
+                        GROUP BY medication_id
+                    ) d ON m.id = d.medication_id
+                    WHERE m.active = 1
+                    ORDER BY m.name ASC
+                    """
+            )
+            return rows.map { row in
+                let medication = Self.medicationFromRow(row)
+                let usageCount: Int = row["usage_count"]
+                return (medication: medication, usageCount: usageCount)
+            }
+        }
+    }
+
     func updateDose(_ dose: MedicationDose) throws -> MedicationDose {
         let now = TimestampHelper.now
         var updated = dose

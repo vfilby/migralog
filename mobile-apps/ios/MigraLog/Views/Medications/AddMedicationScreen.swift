@@ -20,9 +20,19 @@ struct AddMedicationScreen: View {
             Section("Medication Name") {
                 TextField("Name", text: $name)
                     .onChange(of: name) { _, newValue in
+                        if newValue.count > 100 {
+                            name = String(newValue.prefix(100))
+                            return
+                        }
                         searchResults = PresetMedications.search(newValue)
                         showAutocomplete = !searchResults.isEmpty && !newValue.isEmpty
                     }
+
+                if name.count == 100 {
+                    Text("Maximum 100 characters reached")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
 
                 if showAutocomplete {
                     ForEach(searchResults.prefix(5)) { preset in

@@ -62,31 +62,7 @@ struct LogMedicationScreen: View {
     }
 
     private func quickLog(_ med: Medication) async {
-        let medicationRepo = MedicationRepository(dbManager: DatabaseManager.shared)
-        let episodeRepo = EpisodeRepository(dbManager: DatabaseManager.shared)
-        let now = TimestampHelper.now
-        let activeEpisode = try? episodeRepo.getEpisodeByTimestamp(now)
-        let dose = MedicationDose(
-            id: UUID().uuidString,
-            medicationId: med.id,
-            timestamp: now,
-            quantity: med.defaultQuantity ?? 1,
-            dosageAmount: med.dosageAmount,
-            dosageUnit: med.dosageUnit,
-            status: .taken,
-            episodeId: activeEpisode?.id,
-            effectivenessRating: nil,
-            timeToRelief: nil,
-            sideEffects: [],
-            notes: nil,
-            createdAt: now,
-            updatedAt: now
-        )
-        do {
-            try await medicationRepo.createDose(dose)
-        } catch {
-            ErrorLogger.shared.logError(error, context: ["action": "quickLog", "medication": med.name])
-        }
+        await viewModel.quickLog(med)
         dismiss()
     }
 }
