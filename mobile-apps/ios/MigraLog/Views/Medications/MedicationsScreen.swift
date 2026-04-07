@@ -81,11 +81,9 @@ struct MedicationsScreen: View {
             await viewModel.loadMedications()
         }
         .onAppear {
-            print("[MedicationsScreen] onAppear - reloading")
             Task { await viewModel.loadMedications() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .medicationDataChanged)) { _ in
-            print("[MedicationsScreen] notification - reloading")
             Task { await viewModel.loadMedications() }
         }
     }

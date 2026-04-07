@@ -29,7 +29,7 @@ final class AnalyticsViewModel {
 
     // MARK: - Cache
 
-    private static let cacheTTL: TimeInterval = 30
+    private static let cacheTTL: TimeInterval = 300
     private var cacheKey: String { "analytics_\(selectedRange.rawValue)" }
     private let cache = CacheManager.shared
 
