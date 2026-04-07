@@ -24,9 +24,11 @@ final class DatabaseManager: Sendable {
             let dbURL = appSupport.appendingPathComponent("migralog.db")
             var config = Configuration()
             config.foreignKeysEnabled = true
+            #if DEBUG
             config.prepareDatabase { db in
                 db.trace { print("SQL: \($0)") }
             }
+            #endif
             dbQueue = try DatabaseQueue(path: dbURL.path, configuration: config)
             try migrator.migrate(dbQueue)
         } catch {

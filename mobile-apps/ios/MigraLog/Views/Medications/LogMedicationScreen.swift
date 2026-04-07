@@ -82,7 +82,11 @@ struct LogMedicationScreen: View {
             createdAt: now,
             updatedAt: now
         )
-        try? await medicationRepo.createDose(dose)
+        do {
+            try await medicationRepo.createDose(dose)
+        } catch {
+            ErrorLogger.shared.logError(error, context: ["action": "quickLog", "medication": med.name])
+        }
         dismiss()
     }
 }

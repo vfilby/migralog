@@ -47,7 +47,6 @@ final class MedicationDetailViewModel {
             isLoading = false
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "MedicationDetailViewModel", "action": "loadMedication"])
-            ErrorLogger.shared.logError(error, context: ["viewModel": "MedicationDetailViewModel"])
             self.error = error.localizedDescription
             isLoading = false
         }
@@ -67,7 +66,6 @@ final class MedicationDetailViewModel {
             isLoading = false
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "MedicationDetailViewModel", "action": "loadMedication"])
-            ErrorLogger.shared.logError(error, context: ["viewModel": "MedicationDetailViewModel"])
             self.error = error.localizedDescription
             isLoading = false
         }

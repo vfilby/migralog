@@ -349,8 +349,23 @@ final class EpisodeDetailViewModel {
     // MARK: - Private
 
     private func loadDosesForEpisode(_ episodeId: String) throws -> [DoseWithMedication] {
-        let doses = try medicationRepository.getDosesByEpisodeId(episodeId)
-        return doses.compactMap { dose in
+        // Get doses explicitly linked to this episode
+        var allDoses = try medicationRepository.getDosesByEpisodeId(episodeId)
+        let linkedIds = Set(allDoses.map(\.id))
+
+        // Also get doses that fall within the episode's time window but lack episode_id
+        // (e.g. logged from homescreen before the association fix, or imported from RN)
+        if let episode = details?.episode {
+            let endTime = episode.endTime ?? Int64(Date().timeIntervalSince1970 * 1000)
+            let windowDoses = try medicationRepository.getDosesByDateRange(
+                start: episode.startTime, end: endTime
+            )
+            for dose in windowDoses where !linkedIds.contains(dose.id) {
+                allDoses.append(dose)
+            }
+        }
+
+        return allDoses.compactMap { dose in
             guard let med = try? medicationRepository.getMedicationById(dose.medicationId) else {
                 return nil
             }
