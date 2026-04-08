@@ -30,6 +30,7 @@ final class LogMedicationViewModel {
         }
     }
 
+    @MainActor
     func quickLog(_ medication: Medication) async {
         let now = TimestampHelper.now
         let activeEpisode = try? episodeRepository.getEpisodeByTimestamp(now)

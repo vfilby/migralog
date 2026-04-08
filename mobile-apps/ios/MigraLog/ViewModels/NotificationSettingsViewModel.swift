@@ -99,6 +99,7 @@ final class NotificationSettingsViewModel {
 
     /// Update daily check-in notification scheduling based on current settings.
     /// Call this after changing dailyCheckinEnabled or dailyCheckinTime.
+    @MainActor
     func syncDailyCheckinNotification() async {
         if dailyCheckinEnabled && notificationsEnabled {
             do {
@@ -140,6 +141,7 @@ final class NotificationSettingsViewModel {
 
     /// Reschedule all medication notifications when settings change.
     /// rescheduleAll cancels everything first, then re-schedules based on current active meds.
+    @MainActor
     func syncMedicationNotifications() async {
         do {
             try await medicationNotificationService?.rescheduleAllMedicationNotifications()

@@ -262,6 +262,7 @@ final class MedicationDetailViewModel {
 
     // MARK: - Notification Helpers
 
+    @MainActor
     private func rescheduleNotifications(for medication: Medication) async {
         do {
             // Reschedule all medication notifications (handles grouping across all meds)
