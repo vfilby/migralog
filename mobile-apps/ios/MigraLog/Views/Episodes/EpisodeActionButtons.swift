@@ -60,13 +60,18 @@ struct EpisodeActionButtons: View {
 
 struct CustomEndTimeSheet: View {
     @Binding var customEndTime: Date
+    var minimumDate: Date? = nil
     let onConfirm: () -> Void
     let onCancel: () -> Void
 
     var body: some View {
         VStack {
-            DatePicker("End Time", selection: $customEndTime)
-                .datePickerStyle(.wheel)
+            DatePicker(
+                "End Time",
+                selection: $customEndTime,
+                in: (minimumDate ?? .distantPast)...Date()
+            )
+            .datePickerStyle(.wheel)
 
             HStack {
                 Button("Cancel", action: onCancel)

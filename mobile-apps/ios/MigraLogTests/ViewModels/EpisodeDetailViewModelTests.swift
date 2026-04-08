@@ -199,6 +199,82 @@ final class EpisodeDetailViewModelTests: XCTestCase {
 
     // MARK: - Pain Location Logs
 
+    // MARK: - Edit End Time
+
+    func testEditEndTime_updatesEndTime() async throws {
+        let startTime = TimestampHelper.now - 3600_000
+        let oldEndTime = TimestampHelper.now - 1800_000
+        mockRepo.episodes = [TestFixtures.makeEpisode(id: "ep-1", startTime: startTime, endTime: oldEndTime)]
+        await sut.loadEpisode()
+
+        let newEndTime = TimestampHelper.now - 600_000
+        await sut.editEndTime(newEndTime)
+
+        XCTAssertEqual(sut.episode?.endTime, newEndTime)
+        XCTAssertTrue(mockRepo.updateEpisodeCalled)
+    }
+
+    func testEditEndTime_activeEpisode_noOp() async throws {
+        await sut.loadEpisode()
+        XCTAssertTrue(sut.episode!.isActive)
+
+        await sut.editEndTime(TimestampHelper.now)
+
+        XCTAssertFalse(mockRepo.updateEpisodeCalled)
+    }
+
+    func testEditEndTime_beforeStartTime_setsError() async throws {
+        let startTime = TimestampHelper.now - 3600_000
+        let endTime = TimestampHelper.now
+        mockRepo.episodes = [TestFixtures.makeEpisode(id: "ep-1", startTime: startTime, endTime: endTime)]
+        await sut.loadEpisode()
+
+        await sut.editEndTime(startTime - 1000) // before start
+
+        XCTAssertNotNil(sut.error)
+        XCTAssertFalse(mockRepo.updateEpisodeCalled)
+    }
+
+    // MARK: - Edit Start Time
+
+    func testEditStartTime_updatesStartTime() async throws {
+        let startTime = TimestampHelper.now - 3600_000
+        let endTime = TimestampHelper.now
+        mockRepo.episodes = [TestFixtures.makeEpisode(id: "ep-1", startTime: startTime, endTime: endTime)]
+        await sut.loadEpisode()
+
+        let newStartTime = startTime - 1800_000
+        await sut.editStartTime(newStartTime)
+
+        XCTAssertEqual(sut.episode?.startTime, newStartTime)
+        XCTAssertTrue(mockRepo.updateEpisodeCalled)
+    }
+
+    func testEditStartTime_afterEndTime_setsError() async throws {
+        let startTime = TimestampHelper.now - 3600_000
+        let endTime = TimestampHelper.now
+        mockRepo.episodes = [TestFixtures.makeEpisode(id: "ep-1", startTime: startTime, endTime: endTime)]
+        await sut.loadEpisode()
+
+        await sut.editStartTime(endTime + 1000) // after end
+
+        XCTAssertNotNil(sut.error)
+        XCTAssertFalse(mockRepo.updateEpisodeCalled)
+    }
+
+    func testEditStartTime_activeEpisode_succeeds() async throws {
+        await sut.loadEpisode()
+        XCTAssertTrue(sut.episode!.isActive)
+
+        let newStartTime = TimestampHelper.now - 7200_000
+        await sut.editStartTime(newStartTime)
+
+        XCTAssertEqual(sut.episode?.startTime, newStartTime)
+        XCTAssertTrue(mockRepo.updateEpisodeCalled)
+    }
+
+    // MARK: - Pain Location Logs
+
     func testAddPainLocationLog_addsToDetails() async throws {
         await sut.loadEpisode()
 

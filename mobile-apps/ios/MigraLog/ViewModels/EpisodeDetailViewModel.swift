@@ -124,6 +124,54 @@ final class EpisodeDetailViewModel {
     }
 
     @MainActor
+    func editEndTime(_ timestamp: Int64) async {
+        guard var episode = details?.episode, !episode.isActive else { return }
+        guard timestamp > episode.startTime else {
+            self.error = "End time must be after the start time."
+            return
+        }
+        episode.endTime = timestamp
+        episode.updatedAt = TimestampHelper.now
+        do {
+            try await episodeRepository.updateEpisode(episode)
+            details = EpisodeWithDetails(
+                episode: episode,
+                intensityReadings: details?.intensityReadings ?? [],
+                symptomLogs: details?.symptomLogs ?? [],
+                painLocationLogs: details?.painLocationLogs ?? [],
+                episodeNotes: details?.episodeNotes ?? []
+            )
+        } catch {
+            ErrorLogger.shared.logError(error, context: ["viewModel": "EpisodeDetailViewModel", "action": "editEndTime"])
+            self.error = error.localizedDescription
+        }
+    }
+
+    @MainActor
+    func editStartTime(_ timestamp: Int64) async {
+        guard var episode = details?.episode else { return }
+        if let endTime = episode.endTime, timestamp >= endTime {
+            self.error = "Start time must be before the end time."
+            return
+        }
+        episode.startTime = timestamp
+        episode.updatedAt = TimestampHelper.now
+        do {
+            try await episodeRepository.updateEpisode(episode)
+            details = EpisodeWithDetails(
+                episode: episode,
+                intensityReadings: details?.intensityReadings ?? [],
+                symptomLogs: details?.symptomLogs ?? [],
+                painLocationLogs: details?.painLocationLogs ?? [],
+                episodeNotes: details?.episodeNotes ?? []
+            )
+        } catch {
+            ErrorLogger.shared.logError(error, context: ["viewModel": "EpisodeDetailViewModel", "action": "editStartTime"])
+            self.error = error.localizedDescription
+        }
+    }
+
+    @MainActor
     func reopenEpisode() async {
         guard var episode = details?.episode, !episode.isActive else { return }
         episode.endTime = nil
