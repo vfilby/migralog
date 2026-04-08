@@ -95,12 +95,18 @@ struct EpisodeDetailScreen: View {
             NavigationStack {
                 CustomEndTimeSheet(
                     customEndTime: $customEndTime,
+                    minimumDate: viewModel.episode?.startDate,
                     onConfirm: {
                         Task {
-                            await viewModel.endEpisode(
-                                episodeId,
-                                at: TimestampHelper.fromDate(customEndTime)
-                            )
+                            let timestamp = TimestampHelper.fromDate(customEndTime)
+                            if viewModel.episode?.isActive == true {
+                                await viewModel.endEpisode(
+                                    episodeId,
+                                    at: timestamp
+                                )
+                            } else {
+                                await viewModel.editEndTime(timestamp)
+                            }
                         }
                         showEndTimePicker = false
                     },

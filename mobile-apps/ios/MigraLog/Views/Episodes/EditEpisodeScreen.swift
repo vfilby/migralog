@@ -5,6 +5,8 @@ struct EditEpisodeScreen: View {
     @Bindable var viewModel: EpisodeDetailViewModel
     @Environment(\.dismiss) private var dismiss
 
+    @State private var startTime: Date
+    @State private var endTime: Date?
     @State private var selectedLocations: Set<PainLocation>
     @State private var selectedSymptoms: Set<Symptom>
     @State private var selectedTriggers: Set<Trigger>
@@ -14,6 +16,8 @@ struct EditEpisodeScreen: View {
     init(episode: Episode, viewModel: EpisodeDetailViewModel) {
         self.episode = episode
         self.viewModel = viewModel
+        _startTime = State(initialValue: episode.startDate)
+        _endTime = State(initialValue: episode.endDate)
         _selectedLocations = State(initialValue: Set(episode.locations))
         _selectedSymptoms = State(initialValue: Set(episode.symptoms))
         _selectedTriggers = State(initialValue: Set(episode.triggers))
@@ -22,6 +26,25 @@ struct EditEpisodeScreen: View {
 
     var body: some View {
         Form {
+            Section("Start Time") {
+                DatePicker(
+                    "Started",
+                    selection: $startTime,
+                    in: ...( endTime ?? Date()),
+                    displayedComponents: [.date, .hourAndMinute]
+                )
+            }
+
+            if let endBinding = Binding($endTime) {
+                Section("End Time") {
+                    DatePicker(
+                        "Ended",
+                        selection: endBinding,
+                        in: startTime...Date(),
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                }
+            }
             Section("Pain Locations") {
                 PainLocationGrid(selectedLocations: $selectedLocations)
             }
@@ -81,7 +104,22 @@ struct EditEpisodeScreen: View {
     private func save() async {
         isSaving = true
         defer { isSaving = false }
-        var updated = episode
+
+        // Save start time if changed
+        let newStartTime = TimestampHelper.fromDate(startTime)
+        if newStartTime != episode.startTime {
+            await viewModel.editStartTime(newStartTime)
+        }
+
+        // Save end time if changed
+        if let newEnd = endTime {
+            let newEndTime = TimestampHelper.fromDate(newEnd)
+            if newEndTime != episode.endTime {
+                await viewModel.editEndTime(newEndTime)
+            }
+        }
+
+        var updated = viewModel.episode ?? episode
         updated.locations = Array(selectedLocations)
         updated.symptoms = Array(selectedSymptoms)
         updated.triggers = Array(selectedTriggers)
