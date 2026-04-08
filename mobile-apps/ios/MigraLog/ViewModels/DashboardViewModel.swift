@@ -69,6 +69,12 @@ final class DashboardViewModel {
             recentEpisodes = try await recentTask
             todaysMedications = try await medsTask
             yesterdayStatus = try await statusTask
+
+            // Load active episode readings for dashboard sparkline
+            if let active = currentEpisode,
+               let details = try episodeRepository.getEpisodeWithDetails(active.id) {
+                recentReadings[active.id] = details.intensityReadings
+            }
             isLoading = false
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "DashboardViewModel", "action": "loadData"])

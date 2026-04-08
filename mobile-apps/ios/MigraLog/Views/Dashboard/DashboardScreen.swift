@@ -159,47 +159,6 @@ struct DailyStatusWidgetView: View {
     }
 }
 
-// MARK: - Active Episode Card
-
-struct ActiveEpisodeCard: View {
-    let episode: Episode
-
-    var body: some View {
-        NavigationLink {
-            EpisodeDetailScreen(episodeId: episode.id)
-        } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Active Episode")
-                        .font(.headline)
-                    Spacer()
-                    Text("Ongoing")
-                        .font(.caption)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.red.opacity(0.2))
-                        .foregroundStyle(.red)
-                        .clipShape(Capsule())
-                }
-
-                Text("Started \(DateFormatting.displayTime(episode.startDate))")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-
-                Text(DateFormatting.formatDuration(from: episode.startTime, to: nil))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
-            .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("active-episode-card")
-    }
-}
-
 // MARK: - Today's Medications Card
 
 struct TodaysMedicationsCard: View {
@@ -310,9 +269,13 @@ struct RecentEpisodesCard: View {
                     NavigationLink {
                         EpisodeDetailScreen(episodeId: episode.id)
                     } label: {
-                        ActiveEpisodeCard(episode: episode)
+                        EpisodeCardView(
+                            episode: episode,
+                            readings: viewModel.recentReadings[episode.id] ?? []
+                        )
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("active-episode-card")
                 }
 
                 // Recent closed episodes
