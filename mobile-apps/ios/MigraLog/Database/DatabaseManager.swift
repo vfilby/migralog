@@ -9,12 +9,30 @@ final class DatabaseManager: Sendable {
     /// Shared singleton for the app's main database
     static let shared = DatabaseManager()
 
+    /// If database initialization failed, this holds the error.
+    /// Check this at app launch to show a recovery UI instead of the normal app.
+    /// Written once during singleton init, read-only thereafter.
+    nonisolated(unsafe) static private(set) var initializationError: Error?
+
+    /// The file URL of the database, available even when initialization failed
+    /// so the user can export the file for recovery.
+    /// Written once during singleton init, read-only thereafter.
+    nonisolated(unsafe) static private(set) var databaseFileURL: URL?
+
     let dbQueue: DatabaseQueue
 
-    /// Initialize with a file-based database at the default app location
+    /// Initialize with a file-based database at the default app location.
+    /// On failure, falls back to an in-memory database so the app can launch
+    /// and present recovery UI (e.g. exporting the corrupt database file).
     private init() {
+        dbQueue = DatabaseManager.createDatabaseQueue()
+    }
+
+    /// Creates the database queue, falling back to in-memory on failure.
+    /// Sets static properties for error state and file URL as side effects.
+    private static func createDatabaseQueue() -> DatabaseQueue {
+        let fileManager = FileManager.default
         do {
-            let fileManager = FileManager.default
             let appSupport = try fileManager.url(
                 for: .applicationSupportDirectory,
                 in: .userDomainMask,
@@ -22,6 +40,7 @@ final class DatabaseManager: Sendable {
                 create: true
             )
             let dbURL = appSupport.appendingPathComponent("migralog.db")
+            databaseFileURL = dbURL
             var config = Configuration()
             config.foreignKeysEnabled = true
             #if DEBUG
@@ -29,10 +48,21 @@ final class DatabaseManager: Sendable {
                 db.trace { print("SQL: \($0)") }
             }
             #endif
-            dbQueue = try DatabaseQueue(path: dbURL.path, configuration: config)
-            try migrator.migrate(dbQueue)
+            let queue = try DatabaseQueue(path: dbURL.path, configuration: config)
+            let mgr = DatabaseManager.buildMigrator()
+            try mgr.migrate(queue)
+            return queue
         } catch {
-            fatalError("Database initialization failed: \(error)")
+            initializationError = error
+            // Fall back to an in-memory database so the app can launch
+            // and present recovery UI to the user
+            var fallbackConfig = Configuration()
+            fallbackConfig.foreignKeysEnabled = true
+            // swiftlint:disable:next force_try
+            let queue = try! DatabaseQueue(configuration: fallbackConfig)
+            let mgr = DatabaseManager.buildMigrator()
+            try? mgr.migrate(queue)
+            return queue
         }
     }
 
@@ -58,6 +88,10 @@ final class DatabaseManager: Sendable {
     }
 
     private var migrator: DatabaseMigrator {
+        DatabaseManager.buildMigrator()
+    }
+
+    private static func buildMigrator() -> DatabaseMigrator {
         var migrator = DatabaseMigrator()
 
         // v25: Full schema creation

@@ -5,7 +5,9 @@ struct ContentView: View {
 
     var body: some View {
         Group {
-            if appState.isLoading {
+            if DatabaseManager.initializationError != nil {
+                DatabaseErrorView()
+            } else if appState.isLoading {
                 ProgressView("Loading...")
             } else if !appState.isOnboardingComplete {
                 WelcomeScreen()

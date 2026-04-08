@@ -51,6 +51,7 @@
 		5339F16DC70F87218207B58D /* EpisodeValidation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32374D27529ACFAE6B94FC8B /* EpisodeValidation.swift */; };
 		542422BA21D92779421169E3 /* AddMedicationScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 158207F7E5E35F65C5CC154B /* AddMedicationScreen.swift */; };
 		545F02A7E17730DADEF9269F /* LocationSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F96ADD663FB891445B7511E5 /* LocationSettingsScreen.swift */; };
+		DA7E0B21C8F34A5E9B1D6F03 /* DatabaseErrorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7E0B21C8F34A5E9B1D6F04 /* DatabaseErrorView.swift */; };
 		54A8ABCB153D69F200FE93A3 /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90E6D59A95E669BF94630D8F /* LocationService.swift */; };
 		5526658ACE024ED2751F7B58 /* MedicationNotificationServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8750E37C42400B8607707EB7 /* MedicationNotificationServiceTests.swift */; };
 		AA11BB22CC33DD44EE55FF01 /* NotificationSlotCalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF11 /* NotificationSlotCalculatorTests.swift */; };
@@ -282,6 +283,7 @@
 		D1BF06D4B0AF537BEAF4698D /* WelcomeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeScreen.swift; sourceTree = "<group>"; };
 		D1F340F63DF6C366F048A48B /* DatabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseManager.swift; sourceTree = "<group>"; };
 		D2905118EC1EC29D6FAFC7F3 /* DataSettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataSettingsScreen.swift; sourceTree = "<group>"; };
+		DA7E0B21C8F34A5E9B1D6F04 /* DatabaseErrorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseErrorView.swift; sourceTree = "<group>"; };
 		D5C72860862DA711BCBEAFCE /* DailyStatusViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyStatusViewModelTests.swift; sourceTree = "<group>"; };
 		D5FDFB70D7FBD2F40C33EEA2 /* PresetMedications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetMedications.swift; sourceTree = "<group>"; };
 		D63D77F78450B572B22BACE5 /* MigraLogTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MigraLogTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -542,6 +544,7 @@
 		84D341D07CE116E5E19B7A9A /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				DA7E0B21C8F34A5E9B1D6F04 /* DatabaseErrorView.swift */,
 				D2905118EC1EC29D6FAFC7F3 /* DataSettingsScreen.swift */,
 				F5BF70F8D6B06F72BB0220C8 /* DeveloperToolsScreen.swift */,
 				F96ADD663FB891445B7511E5 /* LocationSettingsScreen.swift */,
@@ -889,6 +892,7 @@
 				02755879A237973FD67FE2B5 /* DailyStatusViewModel.swift in Sources */,
 				18C6ED3634A20309D3DD8261 /* DashboardScreen.swift in Sources */,
 				4791955D828CAA808F2E1B71 /* DashboardViewModel.swift in Sources */,
+				DA7E0B21C8F34A5E9B1D6F03 /* DatabaseErrorView.swift in Sources */,
 				C2D3CA453CD9096E0FE76A93 /* DataSettingsScreen.swift in Sources */,
 				E919E2044D68ED0932A9D71D /* DatabaseManager.swift in Sources */,
 				B198B47C0F880F123164B743 /* DateFormatting.swift in Sources */,
