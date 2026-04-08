@@ -8,6 +8,7 @@ struct EditMedicationScreen: View {
     @State private var name: String
     @State private var dosageAmount: String
     @State private var dosageUnit: String
+    @State private var defaultQuantity: String
     @State private var notes: String
     @State private var category: MedicationCategory?
     @State private var isSaving = false
@@ -18,6 +19,9 @@ struct EditMedicationScreen: View {
         _name = State(initialValue: medication.name)
         _dosageAmount = State(initialValue: String(medication.dosageAmount))
         _dosageUnit = State(initialValue: medication.dosageUnit)
+        _defaultQuantity = State(initialValue: medication.defaultQuantity.map {
+            $0.truncatingRemainder(dividingBy: 1) == 0 ? String(Int($0)) : String($0)
+        } ?? "1")
         _notes = State(initialValue: medication.notes ?? "")
         _category = State(initialValue: medication.category)
     }
@@ -42,6 +46,14 @@ struct EditMedicationScreen: View {
                 TextField("Amount", text: $dosageAmount)
                     .keyboardType(.decimalPad)
                 TextField("Unit", text: $dosageUnit)
+            }
+            Section {
+                TextField("Number of doses", text: $defaultQuantity)
+                    .keyboardType(.decimalPad)
+            } header: {
+                Text("Default Quantity")
+            } footer: {
+                Text("Number of doses typically taken at once. For example, if you take 3 tablets of 200mg Advil, enter 3.")
             }
             Section("Category") {
                 Picker("Category", selection: $category) {
@@ -80,6 +92,7 @@ struct EditMedicationScreen: View {
         updated.name = name
         updated.dosageAmount = amount
         updated.dosageUnit = dosageUnit
+        updated.defaultQuantity = Double(defaultQuantity).flatMap { $0 > 0 ? $0 : nil }
         updated.notes = notes.isEmpty ? nil : notes
         updated.category = category
         updated.updatedAt = TimestampHelper.now

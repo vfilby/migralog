@@ -8,6 +8,7 @@ struct AddMedicationScreen: View {
     @State private var dosageUnit: String = "mg"
     @State private var category: MedicationCategory?
     @State private var scheduleFrequency: ScheduleFrequency?
+    @State private var defaultQuantity: String = "1"
     @State private var notes: String = ""
     @State private var searchResults: [PresetMedication] = []
     @State private var showAutocomplete = false
@@ -64,6 +65,15 @@ struct AddMedicationScreen: View {
                 TextField("Amount", text: $dosageAmount)
                     .keyboardType(.decimalPad)
                 TextField("Unit (mg, ml, tablets...)", text: $dosageUnit)
+            }
+
+            Section {
+                TextField("Number of doses", text: $defaultQuantity)
+                    .keyboardType(.decimalPad)
+            } header: {
+                Text("Default Quantity")
+            } footer: {
+                Text("Number of doses typically taken at once. For example, if you take 3 tablets of 200mg Advil, enter 3.")
             }
 
             Section("Category") {
@@ -149,7 +159,7 @@ struct AddMedicationScreen: View {
             type: type,
             dosageAmount: amount,
             dosageUnit: dosageUnit,
-            defaultQuantity: nil,
+            defaultQuantity: Double(defaultQuantity).flatMap { $0 > 0 ? $0 : nil },
             scheduleFrequency: scheduleFrequency,
             photoUri: nil,
             active: true,
