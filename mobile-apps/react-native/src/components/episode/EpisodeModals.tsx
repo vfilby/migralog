@@ -132,9 +132,10 @@ export const EpisodeModals: React.FC<EpisodeModalsProps> = ({
               value={customEndTime && customEndTime > 0 ? new Date(customEndTime) : new Date()}
               mode="datetime"
               display="spinner"
-              onChange={(_event, selectedDate) => {
-                if (selectedDate) {
-                  onCustomTimeChange(selectedDate.getTime());
+              onChange={(event, selectedDate) => {
+                const timestamp = selectedDate?.getTime() ?? event.nativeEvent?.timestamp;
+                if (timestamp && !isNaN(timestamp)) {
+                  onCustomTimeChange(timestamp);
                 }
               }}
               maximumDate={new Date()}

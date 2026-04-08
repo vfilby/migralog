@@ -567,8 +567,10 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
               display={Platform.OS === 'ios' ? 'spinner' : 'default'}
               onChange={(event, date) => {
                 setShowDatePicker(Platform.OS === 'ios');
-                if (date) setStartTime(date);
+                const selectedDate = date ?? (event.nativeEvent?.timestamp ? new Date(event.nativeEvent.timestamp) : undefined);
+                if (selectedDate) setStartTime(selectedDate);
               }}
+              maximumDate={endTime || new Date()}
             />
           )}
         </View>
@@ -628,7 +630,8 @@ export default function NewEpisodeScreen({ navigation, route }: Props) {
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 onChange={(event, date) => {
                   setShowEndDatePicker(Platform.OS === 'ios');
-                  if (date) setEndTime(date);
+                  const selectedDate = date ?? (event.nativeEvent?.timestamp ? new Date(event.nativeEvent.timestamp) : undefined);
+                  if (selectedDate) setEndTime(selectedDate);
                 }}
                 minimumDate={startTime}
                 maximumDate={new Date()}

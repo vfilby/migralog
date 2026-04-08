@@ -213,6 +213,7 @@ final class AnalyticsViewModel {
         }
     }
 
+    @MainActor
     func deleteOverlay(_ id: String) async {
         do {
             try overlayRepository.deleteOverlay(id)
@@ -221,6 +222,7 @@ final class AnalyticsViewModel {
         }
     }
 
+    @MainActor
     func loadCalendarData(for month: Date) async {
         let calendar = Calendar.current
         let components = calendar.dateComponents([.year, .month], from: month)

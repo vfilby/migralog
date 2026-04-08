@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { logger } from '../../utils/logger';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform, ActionSheetIOS, useWindowDimensions } from 'react-native';
 
@@ -127,7 +127,12 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   const [locationAddress, setLocationAddress] = useState<string | null>(null);
   const [showMapModal, setShowMapModal] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
-  const [customEndTime, setCustomEndTime] = useState<number>(Date.now());
+  const [customEndTime, _setCustomEndTime] = useState<number>(Date.now());
+  const customEndTimeRef = useRef<number>(Date.now());
+  const setCustomEndTime = (time: number) => {
+    customEndTimeRef.current = time;
+    _setCustomEndTime(time);
+  };
 
   useFocusEffect(
     React.useCallback(() => {
@@ -199,17 +204,26 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
   const editEpisodeEndTime = async () => {
     if (!episode) return;
 
+    // Use ref value to avoid stale closure issues with DateTimePicker onChange timing
+    const endTimeToSave = customEndTimeRef.current;
+
     // Validate that end time is not before episode start
-    const validation = validateEpisodeEndTime(episode.startTime, customEndTime);
+    const validation = validateEpisodeEndTime(episode.startTime, endTimeToSave);
     if (!validation.isValid) {
       Alert.alert('Invalid Time', validation.error!);
       return;
     }
 
-    // Edit the end time of completed episode
-    await updateEpisode(episode.id, { endTime: customEndTime });
-    await loadEpisodeData(); // Reload to reflect changes
-    setShowEndTimePicker(false);
+    try {
+      // Edit the end time of completed episode
+      await updateEpisode(episode.id, { endTime: endTimeToSave });
+      await loadEpisodeData(); // Reload to reflect changes
+    } catch (error) {
+      logger.error('Failed to edit episode end time:', error);
+      Alert.alert('Error', 'Failed to save the end time. Please try again.');
+    } finally {
+      setShowEndTimePicker(false);
+    }
   };
 
   const handleCustomTimeAction = async () => {
@@ -248,7 +262,7 @@ export default function EpisodeDetailScreen({ route, navigation }: Props) {
 
   const endEpisodeWithCustomTime = async () => {
     if (episode) {
-      await endEpisode(episode.id, customEndTime);
+      await endEpisode(episode.id, customEndTimeRef.current);
       navigation.goBack();
     }
   };
