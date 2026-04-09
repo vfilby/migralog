@@ -4,7 +4,7 @@ import SwiftUI
 struct AdaptiveNavigation: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var selectedSection: NavigationSection = .dashboard
-    @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @State private var columnVisibility: NavigationSplitViewVisibility = .detailOnly
     @State private var selectedEpisodeId: String?
     @State private var selectedMedicationId: String?
     @State private var analyticsViewModel = AnalyticsViewModel()
@@ -85,6 +85,14 @@ struct AdaptiveNavigation: View {
                 }, onDelete: { id in
                     Task { await analyticsViewModel.deleteOverlay(id) }
                 })
+            }
+        }
+        .onChange(of: selectedSection) { _, newValue in
+            switch newValue {
+            case .episodes, .medications, .trends:
+                columnVisibility = .all
+            case .dashboard, .settings:
+                columnVisibility = .detailOnly
             }
         }
     }
