@@ -5,6 +5,7 @@ struct AdaptiveNavigation: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var selectedSection: NavigationSection = .dashboard
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @State private var selectedEpisodeId: String?
 
     var body: some View {
         if sizeClass == .regular {
@@ -19,13 +20,28 @@ struct AdaptiveNavigation: View {
     private var iPadNavigation: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView(selection: $selectedSection)
+        } content: {
+            switch selectedSection {
+            case .episodes:
+                EpisodesListColumn(selectedEpisodeId: $selectedEpisodeId)
+            default:
+                EmptyView()
+            }
         } detail: {
             NavigationStack {
                 switch selectedSection {
                 case .dashboard:
                     DashboardScreen()
                 case .episodes:
-                    EpisodesScreen()
+                    if let episodeId = selectedEpisodeId {
+                        EpisodeDetailScreen(episodeId: episodeId)
+                    } else {
+                        ContentUnavailableView(
+                            "No Episode Selected",
+                            systemImage: "bolt.heart",
+                            description: Text("Select an episode to view details.")
+                        )
+                    }
                 case .medications:
                     MedicationsScreen()
                 case .trends:
