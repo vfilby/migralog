@@ -18,17 +18,15 @@ struct DashboardScreen: View {
         .navigationTitle("MigraLog")
         .accessibilityIdentifier("dashboard-title")
         .toolbar {
-            if sizeClass != .regular {
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        SettingsScreen()
-                    } label: {
-                        Image(systemName: "gearshape")
-                    }
-                    .accessibilityIdentifier("settings-button")
-                    .accessibilityLabel("Settings")
-                    .accessibilityHint("Open application settings")
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink {
+                    SettingsScreen()
+                } label: {
+                    Image(systemName: "gearshape")
                 }
+                .accessibilityIdentifier("settings-button")
+                .accessibilityLabel("Settings")
+                .accessibilityHint("Open application settings")
             }
         }
         .sheet(isPresented: $viewModel.showNewEpisode, onDismiss: {
