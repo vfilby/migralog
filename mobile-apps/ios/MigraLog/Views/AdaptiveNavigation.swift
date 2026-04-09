@@ -4,12 +4,21 @@ import SwiftUI
 struct AdaptiveNavigation: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var selectedSection: NavigationSection = .dashboard
-    @State private var columnVisibility: NavigationSplitViewVisibility = .detailOnly
     @State private var selectedEpisodeId: String?
     @State private var selectedMedicationId: String?
     @State private var analyticsViewModel = AnalyticsViewModel()
     @State private var showAddOverlay = false
     @State private var editingOverlay: CalendarOverlay?
+
+    /// Whether the selected section uses a three-column layout (sidebar + list + detail)
+    private var usesThreeColumnLayout: Bool {
+        switch selectedSection {
+        case .episodes, .medications, .trends:
+            return true
+        case .dashboard, .settings:
+            return false
+        }
+    }
 
     var body: some View {
         if sizeClass == .regular {
@@ -19,10 +28,57 @@ struct AdaptiveNavigation: View {
         }
     }
 
-    // MARK: - iPad: Sidebar + Content
+    // MARK: - iPad Navigation
 
     private var iPadNavigation: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
+        Group {
+            if usesThreeColumnLayout {
+                iPadThreeColumnNavigation
+            } else {
+                iPadTwoColumnNavigation
+            }
+        }
+        .sheet(isPresented: $showAddOverlay, onDismiss: { Task { await analyticsViewModel.loadCalendarData(for: Date()) } }) {
+            NavigationStack {
+                OverlayFormSheet { overlay in
+                    Task { await analyticsViewModel.saveOverlay(overlay) }
+                }
+            }
+        }
+        .sheet(item: $editingOverlay, onDismiss: { Task { await analyticsViewModel.loadCalendarData(for: Date()) } }) { overlay in
+            NavigationStack {
+                OverlayFormSheet(overlay: overlay, onSave: { updated in
+                    Task { await analyticsViewModel.saveOverlay(updated) }
+                }, onDelete: { id in
+                    Task { await analyticsViewModel.deleteOverlay(id) }
+                })
+            }
+        }
+    }
+
+    // MARK: - Two-Column: Sidebar + Detail (Dashboard, Settings)
+
+    private var iPadTwoColumnNavigation: some View {
+        NavigationSplitView {
+            SidebarView(selection: $selectedSection)
+        } detail: {
+            NavigationStack {
+                switch selectedSection {
+                case .dashboard:
+                    DashboardScreen()
+                case .settings:
+                    SettingsScreen()
+                default:
+                    EmptyView()
+                }
+            }
+        }
+    }
+
+    // MARK: - Three-Column: Sidebar + List + Detail (Episodes, Medications, Trends)
+
+    private var iPadThreeColumnNavigation: some View {
+        NavigationSplitView {
             SidebarView(selection: $selectedSection)
         } content: {
             switch selectedSection {
@@ -42,8 +98,6 @@ struct AdaptiveNavigation: View {
         } detail: {
             NavigationStack {
                 switch selectedSection {
-                case .dashboard:
-                    DashboardScreen()
                 case .episodes:
                     if let episodeId = selectedEpisodeId {
                         EpisodeDetailScreen(episodeId: episodeId)
@@ -66,33 +120,9 @@ struct AdaptiveNavigation: View {
                     }
                 case .trends:
                     AnalyticsVisualizationPane(viewModel: analyticsViewModel)
-                case .settings:
-                    SettingsScreen()
+                default:
+                    EmptyView()
                 }
-            }
-        }
-        .sheet(isPresented: $showAddOverlay, onDismiss: { Task { await analyticsViewModel.loadCalendarData(for: Date()) } }) {
-            NavigationStack {
-                OverlayFormSheet { overlay in
-                    Task { await analyticsViewModel.saveOverlay(overlay) }
-                }
-            }
-        }
-        .sheet(item: $editingOverlay, onDismiss: { Task { await analyticsViewModel.loadCalendarData(for: Date()) } }) { overlay in
-            NavigationStack {
-                OverlayFormSheet(overlay: overlay, onSave: { updated in
-                    Task { await analyticsViewModel.saveOverlay(updated) }
-                }, onDelete: { id in
-                    Task { await analyticsViewModel.deleteOverlay(id) }
-                })
-            }
-        }
-        .onChange(of: selectedSection) { _, newValue in
-            switch newValue {
-            case .episodes, .medications, .trends:
-                columnVisibility = .all
-            case .dashboard, .settings:
-                columnVisibility = .detailOnly
             }
         }
     }
