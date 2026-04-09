@@ -763,8 +763,7 @@
 				LastUpgradeCheck = 1500;
 				TargetAttributes = {
 					3695A06F02E66C96E46AB30C = {
-						DevelopmentTeam = "";
-						ProvisioningStyle = Automatic;
+						DevelopmentTeam = 43DNX2P3T6;
 					};
 					EF4984D71320C720EA14A94D = {
 						TestTargetID = 3695A06F02E66C96E46AB30C;
@@ -1064,7 +1063,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 43DNX2P3T6;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = MigraLog/App/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1072,7 +1071,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.migralog.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.eff3.migralog;
 				SDKROOT = iphoneos;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1198,10 +1197,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = MigraLog/App/MigraLog.entitlements;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 43DNX2P3T6;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = MigraLog/App/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1209,7 +1208,8 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.migralog.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.eff3.migralog;
+				PROVISIONING_PROFILE_SPECIFIER = "MigraLog App Store";
 				SDKROOT = iphoneos;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				TARGETED_DEVICE_FAMILY = "1,2";
