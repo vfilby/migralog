@@ -12,7 +12,6 @@
 		0372A502032A02A39392750E /* EditPainLocationLogScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE6D8CCB2F92DF5EF290B066 /* EditPainLocationLogScreen.swift */; };
 		055AF4F8C351C8DB9461AE70 /* OnboardingUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 232D17AEE0F9291C479CD1C7 /* OnboardingUITests.swift */; };
 		05AA044EA783D666E98E81D9 /* EpisodeActionButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5324283BE5DD60BF140715F /* EpisodeActionButtons.swift */; };
-		AB59101BE43F4B349719C626 /* AdaptiveNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B707C937AC242159DE6DA30 /* AdaptiveNavigation.swift */; };
 		093B4FE1027E57E1CEBD643B /* DailyStatusUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51E3036FF5E4C4872E57D3C1 /* DailyStatusUITests.swift */; };
 		12878F9A2A0A6F26B3985759 /* DatabaseManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDDD638C20D39DA42D77E37 /* DatabaseManagerTests.swift */; };
 		1436CCBB593CDEDE4CB17E77 /* PresetMedications.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5FDFB70D7FBD2F40C33EEA2 /* PresetMedications.swift */; };
@@ -78,6 +77,7 @@
 		796AFB13119C6E3D86504CA8 /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F8B9C30690CBBBD832E0020 /* Logger.swift */; };
 		7A525B8D0D71FF77ADEA45D0 /* EditEpisodeNoteScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 342535FA23D1E520269A5F56 /* EditEpisodeNoteScreen.swift */; };
 		7F1E89BCE3CA857B918126AE /* MedicationNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FE8ECC3DA7FE72FE8D60A39 /* MedicationNotificationService.swift */; };
+		8104BEC89E7FB49DAC7B9E1B /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = A94F406EFF4E5DCB0805C800 /* Sentry */; };
 		81D0543475BA0D1E9C380EB7 /* EpisodeDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99FE225FDDAA5ECC550754B1 /* EpisodeDetailViewModel.swift */; };
 		8412219386D826F79CA5DBC8 /* FormattingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C0DA5788144F99438ADED9B /* FormattingTests.swift */; };
 		8496A87ED8AFB84730CBDF07 /* PainLocationGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86B0D6C1B51A39DFA4F4BB68 /* PainLocationGrid.swift */; };
@@ -124,6 +124,7 @@
 		D09928A9BF4CFA313D09DA09 /* EpisodeDetailViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17E20F8C4F2821974E317505 /* EpisodeDetailViewModelTests.swift */; };
 		D6085DBDEE6689987FC5518D /* LocationServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2AD1D8121EECFDA46211D60 /* LocationServiceTests.swift */; };
 		D683756FE92F809F3DF37B5D /* NotificationSlotCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E772101710689E022AD7303 /* NotificationSlotCalculator.swift */; };
+		DA97D06996DDCFA919153A49 /* AdaptiveNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCFC54BF563A2D05F70E109E /* AdaptiveNavigation.swift */; };
 		E189FA6D7C1661287B5A268A /* MedicationsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD9A1C95DF45ECBD6088584F /* MedicationsScreen.swift */; };
 		E200A2688B5F32E3423B71AE /* NotificationDismissalServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27D3A271598E0C2FBD9B61A2 /* NotificationDismissalServiceTests.swift */; };
 		E4011CB90D144F08B4F5B03D /* BackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 484FDF8A2D678821AF246097 /* BackupService.swift */; };
@@ -196,7 +197,6 @@
 		359A69C4722F9B57FC8FB98C /* DateFormatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateFormatting.swift; sourceTree = "<group>"; };
 		36D601C34628AD688451A40C /* Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatting.swift; sourceTree = "<group>"; };
 		37245558D03A5C02ED453484 /* AnalyticsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsScreen.swift; sourceTree = "<group>"; };
-		6B707C937AC242159DE6DA30 /* AdaptiveNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveNavigation.swift; sourceTree = "<group>"; };
 		37ECB95AD7F3FB5D454AE773 /* DatabaseErrorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseErrorView.swift; sourceTree = "<group>"; };
 		43DB91BCDA1108F02D4497B5 /* ScheduleSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleSheets.swift; sourceTree = "<group>"; };
 		43F4C6E5D8BA6E8376D07723 /* Notifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Notifications.swift; sourceTree = "<group>"; };
@@ -268,6 +268,7 @@
 		B6ACA4C8E92F6B53F4F7B743 /* NotificationDismissalService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDismissalService.swift; sourceTree = "<group>"; };
 		B9D384AA6DA7F843009EEC84 /* MedicationsListViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationsListViewModelTests.swift; sourceTree = "<group>"; };
 		BA496F22EB7B4101C8AB5AEE /* EpisodeRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpisodeRepositoryTests.swift; sourceTree = "<group>"; };
+		BCFC54BF563A2D05F70E109E /* AdaptiveNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveNavigation.swift; sourceTree = "<group>"; };
 		BD9A1C95DF45ECBD6088584F /* MedicationsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationsScreen.swift; sourceTree = "<group>"; };
 		BE6D8CCB2F92DF5EF290B066 /* EditPainLocationLogScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditPainLocationLogScreen.swift; sourceTree = "<group>"; };
 		C2233E1858D1C38591208DE6 /* MedicationDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationDetailViewModel.swift; sourceTree = "<group>"; };
@@ -319,6 +320,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				275309B305FDEA2B1A7955FE /* GRDB in Frameworks */,
+				8104BEC89E7FB49DAC7B9E1B /* Sentry in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -411,7 +413,7 @@
 		36346F29CBB271EDCEBA5AAB /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				6B707C937AC242159DE6DA30 /* AdaptiveNavigation.swift */,
+				BCFC54BF563A2D05F70E109E /* AdaptiveNavigation.swift */,
 				BC7D01FAD2C89215A16F30A2 /* Analytics */,
 				63B527C60BA652F4DD0B8D81 /* Components */,
 				05A4E1A9C39A0C3D98972DA9 /* DailyStatus */,
@@ -709,6 +711,7 @@
 			name = MigraLog;
 			packageProductDependencies = (
 				80DBC3423BE1A2096AA67982 /* GRDB */,
+				A94F406EFF4E5DCB0805C800 /* Sentry */,
 			);
 			productName = MigraLog;
 			productReference = E49D6D0E323E9E1225913B05 /* MigraLog.app */;
@@ -780,6 +783,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				80BC6CF689802B8FC0F13F65 /* XCRemoteSwiftPackageReference "GRDB.swift" */,
+				AEC609FD2BC09C4118A4F2EB /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
 			);
 			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
@@ -876,9 +880,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DA97D06996DDCFA919153A49 /* AdaptiveNavigation.swift in Sources */,
 				542422BA21D92779421169E3 /* AddMedicationScreen.swift in Sources */,
 				8510BF161AC00EB6BC9CA94B /* AddMedicationViewModel.swift in Sources */,
-				AB59101BE43F4B349719C626 /* AdaptiveNavigation.swift in Sources */,
 				C320950B59D3ABF34226C11D /* AnalyticsScreen.swift in Sources */,
 				5B4F7E5827C42A9A80403425 /* AnalyticsViewModel.swift in Sources */,
 				29755CB3B94B55DE3E6859C0 /* ArchivedMedicationsScreen.swift in Sources */,
@@ -1262,6 +1266,14 @@
 				minimumVersion = 7.0.0;
 			};
 		};
+		AEC609FD2BC09C4118A4F2EB /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/getsentry/sentry-cocoa";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -1269,6 +1281,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 80BC6CF689802B8FC0F13F65 /* XCRemoteSwiftPackageReference "GRDB.swift" */;
 			productName = GRDB;
+		};
+		A94F406EFF4E5DCB0805C800 /* Sentry */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AEC609FD2BC09C4118A4F2EB /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			productName = Sentry;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
