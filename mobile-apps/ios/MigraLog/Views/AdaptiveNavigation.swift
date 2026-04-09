@@ -6,6 +6,7 @@ struct AdaptiveNavigation: View {
     @State private var selectedSection: NavigationSection = .dashboard
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var selectedEpisodeId: String?
+    @State private var selectedMedicationId: String?
 
     var body: some View {
         if sizeClass == .regular {
@@ -24,6 +25,8 @@ struct AdaptiveNavigation: View {
             switch selectedSection {
             case .episodes:
                 EpisodesListColumn(selectedEpisodeId: $selectedEpisodeId)
+            case .medications:
+                MedicationsListColumn(selectedMedicationId: $selectedMedicationId)
             default:
                 EmptyView()
             }
@@ -43,7 +46,15 @@ struct AdaptiveNavigation: View {
                         )
                     }
                 case .medications:
-                    MedicationsScreen()
+                    if let medicationId = selectedMedicationId {
+                        MedicationDetailScreen(medicationId: medicationId)
+                    } else {
+                        ContentUnavailableView(
+                            "No Medication Selected",
+                            systemImage: "pills",
+                            description: Text("Select a medication to view details.")
+                        )
+                    }
                 case .trends:
                     AnalyticsScreen()
                 case .settings:
