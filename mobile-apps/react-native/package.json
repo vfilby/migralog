@@ -50,7 +50,7 @@
     "expo-file-system": "~19.0.16",
     "expo-image-picker": "~17.0.10",
     "expo-location": "~19.0.8",
-    "expo-notifications": "~0.32.15",
+    "expo-notifications": "~55.0.14",
     "expo-sharing": "~14.0.8",
     "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.9",
