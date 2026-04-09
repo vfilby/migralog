@@ -116,6 +116,82 @@ struct MedicationRowView: View {
     }
 }
 
+/// Medications list adapted for the iPad content column.
+/// Uses selection binding instead of NavigationLink destination push.
+struct MedicationsListColumn: View {
+    @Binding var selectedMedicationId: String?
+    @State private var viewModel = MedicationsListViewModel()
+
+    var body: some View {
+        List(selection: $selectedMedicationId) {
+            if !viewModel.preventativeMedications.isEmpty {
+                Section("Preventative") {
+                    ForEach(viewModel.preventativeMedications) { med in
+                        MedicationRowView(medication: med)
+                            .tag(med.id)
+                    }
+                }
+            }
+
+            if !viewModel.rescueMedications.isEmpty {
+                Section("Rescue") {
+                    ForEach(viewModel.rescueMedications) { med in
+                        MedicationRowView(medication: med)
+                            .tag(med.id)
+                    }
+                }
+            }
+
+            if !viewModel.otherMedications.isEmpty {
+                Section("Other") {
+                    ForEach(viewModel.otherMedications) { med in
+                        MedicationRowView(medication: med)
+                            .tag(med.id)
+                    }
+                }
+            }
+
+            Section {
+                NavigationLink {
+                    ArchivedMedicationsScreen()
+                } label: {
+                    Text("Archived")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle("Medications")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink {
+                    AddMedicationScreen()
+                } label: {
+                    Image(systemName: "plus")
+                }
+            }
+        }
+        .overlay {
+            if viewModel.preventativeMedications.isEmpty &&
+                viewModel.rescueMedications.isEmpty &&
+                viewModel.otherMedications.isEmpty &&
+                !viewModel.isLoading {
+                ContentUnavailableView(
+                    "No Medications",
+                    systemImage: "pills",
+                    description: Text("Add your first medication using the + button.")
+                )
+            }
+        }
+        .task {
+            await viewModel.loadMedications()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .medicationDataChanged)) { _ in
+            Task { await viewModel.loadMedications() }
+        }
+    }
+}
+
 /// Colored badge for medication type (Preventative/Rescue/Other)
 struct MedicationTypeBadge: View {
     let type: MedicationType

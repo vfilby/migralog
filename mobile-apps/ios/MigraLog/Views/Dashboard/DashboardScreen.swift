@@ -5,66 +5,30 @@ struct DashboardScreen: View {
     @State private var viewModel = DashboardViewModel()
     @State private var refreshId = UUID()
     @State private var refreshTask: Task<Void, Never>?
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
-                // 1. Today's Medications
-                TodaysMedicationsCard(viewModel: viewModel)
-
-                // 2. Daily Status Widget (Log Your Day)
-                DailyStatusWidgetView(viewModel: viewModel)
-
-                // 3. Action Buttons - side by side
-                HStack(spacing: 12) {
-                    Button {
-                        viewModel.showNewEpisode = true
-                    } label: {
-                        Label("Start Episode", systemImage: "plus.circle.fill")
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                            .fontWeight(.semibold)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                            .background(Color.accentColor)
-                            .foregroundStyle(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                    }
-                    .accessibilityIdentifier("start-episode-button")
-                    .accessibilityHint("Start tracking a new migraine episode")
-
-                    Button {
-                        viewModel.showLogMedication = true
-                    } label: {
-                        Label("Log Medication", systemImage: "pills.circle.fill")
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                            .background(Color.blue.opacity(0.1))
-                            .foregroundStyle(.blue)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                    }
-                    .accessibilityIdentifier("log-medication-button")
-                }
-
-                // 4/5/6. Recent Episodes (title, ongoing, closed)
-                RecentEpisodesCard(viewModel: viewModel)
+            if sizeClass == .regular {
+                iPadDashboardLayout
+            } else {
+                iPhoneDashboardLayout
             }
-            .padding()
         }
         .navigationTitle("MigraLog")
         .accessibilityIdentifier("dashboard-title")
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink {
-                    SettingsScreen()
-                } label: {
-                    Image(systemName: "gearshape")
+            if sizeClass != .regular {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        SettingsScreen()
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .accessibilityIdentifier("settings-button")
+                    .accessibilityLabel("Settings")
+                    .accessibilityHint("Open application settings")
                 }
-                .accessibilityIdentifier("settings-button")
-                .accessibilityLabel("Settings")
-                .accessibilityHint("Open application settings")
             }
         }
         .sheet(isPresented: $viewModel.showNewEpisode, onDismiss: {
@@ -95,6 +59,79 @@ struct DashboardScreen: View {
                 refreshId = UUID()
             }
         }
+    }
+
+    // MARK: - iPhone Layout (existing single-column)
+
+    private var iPhoneDashboardLayout: some View {
+        VStack(spacing: 16) {
+            TodaysMedicationsCard(viewModel: viewModel)
+            DailyStatusWidgetView(viewModel: viewModel)
+            HStack(spacing: 12) {
+                startEpisodeButton
+                logMedicationButton
+            }
+            RecentEpisodesCard(viewModel: viewModel)
+        }
+        .padding()
+    }
+
+    // MARK: - iPad Layout (two-column grid)
+
+    private var iPadDashboardLayout: some View {
+        VStack(spacing: 16) {
+            // Row 1: Medications + Daily Status side by side
+            HStack(alignment: .top, spacing: 16) {
+                TodaysMedicationsCard(viewModel: viewModel)
+                    .frame(maxWidth: .infinity)
+                DailyStatusWidgetView(viewModel: viewModel)
+                    .frame(maxWidth: .infinity)
+            }
+
+            // Row 2: Action buttons full width
+            HStack(spacing: 12) {
+                startEpisodeButton
+                logMedicationButton
+            }
+
+            // Row 3: Recent episodes full width
+            RecentEpisodesCard(viewModel: viewModel)
+        }
+        .padding()
+    }
+
+    private var startEpisodeButton: some View {
+        Button {
+            viewModel.showNewEpisode = true
+        } label: {
+            Label("Start Episode", systemImage: "plus.circle.fill")
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .fontWeight(.semibold)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(Color.accentColor)
+                .foregroundStyle(.white)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .accessibilityIdentifier("start-episode-button")
+        .accessibilityHint("Start tracking a new migraine episode")
+    }
+
+    private var logMedicationButton: some View {
+        Button {
+            viewModel.showLogMedication = true
+        } label: {
+            Label("Log Medication", systemImage: "pills.circle.fill")
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(Color.blue.opacity(0.1))
+                .foregroundStyle(.blue)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .accessibilityIdentifier("log-medication-button")
     }
 }
 

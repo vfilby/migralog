@@ -107,3 +107,38 @@ struct EpisodeCardView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
+
+// MARK: - iPad Content Column
+
+/// Episodes list adapted for the iPad content column.
+/// Uses selection binding instead of NavigationLink destination push.
+struct EpisodesListColumn: View {
+    @Binding var selectedEpisodeId: String?
+    @State private var viewModel = EpisodesListViewModel()
+
+    var body: some View {
+        Group {
+            if viewModel.episodes.isEmpty && !viewModel.isLoading {
+                ContentUnavailableView(
+                    "No Episodes",
+                    systemImage: "bolt.heart",
+                    description: Text("Start tracking your first migraine episode from the Dashboard.")
+                )
+            } else {
+                List(viewModel.episodes, selection: $selectedEpisodeId) { episode in
+                    EpisodeCardView(
+                        episode: episode,
+                        readings: viewModel.readingsMap[episode.id] ?? []
+                    )
+                    .tag(episode.id)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
+                }
+                .listStyle(.plain)
+            }
+        }
+        .navigationTitle("Episodes")
+        .task {
+            await viewModel.loadEpisodes()
+        }
+    }
+}
