@@ -7,6 +7,9 @@ struct AdaptiveNavigation: View {
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var selectedEpisodeId: String?
     @State private var selectedMedicationId: String?
+    @State private var analyticsViewModel = AnalyticsViewModel()
+    @State private var showAddOverlay = false
+    @State private var editingOverlay: CalendarOverlay?
 
     var body: some View {
         if sizeClass == .regular {
@@ -27,6 +30,12 @@ struct AdaptiveNavigation: View {
                 EpisodesListColumn(selectedEpisodeId: $selectedEpisodeId)
             case .medications:
                 MedicationsListColumn(selectedMedicationId: $selectedMedicationId)
+            case .trends:
+                AnalyticsControlsColumn(
+                    viewModel: analyticsViewModel,
+                    onAddOverlay: { showAddOverlay = true },
+                    onEditOverlay: { editingOverlay = $0 }
+                )
             default:
                 EmptyView()
             }
@@ -56,10 +65,26 @@ struct AdaptiveNavigation: View {
                         )
                     }
                 case .trends:
-                    AnalyticsScreen()
+                    AnalyticsVisualizationPane(viewModel: analyticsViewModel)
                 case .settings:
                     SettingsScreen()
                 }
+            }
+        }
+        .sheet(isPresented: $showAddOverlay, onDismiss: { Task { await analyticsViewModel.loadCalendarData(for: Date()) } }) {
+            NavigationStack {
+                OverlayFormSheet { overlay in
+                    Task { await analyticsViewModel.saveOverlay(overlay) }
+                }
+            }
+        }
+        .sheet(item: $editingOverlay, onDismiss: { Task { await analyticsViewModel.loadCalendarData(for: Date()) } }) { overlay in
+            NavigationStack {
+                OverlayFormSheet(overlay: overlay, onSave: { updated in
+                    Task { await analyticsViewModel.saveOverlay(updated) }
+                }, onDelete: { id in
+                    Task { await analyticsViewModel.deleteOverlay(id) }
+                })
             }
         }
     }

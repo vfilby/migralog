@@ -459,3 +459,161 @@ struct OverlayListCard: View {
         return "\(overlay.startDate) — Ongoing"
     }
 }
+
+// MARK: - iPad Split Views
+
+/// Controls and statistics for the iPad narrow column.
+struct AnalyticsControlsColumn: View {
+    @Bindable var viewModel: AnalyticsViewModel
+    var onAddOverlay: () -> Void
+    var onEditOverlay: (CalendarOverlay) -> Void
+
+    var body: some View {
+        List {
+            Section("Time Range") {
+                TimeRangeSelectorView(viewModel: viewModel)
+            }
+
+            Section("Day Statistics") {
+                DayStatisticsContent(viewModel: viewModel)
+            }
+
+            Section("Episodes") {
+                EpisodeStatisticsContent(viewModel: viewModel)
+            }
+
+            Section("Duration") {
+                DurationMetricsContent(viewModel: viewModel)
+            }
+
+            Section("Rescue Medication Usage") {
+                MedicationUsageContent(viewModel: viewModel)
+            }
+
+            Section("Overlays") {
+                OverlayListContent(
+                    overlays: viewModel.calendarOverlays,
+                    onAdd: onAddOverlay,
+                    onEdit: onEditOverlay
+                )
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle("Trends")
+    }
+}
+
+// MARK: - Inline content views for iPad list sections
+
+private struct DayStatisticsContent: View {
+    @Bindable var viewModel: AnalyticsViewModel
+
+    var body: some View {
+        HStack {
+            StatRow(label: "Migraine", value: "\(viewModel.migraineDays)", color: .red)
+            Spacer()
+            StatRow(label: "Not-clear", value: "\(viewModel.notClearDays)", color: .yellow)
+            Spacer()
+            StatRow(label: "Clear", value: "\(viewModel.clearDays)", color: .green)
+            Spacer()
+            StatRow(label: "Unknown", value: "\(viewModel.unknownDays)", color: .gray)
+        }
+    }
+}
+
+private struct EpisodeStatisticsContent: View {
+    @Bindable var viewModel: AnalyticsViewModel
+
+    var body: some View {
+        if viewModel.episodes.isEmpty {
+            Text("No episodes in selected period")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        } else {
+            LabeledContent("Total") {
+                Text("\(viewModel.episodes.count)")
+            }
+        }
+    }
+}
+
+private struct DurationMetricsContent: View {
+    @Bindable var viewModel: AnalyticsViewModel
+
+    var body: some View {
+        let durations = viewModel.episodes.compactMap { $0.durationMillis }
+        if durations.isEmpty {
+            Text("No data")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        } else {
+            LabeledContent("Shortest") {
+                Text(DateFormatting.formatDuration(milliseconds: durations.min() ?? 0))
+            }
+            LabeledContent("Longest") {
+                Text(DateFormatting.formatDuration(milliseconds: durations.max() ?? 0))
+            }
+            LabeledContent("Average") {
+                let avg = durations.reduce(0, +) / Int64(durations.count)
+                Text(DateFormatting.formatDuration(milliseconds: avg))
+            }
+        }
+    }
+}
+
+private struct MedicationUsageContent: View {
+    @Bindable var viewModel: AnalyticsViewModel
+
+    var body: some View {
+        if viewModel.rescueDoses.isEmpty {
+            Text("No rescue medication usage in selected period")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        } else {
+            ForEach(viewModel.medicationUsageSummary, id: \.name) { usage in
+                LabeledContent(usage.name) {
+                    Text("\(usage.count) doses")
+                }
+            }
+        }
+    }
+}
+
+private struct OverlayListContent: View {
+    let overlays: [CalendarOverlay]
+    var onAdd: () -> Void
+    var onEdit: (CalendarOverlay) -> Void
+
+    var body: some View {
+        Button { onAdd() } label: {
+            Label("Add Overlay", systemImage: "plus.circle")
+        }
+
+        ForEach(overlays) { overlay in
+            Button { onEdit(overlay) } label: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(overlay.label)
+                        .font(.subheadline.weight(.medium))
+                    Text("\(overlay.startDate) — \(overlay.endDate ?? "Ongoing")")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .buttonStyle(.plain)
+        }
+    }
+}
+
+/// Calendar and visualizations for the iPad wide pane.
+struct AnalyticsVisualizationPane: View {
+    @Bindable var viewModel: AnalyticsViewModel
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                MonthlyCalendarView(viewModel: viewModel)
+            }
+            .padding()
+        }
+    }
+}
