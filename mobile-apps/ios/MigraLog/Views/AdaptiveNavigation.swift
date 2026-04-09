@@ -144,24 +144,29 @@ struct SidebarView: View {
     @Binding var selection: NavigationSection
 
     var body: some View {
-        List(selection: $selection) {
+        List {
             Section {
-                Label("Dashboard", systemImage: "house")
-                    .tag(NavigationSection.dashboard)
-                Label("Episodes", systemImage: "bolt.heart")
-                    .tag(NavigationSection.episodes)
-                Label("Medications", systemImage: "pills")
-                    .tag(NavigationSection.medications)
-                Label("Trends", systemImage: "chart.bar")
-                    .tag(NavigationSection.trends)
+                sidebarButton(.dashboard, label: "Dashboard", icon: "house")
+                sidebarButton(.episodes, label: "Episodes", icon: "bolt.heart")
+                sidebarButton(.medications, label: "Medications", icon: "pills")
+                sidebarButton(.trends, label: "Trends", icon: "chart.bar")
             }
 
             Section {
-                Label("Settings", systemImage: "gearshape")
-                    .tag(NavigationSection.settings)
+                sidebarButton(.settings, label: "Settings", icon: "gearshape")
             }
         }
         .navigationTitle("MigraLog")
         .listStyle(.sidebar)
+    }
+
+    private func sidebarButton(_ section: NavigationSection, label: String, icon: String) -> some View {
+        Button {
+            selection = section
+        } label: {
+            Label(label, systemImage: icon)
+        }
+        .listRowBackground(selection == section ? Color.accentColor.opacity(0.2) : nil)
+        .foregroundStyle(selection == section ? Color.accentColor : .primary)
     }
 }
