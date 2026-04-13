@@ -110,6 +110,75 @@ struct EpisodeCardView: View {
 
 // MARK: - iPad Content Column
 
+/// Plain list row for Episodes iPad list column.
+/// No card background — relies on List's native selection highlight for visual feedback.
+struct EpisodeListRowView: View {
+    let episode: Episode
+    let readings: [IntensityReading]
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(DateFormatting.relativeDate(episode.startDate))
+                        .font(.headline)
+                    if episode.isActive {
+                        Text("Ongoing")
+                            .font(.caption)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.red.opacity(0.2))
+                            .foregroundStyle(.red)
+                            .clipShape(Capsule())
+                    }
+                }
+
+                if episode.latitude != nil {
+                    Label("Location recorded", systemImage: "location.fill")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                HStack {
+                    Text(DateFormatting.displayTime(episode.startDate))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    if let endDate = episode.endDate {
+                        Text("— \(DateFormatting.displayTime(endDate))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                if let duration = episode.durationMillis {
+                    Text(DateFormatting.formatDuration(milliseconds: duration))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text(DateFormatting.formatDuration(from: episode.startTime, to: nil))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer(minLength: 8)
+
+            if !readings.isEmpty {
+                IntensitySparklineView(
+                    readings: readings,
+                    episodeStart: episode.startTime,
+                    episodeEnd: episode.endTime
+                )
+                .frame(width: 140, height: 44)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}
+
 /// Episodes list adapted for the iPad content column.
 /// Uses selection binding instead of NavigationLink destination push.
 struct EpisodesListColumn: View {
@@ -126,14 +195,13 @@ struct EpisodesListColumn: View {
                 )
             } else {
                 List(viewModel.episodes, selection: $selectedEpisodeId) { episode in
-                    EpisodeCardView(
+                    EpisodeListRowView(
                         episode: episode,
                         readings: viewModel.readingsMap[episode.id] ?? []
                     )
                     .tag(episode.id)
-                    .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
                 }
-                .listStyle(.plain)
+                .listStyle(.insetGrouped)
             }
         }
         .navigationTitle("Episodes")

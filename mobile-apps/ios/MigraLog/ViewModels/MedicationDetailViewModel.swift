@@ -87,12 +87,25 @@ final class MedicationDetailViewModel {
     @MainActor
     func logDoseNow() async {
         guard let med = medication else { return }
+        await logDose(
+            quantity: med.defaultQuantity ?? 1.0,
+            at: Date(),
+            notes: nil
+        )
+    }
+
+    /// Log a dose with explicit quantity, timestamp, and optional notes.
+    /// Used by the "Log with Details…" flow so users can backdate or adjust amount.
+    @MainActor
+    func logDose(quantity: Double, at date: Date, notes: String?) async {
+        guard let med = medication else { return }
         let now = TimestampHelper.now
+        let timestamp = TimestampHelper.fromDate(date)
         let dose = MedicationDose(
             id: UUID().uuidString,
             medicationId: med.id,
-            timestamp: now,
-            quantity: med.defaultQuantity ?? 1.0,
+            timestamp: timestamp,
+            quantity: quantity,
             dosageAmount: med.dosageAmount,
             dosageUnit: med.dosageUnit,
             status: .taken,
@@ -100,13 +113,14 @@ final class MedicationDetailViewModel {
             effectivenessRating: nil,
             timeToRelief: nil,
             sideEffects: [],
-            notes: nil,
+            notes: notes,
             createdAt: now,
             updatedAt: now
         )
         do {
             let saved = try await medicationRepository.createDose(dose)
             recentDoses.insert(saved, at: 0)
+            recentDoses.sort { $0.timestamp > $1.timestamp }
 
             // Cancel today's reminder and follow-up notifications for this medication
             let today = DateFormatting.dateString(from: Date())

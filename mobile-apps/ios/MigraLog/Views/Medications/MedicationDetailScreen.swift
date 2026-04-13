@@ -11,6 +11,7 @@ struct MedicationDetailScreen: View {
     @State private var shouldDismissAfterArchive = false
     @State private var showAddSchedule = false
     @State private var showEditSchedule: MedicationSchedule? = nil
+    @State private var showLogDoseDetails = false
 
     var body: some View {
         Group {
@@ -23,11 +24,11 @@ struct MedicationDetailScreen: View {
                         // Schedules
                         schedulesSection(medication)
 
-                        // Log dose button
+                        // Log dose button — opens details sheet pre-filled to now
                         Button {
-                            Task { await viewModel.logDoseNow() }
+                            showLogDoseDetails = true
                         } label: {
-                            Label("Log Dose Now", systemImage: "plus.circle.fill")
+                            Label("Log Dose", systemImage: "plus.circle.fill")
                                 .frame(maxWidth: .infinity)
                                 .padding()
                                 .background(Color.accentColor)
@@ -94,6 +95,11 @@ struct MedicationDetailScreen: View {
         }
         .sheet(item: $showEditSchedule) { schedule in
             EditScheduleSheet(schedule: schedule, viewModel: viewModel)
+        }
+        .sheet(isPresented: $showLogDoseDetails) {
+            if let medication = viewModel.medication {
+                LogDoseDetailsSheet(medication: medication, viewModel: viewModel)
+            }
         }
         .alert("Archive Medication", isPresented: $showArchiveConfirm) {
             Button("Archive", role: .destructive) {
@@ -242,6 +248,43 @@ struct MedicationDetailScreen: View {
     }
 
     @ViewBuilder
+    private func doseRow(_ dose: MedicationDose) -> some View {
+        HStack {
+            DoseRowView(dose: dose, medication: viewModel.medication)
+            Spacer(minLength: 8)
+            Menu {
+                Button {
+                    showEditDose = dose
+                } label: {
+                    Label("Edit", systemImage: "pencil")
+                }
+                Button(role: .destructive) {
+                    showDeleteDoseConfirm = dose
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 4)
+            }
+            .accessibilityIdentifier("dose-menu-\(dose.id)")
+        }
+        .contextMenu {
+            Button {
+                showEditDose = dose
+            } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+            Button(role: .destructive) {
+                showDeleteDoseConfirm = dose
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+    }
+
+    @ViewBuilder
     private func recentActivitySection() -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Recent Activity")
@@ -253,19 +296,7 @@ struct MedicationDetailScreen: View {
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(viewModel.recentDoses) { dose in
-                    DoseRowView(dose: dose, medication: viewModel.medication)
-                        .contextMenu {
-                            Button {
-                                showEditDose = dose
-                            } label: {
-                                Label("Edit", systemImage: "pencil")
-                            }
-                            Button(role: .destructive) {
-                                showDeleteDoseConfirm = dose
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
+                    doseRow(dose)
                 }
             }
         }

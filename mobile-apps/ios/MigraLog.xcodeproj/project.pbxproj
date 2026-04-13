@@ -20,6 +20,7 @@
 		18C6ED3634A20309D3DD8261 /* DashboardScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A2E67E4C892295C79FB921A /* DashboardScreen.swift */; };
 		1E0C194DD5F1D49F41D0A8CE /* OverlayViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B19B1C6FAE518243CD36DD2 /* OverlayViewModel.swift */; };
 		2247422882867F75EF1E622A /* MedicationDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2233E1858D1C38591208DE6 /* MedicationDetailViewModel.swift */; };
+		23289DBE01CF0B03EDE10F56 /* LogDoseDetailsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FDE26D3D3A7CA486455358F /* LogDoseDetailsSheet.swift */; };
 		24224A844AA8996A1D41BDA9 /* MigraLogApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53B9B49D6986869DAE5B4A07 /* MigraLogApp.swift */; };
 		275309B305FDEA2B1A7955FE /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 80DBC3423BE1A2096AA67982 /* GRDB */; };
 		27A0391303646CF5E48C1247 /* LogMedicationViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9E432E407C0D036939A0788 /* LogMedicationViewModelTests.swift */; };
@@ -85,6 +86,7 @@
 		87F25A63EC5156E4D0819674 /* MedicationTypeColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607D34D4F6637214F7B05DD8 /* MedicationTypeColors.swift */; };
 		8B0F482B6F32B51DAD53AD0F /* AnalyticsViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D3F7165AEE8A6DFA8A24BA3 /* AnalyticsViewModelTests.swift */; };
 		96763618847DBF5CF4F697AC /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 859A5576CD7D5A38E8B31B35 /* ContentView.swift */; };
+		9E3BE09BF5DB1CA80A42CA6C /* TimezoneChangeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AFC602F51C0713E7E983A25 /* TimezoneChangeService.swift */; };
 		A0AD7D5F9D72936BBA6CBA40 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 972F942EC9953A772E2CB7F6 /* NotificationService.swift */; };
 		A2A6E4814E0903CAC38CE7E0 /* DailyStatusViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5C72860862DA711BCBEAFCE /* DailyStatusViewModelTests.swift */; };
 		A3A0B35A002D0F5157770952 /* ErrorLoggerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02485161F9226C6D742EC36C /* ErrorLoggerTests.swift */; };
@@ -169,6 +171,7 @@
 
 /* Begin PBXFileReference section */
 		02485161F9226C6D742EC36C /* ErrorLoggerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorLoggerTests.swift; sourceTree = "<group>"; };
+		0FDE26D3D3A7CA486455358F /* LogDoseDetailsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogDoseDetailsSheet.swift; sourceTree = "<group>"; };
 		10A99C28CDBEEE4B30A7A108 /* NotificationIntegrityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationIntegrityService.swift; sourceTree = "<group>"; };
 		113CA1FF77A2157F0AA0DD18 /* EpisodeDetailScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpisodeDetailScreen.swift; sourceTree = "<group>"; };
 		11EFBDDC04C82745B1D2D08A /* OverlayRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayRepository.swift; sourceTree = "<group>"; };
@@ -186,6 +189,7 @@
 		232D17AEE0F9291C479CD1C7 /* OnboardingUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingUITests.swift; sourceTree = "<group>"; };
 		24958A6C17AF95BAC07D7A8E /* EpisodeValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpisodeValidationTests.swift; sourceTree = "<group>"; };
 		27D3A271598E0C2FBD9B61A2 /* NotificationDismissalServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDismissalServiceTests.swift; sourceTree = "<group>"; };
+		2AFC602F51C0713E7E983A25 /* TimezoneChangeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimezoneChangeService.swift; sourceTree = "<group>"; };
 		2B616E302896B7AB4F10050D /* DailyCheckinNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyCheckinNotificationService.swift; sourceTree = "<group>"; };
 		2D3F7165AEE8A6DFA8A24BA3 /* AnalyticsViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsViewModelTests.swift; sourceTree = "<group>"; };
 		2DDF073B14BA448A9118494E /* EpisodesListViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpisodesListViewModelTests.swift; sourceTree = "<group>"; };
@@ -464,6 +468,7 @@
 				B06640B1C2F15795CC008C8B /* ArchivedMedicationsScreen.swift */,
 				B2FFA573403CE8CEB235A4EB /* EditDoseScreen.swift */,
 				A1F530B6FA951887607EF386 /* EditMedicationScreen.swift */,
+				0FDE26D3D3A7CA486455358F /* LogDoseDetailsSheet.swift */,
 				FDB0104AB326599E783CEEB8 /* LogMedicationScreen.swift */,
 				16B045A32358BEE5636C8C7D /* MedicationDetailScreen.swift */,
 				BD9A1C95DF45ECBD6088584F /* MedicationsScreen.swift */,
@@ -567,6 +572,7 @@
 				972F942EC9953A772E2CB7F6 /* NotificationService.swift */,
 				9E772101710689E022AD7303 /* NotificationSlotCalculator.swift */,
 				7ED444111958701D34C394EC /* SentrySetup.swift */,
+				2AFC602F51C0713E7E983A25 /* TimezoneChangeService.swift */,
 				2DDF642917EDCDFE97E3E8E6 /* ToastService.swift */,
 			);
 			path = Services;
@@ -924,6 +930,7 @@
 				B1F26570728A8FCC45DEAB94 /* IntensitySparklineView.swift in Sources */,
 				54A8ABCB153D69F200FE93A3 /* LocationService.swift in Sources */,
 				545F02A7E17730DADEF9269F /* LocationSettingsScreen.swift in Sources */,
+				23289DBE01CF0B03EDE10F56 /* LogDoseDetailsSheet.swift in Sources */,
 				4BB7C163B4BE5DF919DC9474 /* LogMedicationScreen.swift in Sources */,
 				540E206542F9813929D8AB75 /* LogMedicationViewModel.swift in Sources */,
 				2A1B4DD1A4D7094B0FF06414 /* LogUpdateScreen.swift in Sources */,
@@ -961,6 +968,7 @@
 				B75C8855AEF1DF6B07E89637 /* SentrySetup.swift in Sources */,
 				E608556506A3EEA3B97331E2 /* SettingsScreen.swift in Sources */,
 				37D0E1F50505C0DC8E0E210D /* TimelineView.swift in Sources */,
+				9E3BE09BF5DB1CA80A42CA6C /* TimezoneChangeService.swift in Sources */,
 				F52FE6FFA0FC59B2F7F661AE /* ToastService.swift in Sources */,
 				3B745F8028D5288F87D70081 /* WelcomeScreen.swift in Sources */,
 			);

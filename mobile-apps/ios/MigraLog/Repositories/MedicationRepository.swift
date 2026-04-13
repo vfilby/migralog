@@ -389,6 +389,17 @@ final class MedicationRepository: MedicationRepositoryProtocol {
         }
     }
 
+    /// Total enabled medication schedules. Used by TimezoneChangeService to decide
+    /// whether a timezone-change prompt is warranted.
+    func countAllSchedules() throws -> Int {
+        try dbManager.dbQueue.read { db in
+            try Int.fetchOne(
+                db,
+                sql: "SELECT COUNT(*) FROM medication_schedules WHERE enabled = 1"
+            ) ?? 0
+        }
+    }
+
     // MARK: - Row Mapping
 
     static func medicationFromRow(_ row: Row) -> Medication {

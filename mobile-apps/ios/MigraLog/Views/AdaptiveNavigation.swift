@@ -3,7 +3,7 @@ import SwiftUI
 /// Top-level navigation using a tab bar on all devices.
 /// On iPad, list-detail tabs use NavigationSplitView internally for two-column layout.
 struct AdaptiveNavigation: View {
-    @State private var selectedTab: TabSection = .dashboard
+    @Binding var selectedTab: TabSection
 
     var body: some View {
         TabView(selection: $selectedTab) {
