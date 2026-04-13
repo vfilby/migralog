@@ -6,6 +6,7 @@ struct EditDoseScreen: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var quantity: String
+    @State private var timestamp: Date
     @State private var effectivenessRating: Double?
     @State private var notes: String
     @State private var showValidationAlert = false
@@ -15,6 +16,7 @@ struct EditDoseScreen: View {
         self.dose = dose
         self.viewModel = viewModel
         _quantity = State(initialValue: String(dose.quantity))
+        _timestamp = State(initialValue: dose.date)
         _effectivenessRating = State(initialValue: dose.effectivenessRating)
         _notes = State(initialValue: dose.notes ?? "")
     }
@@ -25,6 +27,16 @@ struct EditDoseScreen: View {
                 TextField("Quantity", text: $quantity)
                     .keyboardType(.decimalPad)
                     .accessibilityIdentifier("dose-amount-input")
+            }
+
+            Section("Time") {
+                DatePicker(
+                    "Taken at",
+                    selection: $timestamp,
+                    in: ...Date(),
+                    displayedComponents: [.date, .hourAndMinute]
+                )
+                .accessibilityIdentifier("dose-time-picker")
             }
 
             Section("Effectiveness") {
@@ -85,6 +97,7 @@ struct EditDoseScreen: View {
 
         var updated = dose
         updated.quantity = qty
+        updated.timestamp = TimestampHelper.fromDate(timestamp)
         updated.effectivenessRating = effectivenessRating
         updated.notes = notes.isEmpty ? nil : notes
         updated.updatedAt = TimestampHelper.now

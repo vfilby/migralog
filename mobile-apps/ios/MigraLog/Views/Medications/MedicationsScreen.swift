@@ -116,6 +116,36 @@ struct MedicationRowView: View {
     }
 }
 
+/// Plain list row for Medications iPad list column.
+/// Avoids `.secondary` foreground styles that fade on List selection highlight.
+struct MedicationListRowView: View {
+    let medication: Medication
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(medication.name)
+                .font(.headline)
+                .foregroundStyle(.primary)
+            Text(MedicationFormatting.formatDosage(amount: medication.dosageAmount, unit: medication.dosageUnit))
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+            HStack(spacing: 6) {
+                MedicationTypeBadge(type: medication.type)
+                if let category = medication.category {
+                    Text(category.displayName)
+                        .font(.caption2.weight(.semibold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .foregroundStyle(.primary)
+                        .background(Color(.systemGray5))
+                        .clipShape(Capsule())
+                }
+            }
+        }
+        .padding(.vertical, 2)
+    }
+}
+
 /// Medications list adapted for the iPad content column.
 /// Uses selection binding instead of NavigationLink destination push.
 struct MedicationsListColumn: View {
@@ -127,7 +157,7 @@ struct MedicationsListColumn: View {
             if !viewModel.preventativeMedications.isEmpty {
                 Section("Preventative") {
                     ForEach(viewModel.preventativeMedications) { med in
-                        MedicationRowView(medication: med)
+                        MedicationListRowView(medication: med)
                             .tag(med.id)
                     }
                 }
@@ -136,7 +166,7 @@ struct MedicationsListColumn: View {
             if !viewModel.rescueMedications.isEmpty {
                 Section("Rescue") {
                     ForEach(viewModel.rescueMedications) { med in
-                        MedicationRowView(medication: med)
+                        MedicationListRowView(medication: med)
                             .tag(med.id)
                     }
                 }
@@ -145,7 +175,7 @@ struct MedicationsListColumn: View {
             if !viewModel.otherMedications.isEmpty {
                 Section("Other") {
                     ForEach(viewModel.otherMedications) { med in
-                        MedicationRowView(medication: med)
+                        MedicationListRowView(medication: med)
                             .tag(med.id)
                     }
                 }

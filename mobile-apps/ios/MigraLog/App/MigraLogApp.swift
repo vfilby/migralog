@@ -10,6 +10,7 @@ struct MigraLogApp: App {
     private let reconciliationService: NotificationReconciliationService
     private let medicationNotificationService: MedicationNotificationScheduler
     private let dailyCheckinService: DailyCheckinNotificationService
+    @State private var timezoneChangeService: TimezoneChangeService
 
     init() {
         SentrySetup.start()
@@ -50,16 +51,22 @@ struct MigraLogApp: App {
 
         // Set the delegate before the app finishes launching so we don't miss any responses
         UNUserNotificationCenter.current().delegate = handler
+
+        self._timezoneChangeService = State(
+            initialValue: TimezoneChangeService(medicationRepo: medicationRepository)
+        )
     }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environment(appState)
+                .environment(timezoneChangeService)
                 .task {
                     await reconciliationService.reconcile()
                     await medicationNotificationService.topUp()
                     try? await dailyCheckinService.scheduleNotifications()
+                    await timezoneChangeService.checkForChange()
                 }
         }
     }
