@@ -23,6 +23,7 @@ struct LogMedicationScreen: View {
                     ForEach(allMeds) { med in
                         LogMedicationCard(
                             medication: med,
+                            lastDose: viewModel.lastDoseByMedication[med.id],
                             onQuickLog: {
                                 Task {
                                     await quickLog(med)
@@ -71,10 +72,17 @@ struct LogMedicationScreen: View {
 
 struct LogMedicationCard: View {
     let medication: Medication
+    var lastDose: MedicationDose? = nil
     let onQuickLog: () -> Void
     let onDetails: () -> Void
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    private var cooldownStatus: MedicationCooldown.Status {
+        MedicationCooldown.evaluate(medication: medication, lastDose: lastDose)
+    }
 
     var body: some View {
+        let status = cooldownStatus
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(medication.name)
@@ -84,14 +92,28 @@ struct LogMedicationCard: View {
                     .foregroundStyle(.secondary)
             }
 
+            if sizeClass == .regular, status.isOnCooldown, let summary = MedicationCooldown.summary(status) {
+                Label(summary, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .accessibilityIdentifier("cooldown-warning-\(medication.id)")
+            }
+
             HStack(spacing: 8) {
                 Button(action: onQuickLog) {
-                    Text("Log \(MedicationFormatting.formatDose(quantity: medication.defaultQuantity ?? 1, amount: medication.dosageAmount, unit: medication.dosageUnit))")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(Color.accentColor)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    HStack(spacing: 6) {
+                        if status.isOnCooldown {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                                .accessibilityIdentifier("cooldown-icon-\(medication.id)")
+                        }
+                        Text("Log \(MedicationFormatting.formatDose(quantity: medication.defaultQuantity ?? 1, amount: medication.dosageAmount, unit: medication.dosageUnit))")
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color.accentColor)
+                    .foregroundStyle(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
 
                 Button(action: onDetails) {

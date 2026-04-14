@@ -4,7 +4,7 @@ import GRDB
 /// Central database manager. Owns the DatabaseQueue and handles schema creation/migration.
 final class DatabaseManager: Sendable {
     /// The current schema version
-    static let schemaVersion = 25
+    static let schemaVersion = 26
 
     /// Shared singleton for the app's main database
     static let shared = DatabaseManager()
@@ -99,6 +99,19 @@ final class DatabaseManager: Sendable {
             try DatabaseManager.createSchema(in: db)
         }
 
+        // v26: Add medication cooldown (minimum interval between doses).
+        // Fresh installs already create the column in v25's CREATE TABLE, so only
+        // add it when missing to support both upgrade and fresh-install paths.
+        migrator.registerMigration("v26") { db in
+            let columns = try Row.fetchAll(db, sql: "PRAGMA table_info(medications)")
+            let hasColumn = columns.contains { (row: Row) in
+                (row["name"] as String?) == "min_interval_hours"
+            }
+            if !hasColumn {
+                try db.execute(sql: "ALTER TABLE medications ADD COLUMN min_interval_hours REAL")
+            }
+        }
+
         return migrator
     }
 
@@ -191,7 +204,8 @@ final class DatabaseManager: Sendable {
                 notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
                 category TEXT CHECK(category IS NULL OR category IN ('otc', 'nsaid', 'triptan', 'cgrp', 'preventive', 'supplement', 'other')),
                 created_at INTEGER NOT NULL CHECK(created_at > 0),
-                updated_at INTEGER NOT NULL CHECK(updated_at > 0)
+                updated_at INTEGER NOT NULL CHECK(updated_at > 0),
+                min_interval_hours REAL CHECK(min_interval_hours IS NULL OR min_interval_hours > 0)
             )
             """)
 

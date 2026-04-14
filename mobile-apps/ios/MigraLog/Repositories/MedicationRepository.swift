@@ -17,8 +17,9 @@ final class MedicationRepository: MedicationRepositoryProtocol {
             try db.execute(
                 sql: """
                     INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, default_quantity,
-                        schedule_frequency, photo_uri, active, notes, category, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        schedule_frequency, photo_uri, active, notes, category, created_at, updated_at,
+                        min_interval_hours)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                 arguments: [
                     medication.id,
@@ -33,7 +34,8 @@ final class MedicationRepository: MedicationRepositoryProtocol {
                     medication.notes,
                     medication.category?.rawValue,
                     medication.createdAt,
-                    medication.updatedAt
+                    medication.updatedAt,
+                    medication.minIntervalHours
                 ]
             )
         }
@@ -84,7 +86,8 @@ final class MedicationRepository: MedicationRepositoryProtocol {
                     UPDATE medications SET
                         name = ?, type = ?, dosage_amount = ?, dosage_unit = ?,
                         default_quantity = ?, schedule_frequency = ?, photo_uri = ?,
-                        active = ?, notes = ?, category = ?, updated_at = ?
+                        active = ?, notes = ?, category = ?, updated_at = ?,
+                        min_interval_hours = ?
                     WHERE id = ?
                     """,
                 arguments: [
@@ -99,6 +102,7 @@ final class MedicationRepository: MedicationRepositoryProtocol {
                     updated.notes,
                     updated.category?.rawValue,
                     updated.updatedAt,
+                    updated.minIntervalHours,
                     updated.id
                 ]
             )
@@ -160,6 +164,17 @@ final class MedicationRepository: MedicationRepositoryProtocol {
             )
         }
         return dose
+    }
+
+    func getLastDose(medicationId: String) throws -> MedicationDose? {
+        try dbManager.dbQueue.read { db in
+            let row = try Row.fetchOne(
+                db,
+                sql: "SELECT * FROM medication_doses WHERE medication_id = ? AND status = 'taken' ORDER BY timestamp DESC LIMIT 1",
+                arguments: [medicationId]
+            )
+            return row.map { Self.doseFromRow($0) }
+        }
     }
 
     func getDosesByMedicationId(_ medicationId: String) throws -> [MedicationDose] {
@@ -415,6 +430,7 @@ final class MedicationRepository: MedicationRepositoryProtocol {
             active: (row["active"] as Int) != 0,
             notes: row["notes"],
             category: (row["category"] as String?).flatMap { MedicationCategory(rawValue: $0) },
+            minIntervalHours: row["min_interval_hours"],
             createdAt: row["created_at"],
             updatedAt: row["updated_at"]
         )

@@ -100,6 +100,7 @@ struct Medication: Identifiable, Equatable, Sendable {
     var active: Bool
     var notes: String?
     var category: MedicationCategory?
+    var minIntervalHours: Double?
     let createdAt: Int64
     var updatedAt: Int64
 }

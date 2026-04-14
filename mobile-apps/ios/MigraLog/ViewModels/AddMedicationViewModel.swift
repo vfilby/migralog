@@ -12,6 +12,7 @@ final class AddMedicationViewModel {
     var category: MedicationCategory?
     var scheduleFrequency: ScheduleFrequency?
     var notes: String = ""
+    var minIntervalHours: Double?
     var searchResults: [PresetMedication] = []
     var isSaving = false
     var error: String?
@@ -36,6 +37,7 @@ final class AddMedicationViewModel {
             category = med.category
             scheduleFrequency = med.scheduleFrequency
             notes = med.notes ?? ""
+            minIntervalHours = med.minIntervalHours
         }
     }
 
@@ -85,6 +87,7 @@ final class AddMedicationViewModel {
                 active: true,
                 notes: notes.isEmpty ? nil : notes,
                 category: category,
+                minIntervalHours: minIntervalHours,
                 createdAt: now, // will be ignored on update
                 updatedAt: now
             )
@@ -112,6 +115,7 @@ final class AddMedicationViewModel {
                 active: true,
                 notes: notes.isEmpty ? nil : notes,
                 category: category,
+                minIntervalHours: minIntervalHours,
                 createdAt: now,
                 updatedAt: now
             )

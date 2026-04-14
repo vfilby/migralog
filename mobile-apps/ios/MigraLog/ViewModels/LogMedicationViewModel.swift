@@ -4,6 +4,8 @@ import Observation
 @Observable
 final class LogMedicationViewModel {
     var medications: [Medication] = []
+    /// Most recent taken dose per medication id. Used for cooldown warnings.
+    var lastDoseByMedication: [String: MedicationDose] = [:]
     var isLoading = false
 
     private let medicationRepository: MedicationRepositoryProtocol
@@ -23,6 +25,13 @@ final class LogMedicationViewModel {
         do {
             let results = try await medicationRepository.getActiveMedicationsWithUsageCounts()
             medications = results.sorted { $0.usageCount > $1.usageCount }.map(\.medication)
+            var lastDoses: [String: MedicationDose] = [:]
+            for med in medications {
+                if let last = try? medicationRepository.getLastDose(medicationId: med.id) {
+                    lastDoses[med.id] = last
+                }
+            }
+            lastDoseByMedication = lastDoses
             isLoading = false
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "LogMedicationViewModel"])

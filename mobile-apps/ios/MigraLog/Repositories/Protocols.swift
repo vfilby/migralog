@@ -59,6 +59,7 @@ protocol MedicationRepositoryProtocol: Sendable {
 
     // Doses
     func createDose(_ dose: MedicationDose) throws -> MedicationDose
+    func getLastDose(medicationId: String) throws -> MedicationDose?
     func getDosesByMedicationId(_ medicationId: String) throws -> [MedicationDose]
     func getDosesByEpisodeId(_ episodeId: String) throws -> [MedicationDose]
     func getDosesByDateRange(start: Int64, end: Int64) throws -> [MedicationDose]

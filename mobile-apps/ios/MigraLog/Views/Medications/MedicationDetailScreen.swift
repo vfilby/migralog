@@ -12,6 +12,12 @@ struct MedicationDetailScreen: View {
     @State private var showAddSchedule = false
     @State private var showEditSchedule: MedicationSchedule? = nil
     @State private var showLogDoseDetails = false
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    private func cooldownStatus(_ medication: Medication) -> MedicationCooldown.Status {
+        let lastTakenDose = viewModel.recentDoses.first(where: { $0.status == .taken })
+        return MedicationCooldown.evaluate(medication: medication, lastDose: lastTakenDose)
+    }
 
     var body: some View {
         Group {
@@ -24,16 +30,36 @@ struct MedicationDetailScreen: View {
                         // Schedules
                         schedulesSection(medication)
 
+                        // Cooldown warning banner (iPad / regular size class)
+                        let status = cooldownStatus(medication)
+                        if sizeClass == .regular, status.isOnCooldown, let summary = MedicationCooldown.summary(status) {
+                            Label(summary, systemImage: "exclamationmark.triangle.fill")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(.orange)
+                                .padding()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color.orange.opacity(0.1))
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                .accessibilityIdentifier("cooldown-banner")
+                        }
+
                         // Log dose button — opens details sheet pre-filled to now
                         Button {
                             showLogDoseDetails = true
                         } label: {
-                            Label("Log Dose", systemImage: "plus.circle.fill")
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.accentColor)
-                                .foregroundStyle(.white)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                            HStack {
+                                if status.isOnCooldown {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .foregroundStyle(.orange)
+                                        .accessibilityIdentifier("cooldown-icon")
+                                }
+                                Label("Log Dose", systemImage: "plus.circle.fill")
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.accentColor)
+                            .foregroundStyle(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
                         .accessibilityIdentifier("log-dose-button")
 

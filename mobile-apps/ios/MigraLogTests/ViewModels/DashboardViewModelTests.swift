@@ -74,6 +74,54 @@ final class DashboardViewModelTests: XCTestCase {
         XCTAssertNil(sut.yesterdayStatus)
     }
 
+    // MARK: - Yesterday Prompt Visibility
+
+    func testLoadData_noStatusNoEpisode_showsPrompt() async throws {
+        await sut.loadData()
+
+        XCTAssertNil(sut.yesterdayStatus)
+        XCTAssertTrue(sut.shouldShowYesterdayPrompt)
+    }
+
+    func testLoadData_yesterdayHasEpisode_hidesPrompt() async throws {
+        let calendar = Calendar.current
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: Date())!
+        let dayStart = calendar.startOfDay(for: yesterday)
+        let startMs = TimestampHelper.fromDate(dayStart)
+        let endMs = startMs + 3_600_000 // +1 hour, squarely within yesterday
+        let episode = TestFixtures.makeEpisode(id: "ep-y", startTime: startMs, endTime: endMs)
+        mockEpisodeRepo.episodes = [episode]
+
+        await sut.loadData()
+
+        XCTAssertNil(sut.yesterdayStatus)
+        XCTAssertFalse(sut.shouldShowYesterdayPrompt)
+    }
+
+    func testLoadData_yesterdayStatusLogged_hidesPrompt() async throws {
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date())!
+        let dateString = TimestampHelper.dateString(from: yesterday)
+        mockStatusRepo.statuses = [TestFixtures.makeDailyStatus(id: "ds-1", date: dateString, status: .green)]
+
+        await sut.loadData()
+
+        XCTAssertNotNil(sut.yesterdayStatus)
+        XCTAssertFalse(sut.shouldShowYesterdayPrompt)
+    }
+
+    func testLoadData_episodeSpansOvernightIntoYesterday_hidesPrompt() async throws {
+        // Episode started two days ago, still ongoing — overlaps yesterday.
+        let calendar = Calendar.current
+        let twoDaysAgo = calendar.date(byAdding: .day, value: -2, to: Date())!
+        let startMs = TimestampHelper.fromDate(calendar.startOfDay(for: twoDaysAgo))
+        let episode = TestFixtures.makeEpisode(id: "ep-long", startTime: startMs, endTime: nil)
+        mockEpisodeRepo.episodes = [episode]
+
+        await sut.loadData()
+
+        XCTAssertFalse(sut.shouldShowYesterdayPrompt)
+    }
+
     func testLoadData_error_setsError() async throws {
         mockEpisodeRepo.errorToThrow = TestError.mockError("DB error")
 

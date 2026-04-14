@@ -21,7 +21,10 @@ final class DashboardViewModel {
     var recentEpisodes: [Episode] = []
     var recentReadings: [String: [IntensityReading]] = [:]
     var todaysMedications: [MedicationScheduleItem] = []
+    /// Most recent taken dose per medication id (across all time). Used for cooldown warnings.
+    var lastDoseByMedication: [String: MedicationDose] = [:]
     var yesterdayStatus: DailyStatusLog?
+    var shouldShowYesterdayPrompt: Bool = false
     var showNewEpisode = false
     var showLogMedication = false
     var isLoading = false
@@ -64,11 +67,14 @@ final class DashboardViewModel {
             async let recentTask = loadRecentEpisodes()
             async let medsTask = loadTodaysMedications()
             async let statusTask = loadYesterdayStatus()
+            async let yesterdayHasEpisodeTask = yesterdayHasEpisode()
 
             currentEpisode = try await episodeTask
             recentEpisodes = try await recentTask
             todaysMedications = try await medsTask
             yesterdayStatus = try await statusTask
+            let hasEpisodeYesterday = try await yesterdayHasEpisodeTask
+            shouldShowYesterdayPrompt = yesterdayStatus == nil && !hasEpisodeYesterday
 
             // Load active episode readings for dashboard sparkline
             if let active = currentEpisode,
@@ -107,6 +113,7 @@ final class DashboardViewModel {
             if let index = todaysMedications.firstIndex(where: { $0.id == scheduleItem.id }) {
                 todaysMedications[index].dose = savedDose
             }
+            lastDoseByMedication[scheduleItem.medication.id] = savedDose
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "DashboardViewModel", "action": "logDose"])
             self.error = error.localizedDescription
@@ -175,6 +182,7 @@ final class DashboardViewModel {
         do {
             let saved = try await dailyStatusRepository.createStatus(statusLog)
             yesterdayStatus = saved
+            shouldShowYesterdayPrompt = false
             // Cancel daily check-in for this date and top up
             await dailyCheckinService.cancelForDate(dateString)
             await dailyCheckinService.topUp()
@@ -190,6 +198,9 @@ final class DashboardViewModel {
         do {
             try await dailyStatusRepository.deleteStatus(status.id)
             yesterdayStatus = nil
+            // Re-evaluate prompt visibility: if yesterday has an episode, keep hidden.
+            let hasEpisodeYesterday = (try? await yesterdayHasEpisode()) ?? false
+            shouldShowYesterdayPrompt = !hasEpisodeYesterday
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "DashboardViewModel", "action": "undoYesterdayStatus"])
             self.error = error.localizedDescription
@@ -218,8 +229,12 @@ final class DashboardViewModel {
         let todayDoses = try await medicationRepository.getDosesWithMedications(date: today)
 
         var items: [MedicationScheduleItem] = []
+        var lastDoses: [String: MedicationDose] = [:]
         for med in activeMeds {
             let schedules = try await medicationRepository.getSchedules(medicationId: med.id)
+            if let last = try? medicationRepository.getLastDose(medicationId: med.id) {
+                lastDoses[med.id] = last
+            }
             for schedule in schedules where schedule.enabled {
                 let matchingDose = todayDoses.first { doseWithMed in
                     doseWithMed.medication.id == med.id
@@ -231,6 +246,7 @@ final class DashboardViewModel {
                 ))
             }
         }
+        await MainActor.run { lastDoseByMedication = lastDoses }
         return items
     }
 
@@ -238,5 +254,23 @@ final class DashboardViewModel {
         let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date())!
         let dateString = TimestampHelper.dateString(from: yesterday)
         return try await dailyStatusRepository.getStatusByDate(dateString)
+    }
+
+    /// Returns true if any episode overlaps yesterday (midnight-to-midnight).
+    private func yesterdayHasEpisode() async throws -> Bool {
+        let calendar = Calendar.current
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: Date())!
+        let dayStart = calendar.startOfDay(for: yesterday)
+        let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart)!
+        let dayStartMs = TimestampHelper.fromDate(dayStart)
+        let dayEndMs = TimestampHelper.fromDate(dayEnd)
+
+        // Pull a wider range by start-time to catch episodes that began before yesterday
+        // but are still active or ended yesterday. Use all episodes and filter locally,
+        // since getEpisodesByDateRange filters on startTime only.
+        let all = try episodeRepository.getAllEpisodes()
+        return all.contains { ep in
+            ep.startTime < dayEndMs && (ep.endTime ?? Int64.max) > dayStartMs
+        }
     }
 }

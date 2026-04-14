@@ -353,6 +353,14 @@ final class MockMedicationRepository: MedicationRepositoryProtocol, @unchecked S
         return doses.filter { $0.medicationId == medicationId }.sorted { $0.timestamp > $1.timestamp }
     }
 
+    func getLastDose(medicationId: String) throws -> MedicationDose? {
+        try throwIfNeeded()
+        return doses
+            .filter { $0.medicationId == medicationId && $0.status == .taken }
+            .sorted { $0.timestamp > $1.timestamp }
+            .first
+    }
+
     func getDosesByEpisodeId(_ episodeId: String) throws -> [MedicationDose] {
         try throwIfNeeded()
         return doses.filter { $0.episodeId == episodeId }
@@ -733,7 +741,8 @@ enum TestFixtures {
         dosageUnit: String = "mg",
         active: Bool = true,
         category: MedicationCategory? = .nsaid,
-        scheduleFrequency: ScheduleFrequency? = nil
+        scheduleFrequency: ScheduleFrequency? = nil,
+        minIntervalHours: Double? = nil
     ) -> Medication {
         Medication(
             id: id,
@@ -747,6 +756,7 @@ enum TestFixtures {
             active: active,
             notes: nil,
             category: category,
+            minIntervalHours: minIntervalHours,
             createdAt: now,
             updatedAt: now
         )
