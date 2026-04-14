@@ -139,58 +139,60 @@ struct DailyStatusWidgetView: View {
     @Bindable var viewModel: DashboardViewModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if let yesterdayStatus = viewModel.yesterdayStatus {
-                HStack {
-                    Text("Yesterday logged as \(yesterdayStatus.status.displayName) day")
-                        .font(.subheadline)
-                    Spacer()
-                    Button("Undo") {
-                        Task { await viewModel.undoYesterdayStatus() }
-                    }
-                    .accessibilityIdentifier("undo-status-button")
-                }
-                .accessibilityIdentifier("daily-status-widget-logged")
-            } else {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("How was yesterday?")
-                        .font(.headline)
-
-                    HStack(spacing: 12) {
-                        Button {
-                            Task { await viewModel.logYesterdayStatus(.green) }
-                        } label: {
-                            Text("Clear")
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
-                                .background(Color.green.opacity(0.2))
-                                .foregroundStyle(.green)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
+        if viewModel.yesterdayStatus != nil || viewModel.shouldShowYesterdayPrompt {
+            VStack(alignment: .leading, spacing: 8) {
+                if let yesterdayStatus = viewModel.yesterdayStatus {
+                    HStack {
+                        Text("Yesterday logged as \(yesterdayStatus.status.displayName) day")
+                            .font(.subheadline)
+                        Spacer()
+                        Button("Undo") {
+                            Task { await viewModel.undoYesterdayStatus() }
                         }
-                        .accessibilityLabel("Clear day")
-                        .accessibilityIdentifier("green-day-button")
-
-                        Button {
-                            Task { await viewModel.logYesterdayStatus(.yellow) }
-                        } label: {
-                            Text("Not Clear")
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
-                                .background(Color.yellow.opacity(0.2))
-                                .foregroundStyle(.orange)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                        }
-                        .accessibilityLabel("Not clear day")
-                        .accessibilityIdentifier("yellow-day-button")
+                        .accessibilityIdentifier("undo-status-button")
                     }
+                    .accessibilityIdentifier("daily-status-widget-logged")
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("How was yesterday?")
+                            .font(.headline)
+
+                        HStack(spacing: 12) {
+                            Button {
+                                Task { await viewModel.logYesterdayStatus(.green) }
+                            } label: {
+                                Text("Clear")
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 10)
+                                    .background(Color.green.opacity(0.2))
+                                    .foregroundStyle(.green)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                            }
+                            .accessibilityLabel("Clear day")
+                            .accessibilityIdentifier("green-day-button")
+
+                            Button {
+                                Task { await viewModel.logYesterdayStatus(.yellow) }
+                            } label: {
+                                Text("Not Clear")
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 10)
+                                    .background(Color.yellow.opacity(0.2))
+                                    .foregroundStyle(.orange)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                            }
+                            .accessibilityLabel("Not clear day")
+                            .accessibilityIdentifier("yellow-day-button")
+                        }
+                    }
+                    .accessibilityIdentifier("daily-status-widget")
                 }
-                .accessibilityIdentifier("daily-status-widget")
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 
@@ -224,6 +226,7 @@ struct TodaysMedicationsCard: View {
 struct MedicationScheduleRow: View {
     let item: MedicationScheduleItem
     @Bindable var viewModel: DashboardViewModel
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     private var doseLabel: String {
         MedicationFormatting.formatDose(
@@ -233,50 +236,76 @@ struct MedicationScheduleRow: View {
         )
     }
 
+    private var cooldownStatus: MedicationCooldown.Status {
+        MedicationCooldown.evaluate(
+            medication: item.medication,
+            lastDose: viewModel.lastDoseByMedication[item.medication.id]
+        )
+    }
+
     var body: some View {
-        HStack {
-            Text(item.medication.name)
-                .font(.subheadline.weight(.medium))
+        let status = cooldownStatus
+        let showCooldownBanner = sizeClass == .regular && status.isOnCooldown && item.dose == nil
 
-            Spacer()
+        VStack(alignment: .leading, spacing: 4) {
+            if showCooldownBanner, let summary = MedicationCooldown.summary(status) {
+                Label(summary, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .accessibilityIdentifier("cooldown-warning-\(item.medication.id)")
+            }
 
-            if let dose = item.dose {
-                if dose.status == .taken {
-                    Label("Taken at \(DateFormatting.displayTime(dose.date))", systemImage: "checkmark.circle.fill")
-                        .font(.caption)
-                        .foregroundStyle(.green)
+            HStack {
+                Text(item.medication.name)
+                    .font(.subheadline.weight(.medium))
+
+                Spacer()
+
+                if let dose = item.dose {
+                    if dose.status == .taken {
+                        Label("Taken at \(DateFormatting.displayTime(dose.date))", systemImage: "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.green)
+                    } else {
+                        Label("Skipped", systemImage: "xmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                    Button("Undo") {
+                        Task { await viewModel.undoDose(scheduleItem: item) }
+                    }
+                    .font(.caption)
                 } else {
-                    Label("Skipped", systemImage: "xmark.circle.fill")
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                }
-                Button("Undo") {
-                    Task { await viewModel.undoDose(scheduleItem: item) }
-                }
-                .font(.caption)
-            } else {
-                Button {
-                    Task { await viewModel.logDose(scheduleItem: item) }
-                } label: {
-                    Text("Log \(doseLabel)")
+                    Button {
+                        Task { await viewModel.logDose(scheduleItem: item) }
+                    } label: {
+                        HStack(spacing: 4) {
+                            if status.isOnCooldown {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.orange)
+                                    .accessibilityIdentifier("cooldown-icon-\(item.medication.id)")
+                            }
+                            Text("Log \(doseLabel)")
+                        }
                         .font(.caption.weight(.medium))
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
                         .background(Color.accentColor)
                         .foregroundStyle(.white)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
+                    }
 
-                Button {
-                    Task { await viewModel.skipDose(scheduleItem: item) }
-                } label: {
-                    Text("Skip")
-                        .font(.caption.weight(.medium))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.red.opacity(0.15))
-                        .foregroundStyle(.red)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    Button {
+                        Task { await viewModel.skipDose(scheduleItem: item) }
+                    } label: {
+                        Text("Skip")
+                            .font(.caption.weight(.medium))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.red.opacity(0.15))
+                            .foregroundStyle(.red)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
                 }
             }
         }

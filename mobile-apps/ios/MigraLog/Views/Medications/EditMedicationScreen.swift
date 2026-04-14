@@ -11,6 +11,7 @@ struct EditMedicationScreen: View {
     @State private var defaultQuantity: String
     @State private var notes: String
     @State private var category: MedicationCategory?
+    @State private var minIntervalHoursText: String
     @State private var isSaving = false
 
     init(medication: Medication, viewModel: MedicationDetailViewModel) {
@@ -24,6 +25,9 @@ struct EditMedicationScreen: View {
         } ?? "1")
         _notes = State(initialValue: medication.notes ?? "")
         _category = State(initialValue: medication.category)
+        _minIntervalHoursText = State(initialValue: medication.minIntervalHours.map {
+            $0.truncatingRemainder(dividingBy: 1) == 0 ? String(Int($0)) : String($0)
+        } ?? "")
     }
 
     var body: some View {
@@ -63,6 +67,15 @@ struct EditMedicationScreen: View {
                     }
                 }
             }
+            Section {
+                TextField("Hours (e.g. 24)", text: $minIntervalHoursText)
+                    .keyboardType(.decimalPad)
+                    .accessibilityIdentifier("edit-med-min-interval-hours")
+            } header: {
+                Text("Minimum Time Between Doses")
+            } footer: {
+                Text("Leave blank if there's no minimum interval")
+            }
             Section("Notes") {
                 TextEditor(text: $notes)
                     .frame(minHeight: 60)
@@ -95,6 +108,7 @@ struct EditMedicationScreen: View {
         updated.defaultQuantity = Double(defaultQuantity).flatMap { $0 > 0 ? $0 : nil }
         updated.notes = notes.isEmpty ? nil : notes
         updated.category = category
+        updated.minIntervalHours = Double(minIntervalHoursText).flatMap { $0 > 0 ? $0 : nil }
         updated.updatedAt = TimestampHelper.now
 
         await viewModel.updateMedication(updated)

@@ -15,6 +15,7 @@ struct AddMedicationScreen: View {
     @State private var isSaving = false
     @State private var reminderTime = AddMedicationScreen.defaultMorningTime()
     @State private var reminderEnabled = true
+    @State private var minIntervalHoursText: String = ""
 
     var body: some View {
         Form {
@@ -110,6 +111,16 @@ struct AddMedicationScreen: View {
                 }
             }
 
+            Section {
+                TextField("Hours (e.g. 24)", text: $minIntervalHoursText)
+                    .keyboardType(.decimalPad)
+                    .accessibilityIdentifier("add-med-min-interval-hours")
+            } header: {
+                Text("Minimum Time Between Doses")
+            } footer: {
+                Text("Leave blank if there's no minimum interval")
+            }
+
             Section("Notes") {
                 TextEditor(text: $notes)
                     .frame(minHeight: 60)
@@ -165,6 +176,7 @@ struct AddMedicationScreen: View {
             active: true,
             notes: notes.isEmpty ? nil : notes,
             category: category,
+            minIntervalHours: Double(minIntervalHoursText).flatMap { $0 > 0 ? $0 : nil },
             createdAt: now,
             updatedAt: now
         )
