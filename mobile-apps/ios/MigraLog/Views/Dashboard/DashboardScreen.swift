@@ -243,9 +243,16 @@ struct MedicationScheduleRow: View {
         )
     }
 
+    private var categoryStatus: CategoryUsageStatus {
+        guard let category = item.medication.category else { return .noLimit }
+        return viewModel.categoryUsage[category] ?? .noLimit
+    }
+
     var body: some View {
         let status = cooldownStatus
+        let catStatus = categoryStatus
         let showCooldownBanner = sizeClass == .regular && status.isOnCooldown && item.dose == nil
+        let showCategoryBanner = sizeClass == .regular && catStatus.isWarning && item.dose == nil
 
         VStack(alignment: .leading, spacing: 4) {
             if showCooldownBanner, let summary = MedicationCooldown.summary(status) {
@@ -253,6 +260,15 @@ struct MedicationScheduleRow: View {
                     .font(.caption)
                     .foregroundStyle(.orange)
                     .accessibilityIdentifier("cooldown-warning-\(item.medication.id)")
+            }
+
+            if showCategoryBanner,
+               let category = item.medication.category,
+               let summary = catStatus.summary(category: category) {
+                Label(summary, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(catStatus.isStrong ? .red : .yellow)
+                    .accessibilityIdentifier("category-warning-\(item.medication.id)")
             }
 
             HStack {
@@ -284,6 +300,11 @@ struct MedicationScheduleRow: View {
                                 Image(systemName: "exclamationmark.triangle.fill")
                                     .foregroundStyle(.orange)
                                     .accessibilityIdentifier("cooldown-icon-\(item.medication.id)")
+                            }
+                            if catStatus.isWarning {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(catStatus.isStrong ? .red : .yellow)
+                                    .accessibilityIdentifier("category-icon-\(item.medication.id)")
                             }
                             Text("Log \(doseLabel)")
                         }

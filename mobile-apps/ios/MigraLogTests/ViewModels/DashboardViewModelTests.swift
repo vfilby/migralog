@@ -6,6 +6,7 @@ final class DashboardViewModelTests: XCTestCase {
     private var mockEpisodeRepo: MockEpisodeRepository!
     private var mockMedRepo: MockMedicationRepository!
     private var mockStatusRepo: MockDailyStatusRepository!
+    private var mockCategoryLimitRepo: MockCategoryUsageLimitRepository!
     private var sut: DashboardViewModel!
 
     override func setUp() {
@@ -13,10 +14,12 @@ final class DashboardViewModelTests: XCTestCase {
         mockEpisodeRepo = MockEpisodeRepository()
         mockMedRepo = MockMedicationRepository()
         mockStatusRepo = MockDailyStatusRepository()
+        mockCategoryLimitRepo = MockCategoryUsageLimitRepository()
         sut = DashboardViewModel(
             episodeRepository: mockEpisodeRepo,
             medicationRepository: mockMedRepo,
-            dailyStatusRepository: mockStatusRepo
+            dailyStatusRepository: mockStatusRepo,
+            categoryLimitRepository: mockCategoryLimitRepo
         )
     }
 
@@ -232,5 +235,32 @@ final class DashboardViewModelTests: XCTestCase {
         await sut.undoYesterdayStatus()
 
         XCTAssertFalse(mockStatusRepo.deleteStatusCalled)
+    }
+
+    // MARK: - Category Usage
+
+    func testLoadData_populatesCategoryUsageForMedsWithLimit() async throws {
+        let med = TestFixtures.makeMedication(id: "med-1", category: .nsaid)
+        let schedule = TestFixtures.makeSchedule(id: "s-1", medicationId: "med-1")
+        mockMedRepo.medications = [med]
+        mockMedRepo.schedules = [schedule]
+        mockCategoryLimitRepo.limits[.nsaid] = CategoryUsageLimit(category: .nsaid, maxDays: 15, windowDays: 30)
+        mockCategoryLimitRepo.dayCounts[.nsaid] = 14  // approaching
+
+        await sut.loadData()
+
+        XCTAssertEqual(sut.categoryUsage[.nsaid], .approaching(daysUsed: 14, maxDays: 15, windowDays: 30))
+    }
+
+    func testLoadData_noLimitConfigured_categoryUsageEmpty() async throws {
+        let med = TestFixtures.makeMedication(id: "med-1", category: .nsaid)
+        let schedule = TestFixtures.makeSchedule(id: "s-1", medicationId: "med-1")
+        mockMedRepo.medications = [med]
+        mockMedRepo.schedules = [schedule]
+        // No limit configured
+
+        await sut.loadData()
+
+        XCTAssertNil(sut.categoryUsage[.nsaid])
     }
 }

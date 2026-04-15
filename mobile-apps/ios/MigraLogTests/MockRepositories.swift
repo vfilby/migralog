@@ -459,6 +459,55 @@ final class MockMedicationRepository: MedicationRepositoryProtocol, @unchecked S
     }
 }
 
+// MARK: - Mock Category Usage Limit Repository
+
+final class MockCategoryUsageLimitRepository: CategoryUsageLimitRepositoryProtocol, @unchecked Sendable {
+    /// Storage of configured limits.
+    var limits: [MedicationCategory: CategoryUsageLimit] = [:]
+    /// Pre-computed distinct-day counts per category to return from
+    /// `countUsageDays`. Tests can populate this to drive status evaluation.
+    var dayCounts: [MedicationCategory: Int] = [:]
+
+    // Call tracking
+    var setLimitCalled = false
+    var clearLimitCalled = false
+    var countUsageDaysCalled = false
+
+    var errorToThrow: Error?
+
+    private func throwIfNeeded() throws {
+        if let error = errorToThrow { throw error }
+    }
+
+    func getAllLimits() throws -> [CategoryUsageLimit] {
+        try throwIfNeeded()
+        return Array(limits.values)
+    }
+
+    func getLimit(for category: MedicationCategory) throws -> CategoryUsageLimit? {
+        try throwIfNeeded()
+        return limits[category]
+    }
+
+    func setLimit(_ limit: CategoryUsageLimit) throws {
+        try throwIfNeeded()
+        setLimitCalled = true
+        limits[limit.category] = limit
+    }
+
+    func clearLimit(for category: MedicationCategory) throws {
+        try throwIfNeeded()
+        clearLimitCalled = true
+        limits.removeValue(forKey: category)
+    }
+
+    func countUsageDays(category: MedicationCategory, windowDays: Int, now: Date) throws -> Int {
+        try throwIfNeeded()
+        countUsageDaysCalled = true
+        return dayCounts[category] ?? 0
+    }
+}
+
 // MARK: - Mock Daily Status Repository
 
 final class MockDailyStatusRepository: DailyStatusRepositoryProtocol, @unchecked Sendable {

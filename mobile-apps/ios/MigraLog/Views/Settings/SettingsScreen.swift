@@ -20,6 +20,16 @@ struct SettingsScreen: View {
                 .accessibilityIdentifier("notification-settings")
             }
 
+            // Medication Safety
+            Section("Medication Safety") {
+                NavigationLink {
+                    CategoryLimitsScreen()
+                } label: {
+                    Label("Medication Safety Limits", systemImage: "exclamationmark.shield")
+                }
+                .accessibilityIdentifier("medication-safety-limits")
+            }
+
             // Location
             Section("Location") {
                 NavigationLink {

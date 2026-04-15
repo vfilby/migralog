@@ -32,6 +32,7 @@ struct MedicationDetailScreen: View {
 
                         // Cooldown warning banner (iPad / regular size class)
                         let status = cooldownStatus(medication)
+                        let catStatus = viewModel.categoryStatus
                         if sizeClass == .regular, status.isOnCooldown, let summary = MedicationCooldown.summary(status) {
                             Label(summary, systemImage: "exclamationmark.triangle.fill")
                                 .font(.subheadline.weight(.medium))
@@ -43,6 +44,22 @@ struct MedicationDetailScreen: View {
                                 .accessibilityIdentifier("cooldown-banner")
                         }
 
+                        // Category MOH-risk banner (iPad / regular size class)
+                        if sizeClass == .regular,
+                           catStatus.isWarning,
+                           let category = medication.category,
+                           let catSummary = catStatus.summary(category: category) {
+                            let tint: Color = catStatus.isStrong ? .red : .yellow
+                            Label(catSummary, systemImage: "exclamationmark.triangle.fill")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(tint)
+                                .padding()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(tint.opacity(0.12))
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                .accessibilityIdentifier("category-warning-banner")
+                        }
+
                         // Log dose button — opens details sheet pre-filled to now
                         Button {
                             showLogDoseDetails = true
@@ -52,6 +69,11 @@ struct MedicationDetailScreen: View {
                                     Image(systemName: "exclamationmark.triangle.fill")
                                         .foregroundStyle(.orange)
                                         .accessibilityIdentifier("cooldown-icon")
+                                }
+                                if catStatus.isWarning {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .foregroundStyle(catStatus.isStrong ? .red : .yellow)
+                                        .accessibilityIdentifier("category-icon")
                                 }
                                 Label("Log Dose", systemImage: "plus.circle.fill")
                             }
