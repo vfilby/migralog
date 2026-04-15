@@ -8,6 +8,8 @@ final class MedicationDetailViewModel {
     var medication: Medication?
     var schedules: [MedicationSchedule] = []
     var recentDoses: [MedicationDose] = []
+    /// MOH-risk status for this medication's category (if any limit configured).
+    var categoryStatus: CategoryUsageStatus = .noLimit
     var isLoading = false
     var error: String?
 
@@ -15,6 +17,7 @@ final class MedicationDetailViewModel {
 
     private let medicationRepository: MedicationRepositoryProtocol
     private let medicationNotificationService: MedicationNotificationServiceProtocol
+    private let categoryLimitRepository: CategoryUsageLimitRepositoryProtocol
     private var medicationId: String
 
     // MARK: - Init
@@ -26,11 +29,13 @@ final class MedicationDetailViewModel {
             notificationService: NotificationService.shared,
             scheduledNotificationRepo: ScheduledNotificationRepository(dbManager: DatabaseManager.shared),
             medicationRepo: MedicationRepository(dbManager: DatabaseManager.shared)
-        )
+        ),
+        categoryLimitRepository: CategoryUsageLimitRepositoryProtocol = CategoryUsageLimitRepository(dbManager: DatabaseManager.shared)
     ) {
         self.medicationId = medicationId
         self.medicationRepository = medicationRepository
         self.medicationNotificationService = medicationNotificationService
+        self.categoryLimitRepository = categoryLimitRepository
     }
 
     // MARK: - Actions
@@ -44,6 +49,7 @@ final class MedicationDetailViewModel {
             medication = details?.medication
             schedules = details?.schedules ?? []
             recentDoses = details?.recentDoses ?? []
+            categoryStatus = computeCategoryStatus(for: medication, now: Date())
             isLoading = false
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "MedicationDetailViewModel", "action": "loadMedication"])
@@ -63,12 +69,28 @@ final class MedicationDetailViewModel {
             medication = details?.medication
             schedules = details?.schedules ?? []
             recentDoses = details?.recentDoses ?? []
+            categoryStatus = computeCategoryStatus(for: medication, now: Date())
             isLoading = false
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "MedicationDetailViewModel", "action": "loadMedication"])
             self.error = error.localizedDescription
             isLoading = false
         }
+    }
+
+    /// Computes category MOH status for the given medication (if it has a category
+    /// and a configured limit). Returns `.noLimit` otherwise.
+    private func computeCategoryStatus(for medication: Medication?, now: Date) -> CategoryUsageStatus {
+        guard let category = medication?.category else { return .noLimit }
+        guard let configured = (try? categoryLimitRepository.getLimit(for: category)) ?? nil else {
+            return .noLimit
+        }
+        let daysUsed = (try? categoryLimitRepository.countUsageDays(
+            category: category,
+            windowDays: configured.windowDays,
+            now: now
+        )) ?? 0
+        return CategoryUsageStatus.evaluate(daysUsed: daysUsed, limit: configured)
     }
 
     @MainActor
@@ -121,6 +143,7 @@ final class MedicationDetailViewModel {
             let saved = try await medicationRepository.createDose(dose)
             recentDoses.insert(saved, at: 0)
             recentDoses.sort { $0.timestamp > $1.timestamp }
+            categoryStatus = computeCategoryStatus(for: medication, now: Date())
 
             // Cancel today's reminder and follow-up notifications for this medication
             let today = DateFormatting.dateString(from: Date())

@@ -24,6 +24,7 @@ struct LogMedicationScreen: View {
                         LogMedicationCard(
                             medication: med,
                             lastDose: viewModel.lastDoseByMedication[med.id],
+                            categoryStatus: med.category.flatMap { viewModel.categoryUsage[$0] } ?? .noLimit,
                             onQuickLog: {
                                 Task {
                                     await quickLog(med)
@@ -73,6 +74,7 @@ struct LogMedicationScreen: View {
 struct LogMedicationCard: View {
     let medication: Medication
     var lastDose: MedicationDose? = nil
+    var categoryStatus: CategoryUsageStatus = .noLimit
     let onQuickLog: () -> Void
     let onDetails: () -> Void
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -83,6 +85,7 @@ struct LogMedicationCard: View {
 
     var body: some View {
         let status = cooldownStatus
+        let catStatus = categoryStatus
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(medication.name)
@@ -99,6 +102,16 @@ struct LogMedicationCard: View {
                     .accessibilityIdentifier("cooldown-warning-\(medication.id)")
             }
 
+            if sizeClass == .regular,
+               catStatus.isWarning,
+               let category = medication.category,
+               let catSummary = catStatus.summary(category: category) {
+                Label(catSummary, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(catStatus.isStrong ? .red : .yellow)
+                    .accessibilityIdentifier("category-warning-\(medication.id)")
+            }
+
             HStack(spacing: 8) {
                 Button(action: onQuickLog) {
                     HStack(spacing: 6) {
@@ -106,6 +119,11 @@ struct LogMedicationCard: View {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundStyle(.orange)
                                 .accessibilityIdentifier("cooldown-icon-\(medication.id)")
+                        }
+                        if catStatus.isWarning {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(catStatus.isStrong ? .red : .yellow)
+                                .accessibilityIdentifier("category-icon-\(medication.id)")
                         }
                         Text("Log \(MedicationFormatting.formatDose(quantity: medication.defaultQuantity ?? 1, amount: medication.dosageAmount, unit: medication.dosageUnit))")
                     }

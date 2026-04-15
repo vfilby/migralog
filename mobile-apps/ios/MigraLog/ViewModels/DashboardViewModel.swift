@@ -23,6 +23,9 @@ final class DashboardViewModel {
     var todaysMedications: [MedicationScheduleItem] = []
     /// Most recent taken dose per medication id (across all time). Used for cooldown warnings.
     var lastDoseByMedication: [String: MedicationDose] = [:]
+    /// Per-category MOH risk status for categories that have a configured limit.
+    /// Only categories present in today's medications are populated.
+    var categoryUsage: [MedicationCategory: CategoryUsageStatus] = [:]
     var yesterdayStatus: DailyStatusLog?
     var shouldShowYesterdayPrompt: Bool = false
     var showNewEpisode = false
@@ -35,6 +38,7 @@ final class DashboardViewModel {
     private let episodeRepository: EpisodeRepositoryProtocol
     private let medicationRepository: MedicationRepositoryProtocol
     private let dailyStatusRepository: DailyStatusRepositoryProtocol
+    private let categoryLimitRepository: CategoryUsageLimitRepositoryProtocol
     private let dailyCheckinService: DailyCheckinNotificationServiceProtocol
 
     // MARK: - Init
@@ -43,6 +47,7 @@ final class DashboardViewModel {
         episodeRepository: EpisodeRepositoryProtocol = EpisodeRepository(dbManager: DatabaseManager.shared),
         medicationRepository: MedicationRepositoryProtocol = MedicationRepository(dbManager: DatabaseManager.shared),
         dailyStatusRepository: DailyStatusRepositoryProtocol = DailyStatusRepository(dbManager: DatabaseManager.shared),
+        categoryLimitRepository: CategoryUsageLimitRepositoryProtocol = CategoryUsageLimitRepository(dbManager: DatabaseManager.shared),
         dailyCheckinService: DailyCheckinNotificationServiceProtocol = DailyCheckinNotificationService(
             notificationService: NotificationService.shared,
             scheduledNotificationRepo: ScheduledNotificationRepository(dbManager: DatabaseManager.shared),
@@ -53,6 +58,7 @@ final class DashboardViewModel {
         self.episodeRepository = episodeRepository
         self.medicationRepository = medicationRepository
         self.dailyStatusRepository = dailyStatusRepository
+        self.categoryLimitRepository = categoryLimitRepository
         self.dailyCheckinService = dailyCheckinService
     }
 
@@ -114,6 +120,9 @@ final class DashboardViewModel {
                 todaysMedications[index].dose = savedDose
             }
             lastDoseByMedication[scheduleItem.medication.id] = savedDose
+            // Refresh category usage so warnings update immediately.
+            let categories = Set(todaysMedications.compactMap { $0.medication.category })
+            categoryUsage = computeCategoryUsage(for: categories, now: Date())
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "DashboardViewModel", "action": "logDose"])
             self.error = error.localizedDescription
@@ -230,6 +239,7 @@ final class DashboardViewModel {
 
         var items: [MedicationScheduleItem] = []
         var lastDoses: [String: MedicationDose] = [:]
+        var usedCategories: Set<MedicationCategory> = []
         for med in activeMeds {
             let schedules = try await medicationRepository.getSchedules(medicationId: med.id)
             if let last = try? medicationRepository.getLastDose(medicationId: med.id) {
@@ -244,10 +254,38 @@ final class DashboardViewModel {
                     schedule: schedule,
                     dose: matchingDose?.dose
                 ))
+                if let category = med.category {
+                    usedCategories.insert(category)
+                }
             }
         }
-        await MainActor.run { lastDoseByMedication = lastDoses }
+        let usage = computeCategoryUsage(for: usedCategories, now: Date())
+        await MainActor.run {
+            lastDoseByMedication = lastDoses
+            categoryUsage = usage
+        }
         return items
+    }
+
+    /// Computes the `CategoryUsageStatus` map for the given categories. Categories
+    /// without a configured limit are omitted.
+    private func computeCategoryUsage(
+        for categories: Set<MedicationCategory>,
+        now: Date
+    ) -> [MedicationCategory: CategoryUsageStatus] {
+        var result: [MedicationCategory: CategoryUsageStatus] = [:]
+        for category in categories {
+            guard let configured = (try? categoryLimitRepository.getLimit(for: category)) ?? nil else {
+                continue
+            }
+            let daysUsed = (try? categoryLimitRepository.countUsageDays(
+                category: category,
+                windowDays: configured.windowDays,
+                now: now
+            )) ?? 0
+            result[category] = CategoryUsageStatus.evaluate(daysUsed: daysUsed, limit: configured)
+        }
+        return result
     }
 
     private func loadYesterdayStatus() async throws -> DailyStatusLog? {

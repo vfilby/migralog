@@ -4,7 +4,7 @@ import GRDB
 /// Central database manager. Owns the DatabaseQueue and handles schema creation/migration.
 final class DatabaseManager: Sendable {
     /// The current schema version
-    static let schemaVersion = 26
+    static let schemaVersion = 27
 
     /// Shared singleton for the app's main database
     static let shared = DatabaseManager()
@@ -110,6 +110,19 @@ final class DatabaseManager: Sendable {
             if !hasColumn {
                 try db.execute(sql: "ALTER TABLE medications ADD COLUMN min_interval_hours REAL")
             }
+        }
+
+        // v27: Add category_usage_limits table for per-category MOH risk warnings.
+        // Fresh installs already create the table in v25's CREATE TABLE block;
+        // this migration is a no-op when it exists (CREATE TABLE IF NOT EXISTS).
+        migrator.registerMigration("v27") { db in
+            try db.execute(sql: """
+                CREATE TABLE IF NOT EXISTS category_usage_limits (
+                    category TEXT PRIMARY KEY,
+                    max_days INTEGER NOT NULL,
+                    window_days INTEGER NOT NULL
+                )
+                """)
         }
 
         return migrator
@@ -315,6 +328,15 @@ final class DatabaseManager: Sendable {
             )
             """)
 
+        // Category usage limits table (MOH risk thresholds per medication category)
+        try db.execute(sql: """
+            CREATE TABLE IF NOT EXISTS category_usage_limits (
+                category TEXT PRIMARY KEY,
+                max_days INTEGER NOT NULL,
+                window_days INTEGER NOT NULL
+            )
+            """)
+
         // Create all indexes
         try DatabaseManager.createIndexes(in: db)
     }
@@ -372,6 +394,7 @@ final class DatabaseManager: Sendable {
             try db.execute(sql: "DELETE FROM intensity_readings")
             try db.execute(sql: "DELETE FROM episodes")
             try db.execute(sql: "DELETE FROM medications")
+            try db.execute(sql: "DELETE FROM category_usage_limits")
         }
     }
 

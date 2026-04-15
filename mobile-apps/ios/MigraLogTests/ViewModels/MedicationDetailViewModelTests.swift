@@ -4,12 +4,14 @@ import XCTest
 @MainActor
 final class MedicationDetailViewModelTests: XCTestCase {
     private var mockRepo: MockMedicationRepository!
+    private var mockCategoryLimitRepo: MockCategoryUsageLimitRepository!
     private var sut: MedicationDetailViewModel!
     private var testMed: Medication!
 
     override func setUp() {
         super.setUp()
         mockRepo = MockMedicationRepository()
+        mockCategoryLimitRepo = MockCategoryUsageLimitRepository()
         testMed = TestFixtures.makeMedication(id: "med-1", name: "Ibuprofen")
         mockRepo.medications = [testMed]
         mockRepo.schedules = [
@@ -18,7 +20,11 @@ final class MedicationDetailViewModelTests: XCTestCase {
         mockRepo.doses = [
             TestFixtures.makeDose(id: "dose-1", medicationId: "med-1")
         ]
-        sut = MedicationDetailViewModel(medicationId: "med-1", medicationRepository: mockRepo)
+        sut = MedicationDetailViewModel(
+            medicationId: "med-1",
+            medicationRepository: mockRepo,
+            categoryLimitRepository: mockCategoryLimitRepo
+        )
     }
 
     // MARK: - Load
@@ -38,7 +44,11 @@ final class MedicationDetailViewModelTests: XCTestCase {
     }
 
     func testLoadMedication_notFound_stateEmpty() async throws {
-        sut = MedicationDetailViewModel(medicationId: "nonexistent", medicationRepository: mockRepo)
+        sut = MedicationDetailViewModel(
+            medicationId: "nonexistent",
+            medicationRepository: mockRepo,
+            categoryLimitRepository: mockCategoryLimitRepo
+        )
         await sut.loadMedication()
 
         XCTAssertNil(sut.medication)
