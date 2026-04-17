@@ -13,6 +13,17 @@ final class CategoryLimitsViewModel {
 
     private let repository: CategoryUsageLimitRepositoryProtocol
 
+    /// Categories not yet configured — used to populate the Add Limit picker.
+    /// Preserves `MedicationCategory.allCases` order.
+    var availableCategoriesForAdd: [MedicationCategory] {
+        MedicationCategory.allCases.filter { limits[$0] == nil }
+    }
+
+    /// Whether the toolbar "+" should be enabled.
+    var canAddMoreLimits: Bool {
+        !availableCategoriesForAdd.isEmpty
+    }
+
     init(
         repository: CategoryUsageLimitRepositoryProtocol = CategoryUsageLimitRepository(dbManager: DatabaseManager.shared)
     ) {
