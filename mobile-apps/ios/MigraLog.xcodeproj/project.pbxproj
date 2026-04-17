@@ -92,6 +92,7 @@
 		87F25A63EC5156E4D0819674 /* MedicationTypeColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607D34D4F6637214F7B05DD8 /* MedicationTypeColors.swift */; };
 		8B0F482B6F32B51DAD53AD0F /* AnalyticsViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D3F7165AEE8A6DFA8A24BA3 /* AnalyticsViewModelTests.swift */; };
 		96763618847DBF5CF4F697AC /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 859A5576CD7D5A38E8B31B35 /* ContentView.swift */; };
+		98DB843B84819207C6D78E41 /* CategoryLimitEditorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8362347A971FD98E28A81361 /* CategoryLimitEditorSheet.swift */; };
 		9E3BE09BF5DB1CA80A42CA6C /* TimezoneChangeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AFC602F51C0713E7E983A25 /* TimezoneChangeService.swift */; };
 		9ED614E5CA0DA670062E2BE2 /* CategoryUsageStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 135285FDC99350DFF3A19D24 /* CategoryUsageStatus.swift */; };
 		A0AD7D5F9D72936BBA6CBA40 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 972F942EC9953A772E2CB7F6 /* NotificationService.swift */; };
@@ -255,6 +256,7 @@
 		7ED444111958701D34C394EC /* SentrySetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SentrySetup.swift; sourceTree = "<group>"; };
 		7F8B9C30690CBBBD832E0020 /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
 		8085FE18D6FA8E5EE15EEF8B /* ExportServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportServiceTests.swift; sourceTree = "<group>"; };
+		8362347A971FD98E28A81361 /* CategoryLimitEditorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryLimitEditorSheet.swift; sourceTree = "<group>"; };
 		8478E3F3AECFFE556A3EE0DC /* NotificationReconciliationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationReconciliationService.swift; sourceTree = "<group>"; };
 		859A5576CD7D5A38E8B31B35 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		86B0D6C1B51A39DFA4F4BB68 /* PainLocationGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PainLocationGrid.swift; sourceTree = "<group>"; };
@@ -570,6 +572,7 @@
 		84D341D07CE116E5E19B7A9A /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				8362347A971FD98E28A81361 /* CategoryLimitEditorSheet.swift */,
 				991D1B18E100523D65A4D710 /* CategoryLimitsScreen.swift */,
 				37ECB95AD7F3FB5D454AE773 /* DatabaseErrorView.swift */,
 				D2905118EC1EC29D6FAFC7F3 /* DataSettingsScreen.swift */,
@@ -936,6 +939,7 @@
 				29755CB3B94B55DE3E6859C0 /* ArchivedMedicationsScreen.swift in Sources */,
 				E4011CB90D144F08B4F5B03D /* BackupService.swift in Sources */,
 				CB02A4A43A1AFD4CE9203B4B /* CacheManager.swift in Sources */,
+				98DB843B84819207C6D78E41 /* CategoryLimitEditorSheet.swift in Sources */,
 				0928538AEA784C7F30D2F8A9 /* CategoryLimitsScreen.swift in Sources */,
 				71ABE5D0124CE628C539BB7B /* CategoryLimitsViewModel.swift in Sources */,
 				CFBA2301DAE29CE76C6C7395 /* CategoryUsageLimitRepository.swift in Sources */,
