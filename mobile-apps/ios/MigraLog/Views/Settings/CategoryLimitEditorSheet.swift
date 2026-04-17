@@ -24,7 +24,6 @@ struct CategoryLimitEditorSheet: View {
             Form {
                 categorySection
                 limitSection
-                guidanceSection
             }
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
@@ -71,7 +70,7 @@ struct CategoryLimitEditorSheet: View {
     }
 
     private var limitSection: some View {
-        Section("Limit") {
+        Section {
             TextField("Max days", text: $maxDaysText)
                 .keyboardType(.numberPad)
                 .accessibilityIdentifier("limit-editor-max-days")
@@ -85,12 +84,8 @@ struct CategoryLimitEditorSheet: View {
                     .font(.footnote)
                     .foregroundStyle(.red)
             }
-        }
-    }
-
-    private var guidanceSection: some View {
-        Section {
-            EmptyView()
+        } header: {
+            Text("Limit")
         } footer: {
             Text("Based on common MOH (medication overuse headache) guidelines — informational only. Talk to your doctor about thresholds appropriate for your situation. This app does not provide medical advice.")
                 .font(.footnote)
@@ -147,6 +142,9 @@ struct CategoryLimitEditorSheet: View {
         }
     }
 
+    // Re-selecting a category (or selecting a new one) re-applies its preset,
+    // overwriting any user edits. Intentional: treats picker changes as a
+    // reset. Cancel is always available if the user wants to abandon.
     private func applyPresetIfAvailable(for category: MedicationCategory?) {
         guard case .add = mode, let category, let preset = category.mohPreset else {
             return
