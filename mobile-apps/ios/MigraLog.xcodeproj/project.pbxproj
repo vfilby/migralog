@@ -156,6 +156,7 @@
 		F77853584FB6F2293AE0664E /* Protocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC45242898147892D6109FC /* Protocols.swift */; };
 		F7885259909E7E8869A0FBF8 /* PainScale.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3E377B93A69A1FB87C4B7AD /* PainScale.swift */; };
 		F8E0741DCAEF1B945C8BB427 /* EpisodesListViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DDF073B14BA448A9118494E /* EpisodesListViewModelTests.swift */; };
+		FA1B88D89140735D8D0B0540 /* MedicationCategoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 726CBCDA596A725E3A0E7FD8 /* MedicationCategoryTests.swift */; };
 		FF383A8EEB9FE0F86269D329 /* ColorContrast.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B55F2C874C905BFB8743D84 /* ColorContrast.swift */; };
 		FF68B224525BC81241D056DB /* NewEpisodeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B437D8468CA5BAD36F5009D /* NewEpisodeViewModel.swift */; };
 /* End PBXBuildFile section */
@@ -241,6 +242,7 @@
 		6C655C4327B2A2443B6CB590 /* SelectableChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectableChip.swift; sourceTree = "<group>"; };
 		6E3EB2C7C80B90165E71117D /* AddMedicationViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddMedicationViewModelTests.swift; sourceTree = "<group>"; };
 		6EE19AF6509CF8DC4DB455A7 /* UITestHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestHelpers.swift; sourceTree = "<group>"; };
+		726CBCDA596A725E3A0E7FD8 /* MedicationCategoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationCategoryTests.swift; sourceTree = "<group>"; };
 		73F297C313657784597A4A5B /* LogUpdateScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogUpdateScreen.swift; sourceTree = "<group>"; };
 		76E303BA2AD06087C298A076 /* ColorContrastTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorContrastTests.swift; sourceTree = "<group>"; };
 		78012231B52727F745C4D9F9 /* ErrorLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorLogger.swift; sourceTree = "<group>"; };
@@ -383,6 +385,7 @@
 				31A3C99C430157F0BB3F9C23 /* MockRepositories.swift */,
 				AC5DEC524950E35C81941E23 /* Database */,
 				D929363C6455385A28A63AE3 /* Integration */,
+				D8851454B9F3755F8A764F21 /* Models */,
 				08AF79C9DBBC75EEF5E3ED4A /* Repositories */,
 				91F1000C3851650C0AC7FCBD /* Services */,
 				E3948A90CD5BC7C9CB260270 /* Utils */,
@@ -693,6 +696,14 @@
 			path = Analytics;
 			sourceTree = "<group>";
 		};
+		D8851454B9F3755F8A764F21 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				726CBCDA596A725E3A0E7FD8 /* MedicationCategoryTests.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
 		D929363C6455385A28A63AE3 /* Integration */ = {
 			isa = PBXGroup;
 			children = (
@@ -884,6 +895,7 @@
 				8412219386D826F79CA5DBC8 /* FormattingTests.swift in Sources */,
 				D6085DBDEE6689987FC5518D /* LocationServiceTests.swift in Sources */,
 				27A0391303646CF5E48C1247 /* LogMedicationViewModelTests.swift in Sources */,
+				FA1B88D89140735D8D0B0540 /* MedicationCategoryTests.swift in Sources */,
 				116097B18DA82FE412F3C5BA /* MedicationCooldownTests.swift in Sources */,
 				62050772CC4D955CEB7AB14F /* MedicationDetailViewModelTests.swift in Sources */,
 				5526658ACE024ED2751F7B58 /* MedicationNotificationServiceTests.swift in Sources */,
