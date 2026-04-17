@@ -169,3 +169,14 @@ struct CategoryLimitEditorSheet: View {
         dismiss()
     }
 }
+
+// MARK: - Identifiable (for .sheet(item:) presentation)
+
+extension CategoryLimitEditorSheet.Mode: Identifiable {
+    var id: String {
+        switch self {
+        case .add:                 return "add"
+        case .edit(let existing):  return "edit-\(existing.category.rawValue)"
+        }
+    }
+}

@@ -100,6 +100,7 @@ struct CategoryLimitsScreen: View {
             Image(systemName: "chevron.right")
                 .font(.footnote)
                 .foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
         }
         .contentShape(Rectangle())
     }
@@ -112,16 +113,5 @@ struct CategoryLimitsScreen: View {
 
     private func presentAddSheet() {
         editorMode = .add(available: viewModel.availableCategoriesForAdd)
-    }
-}
-
-// MARK: - Sheet Identifiable
-
-extension CategoryLimitEditorSheet.Mode: Identifiable {
-    var id: String {
-        switch self {
-        case .add:                 return "__add__"
-        case .edit(let existing):  return existing.category.rawValue
-        }
     }
 }
