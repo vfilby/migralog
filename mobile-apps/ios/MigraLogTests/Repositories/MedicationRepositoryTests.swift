@@ -439,4 +439,50 @@ final class MedicationRepositoryTests: XCTestCase {
         XCTAssertEqual(fetched.first?.effectivenessRating, 7.5)
         XCTAssertEqual(fetched.first?.timeToRelief, 30)
     }
+
+    // MARK: - getLastTakenDoseInCategory
+
+    func test_getLastTakenDoseInCategory_returns_latest_dose_with_med_name() throws {
+        try dbManager.dbQueue.write { db in
+            try db.execute(sql: """
+                INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, active,
+                                          category, created_at, updated_at)
+                VALUES ('m1','Advil','rescue',200,'mg',1,'nsaid',1,1),
+                       ('m2','Naproxen','rescue',500,'mg',1,'nsaid',1,1),
+                       ('m3','Tylenol','rescue',500,'mg',1,'otc',1,1)
+                """)
+            try db.execute(sql: """
+                INSERT INTO medication_doses (id, medication_id, timestamp, quantity, status, created_at, updated_at)
+                VALUES ('d1','m2',1000,1,'taken',1,1),
+                       ('d2','m1',2000,1,'taken',1,1),
+                       ('d3','m3',3000,1,'taken',1,1)
+                """)
+        }
+
+        let result = try repo.getLastTakenDoseInCategory(.nsaid, now: Date(timeIntervalSince1970: 1_000_000))
+        XCTAssertEqual(result?.medicationName, "Advil")
+        XCTAssertEqual(result?.dose.medicationId, "m1")
+    }
+
+    func test_getLastTakenDoseInCategory_ignores_skipped_doses() throws {
+        try dbManager.dbQueue.write { db in
+            try db.execute(sql: """
+                INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, active,
+                                          category, created_at, updated_at)
+                VALUES ('m1','Advil','rescue',200,'mg',1,'nsaid',1,1)
+                """)
+            try db.execute(sql: """
+                INSERT INTO medication_doses (id, medication_id, timestamp, quantity, status, created_at, updated_at)
+                VALUES ('d1','m1',1000,0,'skipped',1,1)
+                """)
+        }
+
+        let result = try repo.getLastTakenDoseInCategory(.nsaid, now: Date(timeIntervalSince1970: 1_000_000))
+        XCTAssertNil(result)
+    }
+
+    func test_getLastTakenDoseInCategory_returns_nil_when_no_doses() throws {
+        let result = try repo.getLastTakenDoseInCategory(.nsaid, now: Date())
+        XCTAssertNil(result)
+    }
 }

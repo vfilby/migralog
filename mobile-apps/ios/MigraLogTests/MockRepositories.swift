@@ -404,6 +404,24 @@ final class MockMedicationRepository: MedicationRepositoryProtocol, @unchecked S
         doses.removeAll { $0.id == id }
     }
 
+    func getLastTakenDoseInCategory(
+        _ category: MedicationCategory,
+        now: Date
+    ) throws -> (dose: MedicationDose, medicationName: String)? {
+        try throwIfNeeded()
+        let endTs = TimestampHelper.fromDate(now)
+        let categoryMedIds = Set(medications.filter { $0.category == category }.map(\.id))
+        let candidate = doses
+            .filter { categoryMedIds.contains($0.medicationId) && $0.status == .taken && $0.timestamp <= endTs }
+            .sorted { $0.timestamp > $1.timestamp }
+            .first
+        guard let dose = candidate,
+              let name = medications.first(where: { $0.id == dose.medicationId })?.name else {
+            return nil
+        }
+        return (dose, name)
+    }
+
     // MARK: - Schedules
 
     func createSchedule(_ schedule: MedicationSchedule) throws -> MedicationSchedule {
@@ -459,18 +477,18 @@ final class MockMedicationRepository: MedicationRepositoryProtocol, @unchecked S
     }
 }
 
-// MARK: - Mock Category Usage Limit Repository
+// MARK: - Mock Category Safety Rule Repository
 
-final class MockCategoryUsageLimitRepository: CategoryUsageLimitRepositoryProtocol, @unchecked Sendable {
-    /// Storage of configured limits.
-    var limits: [MedicationCategory: CategoryUsageLimit] = [:]
+final class MockCategorySafetyRuleRepository: CategorySafetyRuleRepositoryProtocol, @unchecked Sendable {
+    /// Storage of configured rules keyed by id.
+    var rules: [String: CategorySafetyRule] = [:]
     /// Pre-computed distinct-day counts per category to return from
     /// `countUsageDays`. Tests can populate this to drive status evaluation.
     var dayCounts: [MedicationCategory: Int] = [:]
 
     // Call tracking
-    var setLimitCalled = false
-    var clearLimitCalled = false
+    var upsertCalled = false
+    var deleteCalled = false
     var countUsageDaysCalled = false
 
     var errorToThrow: Error?
@@ -479,26 +497,35 @@ final class MockCategoryUsageLimitRepository: CategoryUsageLimitRepositoryProtoc
         if let error = errorToThrow { throw error }
     }
 
-    func getAllLimits() throws -> [CategoryUsageLimit] {
+    func getAllRules() throws -> [CategorySafetyRule] {
         try throwIfNeeded()
-        return Array(limits.values)
+        return Array(rules.values)
     }
 
-    func getLimit(for category: MedicationCategory) throws -> CategoryUsageLimit? {
+    func getRules(for category: MedicationCategory) throws -> [CategorySafetyRule] {
         try throwIfNeeded()
-        return limits[category]
+        return rules.values.filter { $0.category == category }
     }
 
-    func setLimit(_ limit: CategoryUsageLimit) throws {
+    func getRule(category: MedicationCategory, type: CategorySafetyRuleType) throws -> CategorySafetyRule? {
         try throwIfNeeded()
-        setLimitCalled = true
-        limits[limit.category] = limit
+        return rules.values.first { $0.category == category && $0.type == type }
     }
 
-    func clearLimit(for category: MedicationCategory) throws {
+    func upsert(_ rule: CategorySafetyRule) throws {
         try throwIfNeeded()
-        clearLimitCalled = true
-        limits.removeValue(forKey: category)
+        upsertCalled = true
+        // Remove any existing rule of same (category, type) before inserting.
+        rules = rules.filter { _, existing in
+            !(existing.category == rule.category && existing.type == rule.type)
+        }
+        rules[rule.id] = rule
+    }
+
+    func delete(id: String) throws {
+        try throwIfNeeded()
+        deleteCalled = true
+        rules.removeValue(forKey: id)
     }
 
     func countUsageDays(category: MedicationCategory, windowDays: Int, now: Date) throws -> Int {
