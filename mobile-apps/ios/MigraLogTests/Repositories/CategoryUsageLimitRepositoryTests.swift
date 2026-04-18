@@ -120,8 +120,10 @@ final class CategoryUsageLimitRepositoryTests: XCTestCase {
 
     func testCountUsageDays_multipleDosesSameDay_countsAsOne() throws {
         let med = try medRepo.createMedication(makeMedication(category: .nsaid))
-        let now = Date()
-        // Three doses all "today"
+        // Anchor at noon local time so adding 2h stays on the same calendar day
+        // regardless of the wall clock when the test runs (previous `Date()` +2h
+        // offset flaked when the test ran after 22:00 local).
+        let now = Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: Date())!
         _ = try medRepo.createDose(makeDose(medicationId: med.id, at: now))
         _ = try medRepo.createDose(makeDose(medicationId: med.id, at: now.addingTimeInterval(3600)))
         _ = try medRepo.createDose(makeDose(medicationId: med.id, at: now.addingTimeInterval(7200)))
