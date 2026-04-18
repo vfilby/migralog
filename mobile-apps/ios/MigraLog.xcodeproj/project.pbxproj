@@ -12,7 +12,6 @@
 		0372A502032A02A39392750E /* EditPainLocationLogScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE6D8CCB2F92DF5EF290B066 /* EditPainLocationLogScreen.swift */; };
 		055AF4F8C351C8DB9461AE70 /* OnboardingUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 232D17AEE0F9291C479CD1C7 /* OnboardingUITests.swift */; };
 		05AA044EA783D666E98E81D9 /* EpisodeActionButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5324283BE5DD60BF140715F /* EpisodeActionButtons.swift */; };
-		0928538AEA784C7F30D2F8A9 /* CategoryLimitsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 991D1B18E100523D65A4D710 /* CategoryLimitsScreen.swift */; };
 		093B4FE1027E57E1CEBD643B /* DailyStatusUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51E3036FF5E4C4872E57D3C1 /* DailyStatusUITests.swift */; };
 		0F440F21A1D92A2CD1BD1EE6 /* CategoryCooldown.swift in Sources */ = {isa = PBXBuildFile; fileRef = B50080D835C4891DB21A1523 /* CategoryCooldown.swift */; };
 		10F2CD05EEA4BC083713BB6F /* CategorySafetyRuleRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0876DBDE121F6BD9C0A4A8E0 /* CategorySafetyRuleRepository.swift */; };
@@ -32,6 +31,7 @@
 		2A1B4DD1A4D7094B0FF06414 /* LogUpdateScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73F297C313657784597A4A5B /* LogUpdateScreen.swift */; };
 		2D14C25CEADEFB3BCC5E4840 /* MedicationsListViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9D384AA6DA7F843009EEC84 /* MedicationsListViewModelTests.swift */; };
 		301A0660561DF9239237C0B6 /* ErrorHandlingUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9016CBE2B824AE5F5B6FA89B /* ErrorHandlingUITests.swift */; };
+		3264DF61ED393FFE24E19FA0 /* CategorySafetyRulesScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 720F23664A1D7E45FEA7A7BA /* CategorySafetyRulesScreen.swift */; };
 		32FDC6C19F3E21A4C748F43D /* CacheManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47F899D4AAC4135CFB9D8D34 /* CacheManagerTests.swift */; };
 		3506C0BB0B8A3D2D12ED0259 /* EpisodesScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EE092383622BB8F899CBA49 /* EpisodesScreen.swift */; };
 		37D0E1F50505C0DC8E0E210D /* TimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7913071662805B64C108E6B5 /* TimelineView.swift */; };
@@ -254,6 +254,7 @@
 		6C655C4327B2A2443B6CB590 /* SelectableChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectableChip.swift; sourceTree = "<group>"; };
 		6E3EB2C7C80B90165E71117D /* AddMedicationViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddMedicationViewModelTests.swift; sourceTree = "<group>"; };
 		6EE19AF6509CF8DC4DB455A7 /* UITestHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestHelpers.swift; sourceTree = "<group>"; };
+		720F23664A1D7E45FEA7A7BA /* CategorySafetyRulesScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategorySafetyRulesScreen.swift; sourceTree = "<group>"; };
 		726CBCDA596A725E3A0E7FD8 /* MedicationCategoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationCategoryTests.swift; sourceTree = "<group>"; };
 		73F297C313657784597A4A5B /* LogUpdateScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogUpdateScreen.swift; sourceTree = "<group>"; };
 		76E303BA2AD06087C298A076 /* ColorContrastTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorContrastTests.swift; sourceTree = "<group>"; };
@@ -281,7 +282,6 @@
 		90A66B0ABA189E553063FC3D /* AnalyticsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsViewModel.swift; sourceTree = "<group>"; };
 		90E6D59A95E669BF94630D8F /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
 		972F942EC9953A772E2CB7F6 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
-		991D1B18E100523D65A4D710 /* CategoryLimitsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryLimitsScreen.swift; sourceTree = "<group>"; };
 		99FE225FDDAA5ECC550754B1 /* EpisodeDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpisodeDetailViewModel.swift; sourceTree = "<group>"; };
 		9E772101710689E022AD7303 /* NotificationSlotCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSlotCalculator.swift; sourceTree = "<group>"; };
 		9EEC5FFD01D7481E8991978D /* PresetMedicationsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetMedicationsTests.swift; sourceTree = "<group>"; };
@@ -581,8 +581,8 @@
 		84D341D07CE116E5E19B7A9A /* Settings */ = {
 			isa = PBXGroup;
 			children = (
-				991D1B18E100523D65A4D710 /* CategoryLimitsScreen.swift */,
 				3EE7DFD4860A45AC7C2F3BB9 /* CategorySafetyRuleEditorSheet.swift */,
+				720F23664A1D7E45FEA7A7BA /* CategorySafetyRulesScreen.swift */,
 				37ECB95AD7F3FB5D454AE773 /* DatabaseErrorView.swift */,
 				D2905118EC1EC29D6FAFC7F3 /* DataSettingsScreen.swift */,
 				F5BF70F8D6B06F72BB0220C8 /* DeveloperToolsScreen.swift */,
@@ -954,9 +954,9 @@
 				E4011CB90D144F08B4F5B03D /* BackupService.swift in Sources */,
 				CB02A4A43A1AFD4CE9203B4B /* CacheManager.swift in Sources */,
 				0F440F21A1D92A2CD1BD1EE6 /* CategoryCooldown.swift in Sources */,
-				0928538AEA784C7F30D2F8A9 /* CategoryLimitsScreen.swift in Sources */,
 				A0A99870B0A9155C2896E4D3 /* CategorySafetyRuleEditorSheet.swift in Sources */,
 				10F2CD05EEA4BC083713BB6F /* CategorySafetyRuleRepository.swift in Sources */,
+				3264DF61ED393FFE24E19FA0 /* CategorySafetyRulesScreen.swift in Sources */,
 				B0E8F5CD9CEF239E8927701B /* CategorySafetyRulesViewModel.swift in Sources */,
 				9ED614E5CA0DA670062E2BE2 /* CategoryUsageStatus.swift in Sources */,
 				FF383A8EEB9FE0F86269D329 /* ColorContrast.swift in Sources */,

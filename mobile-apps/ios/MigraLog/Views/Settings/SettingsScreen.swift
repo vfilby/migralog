@@ -23,7 +23,7 @@ struct SettingsScreen: View {
             // Medication Safety
             Section("Medication Safety") {
                 NavigationLink {
-                    CategoryLimitsScreen()
+                    CategorySafetyRulesScreen()
                 } label: {
                     Label("Medication Safety Limits", systemImage: "exclamationmark.shield")
                 }
