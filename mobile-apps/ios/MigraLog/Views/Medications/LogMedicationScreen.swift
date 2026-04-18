@@ -49,7 +49,11 @@ struct LogMedicationScreen: View {
         }
         .sheet(item: $detailMedication) { med in
             NavigationStack {
-                LogMedicationDetailSheet(medication: med) { dose in
+                LogMedicationDetailSheet(
+                    medication: med,
+                    lastDose: viewModel.lastDoseByMedication[med.id],
+                    categoryStatus: med.category.flatMap { viewModel.categoryUsage[$0] } ?? .noLimit
+                ) { dose in
                     Task {
                         let repo = MedicationRepository(dbManager: DatabaseManager.shared)
                         try? await repo.createDose(dose)
@@ -95,34 +99,24 @@ struct LogMedicationCard: View {
                     .foregroundStyle(.secondary)
             }
 
-            if sizeClass == .regular, status.isOnCooldown, let summary = MedicationCooldown.summary(status) {
-                Label(summary, systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                    .accessibilityIdentifier("cooldown-warning-\(medication.id)")
-            }
-
-            if sizeClass == .regular,
-               catStatus.isWarning,
-               let category = medication.category,
-               let catSummary = catStatus.summary(category: category) {
-                Label(catSummary, systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
-                    .foregroundStyle(catStatus.isStrong ? .red : .yellow)
-                    .accessibilityIdentifier("category-warning-\(medication.id)")
-            }
+            MedicationSafetyBanners(
+                cooldown: status,
+                categoryStatus: catStatus,
+                medicationCategory: medication.category,
+                medicationId: medication.id
+            )
 
             HStack(spacing: 8) {
                 Button(action: onQuickLog) {
                     HStack(spacing: 6) {
                         if status.isOnCooldown {
-                            Image(systemName: "exclamationmark.triangle.fill")
+                            Image(systemName: "clock.fill")
                                 .foregroundStyle(.orange)
                                 .accessibilityIdentifier("cooldown-icon-\(medication.id)")
                         }
                         if catStatus.isWarning {
                             Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(catStatus.isStrong ? .red : .yellow)
+                                .foregroundStyle(catStatus.isStrong ? Color.red : Color.orange)
                                 .accessibilityIdentifier("category-icon-\(medication.id)")
                         }
                         Text("Log \(MedicationFormatting.formatDose(quantity: medication.defaultQuantity ?? 1, amount: medication.dosageAmount, unit: medication.dosageUnit))")
@@ -154,20 +148,45 @@ struct LogMedicationCard: View {
 
 struct LogMedicationDetailSheet: View {
     let medication: Medication
+    var lastDose: MedicationDose? = nil
+    var categoryStatus: CategoryUsageStatus = .noLimit
     let onSave: (MedicationDose) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var quantity: Double
     @State private var timestamp = Date()
     @State private var notes: String = ""
 
-    init(medication: Medication, onSave: @escaping (MedicationDose) -> Void) {
+    init(
+        medication: Medication,
+        lastDose: MedicationDose? = nil,
+        categoryStatus: CategoryUsageStatus = .noLimit,
+        onSave: @escaping (MedicationDose) -> Void
+    ) {
         self.medication = medication
+        self.lastDose = lastDose
+        self.categoryStatus = categoryStatus
         self.onSave = onSave
         self._quantity = State(initialValue: medication.defaultQuantity ?? 1)
     }
 
+    private var cooldownStatus: MedicationCooldown.Status {
+        MedicationCooldown.evaluate(medication: medication, lastDose: lastDose)
+    }
+
     var body: some View {
         Form {
+            let cooldown = cooldownStatus
+            if cooldown.hoursSinceLastDose != nil || categoryStatus.isWarning {
+                Section {
+                    MedicationSafetyBanners(
+                        cooldown: cooldown,
+                        categoryStatus: categoryStatus,
+                        medicationCategory: medication.category,
+                        medicationId: medication.id
+                    )
+                }
+            }
+
             Section("Medication") {
                 LabeledContent("Name", value: medication.name)
                 LabeledContent("Dosage", value: MedicationFormatting.formatDosage(amount: medication.dosageAmount, unit: medication.dosageUnit))
