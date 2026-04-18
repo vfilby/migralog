@@ -12,15 +12,20 @@ enum CategoryUsageStatus: Equatable {
     /// - `atOrOver` when `daysUsed >= maxDays`
     /// - `approaching` when `daysUsed >= maxDays - 2` (i.e. max-2, max-1)
     /// - `ok` otherwise
-    static func evaluate(daysUsed: Int, limit: CategoryUsageLimit?) -> CategoryUsageStatus {
-        guard let limit else { return .noLimit }
-        if daysUsed >= limit.maxDays {
-            return .atOrOver(daysUsed: daysUsed, maxDays: limit.maxDays, windowDays: limit.windowDays)
+    /// - `.noLimit` when `limit` is nil or is not a period_limit rule.
+    static func evaluate(daysUsed: Int, limit: CategorySafetyRule?) -> CategoryUsageStatus {
+        guard let limit, limit.type == .periodLimit,
+              let maxDays = limit.maxCount else {
+            return .noLimit
         }
-        if daysUsed >= limit.maxDays - 2 {
-            return .approaching(daysUsed: daysUsed, maxDays: limit.maxDays, windowDays: limit.windowDays)
+        let windowDays = limit.windowDays
+        if daysUsed >= maxDays {
+            return .atOrOver(daysUsed: daysUsed, maxDays: maxDays, windowDays: windowDays)
         }
-        return .ok(daysUsed: daysUsed, maxDays: limit.maxDays, windowDays: limit.windowDays)
+        if daysUsed >= maxDays - 2 {
+            return .approaching(daysUsed: daysUsed, maxDays: maxDays, windowDays: windowDays)
+        }
+        return .ok(daysUsed: daysUsed, maxDays: maxDays, windowDays: windowDays)
     }
 
     /// Short UI summary, e.g. "NSAIDs used 13 of 15 days in last 30".
