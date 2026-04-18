@@ -3,14 +3,29 @@ import GRDB
 
 // MARK: - Model
 
-/// A configured limit on medication usage for a given category, used to surface
-/// MOH (medication overuse headache) risk warnings. For example: "NSAID — max 15
-/// days in any rolling 30-day window."
-struct CategoryUsageLimit: Identifiable, Equatable, Sendable {
+enum CategorySafetyRuleType: String, CaseIterable, Equatable, Sendable {
+    case cooldown
+    case periodLimit = "period_limit"
+}
+
+/// A single safety rule applied to a medication category. Two rule types
+/// currently exist:
+///
+/// - `.cooldown`: Minimum time between any dose in the category, any medication.
+///   `periodHours` is the gap; `maxCount` is nil.
+/// - `.periodLimit`: MOH-style day-count cap ("max N days in a rolling window").
+///   `periodHours` is the window length (days * 24); `maxCount` is N.
+struct CategorySafetyRule: Identifiable, Equatable, Sendable {
+    let id: String
     let category: MedicationCategory
-    var maxDays: Int
-    var windowDays: Int
-    var id: String { category.rawValue }
+    let type: CategorySafetyRuleType
+    let periodHours: Double
+    let maxCount: Int?
+    let createdAt: Date
+
+    /// Window length in whole days, for period_limit rules. Rounds to nearest
+    /// integer day because the UI only exposes day-granularity.
+    var windowDays: Int { Int((periodHours / 24.0).rounded()) }
 }
 
 // MARK: - Implementation
