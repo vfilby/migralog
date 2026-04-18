@@ -30,62 +30,82 @@ struct CategorySafetyRule: Identifiable, Equatable, Sendable {
 
 // MARK: - Implementation
 
-final class CategoryUsageLimitRepository: CategoryUsageLimitRepositoryProtocol {
+final class CategorySafetyRuleRepository: CategorySafetyRuleRepositoryProtocol {
     private let dbManager: DatabaseManager
 
     init(dbManager: DatabaseManager) {
         self.dbManager = dbManager
     }
 
-    func getAllLimits() throws -> [CategoryUsageLimit] {
+    func getAllRules() throws -> [CategorySafetyRule] {
         try dbManager.dbQueue.read { db in
             let rows = try Row.fetchAll(
                 db,
-                sql: "SELECT category, max_days, window_days FROM category_usage_limits"
+                sql: "SELECT id, category, type, period_hours, max_count, created_at FROM category_safety_rules"
             )
-            return rows.compactMap { Self.limitFromRow($0) }
+            return rows.compactMap { Self.ruleFromRow($0) }
         }
     }
 
-    func getLimit(for category: MedicationCategory) throws -> CategoryUsageLimit? {
+    func getRules(for category: MedicationCategory) throws -> [CategorySafetyRule] {
+        try dbManager.dbQueue.read { db in
+            let rows = try Row.fetchAll(
+                db,
+                sql: "SELECT id, category, type, period_hours, max_count, created_at FROM category_safety_rules WHERE category = ?",
+                arguments: [category.rawValue]
+            )
+            return rows.compactMap { Self.ruleFromRow($0) }
+        }
+    }
+
+    func getRule(category: MedicationCategory, type: CategorySafetyRuleType) throws -> CategorySafetyRule? {
         try dbManager.dbQueue.read { db in
             let row = try Row.fetchOne(
                 db,
-                sql: "SELECT category, max_days, window_days FROM category_usage_limits WHERE category = ?",
-                arguments: [category.rawValue]
+                sql: """
+                    SELECT id, category, type, period_hours, max_count, created_at
+                    FROM category_safety_rules
+                    WHERE category = ? AND type = ?
+                    """,
+                arguments: [category.rawValue, type.rawValue]
             )
-            return row.flatMap { Self.limitFromRow($0) }
+            return row.flatMap { Self.ruleFromRow($0) }
         }
     }
 
-    func setLimit(_ limit: CategoryUsageLimit) throws {
+    func upsert(_ rule: CategorySafetyRule) throws {
         try dbManager.dbQueue.write { db in
             try db.execute(
                 sql: """
-                    INSERT INTO category_usage_limits (category, max_days, window_days)
-                    VALUES (?, ?, ?)
-                    ON CONFLICT(category) DO UPDATE SET
-                        max_days = excluded.max_days,
-                        window_days = excluded.window_days
+                    INSERT INTO category_safety_rules
+                        (id, category, type, period_hours, max_count, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(category, type) DO UPDATE SET
+                        period_hours = excluded.period_hours,
+                        max_count = excluded.max_count
                     """,
-                arguments: [limit.category.rawValue, limit.maxDays, limit.windowDays]
+                arguments: [
+                    rule.id,
+                    rule.category.rawValue,
+                    rule.type.rawValue,
+                    rule.periodHours,
+                    rule.maxCount,
+                    Int64(rule.createdAt.timeIntervalSince1970 * 1000)
+                ]
             )
         }
     }
 
-    func clearLimit(for category: MedicationCategory) throws {
+    func delete(id: String) throws {
         try dbManager.dbQueue.write { db in
             try db.execute(
-                sql: "DELETE FROM category_usage_limits WHERE category = ?",
-                arguments: [category.rawValue]
+                sql: "DELETE FROM category_safety_rules WHERE id = ?",
+                arguments: [id]
             )
         }
     }
 
     func countUsageDays(category: MedicationCategory, windowDays: Int, now: Date) throws -> Int {
-        // Compute the start of the window (inclusive): now - windowDays days.
-        // We count distinct local calendar days with any taken dose for a
-        // medication in the given category.
         let windowStart = now.addingTimeInterval(-Double(windowDays) * 24 * 3600)
         let startTs = TimestampHelper.fromDate(windowStart)
         let endTs = TimestampHelper.fromDate(now)
@@ -109,15 +129,23 @@ final class CategoryUsageLimitRepository: CategoryUsageLimitRepositoryProtocol {
 
     // MARK: - Row Mapping
 
-    private static func limitFromRow(_ row: Row) -> CategoryUsageLimit? {
+    private static func ruleFromRow(_ row: Row) -> CategorySafetyRule? {
         guard let rawCategory = row["category"] as String?,
-              let category = MedicationCategory(rawValue: rawCategory) else {
+              let category = MedicationCategory(rawValue: rawCategory),
+              let rawType = row["type"] as String?,
+              let type = CategorySafetyRuleType(rawValue: rawType),
+              let id = row["id"] as String?,
+              let periodHours = row["period_hours"] as Double?,
+              let createdAtMillis = row["created_at"] as Int64? else {
             return nil
         }
-        return CategoryUsageLimit(
+        return CategorySafetyRule(
+            id: id,
             category: category,
-            maxDays: row["max_days"],
-            windowDays: row["window_days"]
+            type: type,
+            periodHours: periodHours,
+            maxCount: row["max_count"] as Int?,
+            createdAt: Date(timeIntervalSince1970: TimeInterval(createdAtMillis) / 1000.0)
         )
     }
 }
