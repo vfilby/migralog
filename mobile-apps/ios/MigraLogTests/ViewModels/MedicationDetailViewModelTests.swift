@@ -167,4 +167,57 @@ final class MedicationDetailViewModelTests: XCTestCase {
 
         XCTAssertFalse(sut.schedules[0].enabled)
     }
+
+    // MARK: - Update Medication (defaultQuantity sync)
+
+    /// Regression test for #399: changing a medication's default dose must also
+    /// update the dosage on all associated schedules, because the dashboard home
+    /// card reads `schedule.dosage` (not `medication.defaultQuantity`) for its
+    /// "Log N × Xmg" label and the logDose flow.
+    func testUpdateMedication_whenDefaultQuantityChanges_updatesSchedulesDosage() async throws {
+        // Seed: medication with defaultQuantity 2 and a schedule whose dosage is
+        // also 2 (mirrors the state after AddMedicationScreen + typical usage).
+        var seededMed = TestFixtures.makeMedication(id: "med-1", name: "Ibuprofen")
+        seededMed.defaultQuantity = 2.0
+        mockRepo.medications = [seededMed]
+        mockRepo.schedules = [
+            TestFixtures.makeSchedule(id: "sched-1", medicationId: "med-1", time: "08:00", dosage: 2.0),
+            TestFixtures.makeSchedule(id: "sched-2", medicationId: "med-1", time: "20:00", dosage: 2.0)
+        ]
+
+        await sut.loadMedication()
+        XCTAssertEqual(sut.medication?.defaultQuantity, 2.0)
+        XCTAssertEqual(sut.schedules.count, 2)
+
+        // Act: user edits the medication and changes defaultQuantity from 2 → 1.
+        var updated = sut.medication!
+        updated.defaultQuantity = 1.0
+        await sut.updateMedication(updated)
+
+        // Assert: view-model schedules and the mock repo's schedules reflect the
+        // new quantity, not the old one.
+        XCTAssertEqual(sut.medication?.defaultQuantity, 1.0)
+        XCTAssertTrue(sut.schedules.allSatisfy { $0.dosage == 1.0 }, "All schedules should be updated to new defaultQuantity")
+        let storedSchedules = try mockRepo.getSchedulesByMedicationId("med-1")
+        XCTAssertTrue(storedSchedules.allSatisfy { $0.dosage == 1.0 }, "Persisted schedules should reflect new quantity")
+    }
+
+    func testUpdateMedication_whenDefaultQuantityUnchanged_doesNotTouchSchedules() async throws {
+        var seededMed = TestFixtures.makeMedication(id: "med-1", name: "Ibuprofen")
+        seededMed.defaultQuantity = 2.0
+        mockRepo.medications = [seededMed]
+        mockRepo.schedules = [
+            TestFixtures.makeSchedule(id: "sched-1", medicationId: "med-1", time: "08:00", dosage: 2.0)
+        ]
+
+        await sut.loadMedication()
+
+        // Act: change name only, leave defaultQuantity alone.
+        var updated = sut.medication!
+        updated.name = "Advil"
+        await sut.updateMedication(updated)
+
+        // Schedule dosage should be untouched.
+        XCTAssertEqual(sut.schedules[0].dosage, 2.0)
+    }
 }

@@ -111,10 +111,37 @@ final class MedicationDetailViewModel {
     @MainActor
     func updateMedication(_ updated: Medication) async {
         do {
+            let previous = medication
             _ = try medicationRepository.updateMedication(updated)
             medication = updated
+
+            // If defaultQuantity changed, sync all schedules' dosage to match. The
+            // dashboard "Today's Medications" card reads schedule.dosage for the
+            // "Log N × Xmg" button, so schedules must track the medication's
+            // default dose or the card will show a stale quantity (#399).
+            if previous?.defaultQuantity != updated.defaultQuantity,
+               let newQuantity = updated.defaultQuantity {
+                var updatedSchedules: [MedicationSchedule] = []
+                for schedule in schedules where schedule.dosage != newQuantity {
+                    var next = schedule
+                    next.dosage = newQuantity
+                    _ = try medicationRepository.updateSchedule(next)
+                    updatedSchedules.append(next)
+                }
+                // Reflect in local state
+                for updatedSchedule in updatedSchedules {
+                    if let index = schedules.firstIndex(where: { $0.id == updatedSchedule.id }) {
+                        schedules[index] = updatedSchedule
+                    }
+                }
+            }
+
             // Reschedule notifications when medication is updated
             await rescheduleNotifications(for: updated)
+
+            // Notify dashboard/list views so they refresh cached medication and
+            // schedule data (home card label, cooldown, etc.).
+            NotificationCenter.default.post(name: .medicationDataChanged, object: nil)
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "MedicationDetailViewModel"])
             self.error = error.localizedDescription
