@@ -20,6 +20,14 @@
       "type": "array",
       "items": { "$ref": "#/$defs/IntensityReading" }
     },
+    "symptomLogs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/SymptomLog" }
+    },
+    "painLocationLogs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/PainLocationLog" }
+    },
     "dailyStatusLogs": {
       "type": "array",
       "items": { "$ref": "#/$defs/DailyStatusLog" }
@@ -142,7 +150,31 @@
         "schemaVersion": { "type": "integer", "minimum": 1, "description": "Database schema version" },
         "episodeCount": { "type": "integer", "minimum": 0 },
         "medicationCount": { "type": "integer", "minimum": 0 },
-        "overlayCount": { "type": "integer", "minimum": 0 }
+        "overlayCount": { "type": "integer", "minimum": 0 },
+        "counts": { "$ref": "#/$defs/ExportCounts" }
+      }
+    },
+
+    "ExportCounts": {
+      "description": "Per-entity row counts. Added in Issue #357 so consumers can verify export completeness against array lengths.",
+      "type": "object",
+      "required": [
+        "episodes", "episodeNotes", "intensityReadings", "symptomLogs",
+        "painLocationLogs", "dailyStatusLogs", "medications",
+        "medicationDoses", "medicationSchedules", "calendarOverlays"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "episodes": { "type": "integer", "minimum": 0 },
+        "episodeNotes": { "type": "integer", "minimum": 0 },
+        "intensityReadings": { "type": "integer", "minimum": 0 },
+        "symptomLogs": { "type": "integer", "minimum": 0 },
+        "painLocationLogs": { "type": "integer", "minimum": 0 },
+        "dailyStatusLogs": { "type": "integer", "minimum": 0 },
+        "medications": { "type": "integer", "minimum": 0 },
+        "medicationDoses": { "type": "integer", "minimum": 0 },
+        "medicationSchedules": { "type": "integer", "minimum": 0 },
+        "calendarOverlays": { "type": "integer", "minimum": 0 }
       }
     },
 
@@ -187,6 +219,37 @@
         "episodeId": { "type": "string", "minLength": 1 },
         "timestamp": { "$ref": "#/$defs/Timestamp" },
         "intensity": { "type": "number", "minimum": 0, "maximum": 10 },
+        "createdAt": { "$ref": "#/$defs/Timestamp" },
+        "updatedAt": { "$ref": "#/$defs/Timestamp" }
+      }
+    },
+
+    "SymptomLog": {
+      "description": "Individual symptom onset/resolution tracking within an episode. Added to export in Issue #357.",
+      "type": "object",
+      "required": ["id", "episodeId", "symptom", "onsetTime", "createdAt"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "episodeId": { "type": "string", "minLength": 1 },
+        "symptom": { "$ref": "#/$defs/Symptom" },
+        "onsetTime": { "$ref": "#/$defs/Timestamp" },
+        "resolutionTime": { "$ref": "#/$defs/Timestamp" },
+        "severity": { "type": "number", "minimum": 0, "maximum": 10 },
+        "createdAt": { "$ref": "#/$defs/Timestamp" }
+      }
+    },
+
+    "PainLocationLog": {
+      "description": "Timestamped snapshot of pain locations within an episode. Added to export in Issue #357.",
+      "type": "object",
+      "required": ["id", "episodeId", "timestamp", "painLocations", "createdAt"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "episodeId": { "type": "string", "minLength": 1 },
+        "timestamp": { "$ref": "#/$defs/Timestamp" },
+        "painLocations": { "type": "array", "items": { "$ref": "#/$defs/PainLocation" } },
         "createdAt": { "$ref": "#/$defs/Timestamp" },
         "updatedAt": { "$ref": "#/$defs/Timestamp" }
       }
