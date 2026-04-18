@@ -151,6 +151,19 @@ enum MedicationCategory: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+extension MedicationCategory {
+    /// Common MOH (medication overuse headache) guideline defaults used to pre-fill
+    /// the Add Limit sheet. Informational only — not medical advice.
+    var mohPreset: (maxDays: Int, windowDays: Int)? {
+        switch self {
+        case .nsaid:   return (15, 30)
+        case .triptan: return (10, 30)
+        case .otc, .cgrp, .preventive, .supplement, .other:
+            return nil
+        }
+    }
+}
+
 // MARK: - Daily Status Enums
 
 enum DayStatus: String, Codable, CaseIterable, Identifiable {

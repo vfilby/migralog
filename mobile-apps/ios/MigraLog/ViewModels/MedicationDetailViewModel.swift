@@ -13,6 +13,21 @@ final class MedicationDetailViewModel {
     var isLoading = false
     var error: String?
 
+    /// Current cooldown status, derived from the medication's min-interval and the
+    /// most recent dose in `recentDoses`. Recomputed on demand so it stays fresh
+    /// after loadMedication / logDose / deleteDose without additional plumbing.
+    var cooldownStatus: MedicationCooldown.Status {
+        guard let med = medication else {
+            return MedicationCooldown.Status(
+                isOnCooldown: false,
+                hoursSinceLastDose: nil,
+                hoursUntilNextDose: 0,
+                minIntervalHours: nil
+            )
+        }
+        return MedicationCooldown.evaluate(medication: med, lastDose: recentDoses.first)
+    }
+
     // MARK: - Dependencies
 
     private let medicationRepository: MedicationRepositoryProtocol

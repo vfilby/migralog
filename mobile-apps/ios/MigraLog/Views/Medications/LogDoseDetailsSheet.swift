@@ -23,6 +23,19 @@ struct LogDoseDetailsSheet: View {
     var body: some View {
         NavigationStack {
             Form {
+                let cooldown = viewModel.cooldownStatus
+                let category = viewModel.categoryStatus
+                if shouldShowSafetySection(cooldown: cooldown, category: category) {
+                    Section {
+                        MedicationSafetyBanners(
+                            cooldown: cooldown,
+                            categoryStatus: category,
+                            medicationCategory: medication.category,
+                            medicationId: medication.id
+                        )
+                    }
+                }
+
                 Section("Amount") {
                     HStack {
                         TextField("Quantity", text: $quantity)
@@ -71,6 +84,13 @@ struct LogDoseDetailsSheet: View {
                 Text("Please enter a valid amount greater than 0.")
             }
         }
+    }
+
+    private func shouldShowSafetySection(
+        cooldown: MedicationCooldown.Status,
+        category: CategoryUsageStatus
+    ) -> Bool {
+        cooldown.hoursSinceLastDose != nil || category.isWarning
     }
 
     private func save() async {
