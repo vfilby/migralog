@@ -65,7 +65,13 @@ final class NotificationResponseHandler: NSObject, UNUserNotificationCenterDeleg
                 logger.debug("Unhandled notification category: \(categoryIdentifier)")
             }
 
-            completionHandler()
+            // UNUserNotificationCenterDelegate requires the completion handler to
+            // be called on the main thread. Invoking it from this unstructured
+            // Task would run it off the main actor and trip a UIKit state
+            // restoration assertion (see issue #397 / TestFlight 1.0.26 crash).
+            await MainActor.run {
+                completionHandler()
+            }
         }
     }
 
