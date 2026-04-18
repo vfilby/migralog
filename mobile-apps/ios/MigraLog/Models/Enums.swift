@@ -164,6 +164,19 @@ extension MedicationCategory {
     }
 }
 
+extension MedicationCategory {
+    /// Common cooldown-guideline defaults used to pre-fill the Add Cooldown
+    /// sheet. Informational only — not medical advice. Nil for categories
+    /// without a well-established single guideline.
+    var cooldownPreset: Double? {
+        switch self {
+        case .triptan: return 2.0
+        case .otc, .nsaid, .cgrp, .preventive, .supplement, .other:
+            return nil
+        }
+    }
+}
+
 // MARK: - Daily Status Enums
 
 enum DayStatus: String, Codable, CaseIterable, Identifiable {
