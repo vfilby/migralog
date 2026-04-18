@@ -10,6 +10,14 @@ final class MedicationDetailViewModel {
     var recentDoses: [MedicationDose] = []
     /// MOH-risk status for this medication's category (if any limit configured).
     var categoryStatus: CategoryUsageStatus = .noLimit
+    /// Category cooldown status for this medication.
+    var categoryCooldown: CategoryCooldown.Status = CategoryCooldown.Status(
+        isOnCooldown: false,
+        hoursSinceLastDose: nil,
+        hoursUntilNextDose: 0,
+        minIntervalHours: nil,
+        lastMedicationName: nil
+    )
     var isLoading = false
     var error: String?
 
@@ -32,7 +40,7 @@ final class MedicationDetailViewModel {
 
     private let medicationRepository: MedicationRepositoryProtocol
     private let medicationNotificationService: MedicationNotificationServiceProtocol
-    private let categoryLimitRepository: CategoryUsageLimitRepositoryProtocol
+    private let categoryLimitRepository: CategorySafetyRuleRepositoryProtocol
     private var medicationId: String
 
     // MARK: - Init
@@ -45,7 +53,7 @@ final class MedicationDetailViewModel {
             scheduledNotificationRepo: ScheduledNotificationRepository(dbManager: DatabaseManager.shared),
             medicationRepo: MedicationRepository(dbManager: DatabaseManager.shared)
         ),
-        categoryLimitRepository: CategoryUsageLimitRepositoryProtocol = CategoryUsageLimitRepository(dbManager: DatabaseManager.shared)
+        categoryLimitRepository: CategorySafetyRuleRepositoryProtocol = CategorySafetyRuleRepository(dbManager: DatabaseManager.shared)
     ) {
         self.medicationId = medicationId
         self.medicationRepository = medicationRepository
@@ -65,6 +73,7 @@ final class MedicationDetailViewModel {
             schedules = details?.schedules ?? []
             recentDoses = details?.recentDoses ?? []
             categoryStatus = computeCategoryStatus(for: medication, now: Date())
+            categoryCooldown = computeCategoryCooldown(for: medication, now: Date())
             isLoading = false
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "MedicationDetailViewModel", "action": "loadMedication"])
@@ -85,6 +94,7 @@ final class MedicationDetailViewModel {
             schedules = details?.schedules ?? []
             recentDoses = details?.recentDoses ?? []
             categoryStatus = computeCategoryStatus(for: medication, now: Date())
+            categoryCooldown = computeCategoryCooldown(for: medication, now: Date())
             isLoading = false
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "MedicationDetailViewModel", "action": "loadMedication"])
@@ -97,7 +107,7 @@ final class MedicationDetailViewModel {
     /// and a configured limit). Returns `.noLimit` otherwise.
     private func computeCategoryStatus(for medication: Medication?, now: Date) -> CategoryUsageStatus {
         guard let category = medication?.category else { return .noLimit }
-        guard let configured = (try? categoryLimitRepository.getLimit(for: category)) ?? nil else {
+        guard let configured = (try? categoryLimitRepository.getRule(category: category, type: .periodLimit)) ?? nil else {
             return .noLimit
         }
         let daysUsed = (try? categoryLimitRepository.countUsageDays(
@@ -106,6 +116,28 @@ final class MedicationDetailViewModel {
             now: now
         )) ?? 0
         return CategoryUsageStatus.evaluate(daysUsed: daysUsed, limit: configured)
+    }
+
+    private static let emptyCategoryCooldown = CategoryCooldown.Status(
+        isOnCooldown: false,
+        hoursSinceLastDose: nil,
+        hoursUntilNextDose: 0,
+        minIntervalHours: nil,
+        lastMedicationName: nil
+    )
+
+    /// Computes category cooldown status for the given medication. Returns an
+    /// empty status when the medication has no category or evaluation fails.
+    private func computeCategoryCooldown(for medication: Medication?, now: Date) -> CategoryCooldown.Status {
+        guard let category = medication?.category else { return Self.emptyCategoryCooldown }
+        let rule = try? categoryLimitRepository.getRule(category: category, type: .cooldown)
+        let last = try? medicationRepository.getLastTakenDoseInCategory(category, now: now)
+        return CategoryCooldown.evaluate(
+            category: category,
+            lastDoseInCategory: last ?? nil,
+            cooldownRule: rule ?? nil,
+            now: now
+        )
     }
 
     @MainActor
@@ -186,6 +218,7 @@ final class MedicationDetailViewModel {
             recentDoses.insert(saved, at: 0)
             recentDoses.sort { $0.timestamp > $1.timestamp }
             categoryStatus = computeCategoryStatus(for: medication, now: Date())
+            categoryCooldown = computeCategoryCooldown(for: medication, now: Date())
 
             // Cancel today's reminder and follow-up notifications for this medication
             let today = DateFormatting.dateString(from: Date())

@@ -8,16 +8,18 @@ final class LogMedicationViewModel {
     var lastDoseByMedication: [String: MedicationDose] = [:]
     /// Per-category MOH risk status for categories that have a configured limit.
     var categoryUsage: [MedicationCategory: CategoryUsageStatus] = [:]
+    /// Category cooldown status per medication id.
+    var categoryCooldowns: [String: CategoryCooldown.Status] = [:]
     var isLoading = false
 
     private let medicationRepository: MedicationRepositoryProtocol
     private let episodeRepository: EpisodeRepositoryProtocol
-    private let categoryLimitRepository: CategoryUsageLimitRepositoryProtocol
+    private let categoryLimitRepository: CategorySafetyRuleRepositoryProtocol
 
     init(
         medicationRepository: MedicationRepositoryProtocol = MedicationRepository(dbManager: DatabaseManager.shared),
         episodeRepository: EpisodeRepositoryProtocol = EpisodeRepository(dbManager: DatabaseManager.shared),
-        categoryLimitRepository: CategoryUsageLimitRepositoryProtocol = CategoryUsageLimitRepository(dbManager: DatabaseManager.shared)
+        categoryLimitRepository: CategorySafetyRuleRepositoryProtocol = CategorySafetyRuleRepository(dbManager: DatabaseManager.shared)
     ) {
         self.medicationRepository = medicationRepository
         self.episodeRepository = episodeRepository
@@ -39,6 +41,7 @@ final class LogMedicationViewModel {
             lastDoseByMedication = lastDoses
             let categories = Set(medications.compactMap { $0.category })
             categoryUsage = computeCategoryUsage(for: categories, now: Date())
+            categoryCooldowns = computeCategoryCooldowns(for: medications, now: Date())
             isLoading = false
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "LogMedicationViewModel"])
@@ -53,7 +56,7 @@ final class LogMedicationViewModel {
     ) -> [MedicationCategory: CategoryUsageStatus] {
         var result: [MedicationCategory: CategoryUsageStatus] = [:]
         for category in categories {
-            guard let configured = (try? categoryLimitRepository.getLimit(for: category)) ?? nil else {
+            guard let configured = (try? categoryLimitRepository.getRule(category: category, type: .periodLimit)) ?? nil else {
                 continue
             }
             let daysUsed = (try? categoryLimitRepository.countUsageDays(
@@ -62,6 +65,26 @@ final class LogMedicationViewModel {
                 now: now
             )) ?? 0
             result[category] = CategoryUsageStatus.evaluate(daysUsed: daysUsed, limit: configured)
+        }
+        return result
+    }
+
+    /// Computes `CategoryCooldown.Status` per medication id.
+    private func computeCategoryCooldowns(
+        for medications: [Medication],
+        now: Date
+    ) -> [String: CategoryCooldown.Status] {
+        var result: [String: CategoryCooldown.Status] = [:]
+        for med in medications {
+            guard let category = med.category else { continue }
+            let rule = try? categoryLimitRepository.getRule(category: category, type: .cooldown)
+            let last = try? medicationRepository.getLastTakenDoseInCategory(category, now: now)
+            result[med.id] = CategoryCooldown.evaluate(
+                category: category,
+                lastDoseInCategory: last ?? nil,
+                cooldownRule: rule ?? nil,
+                now: now
+            )
         }
         return result
     }
@@ -88,9 +111,9 @@ final class LogMedicationViewModel {
         )
         do {
             try await medicationRepository.createDose(dose)
-            // Refresh category usage so warnings update immediately.
             let categories = Set(medications.compactMap { $0.category })
             categoryUsage = computeCategoryUsage(for: categories, now: Date())
+            categoryCooldowns = computeCategoryCooldowns(for: medications, now: Date())
         } catch {
             ErrorLogger.shared.logError(error, context: ["action": "quickLog", "medication": medication.name])
         }

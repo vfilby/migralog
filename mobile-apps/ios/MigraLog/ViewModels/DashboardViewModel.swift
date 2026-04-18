@@ -26,6 +26,8 @@ final class DashboardViewModel {
     /// Per-category MOH risk status for categories that have a configured limit.
     /// Only categories present in today's medications are populated.
     var categoryUsage: [MedicationCategory: CategoryUsageStatus] = [:]
+    /// Category cooldown status per medication id.
+    var categoryCooldowns: [String: CategoryCooldown.Status] = [:]
     var yesterdayStatus: DailyStatusLog?
     var shouldShowYesterdayPrompt: Bool = false
     var showNewEpisode = false
@@ -38,7 +40,7 @@ final class DashboardViewModel {
     private let episodeRepository: EpisodeRepositoryProtocol
     private let medicationRepository: MedicationRepositoryProtocol
     private let dailyStatusRepository: DailyStatusRepositoryProtocol
-    private let categoryLimitRepository: CategoryUsageLimitRepositoryProtocol
+    private let categoryLimitRepository: CategorySafetyRuleRepositoryProtocol
     private let dailyCheckinService: DailyCheckinNotificationServiceProtocol
 
     // MARK: - Init
@@ -47,7 +49,7 @@ final class DashboardViewModel {
         episodeRepository: EpisodeRepositoryProtocol = EpisodeRepository(dbManager: DatabaseManager.shared),
         medicationRepository: MedicationRepositoryProtocol = MedicationRepository(dbManager: DatabaseManager.shared),
         dailyStatusRepository: DailyStatusRepositoryProtocol = DailyStatusRepository(dbManager: DatabaseManager.shared),
-        categoryLimitRepository: CategoryUsageLimitRepositoryProtocol = CategoryUsageLimitRepository(dbManager: DatabaseManager.shared),
+        categoryLimitRepository: CategorySafetyRuleRepositoryProtocol = CategorySafetyRuleRepository(dbManager: DatabaseManager.shared),
         dailyCheckinService: DailyCheckinNotificationServiceProtocol = DailyCheckinNotificationService(
             notificationService: NotificationService.shared,
             scheduledNotificationRepo: ScheduledNotificationRepository(dbManager: DatabaseManager.shared),
@@ -123,6 +125,10 @@ final class DashboardViewModel {
             // Refresh category usage so warnings update immediately.
             let categories = Set(todaysMedications.compactMap { $0.medication.category })
             categoryUsage = computeCategoryUsage(for: categories, now: Date())
+            categoryCooldowns = computeCategoryCooldowns(
+                for: todaysMedications.map(\.medication),
+                now: Date()
+            )
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "DashboardViewModel", "action": "logDose"])
             self.error = error.localizedDescription
@@ -260,9 +266,14 @@ final class DashboardViewModel {
             }
         }
         let usage = computeCategoryUsage(for: usedCategories, now: Date())
+        let cooldowns = computeCategoryCooldowns(
+            for: activeMeds.filter { med in items.contains(where: { $0.medication.id == med.id }) },
+            now: Date()
+        )
         await MainActor.run {
             lastDoseByMedication = lastDoses
             categoryUsage = usage
+            categoryCooldowns = cooldowns
         }
         return items
     }
@@ -275,7 +286,7 @@ final class DashboardViewModel {
     ) -> [MedicationCategory: CategoryUsageStatus] {
         var result: [MedicationCategory: CategoryUsageStatus] = [:]
         for category in categories {
-            guard let configured = (try? categoryLimitRepository.getLimit(for: category)) ?? nil else {
+            guard let configured = (try? categoryLimitRepository.getRule(category: category, type: .periodLimit)) ?? nil else {
                 continue
             }
             let daysUsed = (try? categoryLimitRepository.countUsageDays(
@@ -284,6 +295,27 @@ final class DashboardViewModel {
                 now: now
             )) ?? 0
             result[category] = CategoryUsageStatus.evaluate(daysUsed: daysUsed, limit: configured)
+        }
+        return result
+    }
+
+    /// Computes `CategoryCooldown.Status` per medication id, for medications
+    /// whose category has a configured cooldown rule.
+    private func computeCategoryCooldowns(
+        for medications: [Medication],
+        now: Date
+    ) -> [String: CategoryCooldown.Status] {
+        var result: [String: CategoryCooldown.Status] = [:]
+        for med in medications {
+            guard let category = med.category else { continue }
+            let rule = try? categoryLimitRepository.getRule(category: category, type: .cooldown)
+            let last = try? medicationRepository.getLastTakenDoseInCategory(category, now: now)
+            result[med.id] = CategoryCooldown.evaluate(
+                category: category,
+                lastDoseInCategory: last ?? nil,
+                cooldownRule: rule ?? nil,
+                now: now
+            )
         }
         return result
     }
