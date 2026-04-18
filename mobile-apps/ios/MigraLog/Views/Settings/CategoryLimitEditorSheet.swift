@@ -71,13 +71,23 @@ struct CategoryLimitEditorSheet: View {
 
     private var limitSection: some View {
         Section {
-            TextField("Max days", text: $maxDaysText)
-                .keyboardType(.numberPad)
-                .accessibilityIdentifier("limit-editor-max-days")
+            LabeledContent("Max days taken") {
+                TextField("", text: $maxDaysText, prompt: Text("e.g. 15"))
+                    .keyboardType(.numberPad)
+                    .multilineTextAlignment(.trailing)
+                    .accessibilityIdentifier("limit-editor-max-days")
+            }
 
-            TextField("Window (days)", text: $windowDaysText)
-                .keyboardType(.numberPad)
-                .accessibilityIdentifier("limit-editor-window-days")
+            LabeledContent("In any rolling window of") {
+                HStack(spacing: 4) {
+                    TextField("", text: $windowDaysText, prompt: Text("e.g. 30"))
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.trailing)
+                        .accessibilityIdentifier("limit-editor-window-days")
+                    Text("days")
+                        .foregroundStyle(.secondary)
+                }
+            }
 
             if let warning = validationWarning {
                 Text(warning)
