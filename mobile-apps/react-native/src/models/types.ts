@@ -198,6 +198,26 @@ export interface CalendarOverlay {
 }
 
 // Backup/Restore types
+
+/**
+ * Per-entity row counts included in JSON export metadata.
+ * Issue #357: consumers (healthcare providers, third-party importers) can
+ * compare these against the array lengths in the export to verify that no
+ * silent truncation occurred.
+ */
+export interface BackupEntityCounts {
+  episodes: number;
+  episodeNotes: number;
+  intensityReadings: number;
+  symptomLogs: number;
+  painLocationLogs: number;
+  dailyStatusLogs: number;
+  medications: number;
+  medicationDoses: number;
+  medicationSchedules: number;
+  calendarOverlays: number;
+}
+
 export interface BackupMetadata {
   id: string;
   timestamp: number;
@@ -206,6 +226,11 @@ export interface BackupMetadata {
   episodeCount: number;
   medicationCount: number;
   overlayCount?: number; // Optional for backward compatibility with older backups
+  /**
+   * Full per-entity counts. Present on JSON exports created after Issue #357.
+   * Optional for backward compatibility with older backup files.
+   */
+  counts?: BackupEntityCounts;
   fileSize: number;
   fileName: string;
   // Note: Only snapshot (.db) backups are supported (Issue #194)
@@ -220,6 +245,8 @@ export interface BackupData {
   episodes: Episode[];
   episodeNotes?: EpisodeNote[]; // Optional for backward compatibility
   intensityReadings?: IntensityReading[]; // Optional for backward compatibility
+  symptomLogs?: SymptomLog[]; // Added per Issue #357 for complete healthcare data
+  painLocationLogs?: PainLocationLog[]; // Added per Issue #357 for complete healthcare data
   dailyStatusLogs?: DailyStatusLog[]; // Optional for backward compatibility
   calendarOverlays?: CalendarOverlay[]; // Optional for backward compatibility
   medications: Medication[];

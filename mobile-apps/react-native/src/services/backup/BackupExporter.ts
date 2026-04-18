@@ -4,7 +4,13 @@ import * as DocumentPicker from 'expo-document-picker';
 import { logger } from '../../utils/logger';
 // ARCHITECTURAL EXCEPTION: Backup/export needs direct repository access
 // because it requires complete database access independent of UI state. See docs/store-repository-guidelines.md
-import { episodeRepository, episodeNoteRepository, intensityRepository } from '../../database/episodeRepository';
+import {
+  episodeRepository,
+  episodeNoteRepository,
+  intensityRepository,
+  symptomLogRepository,
+  painLocationLogRepository,
+} from '../../database/episodeRepository';
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../../database/medicationRepository';
 import { dailyStatusRepository } from '../../database/dailyStatusRepository';
 import { overlayRepository } from '../../database/overlayRepository';
@@ -14,6 +20,8 @@ import {
   MedicationSchedule,
   EpisodeNote,
   IntensityReading,
+  SymptomLog,
+  PainLocationLog,
   BackupMetadata,
   BackupData,
   CalendarOverlay,
@@ -29,7 +37,54 @@ import {
  * BackupExporter - Handles export and import of backup files
  * Supports sharing snapshot backups and exporting data as JSON for portability
  */
+// Page size used when paginating repositories that only expose a limit/offset API.
+// Kept large to minimize round-trips while avoiding a single unbounded query.
+const EXPORT_PAGE_SIZE = 500;
+
 class BackupExporter {
+  /**
+   * Paginate through episodeRepository.getAll to load every episode.
+   * Issue #357: the previous export capped episodes at 50, which silently
+   * truncated exports for long-term users.
+   */
+  private async fetchAllEpisodes(
+    db: Awaited<ReturnType<typeof import('../../database/db').getDatabase>>,
+  ) {
+    const all = [] as Awaited<ReturnType<typeof episodeRepository.getAll>>;
+    let offset = 0;
+    // Defensive cap: 1M rows is far beyond any realistic personal dataset.
+    const safetyCap = 1_000_000;
+    while (offset < safetyCap) {
+      const batch = await episodeRepository.getAll(EXPORT_PAGE_SIZE, offset, db);
+      all.push(...batch);
+      if (batch.length < EXPORT_PAGE_SIZE) break;
+      offset += EXPORT_PAGE_SIZE;
+    }
+    return all;
+  }
+
+  /**
+   * Paginate through medicationDoseRepository.getAll to load every dose.
+   * Issue #357: the previous export capped doses at 100.
+   */
+  private async fetchAllMedicationDoses(
+    db: Awaited<ReturnType<typeof import('../../database/db').getDatabase>>,
+  ) {
+    // medicationDoseRepository.getAll only supports a single limit (no offset),
+    // so we pull in one large request. If we hit the ceiling we double and retry
+    // so callers always get the full dataset.
+    let limit = 10_000;
+    // Defensive cap: 1M doses.
+    const maxLimit = 1_000_000;
+    while (limit <= maxLimit) {
+      const batch = await medicationDoseRepository.getAll(limit, db);
+      if (batch.length < limit) return batch;
+      limit *= 2;
+    }
+    // Final attempt at the cap.
+    return medicationDoseRepository.getAll(maxLimit, db);
+  }
+
   /**
    * Export current database as JSON for data portability and healthcare sharing
    * 
@@ -59,21 +114,29 @@ class BackupExporter {
       const db = await import('../../database/db').then(m => m.getDatabase());
 
       // Gather all data
+      // Issue #357: Export ALL episodes and doses (no 50/100 cap) so that
+      // healthcare provider reports are complete. Pagination is used to avoid
+      // passing unbounded limits to SQLite while still returning every row.
       logger.log('[Export] Fetching all data...');
-      const episodes = await episodeRepository.getAll(50, 0, db);
+      const episodes = await this.fetchAllEpisodes(db);
       const medications = await medicationRepository.getAll(db);
-      const medicationDoses = await medicationDoseRepository.getAll(100, db);
+      const medicationDoses = await this.fetchAllMedicationDoses(db);
 
       const episodeNotes: EpisodeNote[] = [];
-      for (const ep of episodes) {
-        const notes = await episodeNoteRepository.getByEpisodeId(ep.id, db);
-        episodeNotes.push(...notes);
-      }
-
       const intensityReadings: IntensityReading[] = [];
+      const symptomLogs: SymptomLog[] = [];
+      const painLocationLogs: PainLocationLog[] = [];
       for (const ep of episodes) {
-        const readings = await intensityRepository.getByEpisodeId(ep.id, db);
+        const [notes, readings, symptoms, painLocs] = await Promise.all([
+          episodeNoteRepository.getByEpisodeId(ep.id, db),
+          intensityRepository.getByEpisodeId(ep.id, db),
+          symptomLogRepository.getByEpisodeId(ep.id, db),
+          painLocationLogRepository.getByEpisodeId(ep.id, db),
+        ]);
+        episodeNotes.push(...notes);
         intensityReadings.push(...readings);
+        symptomLogs.push(...symptoms);
+        painLocationLogs.push(...painLocs);
       }
 
       const twoYearsAgo = new Date();
@@ -89,7 +152,7 @@ class BackupExporter {
         medicationSchedules.push(...schedules);
       }
 
-      const calendarOverlays: CalendarOverlay[] = await overlayRepository.getAll(db);
+      const calendarOverlays: CalendarOverlay[] = (await overlayRepository.getAll(db)) ?? [];
 
       const schemaVersion = await migrationRunner.getCurrentVersion();
 
@@ -103,11 +166,28 @@ class BackupExporter {
           schemaVersion,
           episodeCount: episodes.length,
           medicationCount: medications.length,
+          overlayCount: calendarOverlays.length,
+          // Issue #357: expose full counts so healthcare consumers can verify
+          // that the export is complete (no silent truncation).
+          counts: {
+            episodes: episodes.length,
+            episodeNotes: episodeNotes.length,
+            intensityReadings: intensityReadings.length,
+            symptomLogs: symptomLogs.length,
+            painLocationLogs: painLocationLogs.length,
+            dailyStatusLogs: dailyStatusLogs.length,
+            medications: medications.length,
+            medicationDoses: medicationDoses.length,
+            medicationSchedules: medicationSchedules.length,
+            calendarOverlays: calendarOverlays.length,
+          },
         },
         // schemaSQL omitted - not needed for data sharing, only for backup/restore
         episodes,
         episodeNotes,
         intensityReadings,
+        symptomLogs,
+        painLocationLogs,
         dailyStatusLogs,
         medications,
         medicationDoses,

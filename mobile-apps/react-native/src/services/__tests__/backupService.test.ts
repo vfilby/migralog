@@ -7,6 +7,8 @@ import {
   episodeRepository,
   episodeNoteRepository,
   intensityRepository,
+  symptomLogRepository,
+  painLocationLogRepository,
 } from '../../database/episodeRepository';
 import {
   medicationRepository,
@@ -1851,6 +1853,8 @@ describe('backupService', () => {
         (intensityRepository.getByEpisodeId as jest.Mock).mockResolvedValue([
           { id: 'reading-1', episodeId: 'ep-1', timestamp: Date.now(), intensity: 5 },
         ]);
+        (symptomLogRepository.getByEpisodeId as jest.Mock).mockResolvedValue([]);
+        (painLocationLogRepository.getByEpisodeId as jest.Mock).mockResolvedValue([]);
         (dailyStatusRepository.getDateRange as jest.Mock).mockResolvedValue([]);
         (medicationScheduleRepository.getByMedicationId as jest.Mock).mockResolvedValue([
           { id: 'sched-1', medicationId: 'med-1', time: '08:00', daysOfWeek: [1, 2, 3, 4, 5] },
@@ -1883,6 +1887,8 @@ describe('backupService', () => {
         (episodeRepository.getAll as jest.Mock).mockResolvedValue([]);
         (medicationRepository.getAll as jest.Mock).mockResolvedValue([]);
         (medicationDoseRepository.getAll as jest.Mock).mockResolvedValue([]);
+        (symptomLogRepository.getByEpisodeId as jest.Mock).mockResolvedValue([]);
+        (painLocationLogRepository.getByEpisodeId as jest.Mock).mockResolvedValue([]);
         (dailyStatusRepository.getDateRange as jest.Mock).mockResolvedValue([]);
         (migrationRunner.getCurrentVersion as jest.Mock).mockResolvedValue(6);
         (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);

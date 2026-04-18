@@ -24,12 +24,27 @@ interface BackupData {
   episodes: Episode[];
   episodeNotes?: EpisodeNote[];
   intensityReadings?: IntensityReading[];
+  symptomLogs?: SymptomLog[];
+  painLocationLogs?: PainLocationLog[];
   dailyStatusLogs?: DailyStatusLog[];
+  calendarOverlays?: CalendarOverlay[];
   medications: Medication[];
   medicationDoses: MedicationDose[];
   medicationSchedules: MedicationSchedule[];
 }
 ```
+
+### Completeness
+
+As of Issue #357, the JSON export is **unbounded by default**: every episode,
+every medication dose, and every related child record (intensity readings,
+episode notes, symptom logs, pain location logs) is included. Earlier versions
+silently capped episodes at 50 and doses at 100 — that cap has been removed so
+that healthcare-provider reports contain the full history.
+
+To help consumers verify completeness, `metadata.counts` includes a
+per-entity row count that matches the length of each corresponding array in
+the export (see "Metadata" below).
 
 ### File Naming Convention
 
@@ -51,6 +66,22 @@ interface BackupMetadata {
   schemaVersion: number;        // Database schema version
   episodeCount: number;         // Total episodes in export
   medicationCount: number;      // Total medications in export
+  overlayCount?: number;        // Total calendar overlays in export
+  // Added in Issue #357: per-entity row counts that should match the
+  // length of each array in the export. Consumers can compare these to
+  // detect truncated or corrupt exports.
+  counts?: {
+    episodes: number;
+    episodeNotes: number;
+    intensityReadings: number;
+    symptomLogs: number;
+    painLocationLogs: number;
+    dailyStatusLogs: number;
+    medications: number;
+    medicationDoses: number;
+    medicationSchedules: number;
+    calendarOverlays: number;
+  };
 }
 ```
 
@@ -63,7 +94,20 @@ interface BackupMetadata {
     "version": "2.1.0",
     "schemaVersion": 19,
     "episodeCount": 45,
-    "medicationCount": 8
+    "medicationCount": 8,
+    "overlayCount": 2,
+    "counts": {
+      "episodes": 45,
+      "episodeNotes": 120,
+      "intensityReadings": 312,
+      "symptomLogs": 178,
+      "painLocationLogs": 90,
+      "dailyStatusLogs": 730,
+      "medications": 8,
+      "medicationDoses": 210,
+      "medicationSchedules": 3,
+      "calendarOverlays": 2
+    }
   }
 }
 ```

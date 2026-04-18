@@ -2,7 +2,13 @@ import { backupExporter } from '../backup/BackupExporter';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
-import { episodeRepository, episodeNoteRepository, intensityRepository } from '../../database/episodeRepository';
+import {
+  episodeRepository,
+  episodeNoteRepository,
+  intensityRepository,
+  symptomLogRepository,
+  painLocationLogRepository,
+} from '../../database/episodeRepository';
 import { medicationRepository, medicationDoseRepository, medicationScheduleRepository } from '../../database/medicationRepository';
 import { dailyStatusRepository } from '../../database/dailyStatusRepository';
 import { overlayRepository } from '../../database/overlayRepository';
@@ -42,6 +48,12 @@ jest.mock('../../database/episodeRepository', () => ({
     getByEpisodeId: jest.fn(),
   },
   intensityRepository: {
+    getByEpisodeId: jest.fn(),
+  },
+  symptomLogRepository: {
+    getByEpisodeId: jest.fn(),
+  },
+  painLocationLogRepository: {
     getByEpisodeId: jest.fn(),
   },
 }));
@@ -224,12 +236,40 @@ describe('BackupExporter', () => {
       },
     ];
 
+    const mockSymptomLogs = [
+      {
+        id: 'symptomlog1',
+        episodeId: 'ep1',
+        symptom: 'nausea' as const,
+        onsetTime: Date.now(),
+        severity: 5,
+        createdAt: Date.now(),
+      },
+    ];
+
+    const mockPainLocationLogs = [
+      {
+        id: 'painloclog1',
+        episodeId: 'ep1',
+        timestamp: Date.now(),
+        painLocations: ['left_temple' as const],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      },
+    ];
+
     beforeEach(() => {
-      (episodeRepository.getAll as jest.Mock).mockResolvedValue(mockEpisodes);
+      // Default: first page returns mockEpisodes; subsequent pages empty so
+      // pagination loop terminates. Tests that need large datasets can override.
+      (episodeRepository.getAll as jest.Mock).mockImplementation(
+        async (_limit: number, offset: number) => (offset === 0 ? mockEpisodes : []),
+      );
       (medicationRepository.getAll as jest.Mock).mockResolvedValue(mockMedications);
       (medicationDoseRepository.getAll as jest.Mock).mockResolvedValue(mockMedicationDoses);
       (episodeNoteRepository.getByEpisodeId as jest.Mock).mockResolvedValue(mockEpisodeNotes);
       (intensityRepository.getByEpisodeId as jest.Mock).mockResolvedValue(mockIntensityReadings);
+      (symptomLogRepository.getByEpisodeId as jest.Mock).mockResolvedValue(mockSymptomLogs);
+      (painLocationLogRepository.getByEpisodeId as jest.Mock).mockResolvedValue(mockPainLocationLogs);
       (dailyStatusRepository.getDateRange as jest.Mock).mockResolvedValue(mockDailyStatusLogs);
       (overlayRepository.getAll as jest.Mock).mockResolvedValue([]);
       (medicationScheduleRepository.getByMedicationId as jest.Mock).mockResolvedValue(mockMedicationSchedules);
@@ -262,13 +302,26 @@ describe('BackupExporter', () => {
     it('should gather all data types for export', async () => {
       await backupExporter.exportDataAsJson();
 
-      expect(episodeRepository.getAll).toHaveBeenCalledWith(50, 0, mockDatabase);
+      // Issue #357: pagination pulls every episode rather than capping at 50.
+      // The first call uses offset=0; subsequent calls (offset>0) return empty
+      // and terminate the loop.
+      expect(episodeRepository.getAll).toHaveBeenCalledWith(expect.any(Number), 0, mockDatabase);
       expect(medicationRepository.getAll).toHaveBeenCalledWith(mockDatabase);
-      expect(medicationDoseRepository.getAll).toHaveBeenCalledWith(100, mockDatabase);
+      // Issue #357: medicationDoseRepository.getAll is now called with a large
+      // limit (not the old 100-row cap) to return every dose.
+      expect(medicationDoseRepository.getAll).toHaveBeenCalled();
+      const doseCallLimit = (medicationDoseRepository.getAll as jest.Mock).mock.calls[0][0];
+      expect(doseCallLimit).toBeGreaterThanOrEqual(1000);
       expect(episodeNoteRepository.getByEpisodeId).toHaveBeenCalledWith('ep1', mockDatabase);
       expect(episodeNoteRepository.getByEpisodeId).toHaveBeenCalledWith('ep2', mockDatabase);
       expect(intensityRepository.getByEpisodeId).toHaveBeenCalledWith('ep1', mockDatabase);
       expect(intensityRepository.getByEpisodeId).toHaveBeenCalledWith('ep2', mockDatabase);
+      // Issue #357: symptom and pain location logs are child entities of an
+      // episode and are now included in exports.
+      expect(symptomLogRepository.getByEpisodeId).toHaveBeenCalledWith('ep1', mockDatabase);
+      expect(symptomLogRepository.getByEpisodeId).toHaveBeenCalledWith('ep2', mockDatabase);
+      expect(painLocationLogRepository.getByEpisodeId).toHaveBeenCalledWith('ep1', mockDatabase);
+      expect(painLocationLogRepository.getByEpisodeId).toHaveBeenCalledWith('ep2', mockDatabase);
       expect(dailyStatusRepository.getDateRange).toHaveBeenCalled();
       expect(medicationScheduleRepository.getByMedicationId).toHaveBeenCalledWith('med1', mockDatabase);
       expect(migrationRunner.getCurrentVersion).toHaveBeenCalled();
@@ -281,8 +334,105 @@ describe('BackupExporter', () => {
       expect(fileContent.medicationDoses).toEqual(mockMedicationDoses);
       expect(fileContent.episodeNotes.length).toBeGreaterThan(0);
       expect(fileContent.intensityReadings.length).toBeGreaterThan(0);
+      expect(fileContent.symptomLogs.length).toBeGreaterThan(0);
+      expect(fileContent.painLocationLogs.length).toBeGreaterThan(0);
       expect(fileContent.dailyStatusLogs).toEqual(mockDailyStatusLogs);
       expect(fileContent.medicationSchedules.length).toBeGreaterThan(0);
+    });
+
+    it('exports every episode when more than 50 exist (Issue #357)', async () => {
+      // Generate 175 episodes — well over the prior 50-row cap.
+      const manyEpisodes = Array.from({ length: 175 }, (_, i) => ({
+        id: `ep_${i}`,
+        startTime: Date.now() - i * 60_000,
+        endTime: Date.now() - i * 60_000 + 1_000,
+        currentIntensity: 5,
+        triggers: [],
+        symptoms: [],
+        painLocations: [],
+        painQualities: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }));
+
+      // Simulate paginated repository: return batches of 500 sliced from the
+      // full dataset (first page returns all 175, second page returns empty).
+      (episodeRepository.getAll as jest.Mock).mockImplementation(
+        async (limit: number, offset: number) => manyEpisodes.slice(offset, offset + limit),
+      );
+      // Keep child-entity mocks empty for this volume-focused test to keep
+      // the assertion simple.
+      (episodeNoteRepository.getByEpisodeId as jest.Mock).mockResolvedValue([]);
+      (intensityRepository.getByEpisodeId as jest.Mock).mockResolvedValue([]);
+      (symptomLogRepository.getByEpisodeId as jest.Mock).mockResolvedValue([]);
+      (painLocationLogRepository.getByEpisodeId as jest.Mock).mockResolvedValue([]);
+
+      await backupExporter.exportDataAsJson();
+
+      const writeCall = (FileSystem.writeAsStringAsync as jest.Mock).mock.calls[0];
+      const fileContent = JSON.parse(writeCall[1]);
+
+      expect(fileContent.episodes).toHaveLength(175);
+      expect(fileContent.metadata.episodeCount).toBe(175);
+      expect(fileContent.metadata.counts.episodes).toBe(175);
+    });
+
+    it('includes metadata counts for every exported entity (Issue #357)', async () => {
+      await backupExporter.exportDataAsJson();
+
+      const writeCall = (FileSystem.writeAsStringAsync as jest.Mock).mock.calls[0];
+      const fileContent = JSON.parse(writeCall[1]);
+
+      // Counts must match the actual array lengths so consumers can verify
+      // completeness of the export.
+      expect(fileContent.metadata.counts).toEqual({
+        episodes: fileContent.episodes.length,
+        episodeNotes: fileContent.episodeNotes.length,
+        intensityReadings: fileContent.intensityReadings.length,
+        symptomLogs: fileContent.symptomLogs.length,
+        painLocationLogs: fileContent.painLocationLogs.length,
+        dailyStatusLogs: fileContent.dailyStatusLogs.length,
+        medications: fileContent.medications.length,
+        medicationDoses: fileContent.medicationDoses.length,
+        medicationSchedules: fileContent.medicationSchedules.length,
+        calendarOverlays: fileContent.calendarOverlays.length,
+      });
+      expect(fileContent.metadata.overlayCount).toBe(fileContent.calendarOverlays.length);
+    });
+
+    it('paginates across multiple pages when >500 episodes exist (Issue #357)', async () => {
+      // 1,250 episodes: exercises the pagination loop across 3 pages.
+      const manyEpisodes = Array.from({ length: 1250 }, (_, i) => ({
+        id: `ep_${i}`,
+        startTime: Date.now() - i * 60_000,
+        endTime: Date.now() - i * 60_000 + 1_000,
+        currentIntensity: 5,
+        triggers: [],
+        symptoms: [],
+        painLocations: [],
+        painQualities: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }));
+      (episodeRepository.getAll as jest.Mock).mockImplementation(
+        async (limit: number, offset: number) => manyEpisodes.slice(offset, offset + limit),
+      );
+      (episodeNoteRepository.getByEpisodeId as jest.Mock).mockResolvedValue([]);
+      (intensityRepository.getByEpisodeId as jest.Mock).mockResolvedValue([]);
+      (symptomLogRepository.getByEpisodeId as jest.Mock).mockResolvedValue([]);
+      (painLocationLogRepository.getByEpisodeId as jest.Mock).mockResolvedValue([]);
+
+      await backupExporter.exportDataAsJson();
+
+      const writeCall = (FileSystem.writeAsStringAsync as jest.Mock).mock.calls[0];
+      const fileContent = JSON.parse(writeCall[1]);
+      expect(fileContent.episodes).toHaveLength(1250);
+      // Should have called getAll multiple times with increasing offsets.
+      const episodeCalls = (episodeRepository.getAll as jest.Mock).mock.calls;
+      expect(episodeCalls.length).toBeGreaterThanOrEqual(3);
+      const offsets = episodeCalls.map(c => c[1]);
+      expect(offsets).toContain(0);
+      expect(offsets.some((o: number) => o > 0)).toBe(true);
     });
 
     it('should share file with correct metadata', async () => {
