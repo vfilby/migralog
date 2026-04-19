@@ -4,7 +4,7 @@ Native iOS implementation of MigraLog, built from the shared specifications.
 
 ## Status
 
-In development. Building from `../spec/` for feature parity with the React Native app.
+Primary platform. Builds from `../spec/`.
 
 ## References
 

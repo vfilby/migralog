@@ -62,14 +62,13 @@ Your health data stays with you:
 
 ### Installation
 
-**iOS** (Primary Platform)  
+**iOS** (Primary Platform)
 - **TestFlight**: Currently available for beta testing ([App Store ID: 6753635113](https://apps.apple.com/app/id6753635113))
 - **App Store**: Production release coming soon
-- **Build from source**: See developer setup instructions in `mobile-apps/react-native/`
+- **Build from source**: Open `mobile-apps/ios/MigraLog.xcodeproj` in Xcode
 
-**Android**  
+**Android**
 - Under evaluation for future release
-- Build from source available (see developer setup in `mobile-apps/react-native/`)
 
 ### Quick Start Guide
 
@@ -119,52 +118,11 @@ MigraLog is open source and welcomes contributions! Whether you're a developer, 
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
 
-## Developer Tools
-
-### 🔧 iOS Simulator Files Access
-
-If you're testing the app and need to access files saved to the iOS Files app in simulators:
-
-```bash
-# Access Files.app directory in iOS Simulator
-npm run sim:files
-```
-
-This utility script:
-- Lists all booted iOS simulators
-- Finds the correct Files.app local storage path
-- Shows contents including debug archives and exported files
-- Opens the directory in Finder for easy access
-
-### 🔓 Debug Archive Investigation
-
-If you have a debug archive and need to investigate an issue by reproducing the exact app state:
-
-```bash
-# Unpack debug archive and restore database to simulator
-npm run sim:unpack
-```
-
-This utility script:
-- Extracts debug archives and validates structure
-- Lists booted simulators for database restoration
-- Safely backs up current database before restoration
-- Restores exact database state from when issue occurred
-- Provides access to logs, notifications, and mapping data for analysis
-
-**Complete debugging workflow:**
-1. **Issue occurs** → Generate debug archive in Developer Tools
-2. **Save archive** via iOS Files app → Retrieve with `npm run sim:files` 
-3. **Investigate later** → Restore state with `npm run sim:unpack`
-4. **App now has exact same state** as when issue occurred
-
-Perfect for reproducing and investigating complex issues like notification suppression problems.
-
 ## About
 
 MigraLog was created to help people with chronic pain conditions better understand and manage their health. The app is designed with input from pain management specialists and people who live with chronic pain.
 
-**Built with:** React Native, Expo, TypeScript, SQLite
+**Built with:** Swift, SwiftUI, GRDB (SQLite)
 
 ## License
 
