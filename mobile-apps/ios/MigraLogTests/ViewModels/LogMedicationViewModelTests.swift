@@ -5,14 +5,14 @@ import XCTest
 final class LogMedicationViewModelTests: XCTestCase {
     private var mockMedRepo: MockMedicationRepository!
     private var mockEpisodeRepo: MockEpisodeRepository!
-    private var mockCategoryLimitRepo: MockCategoryUsageLimitRepository!
+    private var mockCategoryLimitRepo: MockCategorySafetyRuleRepository!
     private var sut: LogMedicationViewModel!
 
     override func setUp() {
         super.setUp()
         mockMedRepo = MockMedicationRepository()
         mockEpisodeRepo = MockEpisodeRepository()
-        mockCategoryLimitRepo = MockCategoryUsageLimitRepository()
+        mockCategoryLimitRepo = MockCategorySafetyRuleRepository()
         sut = LogMedicationViewModel(
             medicationRepository: mockMedRepo,
             episodeRepository: mockEpisodeRepo,

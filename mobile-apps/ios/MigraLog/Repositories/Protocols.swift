@@ -67,6 +67,13 @@ protocol MedicationRepositoryProtocol: Sendable {
     func getActiveMedicationsWithUsageCounts() throws -> [(medication: Medication, usageCount: Int)]
     func updateDose(_ dose: MedicationDose) throws -> MedicationDose
     func deleteDose(_ id: String) throws
+    /// Most recent 'taken' dose in the given category (across all medications),
+    /// on or before `now`. Returns the dose plus the medication's display name.
+    /// Nil when there is no such dose.
+    func getLastTakenDoseInCategory(
+        _ category: MedicationCategory,
+        now: Date
+    ) throws -> (dose: MedicationDose, medicationName: String)?
 
     // Schedules
     func createSchedule(_ schedule: MedicationSchedule) throws -> MedicationSchedule
@@ -79,13 +86,14 @@ protocol MedicationRepositoryProtocol: Sendable {
     func wasLoggedForScheduleToday(medicationId: String, date: String) throws -> Bool
 }
 
-// MARK: - Category Usage Limit Repository Protocol
+// MARK: - Category Safety Rule Repository Protocol
 
-protocol CategoryUsageLimitRepositoryProtocol: Sendable {
-    func getAllLimits() throws -> [CategoryUsageLimit]
-    func getLimit(for category: MedicationCategory) throws -> CategoryUsageLimit?
-    func setLimit(_ limit: CategoryUsageLimit) throws
-    func clearLimit(for category: MedicationCategory) throws
+protocol CategorySafetyRuleRepositoryProtocol: Sendable {
+    func getAllRules() throws -> [CategorySafetyRule]
+    func getRules(for category: MedicationCategory) throws -> [CategorySafetyRule]
+    func getRule(category: MedicationCategory, type: CategorySafetyRuleType) throws -> CategorySafetyRule?
+    func upsert(_ rule: CategorySafetyRule) throws
+    func delete(id: String) throws
     /// Distinct calendar days (local time) on which ANY medication in the given
     /// category had a dose with status 'taken' in the last `windowDays`.
     func countUsageDays(category: MedicationCategory, windowDays: Int, now: Date) throws -> Int

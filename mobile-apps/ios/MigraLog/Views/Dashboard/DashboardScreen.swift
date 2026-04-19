@@ -257,6 +257,7 @@ struct MedicationScheduleRow: View {
             if showBanners {
                 MedicationSafetyBanners(
                     cooldown: status,
+                    categoryCooldown: viewModel.categoryCooldowns[item.medication.id],
                     categoryStatus: catStatus,
                     medicationCategory: item.medication.category,
                     medicationId: item.medication.id

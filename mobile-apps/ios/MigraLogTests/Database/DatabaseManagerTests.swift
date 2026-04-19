@@ -53,7 +53,7 @@ final class DatabaseManagerTests: XCTestCase {
             "daily_status_logs",
             "calendar_overlays",
             "scheduled_notifications",
-            "category_usage_limits",
+            "category_safety_rules",
             "grdb_migrations", // GRDB internal table
         ]
 
@@ -183,7 +183,7 @@ final class DatabaseManagerTests: XCTestCase {
     // MARK: - Schema Version
 
     func testSchemaVersionIsTracked() throws {
-        XCTAssertEqual(DatabaseManager.schemaVersion, 27)
+        XCTAssertEqual(DatabaseManager.schemaVersion, 28)
     }
 
     func testMigrationIsRecordedInGRDB() throws {

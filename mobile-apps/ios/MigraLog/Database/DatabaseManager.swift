@@ -4,7 +4,7 @@ import GRDB
 /// Central database manager. Owns the DatabaseQueue and handles schema creation/migration.
 final class DatabaseManager: Sendable {
     /// The current schema version
-    static let schemaVersion = 27
+    static let schemaVersion = 28
 
     /// Shared singleton for the app's main database
     static let shared = DatabaseManager()
@@ -125,7 +125,61 @@ final class DatabaseManager: Sendable {
                 """)
         }
 
+        // v28: Rename category_usage_limits → category_safety_rules with a
+        // rule-type discriminator. Existing MOH day-count rows become
+        // type='period_limit' rows; cooldown rows will be added later.
+        migrator.registerMigration("v28") { db in
+            try DatabaseManager.migrateToCategorySafetyRules(in: db)
+        }
+
         return migrator
+    }
+
+    /// Create `category_safety_rules` and migrate any existing
+    /// `category_usage_limits` rows into it as period_limit entries.
+    static func migrateToCategorySafetyRules(in db: Database) throws {
+        try db.execute(sql: """
+            CREATE TABLE IF NOT EXISTS category_safety_rules (
+                id TEXT PRIMARY KEY,
+                category TEXT NOT NULL,
+                type TEXT NOT NULL CHECK (type IN ('cooldown','period_limit')),
+                period_hours REAL NOT NULL CHECK(period_hours > 0),
+                max_count INTEGER CHECK(max_count IS NULL OR max_count > 0),
+                created_at INTEGER NOT NULL CHECK(created_at > 0),
+                UNIQUE(category, type)
+            )
+            """)
+        try db.execute(sql: """
+            CREATE INDEX IF NOT EXISTS idx_category_safety_rules_category
+            ON category_safety_rules(category)
+            """)
+
+        let legacyExists = try Bool.fetchOne(
+            db,
+            sql: "SELECT COUNT(*) > 0 FROM sqlite_master WHERE type = 'table' AND name = 'category_usage_limits'"
+        ) ?? false
+        guard legacyExists else { return }
+
+        let rows = try Row.fetchAll(
+            db,
+            sql: "SELECT category, max_days, window_days FROM category_usage_limits"
+        )
+        let nowMillis = TimestampHelper.now
+        for row in rows {
+            let category: String = row["category"]
+            let maxDays: Int = row["max_days"]
+            let windowDays: Int = row["window_days"]
+            let periodHours = Double(windowDays) * 24.0
+            try db.execute(
+                sql: """
+                    INSERT OR IGNORE INTO category_safety_rules
+                        (id, category, type, period_hours, max_count, created_at)
+                    VALUES (?, ?, 'period_limit', ?, ?, ?)
+                    """,
+                arguments: [UUID().uuidString, category, periodHours, maxDays, nowMillis]
+            )
+        }
+        try db.execute(sql: "DROP TABLE category_usage_limits")
     }
 
     /// Create all tables, indexes, and constraints matching schema-v25.sql
@@ -394,7 +448,7 @@ final class DatabaseManager: Sendable {
             try db.execute(sql: "DELETE FROM intensity_readings")
             try db.execute(sql: "DELETE FROM episodes")
             try db.execute(sql: "DELETE FROM medications")
-            try db.execute(sql: "DELETE FROM category_usage_limits")
+            try db.execute(sql: "DELETE FROM category_safety_rules")
         }
     }
 

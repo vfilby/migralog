@@ -25,6 +25,7 @@ struct LogMedicationScreen: View {
                             medication: med,
                             lastDose: viewModel.lastDoseByMedication[med.id],
                             categoryStatus: med.category.flatMap { viewModel.categoryUsage[$0] } ?? .noLimit,
+                            categoryCooldown: viewModel.categoryCooldowns[med.id],
                             onQuickLog: {
                                 Task {
                                     await quickLog(med)
@@ -52,7 +53,8 @@ struct LogMedicationScreen: View {
                 LogMedicationDetailSheet(
                     medication: med,
                     lastDose: viewModel.lastDoseByMedication[med.id],
-                    categoryStatus: med.category.flatMap { viewModel.categoryUsage[$0] } ?? .noLimit
+                    categoryStatus: med.category.flatMap { viewModel.categoryUsage[$0] } ?? .noLimit,
+                    categoryCooldown: viewModel.categoryCooldowns[med.id]
                 ) { dose in
                     Task {
                         let repo = MedicationRepository(dbManager: DatabaseManager.shared)
@@ -79,6 +81,7 @@ struct LogMedicationCard: View {
     let medication: Medication
     var lastDose: MedicationDose? = nil
     var categoryStatus: CategoryUsageStatus = .noLimit
+    var categoryCooldown: CategoryCooldown.Status? = nil
     let onQuickLog: () -> Void
     let onDetails: () -> Void
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -101,6 +104,7 @@ struct LogMedicationCard: View {
 
             MedicationSafetyBanners(
                 cooldown: status,
+                categoryCooldown: categoryCooldown,
                 categoryStatus: catStatus,
                 medicationCategory: medication.category,
                 medicationId: medication.id
@@ -150,6 +154,7 @@ struct LogMedicationDetailSheet: View {
     let medication: Medication
     var lastDose: MedicationDose? = nil
     var categoryStatus: CategoryUsageStatus = .noLimit
+    var categoryCooldown: CategoryCooldown.Status? = nil
     let onSave: (MedicationDose) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var quantity: Double
@@ -160,11 +165,13 @@ struct LogMedicationDetailSheet: View {
         medication: Medication,
         lastDose: MedicationDose? = nil,
         categoryStatus: CategoryUsageStatus = .noLimit,
+        categoryCooldown: CategoryCooldown.Status? = nil,
         onSave: @escaping (MedicationDose) -> Void
     ) {
         self.medication = medication
         self.lastDose = lastDose
         self.categoryStatus = categoryStatus
+        self.categoryCooldown = categoryCooldown
         self.onSave = onSave
         self._quantity = State(initialValue: medication.defaultQuantity ?? 1)
     }
@@ -176,10 +183,12 @@ struct LogMedicationDetailSheet: View {
     var body: some View {
         Form {
             let cooldown = cooldownStatus
-            if cooldown.hoursSinceLastDose != nil || categoryStatus.isWarning {
+            let hasCategoryCooldownInfo = categoryCooldown?.hoursSinceLastDose != nil
+            if cooldown.hoursSinceLastDose != nil || categoryStatus.isWarning || hasCategoryCooldownInfo {
                 Section {
                     MedicationSafetyBanners(
                         cooldown: cooldown,
+                        categoryCooldown: categoryCooldown,
                         categoryStatus: categoryStatus,
                         medicationCategory: medication.category,
                         medicationId: medication.id

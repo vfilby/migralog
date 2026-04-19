@@ -4,14 +4,14 @@ import XCTest
 @MainActor
 final class MedicationDetailViewModelTests: XCTestCase {
     private var mockRepo: MockMedicationRepository!
-    private var mockCategoryLimitRepo: MockCategoryUsageLimitRepository!
+    private var mockCategoryLimitRepo: MockCategorySafetyRuleRepository!
     private var sut: MedicationDetailViewModel!
     private var testMed: Medication!
 
     override func setUp() {
         super.setUp()
         mockRepo = MockMedicationRepository()
-        mockCategoryLimitRepo = MockCategoryUsageLimitRepository()
+        mockCategoryLimitRepo = MockCategorySafetyRuleRepository()
         testMed = TestFixtures.makeMedication(id: "med-1", name: "Ibuprofen")
         mockRepo.medications = [testMed]
         mockRepo.schedules = [

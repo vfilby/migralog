@@ -2,8 +2,24 @@ import XCTest
 @testable import MigraLog
 
 final class CategoryUsageStatusTests: XCTestCase {
-    private func limit(max: Int = 15, window: Int = 30, category: MedicationCategory = .nsaid) -> CategoryUsageLimit {
-        CategoryUsageLimit(category: category, maxDays: max, windowDays: window)
+    private func limit(max: Int = 15, window: Int = 30, category: MedicationCategory = .nsaid) -> CategorySafetyRule {
+        CategorySafetyRule(
+            id: UUID().uuidString,
+            category: category,
+            type: .periodLimit,
+            periodHours: Double(window) * 24.0,
+            maxCount: max,
+            createdAt: Date()
+        )
+    }
+
+    func test_cooldown_rule_is_not_used_for_MOH_evaluation() {
+        let cooldown = CategorySafetyRule(
+            id: "c", category: .nsaid, type: .cooldown,
+            periodHours: 4.0, maxCount: nil, createdAt: Date()
+        )
+        let status = CategoryUsageStatus.evaluate(daysUsed: 14, limit: cooldown)
+        XCTAssertEqual(status, .noLimit)
     }
 
     // MARK: - evaluate: no limit configured

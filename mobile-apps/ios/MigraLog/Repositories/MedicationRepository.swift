@@ -199,6 +199,33 @@ final class MedicationRepository: MedicationRepositoryProtocol {
         }
     }
 
+    func getLastTakenDoseInCategory(
+        _ category: MedicationCategory,
+        now: Date
+    ) throws -> (dose: MedicationDose, medicationName: String)? {
+        let endTs = TimestampHelper.fromDate(now)
+        return try dbManager.dbQueue.read { db in
+            let row = try Row.fetchOne(
+                db,
+                sql: """
+                    SELECT d.*, m.name AS medication_name
+                    FROM medication_doses d
+                    INNER JOIN medications m ON m.id = d.medication_id
+                    WHERE m.category = ?
+                      AND d.status = 'taken'
+                      AND d.timestamp <= ?
+                    ORDER BY d.timestamp DESC
+                    LIMIT 1
+                    """,
+                arguments: [category.rawValue, endTs]
+            )
+            guard let row else { return nil }
+            let dose = Self.doseFromRow(row)
+            let name: String = row["medication_name"] ?? ""
+            return (dose, name)
+        }
+    }
+
     func getDosesByDateRange(start: Int64, end: Int64) throws -> [MedicationDose] {
         try dbManager.dbQueue.read { db in
             let rows = try Row.fetchAll(

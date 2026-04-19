@@ -1,16 +1,17 @@
 import SwiftUI
 
 /// Small banner rows shown above medication dose-log buttons to surface safety
-/// information: cooldown (minimum interval since last dose) and MOH (medication
-/// overuse headache) risk. Renders 0, 1, or 2 lines depending on which statuses
-/// apply. Used on the Dashboard rows, the Log Medication cards, and inside the
-/// Log Dose sheet so the same info is visible everywhere a dose can be logged.
+/// information: per-medication cooldown, category-wide cooldown, and MOH risk.
+/// Renders 0, 1, 2, or 3 lines depending on which statuses apply. Used on the
+/// Dashboard rows, the Log Medication cards, and inside the Log Dose sheet.
 struct MedicationSafetyBanners: View {
-    /// Cooldown status (pre-evaluated). Banner shown whenever the medication has
-    /// a prior dose, regardless of whether the cooldown has expired — users still
-    /// want to see how long it's been since their last dose.
+    /// Per-med cooldown status (pre-evaluated). Shown whenever the medication
+    /// has a prior dose, regardless of whether the cooldown has expired.
     var cooldown: MedicationCooldown.Status?
-    /// Category MOH status (pre-evaluated). Banner shown only when the status is
+    /// Category-wide cooldown status (pre-evaluated). Shown whenever a prior
+    /// dose in the category exists AND a category cooldown rule is configured.
+    var categoryCooldown: CategoryCooldown.Status?
+    /// Category MOH status (pre-evaluated). Shown only when the status is
     /// `.approaching` or `.atOrOver` — below that, it's just noise.
     var categoryStatus: CategoryUsageStatus?
     /// The medication's category — required to format the MOH summary string.
@@ -27,6 +28,15 @@ struct MedicationSafetyBanners: View {
                     .accessibilityIdentifier(medicationId.map { "cooldown-warning-\($0)" } ?? "")
             }
 
+            if let categoryCooldown,
+               let medicationCategory,
+               let text = categoryCooldownText(categoryCooldown, category: medicationCategory) {
+                Label(text, systemImage: "clock.arrow.2.circlepath")
+                    .font(.caption)
+                    .foregroundStyle(categoryCooldownColor(categoryCooldown))
+                    .accessibilityIdentifier(medicationId.map { "category-cooldown-warning-\($0)" } ?? "")
+            }
+
             if let categoryStatus, categoryStatus.isWarning,
                let medicationCategory,
                let summary = categoryStatus.summary(category: medicationCategory) {
@@ -37,6 +47,8 @@ struct MedicationSafetyBanners: View {
             }
         }
     }
+
+    // MARK: - Per-med cooldown helpers
 
     private func cooldownText(_ status: MedicationCooldown.Status) -> String? {
         guard let elapsed = status.hoursSinceLastDose else { return nil }
@@ -52,9 +64,29 @@ struct MedicationSafetyBanners: View {
         status.isOnCooldown ? .orange : .secondary
     }
 
-    /// Friendlier duration format than the existing `MedicationCooldown.summary`
-    /// ("2h 15m" / "45m" / "2.1d") — shown inline with prose so decimal hours
-    /// and bare "h"/"m" suffixes read awkwardly.
+    // MARK: - Category cooldown helpers
+
+    private func categoryCooldownText(_ status: CategoryCooldown.Status, category: MedicationCategory) -> String? {
+        guard status.minIntervalHours != nil,
+              let elapsed = status.hoursSinceLastDose,
+              let medName = status.lastMedicationName else {
+            return nil
+        }
+        let elapsedStr = formatDuration(elapsed)
+        let categoryLabel = category.displayName
+        if status.isOnCooldown {
+            let waitStr = formatDuration(status.hoursUntilNextDose)
+            return "Last \(categoryLabel) (\(medName)) \(elapsedStr) ago — wait \(waitStr)"
+        }
+        return "Last \(categoryLabel) (\(medName)) \(elapsedStr) ago"
+    }
+
+    private func categoryCooldownColor(_ status: CategoryCooldown.Status) -> Color {
+        status.isOnCooldown ? .orange : .secondary
+    }
+
+    // MARK: - Duration formatting
+
     private func formatDuration(_ hours: Double) -> String {
         if hours < 1 {
             let minutes = Int((hours * 60).rounded())

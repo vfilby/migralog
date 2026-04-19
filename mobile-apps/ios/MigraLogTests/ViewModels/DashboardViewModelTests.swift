@@ -6,7 +6,7 @@ final class DashboardViewModelTests: XCTestCase {
     private var mockEpisodeRepo: MockEpisodeRepository!
     private var mockMedRepo: MockMedicationRepository!
     private var mockStatusRepo: MockDailyStatusRepository!
-    private var mockCategoryLimitRepo: MockCategoryUsageLimitRepository!
+    private var mockCategoryLimitRepo: MockCategorySafetyRuleRepository!
     private var sut: DashboardViewModel!
 
     override func setUp() {
@@ -14,7 +14,7 @@ final class DashboardViewModelTests: XCTestCase {
         mockEpisodeRepo = MockEpisodeRepository()
         mockMedRepo = MockMedicationRepository()
         mockStatusRepo = MockDailyStatusRepository()
-        mockCategoryLimitRepo = MockCategoryUsageLimitRepository()
+        mockCategoryLimitRepo = MockCategorySafetyRuleRepository()
         sut = DashboardViewModel(
             episodeRepository: mockEpisodeRepo,
             medicationRepository: mockMedRepo,
@@ -244,7 +244,11 @@ final class DashboardViewModelTests: XCTestCase {
         let schedule = TestFixtures.makeSchedule(id: "s-1", medicationId: "med-1")
         mockMedRepo.medications = [med]
         mockMedRepo.schedules = [schedule]
-        mockCategoryLimitRepo.limits[.nsaid] = CategoryUsageLimit(category: .nsaid, maxDays: 15, windowDays: 30)
+        let rule = CategorySafetyRule(
+            id: "r1", category: .nsaid, type: .periodLimit,
+            periodHours: 720, maxCount: 15, createdAt: Date()
+        )
+        try? mockCategoryLimitRepo.upsert(rule)
         mockCategoryLimitRepo.dayCounts[.nsaid] = 14  // approaching
 
         await sut.loadData()

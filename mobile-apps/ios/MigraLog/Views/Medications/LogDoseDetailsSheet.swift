@@ -25,10 +25,12 @@ struct LogDoseDetailsSheet: View {
             Form {
                 let cooldown = viewModel.cooldownStatus
                 let category = viewModel.categoryStatus
-                if shouldShowSafetySection(cooldown: cooldown, category: category) {
+                let categoryCooldown = viewModel.categoryCooldown
+                if shouldShowSafetySection(cooldown: cooldown, category: category, categoryCooldown: categoryCooldown) {
                     Section {
                         MedicationSafetyBanners(
                             cooldown: cooldown,
+                            categoryCooldown: categoryCooldown,
                             categoryStatus: category,
                             medicationCategory: medication.category,
                             medicationId: medication.id
@@ -88,9 +90,12 @@ struct LogDoseDetailsSheet: View {
 
     private func shouldShowSafetySection(
         cooldown: MedicationCooldown.Status,
-        category: CategoryUsageStatus
+        category: CategoryUsageStatus,
+        categoryCooldown: CategoryCooldown.Status
     ) -> Bool {
-        cooldown.hoursSinceLastDose != nil || category.isWarning
+        cooldown.hoursSinceLastDose != nil
+            || category.isWarning
+            || categoryCooldown.hoursSinceLastDose != nil
     }
 
     private func save() async {
