@@ -226,13 +226,16 @@ struct DailyStatusPromptScreen: View {
                     .textFieldStyle(.roundedBorder)
                     .lineLimit(3...6)
 
-                Button("Save") {
+                Button {
                     Task { await save() }
+                } label: {
+                    Text("Save")
+                        .frame(maxWidth: .infinity)
                 }
                 .accessibilityIdentifier("save-status-button")
                 .buttonStyle(.borderedProminent)
+                .controlSize(.large)
                 .disabled(selectedStatus == nil || isSaving)
-                .frame(maxWidth: .infinity)
             }
 
             if existingStatus != nil {
