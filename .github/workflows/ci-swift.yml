@@ -55,3 +55,38 @@ jobs:
           name: swift-test-results
           path: mobile-apps/ios/TestResults.xcresult
           retention-days: 30
+
+  ui-test:
+    name: UI Tests
+    runs-on: macos-26
+    if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'run-ui-tests')
+    defaults:
+      run:
+        working-directory: ./mobile-apps/ios
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Select Xcode 26
+        run: sudo xcode-select -s /Applications/Xcode_26.2.app/Contents/Developer
+
+      - name: Resolve SPM dependencies
+        run: xcodebuild -resolvePackageDependencies -scheme MigraLog
+
+      - name: Run UI tests
+        run: >
+          xcodebuild test
+          -scheme MigraLog
+          -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest'
+          -only-testing:MigraLogUITests
+          -resultBundlePath UITestResults.xcresult
+
+      - name: Upload UI test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: swift-ui-test-results
+          path: mobile-apps/ios/UITestResults.xcresult
+          retention-days: 30
