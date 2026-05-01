@@ -6,6 +6,7 @@ struct EpisodeDetailScreen: View {
     @State private var showEndTimePicker = false
     @State private var showEditSheet = false
     @State private var showLogUpdate = false
+    @State private var showLogMedication = false
     @State private var customEndTime = Date()
 
     // Timeline editing state
@@ -52,6 +53,7 @@ struct EpisodeDetailScreen: View {
                                 episodeId: episodeId,
                                 viewModel: viewModel,
                                 showLogUpdate: $showLogUpdate,
+                                showLogMedication: $showLogMedication,
                                 customEndTime: $customEndTime,
                                 showEndTimePicker: $showEndTimePicker
                             )
@@ -89,6 +91,13 @@ struct EpisodeDetailScreen: View {
                 NavigationStack {
                     LogUpdateScreen(episodeId: details.episode.id, viewModel: viewModel)
                 }
+            }
+        }
+        .sheet(isPresented: $showLogMedication, onDismiss: {
+            Task { await viewModel.loadEpisode(episodeId) }
+        }) {
+            NavigationStack {
+                LogMedicationScreen()
             }
         }
         .sheet(isPresented: $showEndTimePicker) {
