@@ -7,6 +7,7 @@ struct EpisodeActionButtons: View {
     let episodeId: String
     let viewModel: EpisodeDetailViewModel
     @Binding var showLogUpdate: Bool
+    @Binding var showLogMedication: Bool
     @Binding var customEndTime: Date
     @Binding var showEndTimePicker: Bool
 
@@ -23,6 +24,18 @@ struct EpisodeActionButtons: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             }
             .accessibilityIdentifier("log-update-button")
+
+            Button {
+                showLogMedication = true
+            } label: {
+                Label("Log Medication", systemImage: "pills")
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.green.opacity(0.1))
+                    .foregroundStyle(.green)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .accessibilityIdentifier("log-medication-button")
 
             HStack(spacing: 8) {
                 Button {
