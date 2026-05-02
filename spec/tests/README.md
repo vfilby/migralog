@@ -9,22 +9,23 @@ Framework-agnostic test specifications for MigraineTracker.
     dose edit/delete, archiving, trends/analytics, notification settings,
     error handling, accessibility
   - Includes fixture data requirements, test IDs, and step-by-step flows
-  - Currently implemented in Detox (`/mobile-apps/react-native/e2e/`)
+  - Currently implemented as XCUITest in `mobile-apps/ios/MigraLogUITests/`
 
 - **[unit-integration-test-specs.md](unit-integration-test-specs.md)** — Unit & integration test specifications
   - Coverage target: **75% line coverage** across business logic
-  - Database repositories, state stores, services, utilities, schemas
+  - Repositories, view models, services, utilities, models
   - Includes coverage gap analysis and prioritized modules to test
-  - Currently implemented in Jest (`/mobile-apps/react-native/src/**/__tests__/`)
+  - Currently implemented as XCTest in `mobile-apps/ios/MigraLogTests/`
 
 ## Current Implementation Status
 
-| Layer | Test Files | Coverage |
-|-------|-----------|----------|
-| Database repositories | 14 files | Good |
-| State stores | 7 files | Good |
-| Services | 22 files | Good (some gaps in notifications) |
-| Utilities | 17 files | Good |
-| Schemas | 3 files | Partial (overlay, common missing) |
-| E2E | 12 files | Good |
-| **Total** | **125+ test files** | **~77% of modules covered** |
+| Layer | Test Files |
+|-------|-----------|
+| Repositories | 6 |
+| View models | 14 |
+| Services | 17 |
+| Utilities | 7 |
+| Database | 2 |
+| Models | 1 |
+| UI tests | 12 |
+| **Total** | **~60 test files** |

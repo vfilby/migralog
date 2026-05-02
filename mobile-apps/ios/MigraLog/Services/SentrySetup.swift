@@ -2,7 +2,6 @@ import Foundation
 import Sentry
 
 enum SentrySetup {
-    /// The same project DSN used by the React Native app
     private static let dsn = "https://15bd8c3b6589a60a5e10f2703923db39@o4510275950608384.ingest.us.sentry.io/4510275952312320"
 
     /// Initialize Sentry. Call once at app startup.

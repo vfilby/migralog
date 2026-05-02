@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Pain scale definitions — MUST match react-native/src/utils/painScale.ts exactly.
+/// Pain scale definitions — see spec/functional-specification.md §5.1.
 /// Reference: https://www.painscale.com/tools/migraine-pain-scale/
 enum PainScale {
     struct Level {

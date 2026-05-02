@@ -261,7 +261,7 @@ Stored in `medications` table
   time: string;            // HH:mm format (24-hour, local timezone)
   dosage: number;          // Number of doses at this time
   enabled: boolean;        // Is this schedule active?
-  notificationId?: string; // Expo notification ID
+  notificationId?: string; // OS notification identifier (UNUserNotificationCenter)
   reminderEnabled?: boolean; // Can disable reminders for this schedule
 }
 ```
@@ -839,5 +839,5 @@ CREATE INDEX IF NOT EXISTS idx_medication_doses_med_time ON medication_doses(med
 | pain_location_logs | pain_locations | PainLocation[] | `["left_temple","right_eye"]` |
 | medication_doses | side_effects | string[] | `["nausea","dizziness"]` |
 
-For complete table definitions including symptom_logs, pain_location_logs, medication_schedules, and medication_reminders, see the database migration files in `/mobile-apps/react-native/src/database/migrations/`.
+For complete table definitions including symptom_logs, pain_location_logs, medication_schedules, and medication_reminders, see the GRDB migrations registered in `mobile-apps/ios/MigraLog/Database/DatabaseManager.swift`.
 
