@@ -149,7 +149,7 @@ These definitions are the source of truth. Both platform implementations MUST ma
 
 Reference: https://www.painscale.com/tools/migraine-pain-scale/
 
-**Implementations**: `react-native/src/utils/painScale.ts`, `ios-swift/MigraLog/Utils/PainScale.swift`
+**Implementation**: `mobile-apps/ios/MigraLog/Utils/PainScale.swift`
 
 ```json
 [
@@ -179,7 +179,7 @@ Medication type badges use these colors. Text color is the main color; backgroun
 }
 ```
 
-**Implementations**: `react-native/src/components/medication/MedicationBadges.tsx`, `ios-swift/MigraLog/Utils/MedicationTypeColors.swift`
+**Implementation**: `mobile-apps/ios/MigraLog/Utils/MedicationTypeColors.swift`
 
 ## 6. Data Model (Core Entities)
 
@@ -239,7 +239,7 @@ Medication type badges use these colors. Text color is the main color; backgroun
 - **Offline Support**: Allow logging without internet connection
 - **Sync**: Multi-device synchronization
 - **Reminders**: Medication reminders, episode logging prompts
-- **Backup**: Cloud backup of user data. Restore must handle cross-platform backups (React Native ↔ Swift) gracefully — dynamic column detection, skip rows with constraint violations (log skipped rows), and fix zero-valued timestamps by falling back to created_at.
+- **Backup**: Cloud backup of user data. Restore must handle backups from older app versions gracefully — dynamic column detection, skip rows with constraint violations (log skipped rows), and fix zero-valued timestamps by falling back to created_at.
 - **Export**: Standard formats for medical records
 
 ## 9. Future Enhancements

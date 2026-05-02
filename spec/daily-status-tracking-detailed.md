@@ -335,41 +335,32 @@ Add **Pattern Detection**:
    - Add toggle between chart types
 
 3. **Visualizations**
-   - Consider using `react-native-chart-kit` or `victory-native`
+   - Use Swift Charts (built-in to SwiftUI)
    - Line chart: Days per status over time
    - Bar chart: Monthly status distribution
 
-### Phase 6: Testing (Jest Unit Tests + Detox E2E Tests)
+### Phase 6: Testing
 **Estimated: 3-4 hours**
 
-**IMPORTANT: All features must have both unit tests (Jest) and E2E/UI tests (Detox)**
+**IMPORTANT: All features must have both unit tests (XCTest) and UI tests (XCUITest).**
 
-1. **Unit Tests (Jest)** - Test business logic and data layer
-   - ✅ Repository tests (Phase 1) - `dailyStatusRepository.test.ts`
-   - Store tests (Phase 2) - `dailyStatusStore.test.ts`
-   - Analytics utility tests - `dayStatusAnalytics.test.ts`
-   - Notification service tests - test daily check-in scheduling
+1. **Unit Tests** — business logic and data layer
+   - Repository tests (Phase 1)
+   - View-model / store-equivalent tests (Phase 2)
+   - Analytics utility tests
+   - Notification service tests — daily check-in scheduling
    - Test coverage target: 80%+ for new code
 
-2. **E2E/UI Tests (Detox)** - Test user interactions and workflows
-   - Update `episodeLifecycle.test.js`:
-     - Verify auto-red day creation when starting episode
-     - Verify red day persists after ending episode
-   - Create `dailyCheckIn.test.js`:
-     - Test daily prompt screen flow (green day selection)
-     - Test daily prompt flow (yellow day with type selection)
-     - Test manual entry via dashboard
-     - Test calendar interaction (tap day, view details)
-     - Test day detail modal (view, edit, delete)
-   - Update `episodeLifecycle.test.js` for integration:
-     - Start episode → Verify red day auto-created
-     - End multi-day episode → Verify all days marked red
+2. **UI Tests (XCUITest)** — user interactions and workflows
+   - Episode lifecycle: auto-red day creation when starting episode; red day persists after ending
+   - Daily check-in: green day selection, yellow day with type selection, manual entry via dashboard, calendar tap-through, day-detail modal
+   - Multi-day episodes: end episode → verify all spanned days marked red
 
-3. **Integration Tests** - Test cross-feature interactions
-   - Notification handling (via Detox)
-   - Settings changes propagation (via Detox)
-   - Auto-red day creation from episodes (via Jest and Detox)
-   - Calendar navigation and data sync (via Detox)
+3. **Integration Tests** — cross-feature interactions
+   - Notification handling
+   - Settings changes propagation
+   - Auto-red day creation from episodes
+   - Calendar navigation and data sync
 
 ### Phase 7: Polish & Documentation
 **Estimated: 1-2 hours**
@@ -503,7 +494,7 @@ Add **Pattern Detection**:
   - Registered in AppNavigator with modal presentation
 - ✅ Fixed errorLogger category in dailyStatusStore (changed 'app' to 'database')
 
-### ✅ Phase 6 Complete: E2E Testing (Detox)
+### ✅ Phase 6 Complete: E2E Testing (historical — original RN/Detox implementation)
 - ✅ Created `dailyStatusTracking.test.js`
   - Test manual green day logging
   - Test manual yellow day logging with type and notes

@@ -105,7 +105,6 @@ struct IntensitySparklineView: View {
 
     /// Interpolate readings at 5-minute intervals using sample-and-hold,
     /// then apply reverse (look-ahead) EMA smoothing.
-    /// Matches the React Native IntensitySparkline implementation.
     private static func smoothedData(
         readings: [IntensityReading], start: Int64, end: Int64
     ) -> [(timestamp: Int64, intensity: Double)] {

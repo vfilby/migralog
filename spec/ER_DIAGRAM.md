@@ -89,7 +89,7 @@ erDiagram
         string time "NOT NULL, HH:mm format"
         float dosage "NOT NULL, > 0, DEFAULT 1"
         int enabled "NOT NULL, 0|1, DEFAULT 1"
-        string notification_id "Expo ID or NULL"
+        string notification_id "OS notification identifier or NULL"
         int reminder_enabled "DEFAULT 1"
     }
 

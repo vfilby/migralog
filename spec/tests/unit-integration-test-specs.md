@@ -33,9 +33,9 @@ Test specifications for all business logic in MigraineTracker.
 
 ### Mocking strategy
 
-- **Unit tests**: Mock database driver (SQLite), external APIs (Sentry, expo-notifications, expo-location, file system)
-- **Integration tests**: Mock database repositories with controlled responses, use real store/service logic
-- **Never mock**: Zod schemas, pure utility functions, date calculations
+- **Unit tests**: Mock database driver (SQLite), external APIs (Sentry, UNUserNotificationCenter, CLLocationManager, file system)
+- **Integration tests**: Mock database repositories with controlled responses, use real view-model/service logic
+- **Never mock**: schema/codable types, pure utility functions, date calculations
 
 ---
 
@@ -316,9 +316,9 @@ Test specifications for all business logic in MigraineTracker.
 
 | Test | Scenario | Expected |
 |------|----------|----------|
-| Schedule atomic notification | Valid trigger time | expo-notifications called, mapping stored in DB |
+| Schedule atomic notification | Valid trigger time | UNUserNotificationCenter add() called, mapping stored in DB |
 | Schedule batch notifications | Multiple medications | All notifications created, all mappings stored |
-| Cancel atomic notification | Notification ID | expo-notifications cancel called, mapping deleted |
+| Cancel atomic notification | Notification ID | UNUserNotificationCenter removePendingNotificationRequests() called, mapping deleted |
 | Dismiss presented notification | Notification ID | Removed from notification center |
 | Get presented notifications | Active notifications | Returns list from OS |
 | Schedule with past trigger | Time in the past | Notification skipped or handled gracefully |

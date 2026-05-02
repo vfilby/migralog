@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Medication type color definitions — MUST match spec/functional-specification.md Section 5.2
-/// and react-native/src/components/medication/MedicationBadges.tsx
+/// Medication type color definitions — see spec/functional-specification.md §5.2.
 enum MedicationTypeColors {
     /// Get the badge color for a medication type, adapting to light/dark mode
     static func color(for type: MedicationType) -> Color {
