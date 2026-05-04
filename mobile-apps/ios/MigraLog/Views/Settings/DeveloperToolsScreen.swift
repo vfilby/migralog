@@ -24,15 +24,15 @@ struct DeveloperToolsScreen: View {
                 }
 
                 NavigationLink {
-                    PerformanceScreen()
-                } label: {
-                    Label("Performance", systemImage: "gauge.with.dots.needle.bottom.50percent")
-                }
-
-                NavigationLink {
                     ScheduledNotificationsScreen()
                 } label: {
                     Label("Scheduled Notifications", systemImage: "bell.badge")
+                }
+
+                NavigationLink {
+                    TestNotificationsScreen()
+                } label: {
+                    Label("Test Notifications", systemImage: "bell.and.waves.left.and.right")
                 }
             }
 
@@ -80,32 +80,3 @@ struct ErrorLogsScreen: View {
     }
 }
 
-struct LogViewerScreen: View {
-    var body: some View {
-        List {
-            Text("Application logs will appear here.")
-                .foregroundStyle(.secondary)
-        }
-        .navigationTitle("Log Viewer")
-    }
-}
-
-struct PerformanceScreen: View {
-    var body: some View {
-        List {
-            Text("Performance metrics will appear here.")
-                .foregroundStyle(.secondary)
-        }
-        .navigationTitle("Performance")
-    }
-}
-
-struct ScheduledNotificationsScreen: View {
-    var body: some View {
-        List {
-            Text("Scheduled notifications will appear here.")
-                .foregroundStyle(.secondary)
-        }
-        .navigationTitle("Scheduled Notifications")
-    }
-}

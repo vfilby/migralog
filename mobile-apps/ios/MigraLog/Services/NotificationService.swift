@@ -166,8 +166,11 @@ final class NotificationService: NotificationServiceProtocol {
 
     func requestPermission() async -> Bool {
         do {
+            // .timeSensitive is implicitly granted by the
+            // com.apple.developer.usernotifications.time-sensitive entitlement and
+            // is deprecated as an authorization option in iOS 15+.
             let granted = try await center.requestAuthorization(
-                options: [.alert, .sound, .badge, .criticalAlert, .timeSensitive]
+                options: [.alert, .sound, .badge, .criticalAlert]
             )
             logger.info("Notification permission \(granted ? "granted" : "denied")")
             return granted

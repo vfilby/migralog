@@ -157,6 +157,15 @@ final class BackupService: BackupServiceProtocol {
         return backups.sorted { $0.timestamp > $1.timestamp }
     }
 
+    // MARK: - Backup File URL
+
+    /// Returns the on-disk URL for a backup's `.db` file. The file may not exist;
+    /// callers should validate before sharing if that matters.
+    func backupFileURL(for id: String) throws -> URL {
+        let backupDir = try backupDirectoryURL()
+        return backupDir.appendingPathComponent("migralog_backup_\(id).db")
+    }
+
     // MARK: - Delete Backup
 
     func deleteBackup(id: String) throws {

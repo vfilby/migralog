@@ -152,6 +152,9 @@
 		EF2F89545E73FA4D4AB17CC7 /* MedicationRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC4261430F353F44B3DFAAC7 /* MedicationRepository.swift */; };
 		F0F59FF647D4E49F57F00790 /* EditDoseScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2FFA573403CE8CEB235A4EB /* EditDoseScreen.swift */; };
 		F1F11A1CCD0760620DEF5357 /* DeveloperToolsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5BF70F8D6B06F72BB0220C8 /* DeveloperToolsScreen.swift */; };
+		80BBEF0C8C7CC6E15977E882 /* LogViewerScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8723DFADE6091E24DE9C012 /* LogViewerScreen.swift */; };
+		847AA74F5C0150D7043106BB /* ScheduledNotificationsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 725CF86FED6252387F53662D /* ScheduledNotificationsScreen.swift */; };
+		CC91B8E7AE74EE232AA60301 /* TestNotificationsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6DEA4BB3A511DF04BAFEFF2 /* TestNotificationsScreen.swift */; };
 		F2F77C696F2663C559C35D71 /* MedicationDoseUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ADC08BE6A41699C6F17044C /* MedicationDoseUITests.swift */; };
 		F3120A99E69C1A8938045FA3 /* NotificationResponseHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC14C0BEF174570CFFFAADA2 /* NotificationResponseHandlerTests.swift */; };
 		F52FE6FFA0FC59B2F7F661AE /* ToastService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DDF642917EDCDFE97E3E8E6 /* ToastService.swift */; };
@@ -334,6 +337,9 @@
 		F46D676D5280C5AABA6BB139 /* DateFormattingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateFormattingTests.swift; sourceTree = "<group>"; };
 		F5147500FD77DA3DEF2C4008 /* TrendsAnalyticsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendsAnalyticsUITests.swift; sourceTree = "<group>"; };
 		F5BF70F8D6B06F72BB0220C8 /* DeveloperToolsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperToolsScreen.swift; sourceTree = "<group>"; };
+		D8723DFADE6091E24DE9C012 /* LogViewerScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogViewerScreen.swift; sourceTree = "<group>"; };
+		725CF86FED6252387F53662D /* ScheduledNotificationsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduledNotificationsScreen.swift; sourceTree = "<group>"; };
+		E6DEA4BB3A511DF04BAFEFF2 /* TestNotificationsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestNotificationsScreen.swift; sourceTree = "<group>"; };
 		F8F03791D799269B5B3B07E6 /* NewEpisodeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewEpisodeScreen.swift; sourceTree = "<group>"; };
 		F9286988E56D53AEBF4E9205 /* BackupServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupServiceTests.swift; sourceTree = "<group>"; };
 		F9498E260C8EFE377BC05547 /* DailyCheckinSettingsViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyCheckinSettingsViewModelTests.swift; sourceTree = "<group>"; };
@@ -587,8 +593,11 @@
 				D2905118EC1EC29D6FAFC7F3 /* DataSettingsScreen.swift */,
 				F5BF70F8D6B06F72BB0220C8 /* DeveloperToolsScreen.swift */,
 				F96ADD663FB891445B7511E5 /* LocationSettingsScreen.swift */,
+				D8723DFADE6091E24DE9C012 /* LogViewerScreen.swift */,
 				F27D19F38C235C0F81CB5738 /* NotificationSettingsScreen.swift */,
+				725CF86FED6252387F53662D /* ScheduledNotificationsScreen.swift */,
 				FB611FF702E7A5E56F48248B /* SettingsScreen.swift */,
+				E6DEA4BB3A511DF04BAFEFF2 /* TestNotificationsScreen.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -973,6 +982,9 @@
 				E919E2044D68ED0932A9D71D /* DatabaseManager.swift in Sources */,
 				B198B47C0F880F123164B743 /* DateFormatting.swift in Sources */,
 				F1F11A1CCD0760620DEF5357 /* DeveloperToolsScreen.swift in Sources */,
+				80BBEF0C8C7CC6E15977E882 /* LogViewerScreen.swift in Sources */,
+				847AA74F5C0150D7043106BB /* ScheduledNotificationsScreen.swift in Sources */,
+				CC91B8E7AE74EE232AA60301 /* TestNotificationsScreen.swift in Sources */,
 				600D3A118054B46BF84D7830 /* DomainModels.swift in Sources */,
 				B0D478AA906E2F6E84F2B2F6 /* EditDoseFromTimelineScreen.swift in Sources */,
 				F0F59FF647D4E49F57F00790 /* EditDoseScreen.swift in Sources */,

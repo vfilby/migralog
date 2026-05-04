@@ -58,16 +58,14 @@ struct DataSettingsScreen: View {
             }
 
             if !backups.isEmpty {
-                Section("Existing Backups") {
+                Section {
                     ForEach(backups, id: \.id) { backup in
-                        VStack(alignment: .leading) {
-                            Text(backup.fileName ?? "Backup")
-                                .font(.subheadline)
-                            Text(DateFormatting.displayDateTime(TimestampHelper.toDate(backup.timestamp)))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+                        backupRow(backup)
                     }
+                } header: {
+                    Text("Existing Backups")
+                } footer: {
+                    Text("Tap the share icon to send a backup to AirDrop, Files, or another app. Swipe a row to delete.")
                 }
             }
         }
@@ -103,6 +101,48 @@ struct DataSettingsScreen: View {
         }
         .task {
             await loadBackups()
+        }
+    }
+
+    @ViewBuilder
+    private func backupRow(_ backup: BackupMetadata) -> some View {
+        let url = (try? BackupService().backupFileURL(for: backup.id))
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(backup.fileName ?? "Backup")
+                    .font(.subheadline)
+                Text(DateFormatting.displayDateTime(TimestampHelper.toDate(backup.timestamp)))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            if let url, FileManager.default.fileExists(atPath: url.path) {
+                ShareLink(item: url) {
+                    Image(systemName: "square.and.arrow.up")
+                        .foregroundStyle(.tint)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Share backup")
+            }
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button(role: .destructive) {
+                Task { await deleteBackup(id: backup.id) }
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+    }
+
+    private func deleteBackup(id: String) async {
+        do {
+            let service = BackupService()
+            try service.deleteBackup(id: id)
+            await loadBackups()
+        } catch {
+            ErrorLogger.shared.logError(error, context: ["screen": "DataSettingsScreen", "action": "deleteBackup"])
+            errorMessage = "Delete failed: \(error.localizedDescription)"
+            showError = true
         }
     }
 
