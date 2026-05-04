@@ -35,7 +35,9 @@ private final class MockNotifService: NotificationServiceProtocol, @unchecked Se
     func scheduleNotification(
         id: String, title: String, body: String,
         trigger: UNNotificationTrigger,
-        categoryIdentifier: String?, userInfo: [String: Any]?
+        categoryIdentifier: String?, userInfo: [String: Any]?,
+        interruptionLevel: UNNotificationInterruptionLevel,
+        useCriticalSound: Bool
     ) async throws {}
 
     func cancelNotification(id: String) {}

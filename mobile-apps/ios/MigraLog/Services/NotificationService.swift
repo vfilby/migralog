@@ -30,7 +30,9 @@ protocol NotificationServiceProtocol: Sendable {
         body: String,
         trigger: UNNotificationTrigger,
         categoryIdentifier: String?,
-        userInfo: [String: Any]?
+        userInfo: [String: Any]?,
+        interruptionLevel: UNNotificationInterruptionLevel,
+        useCriticalSound: Bool
     ) async throws
     func cancelNotification(id: String)
     func cancelAllNotifications()
@@ -62,9 +64,21 @@ extension NotificationServiceProtocol {
         title: String,
         body: String,
         trigger: UNNotificationTrigger,
-        categoryIdentifier: String?
+        categoryIdentifier: String? = nil,
+        userInfo: [String: Any]? = nil,
+        interruptionLevel: UNNotificationInterruptionLevel = .active,
+        useCriticalSound: Bool = false
     ) async throws {
-        try await scheduleNotification(id: id, title: title, body: body, trigger: trigger, categoryIdentifier: categoryIdentifier, userInfo: nil)
+        try await scheduleNotification(
+            id: id,
+            title: title,
+            body: body,
+            trigger: trigger,
+            categoryIdentifier: categoryIdentifier,
+            userInfo: userInfo,
+            interruptionLevel: interruptionLevel,
+            useCriticalSound: useCriticalSound
+        )
     }
 }
 
@@ -153,7 +167,7 @@ final class NotificationService: NotificationServiceProtocol {
     func requestPermission() async -> Bool {
         do {
             let granted = try await center.requestAuthorization(
-                options: [.alert, .sound, .badge]
+                options: [.alert, .sound, .badge, .criticalAlert, .timeSensitive]
             )
             logger.info("Notification permission \(granted ? "granted" : "denied")")
             return granted
@@ -171,12 +185,15 @@ final class NotificationService: NotificationServiceProtocol {
         body: String,
         trigger: UNNotificationTrigger,
         categoryIdentifier: String? = nil,
-        userInfo: [String: Any]? = nil
+        userInfo: [String: Any]? = nil,
+        interruptionLevel: UNNotificationInterruptionLevel = .active,
+        useCriticalSound: Bool = false
     ) async throws {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
-        content.sound = .default
+        content.sound = useCriticalSound ? .defaultCritical : .default
+        content.interruptionLevel = interruptionLevel
         content.userInfo = userInfo ?? [:]
         if let category = categoryIdentifier {
             content.categoryIdentifier = category

@@ -1,6 +1,14 @@
 import Foundation
 import UserNotifications
 
+// MARK: - UserDefaults Keys
+
+private enum NotificationDefaultsKey {
+    static let followUpDelay = "notification_follow_up_delay"
+    static let timeSensitiveEnabled = "notification_time_sensitive_enabled"
+    static let criticalAlertsEnabled = "notification_critical_alerts_enabled"
+}
+
 // MARK: - Protocol
 
 protocol MedicationNotificationServiceProtocol: Sendable {
@@ -84,7 +92,7 @@ actor MedicationNotificationScheduler: MedicationNotificationServiceProtocol {
         // 5. Gather enabled schedules
         var items: [(Medication, MedicationSchedule)] = []
         var slotsPerDay = 0
-        let followUpDelay = UserDefaults.standard.integer(forKey: "notification_follow_up_delay")
+        let followUpDelay = UserDefaults.standard.integer(forKey: NotificationDefaultsKey.followUpDelay)
 
         for medication in preventativeDailyMeds {
             let schedules = try medicationRepo.getSchedulesByMedicationId(medication.id)
@@ -153,7 +161,7 @@ actor MedicationNotificationScheduler: MedicationNotificationServiceProtocol {
                 }
 
                 // Schedule follow-up if enabled
-                let followUpDelay = UserDefaults.standard.integer(forKey: "notification_follow_up_delay")
+                let followUpDelay = UserDefaults.standard.integer(forKey: NotificationDefaultsKey.followUpDelay)
                 if followUpDelay > 0 {
                     guard let followUpTrigger = calendar.date(byAdding: .minute, value: followUpDelay, to: trigger) else { continue }
                     guard followUpTrigger > Date() else { continue }
@@ -206,13 +214,17 @@ actor MedicationNotificationScheduler: MedicationNotificationServiceProtocol {
             userInfo["isFollowUp"] = true
         }
 
+        let (interruptionLevel, useCriticalSound) = interruptionSettings(isFollowUp: isFollowUp)
+
         try await notificationService.scheduleNotification(
             id: notificationId,
             title: title,
             body: body,
             trigger: trigger,
             categoryIdentifier: NotificationCategory.medication,
-            userInfo: userInfo
+            userInfo: userInfo,
+            interruptionLevel: interruptionLevel,
+            useCriticalSound: useCriticalSound
         )
 
         let mapping = ScheduledNotification(
@@ -270,13 +282,17 @@ actor MedicationNotificationScheduler: MedicationNotificationServiceProtocol {
             userInfo["isFollowUp"] = true
         }
 
+        let (interruptionLevel, useCriticalSound) = interruptionSettings(isFollowUp: isFollowUp)
+
         try await notificationService.scheduleNotification(
             id: notificationId,
             title: title,
             body: body,
             trigger: trigger,
             categoryIdentifier: NotificationCategory.multipleMedication,
-            userInfo: userInfo
+            userInfo: userInfo,
+            interruptionLevel: interruptionLevel,
+            useCriticalSound: useCriticalSound
         )
 
         // Create a mapping for each medication in the group
@@ -488,7 +504,7 @@ actor MedicationNotificationScheduler: MedicationNotificationServiceProtocol {
             }
 
             var items: [(Medication, MedicationSchedule)] = []
-            let followUpDelay = UserDefaults.standard.integer(forKey: "notification_follow_up_delay")
+            let followUpDelay = UserDefaults.standard.integer(forKey: NotificationDefaultsKey.followUpDelay)
             var slotsPerDay = 0
 
             for medication in preventativeDailyMeds {
@@ -624,7 +640,7 @@ actor MedicationNotificationScheduler: MedicationNotificationServiceProtocol {
             }
 
             var slotsPerDay = 0
-            let followUpDelay = UserDefaults.standard.integer(forKey: "notification_follow_up_delay")
+            let followUpDelay = UserDefaults.standard.integer(forKey: NotificationDefaultsKey.followUpDelay)
 
             var allSchedules: [(Medication, MedicationSchedule)] = []
             for medication in preventativeDailyMeds {
@@ -692,6 +708,17 @@ actor MedicationNotificationScheduler: MedicationNotificationServiceProtocol {
         guard let date = DateFormatting.date(from: dateString),
               let components = parseTime(time) else { return nil }
         return Calendar.current.date(bySettingHour: components.hour, minute: components.minute, second: 0, of: date)
+    }
+
+    private func interruptionSettings(isFollowUp: Bool) -> (UNNotificationInterruptionLevel, Bool) {
+        let defaults = UserDefaults.standard
+        if isFollowUp {
+            let critical = defaults.bool(forKey: NotificationDefaultsKey.criticalAlertsEnabled)
+            return (critical ? .critical : .active, critical)
+        } else {
+            let timeSensitive = defaults.bool(forKey: NotificationDefaultsKey.timeSensitiveEnabled)
+            return (timeSensitive ? .timeSensitive : .active, false)
+        }
     }
 
     private func parseTime(_ time: String) -> (hour: Int, minute: Int)? {
