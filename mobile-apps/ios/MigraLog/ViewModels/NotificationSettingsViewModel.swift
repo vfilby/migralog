@@ -59,7 +59,11 @@ final class NotificationSettingsViewModel {
             dailyStatusRepo: DailyStatusRepository(dbManager: DatabaseManager.shared)
         ),
         notificationService: NotificationServiceProtocol = NotificationService.shared,
-        medicationNotificationService: MedicationNotificationServiceProtocol? = nil
+        medicationNotificationService: MedicationNotificationServiceProtocol? = MedicationNotificationScheduler(
+            notificationService: NotificationService.shared,
+            scheduledNotificationRepo: ScheduledNotificationRepository(dbManager: DatabaseManager.shared),
+            medicationRepo: MedicationRepository(dbManager: DatabaseManager.shared)
+        )
     ) {
         self.defaults = defaults
         self.dailyCheckinService = dailyCheckinService
@@ -148,6 +152,16 @@ final class NotificationSettingsViewModel {
         } catch {
             AppLogger.shared.error("Failed to reschedule medication notifications after settings change", error: error)
         }
+    }
+
+    /// Apply a medication-notification setting change: re-request permission (in case the
+    /// user just enabled critical alerts or time-sensitive, which require explicit auth)
+    /// and reschedule all medication notifications so the new interruption level / sound
+    /// is reflected in pending notifications.
+    @MainActor
+    func applyMedicationNotificationSettingChange() async {
+        _ = await notificationService.requestPermission()
+        await syncMedicationNotifications()
     }
 
     func updateMedicationSettings(_ override: MedicationNotificationOverride) {

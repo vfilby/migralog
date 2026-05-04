@@ -22,10 +22,11 @@ struct NotificationSettingsScreen: View {
             }
 
             if viewModel.notificationsEnabled {
-                Section("Medication Reminders") {
+                Section {
                     Toggle("Time-Sensitive Notifications", isOn: $viewModel.timeSensitiveEnabled)
                         .onChange(of: viewModel.timeSensitiveEnabled) { _, _ in
                             viewModel.saveSettings()
+                            Task { await viewModel.applyMedicationNotificationSettingChange() }
                         }
 
                     Picker("Follow-up Reminder", selection: $viewModel.followUpDelay) {
@@ -37,12 +38,18 @@ struct NotificationSettingsScreen: View {
                     }
                     .onChange(of: viewModel.followUpDelay) { _, _ in
                         viewModel.saveSettings()
+                        Task { await viewModel.applyMedicationNotificationSettingChange() }
                     }
 
                     Toggle("Critical Alerts", isOn: $viewModel.criticalAlertsEnabled)
                         .onChange(of: viewModel.criticalAlertsEnabled) { _, _ in
                             viewModel.saveSettings()
+                            Task { await viewModel.applyMedicationNotificationSettingChange() }
                         }
+                } header: {
+                    Text("Medication Reminders")
+                } footer: {
+                    Text("Time-sensitive reminders cut through Focus modes. Follow-up reminders fire after the chosen delay; turn on Critical Alerts to make them break through Do Not Disturb and silent mode.")
                 }
 
                 Section("Daily Check-in") {

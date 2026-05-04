@@ -828,6 +828,72 @@ final class MedicationNotificationServiceTests: XCTestCase {
                         "Each reminder should have a matching follow-up")
     }
 
+    // MARK: - Interruption Level / Critical Sound
+
+    func testRescheduleAll_followUp_withCriticalAlertsEnabled_usesCriticalLevelAndSound() async throws {
+        UserDefaults.standard.set(30, forKey: "notification_follow_up_delay")
+        UserDefaults.standard.set(true, forKey: "notification_critical_alerts_enabled")
+        UserDefaults.standard.set(true, forKey: "notification_time_sensitive_enabled")
+        defer {
+            UserDefaults.standard.removeObject(forKey: "notification_follow_up_delay")
+            UserDefaults.standard.removeObject(forKey: "notification_critical_alerts_enabled")
+            UserDefaults.standard.removeObject(forKey: "notification_time_sensitive_enabled")
+        }
+
+        let med = TestFixtures.makeMedication(id: "med-1", name: "Topiramate", type: .preventative, scheduleFrequency: .daily)
+        let sched = TestFixtures.makeSchedule(id: "sched-1", medicationId: "med-1", time: "08:00")
+        mockMedicationRepo.medications = [med]
+        mockMedicationRepo.schedules = [sched]
+
+        try await sut.rescheduleAllMedicationNotifications()
+
+        // Find the IDs of follow-up vs reminder notifications via the DB mappings.
+        let followUpIds = Set(mockScheduledNotificationRepo.notifications
+            .filter { $0.notificationType == .followUp }
+            .map(\.notificationId))
+        let reminderIds = Set(mockScheduledNotificationRepo.notifications
+            .filter { $0.notificationType == .reminder }
+            .map(\.notificationId))
+
+        XCTAssertFalse(followUpIds.isEmpty, "expected at least one follow-up scheduled")
+        XCTAssertFalse(reminderIds.isEmpty, "expected at least one reminder scheduled")
+
+        let followUpRecords = mockNotificationService.scheduledNotifications.filter { followUpIds.contains($0.id) }
+        let reminderRecords = mockNotificationService.scheduledNotifications.filter { reminderIds.contains($0.id) }
+
+        for record in followUpRecords {
+            XCTAssertEqual(record.interruptionLevel, .critical, "follow-up should use critical interruption when critical alerts are enabled")
+            XCTAssertTrue(record.useCriticalSound, "follow-up should use critical sound when critical alerts are enabled")
+        }
+        for record in reminderRecords {
+            XCTAssertEqual(record.interruptionLevel, .timeSensitive, "primary reminder should be time-sensitive when enabled")
+            XCTAssertFalse(record.useCriticalSound, "primary reminder should not use critical sound")
+        }
+    }
+
+    func testRescheduleAll_followUp_withCriticalAlertsDisabled_usesActiveLevelAndDefaultSound() async throws {
+        UserDefaults.standard.set(30, forKey: "notification_follow_up_delay")
+        UserDefaults.standard.set(false, forKey: "notification_critical_alerts_enabled")
+        UserDefaults.standard.set(false, forKey: "notification_time_sensitive_enabled")
+        defer {
+            UserDefaults.standard.removeObject(forKey: "notification_follow_up_delay")
+            UserDefaults.standard.removeObject(forKey: "notification_critical_alerts_enabled")
+            UserDefaults.standard.removeObject(forKey: "notification_time_sensitive_enabled")
+        }
+
+        let med = TestFixtures.makeMedication(id: "med-1", name: "Topiramate", type: .preventative, scheduleFrequency: .daily)
+        let sched = TestFixtures.makeSchedule(id: "sched-1", medicationId: "med-1", time: "08:00")
+        mockMedicationRepo.medications = [med]
+        mockMedicationRepo.schedules = [sched]
+
+        try await sut.rescheduleAllMedicationNotifications()
+
+        for record in mockNotificationService.scheduledNotifications {
+            XCTAssertEqual(record.interruptionLevel, .active, "all notifications should fall back to active when both toggles are off")
+            XCTAssertFalse(record.useCriticalSound, "no critical sound when toggle is off")
+        }
+    }
+
     // MARK: - Top-Up Edge Cases
 
     func testTopUp_belowThreshold_schedulesMoreDays() async throws {
@@ -1264,6 +1330,8 @@ final class MockNotificationService: NotificationServiceProtocol, @unchecked Sen
         let trigger: UNNotificationTrigger
         let categoryIdentifier: String?
         let userInfo: [String: Any]?
+        let interruptionLevel: UNNotificationInterruptionLevel
+        let useCriticalSound: Bool
     }
 
     var scheduledNotifications: [ScheduledNotificationRecord] = []
@@ -1292,7 +1360,9 @@ final class MockNotificationService: NotificationServiceProtocol, @unchecked Sen
         body: String,
         trigger: UNNotificationTrigger,
         categoryIdentifier: String?,
-        userInfo: [String: Any]?
+        userInfo: [String: Any]?,
+        interruptionLevel: UNNotificationInterruptionLevel,
+        useCriticalSound: Bool
     ) async throws {
         scheduledNotifications.append(ScheduledNotificationRecord(
             id: id,
@@ -1300,7 +1370,9 @@ final class MockNotificationService: NotificationServiceProtocol, @unchecked Sen
             body: body,
             trigger: trigger,
             categoryIdentifier: categoryIdentifier,
-            userInfo: userInfo
+            userInfo: userInfo,
+            interruptionLevel: interruptionLevel,
+            useCriticalSound: useCriticalSound
         ))
     }
 
