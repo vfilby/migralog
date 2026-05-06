@@ -48,6 +48,7 @@ targets:
     entitlements:
       path: MigraLog/App/MigraLog.entitlements
       properties:
+        com.apple.developer.usernotifications.critical-alerts: true
         com.apple.developer.usernotifications.time-sensitive: true
 
   MigraLogTests:
