@@ -32,9 +32,14 @@ final class FormattingTests: XCTestCase {
 
     // MARK: - MedicationFormatting.formatDose
 
-    func testFormatDoseWholeQuantity() {
+    func testFormatDoseQuantityOne_omitsPrefix() {
         let result = MedicationFormatting.formatDose(quantity: 1, amount: 400, unit: "mg")
-        XCTAssertEqual(result, "1 \u{00d7} 400mg")
+        XCTAssertEqual(result, "400mg")
+    }
+
+    func testFormatDoseQuantityOne_omitsPrefixForUnitWithSpace() {
+        let result = MedicationFormatting.formatDose(quantity: 1, amount: 2, unit: "capsules")
+        XCTAssertEqual(result, "2 capsules")
     }
 
     func testFormatDoseFractionalQuantity() {

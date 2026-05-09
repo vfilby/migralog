@@ -136,7 +136,7 @@ struct MedicationDetailScreen: View {
             if let medication = viewModel.medication {
                 AddScheduleSheet(
                     medicationId: medication.id,
-                    defaultDosage: medication.dosageAmount,
+                    defaultDosage: medication.defaultQuantity ?? 1,
                     viewModel: viewModel
                 )
             }
