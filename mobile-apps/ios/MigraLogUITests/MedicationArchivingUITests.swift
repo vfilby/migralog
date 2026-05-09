@@ -152,8 +152,9 @@ final class MedicationArchivingUITests: XCTestCase {
         // Step 2: Go to Dashboard — navigate via tab to force fresh load
         UITestHelpers.navigateTo(tab: .dashboard, in: app)
         Thread.sleep(forTimeInterval: 1)
-        let topText = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Test Topiramate'")).firstMatch
-        XCTAssertFalse(topText.exists, "Archived medication should not appear in Today's Medications")
+        // Medication name on the dashboard is a NavigationLink (button), not a static text.
+        let topRow = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Test Topiramate'")).firstMatch
+        XCTAssertFalse(topRow.exists, "Archived medication should not appear in Today's Medications")
 
         // Step 3: Restore the medication
         UITestHelpers.navigateTo(tab: .medications, in: app)
@@ -175,7 +176,7 @@ final class MedicationArchivingUITests: XCTestCase {
 
         // Step 4: Go to Dashboard, medication reappears
         UITestHelpers.navigateTo(tab: .dashboard, in: app)
-        let restoredText = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Test Topiramate'")).firstMatch
-        UITestHelpers.waitForElement(restoredText)
+        let restoredRow = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Test Topiramate'")).firstMatch
+        UITestHelpers.waitForElement(restoredRow)
     }
 }

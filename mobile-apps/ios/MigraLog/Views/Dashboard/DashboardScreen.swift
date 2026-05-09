@@ -201,24 +201,39 @@ struct DailyStatusWidgetView: View {
 struct TodaysMedicationsCard: View {
     @Bindable var viewModel: DashboardViewModel
 
-    var body: some View {
-        if !viewModel.todaysMedications.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Today's Medications")
-                    .font(.headline)
+    /// Logged doses linger on the dashboard this long before being hidden, so the
+    /// transition isn't jarring and the user has a window to undo.
+    private static let postLogVisibilityWindow: TimeInterval = 15 * 60
 
-                ForEach(viewModel.todaysMedications) { item in
-                    MedicationScheduleRow(item: item, viewModel: viewModel)
-                    if item.id != viewModel.todaysMedications.last?.id {
-                        Divider()
+    private func visibleItems(now: Date) -> [MedicationScheduleItem] {
+        viewModel.todaysMedications.filter { item in
+            guard let dose = item.dose else { return true }
+            let doseDate = Date(timeIntervalSince1970: TimeInterval(dose.timestamp) / 1000)
+            return now.timeIntervalSince(doseDate) < Self.postLogVisibilityWindow
+        }
+    }
+
+    var body: some View {
+        SwiftUI.TimelineView(.periodic(from: .now, by: 60)) { context in
+            let items = visibleItems(now: context.date)
+            if !items.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Today's Medications")
+                        .font(.headline)
+
+                    ForEach(items) { item in
+                        MedicationScheduleRow(item: item, viewModel: viewModel)
+                        if item.id != items.last?.id {
+                            Divider()
+                        }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .accessibilityIdentifier("todays-medications-card")
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
-            .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .accessibilityIdentifier("todays-medications-card")
         }
     }
 }
@@ -265,8 +280,16 @@ struct MedicationScheduleRow: View {
             }
 
             HStack {
-                Text(item.medication.name)
-                    .font(.subheadline.weight(.medium))
+                NavigationLink {
+                    MedicationDetailScreen(medicationId: item.medication.id)
+                } label: {
+                    Text(item.medication.name)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.primary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("medication-name-link-\(item.medication.id)")
+                .accessibilityHint("Open medication details")
 
                 Spacer()
 
