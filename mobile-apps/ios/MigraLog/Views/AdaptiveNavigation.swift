@@ -123,6 +123,7 @@ struct TrendsTab: View {
                 } detail: {
                     AnalyticsVisualizationPane(viewModel: viewModel)
                 }
+                .task { await viewModel.fetchData() }
             } else {
                 NavigationStack {
                     AnalyticsScreen()
