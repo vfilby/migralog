@@ -185,14 +185,16 @@ struct AddMedicationScreen: View {
             let repo = MedicationRepository(dbManager: DatabaseManager.shared)
             try await repo.createMedication(medication)
 
-            // Create initial schedule for preventative meds with a frequency set
+            // Create initial schedule for preventative meds with a frequency set.
+            // schedule.dosage is the per-reminder pill count (mirrors
+            // medication.defaultQuantity), not the per-pill amount.
             if type == .preventative && scheduleFrequency != nil {
                 let schedule = MedicationSchedule(
                     id: UUID().uuidString,
                     medicationId: medication.id,
                     time: timeToString(reminderTime),
                     timezone: TimeZone.current.identifier,
-                    dosage: amount,
+                    dosage: medication.defaultQuantity ?? 1,
                     enabled: true,
                     notificationId: nil,
                     reminderEnabled: reminderEnabled

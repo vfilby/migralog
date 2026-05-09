@@ -104,7 +104,7 @@ final class DashboardViewModel {
             id: UUID().uuidString,
             medicationId: scheduleItem.medication.id,
             timestamp: now,
-            quantity: scheduleItem.schedule.dosage,
+            quantity: scheduleItem.medication.defaultQuantity ?? 1,
             dosageAmount: scheduleItem.medication.dosageAmount,
             dosageUnit: scheduleItem.medication.dosageUnit,
             status: .taken,

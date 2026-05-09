@@ -11,12 +11,15 @@ enum MedicationFormatting {
         return needsSpace ? "\(amountStr) \(unit)" : "\(amountStr)\(unit)"
     }
 
-    /// Format a dose with quantity: "2 × 200mg", "1 × 75mg"
+    /// Format a dose with quantity: "2 × 200mg", "1.5 × 200mg".
+    /// A quantity of exactly 1 is implied — returns just the dosage ("200mg").
     static func formatDose(quantity: Double, amount: Double, unit: String) -> String {
+        let dosage = formatDosage(amount: amount, unit: unit)
+        if quantity == 1 { return dosage }
         let qtyStr = quantity.truncatingRemainder(dividingBy: 1) == 0
             ? String(Int(quantity))
             : String(format: "%.1f", quantity)
-        return "\(qtyStr) × \(formatDosage(amount: amount, unit: unit))"
+        return "\(qtyStr) × \(dosage)"
     }
 
     static func formatMedicationDisplay(_ medication: Medication) -> String {

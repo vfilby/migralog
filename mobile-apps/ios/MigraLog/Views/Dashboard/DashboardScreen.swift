@@ -245,7 +245,7 @@ struct MedicationScheduleRow: View {
 
     private var doseLabel: String {
         MedicationFormatting.formatDose(
-            quantity: item.schedule.dosage,
+            quantity: item.medication.defaultQuantity ?? 1,
             amount: item.medication.dosageAmount,
             unit: item.medication.dosageUnit
         )
