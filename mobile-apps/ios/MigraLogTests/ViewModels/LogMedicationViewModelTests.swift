@@ -16,7 +16,11 @@ final class LogMedicationViewModelTests: XCTestCase {
         sut = LogMedicationViewModel(
             medicationRepository: mockMedRepo,
             episodeRepository: mockEpisodeRepo,
-            categoryLimitRepository: mockCategoryLimitRepo
+            categoryLimitRepository: mockCategoryLimitRepo,
+            doseLogger: MedicationDoseLogger(
+                medicationRepo: mockMedRepo,
+                notificationService: MockMedicationNotificationService()
+            )
         )
     }
 

@@ -42,6 +42,7 @@ final class DashboardViewModel {
     private let dailyStatusRepository: DailyStatusRepositoryProtocol
     private let categoryLimitRepository: CategorySafetyRuleRepositoryProtocol
     private let dailyCheckinService: DailyCheckinNotificationServiceProtocol
+    private let doseLogger: MedicationDoseLoggerProtocol
 
     // MARK: - Init
 
@@ -55,13 +56,15 @@ final class DashboardViewModel {
             scheduledNotificationRepo: ScheduledNotificationRepository(dbManager: DatabaseManager.shared),
             episodeRepo: EpisodeRepository(dbManager: DatabaseManager.shared),
             dailyStatusRepo: DailyStatusRepository(dbManager: DatabaseManager.shared)
-        )
+        ),
+        doseLogger: MedicationDoseLoggerProtocol = MedicationDoseLogger()
     ) {
         self.episodeRepository = episodeRepository
         self.medicationRepository = medicationRepository
         self.dailyStatusRepository = dailyStatusRepository
         self.categoryLimitRepository = categoryLimitRepository
         self.dailyCheckinService = dailyCheckinService
+        self.doseLogger = doseLogger
     }
 
     // MARK: - Actions
@@ -117,7 +120,7 @@ final class DashboardViewModel {
             updatedAt: now
         )
         do {
-            let savedDose = try await medicationRepository.createDose(dose)
+            let savedDose = try await doseLogger.record(dose)
             if let index = todaysMedications.firstIndex(where: { $0.id == scheduleItem.id }) {
                 todaysMedications[index].dose = savedDose
             }
@@ -155,7 +158,7 @@ final class DashboardViewModel {
             updatedAt: now
         )
         do {
-            let savedDose = try await medicationRepository.createDose(dose)
+            let savedDose = try await doseLogger.record(dose)
             if let index = todaysMedications.firstIndex(where: { $0.id == scheduleItem.id }) {
                 todaysMedications[index].dose = savedDose
             }

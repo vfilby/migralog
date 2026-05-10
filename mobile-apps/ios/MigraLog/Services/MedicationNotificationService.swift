@@ -18,6 +18,7 @@ protocol MedicationNotificationServiceProtocol: Sendable {
         medicationId: String, scheduleId: String,
         date: String, notificationType: NotificationType
     ) async
+    func cancelTodaysReminders(medicationId: String) async
     func dismissMedicationNotification(medicationId: String, scheduleId: String) async
     func handleTakenResponse(medicationId: String, scheduleId: String) async
     func handleSkippedResponse(medicationId: String, scheduleId: String) async
@@ -449,6 +450,39 @@ actor MedicationNotificationScheduler: MedicationNotificationServiceProtocol {
             }
         } catch {
             logger.error("Failed to cancel notification for date", error: error)
+        }
+    }
+
+    /// Cancels today's pending reminder and follow-up notifications for the
+    /// given medication across all of its schedules, dismisses any matching
+    /// already-delivered notifications, and tops up future days. Call this
+    /// after a dose is logged (taken or skipped) so the user isn't reminded
+    /// for a dose they've already acted on.
+    func cancelTodaysReminders(medicationId: String) async {
+        do {
+            let schedules = try medicationRepo.getSchedulesByMedicationId(medicationId)
+            let today = DateFormatting.dateString(from: Date())
+            for schedule in schedules {
+                await cancelNotificationForDate(
+                    medicationId: medicationId,
+                    scheduleId: schedule.id,
+                    date: today,
+                    notificationType: .reminder
+                )
+                await cancelNotificationForDate(
+                    medicationId: medicationId,
+                    scheduleId: schedule.id,
+                    date: today,
+                    notificationType: .followUp
+                )
+                await dismissMedicationNotification(
+                    medicationId: medicationId,
+                    scheduleId: schedule.id
+                )
+            }
+            await topUp()
+        } catch {
+            logger.error("Failed to cancel today's reminders for \(medicationId)", error: error)
         }
     }
 

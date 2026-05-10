@@ -19,7 +19,11 @@ final class DashboardViewModelTests: XCTestCase {
             episodeRepository: mockEpisodeRepo,
             medicationRepository: mockMedRepo,
             dailyStatusRepository: mockStatusRepo,
-            categoryLimitRepository: mockCategoryLimitRepo
+            categoryLimitRepository: mockCategoryLimitRepo,
+            doseLogger: MedicationDoseLogger(
+                medicationRepo: mockMedRepo,
+                notificationService: MockMedicationNotificationService()
+            )
         )
     }
 
