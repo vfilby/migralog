@@ -58,6 +58,7 @@ private final class MockMedNotifService: MedicationNotificationServiceProtocol, 
 
     func cancelMedicationReminders(for medicationId: String) async {}
     func cancelNotificationForDate(medicationId: String, scheduleId: String, date: String, notificationType: NotificationType) async {}
+    func cancelTodaysReminders(medicationId: String) async {}
     func dismissMedicationNotification(medicationId: String, scheduleId: String) async {}
     func handleTakenResponse(medicationId: String, scheduleId: String) async {}
     func handleSkippedResponse(medicationId: String, scheduleId: String) async {}

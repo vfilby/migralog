@@ -57,8 +57,7 @@ struct LogMedicationScreen: View {
                     categoryCooldown: viewModel.categoryCooldowns[med.id]
                 ) { dose in
                     Task {
-                        let repo = MedicationRepository(dbManager: DatabaseManager.shared)
-                        try? await repo.createDose(dose)
+                        try? await MedicationDoseLogger().record(dose)
                         dismiss()
                     }
                 }

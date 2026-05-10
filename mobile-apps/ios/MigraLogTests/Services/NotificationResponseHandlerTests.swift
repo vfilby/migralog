@@ -39,6 +39,7 @@ final class MockMedicationNotificationService: MedicationNotificationServiceProt
     var handleSkippedCalls: [(medicationId: String, scheduleId: String)] = []
     var rescheduleAllCalled = false
     var cancelCalls: [String] = []
+    var cancelTodaysRemindersCalls: [String] = []
     var topUpCalled = false
     var rebalanceCalled = false
 
@@ -54,6 +55,10 @@ final class MockMedicationNotificationService: MedicationNotificationServiceProt
         medicationId: String, scheduleId: String,
         date: String, notificationType: NotificationType
     ) async {}
+
+    func cancelTodaysReminders(medicationId: String) async {
+        cancelTodaysRemindersCalls.append(medicationId)
+    }
 
     func dismissMedicationNotification(medicationId: String, scheduleId: String) async {}
 

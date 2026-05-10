@@ -15,15 +15,18 @@ final class LogMedicationViewModel {
     private let medicationRepository: MedicationRepositoryProtocol
     private let episodeRepository: EpisodeRepositoryProtocol
     private let categoryLimitRepository: CategorySafetyRuleRepositoryProtocol
+    private let doseLogger: MedicationDoseLoggerProtocol
 
     init(
         medicationRepository: MedicationRepositoryProtocol = MedicationRepository(dbManager: DatabaseManager.shared),
         episodeRepository: EpisodeRepositoryProtocol = EpisodeRepository(dbManager: DatabaseManager.shared),
-        categoryLimitRepository: CategorySafetyRuleRepositoryProtocol = CategorySafetyRuleRepository(dbManager: DatabaseManager.shared)
+        categoryLimitRepository: CategorySafetyRuleRepositoryProtocol = CategorySafetyRuleRepository(dbManager: DatabaseManager.shared),
+        doseLogger: MedicationDoseLoggerProtocol = MedicationDoseLogger()
     ) {
         self.medicationRepository = medicationRepository
         self.episodeRepository = episodeRepository
         self.categoryLimitRepository = categoryLimitRepository
+        self.doseLogger = doseLogger
     }
 
     @MainActor
@@ -110,7 +113,7 @@ final class LogMedicationViewModel {
             updatedAt: now
         )
         do {
-            try await medicationRepository.createDose(dose)
+            _ = try await doseLogger.record(dose)
             let categories = Set(medications.compactMap { $0.category })
             categoryUsage = computeCategoryUsage(for: categories, now: Date())
             categoryCooldowns = computeCategoryCooldowns(for: medications, now: Date())

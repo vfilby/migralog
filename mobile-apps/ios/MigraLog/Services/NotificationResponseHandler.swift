@@ -9,6 +9,7 @@ final class NotificationResponseHandler: NSObject, UNUserNotificationCenterDeleg
     private let notificationService: NotificationServiceProtocol
     private let dailyStatusRepo: DailyStatusRepositoryProtocol
     private let dailyCheckinService: DailyCheckinNotificationServiceProtocol
+    private let doseLogger: MedicationDoseLoggerProtocol
     private let logger = AppLogger.shared
 
     init(
@@ -16,13 +17,18 @@ final class NotificationResponseHandler: NSObject, UNUserNotificationCenterDeleg
         medicationRepository: MedicationRepositoryProtocol,
         notificationService: NotificationServiceProtocol,
         dailyStatusRepo: DailyStatusRepositoryProtocol,
-        dailyCheckinService: DailyCheckinNotificationServiceProtocol
+        dailyCheckinService: DailyCheckinNotificationServiceProtocol,
+        doseLogger: MedicationDoseLoggerProtocol? = nil
     ) {
         self.medicationNotificationService = medicationNotificationService
         self.medicationRepository = medicationRepository
         self.notificationService = notificationService
         self.dailyStatusRepo = dailyStatusRepo
         self.dailyCheckinService = dailyCheckinService
+        self.doseLogger = doseLogger ?? MedicationDoseLogger(
+            medicationRepo: medicationRepository,
+            notificationService: medicationNotificationService
+        )
         super.init()
     }
 
@@ -298,7 +304,7 @@ final class NotificationResponseHandler: NSObject, UNUserNotificationCenterDeleg
                 updatedAt: now
             )
 
-            _ = try medicationRepository.createDose(dose)
+            _ = try await doseLogger.record(dose)
             logger.info("Dose logged via notification: \(medication.name) - \(status)")
 
             await MainActor.run {

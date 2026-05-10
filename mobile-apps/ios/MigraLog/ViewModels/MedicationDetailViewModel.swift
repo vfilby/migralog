@@ -41,6 +41,7 @@ final class MedicationDetailViewModel {
     private let medicationRepository: MedicationRepositoryProtocol
     private let medicationNotificationService: MedicationNotificationServiceProtocol
     private let categoryLimitRepository: CategorySafetyRuleRepositoryProtocol
+    private let doseLogger: MedicationDoseLoggerProtocol
     private var medicationId: String
 
     // MARK: - Init
@@ -53,12 +54,17 @@ final class MedicationDetailViewModel {
             scheduledNotificationRepo: ScheduledNotificationRepository(dbManager: DatabaseManager.shared),
             medicationRepo: MedicationRepository(dbManager: DatabaseManager.shared)
         ),
-        categoryLimitRepository: CategorySafetyRuleRepositoryProtocol = CategorySafetyRuleRepository(dbManager: DatabaseManager.shared)
+        categoryLimitRepository: CategorySafetyRuleRepositoryProtocol = CategorySafetyRuleRepository(dbManager: DatabaseManager.shared),
+        doseLogger: MedicationDoseLoggerProtocol? = nil
     ) {
         self.medicationId = medicationId
         self.medicationRepository = medicationRepository
         self.medicationNotificationService = medicationNotificationService
         self.categoryLimitRepository = categoryLimitRepository
+        self.doseLogger = doseLogger ?? MedicationDoseLogger(
+            medicationRepo: medicationRepository,
+            notificationService: medicationNotificationService
+        )
     }
 
     // MARK: - Actions
@@ -214,33 +220,11 @@ final class MedicationDetailViewModel {
             updatedAt: now
         )
         do {
-            let saved = try await medicationRepository.createDose(dose)
+            let saved = try await doseLogger.record(dose)
             recentDoses.insert(saved, at: 0)
             recentDoses.sort { $0.timestamp > $1.timestamp }
             categoryStatus = computeCategoryStatus(for: medication, now: Date())
             categoryCooldown = computeCategoryCooldown(for: medication, now: Date())
-
-            // Cancel today's reminder and follow-up notifications for this medication
-            let today = DateFormatting.dateString(from: Date())
-            for schedule in schedules {
-                await medicationNotificationService.cancelNotificationForDate(
-                    medicationId: med.id,
-                    scheduleId: schedule.id,
-                    date: today,
-                    notificationType: .reminder
-                )
-                await medicationNotificationService.cancelNotificationForDate(
-                    medicationId: med.id,
-                    scheduleId: schedule.id,
-                    date: today,
-                    notificationType: .followUp
-                )
-            }
-            await medicationNotificationService.dismissMedicationNotification(
-                medicationId: med.id,
-                scheduleId: schedules.first?.id ?? ""
-            )
-            await medicationNotificationService.topUp()
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "MedicationDetailViewModel"])
             self.error = error.localizedDescription
