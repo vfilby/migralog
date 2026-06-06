@@ -131,15 +131,17 @@ struct NewEpisodeScreen: View {
             )
             try await repo.createIntensityReading(reading)
 
-            // Cancel today's daily check-in — starting an episode makes it a red day
-            let todayStr = DateFormatting.dateString(from: Date())
+            // Cancel all pending daily check-ins — an active episode means we
+            // shouldn't prompt "how was your day?" on any day it spans. The
+            // notifications are rebuilt (with correct suppression) when the
+            // episode ends via scheduleNotifications().
             let checkinService = DailyCheckinNotificationService(
                 notificationService: NotificationService.shared,
                 scheduledNotificationRepo: ScheduledNotificationRepository(dbManager: DatabaseManager.shared),
                 episodeRepo: repo,
                 dailyStatusRepo: DailyStatusRepository(dbManager: DatabaseManager.shared)
             )
-            await checkinService.cancelForDate(todayStr)
+            await checkinService.cancelAll()
 
             dismiss()
         } catch {

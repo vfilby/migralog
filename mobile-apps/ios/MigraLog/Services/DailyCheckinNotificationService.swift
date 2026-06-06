@@ -254,12 +254,16 @@ final class DailyCheckinNotificationService: DailyCheckinNotificationServiceProt
                 return true
             }
 
-            // 2. Any episode on this date = red day
+            // 2. Any episode overlapping this date = red day. Test for overlap
+            // rather than start-time membership so multi-day episodes suppress
+            // every day they span, not just the day they began.
             if let dateObj = DateFormatting.date(from: date) {
                 let startOfDay = Int64(dateObj.timeIntervalSince1970 * 1000)
                 let endOfDay = Int64(dateObj.addingTimeInterval(86400).timeIntervalSince1970 * 1000)
-                let episodes = try episodeRepo.getEpisodesByDateRange(start: startOfDay, end: endOfDay)
-                if !episodes.isEmpty {
+                let overlaps = try episodeRepo.getAllEpisodes().contains { ep in
+                    ep.startTime < endOfDay && (ep.endTime ?? Int64.max) > startOfDay
+                }
+                if overlaps {
                     return true
                 }
             }
