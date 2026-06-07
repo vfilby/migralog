@@ -22,89 +22,88 @@ struct MedicationDetailScreen: View {
     var body: some View {
         Group {
             if let medication = viewModel.medication {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        // Medication info
-                        medicationInfoSection(medication)
+                // Wide iPad panes show identity/actions and settings/history side
+                // by side; narrow widths (iPhone / compact panes) keep one column.
+                AdaptiveDetailLayout {
+                    // Medication info
+                    medicationInfoSection(medication)
 
-                        // Schedules
-                        schedulesSection(medication)
+                    // Schedules
+                    schedulesSection(medication)
 
-                        // Cooldown warning banner (iPad / regular size class)
-                        let status = cooldownStatus(medication)
-                        let catStatus = viewModel.categoryStatus
-                        if sizeClass == .regular, status.isOnCooldown, let summary = MedicationCooldown.summary(status) {
-                            Label(summary, systemImage: "exclamationmark.triangle.fill")
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(.orange)
-                                .padding()
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color.orange.opacity(0.1))
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                .accessibilityIdentifier("cooldown-banner")
-                        }
+                    // Cooldown warning banner (iPad / regular size class)
+                    let status = cooldownStatus(medication)
+                    let catStatus = viewModel.categoryStatus
+                    if sizeClass == .regular, status.isOnCooldown, let summary = MedicationCooldown.summary(status) {
+                        Label(summary, systemImage: "exclamationmark.triangle.fill")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.orange)
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.orange.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .accessibilityIdentifier("cooldown-banner")
+                    }
 
-                        // Category MOH-risk banner (iPad / regular size class)
-                        if sizeClass == .regular,
-                           catStatus.isWarning,
-                           let category = medication.category,
-                           let catSummary = catStatus.summary(category: category) {
-                            let tint: Color = catStatus.isStrong ? .red : .yellow
-                            Label(catSummary, systemImage: "exclamationmark.triangle.fill")
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(tint)
-                                .padding()
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(tint.opacity(0.12))
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                .accessibilityIdentifier("category-warning-banner")
-                        }
+                    // Category MOH-risk banner (iPad / regular size class)
+                    if sizeClass == .regular,
+                       catStatus.isWarning,
+                       let category = medication.category,
+                       let catSummary = catStatus.summary(category: category) {
+                        let tint: Color = catStatus.isStrong ? .red : .yellow
+                        Label(catSummary, systemImage: "exclamationmark.triangle.fill")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(tint)
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(tint.opacity(0.12))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .accessibilityIdentifier("category-warning-banner")
+                    }
 
-                        // Log dose button — opens details sheet pre-filled to now
-                        Button {
-                            showLogDoseDetails = true
-                        } label: {
-                            HStack {
-                                if status.isOnCooldown {
-                                    Image(systemName: "exclamationmark.triangle.fill")
-                                        .foregroundStyle(.orange)
-                                        .accessibilityIdentifier("cooldown-icon")
-                                }
-                                if catStatus.isWarning {
-                                    Image(systemName: "exclamationmark.triangle.fill")
-                                        .foregroundStyle(catStatus.isStrong ? .red : .yellow)
-                                        .accessibilityIdentifier("category-icon")
-                                }
-                                Label("Log Dose", systemImage: "plus.circle.fill")
+                    // Log dose button — opens details sheet pre-filled to now
+                    Button {
+                        showLogDoseDetails = true
+                    } label: {
+                        HStack {
+                            if status.isOnCooldown {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.orange)
+                                    .accessibilityIdentifier("cooldown-icon")
                             }
+                            if catStatus.isWarning {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(catStatus.isStrong ? .red : .yellow)
+                                    .accessibilityIdentifier("category-icon")
+                            }
+                            Label("Log Dose", systemImage: "plus.circle.fill")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.accentColor)
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    .accessibilityIdentifier("log-dose-button")
+                } secondary: {
+                    // Notification Overrides section
+                    notificationOverridesSection()
+
+                    // Recent Activity
+                    recentActivitySection()
+                } footer: {
+                    // Archive button spans the full width
+                    Button {
+                        showArchiveConfirm = true
+                    } label: {
+                        Text(medication.active ? "Archive Medication" : "Unarchive Medication")
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color.accentColor)
-                            .foregroundStyle(.white)
+                            .background(Color.orange.opacity(0.1))
+                            .foregroundStyle(.orange)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
-                        }
-                        .accessibilityIdentifier("log-dose-button")
-
-                        // Notification Overrides section
-                        notificationOverridesSection()
-
-                        // Recent Activity
-                        recentActivitySection()
-
-                        // Archive button
-                        Button {
-                            showArchiveConfirm = true
-                        } label: {
-                            Text(medication.active ? "Archive Medication" : "Unarchive Medication")
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.orange.opacity(0.1))
-                                .foregroundStyle(.orange)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                        }
-                        .accessibilityIdentifier("archive-medication-button")
                     }
-                    .padding()
+                    .accessibilityIdentifier("archive-medication-button")
                 }
             } else if viewModel.isLoading {
                 ProgressView()

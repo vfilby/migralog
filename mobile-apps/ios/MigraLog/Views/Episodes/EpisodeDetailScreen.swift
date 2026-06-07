@@ -22,44 +22,43 @@ struct EpisodeDetailScreen: View {
     var body: some View {
         Group {
             if let details = viewModel.details {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        // Episode summary card
-                        episodeSummarySection(details.episode)
-
-                        // Timeline
-                        if !details.intensityReadings.isEmpty || !details.symptomLogs.isEmpty || !details.painLocationLogs.isEmpty || !details.episodeNotes.isEmpty || !viewModel.episodeDoses.isEmpty {
-                            TimelineView(
-                                details: details,
-                                viewModel: viewModel,
-                                editingReading: $editingReading,
-                                editingSymptomLog: $editingSymptomLog,
-                                editingPainLocationLog: $editingPainLocationLog,
-                                editingNote: $editingNote,
-                                showDeleteConfirmation: $showDeleteConfirmation,
-                                pendingDeleteAction: $pendingDeleteAction,
-                                pendingDeleteLabel: $pendingDeleteLabel,
-                                customEndTime: $customEndTime,
-                                showEndTimePicker: $showEndTimePicker,
-                                editingDose: $editingDose,
-                                showEditEpisodeSheet: $showEditSheet
-                            )
-                        }
-
-                        // Actions
-                        if details.episode.isActive {
-                            EpisodeActionButtons(
-                                episode: details.episode,
-                                episodeId: episodeId,
-                                viewModel: viewModel,
-                                showLogUpdate: $showLogUpdate,
-                                showLogMedication: $showLogMedication,
-                                customEndTime: $customEndTime,
-                                showEndTimePicker: $showEndTimePicker
-                            )
-                        }
+                // Wide iPad panes show the summary and timeline side by side;
+                // narrow widths (iPhone / compact panes) keep the single column.
+                AdaptiveDetailLayout {
+                    // Episode summary card
+                    episodeSummarySection(details.episode)
+                } secondary: {
+                    // Timeline
+                    if !details.intensityReadings.isEmpty || !details.symptomLogs.isEmpty || !details.painLocationLogs.isEmpty || !details.episodeNotes.isEmpty || !viewModel.episodeDoses.isEmpty {
+                        TimelineView(
+                            details: details,
+                            viewModel: viewModel,
+                            editingReading: $editingReading,
+                            editingSymptomLog: $editingSymptomLog,
+                            editingPainLocationLog: $editingPainLocationLog,
+                            editingNote: $editingNote,
+                            showDeleteConfirmation: $showDeleteConfirmation,
+                            pendingDeleteAction: $pendingDeleteAction,
+                            pendingDeleteLabel: $pendingDeleteLabel,
+                            customEndTime: $customEndTime,
+                            showEndTimePicker: $showEndTimePicker,
+                            editingDose: $editingDose,
+                            showEditEpisodeSheet: $showEditSheet
+                        )
                     }
-                    .padding()
+                } footer: {
+                    // Actions span the full width below the columns
+                    if details.episode.isActive {
+                        EpisodeActionButtons(
+                            episode: details.episode,
+                            episodeId: episodeId,
+                            viewModel: viewModel,
+                            showLogUpdate: $showLogUpdate,
+                            showLogMedication: $showLogMedication,
+                            customEndTime: $customEndTime,
+                            showEndTimePicker: $showEndTimePicker
+                        )
+                    }
                 }
                 .accessibilityIdentifier("episode-detail-scroll")
             } else if viewModel.isLoading {
