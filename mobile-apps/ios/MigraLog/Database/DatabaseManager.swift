@@ -4,7 +4,7 @@ import GRDB
 /// Central database manager. Owns the DatabaseQueue and handles schema creation/migration.
 final class DatabaseManager: Sendable {
     /// The current schema version
-    static let schemaVersion = 28
+    static let schemaVersion = 29
 
     /// Shared singleton for the app's main database
     static let shared = DatabaseManager()
@@ -132,6 +132,12 @@ final class DatabaseManager: Sendable {
             try DatabaseManager.migrateToCategorySafetyRules(in: db)
         }
 
+        // v29: Add the last-write-wins `updated_at` timestamps required by iCloud
+        // sync (#434) to synced tables that lacked them. See addSyncTimestampColumns.
+        migrator.registerMigration("v29") { db in
+            try DatabaseManager.addSyncTimestampColumns(in: db)
+        }
+
         return migrator
     }
 
@@ -146,6 +152,7 @@ final class DatabaseManager: Sendable {
                 period_hours REAL NOT NULL CHECK(period_hours > 0),
                 max_count INTEGER CHECK(max_count IS NULL OR max_count > 0),
                 created_at INTEGER NOT NULL CHECK(created_at > 0),
+                updated_at INTEGER CHECK(updated_at IS NULL OR updated_at > 0),
                 UNIQUE(category, type)
             )
             """)
@@ -182,7 +189,48 @@ final class DatabaseManager: Sendable {
         try db.execute(sql: "DROP TABLE category_usage_limits")
     }
 
-    /// Create all tables, indexes, and constraints matching schema-v25.sql
+    /// Add the last-write-wins `updated_at` timestamp required by iCloud sync (#434)
+    /// to the synced tables that lacked it. `medication_schedules` had no timestamp at
+    /// all, so it gains both `created_at` and `updated_at`. Idempotent (guarded by
+    /// table_info checks) so it is safe on both fresh-install and upgrade paths.
+    ///
+    /// The columns are nullable and are NOT yet maintained by any write path — they
+    /// sit inert until SyncService owns keeping them current. Existing rows are
+    /// backfilled so historical data carries a usable LWW timestamp.
+    static func addSyncTimestampColumns(in db: Database) throws {
+        func hasColumn(_ table: String, _ column: String) throws -> Bool {
+            let columns = try Row.fetchAll(db, sql: "PRAGMA table_info(\(table))")
+            return columns.contains { (row: Row) in (row["name"] as String?) == column }
+        }
+
+        // Append-only / created_at-bearing tables: updated_at backfills from created_at.
+        for table in ["symptom_logs", "episode_notes", "category_safety_rules"] {
+            if try !hasColumn(table, "updated_at") {
+                try db.execute(sql: "ALTER TABLE \(table) ADD COLUMN updated_at INTEGER CHECK(updated_at IS NULL OR updated_at > 0)")
+                try db.execute(sql: "UPDATE \(table) SET updated_at = created_at WHERE updated_at IS NULL")
+            }
+        }
+
+        // medication_schedules has no timestamps at all; add both and stamp existing rows.
+        let now = TimestampHelper.now
+        if try !hasColumn("medication_schedules", "created_at") {
+            try db.execute(sql: "ALTER TABLE medication_schedules ADD COLUMN created_at INTEGER CHECK(created_at IS NULL OR created_at > 0)")
+            try db.execute(
+                sql: "UPDATE medication_schedules SET created_at = ? WHERE created_at IS NULL",
+                arguments: [now]
+            )
+        }
+        if try !hasColumn("medication_schedules", "updated_at") {
+            try db.execute(sql: "ALTER TABLE medication_schedules ADD COLUMN updated_at INTEGER CHECK(updated_at IS NULL OR updated_at > 0)")
+            try db.execute(
+                sql: "UPDATE medication_schedules SET updated_at = COALESCE(created_at, ?) WHERE updated_at IS NULL",
+                arguments: [now]
+            )
+        }
+    }
+
+    /// Create the v25 baseline schema. Later registered migrations evolve it to the
+    /// current version; see spec/schemas/sqlite/schema-v28.sql for the current end-state.
     // swiftlint:disable:next function_body_length
     static func createSchema(in db: Database) throws {
         // Episodes table
@@ -228,6 +276,7 @@ final class DatabaseManager: Sendable {
                 resolution_time INTEGER CHECK(resolution_time IS NULL OR resolution_time > onset_time),
                 severity REAL CHECK(severity IS NULL OR (severity >= 0 AND severity <= 10)),
                 created_at INTEGER NOT NULL CHECK(created_at > 0),
+                updated_at INTEGER CHECK(updated_at IS NULL OR updated_at > 0),
                 FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE CASCADE
             )
             """)
@@ -253,6 +302,7 @@ final class DatabaseManager: Sendable {
                 timestamp INTEGER NOT NULL CHECK(timestamp > 0),
                 note TEXT NOT NULL CHECK(length(note) > 0 AND length(note) <= 5000),
                 created_at INTEGER NOT NULL CHECK(created_at > 0),
+                updated_at INTEGER CHECK(updated_at IS NULL OR updated_at > 0),
                 FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE CASCADE
             )
             """)
@@ -288,6 +338,8 @@ final class DatabaseManager: Sendable {
                 enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0, 1)),
                 notification_id TEXT,
                 reminder_enabled INTEGER NOT NULL DEFAULT 1 CHECK(reminder_enabled IN (0, 1)),
+                created_at INTEGER CHECK(created_at IS NULL OR created_at > 0),
+                updated_at INTEGER CHECK(updated_at IS NULL OR updated_at > 0),
                 FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE
             )
             """)
