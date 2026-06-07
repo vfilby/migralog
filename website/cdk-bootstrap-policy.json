@@ -1,0 +1,115 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyAllWithoutMFA",
+      "Effect": "Deny",
+      "NotAction": [
+        "sts:GetSessionToken"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "BoolIfExists": {
+          "aws:MultiFactorAuthPresent": "false"
+        }
+      }
+    },
+    {
+      "Sid": "CDKBootstrapCFN",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:CreateStack",
+        "cloudformation:UpdateStack",
+        "cloudformation:DeleteStack",
+        "cloudformation:DescribeStacks",
+        "cloudformation:DescribeStackEvents",
+        "cloudformation:DescribeStackResources",
+        "cloudformation:GetTemplate",
+        "cloudformation:CreateChangeSet",
+        "cloudformation:DescribeChangeSet",
+        "cloudformation:ExecuteChangeSet",
+        "cloudformation:DeleteChangeSet"
+      ],
+      "Resource": "arn:aws:cloudformation:us-east-1:483643755230:stack/CDKToolkit/*"
+    },
+    {
+      "Sid": "CDKBootstrapSSM",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:GetParameter",
+        "ssm:PutParameter",
+        "ssm:DeleteParameter",
+        "ssm:AddTagsToResource"
+      ],
+      "Resource": "arn:aws:ssm:us-east-1:483643755230:parameter/cdk-bootstrap/*"
+    },
+    {
+      "Sid": "CDKBootstrapIAMRoles",
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetRole",
+        "iam:CreateRole",
+        "iam:DeleteRole",
+        "iam:PutRolePolicy",
+        "iam:GetRolePolicy",
+        "iam:DeleteRolePolicy",
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy",
+        "iam:UpdateAssumeRolePolicy",
+        "iam:TagRole",
+        "iam:PassRole"
+      ],
+      "Resource": "arn:aws:iam::483643755230:role/cdk-hnb659fds-*"
+    },
+    {
+      "Sid": "CDKBootstrapIAMPolicies",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreatePolicy",
+        "iam:GetPolicy",
+        "iam:DeletePolicy",
+        "iam:CreatePolicyVersion",
+        "iam:DeletePolicyVersion",
+        "iam:GetPolicyVersion"
+      ],
+      "Resource": "arn:aws:iam::483643755230:policy/cdk-hnb659fds-*"
+    },
+    {
+      "Sid": "CDKBootstrapS3",
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateBucket",
+        "s3:DeleteBucket",
+        "s3:ListBucket",
+        "s3:GetBucketLocation",
+        "s3:GetBucketPolicy",
+        "s3:PutBucketPolicy",
+        "s3:DeleteBucketPolicy",
+        "s3:GetBucketPublicAccessBlock",
+        "s3:PutBucketPublicAccessBlock",
+        "s3:GetEncryptionConfiguration",
+        "s3:PutEncryptionConfiguration",
+        "s3:GetBucketVersioning",
+        "s3:PutBucketVersioning",
+        "s3:PutBucketTagging",
+        "s3:GetBucketTagging",
+        "s3:PutLifecycleConfiguration",
+        "s3:GetLifecycleConfiguration"
+      ],
+      "Resource": "arn:aws:s3:::cdk-*"
+    },
+    {
+      "Sid": "CDKBootstrapECR",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:CreateRepository",
+        "ecr:DescribeRepositories",
+        "ecr:DeleteRepository",
+        "ecr:SetRepositoryPolicy",
+        "ecr:GetLifecyclePolicy",
+        "ecr:PutLifecyclePolicy"
+      ],
+      "Resource": "arn:aws:ecr:us-east-1:483643755230:repository/cdk-*"
+    }
+  ]
+}

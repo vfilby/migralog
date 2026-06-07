@@ -1,0 +1,18 @@
+{
+  "name": "migralog-app-website",
+  "version": "1.0.0",
+  "description": "Marketing website for MigraLog - a migraine and chronic pain tracking app.",
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "serve": "cd website && python3 -m http.server 8000",
+    "serve:bg": "cd website && python3 -m http.server 8000 > /dev/null 2>&1 &"
+  },
+  "keywords": ["migralog", "website", "marketing"],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.40.0"
+  }
+}
