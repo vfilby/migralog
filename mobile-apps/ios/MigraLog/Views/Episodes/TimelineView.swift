@@ -79,42 +79,51 @@ struct TimelineView: View {
                 let isLast = index == events.count - 1
                 let isEpisodeEnd = event.kind.isEpisodeEnded
                 let showLineBelow = !isLast && !isEpisodeEnd
+                let showDayHeader = index == 0
+                    || !Calendar.current.isDate(event.date, inSameDayAs: events[index - 1].date)
 
-                VStack(spacing: 0) {
-                    // Top row: time, dot, title — all vertically centered
-                    HStack(spacing: 0) {
-                        Text(DateFormatting.displayTime(event.date))
-                            .font(.subheadline.monospacedDigit())
-                            .foregroundStyle(.secondary)
-                            .frame(width: 75, alignment: .trailing)
-
-                        timelineDot(for: event)
-                            .frame(width: 32)
-
-                        timelineTitle(for: event)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 0) {
+                    // Day separator — shown at the first event of each calendar day
+                    if showDayHeader {
+                        dayHeader(for: event.date, isFirst: index == 0)
                     }
 
-                    // Detail content + line below dot
-                    HStack(alignment: .top, spacing: 0) {
-                        // Spacer for time column
-                        Color.clear
-                            .frame(width: 75)
+                    VStack(spacing: 0) {
+                        // Top row: time, dot, title — all vertically centered
+                        HStack(spacing: 0) {
+                            Text(DateFormatting.displayTime(event.date))
+                                .font(.subheadline.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                                .frame(width: 75, alignment: .trailing)
 
-                        // Vertical line below the dot
-                        Rectangle()
-                            .fill(showLineBelow ? Color.secondary.opacity(0.2) : .clear)
-                            .frame(width: 1)
-                            .frame(maxHeight: .infinity)
-                            .frame(width: 32)
+                            timelineDot(for: event)
+                                .frame(width: 32)
 
-                        // Detail content (bar, chips, subtitle, etc.)
-                        timelineDetail(for: event)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                            timelineTitle(for: event)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+
+                        // Detail content + line below dot
+                        HStack(alignment: .top, spacing: 0) {
+                            // Spacer for time column
+                            Color.clear
+                                .frame(width: 75)
+
+                            // Vertical line below the dot
+                            Rectangle()
+                                .fill(showLineBelow ? Color.secondary.opacity(0.2) : .clear)
+                                .frame(width: 1)
+                                .frame(maxHeight: .infinity)
+                                .frame(width: 32)
+
+                            // Detail content (bar, chips, subtitle, etc.)
+                            timelineDetail(for: event)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                     }
+                    .padding(.vertical, 6)
+                    .contextMenu { timelineContextMenu(for: event) }
                 }
-                .padding(.vertical, 6)
-                .contextMenu { timelineContextMenu(for: event) }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -216,6 +225,21 @@ struct TimelineView: View {
 
         events.sort { $0.timestamp < $1.timestamp }
         return events
+    }
+
+    /// Day separator row marking the start of a calendar day within the timeline.
+    @ViewBuilder
+    private func dayHeader(for date: Date, isFirst: Bool) -> some View {
+        HStack(spacing: 8) {
+            Text(DateFormatting.timelineDayHeader(date))
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Rectangle()
+                .fill(Color.secondary.opacity(0.2))
+                .frame(height: 1)
+        }
+        .padding(.top, isFirst ? 0 : 12)
+        .padding(.bottom, 4)
     }
 
     @ViewBuilder
