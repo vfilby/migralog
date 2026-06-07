@@ -207,6 +207,35 @@ final class DailyCheckinNotificationServiceTests: XCTestCase {
                         "Date with an ended episode should be suppressed")
     }
 
+    func testSchedule_suppressesAllDaysSpannedByMultiDayEpisode() async throws {
+        // A multi-day episode that started on day 1 and ended on day 3 should
+        // suppress the check-in on day 2 and day 3 as well — not just the day it
+        // began. The episode is ended, so this exercises the overlap check
+        // rather than the active-episode short-circuit.
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let day1 = calendar.date(byAdding: .day, value: 1, to: today)!
+        let day2 = calendar.date(byAdding: .day, value: 2, to: today)!
+        let day3 = calendar.date(byAdding: .day, value: 3, to: today)!
+        let day2Str = DateFormatting.dateString(from: day2)
+        let day3Str = DateFormatting.dateString(from: day3)
+
+        let startTs = TimestampHelper.fromDate(day1)
+        let endTs = TimestampHelper.fromDate(day3) + 12 * 3600_000 // midday on day 3
+
+        mockEpisodeRepo.episodes = [
+            TestFixtures.makeEpisode(id: "ep-multiday", startTime: startTs, endTime: endTs)
+        ]
+
+        try await sut.scheduleNotifications()
+
+        let scheduledIds = Set(mockNotificationService.scheduledNotifications.map(\.id))
+        XCTAssertFalse(scheduledIds.contains("daily_checkin_\(day2Str)"),
+                        "Day fully inside a multi-day episode should be suppressed")
+        XCTAssertFalse(scheduledIds.contains("daily_checkin_\(day3Str)"),
+                        "Day the multi-day episode ended on should be suppressed")
+    }
+
     func testSchedule_activeEpisode_suppressesAllFutureDates() async throws {
         // Active episode (no endTime) — should suppress ALL 14 days
         mockEpisodeRepo.episodes = [
