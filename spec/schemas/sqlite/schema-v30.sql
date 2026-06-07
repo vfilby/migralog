@@ -1,4 +1,4 @@
--- MigraLog SQLite Schema v29
+-- MigraLog SQLite Schema v30
 -- Canonical schema definition for the migraine tracking database.
 -- Source of truth: mobile-apps/ios/MigraLog/Database/DatabaseManager.swift
 --   (createSchema + registered migrations). This .sql is a formal mirror and
@@ -8,6 +8,9 @@
 --   category_safety_rules, and `created_at` + `updated_at` to medication_schedules,
 --   as the last-write-wins timestamps for sync. These columns are nullable and not
 --   yet maintained by write paths (SyncService will own that).
+-- v30 (#434, iCloud sync): added the device-local sync-state tables
+--   sync_pending_changes (outbound queue) and sync_zone_state (change-token cursor).
+--   These are NOT synced. sync_config + sync_conflicts arrive with their consumers.
 --
 -- Conventions:
 --   - All IDs are TEXT (UUIDs)
@@ -249,3 +252,32 @@ CREATE INDEX IF NOT EXISTS idx_calendar_overlays_dates ON calendar_overlays(star
 
 -- Category safety rules indexes
 CREATE INDEX IF NOT EXISTS idx_category_safety_rules_category ON category_safety_rules(category);
+
+-- =============================================================================
+-- iCloud sync state (v30, #434) — device-local, NEVER synced.
+-- sync_config + sync_conflicts are added later with their consumers.
+-- =============================================================================
+
+-- Outbound change queue (survives app restart). UNIQUE(table_name, record_id)
+-- collapses repeated edits to a row into one entry: latest change wins.
+CREATE TABLE IF NOT EXISTS sync_pending_changes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  table_name TEXT NOT NULL,
+  record_id TEXT NOT NULL,
+  change_type TEXT NOT NULL CHECK(change_type IN ('upsert', 'delete')),
+  created_at INTEGER NOT NULL CHECK(created_at > 0),
+  retry_count INTEGER NOT NULL DEFAULT 0,
+  last_error TEXT,
+  UNIQUE(table_name, record_id)
+);
+
+-- Per-zone incremental-pull cursor (CKServerChangeToken) + sync bookkeeping.
+CREATE TABLE IF NOT EXISTS sync_zone_state (
+  zone_name TEXT PRIMARY KEY,
+  server_change_token BLOB,
+  last_sync_at INTEGER CHECK(last_sync_at IS NULL OR last_sync_at > 0),
+  last_error TEXT,
+  last_error_at INTEGER CHECK(last_error_at IS NULL OR last_error_at > 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_sync_pending_created ON sync_pending_changes(created_at);

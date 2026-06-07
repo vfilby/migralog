@@ -54,6 +54,8 @@ final class DatabaseManagerTests: XCTestCase {
             "calendar_overlays",
             "scheduled_notifications",
             "category_safety_rules",
+            "sync_pending_changes",
+            "sync_zone_state",
             "grdb_migrations", // GRDB internal table
         ]
 
@@ -183,7 +185,7 @@ final class DatabaseManagerTests: XCTestCase {
     // MARK: - Schema Version
 
     func testSchemaVersionIsTracked() throws {
-        XCTAssertEqual(DatabaseManager.schemaVersion, 29)
+        XCTAssertEqual(DatabaseManager.schemaVersion, 30)
     }
 
     func testMigrationIsRecordedInGRDB() throws {
@@ -218,6 +220,18 @@ final class DatabaseManagerTests: XCTestCase {
             let identifiers = try Row.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations")
                 .map { $0["identifier"] as String }
             XCTAssertTrue(identifiers.contains("v29"), "Migration v29 should be recorded")
+        }
+    }
+
+    /// v30 creates the device-local sync-state tables (#434): the outbound queue and
+    /// the per-zone change-token cursor. sync_config / sync_conflicts arrive later.
+    func testV30CreatesSyncStateTables() throws {
+        try dbManager.dbQueue.read { db in
+            XCTAssertTrue(try db.tableExists("sync_pending_changes"))
+            XCTAssertTrue(try db.tableExists("sync_zone_state"))
+            let identifiers = try Row.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations")
+                .map { $0["identifier"] as String }
+            XCTAssertTrue(identifiers.contains("v30"), "Migration v30 should be recorded")
         }
     }
 
