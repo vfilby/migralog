@@ -27,7 +27,7 @@ MigraLog uses iCloud to sync migraine tracking data across a user's devices. Clo
 
 ## CloudKit Schema
 
-**Container:** `iCloud.com.eff3.app.headache-tracker`
+**Container:** `iCloud.com.eff3.migralog`
 
 The CloudKit schema is intentionally minimal. One record type handles all synced data.
 
@@ -112,7 +112,7 @@ See [`schemas/sqlite/sync-schema-v1.sql`](schemas/sqlite/sync-schema-v1.sql) for
 3. Go to **Signing & Capabilities**.
 4. Click **+ Capability** and add **iCloud**.
 5. Check **CloudKit** under iCloud services.
-6. Under **Containers**, select `iCloud.com.eff3.app.headache-tracker`. If it doesn't exist, click **+** and create it with that identifier.
+6. Under **Containers**, select `iCloud.com.eff3.migralog`. If it doesn't exist, click **+** and create it with that identifier.
 
 This updates the entitlements file and provisioning profile automatically.
 
@@ -127,7 +127,7 @@ The entitlements file (`MigraLog.entitlements`) should contain:
 </array>
 <key>com.apple.developer.icloud-container-identifiers</key>
 <array>
-    <string>iCloud.com.eff3.app.headache-tracker</string>
+    <string>iCloud.com.eff3.migralog</string>
 </array>
 ```
 
@@ -147,7 +147,7 @@ The schema is defined in [`schemas/sync/schema.ckdb`](schemas/sync/schema.ckdb) 
 ```bash
 xcrun cktool import-schema \
   --team-id YOUR_TEAM_ID \
-  --container-id iCloud.com.eff3.app.headache-tracker \
+  --container-id iCloud.com.eff3.migralog \
   --environment development \
   --file spec/schemas/sync/schema.ckdb
 ```
@@ -155,7 +155,7 @@ xcrun cktool import-schema \
 **Option B: Create manually in CloudKit Console**
 
 1. Go to [CloudKit Console](https://icloud.developer.apple.com).
-2. Select the container `iCloud.com.eff3.app.headache-tracker`.
+2. Select the container `iCloud.com.eff3.migralog`.
 3. Select the **Development** environment.
 4. Navigate to **Schema** → **Record Types**.
 5. Click **Create New Type** and name it `SyncRecord`.
@@ -187,7 +187,7 @@ Export the schema from the development container and diff against the checked-in
 ```bash
 xcrun cktool export-schema \
   --team-id YOUR_TEAM_ID \
-  --container-id iCloud.com.eff3.app.headache-tracker \
+  --container-id iCloud.com.eff3.migralog \
   --environment development \
   --output-file /tmp/exported-schema.ckdb
 

@@ -1,6 +1,13 @@
--- MigraLog SQLite Schema v25
+-- MigraLog SQLite Schema v29
 -- Canonical schema definition for the migraine tracking database.
--- Source of truth: app/src/database/schema.ts
+-- Source of truth: mobile-apps/ios/MigraLog/Database/DatabaseManager.swift
+--   (createSchema + registered migrations). This .sql is a formal mirror and
+--   MUST be verified against that code — it is not what runs at runtime.
+--
+-- v29 (#434, iCloud sync): added `updated_at` to symptom_logs, episode_notes and
+--   category_safety_rules, and `created_at` + `updated_at` to medication_schedules,
+--   as the last-write-wins timestamps for sync. These columns are nullable and not
+--   yet maintained by write paths (SyncService will own that).
 --
 -- Conventions:
 --   - All IDs are TEXT (UUIDs)
@@ -47,6 +54,7 @@ CREATE TABLE IF NOT EXISTS symptom_logs (
   resolution_time INTEGER CHECK(resolution_time IS NULL OR resolution_time > onset_time),
   severity REAL CHECK(severity IS NULL OR (severity >= 0 AND severity <= 10)),
   created_at INTEGER NOT NULL CHECK(created_at > 0),
+  updated_at INTEGER CHECK(updated_at IS NULL OR updated_at > 0),  -- v29: LWW timestamp for sync
   FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE CASCADE
 );
 
@@ -68,6 +76,7 @@ CREATE TABLE IF NOT EXISTS episode_notes (
   timestamp INTEGER NOT NULL CHECK(timestamp > 0),
   note TEXT NOT NULL CHECK(length(note) > 0 AND length(note) <= 5000),
   created_at INTEGER NOT NULL CHECK(created_at > 0),
+  updated_at INTEGER CHECK(updated_at IS NULL OR updated_at > 0),  -- v29: LWW timestamp for sync
   FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE CASCADE
 );
 
@@ -85,7 +94,8 @@ CREATE TABLE IF NOT EXISTS medications (
   notes TEXT CHECK(notes IS NULL OR length(notes) <= 5000),
   category TEXT CHECK(category IS NULL OR category IN ('otc', 'nsaid', 'triptan', 'cgrp', 'preventive', 'supplement', 'other')),
   created_at INTEGER NOT NULL CHECK(created_at > 0),
-  updated_at INTEGER NOT NULL CHECK(updated_at > 0)
+  updated_at INTEGER NOT NULL CHECK(updated_at > 0),
+  min_interval_hours REAL CHECK(min_interval_hours IS NULL OR min_interval_hours > 0)  -- v26: per-med dose cooldown
 );
 
 -- Medication schedules table
@@ -98,6 +108,8 @@ CREATE TABLE IF NOT EXISTS medication_schedules (
   enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0, 1)),
   notification_id TEXT,
   reminder_enabled INTEGER NOT NULL DEFAULT 1 CHECK(reminder_enabled IN (0, 1)),
+  created_at INTEGER CHECK(created_at IS NULL OR created_at > 0),  -- v29: added for sync
+  updated_at INTEGER CHECK(updated_at IS NULL OR updated_at > 0),  -- v29: LWW timestamp for sync
   FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE
 );
 
@@ -183,6 +195,19 @@ CREATE TABLE IF NOT EXISTS scheduled_notifications (
   UNIQUE(medication_id, schedule_id, date, notification_type)
 );
 
+-- Category safety rules table (v27 added category_usage_limits; v28 renamed and
+-- reshaped it into this table with a cooldown/period_limit rule-type discriminator)
+CREATE TABLE IF NOT EXISTS category_safety_rules (
+  id TEXT PRIMARY KEY,
+  category TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('cooldown', 'period_limit')),
+  period_hours REAL NOT NULL CHECK(period_hours > 0),
+  max_count INTEGER CHECK(max_count IS NULL OR max_count > 0),
+  created_at INTEGER NOT NULL CHECK(created_at > 0),
+  updated_at INTEGER CHECK(updated_at IS NULL OR updated_at > 0),  -- v29: LWW timestamp for sync
+  UNIQUE(category, type)
+);
+
 -- =============================================================================
 -- Indexes
 -- =============================================================================
@@ -221,3 +246,6 @@ CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_content ON scheduled_noti
 
 -- Calendar overlays indexes
 CREATE INDEX IF NOT EXISTS idx_calendar_overlays_dates ON calendar_overlays(start_date, end_date);
+
+-- Category safety rules indexes
+CREATE INDEX IF NOT EXISTS idx_category_safety_rules_category ON category_safety_rules(category);

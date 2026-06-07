@@ -183,7 +183,7 @@ final class DatabaseManagerTests: XCTestCase {
     // MARK: - Schema Version
 
     func testSchemaVersionIsTracked() throws {
-        XCTAssertEqual(DatabaseManager.schemaVersion, 28)
+        XCTAssertEqual(DatabaseManager.schemaVersion, 29)
     }
 
     func testMigrationIsRecordedInGRDB() throws {
@@ -193,6 +193,72 @@ final class DatabaseManagerTests: XCTestCase {
 
             let identifiers = migrations.map { $0["identifier"] as String }
             XCTAssertTrue(identifiers.contains("v25"), "Migration v25 should be recorded")
+        }
+    }
+
+    // MARK: - iCloud Sync Schema (v29)
+
+    /// v29 adds the last-write-wins `updated_at` timestamp to the synced tables that
+    /// lacked it, and `created_at` + `updated_at` to `medication_schedules` (#434).
+    func testV29AddsSyncTimestampColumns() throws {
+        try dbManager.dbQueue.read { db in
+            for table in ["symptom_logs", "episode_notes", "category_safety_rules", "medication_schedules"] {
+                let names = try Row.fetchAll(db, sql: "PRAGMA table_info(\(table))")
+                    .compactMap { $0["name"] as String? }
+                XCTAssertTrue(names.contains("updated_at"), "\(table) should have updated_at after v29")
+            }
+            let scheduleNames = try Row.fetchAll(db, sql: "PRAGMA table_info(medication_schedules)")
+                .compactMap { $0["name"] as String? }
+            XCTAssertTrue(scheduleNames.contains("created_at"), "medication_schedules should gain created_at in v29")
+        }
+    }
+
+    func testV29MigrationIsRecorded() throws {
+        try dbManager.dbQueue.read { db in
+            let identifiers = try Row.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations")
+                .map { $0["identifier"] as String }
+            XCTAssertTrue(identifiers.contains("v29"), "Migration v29 should be recorded")
+        }
+    }
+
+    /// Exercises the upgrade path directly: an old-shape DB (no sync timestamps) is
+    /// migrated, and existing rows must be backfilled with usable timestamps.
+    func testAddSyncTimestampColumnsBackfillsExistingRows() throws {
+        let queue = try DatabaseQueue()
+        try queue.write { db in
+            // Pre-v29 shapes (only the columns the helper reads).
+            try db.execute(sql: "CREATE TABLE symptom_logs (id TEXT PRIMARY KEY, created_at INTEGER NOT NULL)")
+            try db.execute(sql: "CREATE TABLE episode_notes (id TEXT PRIMARY KEY, created_at INTEGER NOT NULL)")
+            try db.execute(sql: "CREATE TABLE category_safety_rules (id TEXT PRIMARY KEY, created_at INTEGER NOT NULL)")
+            try db.execute(sql: "CREATE TABLE medication_schedules (id TEXT PRIMARY KEY, medication_id TEXT NOT NULL)")
+            try db.execute(sql: "INSERT INTO symptom_logs (id, created_at) VALUES ('s1', 5000)")
+            try db.execute(sql: "INSERT INTO medication_schedules (id, medication_id) VALUES ('sch1', 'med1')")
+        }
+
+        try queue.write { db in
+            try DatabaseManager.addSyncTimestampColumns(in: db)
+        }
+
+        try queue.read { db in
+            // Append-only table: updated_at backfills from created_at.
+            let updatedAt = try Int64.fetchOne(db, sql: "SELECT updated_at FROM symptom_logs WHERE id = 's1'")
+            XCTAssertEqual(updatedAt, 5000, "symptom_logs.updated_at should backfill from created_at")
+
+            // medication_schedules gains both timestamps, stamped and equal.
+            let row = try Row.fetchOne(db, sql: "SELECT created_at, updated_at FROM medication_schedules WHERE id = 'sch1'")
+            let createdAt = row?["created_at"] as Int64?
+            let scheduleUpdatedAt = row?["updated_at"] as Int64?
+            XCTAssertNotNil(createdAt)
+            XCTAssertGreaterThan(createdAt ?? 0, 0, "medication_schedules.created_at should be stamped")
+            XCTAssertEqual(createdAt, scheduleUpdatedAt, "schedule updated_at should equal backfilled created_at")
+        }
+    }
+
+    /// The migration must be safe to run again on an already-migrated DB.
+    func testAddSyncTimestampColumnsIsIdempotent() throws {
+        try dbManager.dbQueue.write { db in
+            try DatabaseManager.addSyncTimestampColumns(in: db)
+            try DatabaseManager.addSyncTimestampColumns(in: db)
         }
     }
 
