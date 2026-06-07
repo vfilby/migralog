@@ -29,6 +29,12 @@ enum DateFormatting {
         return f
     }()
 
+    private static let timelineDayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.setLocalizedDateFormatFromTemplate("EEEMMMd")
+        return f
+    }()
+
     // MARK: - Date String (YYYY-MM-DD)
 
     static func dateString(from date: Date) -> String {
@@ -51,6 +57,17 @@ enum DateFormatting {
 
     static func displayDateTime(_ date: Date) -> String {
         displayDateTimeFormatter.string(from: date)
+    }
+
+    /// Compact day label for timeline day separators (e.g. "Today", "Yesterday", "Mon, May 26").
+    static func timelineDayHeader(_ date: Date) -> String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) {
+            return "Today"
+        } else if calendar.isDateInYesterday(date) {
+            return "Yesterday"
+        }
+        return timelineDayFormatter.string(from: date)
     }
 
     // MARK: - Duration Formatting
