@@ -369,6 +369,7 @@ final class DatabaseManagerTests: XCTestCase {
     func testTimestampHelperDateStringProducesYYYYMMDD() {
         let date = Date(timeIntervalSince1970: 1_700_000_000) // 2023-11-14
         let string = TimestampHelper.dateString(from: date)
+        // swiftlint:disable:next force_try
         let regex = try! NSRegularExpression(pattern: "^\\d{4}-\\d{2}-\\d{2}$")
         let range = NSRange(string.startIndex..., in: string)
         XCTAssertNotNil(regex.firstMatch(in: string, range: range), "Should match YYYY-MM-DD format")

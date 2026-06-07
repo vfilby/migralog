@@ -75,3 +75,23 @@ targets:
       base:
         GENERATE_INFOPLIST_FILE: true
         TEST_TARGET_NAME: MigraLog
+
+schemes:
+  MigraLog:
+    build:
+      targets:
+        MigraLog: all
+        MigraLogTests: [test]
+        MigraLogUITests: [test]
+    test:
+      # PR gate runs the Smoke plan (full unit suite + a tiny UI render subset).
+      # The Full plan (entire suite minus screenshot capture) runs nightly.
+      # See .github/workflows/swift-ci.yml and swift-nightly.yml.
+      testPlans:
+        - path: TestPlans/Smoke.xctestplan
+          defaultPlan: true
+        - path: TestPlans/Full.xctestplan
+    run:
+      config: Debug
+    archive:
+      config: Release

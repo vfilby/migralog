@@ -81,6 +81,7 @@ struct CategorySafetyRulesScreen: View {
                     }
                 }
             } footer: {
+                // swiftlint:disable:next line_length
                 Text("Informational warnings only — not medical advice. The app will not block you from logging doses. Talk to your doctor about appropriate thresholds. Common guidelines: NSAIDs 15/30 days, Triptans 10/30 days and 2 h between doses.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)

@@ -49,6 +49,7 @@ struct NotificationSettingsScreen: View {
                 } header: {
                     Text("Medication Reminders")
                 } footer: {
+                    // swiftlint:disable:next line_length
                     Text("Time-sensitive reminders cut through Focus modes. Follow-up reminders fire after the chosen delay; turn on Critical Alerts to make them break through Do Not Disturb and silent mode.")
                 }
 

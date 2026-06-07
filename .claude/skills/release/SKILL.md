@@ -27,11 +27,13 @@ If the working tree is dirty:
 
 ### 2. Run Unit Tests
 
-From the iOS project directory. All must pass.
+The Xcode project is generated from `project.yml` (and git-ignored), so regenerate
+it first. From the iOS project directory. All must pass.
 
 ```bash
-cd mobile-apps/ios && xcodebuild test \
+cd mobile-apps/ios && xcodegen generate && xcodebuild test \
   -scheme MigraLog \
+  -project MigraLog.xcodeproj \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.0' \
   -only-testing:MigraLogTests \
   2>&1 | grep -E "Executed.*tests" | tail -1
@@ -41,13 +43,15 @@ If any test fails, **stop and return** the failure output. Do not proceed to rel
 
 ### 3. Run UI Tests
 
-From the iOS project directory. All must pass.
+From the iOS project directory. All must pass. (UI tests run locally before every
+release — CI keeps the full UI suite nightly, not on the PR gate.)
 
 ```bash
 cd mobile-apps/ios && xcodebuild test \
   -scheme MigraLog \
+  -project MigraLog.xcodeproj \
+  -testPlan Full \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.0' \
-  -only-testing:MigraLogUITests \
   2>&1 | grep -E "Executed.*tests" | tail -1
 ```
 
@@ -55,7 +59,7 @@ If any test fails, **stop and return** the failure output. Do not proceed to rel
 
 ### 4. Push to Remote
 
-The deploy workflow triggers against whatever is on remote main. Ensure the current branch is main and code is pushed.
+The release pipeline triggers against whatever is on remote main. Ensure the current branch is main and code is pushed.
 
 ```bash
 git push origin main
@@ -65,8 +69,13 @@ If on a feature branch, **stop and return** — the user needs to merge to main 
 
 ### 5. Trigger TestFlight Build
 
+Pushing iOS changes to `main` auto-triggers `[iOS] Release Pipeline`. Trigger it
+explicitly (works even when the push touched no iOS paths). The pipeline computes
+the version/build number from the latest `deploy/*` git tag — there is no `bump`
+input.
+
 ```bash
-gh workflow run "Deploy Swift to TestFlight" --repo vfilby/migralog --ref main --field bump=build
+gh workflow run "[iOS] Release Pipeline" --repo vfilby/migralog --ref main
 ```
 
 ### 6. Monitor Deploy
@@ -75,7 +84,7 @@ Wait for the workflow to complete.
 
 ```bash
 sleep 5
-RUN_ID=$(gh run list --repo vfilby/migralog --workflow "Deploy Swift to TestFlight" --limit 1 --json databaseId --jq '.[0].databaseId')
+RUN_ID=$(gh run list --repo vfilby/migralog --workflow "[iOS] Release Pipeline" --limit 1 --json databaseId --jq '.[0].databaseId')
 gh run watch $RUN_ID --repo vfilby/migralog --exit-status
 ```
 
@@ -86,5 +95,6 @@ If the deploy fails, **stop and return** the failure output from `gh run view $R
 Return a summary:
 - Commit hash that was released
 - Test results (unit + UI pass counts)
-- TestFlight build version
+- TestFlight build version (and the `deploy/<version>` tag the pipeline pushed)
+- Distributed to the **Beta** internal group; promotion to Pre-flight runs on a schedule
 - Workflow URL: `https://github.com/vfilby/migralog/actions`

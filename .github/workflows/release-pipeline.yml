@@ -1,0 +1,257 @@
+name: '[iOS] Release Pipeline'
+
+# Auto-deploy on merge to main: unit tests gate, then archive + upload to the
+# Beta (internal) TestFlight group. Build number is computed from git tags, not
+# the workflow run number, so it stays monotonic and independent of this
+# workflow's run counter. Promotion to external testers / App Store happens via
+# the promote-*.yml workflows.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile-apps/ios/**'
+      - '.github/workflows/release-pipeline.yml'
+      - '.github/scripts/**'
+  workflow_dispatch:
+
+concurrency:
+  group: release-pipeline
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  test-unit:
+    name: Unit tests
+    runs-on: macos-26
+    defaults:
+      run:
+        shell: bash --noprofile --norc -eo pipefail {0}
+        working-directory: mobile-apps/ios
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: SwiftLint
+        run: |
+          brew install swiftlint
+          swiftlint lint --reporter github-actions-logging
+
+      - name: Select Xcode 26
+        run: sudo xcode-select -s /Applications/Xcode_26.2.app/Contents/Developer
+
+      - name: Install XcodeGen
+        run: |
+          brew install xcodegen
+          INSTALLED=$(xcodegen --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+          MINIMUM="2.45.3"
+          if [ "$(printf '%s\n' "$MINIMUM" "$INSTALLED" | sort -V | head -n1)" != "$MINIMUM" ]; then
+            echo "::error::XcodeGen version too old: need >= $MINIMUM, got $INSTALLED"
+            exit 1
+          fi
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      # xcodebuild's -resolvePackageDependencies refuses to re-download a binary
+      # target if a leftover extract exists (observed with the Sentry xcframework
+      # on macos-26). The runner is ephemeral so clearing the cache is free and
+      # makes resolve deterministic across reruns.
+      - name: Clear SwiftPM artifacts cache
+        run: rm -rf ~/Library/Caches/org.swift.swiftpm/artifacts
+
+      - name: Resolve Swift packages
+        run: xcodebuild -resolvePackageDependencies -scheme MigraLog -project MigraLog.xcodeproj
+
+      - name: Run unit tests
+        run: |
+          xcodebuild test \
+            -scheme MigraLog \
+            -project MigraLog.xcodeproj \
+            -only-testing:MigraLogTests \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest' \
+            -resultBundlePath TestResults.xcresult \
+            | xcpretty
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: unit-test-results
+          path: mobile-apps/ios/TestResults.xcresult
+          retention-days: 7
+
+  # UI tests are run locally before merge and nightly in CI (swift-nightly.yml).
+  # Per project policy they do not gate the release. This placeholder keeps the
+  # job graph explicit; wire a self-hosted/dedicated runner here if that changes.
+  test-ui:
+    name: UI tests (run nightly + locally, not gating)
+    needs: test-unit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Note
+        run: echo "UI tests run nightly (swift-nightly.yml) and locally before merge; not gating the release."
+
+  deploy-beta:
+    name: Deploy to TestFlight Beta
+    needs: test-ui
+    runs-on: macos-26
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: mobile-apps/ios
+    env:
+      SCHEME: MigraLog
+      PROJECT: MigraLog.xcodeproj
+      ARCHIVE_PATH: build/MigraLog.xcarchive
+      EXPORT_PATH: build/export
+    outputs:
+      build_number: ${{ steps.version.outputs.build_number }}
+      marketing_version: ${{ steps.version.outputs.marketing_version }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Select Xcode 26
+        run: sudo xcode-select -s /Applications/Xcode_26.2.app/Contents/Developer
+
+      - name: Install XcodeGen
+        run: |
+          brew install xcodegen
+          INSTALLED=$(xcodegen --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+          MINIMUM="2.45.3"
+          if [ "$(printf '%s\n' "$MINIMUM" "$INSTALLED" | sort -V | head -n1)" != "$MINIMUM" ]; then
+            echo "::error::XcodeGen version too old: need >= $MINIMUM, got $INSTALLED"
+            exit 1
+          fi
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Clear SwiftPM artifacts cache
+        run: rm -rf ~/Library/Caches/org.swift.swiftpm/artifacts
+
+      - name: Resolve Swift packages
+        run: xcodebuild -resolvePackageDependencies -scheme $SCHEME -project $PROJECT
+
+      - name: Install certificate
+        env:
+          CERTIFICATE_P12: ${{ secrets.SWIFT_CERTIFICATE_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.SWIFT_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          CERT_PATH=$RUNNER_TEMP/certificate.p12
+          echo -n "$CERTIFICATE_P12" | base64 --decode -o "$CERT_PATH"
+          security import "$CERT_PATH" -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+
+      - name: Install provisioning profile
+        env:
+          PROVISIONING_PROFILE: ${{ secrets.SWIFT_PROVISIONING_PROFILE }}
+        run: |
+          PROFILE_PATH=$RUNNER_TEMP/profile.mobileprovision
+          echo -n "$PROVISIONING_PROFILE" | base64 --decode -o "$PROFILE_PATH"
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< $(security cms -D -i "$PROFILE_PATH"))
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp "$PROFILE_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/${PROFILE_UUID}.mobileprovision
+
+      # Patch-bump the marketing version + build number from the latest release
+      # tag. We read both deploy/* (new scheme) and alpha-v* (the pre-existing
+      # tag scheme) so the first run continues from the current line (1.1.144)
+      # rather than resetting. CFBundleVersion = the patch number; this must stay
+      # above the highest build already in App Store Connect.
+      - name: Compute next version (patch bump from latest deploy/* or alpha-v* tag)
+        id: version
+        working-directory: ${{ github.workspace }}
+        run: |
+          git fetch --tags --quiet
+          LATEST=$( { git tag -l 'deploy/*' | sed 's|deploy/||'; git tag -l 'alpha-v*' | sed 's|alpha-v||'; } | sort -V | tail -n1)
+          if [ -z "$LATEST" ]; then
+            LATEST="1.1.144"
+          fi
+          MAJOR=$(echo "$LATEST" | cut -d. -f1)
+          MINOR=$(echo "$LATEST" | cut -d. -f2)
+          PATCH=$(echo "$LATEST" | cut -d. -f3)
+          NEXT_PATCH=$((PATCH + 1))
+          MARKETING="${MAJOR}.${MINOR}.${NEXT_PATCH}"
+          BUILD="${NEXT_PATCH}"
+          echo "Previous: $LATEST → next: $MARKETING (build $BUILD)"
+          echo "marketing_version=$MARKETING" >> "$GITHUB_OUTPUT"
+          echo "build_number=$BUILD" >> "$GITHUB_OUTPUT"
+          echo "APP_VERSION=$MARKETING" >> "$GITHUB_ENV"
+          echo "APP_BUILD=$BUILD" >> "$GITHUB_ENV"
+
+      - name: Build archive
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          security find-identity -v -p codesigning $RUNNER_TEMP/app-signing.keychain-db
+          xcodebuild archive \
+            -scheme $SCHEME \
+            -project $PROJECT \
+            -archivePath $ARCHIVE_PATH \
+            -destination 'generic/platform=iOS' \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            MARKETING_VERSION="$APP_VERSION" \
+            CURRENT_PROJECT_VERSION="$APP_BUILD"
+
+      - name: Setup App Store Connect API key
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: |
+          mkdir -p ~/.private_keys
+          echo -n "$ASC_API_KEY_P8" > ~/.private_keys/AuthKey_${ASC_KEY_ID}.p8
+
+      - name: Export and upload to TestFlight
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath $ARCHIVE_PATH \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath $EXPORT_PATH \
+            -authenticationKeyPath ~/.private_keys/AuthKey_${ASC_KEY_ID}.p8 \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+
+      # The Beta (internal) group is configured in App Store Connect with
+      # "automatically distribute to internal testers" enabled, so the upload
+      # above is sufficient. Pre-flight (external) attachment happens in
+      # promote-preflight.yml after the soak gate passes.
+
+      - name: Tag deploy
+        if: success()
+        working-directory: ${{ github.workspace }}
+        env:
+          MARKETING_VERSION: ${{ steps.version.outputs.marketing_version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "deploy/${MARKETING_VERSION}" "${{ github.sha }}"
+          git push origin "deploy/${MARKETING_VERSION}"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
+          rm -f $RUNNER_TEMP/certificate.p12 || true
+          rm -f $RUNNER_TEMP/profile.mobileprovision || true
+          rm -rf ~/.private_keys || true
+
+      - name: Summary
+        run: |
+          echo "## Beta Deploy" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** ${{ steps.version.outputs.marketing_version }} (build ${{ steps.version.outputs.build_number }})" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Distributed to:** Beta (internal testing)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Pre-flight promotion runs on a schedule; build becomes eligible after the soak gate passes." >> $GITHUB_STEP_SUMMARY

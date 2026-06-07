@@ -1,0 +1,94 @@
+name: '[iOS] CI'
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  # Path filtering lives at the JOB level (not the workflow `on:` level) so
+  # that build-and-test can be a *required* status check. A workflow skipped
+  # by an `on: paths:` filter reports no status at all, which leaves a
+  # required check pending forever and blocks the merge. A job skipped by
+  # `if:` instead reports "skipped", which rulesets count as a pass — so
+  # docs-only / non-iOS PRs sail through while iOS PRs are still gated.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      ios: ${{ steps.filter.outputs.ios }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            ios:
+              - 'mobile-apps/ios/**'
+              - '.github/workflows/swift-ci.yml'
+
+  build-and-test:
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
+    runs-on: macos-26
+    defaults:
+      run:
+        shell: bash --noprofile --norc -eo pipefail {0}
+        working-directory: mobile-apps/ios
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: SwiftLint
+        run: |
+          brew install swiftlint
+          swiftlint lint --reporter github-actions-logging
+
+      - name: Select Xcode 26
+        run: sudo xcode-select -s /Applications/Xcode_26.2.app/Contents/Developer
+
+      - name: Install XcodeGen
+        run: |
+          brew install xcodegen
+          INSTALLED=$(xcodegen --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+          MINIMUM="2.45.3"
+          if [ "$(printf '%s\n' "$MINIMUM" "$INSTALLED" | sort -V | head -n1)" != "$MINIMUM" ]; then
+            echo "::error::XcodeGen version too old: need >= $MINIMUM, got $INSTALLED"
+            exit 1
+          fi
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Resolve Swift packages
+        run: xcodebuild -resolvePackageDependencies -scheme MigraLog -project MigraLog.xcodeproj
+
+      - name: Build
+        run: |
+          xcodebuild build \
+            -scheme MigraLog \
+            -project MigraLog.xcodeproj \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest' \
+            | xcpretty
+
+      # PR gate runs the Smoke test plan: the full unit suite plus a render-only
+      # UI subset (testAppLaunches + testNavigationAndMainComponents). Fast and
+      # deterministic enough to gate every PR. The full UI suite — slow, with
+      # known flakes — runs nightly via .github/workflows/swift-nightly.yml
+      # (-testPlan Full).
+      - name: Run smoke tests (unit + UI render gate)
+        run: |
+          xcodebuild test \
+            -scheme MigraLog \
+            -project MigraLog.xcodeproj \
+            -testPlan Smoke \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest' \
+            -resultBundlePath TestResults.xcresult \
+            | xcpretty
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: test-results
+          path: mobile-apps/ios/TestResults.xcresult
+          retention-days: 7
