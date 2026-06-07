@@ -256,6 +256,7 @@ final class AppState {
     /// daily statuses, medication doses, and a calendar overlay so every screen has
     /// realistic-looking content. Distinct from `loadFixtureData()` to keep
     /// existing UI tests stable.
+    // swiftlint:disable:next function_body_length
     private func loadScreenshotData() {
         let db = DatabaseManager.shared
         let now = TimestampHelper.now
@@ -298,6 +299,7 @@ final class AppState {
 
                 // --- Closed historical episodes spread over the last ~80 days ---
                 // Tuples: (daysAgo, durationHours, peakIntensity, symptoms JSON, triggers JSON, locations JSON, notes)
+                // swiftlint:disable:next large_tuple
                 let episodes: [(Int, Double, Double, String, String, String, String)] = [
                     (78, 6.0, 8.0, "[\"nausea\",\"photophobia\"]", "[\"weather\"]", "[\"left_temple\"]", "Storm front rolling in."),
                     (71, 4.5, 6.0, "[\"photophobia\"]", "[\"sleep\"]", "[\"forehead\"]", "Slept 5 hours, woke up with it."),

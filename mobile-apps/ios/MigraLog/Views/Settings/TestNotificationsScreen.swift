@@ -59,6 +59,7 @@ struct TestNotificationsScreen: View {
             } header: {
                 Text("Test Triggers")
             } footer: {
+                // swiftlint:disable:next line_length
                 Text("Background the app after tapping — iOS routes notifications to the in-app delegate while the app is foregrounded.\n\nNote: critical sound (.defaultCritical) may crash SpringBoard on the iOS 26.0 simulator. Test critical on a real device via TestFlight.")
             }
         }

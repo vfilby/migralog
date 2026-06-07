@@ -12,3 +12,16 @@ updates:
     labels:
       - "ci"
       - "automated"
+
+  # Swift Package Manager dependencies (GRDB, Sentry) for the iOS app
+  - package-ecosystem: "swift"
+    directory: "/mobile-apps/ios"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencies"
+      - "automated"

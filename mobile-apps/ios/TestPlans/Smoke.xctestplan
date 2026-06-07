@@ -1,0 +1,39 @@
+{
+  "configurations" : [
+    {
+      "id" : "5A1F0001-0000-4000-8000-000000000001",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:MigraLog.xcodeproj",
+      "identifier" : "3695A06F02E66C96E46AB30C",
+      "name" : "MigraLog"
+    }
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:MigraLog.xcodeproj",
+        "identifier" : "B73B5168455500E44C37F90C",
+        "name" : "MigraLogTests"
+      }
+    },
+    {
+      "selectedTests" : [
+        "MigraLogUITests\/testAppLaunches()",
+        "TrendsAnalyticsUITests\/testNavigationAndMainComponents()"
+      ],
+      "target" : {
+        "containerPath" : "container:MigraLog.xcodeproj",
+        "identifier" : "EF4984D71320C720EA14A94D",
+        "name" : "MigraLogUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

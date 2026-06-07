@@ -128,6 +128,7 @@ struct CategorySafetyRuleEditorSheet: View {
         } header: {
             Text("Limit")
         } footer: {
+            // swiftlint:disable:next line_length
             Text("Based on common MOH (medication overuse headache) guidelines — informational only. Talk to your doctor about thresholds appropriate for your situation. This app does not provide medical advice.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)

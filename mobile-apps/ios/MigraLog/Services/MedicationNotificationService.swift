@@ -530,6 +530,7 @@ actor MedicationNotificationScheduler: MedicationNotificationServiceProtocol {
 
     // MARK: - Top-Up & Rebalance
 
+    // swiftlint:disable:next function_body_length cyclomatic_complexity
     func topUp(threshold: Int = 3) async {
         do {
             let activeMedications = try medicationRepo.getActiveMedications()

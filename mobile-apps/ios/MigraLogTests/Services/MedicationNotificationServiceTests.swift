@@ -2,6 +2,8 @@ import XCTest
 import UserNotifications
 @testable import MigraLog
 
+// Large exhaustive test file — baseline the size rules for this legacy suite.
+// swiftlint:disable type_body_length file_length
 final class MedicationNotificationServiceTests: XCTestCase {
     private var sut: MedicationNotificationScheduler!
     private var mockNotificationService: MockNotificationService!

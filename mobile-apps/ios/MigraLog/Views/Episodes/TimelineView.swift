@@ -347,6 +347,7 @@ struct TimelineView: View {
                 .padding(.top, 2)
 
         case .medication(let doseWithMed):
+            // swiftlint:disable:next line_length
             Text("\(doseWithMed.medication.name) • \(MedicationFormatting.formatDose(quantity: doseWithMed.dose.quantity, amount: doseWithMed.dose.dosageAmount ?? doseWithMed.medication.dosageAmount, unit: doseWithMed.dose.dosageUnit ?? doseWithMed.medication.dosageUnit))")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)

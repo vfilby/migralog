@@ -159,6 +159,7 @@ final class NotificationSettingsViewModelTests: XCTestCase {
             MedicationNotificationOverride(medicationId: "med-1", enabled: true, timeSensitive: true, followUpDelay: 15),
             MedicationNotificationOverride(medicationId: "med-2", enabled: false, timeSensitive: false, followUpDelay: 45),
         ]
+        // swiftlint:disable:next force_try
         let data = try! JSONEncoder().encode(overrides)
         defaults.set(data, forKey: "notification_medication_overrides")
 
@@ -209,6 +210,7 @@ final class NotificationSettingsViewModelTests: XCTestCase {
 
         let data = defaults.data(forKey: "notification_medication_overrides")
         XCTAssertNotNil(data)
+        // swiftlint:disable:next force_try
         let decoded = try! JSONDecoder().decode([MedicationNotificationOverride].self, from: data!)
         XCTAssertEqual(decoded.count, 1)
         XCTAssertEqual(decoded[0].medicationId, "med-1")
@@ -402,6 +404,7 @@ final class NotificationSettingsViewModelTests: XCTestCase {
 
         let data = defaults.data(forKey: "notification_medication_overrides")
         XCTAssertNotNil(data)
+        // swiftlint:disable:next force_try
         let decoded = try! JSONDecoder().decode([MedicationNotificationOverride].self, from: data!)
         XCTAssertTrue(decoded.isEmpty)
     }

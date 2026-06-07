@@ -183,6 +183,7 @@ final class DatabaseManager: Sendable {
     }
 
     /// Create all tables, indexes, and constraints matching schema-v25.sql
+    // swiftlint:disable:next function_body_length
     static func createSchema(in db: Database) throws {
         // Episodes table
         try db.execute(sql: """
@@ -425,6 +426,7 @@ final class DatabaseManager: Sendable {
         // Scheduled notifications metadata indexes
         try db.execute(sql: "CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_medication_name ON scheduled_notifications(medication_name, date) WHERE medication_name IS NOT NULL")
         try db.execute(sql: "CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_trigger_time ON scheduled_notifications(scheduled_trigger_time) WHERE scheduled_trigger_time IS NOT NULL")
+        // swiftlint:disable:next line_length
         try db.execute(sql: "CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_category ON scheduled_notifications(category_identifier, scheduled_trigger_time) WHERE category_identifier IS NOT NULL")
         try db.execute(sql: "CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_content ON scheduled_notifications(notification_title, notification_body) WHERE notification_title IS NOT NULL")
 
