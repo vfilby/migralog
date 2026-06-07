@@ -118,6 +118,18 @@ MigraLog is open source and welcomes contributions! Whether you're a developer, 
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
 
+## Repository Structure
+
+This is a monorepo containing the app, its specifications, and the marketing website:
+
+| Path | Contents |
+| --- | --- |
+| [`mobile-apps/ios/`](mobile-apps/ios/) | Native iOS app (Swift / SwiftUI / GRDB) — the primary product |
+| [`spec/`](spec/) | Shared specifications, wireframes, data models, and test specs |
+| [`website/`](website/) | Marketing website (static site + AWS CDK infrastructure). See [`website/README.md`](website/README.md) |
+
+The marketing website is a static site deployed to AWS (S3 + CloudFront via CDK). It was previously maintained in a standalone repository and has been moved here so the brand, app, and site live together. See [`website/README.md`](website/README.md) and [`website/DEPLOYMENT.md`](website/DEPLOYMENT.md) for build and deploy instructions.
+
 ## About
 
 MigraLog was created to help people with chronic pain conditions better understand and manage their health. The app is designed with input from pain management specialists and people who live with chronic pain.

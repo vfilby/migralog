@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MigraLog - Brand Guidelines</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-purple': {
+                            50: '#faf5ff',
+                            100: '#f3e8ff',
+                            200: '#e9d5ff',
+                            300: '#d8b4fe',
+                            400: '#c084fc',
+                            500: '#a855f7',
+                            600: '#9333ea',
+                            700: '#7e22ce',
+                            800: '#6b21a8',
+                            900: '#4c1d95',
+                            950: '#2e1065',
+                        },
+                        'brand-amber': {
+                            50: '#fffbeb',
+                            100: '#fef3c7',
+                            200: '#fde68a',
+                            300: '#fcd34d',
+                            400: '#fbbf24',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                            700: '#b45309',
+                            800: '#92400e',
+                            900: '#78350f',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .gradient-purple-indigo {
+            background: linear-gradient(135deg, #9333ea 0%, #4f46e5 100%);
+        }
+        .gradient-purple-amber {
+            background: linear-gradient(135deg, #7c3aed 0%, #f59e0b 100%);
+        }
+        .icon-brain {
+            width: 200px;
+            height: 200px;
+        }
+        .glow-amber {
+            filter: drop-shadow(0 0 20px rgba(251, 191, 36, 0.5));
+        }
+        .glow-purple {
+            filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.5));
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-gray-900">MigraLog Brand Guidelines</h1>
+                <a href="index.html" class="text-purple-600 hover:text-purple-700 font-semibold">← Back to Website</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container mx-auto px-6 py-12 max-w-6xl">
+        
+        <!-- Introduction -->
+        <section class="mb-16">
+            <h2 class="text-4xl font-bold mb-6 text-gray-900">Brand Identity</h2>
+            <p class="text-xl text-gray-600 leading-relaxed">
+                MigraLog's visual identity combines the trustworthy calm of purple with the alerting warmth of amber. 
+                This pairing reflects our dual purpose: providing supportive care while highlighting important health patterns.
+            </p>
+        </section>
+
+        <!-- Color Schemes -->
+        <section class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 text-gray-900">Color Schemes</h2>
+            
+            <!-- Option 1: Purple + Warm Amber (Recommended) -->
+            <div class="mb-12 bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-8 py-6">
+                    <h3 class="text-2xl font-bold mb-2">Option 1: Purple + Warm Amber</h3>
+                    <p class="text-purple-100">⭐ Recommended - Brand Cohesive</p>
+                </div>
+                <div class="p-8">
+                    <!-- Icon Preview -->
+                    <div class="grid md:grid-cols-3 gap-8 mb-8">
+                        <div class="text-center">
+                            <div class="w-48 h-48 mx-auto rounded-3xl flex items-center justify-center" style="background: #4c1d95;">
+                                <svg class="w-32 h-32 glow-amber" viewBox="0 0 200 200" fill="none">
+                                    <path d="M60 80 L60 170 L90 170 L90 100 L80 80 L90 60 L100 80 L110 60 L120 80 L140 60 L130 80 L140 100 L140 170 L170 170 L170 80 Q170 40 140 40 Q110 40 100 50 Q90 40 60 40 Q30 40 30 80 L60 80 Z M70 100 L70 110 M70 140 L70 150" 
+                                          stroke="#fbbf24" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <circle cx="73" cy="85" r="8" fill="#fbbf24"/>
+                                    <circle cx="73" cy="130" r="5" fill="#fbbf24"/>
+                                </svg>
+                            </div>
+                            <p class="mt-4 font-semibold text-gray-700">App Icon</p>
+                        </div>
+                        <div class="col-span-2">
+                            <h4 class="font-bold text-lg mb-4">Colors</h4>
+                            <div class="space-y-3">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-20 h-20 rounded-lg" style="background: #4c1d95;"></div>
+                                    <div>
+                                        <p class="font-mono text-sm text-gray-600">#4C1D95</p>
+                                        <p class="font-semibold">Purple 900 - Background</p>
+                                        <p class="text-sm text-gray-500">Calm, trustworthy, medical</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-4">
+                                    <div class="w-20 h-20 rounded-lg" style="background: #fbbf24;"></div>
+                                    <div>
+                                        <p class="font-mono text-sm text-gray-600">#FBBF24</p>
+                                        <p class="font-semibold">Amber 400 - Icon/Alert</p>
+                                        <p class="text-sm text-gray-500">Warning light, attention</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                                <p class="text-sm font-semibold text-green-800">✓ Contrast Ratio: 7.2:1 (WCAG AAA)</p>
+                                <p class="text-xs text-green-700 mt-1">Excellent accessibility for all users</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="border-t pt-6">
+                        <h4 class="font-bold mb-3">Why This Works</h4>
+                        <ul class="grid md:grid-cols-2 gap-3 text-gray-700">
+                            <li class="flex items-start gap-2">
+                                <span class="text-green-600 font-bold">✓</span>
+                                <span>Matches website brand identity</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-green-600 font-bold">✓</span>
+                                <span>Amber = actual check engine light color</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-green-600 font-bold">✓</span>
+                                <span>Purple conveys care and support</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-green-600 font-bold">✓</span>
+                                <span>Professional medical aesthetic</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Option 2: Teal + Coral -->
+            <div class="mb-12 bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div class="bg-gradient-to-r from-teal-700 to-teal-600 text-white px-8 py-6">
+                    <h3 class="text-2xl font-bold mb-2">Option 2: Teal + Coral</h3>
+                    <p class="text-teal-100">Modern Medical</p>
+                </div>
+                <div class="p-8">
+                    <div class="grid md:grid-cols-3 gap-8">
+                        <div class="text-center">
+                            <div class="w-48 h-48 mx-auto rounded-3xl flex items-center justify-center bg-teal-900">
+                                <svg class="w-32 h-32" viewBox="0 0 200 200" fill="none" style="filter: drop-shadow(0 0 20px rgba(251, 113, 133, 0.5));">
+                                    <path d="M60 80 L60 170 L90 170 L90 100 L80 80 L90 60 L100 80 L110 60 L120 80 L140 60 L130 80 L140 100 L140 170 L170 170 L170 80 Q170 40 140 40 Q110 40 100 50 Q90 40 60 40 Q30 40 30 80 L60 80 Z M70 100 L70 110 M70 140 L70 150" 
+                                          stroke="#fb7185" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <circle cx="73" cy="85" r="8" fill="#fb7185"/>
+                                    <circle cx="73" cy="130" r="5" fill="#fb7185"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="col-span-2">
+                            <div class="space-y-3">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-20 h-20 rounded-lg bg-teal-900"></div>
+                                    <div>
+                                        <p class="font-mono text-sm text-gray-600">#134E4A</p>
+                                        <p class="font-semibold">Teal 900 - Background</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-4">
+                                    <div class="w-20 h-20 rounded-lg bg-rose-400"></div>
+                                    <div>
+                                        <p class="font-mono text-sm text-gray-600">#FB7185</p>
+                                        <p class="font-semibold">Rose 400 - Icon</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                                <p class="text-sm font-semibold text-green-800">✓ Contrast Ratio: 6.2:1 (WCAG AA)</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Option 3: Navy + Bright Amber -->
+            <div class="mb-12 bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div class="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-8 py-6">
+                    <h3 class="text-2xl font-bold mb-2">Option 3: Navy + Bright Amber</h3>
+                    <p class="text-blue-100">High Contrast Professional</p>
+                </div>
+                <div class="p-8">
+                    <div class="grid md:grid-cols-3 gap-8">
+                        <div class="text-center">
+                            <div class="w-48 h-48 mx-auto rounded-3xl flex items-center justify-center bg-blue-900">
+                                <svg class="w-32 h-32" viewBox="0 0 200 200" fill="none" style="filter: drop-shadow(0 0 20px rgba(252, 211, 77, 0.5));">
+                                    <path d="M60 80 L60 170 L90 170 L90 100 L80 80 L90 60 L100 80 L110 60 L120 80 L140 60 L130 80 L140 100 L140 170 L170 170 L170 80 Q170 40 140 40 Q110 40 100 50 Q90 40 60 40 Q30 40 30 80 L60 80 Z M70 100 L70 110 M70 140 L70 150" 
+                                          stroke="#fcd34d" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <circle cx="73" cy="85" r="8" fill="#fcd34d"/>
+                                    <circle cx="73" cy="130" r="5" fill="#fcd34d"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="col-span-2">
+                            <div class="space-y-3">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-20 h-20 rounded-lg bg-blue-900"></div>
+                                    <div>
+                                        <p class="font-mono text-sm text-gray-600">#1E3A8A</p>
+                                        <p class="font-semibold">Blue 900 - Background</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-4">
+                                    <div class="w-20 h-20 rounded-lg bg-amber-300"></div>
+                                    <div>
+                                        <p class="font-mono text-sm text-gray-600">#FCD34D</p>
+                                        <p class="font-semibold">Amber 300 - Icon</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                                <p class="text-sm font-semibold text-green-800">✓ Contrast Ratio: 9.1:1 (WCAG AAA)</p>
+                                <p class="text-xs text-green-700 mt-1">Maximum accessibility</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Option 4: Gradient Background -->
+            <div class="mb-12 bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div class="gradient-purple-amber text-white px-8 py-6">
+                    <h3 class="text-2xl font-bold mb-2">Option 4: Gradient Background</h3>
+                    <p class="text-purple-100">Premium Feel</p>
+                </div>
+                <div class="p-8">
+                    <div class="grid md:grid-cols-3 gap-8">
+                        <div class="text-center">
+                            <div class="w-48 h-48 mx-auto rounded-3xl flex items-center justify-center gradient-purple-amber">
+                                <svg class="w-32 h-32" viewBox="0 0 200 200" fill="none" style="filter: drop-shadow(0 0 20px rgba(254, 215, 170, 0.8));">
+                                    <path d="M60 80 L60 170 L90 170 L90 100 L80 80 L90 60 L100 80 L110 60 L120 80 L140 60 L130 80 L140 100 L140 170 L170 170 L170 80 Q170 40 140 40 Q110 40 100 50 Q90 40 60 40 Q30 40 30 80 L60 80 Z M70 100 L70 110 M70 140 L70 150" 
+                                          stroke="#fed7aa" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <circle cx="73" cy="85" r="8" fill="#fed7aa"/>
+                                    <circle cx="73" cy="130" r="5" fill="#fed7aa"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="col-span-2">
+                            <div class="space-y-3">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-20 h-20 rounded-lg gradient-purple-amber"></div>
+                                    <div>
+                                        <p class="font-mono text-sm text-gray-600">#7C3AED → #F59E0B</p>
+                                        <p class="font-semibold">Purple to Amber Gradient</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-4">
+                                    <div class="w-20 h-20 rounded-lg bg-orange-200"></div>
+                                    <div>
+                                        <p class="font-mono text-sm text-gray-600">#FED7AA</p>
+                                        <p class="font-semibold">Orange 200 - Icon</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="mt-4 text-sm text-gray-600">Premium aesthetic matching website gradient</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Typography -->
+        <section class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 text-gray-900">Typography</h2>
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <div class="space-y-8">
+                    <div>
+                        <p class="text-sm text-gray-500 mb-2">Headings</p>
+                        <h1 class="text-5xl font-bold text-gray-900">Inter Bold</h1>
+                        <p class="text-sm text-gray-600 mt-2">Modern, highly legible, optimized for screens</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500 mb-2">Body Text</p>
+                        <p class="text-xl text-gray-700">Inter Regular - Clear and comfortable for extended reading, especially important for users experiencing pain.</p>
+                    </div>
+                    <div class="grid md:grid-cols-3 gap-6">
+                        <div>
+                            <p class="text-4xl font-bold text-gray-900">Aa</p>
+                            <p class="text-sm text-gray-600">Large Text</p>
+                            <p class="text-xs text-gray-500">24px+ / 1.5rem+</p>
+                        </div>
+                        <div>
+                            <p class="text-2xl font-semibold text-gray-900">Aa</p>
+                            <p class="text-sm text-gray-600">Regular Text</p>
+                            <p class="text-xs text-gray-500">16px / 1rem</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-700">Aa</p>
+                            <p class="text-sm text-gray-600">Small Text</p>
+                            <p class="text-xs text-gray-500">14px / 0.875rem</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Brand Attributes -->
+        <section class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 text-gray-900">Brand Attributes</h2>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="bg-purple-50 border-2 border-purple-200 rounded-xl p-6">
+                    <h3 class="text-xl font-bold text-purple-900 mb-4">Personality</h3>
+                    <ul class="space-y-2 text-purple-800">
+                        <li class="flex items-center gap-2">
+                            <span class="w-2 h-2 bg-purple-600 rounded-full"></span>
+                            Supportive & Empathetic
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <span class="w-2 h-2 bg-purple-600 rounded-full"></span>
+                            Clear & Direct
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <span class="w-2 h-2 bg-purple-600 rounded-full"></span>
+                            Trustworthy & Professional
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <span class="w-2 h-2 bg-purple-600 rounded-full"></span>
+                            Focused on User Control
+                        </li>
+                    </ul>
+                </div>
+                <div class="bg-amber-50 border-2 border-amber-200 rounded-xl p-6">
+                    <h3 class="text-xl font-bold text-amber-900 mb-4">Design Principles</h3>
+                    <ul class="space-y-2 text-amber-800">
+                        <li class="flex items-center gap-2">
+                            <span class="w-2 h-2 bg-amber-600 rounded-full"></span>
+                            Simplicity First
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <span class="w-2 h-2 bg-amber-600 rounded-full"></span>
+                            High Accessibility
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <span class="w-2 h-2 bg-amber-600 rounded-full"></span>
+                            Clear Visual Hierarchy
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <span class="w-2 h-2 bg-amber-600 rounded-full"></span>
+                            Minimal Friction
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Color Palette Reference -->
+        <section class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 text-gray-900">Full Color Palette</h2>
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <div class="grid md:grid-cols-2 gap-12">
+                    <!-- Purple Scale -->
+                    <div>
+                        <h3 class="font-bold text-lg mb-4">Purple (Primary Brand)</h3>
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-3">
+                                <div class="w-16 h-12 rounded bg-purple-50"></div>
+                                <span class="font-mono text-sm text-gray-600">purple-50</span>
+                                <span class="text-xs text-gray-500">#FAF5FF</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="w-16 h-12 rounded bg-purple-100"></div>
+                                <span class="font-mono text-sm text-gray-600">purple-100</span>
+                                <span class="text-xs text-gray-500">#F3E8FF</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="w-16 h-12 rounded bg-purple-400"></div>
+                                <span class="font-mono text-sm text-gray-600">purple-400</span>
+                                <span class="text-xs text-gray-500">#C084FC</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="w-16 h-12 rounded bg-purple-600"></div>
+                                <span class="font-mono text-sm text-gray-600">purple-600</span>
+                                <span class="text-xs text-gray-500">#9333EA</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="w-16 h-12 rounded bg-purple-900 border border-gray-200"></div>
+                                <span class="font-mono text-sm text-gray-600">purple-900</span>
+                                <span class="text-xs text-gray-500">#4C1D95</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Amber Scale -->
+                    <div>
+                        <h3 class="font-bold text-lg mb-4">Amber (Alert/Warning)</h3>
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-3">
+                                <div class="w-16 h-12 rounded bg-amber-100"></div>
+                                <span class="font-mono text-sm text-gray-600">amber-100</span>
+                                <span class="text-xs text-gray-500">#FEF3C7</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="w-16 h-12 rounded bg-amber-200"></div>
+                                <span class="font-mono text-sm text-gray-600">amber-200</span>
+                                <span class="text-xs text-gray-500">#FDE68A</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="w-16 h-12 rounded bg-amber-400"></div>
+                                <span class="font-mono text-sm text-gray-600">amber-400</span>
+                                <span class="text-xs text-gray-500">#FBBF24</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="w-16 h-12 rounded bg-amber-500"></div>
+                                <span class="font-mono text-sm text-gray-600">amber-500</span>
+                                <span class="text-xs text-gray-500">#F59E0B</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="w-16 h-12 rounded bg-amber-700"></div>
+                                <span class="font-mono text-sm text-gray-600">amber-700</span>
+                                <span class="text-xs text-gray-500">#B45309</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Icon Variations -->
+        <section class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 text-gray-900">Icon Variations</h2>
+            <div class="grid md:grid-cols-3 gap-6">
+                <!-- Standard -->
+                <div class="bg-white rounded-xl shadow-lg p-6 text-center">
+                    <div class="w-32 h-32 mx-auto rounded-2xl flex items-center justify-center" style="background: #4c1d95;">
+                        <svg class="w-20 h-20" viewBox="0 0 200 200" fill="none">
+                            <path d="M60 80 L60 170 L90 170 L90 100 L80 80 L90 60 L100 80 L110 60 L120 80 L140 60 L130 80 L140 100 L140 170 L170 170 L170 80 Q170 40 140 40 Q110 40 100 50 Q90 40 60 40 Q30 40 30 80 L60 80 Z M70 100 L70 110 M70 140 L70 150" 
+                                  stroke="#fbbf24" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+                            <circle cx="73" cy="85" r="8" fill="#fbbf24"/>
+                            <circle cx="73" cy="130" r="5" fill="#fbbf24"/>
+                        </svg>
+                    </div>
+                    <p class="mt-4 font-semibold">Standard</p>
+                    <p class="text-sm text-gray-500">App icon</p>
+                </div>
+
+                <!-- With Glow -->
+                <div class="bg-white rounded-xl shadow-lg p-6 text-center">
+                    <div class="w-32 h-32 mx-auto rounded-2xl flex items-center justify-center" style="background: #4c1d95;">
+                        <svg class="w-20 h-20 glow-amber" viewBox="0 0 200 200" fill="none">
+                            <path d="M60 80 L60 170 L90 170 L90 100 L80 80 L90 60 L100 80 L110 60 L120 80 L140 60 L130 80 L140 100 L140 170 L170 170 L170 80 Q170 40 140 40 Q110 40 100 50 Q90 40 60 40 Q30 40 30 80 L60 80 Z M70 100 L70 110 M70 140 L70 150" 
+                                  stroke="#fbbf24" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+                            <circle cx="73" cy="85" r="8" fill="#fbbf24"/>
+                            <circle cx="73" cy="130" r="5" fill="#fbbf24"/>
+                        </svg>
+                    </div>
+                    <p class="mt-4 font-semibold">With Glow</p>
+                    <p class="text-sm text-gray-500">Notification badge</p>
+                </div>
+
+                <!-- Monochrome -->
+                <div class="bg-white rounded-xl shadow-lg p-6 text-center">
+                    <div class="w-32 h-32 mx-auto rounded-2xl bg-white border-2 border-gray-200 flex items-center justify-center">
+                        <svg class="w-20 h-20" viewBox="0 0 200 200" fill="none">
+                            <path d="M60 80 L60 170 L90 170 L90 100 L80 80 L90 60 L100 80 L110 60 L120 80 L140 60 L130 80 L140 100 L140 170 L170 170 L170 80 Q170 40 140 40 Q110 40 100 50 Q90 40 60 40 Q30 40 30 80 L60 80 Z M70 100 L70 110 M70 140 L70 150" 
+                                  stroke="#111827" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+                            <circle cx="73" cy="85" r="8" fill="#111827"/>
+                            <circle cx="73" cy="130" r="5" fill="#111827"/>
+                        </svg>
+                    </div>
+                    <p class="mt-4 font-semibold">Monochrome</p>
+                    <p class="text-sm text-gray-500">Marketing materials</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Usage Guidelines -->
+        <section class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 text-gray-900">Usage Guidelines</h2>
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Do's -->
+                <div class="bg-green-50 border-2 border-green-200 rounded-xl p-6">
+                    <h3 class="text-xl font-bold text-green-900 mb-4 flex items-center gap-2">
+                        <span class="text-2xl">✓</span> Do
+                    </h3>
+                    <ul class="space-y-3 text-green-800">
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-600 font-bold">•</span>
+                            <span>Use purple as primary brand color</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-600 font-bold">•</span>
+                            <span>Use amber for alerts and important actions</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-600 font-bold">•</span>
+                            <span>Maintain high contrast for accessibility</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-600 font-bold">•</span>
+                            <span>Keep designs simple and uncluttered</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-600 font-bold">•</span>
+                            <span>Use gradients subtly for premium feel</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Don'ts -->
+                <div class="bg-red-50 border-2 border-red-200 rounded-xl p-6">
+                    <h3 class="text-xl font-bold text-red-900 mb-4 flex items-center gap-2">
+                        <span class="text-2xl">✗</span> Don't
+                    </h3>
+                    <ul class="space-y-3 text-red-800">
+                        <li class="flex items-start gap-2">
+                            <span class="text-red-600 font-bold">•</span>
+                            <span>Use low contrast color combinations</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-red-600 font-bold">•</span>
+                            <span>Add visual complexity or clutter</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-red-600 font-bold">•</span>
+                            <span>Use bright red (too alarming for pain tracking)</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-red-600 font-bold">•</span>
+                            <span>Distort or modify the icon shape</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-red-600 font-bold">•</span>
+                            <span>Use small text sizes (min 14px)</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="text-center py-8 border-t border-gray-200">
+            <p class="text-gray-600">MigraLog Brand Guidelines v1.0</p>
+            <p class="text-sm text-gray-500 mt-2">Last updated: October 2024</p>
+        </footer>
+    </div>
+</body>
+</html>

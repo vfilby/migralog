@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MigraLog Branding Guidelines</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'migralog-navy': '#152233',
+                        'migralog-navy-light': '#2A3D54',
+                        'migralog-navy-lighter': '#3F5875',
+                        'migralog-orange': '#FF552A',
+                        'migralog-orange-hover': '#E64D26',
+                        'migralog-orange-light': '#FF7055',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @media print {
+            .no-print { display: none; }
+            body { background: white; }
+        }
+
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
+        .swatch-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <div class="bg-gradient-to-br from-migralog-navy to-migralog-navy-light text-white py-12 no-print">
+        <div class="container mx-auto px-6">
+            <h1 class="text-5xl font-bold mb-4">MigraLog</h1>
+            <h2 class="text-3xl font-semibold mb-2">Brand Guidelines</h2>
+            <p class="text-xl text-gray-100">Official color palette and design system</p>
+        </div>
+    </div>
+
+    <div class="container mx-auto px-6 py-12 max-w-6xl">
+        <!-- Table of Contents -->
+        <div class="bg-white rounded-lg shadow-lg p-8 mb-8 no-print">
+            <h2 class="text-2xl font-bold mb-4 text-gray-900">Table of Contents</h2>
+            <nav class="grid md:grid-cols-2 gap-3">
+                <a href="#overview" class="text-migralog-orange hover:underline">1. Brand Overview</a>
+                <a href="#colors" class="text-migralog-orange hover:underline">2. Color Palette</a>
+                <a href="#typography" class="text-migralog-orange hover:underline">3. Typography</a>
+                <a href="#buttons" class="text-migralog-orange hover:underline">4. Buttons</a>
+                <a href="#components" class="text-migralog-orange hover:underline">5. UI Components</a>
+                <a href="#icons" class="text-migralog-orange hover:underline">6. Icons & Graphics</a>
+                <a href="#darkmode" class="text-migralog-orange hover:underline">7. Dark Mode</a>
+                <a href="#accessibility" class="text-migralog-orange hover:underline">8. Accessibility</a>
+            </nav>
+        </div>
+
+        <!-- 1. Brand Overview -->
+        <section id="overview" class="bg-white rounded-lg shadow-lg p-8 mb-8">
+            <h2 class="text-3xl font-bold mb-6 text-migralog-navy">1. Brand Overview</h2>
+
+            <div class="mb-6">
+                <h3 class="text-xl font-semibold mb-3 text-gray-900">Brand Essence</h3>
+                <p class="text-gray-700 mb-4">
+                    MigraLog is a simple, empowering tool for migraine sufferers to understand their pain today
+                    and improve tomorrow. Our brand conveys trust, calm, and optimism.
+                </p>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="border-l-4 border-migralog-navy pl-4">
+                        <h4 class="font-semibold text-migralog-navy mb-2">Navy (#152233)</h4>
+                        <ul class="text-sm text-gray-600 space-y-1">
+                            <li>• Trust and stability</li>
+                            <li>• Medical professionalism</li>
+                            <li>• Calming for anxiety</li>
+                            <li>• Gentle on sensitive eyes</li>
+                        </ul>
+                    </div>
+                    <div class="border-l-4 border-migralog-orange pl-4">
+                        <h4 class="font-semibold text-migralog-orange mb-2">Orange (#FF552A)</h4>
+                        <ul class="text-sm text-gray-600 space-y-1">
+                            <li>• Energy and warmth</li>
+                            <li>• Optimism and action</li>
+                            <li>• Forward-looking</li>
+                            <li>• Encouraging without stress</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <h4 class="font-semibold text-blue-900 mb-2">Why Navy & Orange?</h4>
+                <p class="text-blue-800 text-sm">
+                    Our color scheme was carefully chosen to align with our logo while serving migraine sufferers.
+                    Navy provides calm and trust without the harshness of bright colors, while orange offers
+                    warmth and optimism without being overwhelming during episodes.
+                </p>
+            </div>
+        </section>
+
+        <!-- 2. Color Palette -->
+        <section id="colors" class="bg-white rounded-lg shadow-lg p-8 mb-8">
+            <h2 class="text-3xl font-bold mb-6 text-migralog-navy">2. Color Palette</h2>
+
+            <!-- Primary Colors -->
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold mb-4 text-gray-900">Primary Brand Colors</h3>
+                <div class="swatch-grid">
+                    <!-- Navy -->
+                    <div>
+                        <div class="h-32 bg-migralog-navy rounded-lg shadow-lg mb-3"></div>
+                        <h4 class="font-bold text-gray-900 mb-1">MigraLog Navy</h4>
+                        <div class="text-sm text-gray-600 space-y-1">
+                            <p class="font-mono">#152233</p>
+                            <p>RGB: 21, 34, 51</p>
+                            <p>HSL: 210°, 58%, 14%</p>
+                        </div>
+                        <div class="mt-3 text-xs text-gray-500">
+                            <p><strong>Usage:</strong> Backgrounds, headings, primary text, hero sections</p>
+                        </div>
+                    </div>
+
+                    <!-- Orange -->
+                    <div>
+                        <div class="h-32 bg-migralog-orange rounded-lg shadow-lg mb-3"></div>
+                        <h4 class="font-bold text-gray-900 mb-1">MigraLog Orange</h4>
+                        <div class="text-sm text-gray-600 space-y-1">
+                            <p class="font-mono">#FF552A</p>
+                            <p>RGB: 255, 85, 42</p>
+                            <p>HSL: 12°, 100%, 58%</p>
+                        </div>
+                        <div class="mt-3 text-xs text-gray-500">
+                            <p><strong>Usage:</strong> CTAs, buttons, icons, accents, links</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Color Variants -->
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold mb-4 text-gray-900">Color Variants</h3>
+                <div class="grid md:grid-cols-2 gap-8">
+                    <!-- Navy Variants -->
+                    <div>
+                        <h4 class="font-semibold text-gray-800 mb-3">Navy Variants</h4>
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-3">
+                                <div class="w-16 h-16 bg-migralog-navy rounded shadow"></div>
+                                <div class="text-sm">
+                                    <p class="font-mono font-semibold">#152233</p>
+                                    <p class="text-gray-600">Primary Navy</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="w-16 h-16 bg-migralog-navy-light rounded shadow"></div>
+                                <div class="text-sm">
+                                    <p class="font-mono font-semibold">#2A3D54</p>
+                                    <p class="text-gray-600">Navy Light (gradients)</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="w-16 h-16 bg-migralog-navy-lighter rounded shadow"></div>
+                                <div class="text-sm">
+                                    <p class="font-mono font-semibold">#3F5875</p>
+                                    <p class="text-gray-600">Navy Lighter (hover states)</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Orange Variants -->
+                    <div>
+                        <h4 class="font-semibold text-gray-800 mb-3">Orange Variants</h4>
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-3">
+                                <div class="w-16 h-16 bg-migralog-orange rounded shadow"></div>
+                                <div class="text-sm">
+                                    <p class="font-mono font-semibold">#FF552A</p>
+                                    <p class="text-gray-600">Primary Orange</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="w-16 h-16 bg-migralog-orange-hover rounded shadow"></div>
+                                <div class="text-sm">
+                                    <p class="font-mono font-semibold">#E64D26</p>
+                                    <p class="text-gray-600">Orange Hover</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="w-16 h-16 bg-migralog-orange-light rounded shadow"></div>
+                                <div class="text-sm">
+                                    <p class="font-mono font-semibold">#FF7055</p>
+                                    <p class="text-gray-600">Orange Light (dark mode)</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Neutral Colors -->
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold mb-4 text-gray-900">Neutral Colors</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                        <div class="h-20 bg-white border-2 border-gray-200 rounded shadow-sm mb-2"></div>
+                        <p class="font-mono text-sm">#FFFFFF</p>
+                        <p class="text-xs text-gray-600">White</p>
+                    </div>
+                    <div>
+                        <div class="h-20 bg-gray-50 rounded shadow-sm mb-2"></div>
+                        <p class="font-mono text-sm">#F8F9FA</p>
+                        <p class="text-xs text-gray-600">Gray 50</p>
+                    </div>
+                    <div>
+                        <div class="h-20 bg-gray-600 rounded shadow-sm mb-2"></div>
+                        <p class="font-mono text-sm">#6C757D</p>
+                        <p class="text-xs text-gray-600">Gray 600</p>
+                    </div>
+                    <div>
+                        <div class="h-20 bg-gray-900 rounded shadow-sm mb-2"></div>
+                        <p class="font-mono text-sm">#343A40</p>
+                        <p class="text-xs text-gray-600">Gray 900</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CSS/Code Examples -->
+            <div>
+                <h3 class="text-xl font-semibold mb-4 text-gray-900">CSS Variables</h3>
+                <div class="code-block">
+:root {
+  /* Primary Brand Colors */
+  --migralog-navy: #152233;
+  --migralog-navy-light: #2A3D54;
+  --migralog-navy-lighter: #3F5875;
+
+  --migralog-orange: #FF552A;
+  --migralog-orange-hover: #E64D26;
+  --migralog-orange-light: #FF7055;
+
+  /* Neutral Colors */
+  --color-white: #FFFFFF;
+  --color-gray-50: #F8F9FA;
+  --color-gray-600: #6C757D;
+  --color-gray-900: #343A40;
+}</div>
+            </div>
+        </section>
+
+        <!-- 3. Typography -->
+        <section id="typography" class="bg-white rounded-lg shadow-lg p-8 mb-8">
+            <h2 class="text-3xl font-bold mb-6 text-migralog-navy">3. Typography</h2>
+
+            <div class="mb-6">
+                <h3 class="text-xl font-semibold mb-4 text-gray-900">Font Family</h3>
+                <p class="text-gray-700 mb-4">
+                    MigraLog uses <strong>Inter</strong> as its primary typeface for both web and mobile applications.
+                </p>
+                <div class="code-block mb-4">
+font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;</div>
+            </div>
+
+            <div class="mb-6">
+                <h3 class="text-xl font-semibold mb-4 text-gray-900">Type Scale</h3>
+                <div class="space-y-4">
+                    <div>
+                        <h1 class="text-6xl font-bold text-migralog-navy mb-2">Heading 1</h1>
+                        <p class="text-sm text-gray-600">60px / 3.75rem · Bold · -0.02em tracking</p>
+                    </div>
+                    <div>
+                        <h2 class="text-4xl font-semibold text-migralog-navy mb-2">Heading 2</h2>
+                        <p class="text-sm text-gray-600">40px / 2.5rem · Semibold · -0.01em tracking</p>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-medium text-migralog-navy mb-2">Heading 3</h3>
+                        <p class="text-sm text-gray-600">24px / 1.5rem · Medium</p>
+                    </div>
+                    <div>
+                        <p class="text-lg text-gray-700 mb-2">Body Large - The quick brown fox jumps over the lazy dog.</p>
+                        <p class="text-sm text-gray-600">18px / 1.125rem · Regular · 1.625 line height</p>
+                    </div>
+                    <div>
+                        <p class="text-base text-gray-700 mb-2">Body Regular - The quick brown fox jumps over the lazy dog.</p>
+                        <p class="text-sm text-gray-600">16px / 1rem · Regular · 1.5 line height</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 mb-2">Body Small - The quick brown fox jumps over the lazy dog.</p>
+                        <p class="text-sm text-gray-600">14px / 0.875rem · Regular · 1.5 line height</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-orange-50 border border-orange-200 rounded-lg p-6">
+                <h4 class="font-semibold text-migralog-navy mb-2">Typography Guidelines</h4>
+                <ul class="text-sm text-gray-700 space-y-2">
+                    <li>• Use Navy (#152233) for all headings</li>
+                    <li>• Use Gray 900 (#343A40) for body text</li>
+                    <li>• Use Gray 600 (#6C757D) for secondary text</li>
+                    <li>• Maintain 1.5 line height for body text (1.625 for large text)</li>
+                    <li>• Keep line length between 50-75 characters for readability</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 4. Buttons -->
+        <section id="buttons" class="bg-white rounded-lg shadow-lg p-8 mb-8">
+            <h2 class="text-3xl font-bold mb-6 text-migralog-navy">4. Buttons</h2>
+
+            <div class="space-y-8">
+                <!-- Primary Button -->
+                <div>
+                    <h3 class="text-lg font-semibold mb-4 text-gray-900">Primary Buttons</h3>
+                    <div class="flex flex-wrap gap-4 mb-4">
+                        <button class="bg-migralog-orange hover:bg-migralog-orange-hover text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-lg transition">
+                            Primary Button
+                        </button>
+                        <button class="bg-migralog-orange hover:bg-migralog-orange-hover text-white px-6 py-3 rounded-lg font-semibold shadow-lg transition">
+                            Medium
+                        </button>
+                        <button class="bg-migralog-orange hover:bg-migralog-orange-hover text-white px-4 py-2 rounded-lg font-semibold text-sm shadow transition">
+                            Small
+                        </button>
+                    </div>
+                    <div class="code-block">
+/* Primary Button */
+background: #FF552A;
+color: #FFFFFF;
+padding: 1rem 2rem;
+border-radius: 0.5rem;
+font-weight: 600;
+transition: all 0.2s ease;
+
+/* Hover */
+background: #E64D26;
+transform: translateY(-2px);
+box-shadow: 0 10px 20px rgba(255, 85, 42, 0.3);</div>
+                </div>
+
+                <!-- Secondary Button -->
+                <div>
+                    <h3 class="text-lg font-semibold mb-4 text-gray-900">Secondary Buttons</h3>
+                    <div class="flex flex-wrap gap-4 mb-4">
+                        <button class="border-2 border-migralog-orange text-migralog-orange hover:bg-migralog-orange hover:text-white px-8 py-4 rounded-lg font-semibold text-lg transition">
+                            Secondary Button
+                        </button>
+                        <button class="border-2 border-migralog-orange text-migralog-orange hover:bg-migralog-orange hover:text-white px-6 py-3 rounded-lg font-semibold transition">
+                            Medium
+                        </button>
+                        <button class="border-2 border-migralog-orange text-migralog-orange hover:bg-migralog-orange hover:text-white px-4 py-2 rounded-lg font-semibold text-sm transition">
+                            Small
+                        </button>
+                    </div>
+                    <div class="code-block">
+/* Secondary Button */
+background: transparent;
+border: 2px solid #FF552A;
+color: #FF552A;
+padding: 1rem 2rem;
+border-radius: 0.5rem;
+font-weight: 600;
+transition: all 0.2s ease;
+
+/* Hover */
+background: #FF552A;
+color: #FFFFFF;</div>
+                </div>
+
+                <!-- Tertiary Button -->
+                <div>
+                    <h3 class="text-lg font-semibold mb-4 text-gray-900">Tertiary Buttons</h3>
+                    <div class="flex flex-wrap gap-4 mb-4">
+                        <button class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-8 py-4 rounded-lg font-semibold text-lg transition">
+                            Tertiary Button
+                        </button>
+                        <button class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold transition">
+                            Medium
+                        </button>
+                        <button class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold text-sm transition">
+                            Small
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Button States -->
+                <div>
+                    <h3 class="text-lg font-semibold mb-4 text-gray-900">Button States</h3>
+                    <div class="flex flex-wrap gap-4">
+                        <button class="bg-migralog-orange text-white px-6 py-3 rounded-lg font-semibold">
+                            Normal
+                        </button>
+                        <button class="bg-migralog-orange-hover text-white px-6 py-3 rounded-lg font-semibold shadow-lg">
+                            Hover
+                        </button>
+                        <button class="bg-migralog-orange text-white px-6 py-3 rounded-lg font-semibold ring-2 ring-migralog-orange ring-offset-2">
+                            Focus
+                        </button>
+                        <button class="bg-migralog-orange text-white px-6 py-3 rounded-lg font-semibold opacity-50 cursor-not-allowed" disabled>
+                            Disabled
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. UI Components -->
+        <section id="components" class="bg-white rounded-lg shadow-lg p-8 mb-8">
+            <h2 class="text-3xl font-bold mb-6 text-migralog-navy">5. UI Components</h2>
+
+            <!-- Cards -->
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold mb-4 text-gray-900">Feature Cards</h3>
+                <div class="grid md:grid-cols-2 gap-6 mb-4">
+                    <div class="bg-white border border-gray-200 p-6 rounded-xl shadow-sm">
+                        <div class="w-16 h-16 bg-orange-50 rounded-lg flex items-center justify-center mb-4">
+                            <svg class="w-8 h-8 text-migralog-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <h4 class="text-xl font-bold mb-2 text-migralog-navy">Track Episodes</h4>
+                        <p class="text-gray-600 mb-3">Monitor ongoing episodes with timeline view and detailed tracking.</p>
+                        <p class="text-migralog-orange font-semibold text-sm">See recent episodes →</p>
+                    </div>
+
+                    <div class="bg-white border border-gray-200 p-6 rounded-xl shadow-sm">
+                        <div class="w-16 h-16 bg-orange-50 rounded-lg flex items-center justify-center mb-4">
+                            <svg class="w-8 h-8 text-migralog-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                            </svg>
+                        </div>
+                        <h4 class="text-xl font-bold mb-2 text-migralog-navy">Analytics</h4>
+                        <p class="text-gray-600 mb-3">View trends and patterns in your migraine data over time.</p>
+                        <p class="text-migralog-orange font-semibold text-sm">View insights →</p>
+                    </div>
+                </div>
+                <div class="code-block">
+/* Feature Card */
+.feature-card {
+  background: #FFFFFF;
+  border: 1px solid #E9ECEF;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(44, 62, 80, 0.08);
+}
+
+/* Icon Container */
+.icon-container {
+  width: 4rem;
+  height: 4rem;
+  background: #FFF8F0; /* Orange 50 */
+  border-radius: 8px;
+}
+
+.icon {
+  color: #FF552A; /* Orange */
+}</div>
+            </div>
+
+            <!-- Form Inputs -->
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold mb-4 text-gray-900">Form Inputs</h3>
+                <div class="space-y-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-900 mb-2">Text Input</label>
+                        <input type="text" placeholder="Enter text..." class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-migralog-orange">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-900 mb-2">Email Input (Focused)</label>
+                        <input type="email" placeholder="your.email@example.com" class="w-full px-4 py-3 rounded-lg border border-gray-300 ring-2 ring-migralog-orange">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-900 mb-2">Textarea</label>
+                        <textarea rows="3" placeholder="Enter your message..." class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-migralog-orange resize-vertical"></textarea>
+                    </div>
+                </div>
+                <div class="code-block">
+/* Form Input */
+input, textarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #DEE2E6;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+/* Focus State */
+input:focus, textarea:focus {
+  outline: none;
+  border-color: #FF552A;
+  box-shadow: 0 0 0 3px rgba(255, 85, 42, 0.1);
+}</div>
+            </div>
+
+            <!-- List Items with Checkmarks -->
+            <div>
+                <h3 class="text-xl font-semibold mb-4 text-gray-900">List Items</h3>
+                <ul class="space-y-3 mb-4">
+                    <li class="flex items-start">
+                        <svg class="w-6 h-6 text-migralog-orange mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        <span class="text-gray-700">Smart autocomplete for common migraine medications</span>
+                    </li>
+                    <li class="flex items-start">
+                        <svg class="w-6 h-6 text-migralog-orange mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        <span class="text-gray-700">Reminder notifications for scheduled medications</span>
+                    </li>
+                    <li class="flex items-start">
+                        <svg class="w-6 h-6 text-migralog-orange mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        <span class="text-gray-700">Track doses and timing for next dose reminders</span>
+                    </li>
+                </ul>
+                <div class="code-block">
+/* List Item with Checkmark */
+.list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.checkmark-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: #FF552A;
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}</div>
+            </div>
+        </section>
+
+        <!-- 6. Icons & Graphics -->
+        <section id="icons" class="bg-white rounded-lg shadow-lg p-8 mb-8">
+            <h2 class="text-3xl font-bold mb-6 text-migralog-navy">6. Icons & Graphics</h2>
+
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold mb-4 text-gray-900">Icon Backgrounds</h3>
+                <div class="flex flex-wrap gap-6 mb-4">
+                    <!-- Light background -->
+                    <div class="text-center">
+                        <div class="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mb-2">
+                            <svg class="w-10 h-10 text-migralog-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                            </svg>
+                        </div>
+                        <p class="text-sm text-gray-600">Light Mode</p>
+                    </div>
+
+                    <!-- Solid background -->
+                    <div class="text-center">
+                        <div class="w-20 h-20 bg-migralog-orange rounded-full flex items-center justify-center mb-2">
+                            <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                            </svg>
+                        </div>
+                        <p class="text-sm text-gray-600">Dark Mode</p>
+                    </div>
+
+                    <!-- Navy background with orange icon -->
+                    <div class="text-center">
+                        <div class="w-20 h-20 bg-migralog-navy rounded-full flex items-center justify-center mb-2">
+                            <svg class="w-10 h-10 text-migralog-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                            </svg>
+                        </div>
+                        <p class="text-sm text-gray-600">Alternate</p>
+                    </div>
+
+                    <!-- Square variant -->
+                    <div class="text-center">
+                        <div class="w-20 h-20 bg-orange-50 rounded-lg flex items-center justify-center mb-2">
+                            <svg class="w-10 h-10 text-migralog-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <p class="text-sm text-gray-600">Square</p>
+                    </div>
+                </div>
+
+                <div class="code-block">
+/* Light Icon Background */
+.icon-bg-light {
+  background: #FFF8F0; /* Orange 50 */
+  border-radius: 50%;
+}
+.icon-light {
+  color: #FF552A;
+}
+
+/* Dark Mode Icon Background */
+.icon-bg-dark {
+  background: #FF552A;
+  border-radius: 50%;
+}
+.icon-dark {
+  color: #FFFFFF;
+}</div>
+            </div>
+
+            <div class="bg-orange-50 border border-orange-200 rounded-lg p-6">
+                <h4 class="font-semibold text-migralog-navy mb-2">Icon Guidelines</h4>
+                <ul class="text-sm text-gray-700 space-y-2">
+                    <li>• Use orange (#FF552A) for all primary icons</li>
+                    <li>• Icon backgrounds: Orange-50 for light mode, solid orange for dark mode</li>
+                    <li>• Maintain 2px stroke width for consistency</li>
+                    <li>• Icons should be 24px × 24px or 40px × 40px</li>
+                    <li>• Icon backgrounds: 64px × 64px (circular or 8px border radius)</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 7. Dark Mode -->
+        <section id="darkmode" class="bg-white rounded-lg shadow-lg p-8 mb-8">
+            <h2 class="text-3xl font-bold mb-6 text-migralog-navy">7. Dark Mode</h2>
+
+            <div class="mb-6">
+                <h3 class="text-xl font-semibold mb-4 text-gray-900">Dark Mode Palette</h3>
+                <p class="text-gray-700 mb-6">
+                    Dark mode is crucial for migraine sufferers experiencing photophobia. Our dark mode uses
+                    deeper navy tones and lighter orange variants for optimal readability.
+                </p>
+
+                <div class="grid md:grid-cols-2 gap-6">
+                    <!-- Light Mode -->
+                    <div class="border-2 border-gray-200 rounded-lg p-6 bg-white">
+                        <h4 class="font-semibold text-gray-900 mb-4">Light Mode</h4>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm">Background</span>
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-white border-2 border-gray-200 rounded"></div>
+                                    <span class="font-mono text-xs">#FFFFFF</span>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm">Hero/CTA</span>
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-migralog-navy rounded"></div>
+                                    <span class="font-mono text-xs">#152233</span>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm">Primary</span>
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-migralog-orange rounded"></div>
+                                    <span class="font-mono text-xs">#FF552A</span>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm">Text</span>
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-gray-900 rounded"></div>
+                                    <span class="font-mono text-xs">#343A40</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dark Mode -->
+                    <div class="border-2 border-gray-700 rounded-lg p-6 bg-gray-900">
+                        <h4 class="font-semibold text-white mb-4">Dark Mode</h4>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-300">Background</span>
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-black border border-gray-600 rounded"></div>
+                                    <span class="font-mono text-xs text-gray-300">#000000</span>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-300">Hero/CTA</span>
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-migralog-navy rounded"></div>
+                                    <span class="font-mono text-xs text-gray-300">#152233</span>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-300">Primary</span>
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-migralog-orange-light rounded"></div>
+                                    <span class="font-mono text-xs text-gray-300">#FF7055</span>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-300">Text</span>
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-gray-50 border border-gray-600 rounded"></div>
+                                    <span class="font-mono text-xs text-gray-300">#F8F9FA</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block">
+/* Dark Mode Colors */
+:root.dark {
+  --background: #000000;
+  --background-secondary: #152233;
+  --text-primary: #F8F9FA;
+  --text-secondary: #E9ECEF;
+  --accent-primary: #FF7055;  /* Lighter orange for better visibility */
+  --accent-hover: #FF552A;
+}
+
+/* Hero Gradient - Dark Mode */
+.hero-dark {
+  background: linear-gradient(to bottom right, #152233, #000000);
+}
+
+/* Icon Background - Dark Mode */
+.icon-bg-dark {
+  background: #FF552A;
+}
+.icon-dark {
+  color: #FFFFFF;
+}</div>
+        </section>
+
+        <!-- 8. Accessibility -->
+        <section id="accessibility" class="bg-white rounded-lg shadow-lg p-8 mb-8">
+            <h2 class="text-3xl font-bold mb-6 text-migralog-navy">8. Accessibility</h2>
+
+            <div class="mb-6">
+                <h3 class="text-xl font-semibold mb-4 text-gray-900">WCAG Compliance</h3>
+                <p class="text-gray-700 mb-6">
+                    All MigraLog color combinations meet or exceed WCAG 2.1 AA standards for accessibility.
+                </p>
+
+                <div class="grid md:grid-cols-2 gap-6 mb-6">
+                    <div class="border-2 border-green-500 rounded-lg p-6 bg-green-50">
+                        <h4 class="font-semibold text-green-900 mb-3">✓ AAA Rated</h4>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span>Navy on White</span>
+                                <span class="font-bold">16.0:1</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>White on Navy</span>
+                                <span class="font-bold">16.0:1</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border-2 border-blue-500 rounded-lg p-6 bg-blue-50">
+                        <h4 class="font-semibold text-blue-900 mb-3">✓ AA Rated</h4>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span>Orange on Navy</span>
+                                <span class="font-bold">5.0:1</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Orange on White</span>
+                                <span class="font-bold">3.2:1</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <h3 class="text-xl font-semibold mb-4 text-gray-900">Focus States</h3>
+                <div class="space-y-4 mb-4">
+                    <button class="bg-migralog-orange text-white px-6 py-3 rounded-lg font-semibold ring-2 ring-migralog-orange ring-offset-4">
+                        Focused Button
+                    </button>
+                    <input type="text" value="Focused Input" class="w-full px-4 py-3 rounded-lg border border-gray-300 ring-2 ring-migralog-orange ring-offset-2">
+                </div>
+                <div class="code-block">
+/* Focus States */
+*:focus-visible {
+  outline: 3px solid #FF552A;
+  outline-offset: 2px;
+}
+
+/* Form Input Focus */
+input:focus {
+  outline: none;
+  border-color: #FF552A;
+  box-shadow: 0 0 0 3px rgba(255, 85, 42, 0.1);
+}</div>
+            </div>
+
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <h4 class="font-semibold text-blue-900 mb-2">Accessibility Guidelines</h4>
+                <ul class="text-sm text-blue-800 space-y-2">
+                    <li>• Maintain 44px × 44px minimum touch target size</li>
+                    <li>• Use orange (#FF552A) for all focus indicators</li>
+                    <li>• Ensure 3px outline with 2px offset for keyboard focus</li>
+                    <li>• Orange on white requires large text (18px+) or bold (14px+)</li>
+                    <li>• Navy and white combinations are safe for all text sizes</li>
+                    <li>• Support system color preferences (prefers-reduced-motion, prefers-contrast)</li>
+                    <li>• Test with color blindness simulators (especially protanopia/deuteranopia)</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Download/Print Section -->
+        <div class="bg-gradient-to-br from-migralog-navy to-migralog-navy-light text-white rounded-lg p-8 text-center no-print">
+            <h3 class="text-2xl font-bold mb-4">Need This Guide?</h3>
+            <p class="text-gray-100 mb-6">Print this page or save it as a PDF for offline reference.</p>
+            <button onclick="window.print()" class="bg-migralog-orange hover:bg-migralog-orange-hover text-white px-8 py-4 rounded-lg font-semibold shadow-lg transition">
+                Print / Save as PDF
+            </button>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="bg-gray-900 text-white py-8 mt-12">
+        <div class="container mx-auto px-6 text-center">
+            <p class="text-lg font-semibold mb-2">MigraLog</p>
+            <p class="text-sm text-gray-400">Understand today. Improve tomorrow.</p>
+            <p class="text-xs text-gray-500 mt-4">© 2025 MigraLog. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

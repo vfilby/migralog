@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Us | MigraLog</title>
+    <meta name="description" content="Get in touch with the MigraLog team. Contact us about the migraine tracking app, beta access, or any questions.">
+    <meta name="robots" content="noindex, follow">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'migralog-navy': '#152233',
+                        'migralog-navy-light': '#2A3D54',
+                        'migralog-orange': '#FF552A',
+                        'migralog-orange-hover': '#E64D26',
+                        'migralog-orange-light': '#FF7055',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        *:focus-visible {
+            outline: 3px solid #FF552A;
+            outline-offset: 2px;
+        }
+        
+        .btn-primary {
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+    </style>
+    <script>
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark')
+        } else {
+            document.documentElement.classList.remove('dark')
+        }
+    </script>
+</head>
+<body class="bg-white dark:bg-black transition-colors duration-200">
+    <!-- Skip to main content -->
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-6 focus:py-3 focus:bg-migralog-orange focus:text-white focus:rounded-lg">
+        Skip to main content
+    </a>
+
+    <!-- Header -->
+    <header class="bg-gray-50 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex justify-between items-center">
+                <a href="index.html" class="text-2xl font-bold text-migralog-navy dark:text-migralog-orange">
+                    MigraLog
+                </a>
+                <nav>
+                    <a href="index.html" class="text-gray-600 dark:text-gray-300 hover:text-migralog-orange dark:hover:text-migralog-orange-light transition">
+                        Back to Home
+                    </a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main id="main-content" class="container mx-auto px-6 py-12 max-w-2xl">
+        <h1 class="text-4xl font-bold mb-8 text-gray-900 dark:text-white text-center">Contact Us</h1>
+        
+        <div class="bg-gray-50 dark:bg-gray-900 rounded-xl p-8 mb-8">
+            <h2 class="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Get in Touch</h2>
+            <p class="text-gray-700 dark:text-gray-300 mb-6">
+                Have questions about MigraLog? Need help with the beta program? Want to provide feedback? 
+                We'd love to hear from you. Send us a message and we'll get back to you as soon as possible.
+            </p>
+            
+            <form id="contact-form" action="https://formspree.io/f/xpwvrbdw" method="POST" class="space-y-6">
+                <input type="hidden" name="_subject" value="MigraLog Contact Form Message">
+                <input type="hidden" name="contact_type" value="General Contact">
+                
+                <div>
+                    <label for="name" class="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                        Your Name *
+                    </label>
+                    <input 
+                        type="text" 
+                        id="name" 
+                        name="name"
+                        required
+                        aria-required="true"
+                        class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-migralog-orange dark:focus:ring-migralog-orange-light"
+                        placeholder="Your name"
+                    />
+                </div>
+                
+                <div>
+                    <label for="email" class="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                        Email Address *
+                    </label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        name="email"
+                        required
+                        aria-required="true"
+                        class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-migralog-orange dark:focus:ring-migralog-orange-light"
+                        placeholder="your.email@example.com"
+                    />
+                </div>
+                
+                <div>
+                    <label for="subject" class="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                        Subject
+                    </label>
+                    <select 
+                        id="subject" 
+                        name="subject"
+                        class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-migralog-orange dark:focus:ring-migralog-orange-light"
+                    >
+                        <option value="General Question">General Question</option>
+                        <option value="Beta Access">Beta Access</option>
+                        <option value="Feedback">Feedback</option>
+                        <option value="Technical Support">Technical Support</option>
+                        <option value="Partnership">Partnership</option>
+                        <option value="Press Inquiry">Press Inquiry</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="message" class="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                        Message *
+                    </label>
+                    <textarea 
+                        id="message" 
+                        name="message"
+                        required
+                        aria-required="true"
+                        rows="6"
+                        class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400 resize-vertical"
+                        placeholder="Tell us how we can help..."
+                    ></textarea>
+                </div>
+                
+                <button
+                    type="submit"
+                    id="contact-button"
+                    class="btn-primary w-full bg-migralog-orange hover:bg-migralog-orange-hover text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <span id="button-text">Send Message</span>
+                    <span id="button-loading" class="hidden">Sending...</span>
+                </button>
+            </form>
+            
+            <div id="contact-message" class="mt-4 hidden"></div>
+            
+            <p class="mt-6 text-sm text-gray-500 dark:text-gray-400 text-center">
+                We typically respond within 24-48 hours. All fields marked with * are required.
+            </p>
+        </div>
+        
+        <div class="text-center">
+            <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Other Ways to Reach Us</h3>
+            <div class="space-y-2 text-gray-700 dark:text-gray-300">
+                <p>For urgent beta access issues: Use the contact form above with "Beta Access" subject</p>
+                <p>For privacy questions: Select "General Question" and mention privacy in your message</p>
+                <p>For press inquiries: Select "Press Inquiry" from the dropdown</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 dark:bg-black text-gray-300 dark:text-gray-400 py-8 mt-12">
+        <div class="container mx-auto px-6">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <p class="text-lg font-semibold text-white mb-2">MigraLog</p>
+                    <p class="text-sm">Understand today. Improve tomorrow.</p>
+                </div>
+                <nav class="flex gap-6">
+                    <a href="index.html" class="hover:text-white transition">Home</a>
+                    <a href="contact.html" class="hover:text-white transition">Contact</a>
+                </nav>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        document.getElementById('contact-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const form = e.target;
+            const formData = new FormData(form);
+            const messageDiv = document.getElementById('contact-message');
+            const submitButton = document.getElementById('contact-button');
+            const buttonText = document.getElementById('button-text');
+            const buttonLoading = document.getElementById('button-loading');
+            
+            // Show loading state
+            submitButton.disabled = true;
+            buttonText.classList.add('hidden');
+            buttonLoading.classList.remove('hidden');
+            messageDiv.classList.add('hidden');
+            
+            try {
+                // Submit to Formspree
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    // Success
+                    messageDiv.className = 'mt-4 p-4 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 font-semibold border-2 border-green-200 dark:border-green-600';
+                    messageDiv.setAttribute('role', 'status');
+                    messageDiv.setAttribute('aria-live', 'polite');
+                    messageDiv.textContent = '✓ Thank you for your message! We\'ll get back to you within 24-48 hours.';
+                    messageDiv.classList.remove('hidden');
+                    
+                    // Clear form
+                    form.reset();
+                } else {
+                    // Error
+                    const data = await response.json();
+                    throw new Error(data.error || 'Something went wrong');
+                }
+            } catch (error) {
+                // Show error message
+                messageDiv.className = 'mt-4 p-4 rounded-lg bg-red-50 dark:bg-red-900 text-red-700 dark:text-red-50 font-semibold border-2 border-red-200 dark:border-red-600';
+                messageDiv.setAttribute('role', 'alert');
+                messageDiv.setAttribute('aria-live', 'assertive');
+                messageDiv.textContent = '⚠ Sorry, there was an error sending your message. Please try again or contact us directly.';
+                messageDiv.classList.remove('hidden');
+                
+                console.error('Contact form submission error:', error);
+            } finally {
+                // Reset button state
+                submitButton.disabled = false;
+                buttonText.classList.remove('hidden');
+                buttonLoading.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>

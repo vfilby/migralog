@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://migralog.com/sitemap.xml
+
+# Block access to potential sensitive directories
+Disallow: /admin/
+Disallow: /private/
+Disallow: /.git/
