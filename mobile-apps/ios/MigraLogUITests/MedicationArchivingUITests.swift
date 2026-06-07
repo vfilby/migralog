@@ -158,8 +158,15 @@ final class MedicationArchivingUITests: XCTestCase {
 
         // Step 3: Restore the medication
         UITestHelpers.navigateTo(tab: .medications, in: app)
+        // Wait for the active list to finish reloading (the just-archived medication
+        // is gone) before probing the archived link. Archiving triggers an async
+        // reload, and interacting mid-reload can leave the link not yet hittable on
+        // slower CI machines.
+        let archivedActiveCard = app.buttons["medication-card-Test Topiramate"]
+        UITestHelpers.waitForElementToDisappear(archivedActiveCard, timeout: 10)
         let archivedLink = app.buttons["archived-medications-link"]
-        UITestHelpers.waitForHittable(archivedLink)
+        UITestHelpers.scrollToElement(archivedLink, in: app.collectionViews.firstMatch)
+        UITestHelpers.waitForHittable(archivedLink, timeout: 10)
         archivedLink.tap()
         Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
 

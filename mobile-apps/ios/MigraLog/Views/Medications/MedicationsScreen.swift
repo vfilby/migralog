@@ -77,9 +77,10 @@ struct MedicationsScreen: View {
                 )
             }
         }
-        .task {
-            await viewModel.loadMedications()
-        }
+        // `.onAppear` covers both the initial appearance and every return to the
+        // Medications tab, so we deliberately avoid a redundant `.task` reload here:
+        // overlapping `loadMedications()` calls keep the list re-rendering and delay
+        // the view reaching an idle state (which UI tests wait on before interacting).
         .onAppear {
             Task { await viewModel.loadMedications() }
         }
