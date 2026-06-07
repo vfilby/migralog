@@ -45,6 +45,17 @@ enum TabSection: Hashable {
     case trends
 }
 
+// MARK: - iPad split-view sizing
+
+/// Shared sizing for the NavigationSplitView sidebar/list column on iPad.
+/// Constrains the list column so the detail pane gets a comfortable width
+/// instead of relying on system defaults.
+private enum SplitViewMetrics {
+    static let listColumnMin: CGFloat = 320
+    static let listColumnIdeal: CGFloat = 360
+    static let listColumnMax: CGFloat = 400
+}
+
 // MARK: - Episodes Tab (two-column on iPad, stack on iPhone)
 
 struct EpisodesTab: View {
@@ -55,6 +66,11 @@ struct EpisodesTab: View {
         if sizeClass == .regular {
             NavigationSplitView {
                 EpisodesListColumn(selectedEpisodeId: $selectedEpisodeId)
+                    .navigationSplitViewColumnWidth(
+                        min: SplitViewMetrics.listColumnMin,
+                        ideal: SplitViewMetrics.listColumnIdeal,
+                        max: SplitViewMetrics.listColumnMax
+                    )
             } detail: {
                 if let episodeId = selectedEpisodeId {
                     EpisodeDetailScreen(episodeId: episodeId)
@@ -84,6 +100,11 @@ struct MedicationsTab: View {
         if sizeClass == .regular {
             NavigationSplitView {
                 MedicationsListColumn(selectedMedicationId: $selectedMedicationId)
+                    .navigationSplitViewColumnWidth(
+                        min: SplitViewMetrics.listColumnMin,
+                        ideal: SplitViewMetrics.listColumnIdeal,
+                        max: SplitViewMetrics.listColumnMax
+                    )
             } detail: {
                 if let medicationId = selectedMedicationId {
                     MedicationDetailScreen(medicationId: medicationId)
@@ -119,6 +140,11 @@ struct TrendsTab: View {
                         viewModel: viewModel,
                         onAddOverlay: { showAddOverlay = true },
                         onEditOverlay: { editingOverlay = $0 }
+                    )
+                    .navigationSplitViewColumnWidth(
+                        min: SplitViewMetrics.listColumnMin,
+                        ideal: SplitViewMetrics.listColumnIdeal,
+                        max: SplitViewMetrics.listColumnMax
                     )
                 } detail: {
                     AnalyticsVisualizationPane(viewModel: viewModel)

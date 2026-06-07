@@ -8,11 +8,13 @@ struct DashboardScreen: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
-        ScrollView {
-            if sizeClass == .regular {
-                iPadDashboardLayout
-            } else {
-                iPhoneDashboardLayout
+        GeometryReader { geo in
+            ScrollView {
+                if sizeClass == .regular {
+                    iPadDashboardLayout(width: geo.size.width)
+                } else {
+                    iPhoneDashboardLayout
+                }
             }
         }
         .navigationTitle("MigraLog")
@@ -74,27 +76,56 @@ struct DashboardScreen: View {
         .padding()
     }
 
-    // MARK: - iPad Layout (two-column grid)
+    // MARK: - iPad Layout (adapts to available width / orientation)
 
-    private var iPadDashboardLayout: some View {
-        VStack(spacing: 16) {
-            // Row 1: Medications + Daily Status side by side
-            HStack(alignment: .top, spacing: 16) {
-                TodaysMedicationsCard(viewModel: viewModel)
-                    .frame(maxWidth: .infinity)
-                DailyStatusWidgetView(viewModel: viewModel)
-                    .frame(maxWidth: .infinity)
+    /// Width at/above which the dashboard uses the wide (landscape) two-column
+    /// master arrangement instead of the stacked portrait grid.
+    private static let dashboardLandscapeBreakpoint: CGFloat = 1000
+    /// Cap so content doesn't stretch edge-to-edge on a 13" display.
+    private static let dashboardMaxWidth: CGFloat = 1200
+
+    @ViewBuilder
+    private func iPadDashboardLayout(width: CGFloat) -> some View {
+        Group {
+            if width >= Self.dashboardLandscapeBreakpoint {
+                // Landscape / wide: two balanced columns so the tall cards use
+                // the horizontal space instead of scrolling vertically.
+                HStack(alignment: .top, spacing: 16) {
+                    VStack(spacing: 16) {
+                        TodaysMedicationsCard(viewModel: viewModel)
+                        HStack(spacing: 12) {
+                            startEpisodeButton
+                            logMedicationButton
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .top)
+
+                    VStack(spacing: 16) {
+                        DailyStatusWidgetView(viewModel: viewModel)
+                        RecentEpisodesCard(viewModel: viewModel)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .top)
+                }
+            } else {
+                // Portrait iPad: medications + status side by side, then
+                // full-width actions and recent episodes.
+                VStack(spacing: 16) {
+                    HStack(alignment: .top, spacing: 16) {
+                        TodaysMedicationsCard(viewModel: viewModel)
+                            .frame(maxWidth: .infinity)
+                        DailyStatusWidgetView(viewModel: viewModel)
+                            .frame(maxWidth: .infinity)
+                    }
+                    HStack(spacing: 12) {
+                        startEpisodeButton
+                        logMedicationButton
+                    }
+                    RecentEpisodesCard(viewModel: viewModel)
+                }
             }
-
-            // Row 2: Action buttons full width
-            HStack(spacing: 12) {
-                startEpisodeButton
-                logMedicationButton
-            }
-
-            // Row 3: Recent episodes full width
-            RecentEpisodesCard(viewModel: viewModel)
         }
+        .frame(maxWidth: Self.dashboardMaxWidth)
+        .frame(maxWidth: .infinity, alignment: .center)
         .padding()
     }
 
