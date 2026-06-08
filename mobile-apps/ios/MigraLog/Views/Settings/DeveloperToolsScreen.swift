@@ -36,7 +36,6 @@ struct DeveloperToolsScreen: View {
                 }
             }
 
-            #if DEBUG
             Section("iCloud Sync (#434)") {
                 NavigationLink {
                     SyncTestScreen()
@@ -44,7 +43,6 @@ struct DeveloperToolsScreen: View {
                     Label("Sync Test", systemImage: "arrow.triangle.2.circlepath.icloud")
                 }
             }
-            #endif
 
             Section("Onboarding") {
                 Button("Reset Onboarding") {

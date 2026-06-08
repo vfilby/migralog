@@ -1,13 +1,15 @@
-#if DEBUG
 import CloudKit
 import GRDB
 import SwiftUI
 
-/// DEBUG-only manual harness for exercising the real CloudKit transport (#434) on a
-/// device, before sync is wired into the app. Lets you enable change-capture, make a
-/// test edit, and run a full sync cycle by hand, then watch the result. Runs against
-/// CloudKit's Development environment (local Xcode builds) — isolated from the
-/// Production data a TestFlight build uses. Never compiled into release builds.
+/// Manual harness for exercising the real CloudKit transport (#434) on-device before
+/// sync is wired into the app. Lets you enable change-capture, make a test edit, and
+/// run a full sync cycle by hand, then watch the result. Lives under Developer Tools.
+///
+/// Included in Release (not `#if DEBUG`) so sync can be verified on TestFlight, which
+/// uses the CloudKit Production environment — Production schema must be deployed first.
+/// Local Xcode builds use the Development environment instead. Remove or gate this once
+/// real auto-sync ships.
 struct SyncTestScreen: View {
     @State private var captureEnabled = false
     @State private var accountStatus = "—"
@@ -149,4 +151,3 @@ struct SyncTestScreen: View {
         }
     }
 }
-#endif
