@@ -52,6 +52,36 @@ final class SyncPendingChangesStore: Sendable {
         }
     }
 
+    /// Enqueue an `upsert` for every existing row in the synced tables, so the first
+    /// sync after enabling pushes the device's current data (the capture triggers only
+    /// fire on *new* edits, so existing rows would otherwise never sync). Rows already
+    /// queued are left as-is (`ON CONFLICT DO NOTHING`) — a pending delete is not
+    /// downgraded to an upsert — so this is safe to call repeatedly. The queued
+    /// `created_at` is only a fallback; the engine stamps each pushed record with the
+    /// row's real `updated_at` at push time, so backfilled data keeps its true LWW
+    /// timestamp. Returns the number of rows enqueued.
+    @discardableResult
+    func backfillExistingRows(at now: Int64) throws -> Int {
+        try dbManager.dbQueue.write { db in
+            var enqueued = 0
+            for table in SyncableTable.allCases {
+                try db.execute(
+                    sql: """
+                        INSERT INTO sync_pending_changes
+                            (table_name, record_id, change_type, created_at, retry_count, last_error)
+                        SELECT '\(table.tableName)', \(table.primaryKeyColumn), 'upsert', ?, 0, NULL
+                        FROM \(table.tableName)
+                        WHERE true
+                        ON CONFLICT(table_name, record_id) DO NOTHING
+                        """,
+                    arguments: [now]
+                )
+                enqueued += db.changesCount
+            }
+            return enqueued
+        }
+    }
+
     /// Oldest-first batch of pending changes, up to `limit`.
     func fetchBatch(limit: Int) throws -> [SyncPendingChange] {
         try dbManager.dbQueue.read { db in
