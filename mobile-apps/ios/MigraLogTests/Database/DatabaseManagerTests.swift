@@ -57,6 +57,7 @@ final class DatabaseManagerTests: XCTestCase {
             "sync_pending_changes",
             "sync_zone_state",
             "sync_conflicts",
+            "sync_capture_state",
             "grdb_migrations", // GRDB internal table
         ]
 
@@ -186,7 +187,7 @@ final class DatabaseManagerTests: XCTestCase {
     // MARK: - Schema Version
 
     func testSchemaVersionIsTracked() throws {
-        XCTAssertEqual(DatabaseManager.schemaVersion, 31)
+        XCTAssertEqual(DatabaseManager.schemaVersion, 32)
     }
 
     func testMigrationIsRecordedInGRDB() throws {
@@ -243,6 +244,20 @@ final class DatabaseManagerTests: XCTestCase {
             let identifiers = try Row.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations")
                 .map { $0["identifier"] as String }
             XCTAssertTrue(identifiers.contains("v31"), "Migration v31 should be recorded")
+        }
+    }
+
+    /// v32 adds the change-capture control table and per-table triggers (#434).
+    func testV32CreatesCaptureTriggers() throws {
+        try dbManager.dbQueue.read { db in
+            XCTAssertTrue(try db.tableExists("sync_capture_state"))
+            let triggerCount = try Int.fetchOne(
+                db, sql: "SELECT COUNT(*) FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'sync_capture_%'"
+            )
+            XCTAssertEqual(triggerCount, 33, "one INSERT/UPDATE/DELETE trigger per synced table (11 × 3)")
+            let identifiers = try Row.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations")
+                .map { $0["identifier"] as String }
+            XCTAssertTrue(identifiers.contains("v32"), "Migration v32 should be recorded")
         }
     }
 

@@ -4,7 +4,7 @@ import GRDB
 /// Central database manager. Owns the DatabaseQueue and handles schema creation/migration.
 final class DatabaseManager: Sendable {
     /// The current schema version
-    static let schemaVersion = 31
+    static let schemaVersion = 32
 
     /// Shared singleton for the app's main database
     static let shared = DatabaseManager()
@@ -150,6 +150,12 @@ final class DatabaseManager: Sendable {
         // installs that already ran v30 without it.
         migrator.registerMigration("v31") { db in
             try DatabaseManager.createSyncStateTables(in: db)
+        }
+
+        // v32: Change-capture triggers that enqueue local edits to sync_pending_changes,
+        // plus the sync_capture_state control flags (enabled / suppressed). See #434.
+        migrator.registerMigration("v32") { db in
+            try DatabaseManager.createSyncCaptureTriggers(in: db)
         }
 
         return migrator
@@ -461,7 +467,9 @@ final class DatabaseManager: Sendable {
         // Create all indexes
         try DatabaseManager.createIndexes(in: db)
 
-        // Local sync-state tables (#434), device-local.
+        // Local sync-state tables (#434), device-local. The change-capture triggers are
+        // NOT created here — they reference category_safety_rules (created in v28), so
+        // they're created by the v32 migration once every synced table exists.
         try DatabaseManager.createSyncStateTables(in: db)
     }
 
@@ -507,6 +515,57 @@ final class DatabaseManager: Sendable {
             """)
         try db.execute(sql: "CREATE INDEX IF NOT EXISTS idx_sync_conflicts_expires ON sync_conflicts(expires_at)")
         try db.execute(sql: "CREATE INDEX IF NOT EXISTS idx_sync_conflicts_record ON sync_conflicts(table_name, record_id)")
+    }
+
+    /// Create the change-capture machinery for iCloud sync (#434): the sync_capture_state
+    /// control row plus one AFTER INSERT/UPDATE/DELETE trigger per synced table. Each
+    /// trigger enqueues the row into sync_pending_changes — but only while capture is
+    /// `enabled` (off until sync is switched on, so the queue can't grow unbounded) and
+    /// not `suppressed` (the applier suppresses its own writes to avoid an echo loop).
+    /// Device-local; idempotent. Called only by the v32 migration — it must run after
+    /// every synced table exists (notably category_safety_rules, added in v28).
+    static func createSyncCaptureTriggers(in db: Database) throws {
+        try db.execute(sql: """
+            CREATE TABLE IF NOT EXISTS sync_capture_state (
+                id INTEGER PRIMARY KEY CHECK(id = 1),
+                enabled INTEGER NOT NULL DEFAULT 0 CHECK(enabled IN (0, 1)),
+                suppressed INTEGER NOT NULL DEFAULT 0 CHECK(suppressed IN (0, 1))
+            )
+            """)
+        try db.execute(sql: "INSERT OR IGNORE INTO sync_capture_state (id, enabled, suppressed) VALUES (1, 0, 0)")
+
+        // Epoch milliseconds, matching TimestampHelper.now.
+        let nowMillis = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)"
+        let guardClause = """
+            WHEN COALESCE((SELECT enabled FROM sync_capture_state WHERE id = 1), 0) = 1
+             AND COALESCE((SELECT suppressed FROM sync_capture_state WHERE id = 1), 0) = 0
+            """
+
+        for table in SyncableTable.allCases {
+            let name = table.tableName
+            let events: [(suffix: String, timing: String, idRef: String, change: String)] = [
+                ("insert", "AFTER INSERT", "NEW.id", "upsert"),
+                ("update", "AFTER UPDATE", "NEW.id", "upsert"),
+                ("delete", "AFTER DELETE", "OLD.id", "delete"),
+            ]
+            for event in events {
+                try db.execute(sql: """
+                    CREATE TRIGGER IF NOT EXISTS sync_capture_\(name)_\(event.suffix)
+                    \(event.timing) ON \(name)
+                    \(guardClause)
+                    BEGIN
+                        INSERT INTO sync_pending_changes
+                            (table_name, record_id, change_type, created_at, retry_count, last_error)
+                        VALUES ('\(name)', \(event.idRef), '\(event.change)', \(nowMillis), 0, NULL)
+                        ON CONFLICT(table_name, record_id) DO UPDATE SET
+                            change_type = '\(event.change)',
+                            created_at = \(nowMillis),
+                            retry_count = 0,
+                            last_error = NULL;
+                    END
+                    """)
+            }
+        }
     }
 
     private static func createIndexes(in db: Database) throws {
