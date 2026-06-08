@@ -32,6 +32,13 @@ final class RemoteChangeApplier: Sendable {
         }
 
         return try dbManager.dbQueue.write { db in
+            // Suppress the change-capture triggers for the duration of this transaction so
+            // applying a remote change doesn't re-enqueue it and loop back to CloudKit.
+            // The flag is part of this transaction: it reverts on rollback, and the defer
+            // resets it on every exit path. (No-op before v32, when the table is absent.)
+            try? db.execute(sql: "UPDATE sync_capture_state SET suppressed = 1 WHERE id = 1")
+            defer { try? db.execute(sql: "UPDATE sync_capture_state SET suppressed = 0 WHERE id = 1") }
+
             let localRow = try Row.fetchOne(
                 db,
                 sql: "SELECT * FROM \(table.tableName) WHERE \(table.primaryKeyColumn) = ?",
