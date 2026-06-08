@@ -4,7 +4,7 @@ import GRDB
 /// Central database manager. Owns the DatabaseQueue and handles schema creation/migration.
 final class DatabaseManager: Sendable {
     /// The current schema version
-    static let schemaVersion = 30
+    static let schemaVersion = 31
 
     /// Shared singleton for the app's main database
     static let shared = DatabaseManager()
@@ -142,6 +142,13 @@ final class DatabaseManager: Sendable {
         // queue and the per-zone server-change-token cursor. Device-local, never
         // synced. See createSyncStateTables.
         migrator.registerMigration("v30") { db in
+            try DatabaseManager.createSyncStateTables(in: db)
+        }
+
+        // v31: Add the conflict archive (sync_conflicts) for last-write-wins (#434).
+        // createSyncStateTables is idempotent, so this just adds the new table for
+        // installs that already ran v30 without it.
+        migrator.registerMigration("v31") { db in
             try DatabaseManager.createSyncStateTables(in: db)
         }
 
@@ -459,10 +466,9 @@ final class DatabaseManager: Sendable {
     }
 
     /// Create the device-local sync-state tables for iCloud sync (#434): the outbound
-    /// change queue and the per-zone server-change-token cursor. These are NOT synced.
-    /// Idempotent — called from createSchema (fresh installs) and the v30 migration
-    /// (upgrades). Only the tables exercised by current code live here; sync_config
-    /// and sync_conflicts arrive with their consumers (settings UI, conflict archive).
+    /// change queue, the per-zone server-change-token cursor, and the conflict archive.
+    /// These are NOT synced. Idempotent — called from createSchema (fresh installs) and
+    /// the v30/v31 migrations (upgrades). sync_config arrives later with the settings UI.
     static func createSyncStateTables(in db: Database) throws {
         try db.execute(sql: """
             CREATE TABLE IF NOT EXISTS sync_pending_changes (
@@ -486,6 +492,21 @@ final class DatabaseManager: Sendable {
             )
             """)
         try db.execute(sql: "CREATE INDEX IF NOT EXISTS idx_sync_pending_created ON sync_pending_changes(created_at)")
+        // Conflict archive (v31): preserves the losing side of last-write-wins for 90 days.
+        try db.execute(sql: """
+            CREATE TABLE IF NOT EXISTS sync_conflicts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                table_name TEXT NOT NULL,
+                record_id TEXT NOT NULL,
+                losing_side TEXT NOT NULL CHECK(losing_side IN ('local', 'remote')),
+                payload TEXT NOT NULL,
+                winning_payload TEXT NOT NULL,
+                resolved_at INTEGER NOT NULL CHECK(resolved_at > 0),
+                expires_at INTEGER NOT NULL CHECK(expires_at > resolved_at)
+            )
+            """)
+        try db.execute(sql: "CREATE INDEX IF NOT EXISTS idx_sync_conflicts_expires ON sync_conflicts(expires_at)")
+        try db.execute(sql: "CREATE INDEX IF NOT EXISTS idx_sync_conflicts_record ON sync_conflicts(table_name, record_id)")
     }
 
     private static func createIndexes(in db: Database) throws {

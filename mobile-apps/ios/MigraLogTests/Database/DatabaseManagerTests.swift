@@ -56,6 +56,7 @@ final class DatabaseManagerTests: XCTestCase {
             "category_safety_rules",
             "sync_pending_changes",
             "sync_zone_state",
+            "sync_conflicts",
             "grdb_migrations", // GRDB internal table
         ]
 
@@ -185,7 +186,7 @@ final class DatabaseManagerTests: XCTestCase {
     // MARK: - Schema Version
 
     func testSchemaVersionIsTracked() throws {
-        XCTAssertEqual(DatabaseManager.schemaVersion, 30)
+        XCTAssertEqual(DatabaseManager.schemaVersion, 31)
     }
 
     func testMigrationIsRecordedInGRDB() throws {
@@ -232,6 +233,16 @@ final class DatabaseManagerTests: XCTestCase {
             let identifiers = try Row.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations")
                 .map { $0["identifier"] as String }
             XCTAssertTrue(identifiers.contains("v30"), "Migration v30 should be recorded")
+        }
+    }
+
+    /// v31 adds the conflict archive (#434).
+    func testV31CreatesConflictArchive() throws {
+        try dbManager.dbQueue.read { db in
+            XCTAssertTrue(try db.tableExists("sync_conflicts"))
+            let identifiers = try Row.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations")
+                .map { $0["identifier"] as String }
+            XCTAssertTrue(identifiers.contains("v31"), "Migration v31 should be recorded")
         }
     }
 
