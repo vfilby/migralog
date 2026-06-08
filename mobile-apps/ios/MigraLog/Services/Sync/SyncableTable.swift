@@ -40,6 +40,18 @@ enum SyncableTable: String, CaseIterable, Sendable {
         }
     }
 
+    /// Relative apply order for pulled records: lower applies first. Parent tables
+    /// (those referenced by a foreign key) must land before their children so inserts
+    /// don't violate FK constraints. `episodes` and `medications` are the only parents.
+    var applyPriority: Int {
+        switch self {
+        case .episodes, .medications:
+            return 0
+        default:
+            return 1
+        }
+    }
+
     /// Look up a syncable table by its SQLite name. Returns nil for tables that are
     /// not synced (device-local or sync-internal).
     static func named(_ tableName: String) -> SyncableTable? {
