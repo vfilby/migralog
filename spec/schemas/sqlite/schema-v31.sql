@@ -1,4 +1,4 @@
--- MigraLog SQLite Schema v30
+-- MigraLog SQLite Schema v31
 -- Canonical schema definition for the migraine tracking database.
 -- Source of truth: mobile-apps/ios/MigraLog/Database/DatabaseManager.swift
 --   (createSchema + registered migrations). This .sql is a formal mirror and
@@ -10,7 +10,9 @@
 --   yet maintained by write paths (SyncService will own that).
 -- v30 (#434, iCloud sync): added the device-local sync-state tables
 --   sync_pending_changes (outbound queue) and sync_zone_state (change-token cursor).
---   These are NOT synced. sync_config + sync_conflicts arrive with their consumers.
+--   These are NOT synced. sync_config arrives with its consumer (settings UI).
+-- v31 (#434, iCloud sync): added sync_conflicts — the last-write-wins conflict
+--   archive (losing payloads, 90-day retention). Device-local, NOT synced.
 --
 -- Conventions:
 --   - All IDs are TEXT (UUIDs)
@@ -281,3 +283,19 @@ CREATE TABLE IF NOT EXISTS sync_zone_state (
 );
 
 CREATE INDEX IF NOT EXISTS idx_sync_pending_created ON sync_pending_changes(created_at);
+
+-- Conflict archive (v31): the losing side of last-write-wins, retained 90 days.
+-- Recovery = write the payload back to the local table and re-queue it.
+CREATE TABLE IF NOT EXISTS sync_conflicts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  table_name TEXT NOT NULL,
+  record_id TEXT NOT NULL,
+  losing_side TEXT NOT NULL CHECK(losing_side IN ('local', 'remote')),
+  payload TEXT NOT NULL,
+  winning_payload TEXT NOT NULL,
+  resolved_at INTEGER NOT NULL CHECK(resolved_at > 0),
+  expires_at INTEGER NOT NULL CHECK(expires_at > resolved_at)
+);
+
+CREATE INDEX IF NOT EXISTS idx_sync_conflicts_expires ON sync_conflicts(expires_at);
+CREATE INDEX IF NOT EXISTS idx_sync_conflicts_record ON sync_conflicts(table_name, record_id);
