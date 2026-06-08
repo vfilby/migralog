@@ -86,4 +86,64 @@ final class SyncPendingChangesStoreTests: XCTestCase {
         XCTAssertEqual(try store.fetchBatch(limit: 3).count, 3)
         XCTAssertEqual(try store.pendingCount(), 5)
     }
+
+    // MARK: - Backfill
+
+    private func insertMedication(_ id: String) throws {
+        try dbManager.dbQueue.write { db in
+            try db.execute(
+                sql: """
+                    INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, created_at, updated_at)
+                    VALUES (?, 'Med', 'rescue', 1, 'mg', 1000, 1000)
+                    """,
+                arguments: [id]
+            )
+        }
+    }
+
+    private func insertEpisode(_ id: String) throws {
+        try dbManager.dbQueue.write { db in
+            try db.execute(
+                sql: """
+                    INSERT INTO episodes
+                        (id, start_time, locations, qualities, symptoms, triggers, created_at, updated_at)
+                    VALUES (?, 1000, '[]', '[]', '[]', '[]', 1000, 1000)
+                    """,
+                arguments: [id]
+            )
+        }
+    }
+
+    func testBackfillEnqueuesAllExistingRows() throws {
+        try insertMedication("m1")
+        try insertMedication("m2")
+        try insertEpisode("e1")
+
+        let count = try store.backfillExistingRows(at: 9000)
+        XCTAssertEqual(count, 3)
+        XCTAssertEqual(try store.pendingCount(), 3)
+        XCTAssertTrue(try store.fetchBatch(limit: 10).allSatisfy { $0.changeType == .upsert })
+    }
+
+    func testBackfillDoesNotDowngradeAPendingDelete() throws {
+        try insertMedication("m1")
+        try insertMedication("m2")
+        // m1 already has a pending delete (it was removed locally before the backfill).
+        try store.enqueue(tableName: "medications", recordId: "m1", changeType: .delete, at: 500)
+
+        let count = try store.backfillExistingRows(at: 9000)
+        XCTAssertEqual(count, 1, "only m2 is newly enqueued; m1 is already queued")
+
+        let pairs = try store.fetchBatch(limit: 10).map { ($0.recordId, $0.changeType) }
+        let byId = Dictionary(uniqueKeysWithValues: pairs)
+        XCTAssertEqual(byId["m1"], .delete, "the pending delete is preserved, not downgraded to upsert")
+        XCTAssertEqual(byId["m2"], .upsert)
+    }
+
+    func testBackfillIsIdempotent() throws {
+        try insertMedication("m1")
+        XCTAssertEqual(try store.backfillExistingRows(at: 9000), 1)
+        XCTAssertEqual(try store.backfillExistingRows(at: 9001), 0, "already-queued rows are not re-enqueued")
+        XCTAssertEqual(try store.pendingCount(), 1)
+    }
 }

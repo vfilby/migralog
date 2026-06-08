@@ -37,10 +37,11 @@ struct SyncTestScreen: View {
 
             Section("Actions") {
                 Button("Insert test medication") { insertTestMedication() }
+                Button("Backfill existing data") { backfillExistingData() }
                 Button(isSyncing ? "Syncing…" : "Sync now") { Task { await syncNow() } }
                     .disabled(isSyncing)
-                Text("On device A: enable capture, insert a test med, Sync now. "
-                    + "On device B: Sync now, then check Medications.")
+                Text("On device A: enable capture, Backfill existing data, Sync now. "
+                    + "On device B: Sync now, then check your data.")
                     .font(.caption).foregroundStyle(.secondary)
             }
 
@@ -106,6 +107,16 @@ struct SyncTestScreen: View {
             append("inserted \(shortName)")
         } catch {
             append("insert failed: \(error.localizedDescription)")
+        }
+        Task { await refresh() }
+    }
+
+    private func backfillExistingData() {
+        do {
+            let count = try SyncPendingChangesStore(dbManager: db).backfillExistingRows(at: Self.nowMillis())
+            append("backfilled \(count) existing rows")
+        } catch {
+            append("backfill failed: \(error.localizedDescription)")
         }
         Task { await refresh() }
     }
