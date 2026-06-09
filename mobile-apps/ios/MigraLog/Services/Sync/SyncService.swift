@@ -1,4 +1,5 @@
 import Foundation
+import GRDB
 
 /// Coordinates iCloud sync (#434): owns the engine, the on/off config, and the
 /// enable/disable flow. The single surface the app and settings UI talk to. Holds one
@@ -16,6 +17,11 @@ final class SyncService {
     private let configStore: SyncConfigStore
     private let pendingStore: SyncPendingChangesStore
     private let engine: SyncEngine
+
+    @ObservationIgnored private var autoSyncTask: Task<Void, Never>?
+    @ObservationIgnored private var debounceTask: Task<Void, Never>?
+    /// How long after the last local edit to wait before an automatic sync.
+    @ObservationIgnored var afterWriteDebounce: Duration = .seconds(3)
 
     init(
         dbManager: DatabaseManager = .shared,
@@ -79,6 +85,43 @@ final class SyncService {
     func syncIfEnabled() async {
         guard isEnabled else { return }
         try? await syncNow()
+    }
+
+    // MARK: - Automatic triggers
+
+    /// Start watching the pending queue so a local edit triggers an automatic sync.
+    /// When the queue grows (a captured edit), debounce briefly then sync. Idempotent —
+    /// call once on launch. Combine with a foreground trigger calling `syncIfEnabled()`.
+    func startAutoSync() {
+        guard autoSyncTask == nil else { return }
+        let observation = ValueObservation.tracking { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM sync_pending_changes") ?? 0
+        }
+        let dbQueue = dbManager.dbQueue
+        autoSyncTask = Task { [weak self] in
+            var lastCount: Int?
+            do {
+                for try await count in observation.values(in: dbQueue) {
+                    // React only to growth (new local edits), not to the queue draining on push.
+                    if let lastCount, count > lastCount {
+                        self?.scheduleDebouncedSync()
+                    }
+                    lastCount = count
+                }
+            } catch {
+                // Observation ended (teardown) — nothing to do.
+            }
+        }
+    }
+
+    private func scheduleDebouncedSync() {
+        debounceTask?.cancel()
+        let delay = afterWriteDebounce
+        debounceTask = Task { [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled else { return }
+            await self?.syncIfEnabled()
+        }
     }
 
     // MARK: - Helpers

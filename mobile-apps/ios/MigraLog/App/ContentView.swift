@@ -3,6 +3,8 @@ import SwiftUI
 struct ContentView: View {
     @Environment(AppState.self) private var appState
     @Environment(TimezoneChangeService.self) private var timezoneChangeService
+    @Environment(SyncService.self) private var syncService
+    @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab: TabSection = .dashboard
 
     var body: some View {
@@ -39,6 +41,12 @@ struct ContentView: View {
                 + "a 9:00 PM reminder still fires at 9:00 PM. "
                 + "Review your schedules if you'd like to adjust them."
             )
+        }
+        .task { syncService.startAutoSync() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                Task { await syncService.syncIfEnabled() }
+            }
         }
     }
 }
