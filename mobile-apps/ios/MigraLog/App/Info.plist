@@ -56,6 +56,16 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
+		<!-- `fetch` enables BGAppRefreshTask for lightweight background sync (#462).
+		     Sync is light, so we use a BGAppRefreshTask (fetch) rather than a
+		     BGProcessingTask (processing). See BackgroundSyncScheduler.swift. -->
+		<string>fetch</string>
+	</array>
+	<!-- BGTaskScheduler identifiers must be declared here for the system to permit
+	     scheduling them. Matches BackgroundSyncScheduler.taskIdentifier (#462). -->
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.eff3.migralog.sync.refresh</string>
 	</array>
 </dict>
 </plist>

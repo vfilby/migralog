@@ -44,8 +44,14 @@ struct ContentView: View {
         }
         .task { syncService.startAutoSync() }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active {
+            switch phase {
+            case .active:
                 Task { await syncService.syncIfEnabled() }
+            case .background:
+                // Queue a background refresh so changes keep syncing while backgrounded (#462).
+                BackgroundSyncScheduler.schedule()
+            default:
+                break
             }
         }
     }
