@@ -10,6 +10,9 @@ struct DataSettingsScreen: View {
     @State private var showRestoreConfirm = false
     @State private var showRestoreSuccess = false
     @State private var exportURL: URL?
+    @State private var pendingBackupShareURL: URL?
+    @State private var showBackupShareWarning = false
+    @State private var showBackupShareSheet = false
     @State private var backups: [BackupMetadata] = []
     @State private var showError = false
     @State private var errorMessage = ""
@@ -94,6 +97,21 @@ struct DataSettingsScreen: View {
         } message: {
             Text("This will replace all current data with the backup. This action cannot be undone. Please create a backup first if needed.")
         }
+        .alert("Share Unencrypted Backup?", isPresented: $showBackupShareWarning) {
+            Button("Share", role: .destructive) {
+                showBackupShareSheet = true
+            }
+            Button("Cancel", role: .cancel) {
+                pendingBackupShareURL = nil
+            }
+        } message: {
+            Text("Backups contain your complete health history — episodes, medications, and notes — unencrypted. Only share them with people and apps you trust.")
+        }
+        .sheet(isPresented: $showBackupShareSheet) {
+            if let url = pendingBackupShareURL {
+                ShareSheet(items: [url])
+            }
+        }
         .alert("Restore Complete", isPresented: $showRestoreSuccess) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -117,7 +135,10 @@ struct DataSettingsScreen: View {
             }
             Spacer()
             if let url, FileManager.default.fileExists(atPath: url.path) {
-                ShareLink(item: url) {
+                Button {
+                    pendingBackupShareURL = url
+                    showBackupShareWarning = true
+                } label: {
                     Image(systemName: "square.and.arrow.up")
                         .foregroundStyle(.tint)
                 }

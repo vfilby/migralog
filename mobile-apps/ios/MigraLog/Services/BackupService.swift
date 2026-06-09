@@ -62,6 +62,18 @@ final class BackupService: BackupServiceProtocol {
             }
         }
 
+        // Backups are plaintext copies of the health database; keep them out of
+        // iCloud/iTunes device backups. The flag on the directory covers every
+        // backup inside it, including ones created before this flag was added.
+        var excludedDir = backupDir
+        var resourceValues = URLResourceValues()
+        resourceValues.isExcludedFromBackup = true
+        do {
+            try excludedDir.setResourceValues(resourceValues)
+        } catch {
+            logger.error("Failed to exclude backup directory from device backups", error: error)
+        }
+
         return backupDir
     }
 
