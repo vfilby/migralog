@@ -90,6 +90,73 @@ final class SyncCaptureTriggerTests: XCTestCase {
         XCTAssertEqual(queued[0].type, "delete", "a delete supersedes the pending upsert")
     }
 
+    // MARK: - Delete payload capture (#463)
+
+    private func pendingPayload(table: String, recordId: String) throws -> String? {
+        try dbManager.dbQueue.read { db in
+            try String.fetchOne(
+                db,
+                sql: "SELECT payload FROM sync_pending_changes WHERE table_name = ? AND record_id = ?",
+                arguments: [table, recordId]
+            )
+        }
+    }
+
+    func testDeleteCapturesRowPayload() throws {
+        try enableCapture()
+        try insertMedication("m1")
+        try dbManager.dbQueue.write { db in
+            try db.execute(sql: "DELETE FROM medications WHERE id = 'm1'")
+        }
+
+        let queued = try pending()
+        XCTAssertEqual(queued.count, 1)
+        XCTAssertEqual(queued[0].type, "delete")
+
+        // The AFTER DELETE trigger snapshots the deleted row's synced columns as JSON.
+        let payload = try pendingPayload(table: "medications", recordId: "m1")
+        let json = try XCTUnwrap(payload, "delete tombstone must carry the captured row payload")
+        let obj = try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any]
+        let keys = Set(try XCTUnwrap(obj).keys)
+
+        // Captured keys must be exactly the synced columns for the table.
+        XCTAssertEqual(keys, Set(SyncableTable.medications.syncedColumns))
+        XCTAssertEqual(obj?["id"] as? String, "m1")
+        XCTAssertEqual(obj?["name"] as? String, "Med")
+    }
+
+    func testDeletePayloadExcludesDeviceLocalColumns() throws {
+        try enableCapture()
+        // medication_schedules.notification_id is device-local and must not be captured.
+        try insertMedication("m1")
+        try dbManager.dbQueue.write { db in
+            try db.execute(
+                sql: """
+                    INSERT INTO medication_schedules
+                        (id, medication_id, time, timezone, dosage, enabled, notification_id,
+                         reminder_enabled, created_at, updated_at)
+                    VALUES ('s1', 'm1', '08:00', 'America/New_York', 1.0, 1, 'notif-xyz', 1, 1000, 1000)
+                    """
+            )
+            try db.execute(sql: "DELETE FROM medication_schedules WHERE id = 's1'")
+        }
+
+        let payload = try XCTUnwrap(try pendingPayload(table: "medication_schedules", recordId: "s1"))
+        let obj = try JSONSerialization.jsonObject(with: Data(payload.utf8)) as? [String: Any]
+        let keys = Set(try XCTUnwrap(obj).keys)
+        XCTAssertEqual(keys, Set(SyncableTable.medicationSchedules.syncedColumns))
+        XCTAssertFalse(keys.contains("notification_id"), "device-local column must not be captured")
+    }
+
+    func testUpsertHasNoPayload() throws {
+        try enableCapture()
+        try insertMedication("m1")
+        XCTAssertNil(
+            try pendingPayload(table: "medications", recordId: "m1"),
+            "upserts carry no payload — the live row is re-read at push time"
+        )
+    }
+
     // MARK: - Echo suppression
 
     func testApplierWritesAreNotCaptured() throws {

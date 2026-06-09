@@ -85,9 +85,13 @@ actor SyncEngine {
         guard let table = SyncableTable.named(change.tableName) else { return nil }
         let schemaVersion = DatabaseManager.schemaVersion
 
+        // For a delete, the AFTER DELETE trigger captured the deleted row's synced
+        // columns into `change.payload` (#463), so the tombstone carries recoverable
+        // data instead of an empty `{}`. A vanished-upsert fallback has no captured
+        // payload (nil), so it stays `{}`.
         func tombstone() -> SyncRecord {
             SyncRecord(
-                tableName: table.tableName, recordId: change.recordId, payload: "{}",
+                tableName: table.tableName, recordId: change.recordId, payload: change.payload ?? "{}",
                 schemaVersion: schemaVersion, updatedAt: change.createdAt, deleted: true
             )
         }

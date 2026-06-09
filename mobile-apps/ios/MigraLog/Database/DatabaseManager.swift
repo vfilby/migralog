@@ -4,7 +4,7 @@ import GRDB
 /// Central database manager. Owns the DatabaseQueue and handles schema creation/migration.
 final class DatabaseManager: Sendable {
     /// The current schema version
-    static let schemaVersion = 33
+    static let schemaVersion = 34
 
     /// Shared singleton for the app's main database
     static let shared = DatabaseManager()
@@ -154,13 +154,26 @@ final class DatabaseManager: Sendable {
 
         // v32: Change-capture triggers that enqueue local edits to sync_pending_changes,
         // plus the sync_capture_state control flags (enabled / suppressed). See #434.
+        // includePayload: false — at v32 the `payload` column does not yet exist (it is
+        // added in v34), so the triggers must NOT reference it. Preserves historical
+        // behavior for fresh installs, which run v32 before v34.
         migrator.registerMigration("v32") { db in
-            try DatabaseManager.createSyncCaptureTriggers(in: db)
+            try DatabaseManager.createSyncCaptureTriggers(in: db, includePayload: false)
         }
 
         // v33: sync_config — the on/off switch + last-sync status for iCloud sync (#434).
         migrator.registerMigration("v33") { db in
             try DatabaseManager.createSyncConfig(in: db)
+        }
+
+        // v34: Capture delete payloads for recoverable tombstones (#463). Add the nullable
+        // `payload` column to sync_pending_changes, then DROP and re-create every
+        // sync_capture_* trigger so the DELETE triggers record the deleted row's synced
+        // columns as JSON. Existing installs already ran v32 with the old (payload-free)
+        // triggers, so they must be replaced here. Now that the column exists,
+        // includePayload: true.
+        migrator.registerMigration("v34") { db in
+            try DatabaseManager.addSyncPayloadColumn(in: db)
         }
 
         return migrator
@@ -537,14 +550,41 @@ final class DatabaseManager: Sendable {
         try db.execute(sql: "CREATE INDEX IF NOT EXISTS idx_sync_conflicts_record ON sync_conflicts(table_name, record_id)")
     }
 
+    /// v34 (#463): add the nullable `payload` column to sync_pending_changes and rebuild
+    /// the capture triggers so DELETEs retain the deleted row's data for recoverable
+    /// tombstones. Existing installs already created the old payload-free triggers in v32,
+    /// so they are dropped and re-created here with `includePayload: true`. Idempotent: the
+    /// column is added only when missing, and the triggers are dropped before re-creation.
+    static func addSyncPayloadColumn(in db: Database) throws {
+        let columns = try Row.fetchAll(db, sql: "PRAGMA table_info(sync_pending_changes)")
+        let hasPayload = columns.contains { (row: Row) in (row["name"] as String?) == "payload" }
+        if !hasPayload {
+            try db.execute(sql: "ALTER TABLE sync_pending_changes ADD COLUMN payload TEXT")
+        }
+
+        // Drop the old (payload-free) capture triggers so they can be re-created with the
+        // delete-payload variant. Each synced table has insert/update/delete triggers.
+        for table in SyncableTable.allCases {
+            for suffix in ["insert", "update", "delete"] {
+                try db.execute(sql: "DROP TRIGGER IF EXISTS sync_capture_\(table.tableName)_\(suffix)")
+            }
+        }
+        try DatabaseManager.createSyncCaptureTriggers(in: db, includePayload: true)
+    }
+
     /// Create the change-capture machinery for iCloud sync (#434): the sync_capture_state
     /// control row plus one AFTER INSERT/UPDATE/DELETE trigger per synced table. Each
     /// trigger enqueues the row into sync_pending_changes — but only while capture is
     /// `enabled` (off until sync is switched on, so the queue can't grow unbounded) and
     /// not `suppressed` (the applier suppresses its own writes to avoid an echo loop).
-    /// Device-local; idempotent. Called only by the v32 migration — it must run after
-    /// every synced table exists (notably category_safety_rules, added in v28).
-    static func createSyncCaptureTriggers(in db: Database) throws {
+    /// Device-local; idempotent.
+    ///
+    /// `includePayload` controls whether the DELETE triggers capture the deleted row's
+    /// synced columns as a JSON `payload` for recoverable tombstones (#463). It MUST be
+    /// false at v32 (the `payload` column does not exist until v34) and true from v34 on,
+    /// once the column has been added. INSERT/UPDATE (upsert) triggers always set
+    /// `payload = NULL` — the live row is re-read at push time.
+    static func createSyncCaptureTriggers(in db: Database, includePayload: Bool) throws {
         try db.execute(sql: """
             CREATE TABLE IF NOT EXISTS sync_capture_state (
                 id INTEGER PRIMARY KEY CHECK(id = 1),
@@ -563,25 +603,43 @@ final class DatabaseManager: Sendable {
 
         for table in SyncableTable.allCases {
             let name = table.tableName
+            // The DELETE trigger snapshots the deleted row's synced columns as JSON so the
+            // tombstone is recoverable. Built only when includePayload is true (the column
+            // exists from v34 on). OLD.<col> references the about-to-be-deleted row.
+            let deletePayloadExpr = "json_object(" + table.syncedColumns
+                .map { "'\($0)', OLD.\($0)" }
+                .joined(separator: ", ") + ")"
+
             let events: [(suffix: String, timing: String, idRef: String, change: String)] = [
                 ("insert", "AFTER INSERT", "NEW.id", "upsert"),
                 ("update", "AFTER UPDATE", "NEW.id", "upsert"),
                 ("delete", "AFTER DELETE", "OLD.id", "delete"),
             ]
             for event in events {
+                // Only the DELETE trigger captures a payload; upserts re-read the live row at push time.
+                let payloadExpr = event.change == "delete" ? deletePayloadExpr : "NULL"
+                let columnList = includePayload
+                    ? "(table_name, record_id, change_type, created_at, retry_count, last_error, payload)"
+                    : "(table_name, record_id, change_type, created_at, retry_count, last_error)"
+                let valuesList = includePayload
+                    ? "('\(name)', \(event.idRef), '\(event.change)', \(nowMillis), 0, NULL, \(payloadExpr))"
+                    : "('\(name)', \(event.idRef), '\(event.change)', \(nowMillis), 0, NULL)"
+                let payloadConflictAssignment = includePayload
+                    ? ",\n                            payload = \(payloadExpr)"
+                    : ""
                 try db.execute(sql: """
                     CREATE TRIGGER IF NOT EXISTS sync_capture_\(name)_\(event.suffix)
                     \(event.timing) ON \(name)
                     \(guardClause)
                     BEGIN
                         INSERT INTO sync_pending_changes
-                            (table_name, record_id, change_type, created_at, retry_count, last_error)
-                        VALUES ('\(name)', \(event.idRef), '\(event.change)', \(nowMillis), 0, NULL)
+                            \(columnList)
+                        VALUES \(valuesList)
                         ON CONFLICT(table_name, record_id) DO UPDATE SET
                             change_type = '\(event.change)',
                             created_at = \(nowMillis),
                             retry_count = 0,
-                            last_error = NULL;
+                            last_error = NULL\(payloadConflictAssignment);
                     END
                     """)
             }

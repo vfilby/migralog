@@ -188,7 +188,7 @@ final class DatabaseManagerTests: XCTestCase {
     // MARK: - Schema Version
 
     func testSchemaVersionIsTracked() throws {
-        XCTAssertEqual(DatabaseManager.schemaVersion, 33)
+        XCTAssertEqual(DatabaseManager.schemaVersion, 34)
     }
 
     func testMigrationIsRecordedInGRDB() throws {
