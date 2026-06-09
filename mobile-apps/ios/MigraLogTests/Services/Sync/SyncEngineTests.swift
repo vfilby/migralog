@@ -149,7 +149,40 @@ final class SyncEngineTests: XCTestCase {
         let result = try await engine.sync(now: 10)
         XCTAssertTrue(transport.zoneCreated)
         XCTAssertEqual(result.pushed, 1)
-        XCTAssertGreaterThanOrEqual(result.applied, 1, "the pushed record echoes back and applies idempotently")
+        XCTAssertEqual(result.applied, 0, "pull runs before push, so our own push isn't echoed back this cycle")
         XCTAssertEqual(try medicationName("m1"), "Local")
+        XCTAssertNotNil(transport.record(named: "medications:m1"), "local change was pushed")
+    }
+
+    /// Pull-then-push: a locally-queued edit that lost to a newer remote version must be
+    /// dropped during pull, not pushed back over the winner.
+    func testSyncDoesNotClobberNewerRemoteWithStaleLocalEdit() async throws {
+        try insertMedication("m1", name: "Local", updatedAt: 1000)
+        try pendingStore.enqueue(tableName: "medications", recordId: "m1", changeType: .upsert, at: 1000)
+        try await transport.push([remoteMedication("m1", name: "Remote", updatedAt: 2000)])
+
+        _ = try await engine.sync(now: 10)
+
+        XCTAssertEqual(try medicationName("m1"), "Remote", "newer remote applied locally")
+        let stored = transport.record(named: "medications:m1")
+        XCTAssertEqual(stored?.updatedAt, 2000, "remote winner not overwritten by the stale local push")
+        XCTAssertEqual(stored?.payload.contains("Remote"), true)
+        XCTAssertEqual(try pendingStore.pendingCount(), 0, "superseded local edit was dropped")
+    }
+
+    /// The mirror case: a locally-queued edit that beats the remote version is kept and
+    /// pushed over it.
+    func testSyncPushesLocalWinnerOverOlderRemote() async throws {
+        try insertMedication("m1", name: "Local", updatedAt: 2000)
+        try pendingStore.enqueue(tableName: "medications", recordId: "m1", changeType: .upsert, at: 2000)
+        try await transport.push([remoteMedication("m1", name: "Remote", updatedAt: 1000)])
+
+        _ = try await engine.sync(now: 10)
+
+        XCTAssertEqual(try medicationName("m1"), "Local", "local winner kept")
+        let stored = transport.record(named: "medications:m1")
+        XCTAssertEqual(stored?.updatedAt, 2000, "local winner pushed over the older remote")
+        XCTAssertEqual(stored?.payload.contains("Local"), true)
+        XCTAssertEqual(try pendingStore.pendingCount(), 0, "queue drained after push")
     }
 }
