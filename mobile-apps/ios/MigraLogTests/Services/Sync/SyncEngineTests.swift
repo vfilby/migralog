@@ -91,6 +91,28 @@ final class SyncEngineTests: XCTestCase {
         XCTAssertEqual(try pendingStore.pendingCount(), 0)
     }
 
+    func testPushDeleteCarriesCapturedPayload() async throws {
+        // The AFTER DELETE trigger captures the deleted row's synced columns as JSON into
+        // sync_pending_changes.payload (#463). buildRecord must put that payload on the
+        // tombstone for recoverability, instead of an empty `{}`.
+        let captured = #"{"id":"gone","name":"Removed Med","type":"rescue"}"#
+        try await dbManager.dbQueue.write { db in
+            try db.execute(
+                sql: """
+                    INSERT INTO sync_pending_changes
+                        (table_name, record_id, change_type, created_at, retry_count, last_error, payload)
+                    VALUES ('medications', 'gone', 'delete', 2000, 0, NULL, ?)
+                    """,
+                arguments: [captured]
+            )
+        }
+
+        _ = try await engine.push()
+        let record = transport.record(named: "medications:gone")
+        XCTAssertEqual(record?.deleted, true)
+        XCTAssertEqual(record?.payload, captured, "tombstone must carry the captured delete payload, not {}")
+    }
+
     // MARK: - Pull
 
     func testPullAppliesRemoteRecordAndSavesToken() async throws {

@@ -16,6 +16,11 @@ struct SyncPendingChange: Equatable, Sendable {
     let createdAt: Int64
     let retryCount: Int
     let lastError: String?
+    /// For `delete` changes, a JSON snapshot of the deleted row's synced columns,
+    /// captured by the AFTER DELETE trigger so the tombstone is recoverable (#463).
+    /// `nil` for upserts (the live row is re-read at push time) and for deletes queued
+    /// before the v34 migration.
+    let payload: String?
 }
 
 /// The durable outbound queue for iCloud sync (#434). Local writes enqueue a change
@@ -88,7 +93,7 @@ final class SyncPendingChangesStore: Sendable {
             let rows = try Row.fetchAll(
                 db,
                 sql: """
-                    SELECT id, table_name, record_id, change_type, created_at, retry_count, last_error
+                    SELECT id, table_name, record_id, change_type, created_at, retry_count, last_error, payload
                     FROM sync_pending_changes
                     ORDER BY created_at ASC, id ASC
                     LIMIT ?
@@ -156,7 +161,8 @@ final class SyncPendingChangesStore: Sendable {
             changeType: changeType,
             createdAt: createdAt,
             retryCount: row["retry_count"] as Int? ?? 0,
-            lastError: row["last_error"] as String?
+            lastError: row["last_error"] as String?,
+            payload: row["payload"] as String?
         )
     }
 }
