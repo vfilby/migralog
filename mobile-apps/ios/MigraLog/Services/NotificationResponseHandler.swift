@@ -273,7 +273,7 @@ final class NotificationResponseHandler: NSObject, UNUserNotificationCenterDeleg
             }
         } catch {
             logger.error("Failed to log clear day from notification", error: error)
-            ErrorLogger.shared.logError(error, context: ["action": "clearDay", "date": date])
+            ErrorLogger.shared.logError(error, context: ["action": "clearDay"])
         }
     }
 
@@ -305,7 +305,7 @@ final class NotificationResponseHandler: NSObject, UNUserNotificationCenterDeleg
             )
 
             _ = try await doseLogger.record(dose)
-            logger.info("Dose logged via notification: \(medication.name) - \(status)")
+            logger.info("Dose logged via notification: \(medication.id) - \(status)")
 
             await MainActor.run {
                 NotificationCenter.default.post(name: .medicationDataChanged, object: nil)
