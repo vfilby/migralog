@@ -10,6 +10,7 @@ struct DataSettingsScreen: View {
     @State private var showRestoreConfirm = false
     @State private var showRestoreSuccess = false
     @State private var exportURL: URL?
+    @State private var showExportWarning = false
     @State private var pendingBackupShareURL: URL?
     @State private var showBackupShareWarning = false
     @State private var showBackupShareSheet = false
@@ -21,7 +22,7 @@ struct DataSettingsScreen: View {
         List {
             Section {
                 Button {
-                    Task { await exportJSON() }
+                    showExportWarning = true
                 } label: {
                     HStack {
                         Label("Export as JSON", systemImage: "doc.text")
@@ -74,10 +75,25 @@ struct DataSettingsScreen: View {
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Backup & Export")
-        .sheet(isPresented: $showShareSheet) {
+        .sheet(isPresented: $showShareSheet, onDismiss: {
+            // The export is plaintext health data in tmp — remove it as soon
+            // as the share sheet is done with it.
+            if let url = exportURL {
+                try? FileManager.default.removeItem(at: url)
+                exportURL = nil
+            }
+        }) {
             if let url = exportURL {
                 ShareSheet(items: [url])
             }
+        }
+        .alert("Share Unencrypted Export?", isPresented: $showExportWarning) {
+            Button("Export", role: .destructive) {
+                Task { await exportJSON() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Exports contain your complete health history — episodes, medications, and notes — unencrypted. Only share them with people and apps you trust.")
         }
         .sheet(isPresented: $showDocumentPicker) {
             DatabaseDocumentPicker { url in

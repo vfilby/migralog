@@ -47,6 +47,15 @@ final class ExportService: ExportServiceProtocol {
         }
 
         let tempDir = fileManager.temporaryDirectory
+
+        // Exports are plaintext health data; don't let stale copies sit in
+        // tmp until iOS gets around to purging them.
+        if let existing = try? fileManager.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil) {
+            for file in existing where file.lastPathComponent.hasPrefix("migralog_export_") {
+                try? fileManager.removeItem(at: file)
+            }
+        }
+
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd_HHmmss"
         dateFormatter.locale = Locale(identifier: "en_US_POSIX")
