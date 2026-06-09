@@ -35,6 +35,9 @@ actor SyncEngine {
     /// outbound queue. Returns counts for observability and tests.
     @discardableResult
     func sync(now: Int64) async throws -> (pushed: Int, applied: Int) {
+        guard try await transport.accountAvailable() else {
+            throw SyncTransportError.accountUnavailable
+        }
         try await transport.ensureZone()
         // Pull before push: apply remote changes (LWW) first, so a locally-queued edit
         // that lost to a newer remote version is dropped during pull rather than pushed
@@ -58,7 +61,13 @@ actor SyncEngine {
 
             let records = try pending.compactMap { try buildRecord(for: $0) }
             if !records.isEmpty {
-                try await transport.push(records)
+                do {
+                    try await transport.push(records)
+                } catch SyncTransportError.zoneNotFound {
+                    // Zone vanished (e.g. user deleted iCloud data) — recreate and retry once.
+                    try await transport.ensureZone()
+                    try await transport.push(records)
+                }
             }
             try pendingStore.remove(ids: pending.map { $0.id })
             total += pending.count
@@ -112,9 +121,20 @@ actor SyncEngine {
     func pull(now: Int64) async throws -> Int {
         var applied = 0
         var token = try zoneStore.state(zoneName: Self.zoneName)?.serverChangeToken
+        var didResetToken = false
 
         while true {
-            let batch = try await transport.fetchChanges(since: token)
+            let batch: SyncChangeBatch
+            do {
+                batch = try await transport.fetchChanges(since: token)
+            } catch SyncTransportError.changeTokenExpired where !didResetToken {
+                // The saved token is stale (e.g. the zone was reset server-side). Discard
+                // it and re-pull from the beginning. Guarded so we reset at most once.
+                didResetToken = true
+                token = nil
+                try zoneStore.saveChangeToken(nil, zoneName: Self.zoneName, syncedAt: now)
+                continue
+            }
             let ordered = batch.records.sorted { Self.applyRank($0) < Self.applyRank($1) }
             for record in ordered {
                 let outcome = try applier.apply(record, now: now)

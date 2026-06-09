@@ -185,4 +185,37 @@ final class SyncEngineTests: XCTestCase {
         XCTAssertEqual(stored?.payload.contains("Local"), true)
         XCTAssertEqual(try pendingStore.pendingCount(), 0, "queue drained after push")
     }
+
+    // MARK: - Recoverable errors
+
+    func testSyncThrowsWhenAccountUnavailable() async throws {
+        transport.accountIsAvailable = false
+        do {
+            _ = try await engine.sync(now: 10)
+            XCTFail("expected accountUnavailable")
+        } catch SyncTransportError.accountUnavailable {
+            // expected
+        }
+        XCTAssertFalse(transport.zoneCreated, "no sync work attempted without an account")
+    }
+
+    func testPullRecoversFromExpiredToken() async throws {
+        try await transport.push([remoteMedication("m1", name: "Remote", updatedAt: 2000)])
+        transport.failNextFetch = SyncTransportError.changeTokenExpired
+
+        let applied = try await engine.pull(now: 10)
+        XCTAssertEqual(applied, 1, "token reset + retry, then the change applies")
+        XCTAssertEqual(try medicationName("m1"), "Remote")
+    }
+
+    func testPushRecreatesZoneOnZoneNotFound() async throws {
+        try insertMedication("m1", name: "Local", updatedAt: 1000)
+        try pendingStore.enqueue(tableName: "medications", recordId: "m1", changeType: .upsert, at: 1000)
+        transport.failNextPush = SyncTransportError.zoneNotFound
+
+        let pushed = try await engine.push()
+        XCTAssertEqual(pushed, 1)
+        XCTAssertTrue(transport.zoneCreated, "zone recreated after zoneNotFound")
+        XCTAssertNotNil(transport.record(named: "medications:m1"), "record pushed on retry")
+    }
 }
