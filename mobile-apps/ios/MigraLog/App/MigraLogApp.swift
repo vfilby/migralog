@@ -11,6 +11,7 @@ struct MigraLogApp: App {
     private let medicationNotificationService: MedicationNotificationScheduler
     private let dailyCheckinService: DailyCheckinNotificationService
     @State private var timezoneChangeService: TimezoneChangeService
+    @State private var syncService: SyncService
 
     init() {
         SentrySetup.start()
@@ -55,6 +56,7 @@ struct MigraLogApp: App {
         self._timezoneChangeService = State(
             initialValue: TimezoneChangeService(medicationRepo: medicationRepository)
         )
+        self._syncService = State(initialValue: SyncService())
     }
 
     var body: some Scene {
@@ -62,6 +64,7 @@ struct MigraLogApp: App {
             ContentView()
                 .environment(appState)
                 .environment(timezoneChangeService)
+                .environment(syncService)
                 .task {
                     await reconciliationService.reconcile()
                     await medicationNotificationService.topUp()
