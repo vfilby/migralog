@@ -58,6 +58,7 @@ final class DatabaseManagerTests: XCTestCase {
             "sync_zone_state",
             "sync_conflicts",
             "sync_capture_state",
+            "sync_config",
             "grdb_migrations", // GRDB internal table
         ]
 
@@ -187,7 +188,7 @@ final class DatabaseManagerTests: XCTestCase {
     // MARK: - Schema Version
 
     func testSchemaVersionIsTracked() throws {
-        XCTAssertEqual(DatabaseManager.schemaVersion, 32)
+        XCTAssertEqual(DatabaseManager.schemaVersion, 33)
     }
 
     func testMigrationIsRecordedInGRDB() throws {
@@ -258,6 +259,18 @@ final class DatabaseManagerTests: XCTestCase {
             let identifiers = try Row.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations")
                 .map { $0["identifier"] as String }
             XCTAssertTrue(identifiers.contains("v32"), "Migration v32 should be recorded")
+        }
+    }
+
+    /// v33 adds sync_config — the on/off switch for iCloud sync (#434).
+    func testV33CreatesSyncConfig() throws {
+        try dbManager.dbQueue.read { db in
+            XCTAssertTrue(try db.tableExists("sync_config"))
+            let enabled = try Int.fetchOne(db, sql: "SELECT enabled FROM sync_config WHERE id = 1")
+            XCTAssertEqual(enabled, 0, "sync is off by default")
+            let identifiers = try Row.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations")
+                .map { $0["identifier"] as String }
+            XCTAssertTrue(identifiers.contains("v33"), "Migration v33 should be recorded")
         }
     }
 

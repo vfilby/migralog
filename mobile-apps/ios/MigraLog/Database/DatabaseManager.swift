@@ -4,7 +4,7 @@ import GRDB
 /// Central database manager. Owns the DatabaseQueue and handles schema creation/migration.
 final class DatabaseManager: Sendable {
     /// The current schema version
-    static let schemaVersion = 32
+    static let schemaVersion = 33
 
     /// Shared singleton for the app's main database
     static let shared = DatabaseManager()
@@ -156,6 +156,11 @@ final class DatabaseManager: Sendable {
         // plus the sync_capture_state control flags (enabled / suppressed). See #434.
         migrator.registerMigration("v32") { db in
             try DatabaseManager.createSyncCaptureTriggers(in: db)
+        }
+
+        // v33: sync_config — the on/off switch + last-sync status for iCloud sync (#434).
+        migrator.registerMigration("v33") { db in
+            try DatabaseManager.createSyncConfig(in: db)
         }
 
         return migrator
@@ -471,6 +476,21 @@ final class DatabaseManager: Sendable {
         // NOT created here — they reference category_safety_rules (created in v28), so
         // they're created by the v32 migration once every synced table exists.
         try DatabaseManager.createSyncStateTables(in: db)
+        try DatabaseManager.createSyncConfig(in: db)
+    }
+
+    /// Create `sync_config` (#434): the device-local on/off switch for iCloud sync plus
+    /// last-sync status. Idempotent — called from createSchema and the v33 migration.
+    static func createSyncConfig(in db: Database) throws {
+        try db.execute(sql: """
+            CREATE TABLE IF NOT EXISTS sync_config (
+                id INTEGER PRIMARY KEY CHECK(id = 1),
+                enabled INTEGER NOT NULL DEFAULT 0 CHECK(enabled IN (0, 1)),
+                last_synced_at INTEGER,
+                last_error TEXT
+            )
+            """)
+        try db.execute(sql: "INSERT OR IGNORE INTO sync_config (id, enabled) VALUES (1, 0)")
     }
 
     /// Create the device-local sync-state tables for iCloud sync (#434): the outbound
