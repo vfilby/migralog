@@ -16,6 +16,15 @@ final class InMemoryCloudKitTransport: CloudKitTransport, @unchecked Sendable {
 
     /// When set, the next `push` throws this and clears it (for error-path tests).
     var failNextPush: Error?
+    /// When set, the next `fetchChanges` throws this and clears it (for error-path tests).
+    var failNextFetch: Error?
+    /// Controls `accountAvailable()` for precondition tests.
+    var accountIsAvailable = true
+
+    func accountAvailable() async throws -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        return accountIsAvailable
+    }
 
     func ensureZone() async throws {
         lock.lock(); defer { lock.unlock() }
@@ -38,6 +47,10 @@ final class InMemoryCloudKitTransport: CloudKitTransport, @unchecked Sendable {
 
     func fetchChanges(since token: Data?) async throws -> SyncChangeBatch {
         lock.lock(); defer { lock.unlock() }
+        if let error = failNextFetch {
+            failNextFetch = nil
+            throw error
+        }
         let sinceSeq = token
             .flatMap { String(bytes: $0, encoding: .utf8) }
             .flatMap { Int($0) } ?? 0

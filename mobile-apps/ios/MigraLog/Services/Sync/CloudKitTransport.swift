@@ -1,5 +1,17 @@
 import Foundation
 
+/// Recoverable conditions a transport can signal so the engine can react — retry,
+/// reset, or skip — instead of failing the whole sync. Implementations map their
+/// backend errors (e.g. `CKError`) onto these; the engine handles them generically.
+enum SyncTransportError: Error, Equatable {
+    /// No iCloud account is available — skip syncing.
+    case accountUnavailable
+    /// The custom zone is missing (e.g. the user deleted iCloud data) — recreate and retry.
+    case zoneNotFound
+    /// The saved server change token is no longer valid — discard it and re-pull fully.
+    case changeTokenExpired
+}
+
 /// A page of remote changes pulled from a CloudKit zone.
 struct SyncChangeBatch: Equatable, Sendable {
     /// Changed/created records since the supplied token, including tombstones
@@ -20,6 +32,10 @@ struct SyncChangeBatch: Equatable, Sendable {
 /// Implementations must be safe to call from a single sync task at a time; the engine
 /// serialises sync runs.
 protocol CloudKitTransport: Sendable {
+    /// Whether an iCloud account is currently available to sync with. The engine skips
+    /// syncing when this is false rather than failing on every CloudKit call.
+    func accountAvailable() async throws -> Bool
+
     /// Create the custom record zone if it does not already exist. Idempotent.
     func ensureZone() async throws
 

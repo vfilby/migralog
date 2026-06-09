@@ -14,20 +14,29 @@ import Foundation
 final class CloudKitSyncTransport: CloudKitTransport, @unchecked Sendable {
     static let recordType = "SyncRecord"
 
+    private let container: CKContainer
     private let database: CKDatabase
     private let zoneID: CKRecordZone.ID
 
     init(containerIdentifier: String = "iCloud.com.eff3.migralog") {
-        let container = CKContainer(identifier: containerIdentifier)
+        self.container = CKContainer(identifier: containerIdentifier)
         self.database = container.privateCloudDatabase
         self.zoneID = CKRecordZone.ID(zoneName: SyncEngine.zoneName, ownerName: CKCurrentUserDefaultName)
+    }
+
+    func accountAvailable() async throws -> Bool {
+        try await container.accountStatus() == .available
     }
 
     /// Create the custom zone if it doesn't exist. Saving an existing zone is a no-op,
     /// so this is idempotent.
     func ensureZone() async throws {
         let zone = CKRecordZone(zoneID: zoneID)
-        _ = try await database.modifyRecordZones(saving: [zone], deleting: [])
+        do {
+            _ = try await database.modifyRecordZones(saving: [zone], deleting: [])
+        } catch {
+            throw Self.mapError(error)
+        }
     }
 
     /// Save records (upserts and tombstones) to the zone. Uses `.allKeys` so our
@@ -37,9 +46,13 @@ final class CloudKitSyncTransport: CloudKitTransport, @unchecked Sendable {
     func push(_ records: [SyncRecord]) async throws {
         guard !records.isEmpty else { return }
         let ckRecords = records.map { makeCKRecord(from: $0) }
-        _ = try await database.modifyRecords(
-            saving: ckRecords, deleting: [], savePolicy: .allKeys, atomically: true
-        )
+        do {
+            _ = try await database.modifyRecords(
+                saving: ckRecords, deleting: [], savePolicy: .allKeys, atomically: true
+            )
+        } catch {
+            throw Self.mapError(error)
+        }
     }
 
     /// Fetch changes since `token` (nil for a first full sync), mapping each changed
@@ -47,17 +60,44 @@ final class CloudKitSyncTransport: CloudKitTransport, @unchecked Sendable {
     /// propagates deletes as tombstone records, not by removing CKRecords.
     func fetchChanges(since token: Data?) async throws -> SyncChangeBatch {
         let changeToken = try Self.decodeToken(token)
-        let change = try await database.recordZoneChanges(inZoneWith: zoneID, since: changeToken)
-
-        let records: [SyncRecord] = change.modificationResultsByID.values.compactMap { result in
-            guard case .success(let modification) = result else { return nil }
-            return Self.makeSyncRecord(from: modification.record)
+        do {
+            let change = try await database.recordZoneChanges(inZoneWith: zoneID, since: changeToken)
+            let records: [SyncRecord] = change.modificationResultsByID.values.compactMap { result in
+                guard case .success(let modification) = result else { return nil }
+                return Self.makeSyncRecord(from: modification.record)
+            }
+            return SyncChangeBatch(
+                records: records,
+                newToken: try Self.encodeToken(change.changeToken),
+                moreComing: change.moreComing
+            )
+        } catch {
+            throw Self.mapError(error)
         }
-        return SyncChangeBatch(
-            records: records,
-            newToken: try Self.encodeToken(change.changeToken),
-            moreComing: change.moreComing
-        )
+    }
+
+    // MARK: - Error mapping
+
+    /// Map CloudKit errors onto the engine-facing recoverable errors. Anything not
+    /// specifically recoverable propagates unchanged so the engine surfaces it.
+    private static func mapError(_ error: Error) -> Error {
+        guard let ckError = error as? CKError else { return error }
+        switch ckError.code {
+        case .zoneNotFound, .userDeletedZone:
+            return SyncTransportError.zoneNotFound
+        case .changeTokenExpired:
+            return SyncTransportError.changeTokenExpired
+        case .notAuthenticated:
+            return SyncTransportError.accountUnavailable
+        case .partialFailure:
+            let partials = ckError.partialErrorsByItemID?.values.compactMap { $0 as? CKError } ?? []
+            if partials.contains(where: { $0.code == .zoneNotFound || $0.code == .userDeletedZone }) {
+                return SyncTransportError.zoneNotFound
+            }
+            return error
+        default:
+            return error
+        }
     }
 
     // MARK: - Record mapping
