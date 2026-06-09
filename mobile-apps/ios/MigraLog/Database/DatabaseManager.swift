@@ -43,11 +43,9 @@ final class DatabaseManager: Sendable {
             databaseFileURL = dbURL
             var config = Configuration()
             config.foreignKeysEnabled = true
-            #if DEBUG
-            config.prepareDatabase { db in
-                db.trace { print("SQL: \($0)") }
-            }
-            #endif
+            // No SQL tracing, even in DEBUG: statements embed health data
+            // (episodes, medications, notes) and must stay out of console
+            // output and captured build/test logs.
             let queue = try DatabaseQueue(path: dbURL.path, configuration: config)
             let mgr = DatabaseManager.buildMigrator()
             try mgr.migrate(queue)
