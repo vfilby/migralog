@@ -105,6 +105,17 @@ final class SyncPendingChangesStore: Sendable {
         }
     }
 
+    /// Remove any pending change for a specific row. Used when an incoming remote change
+    /// supersedes a locally-queued edit, so the now-stale local version isn't pushed.
+    func removePending(tableName: String, recordId: String) throws {
+        try dbManager.dbQueue.write { db in
+            try db.execute(
+                sql: "DELETE FROM sync_pending_changes WHERE table_name = ? AND record_id = ?",
+                arguments: [tableName, recordId]
+            )
+        }
+    }
+
     /// Remove changes that were successfully pushed.
     func remove(ids: [Int64]) throws {
         guard !ids.isEmpty else { return }

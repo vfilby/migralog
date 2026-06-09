@@ -87,6 +87,15 @@ final class SyncPendingChangesStoreTests: XCTestCase {
         XCTAssertEqual(try store.pendingCount(), 5)
     }
 
+    func testRemovePendingDeletesOnlyThatRow() throws {
+        try store.enqueue(tableName: "medications", recordId: "m1", changeType: .upsert, at: 1000)
+        try store.enqueue(tableName: "episodes", recordId: "e1", changeType: .upsert, at: 1000)
+
+        try store.removePending(tableName: "medications", recordId: "m1")
+
+        XCTAssertEqual(try store.fetchBatch(limit: 10).map { $0.recordId }, ["e1"])
+    }
+
     // MARK: - Backfill
 
     private func insertMedication(_ id: String) throws {

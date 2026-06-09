@@ -31,13 +31,17 @@ actor SyncEngine {
         self.applier = applier
     }
 
-    /// Full cycle: ensure the zone exists, push the outbound queue, then pull and apply
-    /// remote changes. Returns counts for observability and tests.
+    /// Full cycle: ensure the zone exists, pull and apply remote changes, then push the
+    /// outbound queue. Returns counts for observability and tests.
     @discardableResult
     func sync(now: Int64) async throws -> (pushed: Int, applied: Int) {
         try await transport.ensureZone()
-        let pushed = try await push()
+        // Pull before push: apply remote changes (LWW) first, so a locally-queued edit
+        // that lost to a newer remote version is dropped during pull rather than pushed
+        // and clobbering the winner. Push-then-pull would force-overwrite the newer
+        // remote record with our stale local one.
         let applied = try await pull(now: now)
+        let pushed = try await push()
         return (pushed, applied)
     }
 
@@ -113,7 +117,13 @@ actor SyncEngine {
             let batch = try await transport.fetchChanges(since: token)
             let ordered = batch.records.sorted { Self.applyRank($0) < Self.applyRank($1) }
             for record in ordered {
-                _ = try applier.apply(record, now: now)
+                let outcome = try applier.apply(record, now: now)
+                // A remote change that won last-write-wins supersedes any locally-queued
+                // edit for the same row — drop it so push doesn't send the now-stale local
+                // version back and clobber the winner.
+                if outcome == .appliedRemoteWin {
+                    try pendingStore.removePending(tableName: record.tableName, recordId: record.recordId)
+                }
                 applied += 1
             }
             token = batch.newToken
