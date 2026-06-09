@@ -118,7 +118,7 @@ final class LogMedicationViewModel {
             categoryUsage = computeCategoryUsage(for: categories, now: Date())
             categoryCooldowns = computeCategoryCooldowns(for: medications, now: Date())
         } catch {
-            ErrorLogger.shared.logError(error, context: ["action": "quickLog", "medication": medication.name])
+            ErrorLogger.shared.logError(error, context: ["action": "quickLog", "medicationId": medication.id])
         }
     }
 }
