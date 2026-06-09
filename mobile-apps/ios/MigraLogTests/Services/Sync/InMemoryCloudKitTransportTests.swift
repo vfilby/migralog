@@ -76,4 +76,27 @@ final class InMemoryCloudKitTransportTests: XCTestCase {
         try await transport.push([rec("episodes", "e1")])
         XCTAssertEqual(transport.pushCount, 1, "only the successful push counts")
     }
+
+    // MARK: - LWW at push (#461)
+
+    func testPushKeepsNewerServerRecordAndReturnsIt() async throws {
+        let transport = InMemoryCloudKitTransport()
+        transport.seed(rec("episodes", "e1", updatedAt: 5, payload: #"{"v":"server"}"#))
+
+        let serverWon = try await transport.push([rec("episodes", "e1", updatedAt: 2, payload: #"{"v":"local"}"#)])
+
+        XCTAssertEqual(serverWon.map { $0.recordName }, ["episodes:e1"], "the newer server record is returned")
+        XCTAssertEqual(transport.record(named: "episodes:e1")?.updatedAt, 5, "the stale push must not clobber it")
+        XCTAssertEqual(transport.record(named: "episodes:e1")?.payload, #"{"v":"server"}"#)
+    }
+
+    func testPushOverwritesOlderServerRecordAndReturnsEmpty() async throws {
+        let transport = InMemoryCloudKitTransport()
+        transport.seed(rec("episodes", "e1", updatedAt: 2))
+
+        let serverWon = try await transport.push([rec("episodes", "e1", updatedAt: 5)])
+
+        XCTAssertTrue(serverWon.isEmpty, "our newer version wins, nothing to converge")
+        XCTAssertEqual(transport.record(named: "episodes:e1")?.updatedAt, 5)
+    }
 }

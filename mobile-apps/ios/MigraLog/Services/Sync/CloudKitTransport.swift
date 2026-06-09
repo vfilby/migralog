@@ -39,9 +39,15 @@ protocol CloudKitTransport: Sendable {
     /// Create the custom record zone if it does not already exist. Idempotent.
     func ensureZone() async throws
 
-    /// Save the given records (upserts and tombstones) to the zone. Throws if any
-    /// record fails to save.
-    func push(_ records: [SyncRecord]) async throws
+    /// Save the given records (upserts and tombstones) to the zone, resolving any
+    /// server-side conflict by last-write-wins (#461). A record is only overwritten when
+    /// our version wins LWW against whatever the server currently holds; when the server
+    /// holds a *newer* version, ours is dropped and the server's is returned so the engine
+    /// can apply it locally and converge. Returns the server records that won (empty in the
+    /// common no-conflict case). Throws if any record fails to save for a non-conflict
+    /// reason (the engine keeps the queue and retries).
+    @discardableResult
+    func push(_ records: [SyncRecord]) async throws -> [SyncRecord]
 
     /// Fetch changes since `token` (nil for a first full sync). Returns the changed
     /// records, the new token to persist, and whether more pages remain.

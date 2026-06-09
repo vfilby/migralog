@@ -39,19 +39,102 @@ final class CloudKitSyncTransport: CloudKitTransport, @unchecked Sendable {
         }
     }
 
-    /// Save records (upserts and tombstones) to the zone. Uses `.allKeys` so our
-    /// already-resolved version overwrites the server's regardless of change tag, and
-    /// `atomically: true` so a partial failure throws (the engine keeps the queue and
-    /// retries) rather than silently dropping changes.
-    func push(_ records: [SyncRecord]) async throws {
-        guard !records.isEmpty else { return }
-        let ckRecords = records.map { makeCKRecord(from: $0) }
+    /// Maximum optimistic-concurrency passes before falling back to a force-save, so a
+    /// pathologically hot record can't loop forever.
+    private static let maxPushAttempts = 5
+
+    /// Save records (upserts and tombstones), resolving server-side conflicts by
+    /// last-write-wins (#461). Each record is saved with `.ifServerRecordUnchanged`
+    /// (`atomically: false`), so the server rejects a save when it already holds a version
+    /// different from the one we based ours on. For each rejected record we compare our
+    /// version against the server's by `updatedAt` (LWW): if ours is newer we re-save into
+    /// the *server* record — which carries the current change tag — and retry; if the
+    /// server's is newer we drop ours and return it so the engine applies it locally and
+    /// converges. This closes the residual pull→push race where another device wrote a
+    /// newer version into the zone during our sync window. Returns the server records that
+    /// won (empty in the common no-conflict case).
+    ///
+    /// ⚠️ Device-verify-only: the CloudKit conflict path cannot run in CI or the
+    /// simulator. The contract (LWW at push, return the server winners) is exercised
+    /// against the in-memory fake in tests.
+    @discardableResult
+    func push(_ records: [SyncRecord]) async throws -> [SyncRecord] {
+        guard !records.isEmpty else { return [] }
+        var desired: [CKRecord.ID: SyncRecord] = [:]
+        var toSave: [CKRecord] = records.map { record in
+            let ck = makeCKRecord(from: record)
+            desired[ck.recordID] = record
+            return ck
+        }
+        var serverWon: [SyncRecord] = []
+
+        for _ in 0..<Self.maxPushAttempts {
+            let conflicts = try await saveResolvingConflicts(toSave)
+            if conflicts.isEmpty { return serverWon }
+
+            var retry: [CKRecord] = []
+            for (recordID, serverRecord) in conflicts {
+                guard let want = desired[recordID] else { continue }
+                let server = Self.makeSyncRecord(from: serverRecord)
+                let winner = server.map {
+                    LWWResolver.resolve(
+                        localUpdatedAt: want.updatedAt, localPayload: want.payload,
+                        remoteUpdatedAt: $0.updatedAt, remotePayload: $0.payload
+                    )
+                } ?? .local
+                if winner == .remote, let server {
+                    serverWon.append(server)        // server is newer — keep it, converge locally.
+                    desired[recordID] = nil
+                } else {
+                    // We win: write our fields into the server record so the save carries
+                    // the current change tag and passes the .ifServerRecordUnchanged check.
+                    writeFields(of: want, into: serverRecord)
+                    retry.append(serverRecord)
+                }
+            }
+            toSave = retry
+            if toSave.isEmpty { return serverWon }
+        }
+
+        // Last resort after repeated conflicts on the same hot record: force-save what
+        // remains so our edit isn't silently lost. Bounded by maxPushAttempts above.
+        if !toSave.isEmpty {
+            do {
+                _ = try await database.modifyRecords(
+                    saving: toSave, deleting: [], savePolicy: .allKeys, atomically: false
+                )
+            } catch {
+                throw Self.mapError(error)
+            }
+        }
+        return serverWon
+    }
+
+    /// One optimistic-concurrency save pass. Returns the records the server rejected
+    /// because it holds a changed version, paired with that server record. Throws (mapped)
+    /// for any other failure so the engine keeps the queue and retries.
+    private func saveResolvingConflicts(_ ckRecords: [CKRecord]) async throws -> [(CKRecord.ID, CKRecord)] {
         do {
             _ = try await database.modifyRecords(
-                saving: ckRecords, deleting: [], savePolicy: .allKeys, atomically: true
+                saving: ckRecords, deleting: [], savePolicy: .ifServerRecordUnchanged, atomically: false
             )
+            return []
         } catch {
-            throw Self.mapError(error)
+            guard let ckError = error as? CKError, ckError.code == .partialFailure,
+                  let perItem = ckError.partialErrorsByItemID else {
+                throw Self.mapError(error)
+            }
+            var conflicts: [(CKRecord.ID, CKRecord)] = []
+            for (key, itemError) in perItem {
+                guard let itemCK = itemError as? CKError, itemCK.code == .serverRecordChanged else {
+                    // A non-conflict per-item failure (zone gone, quota, …) — surface it.
+                    throw Self.mapError(error)
+                }
+                if let id = key as? CKRecord.ID, let server = itemCK.serverRecord {
+                    conflicts.append((id, server))
+                }
+            }
+            return conflicts
         }
     }
 
@@ -105,13 +188,19 @@ final class CloudKitSyncTransport: CloudKitTransport, @unchecked Sendable {
     private func makeCKRecord(from record: SyncRecord) -> CKRecord {
         let recordID = CKRecord.ID(recordName: record.recordName, zoneID: zoneID)
         let ckRecord = CKRecord(recordType: Self.recordType, recordID: recordID)
+        writeFields(of: record, into: ckRecord)
+        return ckRecord
+    }
+
+    /// Copy a `SyncRecord`'s fields onto a `CKRecord`. Used both to build a fresh record
+    /// and to re-stamp a fetched server record (preserving its change tag) on conflict.
+    private func writeFields(of record: SyncRecord, into ckRecord: CKRecord) {
         ckRecord["tableName"] = record.tableName
         ckRecord["recordId"] = record.recordId
         ckRecord["payload"] = record.payload
         ckRecord["schemaVersion"] = Int64(record.schemaVersion)
         ckRecord["updatedAt"] = record.updatedAt
         ckRecord["deleted"] = Int64(record.deleted ? 1 : 0)
-        return ckRecord
     }
 
     private static func makeSyncRecord(from ckRecord: CKRecord) -> SyncRecord? {
