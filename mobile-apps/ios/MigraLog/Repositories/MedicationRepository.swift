@@ -351,26 +351,32 @@ final class MedicationRepository: MedicationRepositoryProtocol {
     // MARK: - Schedule CRUD
 
     func createSchedule(_ schedule: MedicationSchedule) throws -> MedicationSchedule {
+        let now = TimestampHelper.now
+        var created = schedule
+        if created.createdAt == nil { created.createdAt = now }
+        if created.updatedAt == nil { created.updatedAt = now }
         try dbManager.dbQueue.write { db in
             try db.execute(
                 sql: """
                     INSERT INTO medication_schedules (id, medication_id, time, timezone, dosage,
-                        enabled, notification_id, reminder_enabled)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        enabled, notification_id, reminder_enabled, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                 arguments: [
-                    schedule.id,
-                    schedule.medicationId,
-                    schedule.time,
-                    schedule.timezone,
-                    schedule.dosage,
-                    schedule.enabled ? 1 : 0,
-                    schedule.notificationId,
-                    schedule.reminderEnabled ? 1 : 0
+                    created.id,
+                    created.medicationId,
+                    created.time,
+                    created.timezone,
+                    created.dosage,
+                    created.enabled ? 1 : 0,
+                    created.notificationId,
+                    created.reminderEnabled ? 1 : 0,
+                    created.createdAt,
+                    created.updatedAt
                 ]
             )
         }
-        return schedule
+        return created
     }
 
     func getSchedulesByMedicationId(_ medicationId: String) throws -> [MedicationSchedule] {
@@ -403,26 +409,30 @@ final class MedicationRepository: MedicationRepositoryProtocol {
     }
 
     func updateSchedule(_ schedule: MedicationSchedule) throws -> MedicationSchedule {
+        let now = TimestampHelper.now
+        var updated = schedule
+        updated.updatedAt = now
         try dbManager.dbQueue.write { db in
             try db.execute(
                 sql: """
                     UPDATE medication_schedules SET
                         time = ?, timezone = ?, dosage = ?, enabled = ?,
-                        notification_id = ?, reminder_enabled = ?
+                        notification_id = ?, reminder_enabled = ?, updated_at = ?
                     WHERE id = ?
                     """,
                 arguments: [
-                    schedule.time,
-                    schedule.timezone,
-                    schedule.dosage,
-                    schedule.enabled ? 1 : 0,
-                    schedule.notificationId,
-                    schedule.reminderEnabled ? 1 : 0,
-                    schedule.id
+                    updated.time,
+                    updated.timezone,
+                    updated.dosage,
+                    updated.enabled ? 1 : 0,
+                    updated.notificationId,
+                    updated.reminderEnabled ? 1 : 0,
+                    updated.updatedAt,
+                    updated.id
                 ]
             )
         }
-        return schedule
+        return updated
     }
 
     func deleteSchedule(_ id: String) throws {
@@ -491,7 +501,9 @@ final class MedicationRepository: MedicationRepositoryProtocol {
             dosage: row["dosage"],
             enabled: (row["enabled"] as Int) != 0,
             notificationId: row["notification_id"],
-            reminderEnabled: (row["reminder_enabled"] as Int) != 0
+            reminderEnabled: (row["reminder_enabled"] as Int) != 0,
+            createdAt: row["created_at"],
+            updatedAt: row["updated_at"]
         )
     }
 }

@@ -76,7 +76,8 @@ final class EpisodeRepositoryTests: XCTestCase {
             onsetTime: onsetTime,
             resolutionTime: nil,
             severity: 5.0,
-            createdAt: TimestampHelper.now
+            createdAt: TimestampHelper.now,
+            updatedAt: TimestampHelper.now
         )
     }
 
@@ -108,7 +109,8 @@ final class EpisodeRepositoryTests: XCTestCase {
             episodeId: episodeId,
             timestamp: timestamp,
             note: note,
-            createdAt: TimestampHelper.now
+            createdAt: TimestampHelper.now,
+            updatedAt: TimestampHelper.now
         )
     }
 
@@ -367,6 +369,9 @@ final class EpisodeRepositoryTests: XCTestCase {
         let log = makeSymptomLog(episodeId: episode.id, symptom: .nausea)
         try repo.createSymptomLog(log)
 
+        let before = try repo.getSymptomLogsByEpisodeId(episode.id).first!.updatedAt
+        Thread.sleep(forTimeInterval: 0.005)  // guarantee the millis clock advances
+
         var toUpdate = log
         toUpdate.symptom = .dizziness
         let updated = try repo.updateSymptomLog(toUpdate)
@@ -374,6 +379,9 @@ final class EpisodeRepositoryTests: XCTestCase {
 
         let fetched = try repo.getSymptomLogsByEpisodeId(episode.id)
         XCTAssertEqual(fetched.first?.symptom, .dizziness)
+        // #460: editing a synced row must bump updated_at for LWW.
+        XCTAssertGreaterThan(fetched.first!.updatedAt, before)
+        XCTAssertEqual(updated.updatedAt, fetched.first!.updatedAt)
     }
 
     func testDeleteSymptomLog() throws {
@@ -467,12 +475,17 @@ final class EpisodeRepositoryTests: XCTestCase {
         let note = makeNote(episodeId: episode.id, note: "Original")
         try repo.createEpisodeNote(note)
 
+        let before = try repo.getNotesByEpisodeId(episode.id).first!.updatedAt
+        Thread.sleep(forTimeInterval: 0.005)
+
         var toUpdate = note
         toUpdate.note = "Updated text"
         try repo.updateEpisodeNote(toUpdate)
 
         let fetched = try repo.getNotesByEpisodeId(episode.id)
         XCTAssertEqual(fetched.first?.note, "Updated text")
+        // #460: editing a synced row must bump updated_at for LWW.
+        XCTAssertGreaterThan(fetched.first!.updatedAt, before)
     }
 
     func testUpdateNoteTimestamps() throws {
@@ -481,11 +494,16 @@ final class EpisodeRepositoryTests: XCTestCase {
         let note = makeNote(episodeId: episode.id, timestamp: 1_700_000_000_000)
         try repo.createEpisodeNote(note)
 
+        let before = try repo.getNotesByEpisodeId(episode.id).first!.updatedAt
+        Thread.sleep(forTimeInterval: 0.005)
+
         let offset: Int64 = 3_600_000
         try repo.updateNoteTimestamps(episodeId: episode.id, offset: offset)
 
         let notes = try repo.getNotesByEpisodeId(episode.id)
         XCTAssertEqual(notes.first?.timestamp, 1_700_000_000_000 + offset)
+        // #460: bulk timestamp shift must also bump updated_at.
+        XCTAssertGreaterThan(notes.first!.updatedAt, before)
     }
 
     func testDeleteEpisodeNote() throws {

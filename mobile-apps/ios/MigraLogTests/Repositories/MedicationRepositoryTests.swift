@@ -373,12 +373,18 @@ final class MedicationRepositoryTests: XCTestCase {
         let schedule = makeSchedule(medicationId: med.id, time: "08:00")
         try repo.createSchedule(schedule)
 
+        let before = try repo.getSchedulesByMedicationId(med.id).first!.updatedAt
+        Thread.sleep(forTimeInterval: 0.005)
+
         var toUpdate = schedule
         toUpdate.time = "09:30"
         try repo.updateSchedule(toUpdate)
 
         let fetched = try repo.getSchedulesByMedicationId(med.id)
         XCTAssertEqual(fetched.first?.time, "09:30")
+        // #460: editing a synced row must bump updated_at for LWW.
+        XCTAssertNotNil(fetched.first?.updatedAt)
+        XCTAssertGreaterThan(fetched.first!.updatedAt!, before ?? 0)
     }
 
     func testDeleteSchedule() throws {

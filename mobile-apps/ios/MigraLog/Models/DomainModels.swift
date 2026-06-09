@@ -59,6 +59,7 @@ struct SymptomLog: Identifiable, Equatable, Sendable {
     var resolutionTime: Int64?
     var severity: Double?
     let createdAt: Int64
+    var updatedAt: Int64
 }
 
 // MARK: - Pain Location Log
@@ -80,6 +81,7 @@ struct EpisodeNote: Identifiable, Equatable, Sendable {
     var timestamp: Int64
     var note: String
     let createdAt: Int64
+    var updatedAt: Int64
 
     var date: Date {
         Date(timeIntervalSince1970: Double(timestamp) / 1000.0)
@@ -116,6 +118,8 @@ struct MedicationSchedule: Identifiable, Equatable, Sendable {
     var enabled: Bool
     var notificationId: String?
     var reminderEnabled: Bool
+    var createdAt: Int64? = nil
+    var updatedAt: Int64? = nil
 
     var timeComponents: (hour: Int, minute: Int)? {
         let parts = time.split(separator: ":")

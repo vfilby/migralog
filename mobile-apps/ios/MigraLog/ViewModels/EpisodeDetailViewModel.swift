@@ -267,7 +267,8 @@ final class EpisodeDetailViewModel {
             onsetTime: timestamp ?? now,
             resolutionTime: nil,
             severity: severity,
-            createdAt: now
+            createdAt: now,
+            updatedAt: now
         )
         do {
             let saved = try await episodeRepository.createSymptomLog(log)
@@ -312,7 +313,8 @@ final class EpisodeDetailViewModel {
             episodeId: episodeId,
             timestamp: timestamp ?? now,
             note: note,
-            createdAt: now
+            createdAt: now,
+            updatedAt: now
         )
         do {
             let saved = try await episodeRepository.createEpisodeNote(episodeNote)
