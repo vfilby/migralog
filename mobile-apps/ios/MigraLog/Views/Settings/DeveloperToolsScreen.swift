@@ -36,14 +36,6 @@ struct DeveloperToolsScreen: View {
                 }
             }
 
-            Section("iCloud Sync (#434)") {
-                NavigationLink {
-                    SyncTestScreen()
-                } label: {
-                    Label("Sync Test", systemImage: "arrow.triangle.2.circlepath.icloud")
-                }
-            }
-
             Section("Onboarding") {
                 Button("Reset Onboarding") {
                     appState.resetOnboarding()
