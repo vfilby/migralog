@@ -46,6 +46,12 @@ struct SettingsScreen: View {
                 } label: {
                     Label("Backup & Export", systemImage: "externaldrive")
                 }
+
+                NavigationLink {
+                    SyncSettingsScreen()
+                } label: {
+                    Label("iCloud Sync", systemImage: "arrow.triangle.2.circlepath.icloud")
+                }
             }
 
             // Developer Tools

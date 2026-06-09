@@ -4,11 +4,12 @@ import Foundation
 /// enable/disable flow. The single surface the app and settings UI talk to. Holds one
 /// `SyncEngine` (an actor), so overlapping sync triggers serialise rather than racing.
 @MainActor
-final class SyncService: ObservableObject {
-    @Published private(set) var isEnabled: Bool
-    @Published private(set) var isSyncing = false
-    @Published private(set) var lastSyncedAt: Int64?
-    @Published private(set) var lastError: String?
+@Observable
+final class SyncService {
+    private(set) var isEnabled: Bool
+    private(set) var isSyncing = false
+    private(set) var lastSyncedAt: Int64?
+    private(set) var lastError: String?
 
     private let dbManager: DatabaseManager
     private let backupService: BackupServiceProtocol
