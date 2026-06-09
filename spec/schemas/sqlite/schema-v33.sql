@@ -1,4 +1,4 @@
--- MigraLog SQLite Schema v32
+-- MigraLog SQLite Schema v33
 -- Canonical schema definition for the migraine tracking database.
 -- Source of truth: mobile-apps/ios/MigraLog/Database/DatabaseManager.swift
 --   (createSchema + registered migrations). This .sql is a formal mirror and
@@ -16,6 +16,8 @@
 -- v32 (#434, iCloud sync): added sync_capture_state (control flags) + AFTER
 --   INSERT/UPDATE/DELETE triggers on each synced table that enqueue local edits to
 --   sync_pending_changes. Device-local. See createSyncCaptureTriggers.
+-- v33 (#434, iCloud sync): added sync_config — the on/off switch + last-sync status.
+--   Device-local, NOT synced.
 --
 -- Conventions:
 --   - All IDs are TEXT (UUIDs)
@@ -329,3 +331,12 @@ INSERT OR IGNORE INTO sync_capture_state (id, enabled, suppressed) VALUES (1, 0,
 --         change_type = 'upsert', created_at = excluded.created_at,
 --         retry_count = 0, last_error = NULL;
 --   END;
+
+-- iCloud sync on/off switch + last-sync status (v33). Device-local, NOT synced.
+CREATE TABLE IF NOT EXISTS sync_config (
+  id INTEGER PRIMARY KEY CHECK(id = 1),
+  enabled INTEGER NOT NULL DEFAULT 0 CHECK(enabled IN (0, 1)),
+  last_synced_at INTEGER,
+  last_error TEXT
+);
+INSERT OR IGNORE INTO sync_config (id, enabled) VALUES (1, 0);
