@@ -1,8 +1,12 @@
 import SwiftUI
+import UIKit
 import UserNotifications
 
 @main
 struct MigraLogApp: App {
+    /// Owns the shared `SyncService` and registers the background-refresh task before the
+    /// app finishes launching (BGTaskScheduler requires registration at launch — #462).
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var appState = AppState()
 
     /// Notification response handler — must be retained for the lifetime of the app.
@@ -11,7 +15,6 @@ struct MigraLogApp: App {
     private let medicationNotificationService: MedicationNotificationScheduler
     private let dailyCheckinService: DailyCheckinNotificationService
     @State private var timezoneChangeService: TimezoneChangeService
-    @State private var syncService: SyncService
 
     init() {
         SentrySetup.start()
@@ -56,7 +59,6 @@ struct MigraLogApp: App {
         self._timezoneChangeService = State(
             initialValue: TimezoneChangeService(medicationRepo: medicationRepository)
         )
-        self._syncService = State(initialValue: SyncService())
     }
 
     var body: some Scene {
@@ -64,7 +66,7 @@ struct MigraLogApp: App {
             ContentView()
                 .environment(appState)
                 .environment(timezoneChangeService)
-                .environment(syncService)
+                .environment(appDelegate.syncService)
                 .task {
                     await reconciliationService.reconcile()
                     await medicationNotificationService.topUp()
@@ -72,6 +74,23 @@ struct MigraLogApp: App {
                     await timezoneChangeService.checkForChange()
                 }
         }
+    }
+}
+
+/// Owns the single shared `SyncService` and registers the background-refresh task. A
+/// `UIApplicationDelegate` is required because `BGTaskScheduler.register` must run before
+/// `didFinishLaunchingWithOptions` returns — SwiftUI's `App` lifecycle has no equivalent
+/// pre-launch hook (#462).
+@MainActor
+final class AppDelegate: NSObject, UIApplicationDelegate {
+    let syncService = SyncService()
+
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        BackgroundSyncScheduler.register(syncService: syncService)
+        return true
     }
 }
 
