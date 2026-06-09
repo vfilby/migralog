@@ -49,6 +49,29 @@ final class CategorySafetyRuleRepositoryTests: XCTestCase {
         XCTAssertEqual(all[0].periodHours, 6.0)
     }
 
+    func test_upsert_stamps_updated_at_for_LWW() throws {
+        // #460: every upsert must stamp updated_at so last-write-wins compares
+        // last-modified time, not creation time.
+        let rule = CategorySafetyRule(
+            id: "a", category: .nsaid, type: .cooldown,
+            periodHours: 4.0, maxCount: nil, createdAt: Date()
+        )
+        try repo.upsert(rule)
+        let first = try repo.getRule(category: .nsaid, type: .cooldown)?.updatedAt
+        XCTAssertNotNil(first)
+
+        Thread.sleep(forTimeInterval: 0.005)
+
+        let changed = CategorySafetyRule(
+            id: rule.id, category: .nsaid, type: .cooldown,
+            periodHours: 6.0, maxCount: nil, createdAt: rule.createdAt
+        )
+        try repo.upsert(changed)
+        let second = try repo.getRule(category: .nsaid, type: .cooldown)?.updatedAt
+        XCTAssertNotNil(second)
+        XCTAssertGreaterThan(second!, first!)
+    }
+
     func test_can_store_cooldown_and_period_limit_for_same_category() throws {
         let cooldown = CategorySafetyRule(
             id: "c", category: .nsaid, type: .cooldown,

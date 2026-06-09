@@ -22,6 +22,7 @@ struct CategorySafetyRule: Identifiable, Equatable, Sendable {
     let periodHours: Double
     let maxCount: Int?
     let createdAt: Date
+    var updatedAt: Date?
 
     /// Window length in whole days, for period_limit rules. Rounds to nearest
     /// integer day because the UI only exposes day-granularity.
@@ -41,7 +42,7 @@ final class CategorySafetyRuleRepository: CategorySafetyRuleRepositoryProtocol {
         try dbManager.dbQueue.read { db in
             let rows = try Row.fetchAll(
                 db,
-                sql: "SELECT id, category, type, period_hours, max_count, created_at FROM category_safety_rules"
+                sql: "SELECT id, category, type, period_hours, max_count, created_at, updated_at FROM category_safety_rules"
             )
             return rows.compactMap { Self.ruleFromRow($0) }
         }
@@ -51,7 +52,7 @@ final class CategorySafetyRuleRepository: CategorySafetyRuleRepositoryProtocol {
         try dbManager.dbQueue.read { db in
             let rows = try Row.fetchAll(
                 db,
-                sql: "SELECT id, category, type, period_hours, max_count, created_at FROM category_safety_rules WHERE category = ?",
+                sql: "SELECT id, category, type, period_hours, max_count, created_at, updated_at FROM category_safety_rules WHERE category = ?",
                 arguments: [category.rawValue]
             )
             return rows.compactMap { Self.ruleFromRow($0) }
@@ -63,7 +64,7 @@ final class CategorySafetyRuleRepository: CategorySafetyRuleRepositoryProtocol {
             let row = try Row.fetchOne(
                 db,
                 sql: """
-                    SELECT id, category, type, period_hours, max_count, created_at
+                    SELECT id, category, type, period_hours, max_count, created_at, updated_at
                     FROM category_safety_rules
                     WHERE category = ? AND type = ?
                     """,
@@ -74,15 +75,17 @@ final class CategorySafetyRuleRepository: CategorySafetyRuleRepositoryProtocol {
     }
 
     func upsert(_ rule: CategorySafetyRule) throws {
+        let now = TimestampHelper.now
         try dbManager.dbQueue.write { db in
             try db.execute(
                 sql: """
                     INSERT INTO category_safety_rules
-                        (id, category, type, period_hours, max_count, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                        (id, category, type, period_hours, max_count, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(category, type) DO UPDATE SET
                         period_hours = excluded.period_hours,
-                        max_count = excluded.max_count
+                        max_count = excluded.max_count,
+                        updated_at = excluded.updated_at
                     """,
                 arguments: [
                     rule.id,
@@ -90,7 +93,8 @@ final class CategorySafetyRuleRepository: CategorySafetyRuleRepositoryProtocol {
                     rule.type.rawValue,
                     rule.periodHours,
                     rule.maxCount,
-                    Int64(rule.createdAt.timeIntervalSince1970 * 1000)
+                    Int64(rule.createdAt.timeIntervalSince1970 * 1000),
+                    now
                 ]
             )
         }
@@ -139,13 +143,16 @@ final class CategorySafetyRuleRepository: CategorySafetyRuleRepositoryProtocol {
               let createdAtMillis = row["created_at"] as Int64? else {
             return nil
         }
+        let updatedAt: Date? = (row["updated_at"] as Int64?)
+            .map { Date(timeIntervalSince1970: TimeInterval($0) / 1000.0) }
         return CategorySafetyRule(
             id: id,
             category: category,
             type: type,
             periodHours: periodHours,
             maxCount: row["max_count"] as Int?,
-            createdAt: Date(timeIntervalSince1970: TimeInterval(createdAtMillis) / 1000.0)
+            createdAt: Date(timeIntervalSince1970: TimeInterval(createdAtMillis) / 1000.0),
+            updatedAt: updatedAt
         )
     }
 }

@@ -159,7 +159,7 @@ final class EpisodeDetailViewModelTests: XCTestCase {
         let log = SymptomLog(
             id: "sl-1", episodeId: "ep-1", symptom: .aura,
             onsetTime: TimestampHelper.now, resolutionTime: nil,
-            severity: nil, createdAt: TimestampHelper.now
+            severity: nil, createdAt: TimestampHelper.now, updatedAt: TimestampHelper.now
         )
         mockRepo.symptomLogs = [log]
         await sut.loadEpisode()
@@ -186,7 +186,7 @@ final class EpisodeDetailViewModelTests: XCTestCase {
         let note = EpisodeNote(
             id: "n-1", episodeId: "ep-1",
             timestamp: TimestampHelper.now,
-            note: "Test note", createdAt: TimestampHelper.now
+            note: "Test note", createdAt: TimestampHelper.now, updatedAt: TimestampHelper.now
         )
         mockRepo.episodeNotes = [note]
         await sut.loadEpisode()

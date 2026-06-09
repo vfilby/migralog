@@ -251,8 +251,8 @@ final class EpisodeRepository: EpisodeRepositoryProtocol {
         try dbManager.dbQueue.write { db in
             try db.execute(
                 sql: """
-                    INSERT INTO symptom_logs (id, episode_id, symptom, onset_time, resolution_time, severity, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO symptom_logs (id, episode_id, symptom, onset_time, resolution_time, severity, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                 arguments: [
                     log.id,
@@ -261,7 +261,8 @@ final class EpisodeRepository: EpisodeRepositoryProtocol {
                     log.onsetTime,
                     log.resolutionTime,
                     log.severity,
-                    log.createdAt
+                    log.createdAt,
+                    log.updatedAt
                 ]
             )
         }
@@ -280,23 +281,27 @@ final class EpisodeRepository: EpisodeRepositoryProtocol {
     }
 
     func updateSymptomLog(_ log: SymptomLog) throws -> SymptomLog {
+        let now = TimestampHelper.now
+        var updated = log
+        updated.updatedAt = now
         try dbManager.dbQueue.write { db in
             try db.execute(
                 sql: """
                     UPDATE symptom_logs SET
-                        symptom = ?, onset_time = ?, resolution_time = ?, severity = ?
+                        symptom = ?, onset_time = ?, resolution_time = ?, severity = ?, updated_at = ?
                     WHERE id = ?
                     """,
                 arguments: [
-                    log.symptom.rawValue,
-                    log.onsetTime,
-                    log.resolutionTime,
-                    log.severity,
-                    log.id
+                    updated.symptom.rawValue,
+                    updated.onsetTime,
+                    updated.resolutionTime,
+                    updated.severity,
+                    updated.updatedAt,
+                    updated.id
                 ]
             )
         }
-        return log
+        return updated
     }
 
     func deleteSymptomLog(_ id: String) throws {
@@ -372,15 +377,16 @@ final class EpisodeRepository: EpisodeRepositoryProtocol {
         try dbManager.dbQueue.write { db in
             try db.execute(
                 sql: """
-                    INSERT INTO episode_notes (id, episode_id, timestamp, note, created_at)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO episode_notes (id, episode_id, timestamp, note, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     """,
                 arguments: [
                     note.id,
                     note.episodeId,
                     note.timestamp,
                     note.note,
-                    note.createdAt
+                    note.createdAt,
+                    note.updatedAt
                 ]
             )
         }
@@ -399,17 +405,20 @@ final class EpisodeRepository: EpisodeRepositoryProtocol {
     }
 
     func updateEpisodeNote(_ note: EpisodeNote) throws -> EpisodeNote {
+        let now = TimestampHelper.now
+        var updated = note
+        updated.updatedAt = now
         try dbManager.dbQueue.write { db in
             try db.execute(
                 sql: """
                     UPDATE episode_notes SET
-                        timestamp = ?, note = ?
+                        timestamp = ?, note = ?, updated_at = ?
                     WHERE id = ?
                     """,
-                arguments: [note.timestamp, note.note, note.id]
+                arguments: [updated.timestamp, updated.note, updated.updatedAt, updated.id]
             )
         }
-        return note
+        return updated
     }
 
     func updateNoteTimestamps(episodeId: String, offset: Int64) throws {
@@ -417,10 +426,10 @@ final class EpisodeRepository: EpisodeRepositoryProtocol {
             try db.execute(
                 sql: """
                     UPDATE episode_notes SET
-                        timestamp = timestamp + ?
+                        timestamp = timestamp + ?, updated_at = ?
                     WHERE episode_id = ?
                     """,
-                arguments: [offset, episodeId]
+                arguments: [offset, TimestampHelper.now, episodeId]
             )
         }
     }
@@ -475,7 +484,8 @@ final class EpisodeRepository: EpisodeRepositoryProtocol {
             onsetTime: row["onset_time"],
             resolutionTime: row["resolution_time"],
             severity: row["severity"],
-            createdAt: row["created_at"]
+            createdAt: row["created_at"],
+            updatedAt: row["updated_at"] ?? row["created_at"]
         )
     }
 
@@ -497,7 +507,8 @@ final class EpisodeRepository: EpisodeRepositoryProtocol {
             episodeId: row["episode_id"],
             timestamp: row["timestamp"],
             note: row["note"],
-            createdAt: row["created_at"]
+            createdAt: row["created_at"],
+            updatedAt: row["updated_at"] ?? row["created_at"]
         )
     }
 }
