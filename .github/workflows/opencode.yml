@@ -5,8 +5,9 @@ on:
 jobs:
   opencode:
     if: |
-      contains(github.event.comment.body, '/oc') ||
-      contains(github.event.comment.body, '/opencode')
+      (contains(github.event.comment.body, '/oc') ||
+       contains(github.event.comment.body, '/opencode')) &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -17,7 +18,7 @@ jobs:
         with:
           fetch-depth: 1
       - name: Run opencode
-        uses: sst/opencode/github@latest
+        uses: sst/opencode/github@76c631d198f9ff620e15468e45f3457d50481b57 # v1.16.2
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         with:
