@@ -106,9 +106,14 @@ enum UITestHelpers {
     }
 
     /// Navigate to a specific tab in the tab bar.
+    ///
+    /// The tab bar is always present, so a tab button that is not yet hittable means the
+    /// app has not reached idle (e.g. the screen we're leaving is still reloading). On a
+    /// loaded CI runner that settle can exceed the default 5s window, so we wait longer
+    /// here rather than fail a navigation that would otherwise succeed.
     static func navigateTo(tab: Tab, in app: XCUIApplication) {
         let tabButton = app.tabBars.buttons[tab.rawValue]
-        waitForHittable(tabButton)
+        waitForHittable(tabButton, timeout: 15)
         tabButton.tap()
         Thread.sleep(forTimeInterval: animationWait)
     }

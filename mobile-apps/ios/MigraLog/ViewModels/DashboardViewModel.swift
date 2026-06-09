@@ -69,8 +69,35 @@ final class DashboardViewModel {
 
     // MARK: - Actions
 
+    /// Coalesces overlapping reloads. The dashboard fires `loadData()` from several
+    /// triggers that can overlap (first appearance, sheet dismissal, the
+    /// `.medicationDataChanged` notification). Running them concurrently thrashes the
+    /// `@Observable` state and keeps the view re-rendering, so the app never reaches the
+    /// idle state XCUITest waits on before a tab button becomes hittable. We serialise
+    /// into at most one in-flight pass plus a single trailing refresh, so the latest data
+    /// is still fetched after a write without the concurrent churn.
+    @ObservationIgnored private var loadTask: Task<Void, Never>?
+    @ObservationIgnored private var reloadRequested = false
+
     @MainActor
     func loadData() async {
+        if loadTask != nil {
+            // A load is already running; request one trailing refresh instead of
+            // starting a concurrent pass.
+            reloadRequested = true
+            return
+        }
+        repeat {
+            reloadRequested = false
+            let task = Task { @MainActor in await self.performLoad() }
+            loadTask = task
+            await task.value
+            loadTask = nil
+        } while reloadRequested
+    }
+
+    @MainActor
+    private func performLoad() async {
         isLoading = true
         error = nil
         do {
