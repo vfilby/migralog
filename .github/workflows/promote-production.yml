@@ -69,8 +69,12 @@ jobs:
         run: rm -rf ~/.private_keys || true
 
       - name: Summary
+        env:
+          BUILD_NUMBER: ${{ github.event.inputs.build_number }}
+          AUTO_RELEASE: ${{ github.event.inputs.auto_release }}
+          PHASED_RELEASE: ${{ github.event.inputs.phased_release }}
         run: |
           echo "## Production Submission" >> $GITHUB_STEP_SUMMARY
-          echo "- **Build:** ${{ github.event.inputs.build_number }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Auto-release:** ${{ github.event.inputs.auto_release }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Phased release:** ${{ github.event.inputs.phased_release }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build:** $BUILD_NUMBER" >> $GITHUB_STEP_SUMMARY
+          echo "- **Auto-release:** $AUTO_RELEASE" >> $GITHUB_STEP_SUMMARY
+          echo "- **Phased release:** $PHASED_RELEASE" >> $GITHUB_STEP_SUMMARY
