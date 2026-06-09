@@ -113,6 +113,39 @@ final class SyncEngineTests: XCTestCase {
         XCTAssertEqual(record?.payload, captured, "tombstone must carry the captured delete payload, not {}")
     }
 
+    // MARK: - Concurrent-edit-during-sync hardening (#461)
+
+    func testPushDoesNotClobberNewerServerRecordAndConvergesLocally() async throws {
+        // A local edit is queued at t=1000.
+        try insertMedication("m1", name: "Local", updatedAt: 1000)
+        try pendingStore.enqueue(tableName: "medications", recordId: "m1", changeType: .upsert, at: 1000)
+        // Another device wrote a NEWER version into the zone during our pull→push window.
+        transport.seed(remoteMedication("m1", name: "Remote", updatedAt: 2000))
+
+        _ = try await engine.push(now: 3000)
+
+        // Our stale push must not overwrite the newer server record...
+        XCTAssertEqual(transport.record(named: "medications:m1")?.updatedAt, 2000)
+        XCTAssertEqual(transport.record(named: "medications:m1")?.payload.contains("Remote"), true)
+        // ...and the local DB converged to the server's version (losing local edit archived).
+        XCTAssertEqual(try medicationName("m1"), "Remote")
+        XCTAssertEqual(try pendingStore.pendingCount(), 0, "queue drained")
+    }
+
+    func testPushOverwritesOlderServerRecord() async throws {
+        // Our local edit is the newer one.
+        try insertMedication("m1", name: "Local", updatedAt: 5000)
+        try pendingStore.enqueue(tableName: "medications", recordId: "m1", changeType: .upsert, at: 5000)
+        transport.seed(remoteMedication("m1", name: "Remote", updatedAt: 2000))
+
+        _ = try await engine.push(now: 6000)
+
+        // Our newer version wins and lands on the server; local is unchanged.
+        XCTAssertEqual(transport.record(named: "medications:m1")?.payload.contains("Local"), true)
+        XCTAssertEqual(transport.record(named: "medications:m1")?.updatedAt, 5000)
+        XCTAssertEqual(try medicationName("m1"), "Local")
+    }
+
     // MARK: - Pull
 
     func testPullAppliesRemoteRecordAndSavesToken() async throws {

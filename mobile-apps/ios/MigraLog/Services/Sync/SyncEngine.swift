@@ -44,30 +44,39 @@ actor SyncEngine {
         // and clobbering the winner. Push-then-pull would force-overwrite the newer
         // remote record with our stale local one.
         let applied = try await pull(now: now)
-        let pushed = try await push()
+        let pushed = try await push(now: now)
         return (pushed, applied)
     }
 
     // MARK: - Push
 
-    /// Drain the pending-changes queue in batches, push each, and remove the
-    /// successfully-sent entries. Returns the number of changes pushed.
+    /// Drain the pending-changes queue in batches, push each, and remove the drained
+    /// entries. The transport resolves any server-side conflict by last-write-wins (#461);
+    /// when the server holds a newer version it is returned here and applied locally so the
+    /// database converges (and the losing local edit is archived as a conflict). Returns the
+    /// number of queued changes drained.
     @discardableResult
-    func push(batchSize: Int = 100) async throws -> Int {
+    func push(batchSize: Int = 100, now: Int64 = TimestampHelper.now) async throws -> Int {
         var total = 0
         while true {
             let pending = try pendingStore.fetchBatch(limit: batchSize)
             if pending.isEmpty { break }
 
             let records = try pending.compactMap { try buildRecord(for: $0) }
+            var serverWon: [SyncRecord] = []
             if !records.isEmpty {
                 do {
-                    try await transport.push(records)
+                    serverWon = try await transport.push(records)
                 } catch SyncTransportError.zoneNotFound {
                     // Zone vanished (e.g. user deleted iCloud data) — recreate and retry once.
                     try await transport.ensureZone()
-                    try await transport.push(records)
+                    serverWon = try await transport.push(records)
                 }
+            }
+            // Apply records the server held a newer version of, before clearing the queue,
+            // so the applier still sees the (losing) pending edit and archives it.
+            for record in serverWon {
+                try applier.apply(record, now: now)
             }
             try pendingStore.remove(ids: pending.map { $0.id })
             total += pending.count

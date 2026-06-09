@@ -31,18 +31,43 @@ final class InMemoryCloudKitTransport: CloudKitTransport, @unchecked Sendable {
         zoneCreated = true
     }
 
-    func push(_ records: [SyncRecord]) async throws {
+    @discardableResult
+    func push(_ records: [SyncRecord]) async throws -> [SyncRecord] {
         lock.lock(); defer { lock.unlock() }
         if let error = failNextPush {
             failNextPush = nil
             throw error
         }
         pushCount += 1
+        var serverWon: [SyncRecord] = []
         for record in records {
+            // Optimistic concurrency: only overwrite when our version wins LWW against
+            // whatever the zone currently holds (#461). A newer server version is kept and
+            // returned so the engine can converge locally.
+            if let existing = storage[record.recordName] {
+                let winner = LWWResolver.resolve(
+                    localUpdatedAt: record.updatedAt, localPayload: record.payload,
+                    remoteUpdatedAt: existing.updatedAt, remotePayload: existing.payload
+                )
+                if winner == .remote {
+                    serverWon.append(existing)
+                    continue
+                }
+            }
             seq += 1
             storage[record.recordName] = record
             changeSeq[record.recordName] = seq
         }
+        return serverWon
+    }
+
+    /// Test helper: seed a record directly into the zone as if another device had pushed
+    /// it, bypassing `push`'s conflict resolution.
+    func seed(_ record: SyncRecord) {
+        lock.lock(); defer { lock.unlock() }
+        seq += 1
+        storage[record.recordName] = record
+        changeSeq[record.recordName] = seq
     }
 
     func fetchChanges(since token: Data?) async throws -> SyncChangeBatch {
