@@ -281,6 +281,10 @@ struct TimeRangeSelectorView: View {
                     } label: {
                         chipLabel(range.displayName, isSelected: isSelected)
                     }
+                    // .plain keeps each chip its own tap target inside the
+                    // iPad sidebar List; default-styled buttons in a List row
+                    // merge into one target that fires the last action.
+                    .buttonStyle(.plain)
                     .accessibilityIdentifier("time-range-\(range.rawValue)")
                 }
 
@@ -289,6 +293,7 @@ struct TimeRangeSelectorView: View {
                 } label: {
                     chipLabel("Custom", isSelected: viewModel.customRange != nil)
                 }
+                .buttonStyle(.plain)
                 .accessibilityIdentifier("time-range-custom")
             }
 
