@@ -5,6 +5,7 @@ struct EditEpisodeScreen: View {
     @Bindable var viewModel: EpisodeDetailViewModel
     @Environment(\.dismiss) private var dismiss
 
+    @State private var trackingOptions = TrackingOptionsViewModel()
     @State private var startTime: Date
     @State private var endTime: Date?
     @State private var selectedLocations: Set<PainLocation>
@@ -51,7 +52,7 @@ struct EditEpisodeScreen: View {
 
             Section("Symptoms") {
                 FlowLayout(spacing: 8) {
-                    ForEach(Symptom.allCases) { symptom in
+                    ForEach(symptomChoices) { symptom in
                         Toggle(isOn: Binding(
                             get: { selectedSymptoms.contains(symptom) },
                             set: { if $0 { selectedSymptoms.insert(symptom) } else { selectedSymptoms.remove(symptom) } }
@@ -67,7 +68,7 @@ struct EditEpisodeScreen: View {
 
             Section("Triggers") {
                 FlowLayout(spacing: 8) {
-                    ForEach(Trigger.allCases) { trigger in
+                    ForEach(triggerChoices) { trigger in
                         Toggle(isOn: Binding(
                             get: { selectedTriggers.contains(trigger) },
                             set: { if $0 { selectedTriggers.insert(trigger) } else { selectedTriggers.remove(trigger) } }
@@ -88,6 +89,9 @@ struct EditEpisodeScreen: View {
         }
         .navigationTitle("Edit Episode")
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            trackingOptions.load()
+        }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }
@@ -99,6 +103,23 @@ struct EditEpisodeScreen: View {
                 .disabled(isSaving)
             }
         }
+    }
+
+    // The pick lists offer the active options plus anything this episode already
+    // has selected — an option hidden/deleted after logging must stay visible
+    // here, or it couldn't be deselected (and would silently disappear).
+    private var symptomChoices: [Symptom] {
+        trackingOptions.activeSymptoms
+            + selectedSymptoms
+                .filter { !trackingOptions.activeSymptoms.contains($0) }
+                .sorted { $0.displayName < $1.displayName }
+    }
+
+    private var triggerChoices: [Trigger] {
+        trackingOptions.activeTriggers
+            + selectedTriggers
+                .filter { !trackingOptions.activeTriggers.contains($0) }
+                .sorted { $0.displayName < $1.displayName }
     }
 
     private func save() async {

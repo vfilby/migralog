@@ -4,7 +4,7 @@ import GRDB
 /// Central database manager. Owns the DatabaseQueue and handles schema creation/migration.
 final class DatabaseManager: Sendable {
     /// The current schema version
-    static let schemaVersion = 34
+    static let schemaVersion = 35
 
     /// Shared singleton for the app's main database
     static let shared = DatabaseManager()
@@ -174,6 +174,16 @@ final class DatabaseManager: Sendable {
             try DatabaseManager.addSyncPayloadColumn(in: db)
         }
 
+        // v35: tracking_options — user customization of the pain-quality / symptom /
+        // trigger pick lists (custom additions + hidden built-ins). Synced. Created
+        // here (after the trigger migrations), so createSyncCaptureTriggers re-runs to
+        // add this table's capture triggers; on fresh installs v32/v34 skip it because
+        // the table doesn't exist yet when they run.
+        migrator.registerMigration("v35") { db in
+            try DatabaseManager.createTrackingOptionsTable(in: db)
+            try DatabaseManager.createSyncCaptureTriggers(in: db, includePayload: true)
+        }
+
         return migrator
     }
 
@@ -266,7 +276,7 @@ final class DatabaseManager: Sendable {
     }
 
     /// Create the v25 baseline schema. Later registered migrations evolve it to the
-    /// current version; see spec/schemas/sqlite/schema-v28.sql for the current end-state.
+    /// current version; see spec/schemas/sqlite/schema-v35.sql for the current end-state.
     // swiftlint:disable:next function_body_length
     static func createSchema(in db: Database) throws {
         // Episodes table
@@ -570,6 +580,31 @@ final class DatabaseManager: Sendable {
         try DatabaseManager.createSyncCaptureTriggers(in: db, includePayload: true)
     }
 
+    /// Create `tracking_options` (v35): user customization of the pain-quality /
+    /// symptom / trigger pick lists. Rows are either custom options (is_built_in = 0,
+    /// `value` is the user's text verbatim) or visibility overrides hiding a built-in
+    /// (is_built_in = 1, `value` is the built-in's snake_case raw value). Visible
+    /// built-ins have no row — only deviations from the defaults are stored. Synced
+    /// via SyncableTable.trackingOptions. Idempotent.
+    static func createTrackingOptionsTable(in db: Database) throws {
+        try db.execute(sql: """
+            CREATE TABLE IF NOT EXISTS tracking_options (
+                id TEXT PRIMARY KEY,
+                category TEXT NOT NULL CHECK(category IN ('pain_quality', 'symptom', 'trigger')),
+                value TEXT NOT NULL CHECK(length(value) > 0 AND length(value) <= 100),
+                is_built_in INTEGER NOT NULL DEFAULT 0 CHECK(is_built_in IN (0, 1)),
+                is_hidden INTEGER NOT NULL DEFAULT 0 CHECK(is_hidden IN (0, 1)),
+                created_at INTEGER NOT NULL CHECK(created_at > 0),
+                updated_at INTEGER CHECK(updated_at IS NULL OR updated_at > 0),
+                UNIQUE(category, value)
+            )
+            """)
+        try db.execute(sql: """
+            CREATE INDEX IF NOT EXISTS idx_tracking_options_category
+            ON tracking_options(category)
+            """)
+    }
+
     /// Create the change-capture machinery for iCloud sync (#434): the sync_capture_state
     /// control row plus one AFTER INSERT/UPDATE/DELETE trigger per synced table. Each
     /// trigger enqueues the row into sync_pending_changes — but only while capture is
@@ -601,6 +636,16 @@ final class DatabaseManager: Sendable {
 
         for table in SyncableTable.allCases {
             let name = table.tableName
+            // Skip tables that don't exist yet: on fresh installs the v32/v34 migrations
+            // run before the migrations that create later synced tables (e.g.
+            // tracking_options in v35), and a CREATE TRIGGER on a missing table fails.
+            // The creating migration re-runs this helper once the table exists.
+            let tableExists = try Bool.fetchOne(
+                db,
+                sql: "SELECT COUNT(*) > 0 FROM sqlite_master WHERE type = 'table' AND name = ?",
+                arguments: [name]
+            ) ?? false
+            guard tableExists else { continue }
             // The DELETE trigger snapshots the deleted row's synced columns as JSON so the
             // tombstone is recoverable. Built only when includePayload is true (the column
             // exists from v34 on). OLD.<col> references the about-to-be-deleted row.
@@ -699,6 +744,7 @@ final class DatabaseManager: Sendable {
             try db.execute(sql: "DELETE FROM episodes")
             try db.execute(sql: "DELETE FROM medications")
             try db.execute(sql: "DELETE FROM category_safety_rules")
+            try db.execute(sql: "DELETE FROM tracking_options")
         }
     }
 

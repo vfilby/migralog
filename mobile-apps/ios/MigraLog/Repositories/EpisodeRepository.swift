@@ -450,11 +450,11 @@ final class EpisodeRepository: EpisodeRepositoryProtocol {
             locations: JSONHelper.decodeArray(String.self, from: row["locations"] as String?)
                 .compactMap { PainLocation(rawValue: $0) },
             qualities: JSONHelper.decodeArray(String.self, from: row["qualities"] as String?)
-                .compactMap { PainQuality(rawValue: $0) },
+                .map { PainQuality(rawValue: $0) },
             symptoms: JSONHelper.decodeArray(String.self, from: row["symptoms"] as String?)
-                .compactMap { Symptom(rawValue: $0) },
+                .map { Symptom(rawValue: $0) },
             triggers: JSONHelper.decodeArray(String.self, from: row["triggers"] as String?)
-                .compactMap { Trigger(rawValue: $0) },
+                .map { Trigger(rawValue: $0) },
             notes: row["notes"],
             latitude: row["latitude"],
             longitude: row["longitude"],
@@ -480,7 +480,7 @@ final class EpisodeRepository: EpisodeRepositoryProtocol {
         SymptomLog(
             id: row["id"],
             episodeId: row["episode_id"],
-            symptom: Symptom(rawValue: row["symptom"]) ?? .nausea,
+            symptom: Symptom(rawValue: row["symptom"]),
             onsetTime: row["onset_time"],
             resolutionTime: row["resolution_time"],
             severity: row["severity"],

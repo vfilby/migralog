@@ -43,31 +43,92 @@ enum PainLocation: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-enum PainQuality: String, Codable, CaseIterable, Identifiable {
-    case throbbing
-    case sharp
-    case dull
-    case pressure
-    case stabbing
-    case burning
+/// Pain qualities, symptoms and triggers are open value sets: the built-in
+/// values below ship with the app, and users can add their own via
+/// Settings → Tracking Options (stored in the `tracking_options` table).
+/// They are structs wrapping a raw string — not closed enums — so custom
+/// values and values synced from a newer app version survive decoding
+/// instead of being silently dropped.
+///
+/// Raw-value conventions: built-ins use snake_case identifiers; custom
+/// values store the user's text verbatim, and `displayName` shows it as
+/// typed. The stable identity is the raw value, so renaming a custom
+/// option is intentionally unsupported (delete + re-add creates a new
+/// identity without rewriting history).
+struct PainQuality: RawRepresentable, Codable, Hashable, Identifiable, CaseIterable, Sendable {
+    let rawValue: String
+
+    init(rawValue: String) {
+        self.rawValue = rawValue
+    }
+
+    init(from decoder: Decoder) throws {
+        rawValue = try decoder.singleValueContainer().decode(String.self)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
 
     var id: String { rawValue }
 
-    var displayName: String { rawValue.capitalized }
+    static let throbbing = PainQuality(rawValue: "throbbing")
+    static let sharp = PainQuality(rawValue: "sharp")
+    static let dull = PainQuality(rawValue: "dull")
+    static let pressure = PainQuality(rawValue: "pressure")
+    static let stabbing = PainQuality(rawValue: "stabbing")
+    static let burning = PainQuality(rawValue: "burning")
+
+    /// The built-in qualities, in display order. Custom values come from
+    /// `tracking_options`; see TrackingOptionsStore.
+    static let allCases: [PainQuality] = [
+        .throbbing, .sharp, .dull, .pressure, .stabbing, .burning
+    ]
+
+    var isBuiltIn: Bool { Self.allCases.contains(self) }
+
+    var displayName: String {
+        isBuiltIn ? rawValue.capitalized : rawValue
+    }
 }
 
-enum Symptom: String, Codable, CaseIterable, Identifiable {
-    case nausea
-    case vomiting
-    case visualDisturbances = "visual_disturbances"
-    case aura
-    case lightSensitivity = "light_sensitivity"
-    case soundSensitivity = "sound_sensitivity"
-    case smellSensitivity = "smell_sensitivity"
-    case dizziness
-    case confusion
+struct Symptom: RawRepresentable, Codable, Hashable, Identifiable, CaseIterable, Sendable {
+    let rawValue: String
+
+    init(rawValue: String) {
+        self.rawValue = rawValue
+    }
+
+    init(from decoder: Decoder) throws {
+        rawValue = try decoder.singleValueContainer().decode(String.self)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
 
     var id: String { rawValue }
+
+    static let nausea = Symptom(rawValue: "nausea")
+    static let vomiting = Symptom(rawValue: "vomiting")
+    static let visualDisturbances = Symptom(rawValue: "visual_disturbances")
+    static let aura = Symptom(rawValue: "aura")
+    static let lightSensitivity = Symptom(rawValue: "light_sensitivity")
+    static let soundSensitivity = Symptom(rawValue: "sound_sensitivity")
+    static let smellSensitivity = Symptom(rawValue: "smell_sensitivity")
+    static let dizziness = Symptom(rawValue: "dizziness")
+    static let confusion = Symptom(rawValue: "confusion")
+
+    /// The built-in symptoms, in display order. Custom values come from
+    /// `tracking_options`; see TrackingOptionsStore.
+    static let allCases: [Symptom] = [
+        .nausea, .vomiting, .visualDisturbances, .aura, .lightSensitivity,
+        .soundSensitivity, .smellSensitivity, .dizziness, .confusion
+    ]
+
+    var isBuiltIn: Bool { Self.allCases.contains(self) }
 
     var displayName: String {
         switch self {
@@ -75,24 +136,48 @@ enum Symptom: String, Codable, CaseIterable, Identifiable {
         case .lightSensitivity: return "Light Sensitivity"
         case .soundSensitivity: return "Sound Sensitivity"
         case .smellSensitivity: return "Smell Sensitivity"
-        default: return rawValue.capitalized
+        default: return isBuiltIn ? rawValue.capitalized : rawValue
         }
     }
 }
 
-enum Trigger: String, Codable, CaseIterable, Identifiable {
-    case stress
-    case lackOfSleep = "lack_of_sleep"
-    case weatherChange = "weather_change"
-    case brightLights = "bright_lights"
-    case loudSounds = "loud_sounds"
-    case alcohol
-    case caffeine
-    case food
-    case hormonal
-    case exercise
+struct Trigger: RawRepresentable, Codable, Hashable, Identifiable, CaseIterable, Sendable {
+    let rawValue: String
+
+    init(rawValue: String) {
+        self.rawValue = rawValue
+    }
+
+    init(from decoder: Decoder) throws {
+        rawValue = try decoder.singleValueContainer().decode(String.self)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
 
     var id: String { rawValue }
+
+    static let stress = Trigger(rawValue: "stress")
+    static let lackOfSleep = Trigger(rawValue: "lack_of_sleep")
+    static let weatherChange = Trigger(rawValue: "weather_change")
+    static let brightLights = Trigger(rawValue: "bright_lights")
+    static let loudSounds = Trigger(rawValue: "loud_sounds")
+    static let alcohol = Trigger(rawValue: "alcohol")
+    static let caffeine = Trigger(rawValue: "caffeine")
+    static let food = Trigger(rawValue: "food")
+    static let hormonal = Trigger(rawValue: "hormonal")
+    static let exercise = Trigger(rawValue: "exercise")
+
+    /// The built-in triggers, in display order. Custom values come from
+    /// `tracking_options`; see TrackingOptionsStore.
+    static let allCases: [Trigger] = [
+        .stress, .lackOfSleep, .weatherChange, .brightLights, .loudSounds,
+        .alcohol, .caffeine, .food, .hormonal, .exercise
+    ]
+
+    var isBuiltIn: Bool { Self.allCases.contains(self) }
 
     var displayName: String {
         switch self {
@@ -100,7 +185,7 @@ enum Trigger: String, Codable, CaseIterable, Identifiable {
         case .weatherChange: return "Weather Change"
         case .brightLights: return "Bright Lights"
         case .loudSounds: return "Loud Sounds"
-        default: return rawValue.capitalized
+        default: return isBuiltIn ? rawValue.capitalized : rawValue
         }
     }
 }
