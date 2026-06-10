@@ -417,10 +417,12 @@ final class AnalyticsViewModel {
         )
 
         headacheDayTrend = AnalyticsInsights.rollingCounts(of: headacheDays, from: rangeStart, to: rangeEnd, calendar: calendar)
+        let classMedNames = AnalyticsInsights.classMedicationNames(medications: allMedications, doses: allDoses)
         intakeSeries = AnalyticsInsights.AcuteMedClass.allCases.map { medClass in
             AnalyticsInsights.ClassIntakeSeries(
                 medClass: medClass,
-                points: AnalyticsInsights.rollingCounts(of: intake[medClass] ?? [], from: rangeStart, to: rangeEnd, calendar: calendar)
+                points: AnalyticsInsights.rollingCounts(of: intake[medClass] ?? [], from: rangeStart, to: rangeEnd, calendar: calendar),
+                medicationNames: classMedNames[medClass] ?? []
             )
         }
 

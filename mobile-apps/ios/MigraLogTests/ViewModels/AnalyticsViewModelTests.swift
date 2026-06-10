@@ -195,6 +195,8 @@ final class AnalyticsViewModelTests: XCTestCase {
         XCTAssertEqual(sut.intakeSeries.count, 3)
         let triptanSeries = sut.intakeSeries.first { $0.medClass == .triptan }
         XCTAssertEqual(triptanSeries?.points.last?.count, 1)
+        // The series carries the names of the medications it counts.
+        XCTAssertEqual(triptanSeries?.medicationNames, ["Ibuprofen"])
         // One rated episode this week → one severity entry; time-of-day total is 1.
         XCTAssertEqual(sut.severityWeekCounts.map(\.count).reduce(0, +), 1)
         XCTAssertEqual(sut.severityWeekCounts.first?.bin, .severe)

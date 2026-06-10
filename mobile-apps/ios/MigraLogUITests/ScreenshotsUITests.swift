@@ -146,13 +146,16 @@ final class ScreenshotsUITests: XCTestCase {
         }
         let scroll = app.scrollViews.firstMatch
 
-        let headacheBurden = app.staticTexts["Headache Burden"]
-        UITestHelpers.scrollToElement(headacheBurden, in: scroll, maxScrolls: 15)
+        // Scroll targets are the card BELOW the content each shot should show
+        // in full. Card order: Warnings, Monthly Summary, Headache Burden,
+        // Medication Overuse, Severity, Time of Day, Adherence.
+        let severityHeader = app.staticTexts["Severity by Week"]
+        UITestHelpers.scrollToElement(severityHeader, in: scroll, maxScrolls: 15)
         Thread.sleep(forTimeInterval: 1.0)
         attachScreenshot(named: "07-Trends-Insights")
 
-        let monthlySummary = app.staticTexts["Monthly Summary"]
-        UITestHelpers.scrollToElement(monthlySummary, in: scroll, maxScrolls: 15)
+        let adherenceHeader = app.staticTexts["Preventative Adherence"]
+        UITestHelpers.scrollToElement(adherenceHeader, in: scroll, maxScrolls: 15)
         Thread.sleep(forTimeInterval: 1.0)
         attachScreenshot(named: "08-Trends-Insights-Distributions")
     }

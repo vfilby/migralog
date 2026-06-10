@@ -171,6 +171,24 @@ final class AnalyticsInsightsTests: XCTestCase {
         XCTAssertNil(intake[.triptan])
     }
 
+    func testClassMedicationNames_activeOrDosedRescueMedsSortedByName() {
+        let active = TestFixtures.makeMedication(id: "med-a", name: "Sumatriptan", type: .rescue, category: .triptan)
+        // Inactive but used in the window — still counted, so still listed.
+        let retired = TestFixtures.makeMedication(id: "med-r", name: "Rizatriptan", type: .rescue, active: false, category: .triptan)
+        // Inactive and unused — not listed.
+        let dormant = TestFixtures.makeMedication(id: "med-d", name: "Eletriptan", type: .rescue, active: false, category: .triptan)
+        let preventative = TestFixtures.makeMedication(id: "med-p", name: "Topiramate", type: .preventative, category: .preventive)
+        let doses = [TestFixtures.makeDose(medicationId: "med-r", timestamp: ms(daysAgo: 2))]
+
+        let names = AnalyticsInsights.classMedicationNames(
+            medications: [active, retired, dormant, preventative],
+            doses: doses
+        )
+
+        XCTAssertEqual(names[.triptan], ["Rizatriptan", "Sumatriptan"])
+        XCTAssertNil(names[.simpleAnalgesic])
+    }
+
     func testIntakeDays_skippedDosesAndExcludedDaysIgnored() {
         let triptan = TestFixtures.makeMedication(id: "med-t", type: .rescue, category: .triptan)
         let doses = [

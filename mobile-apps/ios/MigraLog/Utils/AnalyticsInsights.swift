@@ -68,7 +68,27 @@ enum AnalyticsInsights {
     struct ClassIntakeSeries: Equatable, Identifiable {
         let medClass: AcuteMedClass
         let points: [DailyCount]
+        /// Names of the medications counted into this class, for display —
+        /// the class membership is user-configurable per medication.
+        let medicationNames: [String]
         var id: String { medClass.rawValue }
+    }
+
+    /// Medication names per acute class: rescue medications that are active
+    /// or contributed a taken dose in the analyzed window, sorted by name.
+    static func classMedicationNames(
+        medications: [Medication],
+        doses: [MedicationDose]
+    ) -> [AcuteMedClass: [String]] {
+        let dosedMedIds = Set(doses.filter { $0.status == .taken }.map(\.medicationId))
+        var names: [AcuteMedClass: [String]] = [:]
+        for med in medications where med.type == .rescue {
+            guard let medClass = AcuteMedClass(category: med.category) else { continue }
+            if med.active || dosedMedIds.contains(med.id) {
+                names[medClass, default: []].append(med.name)
+            }
+        }
+        return names.mapValues { $0.sorted() }
     }
 
     enum SeverityBin: String, CaseIterable, Identifiable {
