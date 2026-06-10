@@ -153,11 +153,6 @@ struct HeadacheBurdenChartCard: View {
                     RuleMark(y: .value("Chronic range", AnalyticsInsights.chronicRangeThreshold))
                         .foregroundStyle(.red.opacity(0.7))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                        .annotation(position: .topLeading) {
-                            Text("Chronic range ≥15")
-                                .font(.caption2)
-                                .foregroundStyle(.red)
-                        }
                 }
                 .chartYScale(domain: 0...yMax)
                 .frame(height: 180)
@@ -208,19 +203,9 @@ struct MedicationOveruseChartCard: View {
                     RuleMark(y: .value("Triptan/CGRP guideline", AnalyticsInsights.AcuteMedClass.triptanLike.overuseThresholdDays))
                         .foregroundStyle(.blue.opacity(0.5))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                        .annotation(position: .topLeading) {
-                            Text("Triptan/CGRP ≥10")
-                                .font(.caption2)
-                                .foregroundStyle(.blue)
-                        }
                     RuleMark(y: .value("OTC/NSAID guideline", AnalyticsInsights.AcuteMedClass.simpleAnalgesic.overuseThresholdDays))
                         .foregroundStyle(.teal.opacity(0.5))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                        .annotation(position: .topLeading) {
-                            Text("OTC/NSAID ≥15")
-                                .font(.caption2)
-                                .foregroundStyle(.teal)
-                        }
                 }
                 .chartForegroundStyleScale { (name: String) in
                     Self.classColors[name] ?? .gray
