@@ -75,26 +75,24 @@
     },
 
     "PainQuality": {
+      "description": "Open value set (schema v35+): built-ins are throbbing, sharp, dull, pressure, stabbing, burning; users can add custom values, stored verbatim.",
       "type": "string",
-      "enum": ["throbbing", "sharp", "dull", "pressure", "stabbing", "burning"]
+      "minLength": 1,
+      "maxLength": 100
     },
 
     "Symptom": {
+      "description": "Open value set (schema v35+): built-ins are nausea, vomiting, visual_disturbances, aura, light_sensitivity, sound_sensitivity, smell_sensitivity, dizziness, confusion; users can add custom values, stored verbatim.",
       "type": "string",
-      "enum": [
-        "nausea", "vomiting", "visual_disturbances", "aura",
-        "light_sensitivity", "sound_sensitivity", "smell_sensitivity",
-        "dizziness", "confusion"
-      ]
+      "minLength": 1,
+      "maxLength": 100
     },
 
     "Trigger": {
+      "description": "Open value set (schema v35+): built-ins are stress, lack_of_sleep, weather_change, bright_lights, loud_sounds, alcohol, caffeine, food, hormonal, exercise; users can add custom values, stored verbatim.",
       "type": "string",
-      "enum": [
-        "stress", "lack_of_sleep", "weather_change",
-        "bright_lights", "loud_sounds", "alcohol",
-        "caffeine", "food", "hormonal", "exercise"
-      ]
+      "minLength": 1,
+      "maxLength": 100
     },
 
     "MedicationType": {

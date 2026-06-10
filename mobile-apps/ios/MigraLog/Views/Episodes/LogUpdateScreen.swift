@@ -5,6 +5,7 @@ struct LogUpdateScreen: View {
     @Bindable var viewModel: EpisodeDetailViewModel
     @Environment(\.dismiss) private var dismiss
 
+    @State private var trackingOptions = TrackingOptionsViewModel()
     @State private var intensity: Double = 5.0
     @State private var selectedLocations: Set<PainLocation> = []
     @State private var initialLocations: Set<PainLocation> = []
@@ -26,7 +27,7 @@ struct LogUpdateScreen: View {
 
             Section("Additional Symptoms") {
                 FlowLayout(spacing: 8) {
-                    ForEach(Symptom.allCases) { symptom in
+                    ForEach(symptomChoices) { symptom in
                         SelectableChip(
                             title: symptom.displayName,
                             isSelected: selectedSymptoms.contains(symptom)
@@ -59,7 +60,19 @@ struct LogUpdateScreen: View {
                 .disabled(isSaving)
             }
         }
+        .task {
+            trackingOptions.load()
+        }
         .onAppear { prefillFromCurrentState() }
+    }
+
+    // Active options plus anything already selected (e.g. a symptom logged
+    // earlier from an option that has since been hidden or deleted).
+    private var symptomChoices: [Symptom] {
+        trackingOptions.activeSymptoms
+            + selectedSymptoms
+                .filter { !trackingOptions.activeSymptoms.contains($0) }
+                .sorted { $0.displayName < $1.displayName }
     }
 
     private func prefillFromCurrentState() {

@@ -20,6 +20,16 @@ struct SettingsScreen: View {
                 .accessibilityIdentifier("notification-settings")
             }
 
+            // Tracking
+            Section("Tracking") {
+                NavigationLink {
+                    TrackingOptionsScreen()
+                } label: {
+                    Label("Tracking Options", systemImage: "slider.horizontal.3")
+                }
+                .accessibilityIdentifier("tracking-options")
+            }
+
             // Medication Safety
             Section("Medication Safety") {
                 NavigationLink {

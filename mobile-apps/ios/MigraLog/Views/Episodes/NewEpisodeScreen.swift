@@ -2,6 +2,7 @@ import SwiftUI
 
 struct NewEpisodeScreen: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var trackingOptions = TrackingOptionsViewModel()
     @State private var selectedLocations: Set<PainLocation> = []
     @State private var selectedQualities: Set<PainQuality> = []
     @State private var selectedSymptoms: Set<Symptom> = []
@@ -22,7 +23,7 @@ struct NewEpisodeScreen: View {
 
             Section("Pain Qualities") {
                 FlowLayout(spacing: 8) {
-                    ForEach(PainQuality.allCases) { quality in
+                    ForEach(trackingOptions.activeQualities) { quality in
                         SelectableChip(
                             title: quality.displayName,
                             isSelected: selectedQualities.contains(quality)
@@ -39,7 +40,7 @@ struct NewEpisodeScreen: View {
 
             Section("Symptoms") {
                 FlowLayout(spacing: 8) {
-                    ForEach(Symptom.allCases) { symptom in
+                    ForEach(trackingOptions.activeSymptoms) { symptom in
                         SelectableChip(
                             title: symptom.displayName,
                             isSelected: selectedSymptoms.contains(symptom)
@@ -56,7 +57,7 @@ struct NewEpisodeScreen: View {
 
             Section("Possible Triggers") {
                 FlowLayout(spacing: 8) {
-                    ForEach(Trigger.allCases) { trigger in
+                    ForEach(trackingOptions.activeTriggers) { trigger in
                         SelectableChip(
                             title: trigger.displayName,
                             isSelected: selectedTriggers.contains(trigger)
@@ -78,6 +79,9 @@ struct NewEpisodeScreen: View {
         }
         .navigationTitle("New Episode")
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            trackingOptions.load()
+        }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }

@@ -54,6 +54,7 @@ final class DatabaseManagerTests: XCTestCase {
             "calendar_overlays",
             "scheduled_notifications",
             "category_safety_rules",
+            "tracking_options",
             "sync_pending_changes",
             "sync_zone_state",
             "sync_conflicts",
@@ -188,7 +189,7 @@ final class DatabaseManagerTests: XCTestCase {
     // MARK: - Schema Version
 
     func testSchemaVersionIsTracked() throws {
-        XCTAssertEqual(DatabaseManager.schemaVersion, 34)
+        XCTAssertEqual(DatabaseManager.schemaVersion, 35)
     }
 
     func testMigrationIsRecordedInGRDB() throws {
@@ -255,7 +256,7 @@ final class DatabaseManagerTests: XCTestCase {
             let triggerCount = try Int.fetchOne(
                 db, sql: "SELECT COUNT(*) FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'sync_capture_%'"
             )
-            XCTAssertEqual(triggerCount, 33, "one INSERT/UPDATE/DELETE trigger per synced table (11 × 3)")
+            XCTAssertEqual(triggerCount, 36, "one INSERT/UPDATE/DELETE trigger per synced table (12 × 3)")
             let identifiers = try Row.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations")
                 .map { $0["identifier"] as String }
             XCTAssertTrue(identifiers.contains("v32"), "Migration v32 should be recorded")

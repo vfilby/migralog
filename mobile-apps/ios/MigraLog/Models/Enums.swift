@@ -43,66 +43,160 @@ enum PainLocation: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-enum PainQuality: String, Codable, CaseIterable, Identifiable {
-    case throbbing
-    case sharp
-    case dull
-    case pressure
-    case stabbing
-    case burning
-
-    var id: String { rawValue }
-
-    var displayName: String { rawValue.capitalized }
+/// Pain qualities, symptoms and triggers are open value sets: the built-in
+/// values ship enabled, a larger suggested catalog is offered via
+/// autocomplete when adding options, and users can also add free-form
+/// values (stored in the `tracking_options` table). They are structs
+/// wrapping a raw string — not closed enums — so custom values and values
+/// synced from a newer app version survive decoding instead of being
+/// silently dropped.
+///
+/// Raw-value conventions: the built-ins use snake_case identifiers (a
+/// holdover from when these were closed enums — existing episodes already
+/// store them); everything added later — suggested-catalog picks and
+/// free-form custom values — stores human-readable text exactly as shown
+/// in the UI ("Red Wine", "MSG"), with no derived transformation. Display
+/// transformations are risky on text we don't control (unknown acronyms,
+/// hyphenation), so values display verbatim; mapping to canonical
+/// identifiers is deliberately deferred to whatever layer actually shares
+/// or aggregates data. The stable identity is the raw value, so renaming
+/// an option is intentionally unsupported (delete + re-add creates a new
+/// identity without rewriting history).
+protocol TrackableOptionValue: RawRepresentable, Codable, Hashable, Identifiable, CaseIterable, Sendable
+where RawValue == String, AllCases == [Self] {
+    init(rawValue: String)
+    /// The built-in values that ship enabled, in display order.
+    static var allCases: [Self] { get }
+    /// The suggested catalog: well-known values offered via autocomplete,
+    /// in display order. Raw values are display-ready text, stored as-is.
+    /// Disjoint from `allCases`.
+    static var suggested: [Self] { get }
+    /// Built-in display names that the default snake_case → Title Case
+    /// formatting gets wrong (e.g. "lack_of_sleep" → "Lack of Sleep").
+    static var displayNameOverrides: [String: String] { get }
 }
 
-enum Symptom: String, Codable, CaseIterable, Identifiable {
-    case nausea
-    case vomiting
-    case visualDisturbances = "visual_disturbances"
-    case aura
-    case lightSensitivity = "light_sensitivity"
-    case soundSensitivity = "sound_sensitivity"
-    case smellSensitivity = "smell_sensitivity"
-    case dizziness
-    case confusion
-
+extension TrackableOptionValue {
     var id: String { rawValue }
 
+    init(from decoder: Decoder) throws {
+        self.init(rawValue: try decoder.singleValueContainer().decode(String.self))
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
+
+    var isBuiltIn: Bool { Self.allCases.contains(self) }
+
+    /// Only the snake_case built-ins need formatting; every other value is
+    /// display-ready text and shows verbatim.
     var displayName: String {
-        switch self {
-        case .visualDisturbances: return "Visual Disturbances"
-        case .lightSensitivity: return "Light Sensitivity"
-        case .soundSensitivity: return "Sound Sensitivity"
-        case .smellSensitivity: return "Smell Sensitivity"
-        default: return rawValue.capitalized
+        if let override = Self.displayNameOverrides[rawValue] { return override }
+        guard isBuiltIn else { return rawValue }
+        return rawValue.split(separator: "_")
+            .map { String($0).capitalized }
+            .joined(separator: " ")
+    }
+
+    /// The catalog value (built-in or suggested) whose raw value or display
+    /// name matches `text` case-insensitively, if any. Lets typed input
+    /// adopt the catalog entry's exact casing ("red wine" → "Red Wine")
+    /// instead of becoming a near-duplicate, and routes built-in matches
+    /// into duplicate detection.
+    static func known(matching text: String) -> Self? {
+        (allCases + suggested).first {
+            $0.rawValue.caseInsensitiveCompare(text) == .orderedSame
+                || $0.displayName.caseInsensitiveCompare(text) == .orderedSame
         }
     }
 }
 
-enum Trigger: String, Codable, CaseIterable, Identifiable {
-    case stress
-    case lackOfSleep = "lack_of_sleep"
-    case weatherChange = "weather_change"
-    case brightLights = "bright_lights"
-    case loudSounds = "loud_sounds"
-    case alcohol
-    case caffeine
-    case food
-    case hormonal
-    case exercise
+struct PainQuality: TrackableOptionValue {
+    let rawValue: String
 
-    var id: String { rawValue }
+    static let throbbing = PainQuality(rawValue: "throbbing")
+    static let sharp = PainQuality(rawValue: "sharp")
+    static let dull = PainQuality(rawValue: "dull")
+    static let pressure = PainQuality(rawValue: "pressure")
+    static let stabbing = PainQuality(rawValue: "stabbing")
+    static let burning = PainQuality(rawValue: "burning")
 
-    var displayName: String {
-        switch self {
-        case .lackOfSleep: return "Lack of Sleep"
-        case .weatherChange: return "Weather Change"
-        case .brightLights: return "Bright Lights"
-        case .loudSounds: return "Loud Sounds"
-        default: return rawValue.capitalized
-        }
-    }
+    static let allCases: [PainQuality] = [
+        .throbbing, .sharp, .dull, .pressure, .stabbing, .burning
+    ]
+
+    static let suggested: [PainQuality] = [
+        "Pounding", "Piercing", "Squeezing", "Band-like", "Vise-like",
+        "Shooting", "Electric", "Aching", "Splitting", "Drilling", "Radiating"
+    ].map(PainQuality.init(rawValue:))
+
+    static let displayNameOverrides: [String: String] = [:]
+}
+
+struct Symptom: TrackableOptionValue {
+    let rawValue: String
+
+    static let nausea = Symptom(rawValue: "nausea")
+    static let vomiting = Symptom(rawValue: "vomiting")
+    static let visualDisturbances = Symptom(rawValue: "visual_disturbances")
+    static let aura = Symptom(rawValue: "aura")
+    static let lightSensitivity = Symptom(rawValue: "light_sensitivity")
+    static let soundSensitivity = Symptom(rawValue: "sound_sensitivity")
+    static let smellSensitivity = Symptom(rawValue: "smell_sensitivity")
+    static let dizziness = Symptom(rawValue: "dizziness")
+    static let confusion = Symptom(rawValue: "confusion")
+
+    static let allCases: [Symptom] = [
+        .nausea, .vomiting, .visualDisturbances, .aura, .lightSensitivity,
+        .soundSensitivity, .smellSensitivity, .dizziness, .confusion
+    ]
+
+    static let suggested: [Symptom] = [
+        "Neck Pain", "Neck Stiffness", "Brain Fog", "Fatigue", "Yawning",
+        "Food Cravings", "Irritability", "Mood Changes", "Euphoria",
+        "Tinnitus", "Vertigo", "Numbness", "Tingling", "Weakness",
+        "Speech Difficulty", "Scalp Tenderness", "Eye Watering",
+        "Nasal Congestion", "Droopy Eyelid", "Restlessness",
+        "Frequent Urination", "Diarrhea", "Constipation",
+        "Difficulty Concentrating"
+    ].map(Symptom.init(rawValue:))
+
+    static let displayNameOverrides: [String: String] = [:]
+}
+
+struct Trigger: TrackableOptionValue {
+    let rawValue: String
+
+    static let stress = Trigger(rawValue: "stress")
+    static let lackOfSleep = Trigger(rawValue: "lack_of_sleep")
+    static let weatherChange = Trigger(rawValue: "weather_change")
+    static let brightLights = Trigger(rawValue: "bright_lights")
+    static let loudSounds = Trigger(rawValue: "loud_sounds")
+    static let alcohol = Trigger(rawValue: "alcohol")
+    static let caffeine = Trigger(rawValue: "caffeine")
+    static let food = Trigger(rawValue: "food")
+    static let hormonal = Trigger(rawValue: "hormonal")
+    static let exercise = Trigger(rawValue: "exercise")
+
+    static let allCases: [Trigger] = [
+        .stress, .lackOfSleep, .weatherChange, .brightLights, .loudSounds,
+        .alcohol, .caffeine, .food, .hormonal, .exercise
+    ]
+
+    static let suggested: [Trigger] = [
+        "Dehydration", "Skipped Meals", "Red Wine", "Chocolate",
+        "Aged Cheese", "MSG", "Artificial Sweeteners", "Processed Meat",
+        "Citrus", "Oversleeping", "Jet Lag", "Screen Time", "Strong Smells",
+        "Smoke", "Neck Tension", "Poor Posture", "Allergies",
+        "High Altitude", "Heat", "Humidity", "Menstruation", "Anxiety",
+        "Crying", "Motion Sickness"
+    ].map(Trigger.init(rawValue:))
+
+    static let displayNameOverrides: [String: String] = [
+        "lack_of_sleep": "Lack of Sleep"
+    ]
 }
 
 // MARK: - Medication Enums

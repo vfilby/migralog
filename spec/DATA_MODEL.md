@@ -415,7 +415,7 @@ Stored in `daily_status_logs` table
 
 ## Enumerations
 
-### Pain Locations (10 types)
+### Pain Locations (10 types, fixed)
 ```
 left_eye, right_eye,
 left_temple, right_temple,
@@ -424,23 +424,64 @@ left_head, right_head,
 left_teeth, right_teeth
 ```
 
-### Pain Qualities (6 types)
+Pain qualities, symptoms and triggers are **open value sets** (schema v35+):
+the built-in values below ship enabled, and users can add more values or
+hide built-ins via Settings → Tracking Options. Customizations are stored
+in the `tracking_options` table (synced); only deviations from the defaults
+are stored — a built-in with no row is visible. Episodes keep whatever
+values they were logged with, even after the option is hidden or deleted,
+so consumers must treat these as free-form strings.
+
+Besides the enabled built-ins, each category has a larger **suggested
+catalog** of well-known values (defined in `Enums.swift` as
+`Trigger.suggested` etc.) offered via autocomplete in the add flow.
+Catalog and free-form values are **display-ready text stored as-is**
+("Red Wine", "MSG") — only the legacy built-ins use snake_case
+identifiers, and only they get a display-name transformation. Typed input
+that matches a catalog entry case-insensitively adopts the entry's exact
+casing (preventing casing near-duplicates); nothing else is transformed,
+since derived casing can mangle text we don't control (e.g. unknown
+acronyms). Because users picking the same catalog entry store the same
+string, shared data stays consistent; mapping values to canonical
+identifiers is deliberately deferred to whatever future layer actually
+shares or aggregates data.
+
+### Pain Qualities (6 built-in)
 ```
 throbbing, sharp, dull, pressure, stabbing, burning
 ```
 
-### Symptoms (9 types)
+### Symptoms (9 built-in)
 ```
 nausea, vomiting, visual_disturbances, aura,
 light_sensitivity, sound_sensitivity, smell_sensitivity,
 dizziness, confusion
 ```
 
-### Triggers (10 types)
+### Triggers (10 built-in)
 ```
 stress, lack_of_sleep, weather_change, bright_lights,
 loud_sounds, alcohol, caffeine, food, hormonal, exercise
 ```
+
+### Tracking Options (customization, v35+)
+
+`tracking_options` rows are either:
+- **Custom option** (`is_built_in = 0`): a user-added pick-list value.
+  `value` is the user's text verbatim (trimmed, ≤ 100 chars, unique per
+  category case-insensitively).
+- **Built-in override** (`is_built_in = 1`): hides a built-in value
+  (`is_hidden = 1`). Un-hiding deletes the row.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | TEXT PK | UUID |
+| category | TEXT | `pain_quality` \| `symptom` \| `trigger` |
+| value | TEXT | raw value as stored in episode JSON arrays |
+| is_built_in | INTEGER | 0/1 |
+| is_hidden | INTEGER | 0/1 |
+| created_at | INTEGER | epoch ms |
+| updated_at | INTEGER | epoch ms, nullable (LWW timestamp for sync) |
 
 ---
 
