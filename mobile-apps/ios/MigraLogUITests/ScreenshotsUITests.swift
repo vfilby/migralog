@@ -101,6 +101,9 @@ final class ScreenshotsUITests: XCTestCase {
             }
             Thread.sleep(forTimeInterval: 1.5)
         } else {
+            // iPhone: stats live in the Insights section.
+            let insightsSegment = app.buttons["Insights"]
+            UITestHelpers.waitForHittable(insightsSegment).tap()
             let scroll = app.scrollViews.firstMatch
             let durationMetrics = app.staticTexts["Duration Metrics"]
             UITestHelpers.scrollToElement(durationMetrics, in: scroll)
@@ -130,6 +133,9 @@ final class ScreenshotsUITests: XCTestCase {
     /// visualization pane below the calendar.
     func test07_TrendsInsights() throws {
         navigate(to: "Trends")
+        let insightsSegment = app.buttons["Insights"]
+        UITestHelpers.waitForHittable(insightsSegment).tap()
+        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
         let scroll = app.scrollViews.firstMatch
 
         let headacheBurden = app.staticTexts["Headache Burden"]
@@ -137,8 +143,8 @@ final class ScreenshotsUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 1.0)
         attachScreenshot(named: "07-Trends-Insights")
 
-        let timeOfDay = app.staticTexts["Time of Day"]
-        UITestHelpers.scrollToElement(timeOfDay, in: scroll, maxScrolls: 15)
+        let monthlySummary = app.staticTexts["Monthly Summary"]
+        UITestHelpers.scrollToElement(monthlySummary, in: scroll, maxScrolls: 15)
         Thread.sleep(forTimeInterval: 1.0)
         attachScreenshot(named: "08-Trends-Insights-Distributions")
     }

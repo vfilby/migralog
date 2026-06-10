@@ -191,14 +191,39 @@ final class AnalyticsViewModelTests: XCTestCase {
         // One rolling-count point per day in the selected range (7 back + today).
         XCTAssertEqual(sut.headacheDayTrend.count, 8)
         XCTAssertEqual(sut.headacheDayTrend.last?.count, 1)
-        // Both acute classes always present; triptan series ends at 1 intake day.
-        XCTAssertEqual(sut.intakeSeries.count, 2)
-        let triptanSeries = sut.intakeSeries.first { $0.medClass == .triptanLike }
+        // All acute classes always present; triptan series ends at 1 intake day.
+        XCTAssertEqual(sut.intakeSeries.count, 3)
+        let triptanSeries = sut.intakeSeries.first { $0.medClass == .triptan }
         XCTAssertEqual(triptanSeries?.points.last?.count, 1)
         // One rated episode this week → one severity entry; time-of-day total is 1.
         XCTAssertEqual(sut.severityWeekCounts.map(\.count).reduce(0, +), 1)
         XCTAssertEqual(sut.severityWeekCounts.first?.bin, .severe)
         XCTAssertEqual(sut.timeOfDayBins.map(\.count).reduce(0, +), 1)
+        // Monthly summary covers the range months and flags them partial
+        // (a 7-day range never covers a whole calendar month).
+        XCTAssertFalse(sut.monthlySummaries.isEmpty)
+        XCTAssertTrue(sut.monthlySummaries.allSatisfy(\.isPartial))
+        XCTAssertEqual(sut.monthlySummaries.map(\.episodeCount).reduce(0, +), 1)
+        XCTAssertEqual(sut.monthlySummaries.map(\.totalDoses).reduce(0, +), 1)
+        XCTAssertEqual(sut.summaryMedications.map(\.id), ["med-t"])
+    }
+
+    func testFetchData_populatesWeeklyAdherence() async throws {
+        let now = TimestampHelper.now
+        let preventative = TestFixtures.makeMedication(id: "med-p", type: .preventative, category: .supplement)
+        mockMedicationRepo.medications = [preventative]
+        mockMedicationRepo.schedules = [
+            TestFixtures.makeSchedule(medicationId: "med-p")
+        ]
+        mockMedicationRepo.doses = [
+            TestFixtures.makeDose(medicationId: "med-p", timestamp: now - 3600000)
+        ]
+
+        await sut.setDateRange(.sevenDays)
+
+        // 8 days of one expected dose each; exactly one logged as taken.
+        XCTAssertEqual(sut.weeklyAdherence.map(\.expected).reduce(0, +), 8)
+        XCTAssertEqual(sut.weeklyAdherence.map(\.taken).reduce(0, +), 1)
     }
 
     func testFetchData_excludedOverlayRemovesDaysFromInsights() async throws {

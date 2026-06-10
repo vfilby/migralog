@@ -34,6 +34,10 @@ final class AnalyticsViewModel {
     var severityWeekCounts: [AnalyticsInsights.SeverityWeekCount] = []
     var timeOfDayBins: [AnalyticsInsights.TimeOfDayBin] = []
     var insightWarnings: [AnalyticsInsights.Warning] = []
+    var monthlySummaries: [AnalyticsInsights.MonthSummary] = []
+    var weeklyAdherence: [AnalyticsInsights.WeeklyAdherence] = []
+    /// Medications referenced by `monthlySummaries`, for display names/order.
+    var summaryMedications: [Medication] = []
 
     // MARK: - Cache
 
@@ -108,6 +112,9 @@ final class AnalyticsViewModel {
             severityWeekCounts = cached.severityWeekCounts
             timeOfDayBins = cached.timeOfDayBins
             insightWarnings = cached.insightWarnings
+            monthlySummaries = cached.monthlySummaries
+            weeklyAdherence = cached.weeklyAdherence
+            summaryMedications = cached.summaryMedications
             return
         }
 
@@ -172,7 +179,10 @@ final class AnalyticsViewModel {
                 intakeSeries: intakeSeries,
                 severityWeekCounts: severityWeekCounts,
                 timeOfDayBins: timeOfDayBins,
-                insightWarnings: insightWarnings
+                insightWarnings: insightWarnings,
+                monthlySummaries: monthlySummaries,
+                weeklyAdherence: weeklyAdherence,
+                summaryMedications: summaryMedications
             )
             cache.set(cacheKey, value: cached, ttl: Self.cacheTTL)
 
@@ -403,6 +413,37 @@ final class AnalyticsViewModel {
             now: now,
             calendar: calendar
         )
+
+        // Monthly provider summary + preventative adherence over the
+        // selected range (not the extended lookback window).
+        let rangeDoses = allDoses.filter { $0.timestamp >= rangeStartMs }
+        monthlySummaries = AnalyticsInsights.monthlySummaries(
+            episodes: rangeEpisodes,
+            doses: rangeDoses,
+            medications: allMedications,
+            excluded: excluded,
+            from: rangeStart,
+            to: now,
+            calendar: calendar
+        )
+        let summaryMedIds = Set(monthlySummaries.flatMap { $0.medStats.keys })
+        summaryMedications = allMedications
+            .filter { summaryMedIds.contains($0.id) }
+            .sorted { $0.name < $1.name }
+
+        let preventativeIds = allMedications.filter { $0.type == .preventative && $0.active }.map(\.id)
+        let schedulesByMedication = preventativeIds.isEmpty
+            ? [:]
+            : try medicationRepository.getSchedulesByMultipleMedicationIds(preventativeIds)
+        weeklyAdherence = AnalyticsInsights.weeklyAdherence(
+            doses: rangeDoses,
+            medications: allMedications,
+            schedulesByMedication: schedulesByMedication,
+            excluded: excluded,
+            from: rangeStart,
+            to: now,
+            calendar: calendar
+        )
     }
 
     private func computeDayStats(
@@ -470,4 +511,7 @@ private struct CachedAnalytics {
     let severityWeekCounts: [AnalyticsInsights.SeverityWeekCount]
     let timeOfDayBins: [AnalyticsInsights.TimeOfDayBin]
     let insightWarnings: [AnalyticsInsights.Warning]
+    let monthlySummaries: [AnalyticsInsights.MonthSummary]
+    let weeklyAdherence: [AnalyticsInsights.WeeklyAdherence]
+    let summaryMedications: [Medication]
 }

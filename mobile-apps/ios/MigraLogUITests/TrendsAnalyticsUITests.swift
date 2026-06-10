@@ -30,7 +30,10 @@ final class TrendsAnalyticsUITests: XCTestCase {
         UITestHelpers.waitForElement(previousButton)
         UITestHelpers.waitForElement(nextButton)
 
-        // Step 3: Time range selector visible
+        // Step 3: Switch to the Insights section for range + statistics
+        selectSection("Insights")
+
+        // Time range selector visible
         let range7d = app.buttons["time-range-7"]
         let range30d = app.buttons["time-range-30"]
         let range90d = app.buttons["time-range-90"]
@@ -51,6 +54,7 @@ final class TrendsAnalyticsUITests: XCTestCase {
         app = UITestHelpers.launchCleanDashboard()
         UITestHelpers.waitForDashboard(in: app)
         UITestHelpers.navigateTo(tab: .trends, in: app)
+        selectSection("Insights")
 
         // Step 1: Tap "7d"
         let range7d = app.buttons["time-range-7"]
@@ -77,6 +81,7 @@ final class TrendsAnalyticsUITests: XCTestCase {
         app = UITestHelpers.launchCleanDashboard()
         UITestHelpers.waitForDashboard(in: app)
         UITestHelpers.navigateTo(tab: .trends, in: app)
+        selectSection("Insights")
 
         let scroll = app.scrollViews.firstMatch
 
@@ -107,6 +112,7 @@ final class TrendsAnalyticsUITests: XCTestCase {
         app = UITestHelpers.launchWithFixtures()
         UITestHelpers.waitForDashboard(in: app)
         UITestHelpers.navigateTo(tab: .trends, in: app)
+        selectSection("Insights")
 
         let scroll = app.scrollViews.firstMatch
 
@@ -127,6 +133,7 @@ final class TrendsAnalyticsUITests: XCTestCase {
         app = UITestHelpers.launchCleanDashboard()
         UITestHelpers.waitForDashboard(in: app)
         UITestHelpers.navigateTo(tab: .trends, in: app)
+        selectSection("Insights")
 
         let scroll = app.scrollViews.firstMatch
 
@@ -141,6 +148,7 @@ final class TrendsAnalyticsUITests: XCTestCase {
         app = UITestHelpers.launchWithFixtures()
         UITestHelpers.waitForDashboard(in: app)
         UITestHelpers.navigateTo(tab: .trends, in: app)
+        selectSection("Insights")
 
         let scroll = app.scrollViews.firstMatch
 
@@ -175,6 +183,7 @@ final class TrendsAnalyticsUITests: XCTestCase {
         app = UITestHelpers.launchCleanDashboard()
         UITestHelpers.waitForDashboard(in: app)
         UITestHelpers.navigateTo(tab: .trends, in: app)
+        selectSection("Insights")
 
         // Step 1: Select "90d"
         let range90d = app.buttons["time-range-90"]
@@ -187,6 +196,7 @@ final class TrendsAnalyticsUITests: XCTestCase {
 
         // Step 3: Return to Trends - "90d" should still be selected
         UITestHelpers.navigateTo(tab: .trends, in: app)
+        selectSection("Insights")
 
         // Verify 90d is still selected (check if it has a selected/highlighted state)
         let range90dAfter = app.buttons["time-range-90"]
@@ -201,15 +211,26 @@ final class TrendsAnalyticsUITests: XCTestCase {
         app = UITestHelpers.launchWithFixtures()
         UITestHelpers.waitForDashboard(in: app)
         UITestHelpers.navigateTo(tab: .trends, in: app)
+        selectSection("Insights")
 
         let scroll = app.scrollViews.firstMatch
 
         // Each insight card renders with its headline. The warnings card is
         // always present (with findings or the all-clear state).
-        for title in ["Warning Signs", "Headache Burden", "Medication Overuse Risk", "Severity by Week", "Time of Day"] {
+        for title in ["Warning Signs", "Headache Burden", "Medication Overuse Risk", "Severity by Week", "Time of Day", "Preventative Adherence", "Monthly Summary"] {
             let header = app.staticTexts[title]
             UITestHelpers.scrollToElement(header, in: scroll, maxScrolls: 15)
             UITestHelpers.waitForElement(header)
         }
+    }
+
+    // MARK: - Helpers
+
+    /// Switch the Trends screen to a section segment ("Calendar" / "Insights").
+    private func selectSection(_ label: String) {
+        let segment = app.buttons[label]
+        UITestHelpers.waitForHittable(segment)
+        segment.tap()
+        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
     }
 }

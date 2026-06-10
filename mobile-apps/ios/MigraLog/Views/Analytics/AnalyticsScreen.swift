@@ -1,40 +1,78 @@
 import SwiftUI
 
+/// Top-level sections of the Trends tab: day-tracking calendar vs.
+/// time-range analytics. Decoupled because the calendar is month-driven
+/// while everything else follows the range selector.
+enum AnalyticsSection: String, CaseIterable, Identifiable {
+    case calendar
+    case insights
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .calendar: return "Calendar"
+        case .insights: return "Insights"
+        }
+    }
+}
+
+struct AnalyticsSectionPicker: View {
+    @Binding var selection: AnalyticsSection
+
+    var body: some View {
+        Picker("View", selection: $selection) {
+            ForEach(AnalyticsSection.allCases) { section in
+                Text(section.label).tag(section)
+            }
+        }
+        .pickerStyle(.segmented)
+        .accessibilityIdentifier("analytics-section-picker")
+    }
+}
+
 struct AnalyticsScreen: View {
     @State private var viewModel = AnalyticsViewModel()
     @State private var showAddOverlay = false
     @State private var editingOverlay: CalendarOverlay?
+    @State private var selectedSection: AnalyticsSection = .calendar
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                // Monthly Calendar
-                MonthlyCalendarView(viewModel: viewModel)
+                AnalyticsSectionPicker(selection: $selectedSection)
 
-                // Overlays section
-                OverlayListCard(
-                    overlays: viewModel.calendarOverlays,
-                    onAdd: { showAddOverlay = true },
-                    onEdit: { editingOverlay = $0 }
-                )
+                switch selectedSection {
+                case .calendar:
+                    // Monthly Calendar
+                    MonthlyCalendarView(viewModel: viewModel)
 
-                // Time Range Selector
-                TimeRangeSelectorView(viewModel: viewModel)
+                    // Overlays section
+                    OverlayListCard(
+                        overlays: viewModel.calendarOverlays,
+                        onAdd: { showAddOverlay = true },
+                        onEdit: { editingOverlay = $0 }
+                    )
 
-                // Day Statistics Card
-                DayStatisticsCard(viewModel: viewModel)
+                case .insights:
+                    // Time Range Selector
+                    TimeRangeSelectorView(viewModel: viewModel)
 
-                // Episode Statistics
-                EpisodeStatisticsCard(viewModel: viewModel)
+                    // Day Statistics Card
+                    DayStatisticsCard(viewModel: viewModel)
 
-                // Duration Metrics
-                DurationMetricsCard(viewModel: viewModel)
+                    // Episode Statistics
+                    EpisodeStatisticsCard(viewModel: viewModel)
 
-                // Medication Usage
-                MedicationUsageCard(viewModel: viewModel)
+                    // Duration Metrics
+                    DurationMetricsCard(viewModel: viewModel)
 
-                // Insight charts (Swift Charts)
-                InsightsChartsSection(viewModel: viewModel)
+                    // Medication Usage
+                    MedicationUsageCard(viewModel: viewModel)
+
+                    // Insight charts (Swift Charts)
+                    InsightsChartsSection(viewModel: viewModel)
+                }
             }
             .padding()
         }
@@ -610,13 +648,19 @@ private struct OverlayListContent: View {
 /// Calendar and visualizations for the iPad wide pane.
 struct AnalyticsVisualizationPane: View {
     @Bindable var viewModel: AnalyticsViewModel
+    @State private var selectedSection: AnalyticsSection = .calendar
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                MonthlyCalendarView(viewModel: viewModel)
+                AnalyticsSectionPicker(selection: $selectedSection)
 
-                InsightsChartsSection(viewModel: viewModel)
+                switch selectedSection {
+                case .calendar:
+                    MonthlyCalendarView(viewModel: viewModel)
+                case .insights:
+                    InsightsChartsSection(viewModel: viewModel)
+                }
             }
             .padding()
         }

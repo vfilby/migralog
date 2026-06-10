@@ -133,7 +133,7 @@ final class AnalyticsInsightsTests: XCTestCase {
 
         let intake = AnalyticsInsights.intakeDays(doses: doses, medications: [triptan], excluded: [], calendar: calendar)
 
-        XCTAssertEqual(intake[.triptanLike], [dayString(daysAgo: 1), dayString(daysAgo: 2)])
+        XCTAssertEqual(intake[.triptan], [dayString(daysAgo: 1), dayString(daysAgo: 2)])
     }
 
     func testIntakeDays_classifiesByCategoryAndIgnoresOthers() {
@@ -157,8 +157,18 @@ final class AnalyticsInsightsTests: XCTestCase {
             calendar: calendar
         )
 
-        XCTAssertEqual(intake[.triptanLike], [dayString(daysAgo: 1)])
+        XCTAssertEqual(intake[.triptan], [dayString(daysAgo: 1)])
         XCTAssertEqual(intake[.simpleAnalgesic], [dayString(daysAgo: 2), dayString(daysAgo: 3)])
+    }
+
+    func testIntakeDays_rescueCgrpIsItsOwnClass() {
+        let gepant = TestFixtures.makeMedication(id: "med-g", type: .rescue, category: .cgrp)
+        let doses = [TestFixtures.makeDose(medicationId: "med-g", timestamp: ms(daysAgo: 1))]
+
+        let intake = AnalyticsInsights.intakeDays(doses: doses, medications: [gepant], excluded: [], calendar: calendar)
+
+        XCTAssertEqual(intake[.cgrpAcute], [dayString(daysAgo: 1)])
+        XCTAssertNil(intake[.triptan])
     }
 
     func testIntakeDays_skippedDosesAndExcludedDaysIgnored() {
@@ -175,7 +185,7 @@ final class AnalyticsInsightsTests: XCTestCase {
             calendar: calendar
         )
 
-        XCTAssertNil(intake[.triptanLike])
+        XCTAssertNil(intake[.triptan])
     }
 
     // MARK: - Severity bins
@@ -274,7 +284,7 @@ final class AnalyticsInsightsTests: XCTestCase {
 
         let warnings = AnalyticsInsights.warnings(
             headacheDays: [],
-            intakeDays: [.triptanLike: triptanDays, .simpleAnalgesic: nsaidDays],
+            intakeDays: [.triptan: triptanDays, .simpleAnalgesic: nsaidDays],
             episodes: [],
             readings: [],
             excluded: [],
@@ -283,7 +293,7 @@ final class AnalyticsInsightsTests: XCTestCase {
         )
 
         // Triptans at 10 days = at the ≥10 guideline → alert.
-        XCTAssertTrue(warnings.contains { $0.id == "moh-triptanLike" && $0.severity == .alert })
+        XCTAssertTrue(warnings.contains { $0.id == "moh-triptan" && $0.severity == .alert })
         // Simple analgesics at 13 days = within 2 of the 15-day guideline → caution.
         XCTAssertTrue(warnings.contains { $0.id == "moh-near-simpleAnalgesic" && $0.severity == .caution })
         XCTAssertFalse(warnings.contains { $0.id == "moh-simpleAnalgesic" })
@@ -296,7 +306,7 @@ final class AnalyticsInsightsTests: XCTestCase {
 
         let warnings = AnalyticsInsights.warnings(
             headacheDays: [],
-            intakeDays: [.triptanLike: current.union(previous)],
+            intakeDays: [.triptan: current.union(previous)],
             episodes: [],
             readings: [],
             excluded: [],
@@ -336,10 +346,160 @@ final class AnalyticsInsightsTests: XCTestCase {
         XCTAssertTrue(warnings.contains { $0.id == "intensity-rising" && $0.severity == .info })
     }
 
+    func testWarnings_cgrpHasNoOveruseWarning() {
+        // Heavy but steady gepant use: 10 days in each 28-day window.
+        let current = Set((1...10).map { dayString(daysAgo: $0) })
+        let previous = Set((29...38).map { dayString(daysAgo: $0) })
+
+        let warnings = AnalyticsInsights.warnings(
+            headacheDays: [],
+            intakeDays: [.cgrpAcute: current.union(previous)],
+            episodes: [],
+            readings: [],
+            excluded: [],
+            now: now,
+            calendar: calendar
+        )
+
+        XCTAssertFalse(warnings.contains { $0.id.hasPrefix("moh") })
+    }
+
+    // MARK: - Monthly summary
+
+    func testMonthlySummaries_countsAndPartialFlags() {
+        // Range: last 40 days — spans two calendar months, both partial
+        // unless the range happens to align exactly with month boundaries.
+        let from = date(daysAgo: 40)
+        let triptan = TestFixtures.makeMedication(id: "med-t", type: .rescue, category: .triptan)
+        let episodes = [
+            TestFixtures.makeEpisode(id: "ep-1", startTime: ms(daysAgo: 1), endTime: ms(daysAgo: 1, hour: 18)),
+            TestFixtures.makeEpisode(id: "ep-2", startTime: ms(daysAgo: 2, hour: 20), endTime: ms(daysAgo: 1, hour: 2)),
+        ]
+        let doses = [
+            TestFixtures.makeDose(medicationId: "med-t", timestamp: ms(daysAgo: 1, hour: 9)),
+            TestFixtures.makeDose(medicationId: "med-t", timestamp: ms(daysAgo: 1, hour: 21)),
+        ]
+
+        let summaries = AnalyticsInsights.monthlySummaries(
+            episodes: episodes,
+            doses: doses,
+            medications: [triptan],
+            excluded: [],
+            from: from,
+            to: now,
+            calendar: calendar
+        )
+
+        XCTAssertGreaterThanOrEqual(summaries.count, 2)
+        // The current month is always partial (it is still running).
+        XCTAssertEqual(summaries.last?.isPartial, true)
+        XCTAssertEqual(summaries.map(\.episodeCount).reduce(0, +), 2)
+        // ep-1 covers one day, ep-2 covers two days (one shared with ep-1) → 2 distinct days.
+        XCTAssertEqual(summaries.map(\.episodeDays).reduce(0, +), 2)
+        // Two doses on the same day → 2 doses, 1 intake day.
+        XCTAssertEqual(summaries.map(\.totalDoses).reduce(0, +), 2)
+        XCTAssertEqual(summaries.map(\.totalIntakeDays).reduce(0, +), 1)
+        let triptanStats = summaries.compactMap { $0.classStats[.triptan] }
+        XCTAssertEqual(triptanStats.map(\.doses).reduce(0, +), 2)
+        XCTAssertEqual(triptanStats.map(\.days).reduce(0, +), 1)
+        let medStats = summaries.compactMap { $0.medStats["med-t"] }
+        XCTAssertEqual(medStats.map(\.doses).reduce(0, +), 2)
+    }
+
+    func testMonthlySummaries_excludedDaysDropFromAllCounts() {
+        let triptan = TestFixtures.makeMedication(id: "med-t", type: .rescue, category: .triptan)
+        let episodes = [TestFixtures.makeEpisode(id: "ep-1", startTime: ms(daysAgo: 1), endTime: ms(daysAgo: 1, hour: 18))]
+        let doses = [TestFixtures.makeDose(medicationId: "med-t", timestamp: ms(daysAgo: 1, hour: 9))]
+
+        let summaries = AnalyticsInsights.monthlySummaries(
+            episodes: episodes,
+            doses: doses,
+            medications: [triptan],
+            excluded: [dayString(daysAgo: 1)],
+            from: date(daysAgo: 10),
+            to: now,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(summaries.map(\.episodeCount).reduce(0, +), 0)
+        XCTAssertEqual(summaries.map(\.episodeDays).reduce(0, +), 0)
+        XCTAssertEqual(summaries.map(\.totalDoses).reduce(0, +), 0)
+    }
+
+    // MARK: - Weekly adherence
+
+    func testWeeklyAdherence_countsExpectedAndTaken() {
+        let preventative = TestFixtures.makeMedication(id: "med-p", type: .preventative, category: .supplement)
+        let schedules = [TestFixtures.makeSchedule(medicationId: "med-p")]
+        // Taken on 2 of 7 days; a third day has two logs that must cap at 1.
+        let doses = [
+            TestFixtures.makeDose(medicationId: "med-p", timestamp: ms(daysAgo: 1)),
+            TestFixtures.makeDose(medicationId: "med-p", timestamp: ms(daysAgo: 2)),
+            TestFixtures.makeDose(medicationId: "med-p", timestamp: ms(daysAgo: 3, hour: 8)),
+            TestFixtures.makeDose(medicationId: "med-p", timestamp: ms(daysAgo: 3, hour: 20)),
+        ]
+
+        let weeks = AnalyticsInsights.weeklyAdherence(
+            doses: doses,
+            medications: [preventative],
+            schedulesByMedication: ["med-p": schedules],
+            excluded: [],
+            from: date(daysAgo: 6),
+            to: now,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(weeks.map(\.expected).reduce(0, +), 7)
+        XCTAssertEqual(weeks.map(\.taken).reduce(0, +), 3)
+    }
+
+    func testWeeklyAdherence_skippedDosesAndInactiveMedsIgnored() {
+        let active = TestFixtures.makeMedication(id: "med-a", type: .preventative)
+        let inactive = TestFixtures.makeMedication(id: "med-i", type: .preventative, active: false)
+        let schedules = [
+            TestFixtures.makeSchedule(medicationId: "med-a"),
+            TestFixtures.makeSchedule(medicationId: "med-i"),
+        ]
+        let doses = [
+            TestFixtures.makeDose(medicationId: "med-a", timestamp: ms(daysAgo: 1), status: .skipped),
+            TestFixtures.makeDose(medicationId: "med-i", timestamp: ms(daysAgo: 1)),
+        ]
+
+        let weeks = AnalyticsInsights.weeklyAdherence(
+            doses: doses,
+            medications: [active, inactive],
+            schedulesByMedication: ["med-a": schedules.filter { $0.medicationId == "med-a" }, "med-i": schedules.filter { $0.medicationId == "med-i" }],
+            excluded: [],
+            from: date(daysAgo: 2),
+            to: now,
+            calendar: calendar
+        )
+
+        // Only the active med counts: 3 days expected, nothing taken.
+        XCTAssertEqual(weeks.map(\.expected).reduce(0, +), 3)
+        XCTAssertEqual(weeks.map(\.taken).reduce(0, +), 0)
+    }
+
+    func testWeeklyAdherence_noSchedulesMeansNoData() {
+        let preventative = TestFixtures.makeMedication(id: "med-p", type: .preventative)
+
+        let weeks = AnalyticsInsights.weeklyAdherence(
+            doses: [],
+            medications: [preventative],
+            schedulesByMedication: [:],
+            excluded: [],
+            from: date(daysAgo: 6),
+            to: now,
+            calendar: calendar
+        )
+
+        XCTAssertTrue(weeks.isEmpty)
+    }
+
     func testWarnings_quietDataProducesNoWarnings() {
         let warnings = AnalyticsInsights.warnings(
             headacheDays: headacheDaySet(count: 3),
-            intakeDays: [.triptanLike: [dayString(daysAgo: 4)]],
+            intakeDays: [.triptan: [dayString(daysAgo: 4)]],
             episodes: [],
             readings: [],
             excluded: [],

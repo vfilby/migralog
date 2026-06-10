@@ -28,32 +28,38 @@ enum AnalyticsInsights {
         var id: Date { date }
     }
 
-    /// MOH-relevant acute medication classes, mapped from `MedicationCategory`.
+    /// Acute medication classes, mapped from `MedicationCategory`.
     enum AcuteMedClass: String, CaseIterable, Identifiable {
-        case triptanLike
+        case triptan
         case simpleAnalgesic
+        case cgrpAcute
 
         var id: String { rawValue }
 
         var displayName: String {
             switch self {
-            case .triptanLike: return "Triptan / CGRP"
+            case .triptan: return "Triptan"
             case .simpleAnalgesic: return "OTC / NSAID"
+            case .cgrpAcute: return "CGRP"
             }
         }
 
         /// ICHD-3 overuse threshold in intake days per 28-day window.
-        var overuseThresholdDays: Int {
+        /// Nil for classes with no established overuse guideline (CGRP
+        /// acute medications / gepants are not listed in ICHD-3 8.2).
+        var overuseThresholdDays: Int? {
             switch self {
-            case .triptanLike: return 10
+            case .triptan: return 10
             case .simpleAnalgesic: return 15
+            case .cgrpAcute: return nil
             }
         }
 
         init?(category: MedicationCategory?) {
             switch category {
-            case .triptan, .cgrp: self = .triptanLike
+            case .triptan: self = .triptan
             case .otc, .nsaid: self = .simpleAnalgesic
+            case .cgrp: self = .cgrpAcute
             default: return nil
             }
         }
@@ -298,6 +304,188 @@ enum AnalyticsInsights {
         return stride(from: 0, to: 24, by: 3).map { TimeOfDayBin(hour: $0, count: counts[$0] ?? 0) }
     }
 
+    // MARK: - Monthly summary
+
+    struct DoseStat: Equatable {
+        var doses: Int = 0
+        var days: Int = 0
+    }
+
+    /// Per-calendar-month provider summary. `isPartial` is set when the month
+    /// is not fully covered by the requested range (including the current,
+    /// still-running month).
+    struct MonthSummary: Equatable, Identifiable {
+        let monthStart: Date
+        let isPartial: Bool
+        let episodeCount: Int
+        let episodeDays: Int
+        let totalDoses: Int
+        let totalIntakeDays: Int
+        let classStats: [AcuteMedClass: DoseStat]
+        let medStats: [String: DoseStat] // keyed by medication id
+        var id: Date { monthStart }
+    }
+
+    /// One summary per calendar month intersecting `from...to`. Dose totals
+    /// cover taken rescue doses; intake days are distinct days with ≥1 dose.
+    /// Days inside excluded overlays are dropped from every count.
+    static func monthlySummaries(
+        episodes: [Episode],
+        doses: [MedicationDose],
+        medications: [Medication],
+        excluded: Set<String>,
+        from: Date,
+        to: Date,
+        calendar: Calendar = .current
+    ) -> [MonthSummary] {
+        guard from <= to,
+              let firstMonth = calendar.dateInterval(of: .month, for: from)?.start else { return [] }
+
+        var classByMedId: [String: AcuteMedClass] = [:]
+        var rescueIds: Set<String> = []
+        for med in medications where med.type == .rescue {
+            rescueIds.insert(med.id)
+            if let medClass = AcuteMedClass(category: med.category) {
+                classByMedId[med.id] = medClass
+            }
+        }
+
+        // Distinct days overlapped by any episode (minus excluded), clipped
+        // to the requested range so partial months only count covered days.
+        let fromString = TimestampHelper.dateString(from: from)
+        let toString = TimestampHelper.dateString(from: to)
+        let episodeDaySet = headacheDays(episodes: episodes, statuses: [], excluded: excluded, now: to, calendar: calendar)
+            .filter { $0 >= fromString && $0 <= toString }
+
+        let rangeStartDay = calendar.startOfDay(for: from)
+        let rangeEndExclusive = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: to)) ?? to
+
+        var summaries: [MonthSummary] = []
+        var monthStart = firstMonth
+        while monthStart < rangeEndExclusive {
+            guard let monthEnd = calendar.date(byAdding: .month, value: 1, to: monthStart) else { break }
+            let monthKey = monthPrefix(of: monthStart, calendar: calendar)
+            let isPartial = monthStart < rangeStartDay || monthEnd > rangeEndExclusive
+
+            let monthStartMs = TimestampHelper.fromDate(max(monthStart, rangeStartDay))
+            let monthEndMs = TimestampHelper.fromDate(min(monthEnd, rangeEndExclusive))
+
+            var episodeCount = 0
+            for episode in episodes where episode.startTime >= monthStartMs && episode.startTime < monthEndMs {
+                let startDay = TimestampHelper.dateString(from: TimestampHelper.toDate(episode.startTime))
+                if !excluded.contains(startDay) { episodeCount += 1 }
+            }
+
+            let episodeDays = episodeDaySet.filter { $0.hasPrefix(monthKey) }.count
+
+            var classStats: [AcuteMedClass: DoseStat] = [:]
+            var medStats: [String: DoseStat] = [:]
+            var classDays: [AcuteMedClass: Set<String>] = [:]
+            var medDays: [String: Set<String>] = [:]
+            var allDays: Set<String> = []
+            var totalDoses = 0
+            for dose in doses where dose.status == .taken && rescueIds.contains(dose.medicationId) {
+                guard dose.timestamp >= monthStartMs, dose.timestamp < monthEndMs else { continue }
+                let dayString = TimestampHelper.dateString(from: TimestampHelper.toDate(dose.timestamp))
+                guard !excluded.contains(dayString) else { continue }
+                totalDoses += 1
+                allDays.insert(dayString)
+                medStats[dose.medicationId, default: DoseStat()].doses += 1
+                medDays[dose.medicationId, default: []].insert(dayString)
+                if let medClass = classByMedId[dose.medicationId] {
+                    classStats[medClass, default: DoseStat()].doses += 1
+                    classDays[medClass, default: []].insert(dayString)
+                }
+            }
+            for (medClass, days) in classDays { classStats[medClass]?.days = days.count }
+            for (medId, days) in medDays { medStats[medId]?.days = days.count }
+
+            summaries.append(MonthSummary(
+                monthStart: monthStart,
+                isPartial: isPartial,
+                episodeCount: episodeCount,
+                episodeDays: episodeDays,
+                totalDoses: totalDoses,
+                totalIntakeDays: allDays.count,
+                classStats: classStats,
+                medStats: medStats
+            ))
+            monthStart = monthEnd
+        }
+        return summaries
+    }
+
+    /// "yyyy-MM" prefix used to bucket day strings into a month.
+    private static func monthPrefix(of monthStart: Date, calendar: Calendar) -> String {
+        String(TimestampHelper.dateString(from: monthStart).prefix(7))
+    }
+
+    // MARK: - Preventative adherence
+
+    struct WeeklyAdherence: Equatable, Identifiable {
+        let weekStart: Date
+        let expected: Int
+        let taken: Int
+        var id: Date { weekStart }
+
+        var percent: Double {
+            expected > 0 ? Double(taken) / Double(expected) * 100 : 0
+        }
+    }
+
+    /// Scheduled preventative doses logged as taken, grouped by week.
+    ///
+    /// Expected doses per day = enabled schedules of active preventative
+    /// medications (today's schedule configuration — schedule history is not
+    /// recorded). Taken doses are capped at the expected count per medication
+    /// per day so extra logs can't inflate adherence. Excluded-overlay days
+    /// are dropped from both sides.
+    static func weeklyAdherence(
+        doses: [MedicationDose],
+        medications: [Medication],
+        schedulesByMedication: [String: [MedicationSchedule]],
+        excluded: Set<String>,
+        from: Date,
+        to: Date,
+        calendar: Calendar = .current
+    ) -> [WeeklyAdherence] {
+        var expectedPerDay: [String: Int] = [:]
+        for med in medications where med.type == .preventative && med.active {
+            let enabled = (schedulesByMedication[med.id] ?? []).filter(\.enabled).count
+            if enabled > 0 { expectedPerDay[med.id] = enabled }
+        }
+        guard !expectedPerDay.isEmpty else { return [] }
+
+        // Taken doses bucketed by medication and day.
+        var takenByMedDay: [String: Int] = [:]
+        for dose in doses where dose.status == .taken && expectedPerDay[dose.medicationId] != nil {
+            let dayString = TimestampHelper.dateString(from: TimestampHelper.toDate(dose.timestamp))
+            takenByMedDay["\(dose.medicationId)|\(dayString)", default: 0] += 1
+        }
+
+        var weekly: [Date: (expected: Int, taken: Int)] = [:]
+        var day = calendar.startOfDay(for: from)
+        let lastDay = calendar.startOfDay(for: to)
+        while day <= lastDay {
+            let dayString = TimestampHelper.dateString(from: day)
+            if !excluded.contains(dayString),
+               let weekStart = calendar.dateInterval(of: .weekOfYear, for: day)?.start {
+                for (medId, expected) in expectedPerDay {
+                    let taken = min(takenByMedDay["\(medId)|\(dayString)"] ?? 0, expected)
+                    weekly[weekStart, default: (0, 0)].expected += expected
+                    weekly[weekStart, default: (0, 0)].taken += taken
+                }
+            }
+            guard let next = calendar.date(byAdding: .day, value: 1, to: day) else { break }
+            day = next
+        }
+
+        return weekly.keys.sorted().compactMap { weekStart in
+            guard let counts = weekly[weekStart], counts.expected > 0 else { return nil }
+            return WeeklyAdherence(weekStart: weekStart, expected: counts.expected, taken: counts.taken)
+        }
+    }
+
     // MARK: - Warning signs
 
     /// Rule-based callouts computed over the trailing 28-day window vs. the
@@ -334,9 +522,10 @@ enum AnalyticsInsights {
         }
 
         // 2. Medication-overuse risk, per acute class (counted in intake days).
+        // Classes without an established guideline (CGRP acute) are skipped.
         for medClass in AcuteMedClass.allCases {
+            guard let threshold = medClass.overuseThresholdDays else { continue }
             let days = countInWindow(intakeDays[medClass] ?? [], ending: today, calendar: calendar)
-            let threshold = medClass.overuseThresholdDays
             if days >= threshold {
                 warnings.append(Warning(
                     id: "moh-\(medClass.rawValue)",

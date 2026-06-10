@@ -17,6 +17,8 @@ struct InsightsChartsSection: View {
             MedicationOveruseChartCard(series: viewModel.intakeSeries)
             SeverityDistributionChartCard(counts: viewModel.severityWeekCounts)
             TimeOfDayChartCard(bins: viewModel.timeOfDayBins)
+            AdherenceChartCard(weeks: viewModel.weeklyAdherence)
+            MonthlySummaryCard(summaries: viewModel.monthlySummaries, medications: viewModel.summaryMedications)
         }
     }
 }
@@ -166,54 +168,85 @@ struct HeadacheBurdenChartCard: View {
 struct MedicationOveruseChartCard: View {
     let series: [AnalyticsInsights.ClassIntakeSeries]
 
-    private static let classColors: [String: Color] = [
-        AnalyticsInsights.AcuteMedClass.triptanLike.displayName: .blue,
-        AnalyticsInsights.AcuteMedClass.simpleAnalgesic.displayName: .teal,
+    private static let classColors: [AnalyticsInsights.AcuteMedClass: Color] = [
+        .triptan: .blue,
+        .simpleAnalgesic: .teal,
+        .cgrpAcute: .indigo,
     ]
 
-    private var hasData: Bool {
-        series.contains { classSeries in classSeries.points.contains { $0.count >= 1 } }
-    }
-
-    private var yMax: Int {
-        let maxCount = series.flatMap { $0.points.map(\.count) }.max() ?? 0
-        return max(17, maxCount + 2)
+    /// One mini-chart per class that was actually used in the range.
+    private var visibleSeries: [AnalyticsInsights.ClassIntakeSeries] {
+        series.filter { classSeries in classSeries.points.contains { $0.count >= 1 } }
     }
 
     var body: some View {
         InsightCard(
             title: "Medication Overuse Risk",
-            subtitle: "Days with a rescue dose in the trailing 28 days — counted in days, not doses. Guidelines: under 10 days for triptans/CGRP, under 15 for OTC/NSAID.",
+            subtitle: "Days with a rescue dose in the trailing 28 days — counted in days, not doses.",
             accessibilityId: "moh-chart"
         ) {
-            if !hasData {
+            if visibleSeries.isEmpty {
                 EmptyChartPlaceholder()
             } else {
-                Chart {
-                    ForEach(series) { classSeries in
-                        ForEach(classSeries.points) { point in
-                            LineMark(
-                                x: .value("Date", point.date),
-                                y: .value("Days", point.count)
-                            )
-                            .interpolationMethod(.monotone)
-                        }
-                        .foregroundStyle(by: .value("Class", classSeries.medClass.displayName))
-                    }
-                    RuleMark(y: .value("Triptan/CGRP guideline", AnalyticsInsights.AcuteMedClass.triptanLike.overuseThresholdDays))
-                        .foregroundStyle(.blue.opacity(0.5))
-                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                    RuleMark(y: .value("OTC/NSAID guideline", AnalyticsInsights.AcuteMedClass.simpleAnalgesic.overuseThresholdDays))
-                        .foregroundStyle(.teal.opacity(0.5))
-                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                ForEach(visibleSeries) { classSeries in
+                    ClassIntakeChart(
+                        series: classSeries,
+                        color: Self.classColors[classSeries.medClass] ?? .gray
+                    )
                 }
-                .chartForegroundStyleScale { (name: String) in
-                    Self.classColors[name] ?? .gray
-                }
-                .chartYScale(domain: 0...yMax)
-                .frame(height: 180)
             }
         }
+    }
+}
+
+/// A single acute class's rolling intake-day trend with its own guideline.
+private struct ClassIntakeChart: View {
+    let series: AnalyticsInsights.ClassIntakeSeries
+    let color: Color
+
+    private var yMax: Int {
+        let maxCount = series.points.map(\.count).max() ?? 0
+        return max((series.medClass.overuseThresholdDays ?? 8) + 2, maxCount + 2)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(color)
+                    .frame(width: 8, height: 8)
+                Text(series.medClass.displayName)
+                    .font(.subheadline.weight(.medium))
+                Spacer()
+                if let threshold = series.medClass.overuseThresholdDays {
+                    Text("guideline: under \(threshold) days")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("no established overuse guideline")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Chart {
+                ForEach(series.points) { point in
+                    LineMark(
+                        x: .value("Date", point.date),
+                        y: .value("Days", point.count)
+                    )
+                    .foregroundStyle(color)
+                    .interpolationMethod(.monotone)
+                }
+                if let threshold = series.medClass.overuseThresholdDays {
+                    RuleMark(y: .value("Guideline", threshold))
+                        .foregroundStyle(.red.opacity(0.6))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                }
+            }
+            .chartYScale(domain: 0...yMax)
+            .frame(height: 110)
+        }
+        .padding(.top, 4)
     }
 }
 
@@ -251,6 +284,125 @@ struct SeverityDistributionChartCard: View {
                     range: AnalyticsInsights.SeverityBin.allCases.map { Self.binColors[$0.displayName] ?? .gray }
                 )
                 .frame(height: 180)
+            }
+        }
+    }
+}
+
+// MARK: - Preventative adherence
+
+struct AdherenceChartCard: View {
+    let weeks: [AnalyticsInsights.WeeklyAdherence]
+
+    var body: some View {
+        InsightCard(
+            title: "Preventative Adherence",
+            subtitle: "Percent of scheduled preventative doses logged as taken, by week. Based on the current medication schedules.",
+            accessibilityId: "adherence-chart"
+        ) {
+            if weeks.isEmpty {
+                EmptyChartPlaceholder()
+            } else {
+                Chart(weeks) { week in
+                    BarMark(
+                        x: .value("Week", week.weekStart, unit: .weekOfYear),
+                        y: .value("Adherence", week.percent)
+                    )
+                    .foregroundStyle(MedicationTypeColors.color(for: .preventative).opacity(0.85))
+                }
+                .chartYScale(domain: 0...100)
+                .frame(height: 150)
+            }
+        }
+    }
+}
+
+// MARK: - Monthly summary
+
+struct MonthlySummaryCard: View {
+    let summaries: [AnalyticsInsights.MonthSummary]
+    let medications: [Medication]
+
+    private static let monthFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM yyyy"
+        return formatter
+    }()
+
+    private var hasPartial: Bool {
+        summaries.contains(where: \.isPartial)
+    }
+
+    /// Acute classes with any usage across the shown months.
+    private var activeClasses: [AnalyticsInsights.AcuteMedClass] {
+        AnalyticsInsights.AcuteMedClass.allCases.filter { medClass in
+            summaries.contains { ($0.classStats[medClass]?.doses ?? 0) > 0 }
+        }
+    }
+
+    var body: some View {
+        InsightCard(
+            title: "Monthly Summary",
+            subtitle: "Calendar-month totals for your care team. Medication cells read doses (days with a dose).",
+            accessibilityId: "monthly-summary-card"
+        ) {
+            if summaries.isEmpty {
+                EmptyChartPlaceholder()
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
+                        GridRow {
+                            Text("")
+                            ForEach(summaries) { month in
+                                Text(monthLabel(month))
+                                    .font(.caption.weight(.semibold))
+                            }
+                        }
+                        Divider()
+                        summaryRow("Episodes") { "\($0.episodeCount)" }
+                        summaryRow("Episode days") { "\($0.episodeDays)" }
+                        summaryRow("Rescue doses") { "\($0.totalDoses)" }
+                        summaryRow("Rescue days") { "\($0.totalIntakeDays)" }
+                        ForEach(activeClasses) { medClass in
+                            summaryRow("\(medClass.displayName) days") {
+                                "\($0.classStats[medClass]?.days ?? 0)"
+                            }
+                        }
+                        if !medications.isEmpty {
+                            Divider()
+                        }
+                        ForEach(medications) { med in
+                            summaryRow(med.name) { month in
+                                guard let stat = month.medStats[med.id] else { return "—" }
+                                return "\(stat.doses) (\(stat.days)d)"
+                            }
+                        }
+                    }
+                }
+                if hasPartial {
+                    Text("* Partial month — totals only cover the selected range.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    private func monthLabel(_ month: AnalyticsInsights.MonthSummary) -> String {
+        Self.monthFormatter.string(from: month.monthStart) + (month.isPartial ? "*" : "")
+    }
+
+    private func summaryRow(
+        _ label: String,
+        value: @escaping (AnalyticsInsights.MonthSummary) -> String
+    ) -> some View {
+        GridRow {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            ForEach(summaries) { month in
+                Text(value(month))
+                    .font(.caption.monospacedDigit())
             }
         }
     }
