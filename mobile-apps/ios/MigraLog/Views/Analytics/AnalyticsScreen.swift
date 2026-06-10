@@ -61,16 +61,11 @@ struct AnalyticsScreen: View {
                     // Day Statistics Card
                     DayStatisticsCard(viewModel: viewModel)
 
-                    // Episode Statistics
-                    EpisodeStatisticsCard(viewModel: viewModel)
-
                     // Duration Metrics
                     DurationMetricsCard(viewModel: viewModel)
 
-                    // Medication Usage
-                    MedicationUsageCard(viewModel: viewModel)
-
-                    // Insight charts (Swift Charts)
+                    // Insight charts and summary table (episode totals and
+                    // per-medication usage live in the Monthly Summary)
                     InsightsChartsSection(viewModel: viewModel)
                 }
             }
@@ -336,36 +331,6 @@ struct StatRow: View {
     }
 }
 
-// MARK: - Episode Statistics
-
-struct EpisodeStatisticsCard: View {
-    @Bindable var viewModel: AnalyticsViewModel
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if viewModel.episodes.isEmpty {
-                Text("No episodes in selected period")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            } else {
-                Text("Episodes")
-                    .font(.headline)
-
-                HStack {
-                    LabeledContent("Total") {
-                        Text("\(viewModel.episodes.count)")
-                    }
-                    .accessibilityIdentifier("total-episodes-row")
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-}
-
 // MARK: - Duration Metrics
 
 struct DurationMetricsCard: View {
@@ -397,40 +362,6 @@ struct DurationMetricsCard: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .accessibilityIdentifier("duration-metrics-card")
         }
-    }
-}
-
-// MARK: - Medication Usage
-
-struct MedicationUsageCard: View {
-    @Bindable var viewModel: AnalyticsViewModel
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Rescue Medication Usage")
-                .font(.headline)
-
-            if viewModel.rescueDoses.isEmpty {
-                Text("No rescue medication usage in selected period")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(viewModel.medicationUsageSummary, id: \.name) { usage in
-                    HStack {
-                        Text(usage.name)
-                            .font(.subheadline)
-                        Spacer()
-                        Text("\(usage.count) doses")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 
@@ -519,16 +450,8 @@ struct AnalyticsControlsColumn: View {
                 DayStatisticsContent(viewModel: viewModel)
             }
 
-            Section("Episodes") {
-                EpisodeStatisticsContent(viewModel: viewModel)
-            }
-
             Section("Duration") {
                 DurationMetricsContent(viewModel: viewModel)
-            }
-
-            Section("Rescue Medication Usage") {
-                MedicationUsageContent(viewModel: viewModel)
             }
 
             Section("Overlays") {
@@ -562,22 +485,6 @@ private struct DayStatisticsContent: View {
     }
 }
 
-private struct EpisodeStatisticsContent: View {
-    @Bindable var viewModel: AnalyticsViewModel
-
-    var body: some View {
-        if viewModel.episodes.isEmpty {
-            Text("No episodes in selected period")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        } else {
-            LabeledContent("Total") {
-                Text("\(viewModel.episodes.count)")
-            }
-        }
-    }
-}
-
 private struct DurationMetricsContent: View {
     @Bindable var viewModel: AnalyticsViewModel
 
@@ -597,24 +504,6 @@ private struct DurationMetricsContent: View {
             LabeledContent("Average") {
                 let avg = durations.reduce(0, +) / Int64(durations.count)
                 Text(DateFormatting.formatDuration(milliseconds: avg))
-            }
-        }
-    }
-}
-
-private struct MedicationUsageContent: View {
-    @Bindable var viewModel: AnalyticsViewModel
-
-    var body: some View {
-        if viewModel.rescueDoses.isEmpty {
-            Text("No rescue medication usage in selected period")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        } else {
-            ForEach(viewModel.medicationUsageSummary, id: \.name) { usage in
-                LabeledContent(usage.name) {
-                    Text("\(usage.count) doses")
-                }
             }
         }
     }

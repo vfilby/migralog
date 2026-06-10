@@ -218,17 +218,6 @@ final class AnalyticsViewModel {
         dayStats.filter { $0.status == nil }.count
     }
 
-    /// Summary of medication usage counts by name, sorted by count descending.
-    var medicationUsageSummary: [(name: String, count: Int)] {
-        var counts: [String: Int] = [:]
-        for dose in rescueDoses {
-            let name = medicationNames[dose.medicationId] ?? dose.medicationId
-            counts[name, default: 0] += 1
-        }
-        return counts.map { (name: $0.key, count: $0.value) }
-            .sorted { $0.count > $1.count }
-    }
-
     // MARK: - Calendar
 
     @MainActor

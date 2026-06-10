@@ -85,14 +85,14 @@ final class TrendsAnalyticsUITests: XCTestCase {
 
         let scroll = app.scrollViews.firstMatch
 
-        // Step 1: No episodes message
-        let noEpisodesMsg = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'No episodes'")).firstMatch
-        UITestHelpers.scrollToElement(noEpisodesMsg, in: scroll)
-        UITestHelpers.waitForElement(noEpisodesMsg)
+        // Step 1: Empty-data placeholder shown by the summary/chart cards
+        let emptyPlaceholder = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Not enough data'")).firstMatch
+        UITestHelpers.scrollToElement(emptyPlaceholder, in: scroll)
+        UITestHelpers.waitForElement(emptyPlaceholder)
 
         // Step 2: Day statistics still visible
         let dayStatsCard = app.staticTexts["Day Statistics"]
-        UITestHelpers.scrollToElement(dayStatsCard, in: scroll)
+        UITestHelpers.scrollUpToElement(dayStatsCard, in: scroll)
         UITestHelpers.waitForElement(dayStatsCard)
 
         // Verify rows exist
@@ -116,45 +116,15 @@ final class TrendsAnalyticsUITests: XCTestCase {
 
         let scroll = app.scrollViews.firstMatch
 
-        // Step 1: Scroll to Episodes section header
-        let episodesHeader = app.staticTexts["Episodes"]
-        UITestHelpers.scrollToElement(episodesHeader, in: scroll)
-        UITestHelpers.waitForElement(episodesHeader)
+        // Step 1: Monthly Summary (now carries episode + medication totals)
+        let summaryHeader = app.staticTexts["Monthly Summary"]
+        UITestHelpers.scrollToElement(summaryHeader, in: scroll)
+        UITestHelpers.waitForElement(summaryHeader)
 
-        // Step 2: Scroll to duration metrics (below episodes)
+        // Step 2: Scroll up to duration metrics (above the charts)
         let durationCard = app.staticTexts["Duration Metrics"]
-        UITestHelpers.scrollToElement(durationCard, in: scroll)
+        UITestHelpers.scrollUpToElement(durationCard, in: scroll)
         UITestHelpers.waitForElement(durationCard)
-    }
-
-    // MARK: - 7.5 Medication usage empty state
-
-    func testMedicationUsageEmptyState() throws {
-        app = UITestHelpers.launchCleanDashboard()
-        UITestHelpers.waitForDashboard(in: app)
-        UITestHelpers.navigateTo(tab: .trends, in: app)
-        selectSection("Insights")
-
-        let scroll = app.scrollViews.firstMatch
-
-        let noMedUsage = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'No rescue medication'")).firstMatch
-        UITestHelpers.scrollToElement(noMedUsage, in: scroll)
-        UITestHelpers.waitForElement(noMedUsage)
-    }
-
-    // MARK: - 7.6 Medication usage with data
-
-    func testMedicationUsageWithData() throws {
-        app = UITestHelpers.launchWithFixtures()
-        UITestHelpers.waitForDashboard(in: app)
-        UITestHelpers.navigateTo(tab: .trends, in: app)
-        selectSection("Insights")
-
-        let scroll = app.scrollViews.firstMatch
-
-        let rescueHeader = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Rescue Medication'")).firstMatch
-        UITestHelpers.scrollToElement(rescueHeader, in: scroll)
-        // This may or may not exist depending on whether fixtures include rescue doses
     }
 
     // MARK: - 7.7 Calendar month navigation

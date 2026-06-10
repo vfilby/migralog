@@ -13,12 +13,12 @@ struct InsightsChartsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             WarningCalloutsCard(warnings: viewModel.insightWarnings)
+            MonthlySummaryCard(summaries: viewModel.monthlySummaries, medications: viewModel.summaryMedications)
             HeadacheBurdenChartCard(points: viewModel.headacheDayTrend)
             MedicationOveruseChartCard(series: viewModel.intakeSeries)
             SeverityDistributionChartCard(counts: viewModel.severityWeekCounts)
             TimeOfDayChartCard(bins: viewModel.timeOfDayBins)
             AdherenceChartCard(weeks: viewModel.weeklyAdherence)
-            MonthlySummaryCard(summaries: viewModel.monthlySummaries, medications: viewModel.summaryMedications)
         }
     }
 }
