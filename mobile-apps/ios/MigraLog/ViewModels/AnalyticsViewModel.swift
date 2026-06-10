@@ -14,6 +14,9 @@ final class AnalyticsViewModel {
     // MARK: - State
 
     var selectedRange: TimeRangeDays = .thirtyDays
+    /// Custom whole-day range. When set it takes precedence over
+    /// `selectedRange`, and all stats and insights anchor to its end date.
+    var customRange: ClosedRange<Date>?
     var episodes: [Episode] = []
     var intensityReadings: [IntensityReading] = []
     var dayStats: [DayStatistic] = []
@@ -27,10 +30,29 @@ final class AnalyticsViewModel {
     var isLoading = false
     var error: String?
 
+    // MARK: - Insights State
+
+    var headacheDayTrend: [AnalyticsInsights.DailyCount] = []
+    var intakeSeries: [AnalyticsInsights.ClassIntakeSeries] = []
+    var severityWeekCounts: [AnalyticsInsights.SeverityWeekCount] = []
+    var timeOfDayBins: [AnalyticsInsights.TimeOfDayBin] = []
+    var insightWarnings: [AnalyticsInsights.Warning] = []
+    var monthlySummaries: [AnalyticsInsights.MonthSummary] = []
+    var weeklyAdherence: [AnalyticsInsights.WeeklyAdherence] = []
+    /// Medications referenced by `monthlySummaries`, for display names/order.
+    var summaryMedications: [Medication] = []
+
     // MARK: - Cache
 
     private static let cacheTTL: TimeInterval = 300
-    private var cacheKey: String { "analytics_\(selectedRange.rawValue)" }
+    private var cacheKey: String {
+        if let custom = customRange {
+            let start = TimestampHelper.dateString(from: custom.lowerBound)
+            let end = TimestampHelper.dateString(from: custom.upperBound)
+            return "analytics_custom_\(start)_\(end)"
+        }
+        return "analytics_\(selectedRange.rawValue)"
+    }
     private let cache = CacheManager.shared
 
     // MARK: - Dependencies
@@ -59,21 +81,37 @@ final class AnalyticsViewModel {
 
     // MARK: - Computed
 
-    private var dateRange: (start: Int64, end: Int64) {
+    /// Effective range endpoints. Presets end now; custom ranges span whole
+    /// days from the start of `start` through the end of `end`, clamped to
+    /// now so future-dated ends behave like "today".
+    private var effectiveRange: (start: Date, end: Date) {
+        let calendar = Calendar.current
         let now = Date()
-        let start = Calendar.current.date(byAdding: .day, value: -selectedRange.rawValue, to: now)!
+        if let custom = customRange {
+            let start = calendar.startOfDay(for: custom.lowerBound)
+            let endOfDay = calendar.date(
+                byAdding: DateComponents(day: 1, second: -1),
+                to: calendar.startOfDay(for: custom.upperBound)
+            ) ?? custom.upperBound
+            return (start, min(endOfDay, now))
+        }
+        let start = calendar.date(byAdding: .day, value: -selectedRange.rawValue, to: now)!
+        return (start, now)
+    }
+
+    private var dateRange: (start: Int64, end: Int64) {
+        let range = effectiveRange
         return (
-            start: TimestampHelper.fromDate(start),
-            end: TimestampHelper.fromDate(now)
+            start: TimestampHelper.fromDate(range.start),
+            end: TimestampHelper.fromDate(range.end)
         )
     }
 
     private var dateStringRange: (start: String, end: String) {
-        let now = Date()
-        let start = Calendar.current.date(byAdding: .day, value: -selectedRange.rawValue, to: now)!
+        let range = effectiveRange
         return (
-            start: TimestampHelper.dateString(from: start),
-            end: TimestampHelper.dateString(from: now)
+            start: TimestampHelper.dateString(from: range.start),
+            end: TimestampHelper.dateString(from: range.end)
         )
     }
 
@@ -81,7 +119,14 @@ final class AnalyticsViewModel {
 
     @MainActor
     func setDateRange(_ range: TimeRangeDays) async {
+        customRange = nil
         selectedRange = range
+        await fetchData()
+    }
+
+    @MainActor
+    func setCustomRange(start: Date, end: Date) async {
+        customRange = min(start, end)...max(start, end)
         await fetchData()
     }
 
@@ -95,6 +140,14 @@ final class AnalyticsViewModel {
             dailyStatuses = cached.dailyStatuses
             rescueDoses = cached.rescueDoses
             medicationNames = cached.medicationNames
+            headacheDayTrend = cached.headacheDayTrend
+            intakeSeries = cached.intakeSeries
+            severityWeekCounts = cached.severityWeekCounts
+            timeOfDayBins = cached.timeOfDayBins
+            insightWarnings = cached.insightWarnings
+            monthlySummaries = cached.monthlySummaries
+            weeklyAdherence = cached.weeklyAdherence
+            summaryMedications = cached.summaryMedications
             return
         }
 
@@ -141,7 +194,15 @@ final class AnalyticsViewModel {
             dayStats = computeDayStats(
                 episodes: fetchedEpisodes,
                 readings: allReadings,
-                statuses: fetchedStatuses
+                statuses: fetchedStatuses,
+                rangeStart: TimestampHelper.toDate(range.start),
+                rangeEnd: TimestampHelper.toDate(range.end)
+            )
+
+            // Compute insight chart series over an extended lookback window
+            try await computeInsights(
+                rangeStart: TimestampHelper.toDate(range.start),
+                rangeEnd: TimestampHelper.toDate(range.end)
             )
 
             // Cache the results
@@ -151,7 +212,15 @@ final class AnalyticsViewModel {
                 dayStats: dayStats,
                 dailyStatuses: dailyStatuses,
                 rescueDoses: rescueDoses,
-                medicationNames: medicationNames
+                medicationNames: medicationNames,
+                headacheDayTrend: headacheDayTrend,
+                intakeSeries: intakeSeries,
+                severityWeekCounts: severityWeekCounts,
+                timeOfDayBins: timeOfDayBins,
+                insightWarnings: insightWarnings,
+                monthlySummaries: monthlySummaries,
+                weeklyAdherence: weeklyAdherence,
+                summaryMedications: summaryMedications
             )
             cache.set(cacheKey, value: cached, ttl: Self.cacheTTL)
 
@@ -185,17 +254,6 @@ final class AnalyticsViewModel {
 
     var unknownDays: Int {
         dayStats.filter { $0.status == nil }.count
-    }
-
-    /// Summary of medication usage counts by name, sorted by count descending.
-    var medicationUsageSummary: [(name: String, count: Int)] {
-        var counts: [String: Int] = [:]
-        for dose in rescueDoses {
-            let name = medicationNames[dose.medicationId] ?? dose.medicationId
-            counts[name, default: 0] += 1
-        }
-        return counts.map { (name: $0.key, count: $0.value) }
-            .sorted { $0.count > $1.count }
     }
 
     // MARK: - Calendar
@@ -308,19 +366,128 @@ final class AnalyticsViewModel {
 
     // MARK: - Private
 
+    /// Computes the insight chart series (issue #435). Uses an extended
+    /// lookback window so rolling 28-day counts have full history at the
+    /// start of the selected range and warnings can compare against the
+    /// previous 28-day window. Everything is anchored at `rangeEnd`, so a
+    /// historical custom range reads as it would have on its last day.
+    @MainActor
+    private func computeInsights(rangeStart: Date, rangeEnd: Date) async throws {
+        let calendar = Calendar.current
+        let rangeDayCount = (calendar.dateComponents([.day], from: rangeStart, to: rangeEnd).day ?? 0) + 1
+        let lookbackDays = max(
+            rangeDayCount + AnalyticsInsights.rollingWindowDays - 1,
+            2 * AnalyticsInsights.rollingWindowDays
+        )
+        let extendedStart = calendar.date(byAdding: .day, value: -lookbackDays, to: rangeEnd) ?? rangeEnd
+        let extendedStartMs = TimestampHelper.fromDate(extendedStart)
+        let rangeEndMs = TimestampHelper.fromDate(rangeEnd)
+        let extendedStartString = TimestampHelper.dateString(from: extendedStart)
+        let rangeEndString = TimestampHelper.dateString(from: rangeEnd)
+
+        async let episodesTask = episodeRepository.getEpisodesByDateRange(start: extendedStartMs, end: rangeEndMs)
+        async let statusesTask = dailyStatusRepository.getStatusesByDateRange(start: extendedStartString, end: rangeEndString)
+        let extendedEpisodes = try await episodesTask
+        let extendedStatuses = try await statusesTask
+
+        var extendedReadings: [IntensityReading] = []
+        let episodeIds = extendedEpisodes.map(\.id)
+        if !episodeIds.isEmpty {
+            let readingsMap = try await episodeRepository.getIntensityReadings(episodeIds: episodeIds)
+            extendedReadings = readingsMap.values.flatMap { $0 }
+        }
+
+        let allDoses = try medicationRepository.getDosesByDateRange(start: extendedStartMs, end: rangeEndMs)
+        let allMedications = try medicationRepository.getAllMedications()
+        let overlays = try overlayRepository.getOverlaysByDateRange(start: extendedStartString, end: rangeEndString)
+
+        let excluded = AnalyticsInsights.excludedDates(overlays: overlays, now: rangeEnd, calendar: calendar)
+        let headacheDays = AnalyticsInsights.headacheDays(
+            episodes: extendedEpisodes,
+            statuses: extendedStatuses,
+            excluded: excluded,
+            now: rangeEnd,
+            calendar: calendar
+        )
+        let intake = AnalyticsInsights.intakeDays(
+            doses: allDoses,
+            medications: allMedications,
+            excluded: excluded,
+            calendar: calendar
+        )
+
+        headacheDayTrend = AnalyticsInsights.rollingCounts(of: headacheDays, from: rangeStart, to: rangeEnd, calendar: calendar)
+        intakeSeries = AnalyticsInsights.AcuteMedClass.allCases.map { medClass in
+            AnalyticsInsights.ClassIntakeSeries(
+                medClass: medClass,
+                points: AnalyticsInsights.rollingCounts(of: intake[medClass] ?? [], from: rangeStart, to: rangeEnd, calendar: calendar)
+            )
+        }
+
+        let rangeStartMs = TimestampHelper.fromDate(rangeStart)
+        let rangeEpisodes = extendedEpisodes.filter { $0.startTime >= rangeStartMs }
+        severityWeekCounts = AnalyticsInsights.severityWeekCounts(
+            episodes: rangeEpisodes,
+            readings: extendedReadings,
+            excluded: excluded,
+            calendar: calendar
+        )
+        timeOfDayBins = AnalyticsInsights.timeOfDayBins(episodes: rangeEpisodes, excluded: excluded, calendar: calendar)
+        insightWarnings = AnalyticsInsights.warnings(
+            headacheDays: headacheDays,
+            intakeDays: intake,
+            episodes: extendedEpisodes,
+            readings: extendedReadings,
+            excluded: excluded,
+            now: rangeEnd,
+            calendar: calendar
+        )
+
+        // Monthly provider summary + preventative adherence over the
+        // selected range (not the extended lookback window).
+        let rangeDoses = allDoses.filter { $0.timestamp >= rangeStartMs }
+        monthlySummaries = AnalyticsInsights.monthlySummaries(
+            episodes: rangeEpisodes,
+            doses: rangeDoses,
+            medications: allMedications,
+            excluded: excluded,
+            from: rangeStart,
+            to: rangeEnd,
+            calendar: calendar
+        )
+        let summaryMedIds = Set(monthlySummaries.flatMap { $0.medStats.keys })
+        summaryMedications = allMedications
+            .filter { summaryMedIds.contains($0.id) }
+            .sorted { $0.name < $1.name }
+
+        let preventativeIds = allMedications.filter { $0.type == .preventative && $0.active }.map(\.id)
+        let schedulesByMedication = preventativeIds.isEmpty
+            ? [:]
+            : try medicationRepository.getSchedulesByMultipleMedicationIds(preventativeIds)
+        weeklyAdherence = AnalyticsInsights.weeklyAdherence(
+            doses: rangeDoses,
+            medications: allMedications,
+            schedulesByMedication: schedulesByMedication,
+            excluded: excluded,
+            from: rangeStart,
+            to: rangeEnd,
+            calendar: calendar
+        )
+    }
+
     private func computeDayStats(
         episodes: [Episode],
         readings: [IntensityReading],
-        statuses: [DailyStatusLog]
+        statuses: [DailyStatusLog],
+        rangeStart: Date,
+        rangeEnd: Date
     ) -> [DayStatistic] {
         let calendar = Calendar.current
-        let now = Date()
-        let startDate = calendar.date(byAdding: .day, value: -selectedRange.rawValue, to: now)!
 
         var stats: [DayStatistic] = []
-        var currentDate = startDate
+        var currentDate = rangeStart
 
-        while currentDate <= now {
+        while currentDate <= rangeEnd {
             let dateString = TimestampHelper.dateString(from: currentDate)
 
             let dayStart = calendar.startOfDay(for: currentDate)
@@ -368,4 +535,12 @@ private struct CachedAnalytics {
     let dailyStatuses: [DailyStatusLog]
     let rescueDoses: [MedicationDose]
     let medicationNames: [String: String]
+    let headacheDayTrend: [AnalyticsInsights.DailyCount]
+    let intakeSeries: [AnalyticsInsights.ClassIntakeSeries]
+    let severityWeekCounts: [AnalyticsInsights.SeverityWeekCount]
+    let timeOfDayBins: [AnalyticsInsights.TimeOfDayBin]
+    let insightWarnings: [AnalyticsInsights.Warning]
+    let monthlySummaries: [AnalyticsInsights.MonthSummary]
+    let weeklyAdherence: [AnalyticsInsights.WeeklyAdherence]
+    let summaryMedications: [Medication]
 }

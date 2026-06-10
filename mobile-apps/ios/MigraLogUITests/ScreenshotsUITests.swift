@@ -101,6 +101,9 @@ final class ScreenshotsUITests: XCTestCase {
             }
             Thread.sleep(forTimeInterval: 1.5)
         } else {
+            // iPhone: stats live in the Insights section.
+            let insightsSegment = app.buttons["Insights"]
+            UITestHelpers.waitForHittable(insightsSegment).tap()
             let scroll = app.scrollViews.firstMatch
             let durationMetrics = app.staticTexts["Duration Metrics"]
             UITestHelpers.scrollToElement(durationMetrics, in: scroll)
@@ -122,6 +125,36 @@ final class ScreenshotsUITests: XCTestCase {
         }
         Thread.sleep(forTimeInterval: 1.0)
         attachScreenshot(named: "06-Episode-History")
+    }
+
+    /// 7. Trends → Insight charts — warning callouts, the rolling 28-day
+    /// headache-burden trend vs. the chronic range, and medication-overuse
+    /// risk in intake days (issue #435). On iPad these fill the wide
+    /// visualization pane below the calendar.
+    func test07_TrendsInsights() throws {
+        navigate(to: "Trends")
+        let insightsSegment = app.buttons["Insights"]
+        UITestHelpers.waitForHittable(insightsSegment).tap()
+        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
+
+        // 90d range: multiple summary months so the table overflows on iPhone
+        // (exercises the pinned labels + scroll hint).
+        let range90d = app.buttons["time-range-90"]
+        if range90d.waitForExistence(timeout: 5) {
+            range90d.tap()
+            Thread.sleep(forTimeInterval: 1.0)
+        }
+        let scroll = app.scrollViews.firstMatch
+
+        let headacheBurden = app.staticTexts["Headache Burden"]
+        UITestHelpers.scrollToElement(headacheBurden, in: scroll, maxScrolls: 15)
+        Thread.sleep(forTimeInterval: 1.0)
+        attachScreenshot(named: "07-Trends-Insights")
+
+        let monthlySummary = app.staticTexts["Monthly Summary"]
+        UITestHelpers.scrollToElement(monthlySummary, in: scroll, maxScrolls: 15)
+        Thread.sleep(forTimeInterval: 1.0)
+        attachScreenshot(named: "08-Trends-Insights-Distributions")
     }
 
     // MARK: - Helpers

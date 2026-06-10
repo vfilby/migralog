@@ -1,37 +1,73 @@
 import SwiftUI
 
+/// Top-level sections of the Trends tab: day-tracking calendar vs.
+/// time-range analytics. Decoupled because the calendar is month-driven
+/// while everything else follows the range selector.
+enum AnalyticsSection: String, CaseIterable, Identifiable {
+    case calendar
+    case insights
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .calendar: return "Calendar"
+        case .insights: return "Insights"
+        }
+    }
+}
+
+struct AnalyticsSectionPicker: View {
+    @Binding var selection: AnalyticsSection
+
+    var body: some View {
+        Picker("View", selection: $selection) {
+            ForEach(AnalyticsSection.allCases) { section in
+                Text(section.label).tag(section)
+            }
+        }
+        .pickerStyle(.segmented)
+        .accessibilityIdentifier("analytics-section-picker")
+    }
+}
+
 struct AnalyticsScreen: View {
     @State private var viewModel = AnalyticsViewModel()
     @State private var showAddOverlay = false
     @State private var editingOverlay: CalendarOverlay?
+    @State private var selectedSection: AnalyticsSection = .calendar
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                // Monthly Calendar
-                MonthlyCalendarView(viewModel: viewModel)
+                AnalyticsSectionPicker(selection: $selectedSection)
 
-                // Overlays section
-                OverlayListCard(
-                    overlays: viewModel.calendarOverlays,
-                    onAdd: { showAddOverlay = true },
-                    onEdit: { editingOverlay = $0 }
-                )
+                switch selectedSection {
+                case .calendar:
+                    // Monthly Calendar
+                    MonthlyCalendarView(viewModel: viewModel)
 
-                // Time Range Selector
-                TimeRangeSelectorView(viewModel: viewModel)
+                    // Overlays section
+                    OverlayListCard(
+                        overlays: viewModel.calendarOverlays,
+                        onAdd: { showAddOverlay = true },
+                        onEdit: { editingOverlay = $0 }
+                    )
 
-                // Day Statistics Card
-                DayStatisticsCard(viewModel: viewModel)
+                case .insights:
+                    // Time Range Selector
+                    TimeRangeSelectorView(viewModel: viewModel)
 
-                // Episode Statistics
-                EpisodeStatisticsCard(viewModel: viewModel)
+                    // Day Statistics Card
+                    DayStatisticsCard(viewModel: viewModel)
 
-                // Duration Metrics
-                DurationMetricsCard(viewModel: viewModel)
+                    // Duration Metrics
+                    DurationMetricsCard(viewModel: viewModel)
 
-                // Medication Usage
-                MedicationUsageCard(viewModel: viewModel)
+                    // Insight charts and summary table (episode totals and
+                    // per-medication usage live in the Monthly Summary)
+                    InsightsChartsSection(viewModel: viewModel)
+                }
             }
             .padding()
         }
@@ -226,25 +262,115 @@ struct CalendarDayCell: View {
 
 struct TimeRangeSelectorView: View {
     @Bindable var viewModel: AnalyticsViewModel
+    @State private var showCustomRangeSheet = false
+
+    private static let rangeFormatter: DateIntervalFormatter = {
+        let formatter = DateIntervalFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter
+    }()
 
     var body: some View {
-        HStack(spacing: 8) {
-            ForEach(TimeRangeDays.allCases) { range in
-                Button {
-                    viewModel.selectedRange = range
-                    Task { await viewModel.fetchData() }
-                } label: {
-                    Text(range.displayName)
-                        .font(.caption.weight(viewModel.selectedRange == range ? .bold : .regular))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(viewModel.selectedRange == range ? Color.accentColor : Color(.secondarySystemBackground))
-                        .foregroundStyle(viewModel.selectedRange == range ? .white : .primary)
-                        .clipShape(Capsule())
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                ForEach(TimeRangeDays.allCases) { range in
+                    let isSelected = viewModel.customRange == nil && viewModel.selectedRange == range
+                    Button {
+                        Task { await viewModel.setDateRange(range) }
+                    } label: {
+                        chipLabel(range.displayName, isSelected: isSelected)
+                    }
+                    // .plain keeps each chip its own tap target inside the
+                    // iPad sidebar List; default-styled buttons in a List row
+                    // merge into one target that fires the last action.
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("time-range-\(range.rawValue)")
                 }
-                .accessibilityIdentifier("time-range-\(range.rawValue)")
+
+                Button {
+                    showCustomRangeSheet = true
+                } label: {
+                    chipLabel("Custom", isSelected: viewModel.customRange != nil)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("time-range-custom")
+            }
+
+            if let custom = viewModel.customRange {
+                Text(Self.rangeFormatter.string(from: custom.lowerBound, to: custom.upperBound))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("custom-range-label")
             }
         }
+        .sheet(isPresented: $showCustomRangeSheet) {
+            CustomRangeSheet(initialRange: viewModel.customRange) { start, end in
+                Task { await viewModel.setCustomRange(start: start, end: end) }
+            }
+        }
+    }
+
+    private func chipLabel(_ text: String, isSelected: Bool) -> some View {
+        Text(text)
+            .font(.caption.weight(isSelected ? .bold : .regular))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(isSelected ? Color.accentColor : Color(.secondarySystemBackground))
+            .foregroundStyle(isSelected ? .white : .primary)
+            .clipShape(Capsule())
+    }
+}
+
+/// Start/end date picker for a custom analytics range.
+struct CustomRangeSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var startDate: Date
+    @State private var endDate: Date
+    let onApply: (Date, Date) -> Void
+
+    init(initialRange: ClosedRange<Date>?, onApply: @escaping (Date, Date) -> Void) {
+        let defaultEnd = Date()
+        let defaultStart = Calendar.current.date(byAdding: .day, value: -29, to: defaultEnd) ?? defaultEnd
+        _startDate = State(initialValue: initialRange?.lowerBound ?? defaultStart)
+        _endDate = State(initialValue: initialRange?.upperBound ?? defaultEnd)
+        self.onApply = onApply
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                DatePicker(
+                    "Start",
+                    selection: $startDate,
+                    in: ...endDate,
+                    displayedComponents: .date
+                )
+                .accessibilityIdentifier("custom-range-start")
+                DatePicker(
+                    "End",
+                    selection: $endDate,
+                    in: startDate...Date(),
+                    displayedComponents: .date
+                )
+                .accessibilityIdentifier("custom-range-end")
+            }
+            .navigationTitle("Custom Range")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Apply") {
+                        onApply(startDate, endDate)
+                        dismiss()
+                    }
+                    .accessibilityIdentifier("custom-range-apply")
+                }
+            }
+        }
+        .presentationDetents([.medium])
     }
 }
 
@@ -295,36 +421,6 @@ struct StatRow: View {
     }
 }
 
-// MARK: - Episode Statistics
-
-struct EpisodeStatisticsCard: View {
-    @Bindable var viewModel: AnalyticsViewModel
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if viewModel.episodes.isEmpty {
-                Text("No episodes in selected period")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            } else {
-                Text("Episodes")
-                    .font(.headline)
-
-                HStack {
-                    LabeledContent("Total") {
-                        Text("\(viewModel.episodes.count)")
-                    }
-                    .accessibilityIdentifier("total-episodes-row")
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-}
-
 // MARK: - Duration Metrics
 
 struct DurationMetricsCard: View {
@@ -356,40 +452,6 @@ struct DurationMetricsCard: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .accessibilityIdentifier("duration-metrics-card")
         }
-    }
-}
-
-// MARK: - Medication Usage
-
-struct MedicationUsageCard: View {
-    @Bindable var viewModel: AnalyticsViewModel
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Rescue Medication Usage")
-                .font(.headline)
-
-            if viewModel.rescueDoses.isEmpty {
-                Text("No rescue medication usage in selected period")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(viewModel.medicationUsageSummary, id: \.name) { usage in
-                    HStack {
-                        Text(usage.name)
-                            .font(.subheadline)
-                        Spacer()
-                        Text("\(usage.count) doses")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 
@@ -478,16 +540,8 @@ struct AnalyticsControlsColumn: View {
                 DayStatisticsContent(viewModel: viewModel)
             }
 
-            Section("Episodes") {
-                EpisodeStatisticsContent(viewModel: viewModel)
-            }
-
             Section("Duration") {
                 DurationMetricsContent(viewModel: viewModel)
-            }
-
-            Section("Rescue Medication Usage") {
-                MedicationUsageContent(viewModel: viewModel)
             }
 
             Section("Overlays") {
@@ -521,22 +575,6 @@ private struct DayStatisticsContent: View {
     }
 }
 
-private struct EpisodeStatisticsContent: View {
-    @Bindable var viewModel: AnalyticsViewModel
-
-    var body: some View {
-        if viewModel.episodes.isEmpty {
-            Text("No episodes in selected period")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        } else {
-            LabeledContent("Total") {
-                Text("\(viewModel.episodes.count)")
-            }
-        }
-    }
-}
-
 private struct DurationMetricsContent: View {
     @Bindable var viewModel: AnalyticsViewModel
 
@@ -556,24 +594,6 @@ private struct DurationMetricsContent: View {
             LabeledContent("Average") {
                 let avg = durations.reduce(0, +) / Int64(durations.count)
                 Text(DateFormatting.formatDuration(milliseconds: avg))
-            }
-        }
-    }
-}
-
-private struct MedicationUsageContent: View {
-    @Bindable var viewModel: AnalyticsViewModel
-
-    var body: some View {
-        if viewModel.rescueDoses.isEmpty {
-            Text("No rescue medication usage in selected period")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        } else {
-            ForEach(viewModel.medicationUsageSummary, id: \.name) { usage in
-                LabeledContent(usage.name) {
-                    Text("\(usage.count) doses")
-                }
             }
         }
     }
@@ -607,11 +627,19 @@ private struct OverlayListContent: View {
 /// Calendar and visualizations for the iPad wide pane.
 struct AnalyticsVisualizationPane: View {
     @Bindable var viewModel: AnalyticsViewModel
+    @State private var selectedSection: AnalyticsSection = .calendar
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                MonthlyCalendarView(viewModel: viewModel)
+                AnalyticsSectionPicker(selection: $selectedSection)
+
+                switch selectedSection {
+                case .calendar:
+                    MonthlyCalendarView(viewModel: viewModel)
+                case .insights:
+                    InsightsChartsSection(viewModel: viewModel)
+                }
             }
             .padding()
         }

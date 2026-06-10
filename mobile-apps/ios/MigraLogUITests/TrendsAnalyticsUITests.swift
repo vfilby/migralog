@@ -30,13 +30,18 @@ final class TrendsAnalyticsUITests: XCTestCase {
         UITestHelpers.waitForElement(previousButton)
         UITestHelpers.waitForElement(nextButton)
 
-        // Step 3: Time range selector visible
-        let range7d = app.buttons["time-range-7"]
+        // Step 3: Switch to the Insights section for range + statistics
+        selectSection("Insights")
+
+        // Time range selector visible (presets + custom)
+        let range14d = app.buttons["time-range-14"]
         let range30d = app.buttons["time-range-30"]
         let range90d = app.buttons["time-range-90"]
-        UITestHelpers.waitForElement(range7d)
+        let rangeCustom = app.buttons["time-range-custom"]
+        UITestHelpers.waitForElement(range14d)
         UITestHelpers.waitForElement(range30d)
         UITestHelpers.waitForElement(range90d)
+        UITestHelpers.waitForElement(rangeCustom)
 
         // Step 4: Statistics section visible
         let dayStatsCard = app.staticTexts["Day Statistics"]
@@ -51,11 +56,12 @@ final class TrendsAnalyticsUITests: XCTestCase {
         app = UITestHelpers.launchCleanDashboard()
         UITestHelpers.waitForDashboard(in: app)
         UITestHelpers.navigateTo(tab: .trends, in: app)
+        selectSection("Insights")
 
-        // Step 1: Tap "7d"
-        let range7d = app.buttons["time-range-7"]
-        UITestHelpers.waitForHittable(range7d)
-        range7d.tap()
+        // Step 1: Tap "14d"
+        let range14d = app.buttons["time-range-14"]
+        UITestHelpers.waitForHittable(range14d)
+        range14d.tap()
         Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
 
         // Step 2: Tap "90d"
@@ -77,17 +83,18 @@ final class TrendsAnalyticsUITests: XCTestCase {
         app = UITestHelpers.launchCleanDashboard()
         UITestHelpers.waitForDashboard(in: app)
         UITestHelpers.navigateTo(tab: .trends, in: app)
+        selectSection("Insights")
 
         let scroll = app.scrollViews.firstMatch
 
-        // Step 1: No episodes message
-        let noEpisodesMsg = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'No episodes'")).firstMatch
-        UITestHelpers.scrollToElement(noEpisodesMsg, in: scroll)
-        UITestHelpers.waitForElement(noEpisodesMsg)
+        // Step 1: Empty-data placeholder shown by the summary/chart cards
+        let emptyPlaceholder = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Not enough data'")).firstMatch
+        UITestHelpers.scrollToElement(emptyPlaceholder, in: scroll)
+        UITestHelpers.waitForElement(emptyPlaceholder)
 
         // Step 2: Day statistics still visible
         let dayStatsCard = app.staticTexts["Day Statistics"]
-        UITestHelpers.scrollToElement(dayStatsCard, in: scroll)
+        UITestHelpers.scrollUpToElement(dayStatsCard, in: scroll)
         UITestHelpers.waitForElement(dayStatsCard)
 
         // Verify rows exist
@@ -107,46 +114,19 @@ final class TrendsAnalyticsUITests: XCTestCase {
         app = UITestHelpers.launchWithFixtures()
         UITestHelpers.waitForDashboard(in: app)
         UITestHelpers.navigateTo(tab: .trends, in: app)
+        selectSection("Insights")
 
         let scroll = app.scrollViews.firstMatch
 
-        // Step 1: Scroll to Episodes section header
-        let episodesHeader = app.staticTexts["Episodes"]
-        UITestHelpers.scrollToElement(episodesHeader, in: scroll)
-        UITestHelpers.waitForElement(episodesHeader)
+        // Step 1: Monthly Summary (now carries episode + medication totals)
+        let summaryHeader = app.staticTexts["Monthly Summary"]
+        UITestHelpers.scrollToElement(summaryHeader, in: scroll)
+        UITestHelpers.waitForElement(summaryHeader)
 
-        // Step 2: Scroll to duration metrics (below episodes)
+        // Step 2: Scroll up to duration metrics (above the charts)
         let durationCard = app.staticTexts["Duration Metrics"]
-        UITestHelpers.scrollToElement(durationCard, in: scroll)
+        UITestHelpers.scrollUpToElement(durationCard, in: scroll)
         UITestHelpers.waitForElement(durationCard)
-    }
-
-    // MARK: - 7.5 Medication usage empty state
-
-    func testMedicationUsageEmptyState() throws {
-        app = UITestHelpers.launchCleanDashboard()
-        UITestHelpers.waitForDashboard(in: app)
-        UITestHelpers.navigateTo(tab: .trends, in: app)
-
-        let scroll = app.scrollViews.firstMatch
-
-        let noMedUsage = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'No rescue medication'")).firstMatch
-        UITestHelpers.scrollToElement(noMedUsage, in: scroll)
-        UITestHelpers.waitForElement(noMedUsage)
-    }
-
-    // MARK: - 7.6 Medication usage with data
-
-    func testMedicationUsageWithData() throws {
-        app = UITestHelpers.launchWithFixtures()
-        UITestHelpers.waitForDashboard(in: app)
-        UITestHelpers.navigateTo(tab: .trends, in: app)
-
-        let scroll = app.scrollViews.firstMatch
-
-        let rescueHeader = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Rescue Medication'")).firstMatch
-        UITestHelpers.scrollToElement(rescueHeader, in: scroll)
-        // This may or may not exist depending on whether fixtures include rescue doses
     }
 
     // MARK: - 7.7 Calendar month navigation
@@ -175,6 +155,7 @@ final class TrendsAnalyticsUITests: XCTestCase {
         app = UITestHelpers.launchCleanDashboard()
         UITestHelpers.waitForDashboard(in: app)
         UITestHelpers.navigateTo(tab: .trends, in: app)
+        selectSection("Insights")
 
         // Step 1: Select "90d"
         let range90d = app.buttons["time-range-90"]
@@ -187,11 +168,71 @@ final class TrendsAnalyticsUITests: XCTestCase {
 
         // Step 3: Return to Trends - "90d" should still be selected
         UITestHelpers.navigateTo(tab: .trends, in: app)
+        selectSection("Insights")
 
         // Verify 90d is still selected (check if it has a selected/highlighted state)
         let range90dAfter = app.buttons["time-range-90"]
         UITestHelpers.waitForElement(range90dAfter)
         XCTAssertTrue(range90dAfter.isSelected || range90dAfter.exists,
                        "90d time range should persist after navigating away and back")
+    }
+
+    // MARK: - 7.9 Insight charts (issue #435)
+
+    func testInsightChartCardsRender() throws {
+        app = UITestHelpers.launchWithFixtures()
+        UITestHelpers.waitForDashboard(in: app)
+        UITestHelpers.navigateTo(tab: .trends, in: app)
+        selectSection("Insights")
+
+        let scroll = app.scrollViews.firstMatch
+
+        // Each insight card renders with its headline. The warnings card is
+        // always present (with findings or the all-clear state).
+        for title in ["Warning Signs", "Headache Burden", "Medication Overuse Risk", "Severity by Week", "Time of Day", "Preventative Adherence", "Monthly Summary"] {
+            let header = app.staticTexts[title]
+            UITestHelpers.scrollToElement(header, in: scroll, maxScrolls: 15)
+            UITestHelpers.waitForElement(header)
+        }
+    }
+
+    // MARK: - 7.10 Custom time range
+
+    func testCustomRangeSelection() throws {
+        app = UITestHelpers.launchWithFixtures()
+        UITestHelpers.waitForDashboard(in: app)
+        UITestHelpers.navigateTo(tab: .trends, in: app)
+        selectSection("Insights")
+
+        // Open the custom range sheet and apply the default (last 30 days).
+        let customChip = app.buttons["time-range-custom"]
+        UITestHelpers.waitForHittable(customChip)
+        customChip.tap()
+
+        let applyButton = app.buttons["custom-range-apply"]
+        UITestHelpers.waitForHittable(applyButton)
+        applyButton.tap()
+        Thread.sleep(forTimeInterval: 1.0)
+
+        // The selector now shows the applied custom range.
+        let rangeLabel = app.staticTexts["custom-range-label"]
+        UITestHelpers.waitForElement(rangeLabel)
+
+        // Selecting a preset clears the custom range again.
+        let range30d = app.buttons["time-range-30"]
+        UITestHelpers.waitForHittable(range30d)
+        range30d.tap()
+        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
+        XCTAssertFalse(rangeLabel.exists, "Custom range label should clear when a preset is selected")
+    }
+
+    // MARK: - Helpers
+
+    /// Switch the Trends screen to a section segment ("Calendar" / "Insights").
+    private func selectSection(_ label: String) {
+        let segment = app.buttons[label]
+        UITestHelpers.waitForHittable(segment)
+        segment.tap()
+        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
     }
 }
