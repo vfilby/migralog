@@ -46,11 +46,18 @@ struct NotificationSettingsScreen: View {
                             viewModel.saveSettings()
                             Task { await viewModel.applyMedicationNotificationSettingChange() }
                         }
+
+                    Toggle("Show Medication Names", isOn: $viewModel.showMedicationNames)
+                        .onChange(of: viewModel.showMedicationNames) { _, _ in
+                            viewModel.saveSettings()
+                            Task { await viewModel.syncMedicationNotifications() }
+                        }
+                        .accessibilityIdentifier("show-medication-names-toggle")
                 } header: {
                     Text("Medication Reminders")
                 } footer: {
                     // swiftlint:disable:next line_length
-                    Text("Time-sensitive reminders cut through Focus modes. Follow-up reminders fire after the chosen delay; turn on Critical Alerts to make them break through Do Not Disturb and silent mode.")
+                    Text("Time-sensitive reminders cut through Focus modes. Follow-up reminders fire after the chosen delay; turn on Critical Alerts to make them break through Do Not Disturb and silent mode. Turn off Show Medication Names to keep medication details off the lock screen.")
                 }
 
                 Section("Daily Check-in") {

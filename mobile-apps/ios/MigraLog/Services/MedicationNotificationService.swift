@@ -7,6 +7,7 @@ private enum NotificationDefaultsKey {
     static let followUpDelay = "notification_follow_up_delay"
     static let timeSensitiveEnabled = "notification_time_sensitive_enabled"
     static let criticalAlertsEnabled = "notification_critical_alerts_enabled"
+    static let showMedicationNames = "notification_show_medication_names"
 }
 
 // MARK: - Protocol
@@ -205,7 +206,9 @@ actor MedicationNotificationScheduler: MedicationNotificationServiceProtocol {
         let notificationId = UUID().uuidString
         let trigger = makeTrigger(from: triggerDate)
         let title = isFollowUp ? "Follow-Up Reminder" : "Medication Reminder"
-        let body = "Time to take \(medication.name) (\(medication.dosageAmount)\(medication.dosageUnit))"
+        let body = showMedicationNames()
+            ? "Time to take \(medication.name) (\(medication.dosageAmount)\(medication.dosageUnit))"
+            : "Time to take your medication"
 
         var userInfo: [String: Any] = [
             "medicationId": medication.id,
@@ -268,7 +271,9 @@ actor MedicationNotificationScheduler: MedicationNotificationServiceProtocol {
         let trigger = makeTrigger(from: triggerDate)
         let names = items.map(\.0.name)
         let title = isFollowUp ? "Follow-Up Reminder" : "Medication Reminder"
-        let body = "Time to take: \(names.joined(separator: ", "))"
+        let body = showMedicationNames()
+            ? "Time to take: \(names.joined(separator: ", "))"
+            : "Time to take \(items.count) medications"
         let groupKey = "\(time)_\(notificationType.rawValue)"
 
         let medicationIds = items.map(\.0.id)
@@ -743,6 +748,12 @@ actor MedicationNotificationScheduler: MedicationNotificationServiceProtocol {
         guard let date = DateFormatting.date(from: dateString),
               let components = parseTime(time) else { return nil }
         return Calendar.current.date(bySettingHour: components.hour, minute: components.minute, second: 0, of: date)
+    }
+
+    /// Whether notification bodies may include medication names. Defaults to
+    /// true; users can turn this off so names never appear on the lock screen.
+    private func showMedicationNames() -> Bool {
+        UserDefaults.standard.object(forKey: NotificationDefaultsKey.showMedicationNames) as? Bool ?? true
     }
 
     private func interruptionSettings(isFollowUp: Bool) -> (UNNotificationInterruptionLevel, Bool) {

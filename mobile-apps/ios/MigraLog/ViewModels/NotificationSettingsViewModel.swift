@@ -19,6 +19,7 @@ final class NotificationSettingsViewModel {
     var timeSensitiveEnabled: Bool = false
     var followUpDelay: Int = 30 // minutes
     var criticalAlertsEnabled: Bool = false
+    var showMedicationNames: Bool = true
     var dailyCheckinEnabled: Bool = true
     var dailyCheckinTime: Date = {
         var components = DateComponents()
@@ -37,6 +38,7 @@ final class NotificationSettingsViewModel {
         static let followUpDelay = "notification_follow_up_delay"
         static let criticalAlertsEnabled = "notification_critical_alerts_enabled"
         static let medicationOverrides = "notification_medication_overrides"
+        static let showMedicationNames = "notification_show_medication_names"
         static let dailyCheckinEnabled = "daily_checkin_enabled"
         static let dailyCheckinTime = "daily_checkin_time"
     }
@@ -78,6 +80,7 @@ final class NotificationSettingsViewModel {
         timeSensitiveEnabled = defaults.bool(forKey: Keys.timeSensitiveEnabled)
         followUpDelay = defaults.object(forKey: Keys.followUpDelay) as? Int ?? 30
         criticalAlertsEnabled = defaults.bool(forKey: Keys.criticalAlertsEnabled)
+        showMedicationNames = defaults.object(forKey: Keys.showMedicationNames) as? Bool ?? true
         dailyCheckinEnabled = defaults.object(forKey: Keys.dailyCheckinEnabled) as? Bool ?? true
 
         if let timeInterval = defaults.object(forKey: Keys.dailyCheckinTime) as? TimeInterval {
@@ -96,6 +99,7 @@ final class NotificationSettingsViewModel {
         defaults.set(timeSensitiveEnabled, forKey: Keys.timeSensitiveEnabled)
         defaults.set(followUpDelay, forKey: Keys.followUpDelay)
         defaults.set(criticalAlertsEnabled, forKey: Keys.criticalAlertsEnabled)
+        defaults.set(showMedicationNames, forKey: Keys.showMedicationNames)
         defaults.set(dailyCheckinEnabled, forKey: Keys.dailyCheckinEnabled)
         defaults.set(dailyCheckinTime.timeIntervalSinceReferenceDate, forKey: Keys.dailyCheckinTime)
         persistMedicationOverrides()
