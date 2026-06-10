@@ -351,6 +351,42 @@ struct MonthlySummaryCard: View {
         return columns
     }
 
+    /// One table row: a pinned label plus one value per month column.
+    private struct SummaryRow: Identifiable {
+        let id: String
+        let label: String
+        let value: (AnalyticsInsights.MonthSummary) -> String
+    }
+
+    @ScaledMetric(relativeTo: .caption) private var rowHeight: CGFloat = 20
+    @ScaledMetric(relativeTo: .caption) private var labelWidth: CGFloat = 116
+    @State private var scrollMetrics = HorizontalScrollMetrics()
+    @State private var viewportWidth: CGFloat = 0
+
+    private var metricRows: [SummaryRow] {
+        var rows: [SummaryRow] = [
+            SummaryRow(id: "episodes", label: "Episodes") { "\($0.episodeCount)" },
+            SummaryRow(id: "episode-days", label: "Episode days") { "\($0.episodeDays)" },
+            SummaryRow(id: "rescue-doses", label: "Rescue doses") { "\($0.totalDoses)" },
+            SummaryRow(id: "rescue-days", label: "Rescue days") { "\($0.totalIntakeDays)" },
+        ]
+        for medClass in activeClasses {
+            rows.append(SummaryRow(id: "class-\(medClass.rawValue)", label: "\(medClass.displayName) days") {
+                "\($0.classStats[medClass]?.days ?? 0)"
+            })
+        }
+        return rows
+    }
+
+    private var medicationRows: [SummaryRow] {
+        medications.map { med in
+            SummaryRow(id: "med-\(med.id)", label: med.name) { month in
+                guard let stat = month.medStats[med.id] else { return "—" }
+                return "\(stat.doses) (\(stat.days)d)"
+            }
+        }
+    }
+
     var body: some View {
         InsightCard(
             title: "Monthly Summary",
@@ -360,35 +396,9 @@ struct MonthlySummaryCard: View {
             if summaries.isEmpty {
                 EmptyChartPlaceholder()
             } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
-                        GridRow {
-                            Text("")
-                            ForEach(columns, id: \.key) { column in
-                                Text(column.label)
-                                    .font(.caption.weight(.semibold))
-                            }
-                        }
-                        Divider()
-                        summaryRow("Episodes") { "\($0.episodeCount)" }
-                        summaryRow("Episode days") { "\($0.episodeDays)" }
-                        summaryRow("Rescue doses") { "\($0.totalDoses)" }
-                        summaryRow("Rescue days") { "\($0.totalIntakeDays)" }
-                        ForEach(activeClasses) { medClass in
-                            summaryRow("\(medClass.displayName) days") {
-                                "\($0.classStats[medClass]?.days ?? 0)"
-                            }
-                        }
-                        if !medications.isEmpty {
-                            Divider()
-                        }
-                        ForEach(medications) { med in
-                            summaryRow(med.name) { month in
-                                guard let stat = month.medStats[med.id] else { return "—" }
-                                return "\(stat.doses) (\(stat.days)d)"
-                            }
-                        }
-                    }
+                HStack(alignment: .top, spacing: 8) {
+                    labelColumn
+                    scrollableValueColumns
                 }
                 if hasPartial {
                     Text("* Partial month — totals only cover the selected range.")
@@ -399,23 +409,136 @@ struct MonthlySummaryCard: View {
         }
     }
 
+    /// Pinned labels: stays put while the month columns scroll.
+    private var labelColumn: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Color.clear.frame(width: labelWidth, height: rowHeight)
+            Divider()
+            ForEach(metricRows) { row in
+                labelCell(row.label)
+            }
+            if !medicationRows.isEmpty {
+                Divider()
+            }
+            ForEach(medicationRows) { row in
+                labelCell(row.label)
+            }
+        }
+        .frame(width: labelWidth, alignment: .leading)
+    }
+
+    private var scrollableValueColumns: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
+                GridRow {
+                    ForEach(columns, id: \.key) { column in
+                        valueCell(column.label, isTotal: column.isTotal, isHeader: true)
+                    }
+                }
+                Divider()
+                ForEach(metricRows) { row in
+                    valueRow(row)
+                }
+                if !medicationRows.isEmpty {
+                    Divider()
+                }
+                ForEach(medicationRows) { row in
+                    valueRow(row)
+                }
+            }
+            .reportHorizontalScrollMetrics(in: "monthly-summary-scroll")
+        }
+        .coordinateSpace(name: "monthly-summary-scroll")
+        .onPreferenceChange(HorizontalScrollMetricsKey.self) { scrollMetrics = $0 }
+        .background(
+            GeometryReader { geometry in
+                Color.clear
+                    .onAppear { viewportWidth = geometry.size.width }
+                    .onChange(of: geometry.size.width) { _, width in viewportWidth = width }
+            }
+        )
+        .overlay(alignment: .trailing) {
+            if scrollMetrics.contentWidth - scrollMetrics.offsetX > viewportWidth + 2 {
+                ScrollMoreHint()
+            }
+        }
+    }
+
+    private func valueRow(_ row: SummaryRow) -> some View {
+        GridRow {
+            ForEach(columns, id: \.key) { column in
+                valueCell(row.value(column.summary), isTotal: column.isTotal)
+            }
+        }
+    }
+
+    private func labelCell(_ text: String) -> some View {
+        Text(text)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .frame(width: labelWidth, height: rowHeight, alignment: .leading)
+    }
+
+    private func valueCell(_ text: String, isTotal: Bool, isHeader: Bool = false) -> some View {
+        Text(text)
+            .font(isHeader || isTotal ? .caption.monospacedDigit().weight(.semibold) : .caption.monospacedDigit())
+            .lineLimit(1)
+            .frame(height: rowHeight, alignment: .leading)
+    }
+
     private func monthLabel(_ month: AnalyticsInsights.MonthSummary) -> String {
         Self.monthFormatter.string(from: month.monthStart) + (month.isPartial ? "*" : "")
     }
+}
 
-    private func summaryRow(
-        _ label: String,
-        value: @escaping (AnalyticsInsights.MonthSummary) -> String
-    ) -> some View {
-        GridRow {
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            ForEach(columns, id: \.key) { column in
-                Text(value(column.summary))
-                    .font(column.isTotal ? .caption.monospacedDigit().weight(.semibold) : .caption.monospacedDigit())
+// MARK: - Horizontal scroll affordance
+
+/// Offset + content width of a horizontally scrolling table, reported via
+/// preference so the container can show a "more content" hint.
+private struct HorizontalScrollMetrics: Equatable {
+    var offsetX: CGFloat = 0
+    var contentWidth: CGFloat = 0
+}
+
+private struct HorizontalScrollMetricsKey: PreferenceKey {
+    static var defaultValue = HorizontalScrollMetrics()
+    static func reduce(value: inout HorizontalScrollMetrics, nextValue: () -> HorizontalScrollMetrics) {
+        value = nextValue()
+    }
+}
+
+private extension View {
+    func reportHorizontalScrollMetrics(in coordinateSpace: String) -> some View {
+        background(
+            GeometryReader { geometry in
+                Color.clear.preference(
+                    key: HorizontalScrollMetricsKey.self,
+                    value: HorizontalScrollMetrics(
+                        offsetX: -geometry.frame(in: .named(coordinateSpace)).minX,
+                        contentWidth: geometry.size.width
+                    )
+                )
             }
+        )
+    }
+}
+
+/// Trailing-edge gradient + chevron shown while more columns are off-screen.
+private struct ScrollMoreHint: View {
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            LinearGradient(
+                colors: [Color(.secondarySystemBackground).opacity(0), Color(.secondarySystemBackground)],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+            Image(systemName: "chevron.right")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.tertiary)
         }
+        .frame(width: 28)
+        .allowsHitTesting(false)
     }
 }
 
