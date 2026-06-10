@@ -14,7 +14,10 @@ enum SentrySetup {
         SentrySDK.start { options in
             options.dsn = dsn
             options.tracesSampleRate = 1.0  // 100% for small user base
-            options.profilesSampleRate = 1.0
+            options.configureProfiling = {
+                $0.sessionSampleRate = 1.0
+                $0.lifecycle = .trace
+            }
             options.enableAutoSessionTracking = true
             options.attachScreenshot = true
             options.enableUserInteractionTracing = true
