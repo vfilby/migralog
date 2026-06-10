@@ -12,7 +12,8 @@ CI/CD for the MigraLog iOS Swift app (`mobile-apps/ios`).
 | `promote-preflight.yml` — `[iOS] Promote Beta → Pre-flight` | Weekly (Tue 12:00 UTC) + manual | Promotes the latest eligible Beta build to the **Pre-flight** external group behind a Sentry crash-free soak gate (72 h, ≥ 99 % crash-free, 0 unresolved issues). Respects `block-promotion/build-*` tags. |
 | `promote-manual.yml` — `[iOS] Promote Build → Group (manual)` | Manual | Attach a specific build number to any TestFlight group, bypassing the soak gate. |
 | `promote-production.yml` — `[iOS] Promote Beta → Production` | Manual | Submit a build to App Store review (phased release by default). Uses the `production` environment. |
-| `dependabot.yml` | — | Dependency updates: GitHub Actions + SwiftPM (`/mobile-apps/ios`). |
+| `swift-deps-update.yml` — `[iOS] Swift package updates` | Weekly (Mon 09:00 UTC) + manual | Checks the exact pins in `mobile-apps/ios/project.yml` against the latest GitHub releases (via `.github/scripts/swift-deps-check.mjs`) and opens/updates a bump PR on the `automated/swift-deps-update` branch. The PR is opened with the default `GITHUB_TOKEN`, which can't trigger CI — close & reopen it (or push to the branch) to run the gate. |
+| `dependabot.yml` | — | GitHub Actions version bumps only. Dependabot can't read XcodeGen manifests, so Swift packages are covered by `swift-deps-update.yml` instead. |
 | `opencode.yml` | — | Internal tooling. |
 
 Shared App Store Connect API client lives in `.github/scripts/asc-client.mjs`; the
