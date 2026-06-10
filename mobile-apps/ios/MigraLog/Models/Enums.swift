@@ -233,7 +233,6 @@ enum NotificationSourceType: String, Codable {
 // MARK: - Time Range
 
 enum TimeRangeDays: Int, CaseIterable, Identifiable {
-    case sevenDays = 7
     case fourteenDays = 14
     case thirtyDays = 30
     case sixtyDays = 60

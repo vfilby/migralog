@@ -262,25 +262,110 @@ struct CalendarDayCell: View {
 
 struct TimeRangeSelectorView: View {
     @Bindable var viewModel: AnalyticsViewModel
+    @State private var showCustomRangeSheet = false
+
+    private static let rangeFormatter: DateIntervalFormatter = {
+        let formatter = DateIntervalFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter
+    }()
 
     var body: some View {
-        HStack(spacing: 8) {
-            ForEach(TimeRangeDays.allCases) { range in
-                Button {
-                    viewModel.selectedRange = range
-                    Task { await viewModel.fetchData() }
-                } label: {
-                    Text(range.displayName)
-                        .font(.caption.weight(viewModel.selectedRange == range ? .bold : .regular))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(viewModel.selectedRange == range ? Color.accentColor : Color(.secondarySystemBackground))
-                        .foregroundStyle(viewModel.selectedRange == range ? .white : .primary)
-                        .clipShape(Capsule())
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                ForEach(TimeRangeDays.allCases) { range in
+                    let isSelected = viewModel.customRange == nil && viewModel.selectedRange == range
+                    Button {
+                        Task { await viewModel.setDateRange(range) }
+                    } label: {
+                        chipLabel(range.displayName, isSelected: isSelected)
+                    }
+                    .accessibilityIdentifier("time-range-\(range.rawValue)")
                 }
-                .accessibilityIdentifier("time-range-\(range.rawValue)")
+
+                Button {
+                    showCustomRangeSheet = true
+                } label: {
+                    chipLabel("Custom", isSelected: viewModel.customRange != nil)
+                }
+                .accessibilityIdentifier("time-range-custom")
+            }
+
+            if let custom = viewModel.customRange {
+                Text(Self.rangeFormatter.string(from: custom.lowerBound, to: custom.upperBound))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("custom-range-label")
             }
         }
+        .sheet(isPresented: $showCustomRangeSheet) {
+            CustomRangeSheet(initialRange: viewModel.customRange) { start, end in
+                Task { await viewModel.setCustomRange(start: start, end: end) }
+            }
+        }
+    }
+
+    private func chipLabel(_ text: String, isSelected: Bool) -> some View {
+        Text(text)
+            .font(.caption.weight(isSelected ? .bold : .regular))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(isSelected ? Color.accentColor : Color(.secondarySystemBackground))
+            .foregroundStyle(isSelected ? .white : .primary)
+            .clipShape(Capsule())
+    }
+}
+
+/// Start/end date picker for a custom analytics range.
+struct CustomRangeSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var startDate: Date
+    @State private var endDate: Date
+    let onApply: (Date, Date) -> Void
+
+    init(initialRange: ClosedRange<Date>?, onApply: @escaping (Date, Date) -> Void) {
+        let defaultEnd = Date()
+        let defaultStart = Calendar.current.date(byAdding: .day, value: -29, to: defaultEnd) ?? defaultEnd
+        _startDate = State(initialValue: initialRange?.lowerBound ?? defaultStart)
+        _endDate = State(initialValue: initialRange?.upperBound ?? defaultEnd)
+        self.onApply = onApply
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                DatePicker(
+                    "Start",
+                    selection: $startDate,
+                    in: ...endDate,
+                    displayedComponents: .date
+                )
+                .accessibilityIdentifier("custom-range-start")
+                DatePicker(
+                    "End",
+                    selection: $endDate,
+                    in: startDate...Date(),
+                    displayedComponents: .date
+                )
+                .accessibilityIdentifier("custom-range-end")
+            }
+            .navigationTitle("Custom Range")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Apply") {
+                        onApply(startDate, endDate)
+                        dismiss()
+                    }
+                    .accessibilityIdentifier("custom-range-apply")
+                }
+            }
+        }
+        .presentationDetents([.medium])
     }
 }
 

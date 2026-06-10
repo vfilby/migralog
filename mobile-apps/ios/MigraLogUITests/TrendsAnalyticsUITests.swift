@@ -33,13 +33,15 @@ final class TrendsAnalyticsUITests: XCTestCase {
         // Step 3: Switch to the Insights section for range + statistics
         selectSection("Insights")
 
-        // Time range selector visible
-        let range7d = app.buttons["time-range-7"]
+        // Time range selector visible (presets + custom)
+        let range14d = app.buttons["time-range-14"]
         let range30d = app.buttons["time-range-30"]
         let range90d = app.buttons["time-range-90"]
-        UITestHelpers.waitForElement(range7d)
+        let rangeCustom = app.buttons["time-range-custom"]
+        UITestHelpers.waitForElement(range14d)
         UITestHelpers.waitForElement(range30d)
         UITestHelpers.waitForElement(range90d)
+        UITestHelpers.waitForElement(rangeCustom)
 
         // Step 4: Statistics section visible
         let dayStatsCard = app.staticTexts["Day Statistics"]
@@ -56,10 +58,10 @@ final class TrendsAnalyticsUITests: XCTestCase {
         UITestHelpers.navigateTo(tab: .trends, in: app)
         selectSection("Insights")
 
-        // Step 1: Tap "7d"
-        let range7d = app.buttons["time-range-7"]
-        UITestHelpers.waitForHittable(range7d)
-        range7d.tap()
+        // Step 1: Tap "14d"
+        let range14d = app.buttons["time-range-14"]
+        UITestHelpers.waitForHittable(range14d)
+        range14d.tap()
         Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
 
         // Step 2: Tap "90d"
@@ -192,6 +194,36 @@ final class TrendsAnalyticsUITests: XCTestCase {
             UITestHelpers.scrollToElement(header, in: scroll, maxScrolls: 15)
             UITestHelpers.waitForElement(header)
         }
+    }
+
+    // MARK: - 7.10 Custom time range
+
+    func testCustomRangeSelection() throws {
+        app = UITestHelpers.launchWithFixtures()
+        UITestHelpers.waitForDashboard(in: app)
+        UITestHelpers.navigateTo(tab: .trends, in: app)
+        selectSection("Insights")
+
+        // Open the custom range sheet and apply the default (last 30 days).
+        let customChip = app.buttons["time-range-custom"]
+        UITestHelpers.waitForHittable(customChip)
+        customChip.tap()
+
+        let applyButton = app.buttons["custom-range-apply"]
+        UITestHelpers.waitForHittable(applyButton)
+        applyButton.tap()
+        Thread.sleep(forTimeInterval: 1.0)
+
+        // The selector now shows the applied custom range.
+        let rangeLabel = app.staticTexts["custom-range-label"]
+        UITestHelpers.waitForElement(rangeLabel)
+
+        // Selecting a preset clears the custom range again.
+        let range30d = app.buttons["time-range-30"]
+        UITestHelpers.waitForHittable(range30d)
+        range30d.tap()
+        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
+        XCTAssertFalse(rangeLabel.exists, "Custom range label should clear when a preset is selected")
     }
 
     // MARK: - Helpers

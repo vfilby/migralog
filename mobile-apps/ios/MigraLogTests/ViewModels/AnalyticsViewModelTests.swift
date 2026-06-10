@@ -34,9 +34,9 @@ final class AnalyticsViewModelTests: XCTestCase {
     // MARK: - Set Date Range
 
     func testSetDateRange_updatesSelectedRange() async throws {
-        await sut.setDateRange(.sevenDays)
+        await sut.setDateRange(.fourteenDays)
 
-        XCTAssertEqual(sut.selectedRange, .sevenDays)
+        XCTAssertEqual(sut.selectedRange, .fourteenDays)
     }
 
     func testSetDateRange_fetchesData() async throws {
@@ -46,7 +46,7 @@ final class AnalyticsViewModelTests: XCTestCase {
             TestFixtures.makeReading(episodeId: "ep-1", intensity: 7.0, timestamp: TimestampHelper.now - 86400000)
         ]
 
-        await sut.setDateRange(.sevenDays)
+        await sut.setDateRange(.fourteenDays)
 
         XCTAssertEqual(sut.episodes.count, 1)
         XCTAssertFalse(sut.isLoading)
@@ -137,7 +137,7 @@ final class AnalyticsViewModelTests: XCTestCase {
         let ep = TestFixtures.makeEpisode(id: "ep-1", startTime: TimestampHelper.now - 3600000)
         mockEpisodeRepo.episodes = [ep]
 
-        await sut.setDateRange(.sevenDays)
+        await sut.setDateRange(.fourteenDays)
         XCTAssertEqual(sut.episodes.count, 1)
 
         // Switch to 90 days - different cache key
@@ -151,11 +151,11 @@ final class AnalyticsViewModelTests: XCTestCase {
     // MARK: - Day Stats Computation
 
     func testDayStats_containsCorrectNumberOfDays() async throws {
-        await sut.setDateRange(.sevenDays)
+        await sut.setDateRange(.fourteenDays)
 
-        // Should have roughly 7-8 days of stats (7 days back + today)
-        XCTAssertGreaterThanOrEqual(sut.dayStats.count, 7)
-        XCTAssertLessThanOrEqual(sut.dayStats.count, 9)
+        // Should have roughly 14-15 days of stats (14 days back + today)
+        XCTAssertGreaterThanOrEqual(sut.dayStats.count, 14)
+        XCTAssertLessThanOrEqual(sut.dayStats.count, 16)
     }
 
     func testDayStats_includesStatusData() async throws {
@@ -186,10 +186,10 @@ final class AnalyticsViewModelTests: XCTestCase {
             TestFixtures.makeDose(medicationId: "med-t", timestamp: now - 3000000)
         ]
 
-        await sut.setDateRange(.sevenDays)
+        await sut.setDateRange(.fourteenDays)
 
-        // One rolling-count point per day in the selected range (7 back + today).
-        XCTAssertEqual(sut.headacheDayTrend.count, 8)
+        // One rolling-count point per day in the selected range (14 back + today).
+        XCTAssertEqual(sut.headacheDayTrend.count, 15)
         XCTAssertEqual(sut.headacheDayTrend.last?.count, 1)
         // All acute classes always present; triptan series ends at 1 intake day.
         XCTAssertEqual(sut.intakeSeries.count, 3)
@@ -200,7 +200,7 @@ final class AnalyticsViewModelTests: XCTestCase {
         XCTAssertEqual(sut.severityWeekCounts.first?.bin, .severe)
         XCTAssertEqual(sut.timeOfDayBins.map(\.count).reduce(0, +), 1)
         // Monthly summary covers the range months and flags them partial
-        // (a 7-day range never covers a whole calendar month).
+        // (a 14-day range never covers a whole calendar month).
         XCTAssertFalse(sut.monthlySummaries.isEmpty)
         XCTAssertTrue(sut.monthlySummaries.allSatisfy(\.isPartial))
         XCTAssertEqual(sut.monthlySummaries.map(\.episodeCount).reduce(0, +), 1)
@@ -219,10 +219,10 @@ final class AnalyticsViewModelTests: XCTestCase {
             TestFixtures.makeDose(medicationId: "med-p", timestamp: now - 3600000)
         ]
 
-        await sut.setDateRange(.sevenDays)
+        await sut.setDateRange(.fourteenDays)
 
-        // 8 days of one expected dose each; exactly one logged as taken.
-        XCTAssertEqual(sut.weeklyAdherence.map(\.expected).reduce(0, +), 8)
+        // 15 days of one expected dose each; exactly one logged as taken.
+        XCTAssertEqual(sut.weeklyAdherence.map(\.expected).reduce(0, +), 15)
         XCTAssertEqual(sut.weeklyAdherence.map(\.taken).reduce(0, +), 1)
     }
 
@@ -256,5 +256,32 @@ final class AnalyticsViewModelTests: XCTestCase {
         XCTAssertEqual(sut.headacheDayTrend.last?.count, 0)
         XCTAssertTrue(sut.severityWeekCounts.isEmpty)
         XCTAssertTrue(sut.insightWarnings.isEmpty)
+    }
+
+    // MARK: - Custom Range
+
+    func testSetCustomRange_overridesPresetAndAnchorsAtEnd() async throws {
+        let calendar = Calendar.current
+        // Historical 7-day window ending 10 days ago.
+        let end = calendar.date(byAdding: .day, value: -10, to: Date())!
+        let start = calendar.date(byAdding: .day, value: -6, to: end)!
+        let ep = TestFixtures.makeEpisode(
+            id: "ep-1",
+            startTime: TimestampHelper.fromDate(end) - 3600000,
+            endTime: TimestampHelper.fromDate(end) - 1800000
+        )
+        mockEpisodeRepo.episodes = [ep]
+
+        await sut.setCustomRange(start: start, end: end)
+
+        XCTAssertEqual(sut.episodes.count, 1)
+        XCTAssertEqual(sut.dayStats.count, 7)
+        // Rolling trend spans exactly the custom window, anchored at its end.
+        XCTAssertEqual(sut.headacheDayTrend.count, 7)
+        XCTAssertEqual(sut.headacheDayTrend.last?.count, 1)
+
+        // Selecting a preset clears the custom range.
+        await sut.setDateRange(.thirtyDays)
+        XCTAssertNil(sut.customRange)
     }
 }
