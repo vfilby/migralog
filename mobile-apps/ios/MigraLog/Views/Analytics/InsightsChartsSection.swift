@@ -245,6 +245,12 @@ private struct ClassIntakeChart: View {
             }
             .chartYScale(domain: 0...yMax)
             .frame(height: 110)
+
+            if !series.medicationNames.isEmpty {
+                Text("Includes: \(series.medicationNames.joined(separator: ", "))")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
         }
         .padding(.top, 4)
     }
