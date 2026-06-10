@@ -171,12 +171,16 @@ struct MedicationOveruseChartCard: View {
     private static let classColors: [AnalyticsInsights.AcuteMedClass: Color] = [
         .triptan: .blue,
         .simpleAnalgesic: .teal,
-        .cgrpAcute: .indigo,
     ]
 
-    /// One mini-chart per class that was actually used in the range.
+    /// One mini-chart per used class with an established overuse guideline
+    /// (triptans, OTC/NSAID). Classes without one — CGRP acute meds — are
+    /// excluded from this card entirely.
     private var visibleSeries: [AnalyticsInsights.ClassIntakeSeries] {
-        series.filter { classSeries in classSeries.points.contains { $0.count >= 1 } }
+        series.filter { classSeries in
+            classSeries.medClass.overuseThresholdDays != nil
+                && classSeries.points.contains { $0.count >= 1 }
+        }
     }
 
     var body: some View {
@@ -220,10 +224,6 @@ private struct ClassIntakeChart: View {
                 Spacer()
                 if let threshold = series.medClass.overuseThresholdDays {
                     Text("guideline: under \(threshold) days")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("no established overuse guideline")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -340,6 +340,17 @@ struct MonthlySummaryCard: View {
         }
     }
 
+    /// Month columns plus a range-total column when more than one month shows.
+    private var columns: [(key: String, label: String, isTotal: Bool, summary: AnalyticsInsights.MonthSummary)] {
+        var columns = summaries.map { summary in
+            (key: TimestampHelper.dateString(from: summary.monthStart), label: monthLabel(summary), isTotal: false, summary: summary)
+        }
+        if summaries.count > 1, let total = AnalyticsInsights.totalSummary(of: summaries) {
+            columns.append((key: "total", label: "Total", isTotal: true, summary: total))
+        }
+        return columns
+    }
+
     var body: some View {
         InsightCard(
             title: "Monthly Summary",
@@ -353,8 +364,8 @@ struct MonthlySummaryCard: View {
                     Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
                         GridRow {
                             Text("")
-                            ForEach(summaries) { month in
-                                Text(monthLabel(month))
+                            ForEach(columns, id: \.key) { column in
+                                Text(column.label)
                                     .font(.caption.weight(.semibold))
                             }
                         }
@@ -400,9 +411,9 @@ struct MonthlySummaryCard: View {
             Text(label)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            ForEach(summaries) { month in
-                Text(value(month))
-                    .font(.caption.monospacedDigit())
+            ForEach(columns, id: \.key) { column in
+                Text(value(column.summary))
+                    .font(column.isTotal ? .caption.monospacedDigit().weight(.semibold) : .caption.monospacedDigit())
             }
         }
     }

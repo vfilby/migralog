@@ -420,6 +420,35 @@ enum AnalyticsInsights {
         String(TimestampHelper.dateString(from: monthStart).prefix(7))
     }
 
+    /// Range total across monthly summaries. Months are disjoint, so day
+    /// counts sum without double-counting. `monthStart` carries the first
+    /// month's date and `isPartial` is true when any month is partial.
+    static func totalSummary(of summaries: [MonthSummary]) -> MonthSummary? {
+        guard let first = summaries.first else { return nil }
+        var classStats: [AcuteMedClass: DoseStat] = [:]
+        var medStats: [String: DoseStat] = [:]
+        for summary in summaries {
+            for (medClass, stat) in summary.classStats {
+                classStats[medClass, default: DoseStat()].doses += stat.doses
+                classStats[medClass, default: DoseStat()].days += stat.days
+            }
+            for (medId, stat) in summary.medStats {
+                medStats[medId, default: DoseStat()].doses += stat.doses
+                medStats[medId, default: DoseStat()].days += stat.days
+            }
+        }
+        return MonthSummary(
+            monthStart: first.monthStart,
+            isPartial: summaries.contains(where: \.isPartial),
+            episodeCount: summaries.map(\.episodeCount).reduce(0, +),
+            episodeDays: summaries.map(\.episodeDays).reduce(0, +),
+            totalDoses: summaries.map(\.totalDoses).reduce(0, +),
+            totalIntakeDays: summaries.map(\.totalIntakeDays).reduce(0, +),
+            classStats: classStats,
+            medStats: medStats
+        )
+    }
+
     // MARK: - Preventative adherence
 
     struct WeeklyAdherence: Equatable, Identifiable {

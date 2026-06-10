@@ -426,6 +426,38 @@ final class AnalyticsInsightsTests: XCTestCase {
         XCTAssertEqual(summaries.map(\.totalDoses).reduce(0, +), 0)
     }
 
+    func testTotalSummary_sumsAcrossMonths() {
+        let triptan = TestFixtures.makeMedication(id: "med-t", type: .rescue, category: .triptan)
+        let episodes = [
+            TestFixtures.makeEpisode(id: "ep-1", startTime: ms(daysAgo: 35), endTime: ms(daysAgo: 35, hour: 18)),
+            TestFixtures.makeEpisode(id: "ep-2", startTime: ms(daysAgo: 1), endTime: ms(daysAgo: 1, hour: 18)),
+        ]
+        let doses = [
+            TestFixtures.makeDose(medicationId: "med-t", timestamp: ms(daysAgo: 35)),
+            TestFixtures.makeDose(medicationId: "med-t", timestamp: ms(daysAgo: 1)),
+        ]
+        let summaries = AnalyticsInsights.monthlySummaries(
+            episodes: episodes,
+            doses: doses,
+            medications: [triptan],
+            excluded: [],
+            from: date(daysAgo: 40),
+            to: now,
+            calendar: calendar
+        )
+
+        let total = AnalyticsInsights.totalSummary(of: summaries)
+
+        XCTAssertEqual(total?.episodeCount, 2)
+        XCTAssertEqual(total?.episodeDays, 2)
+        XCTAssertEqual(total?.totalDoses, 2)
+        XCTAssertEqual(total?.totalIntakeDays, 2)
+        XCTAssertEqual(total?.classStats[.triptan]?.days, 2)
+        XCTAssertEqual(total?.medStats["med-t"]?.doses, 2)
+        XCTAssertEqual(total?.isPartial, true)
+        XCTAssertNil(AnalyticsInsights.totalSummary(of: []))
+    }
+
     // MARK: - Weekly adherence
 
     func testWeeklyAdherence_countsExpectedAndTaken() {
