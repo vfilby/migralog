@@ -169,6 +169,50 @@ final class MedicationNotificationServiceTests: XCTestCase {
         XCTAssertTrue(firstNotification?.body.contains("50.0mg") ?? false)
     }
 
+    func testScheduledNotification_hidesMedicationNameWhenDisabled() async throws {
+        UserDefaults.standard.set(false, forKey: "notification_show_medication_names")
+        defer { UserDefaults.standard.removeObject(forKey: "notification_show_medication_names") }
+
+        let medication = TestFixtures.makeMedication(
+            id: "med-1",
+            name: "Topiramate",
+            type: .preventative,
+            dosageAmount: 50,
+            dosageUnit: "mg",
+            scheduleFrequency: .daily
+        )
+        let schedule = TestFixtures.makeSchedule(id: "sched-1", medicationId: "med-1", time: "08:00")
+        mockMedicationRepo.medications = [medication]
+        mockMedicationRepo.schedules = [schedule]
+
+        try await sut.rescheduleAllMedicationNotifications()
+
+        let firstNotification = mockNotificationService.scheduledNotifications.first
+        XCTAssertEqual(firstNotification?.body, "Time to take your medication")
+        XCTAssertFalse(firstNotification?.body.contains("Topiramate") ?? true)
+    }
+
+    func testGroupedNotification_hidesMedicationNamesWhenDisabled() async throws {
+        UserDefaults.standard.set(false, forKey: "notification_show_medication_names")
+        defer { UserDefaults.standard.removeObject(forKey: "notification_show_medication_names") }
+
+        let med1 = TestFixtures.makeMedication(id: "med-1", name: "Topiramate", type: .preventative, scheduleFrequency: .daily)
+        let med2 = TestFixtures.makeMedication(id: "med-2", name: "Propranolol", type: .preventative, scheduleFrequency: .daily)
+        let sched1 = TestFixtures.makeSchedule(id: "sched-1", medicationId: "med-1", time: "08:00")
+        let sched2 = TestFixtures.makeSchedule(id: "sched-2", medicationId: "med-2", time: "08:00")
+        mockMedicationRepo.medications = [med1, med2]
+        mockMedicationRepo.schedules = [sched1, sched2]
+
+        try await sut.rescheduleAllMedicationNotifications()
+
+        let grouped = mockNotificationService.scheduledNotifications.first {
+            $0.categoryIdentifier == NotificationCategory.multipleMedication
+        }
+        XCTAssertEqual(grouped?.body, "Time to take 2 medications")
+        XCTAssertFalse(grouped?.body.contains("Topiramate") ?? true)
+        XCTAssertFalse(grouped?.body.contains("Propranolol") ?? true)
+    }
+
     func testGroupedNotification_usesMultipleMedicationCategory() async throws {
         let med1 = TestFixtures.makeMedication(id: "med-1", name: "Topiramate", type: .preventative, scheduleFrequency: .daily)
         let med2 = TestFixtures.makeMedication(id: "med-2", name: "Propranolol", type: .preventative, scheduleFrequency: .daily)
