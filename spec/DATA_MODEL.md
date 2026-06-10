@@ -435,12 +435,16 @@ so consumers must treat these as free-form strings.
 Besides the enabled built-ins, each category has a larger **suggested
 catalog** of well-known values (defined in `Enums.swift` as
 `Trigger.suggested` etc.) offered via autocomplete in the add flow.
-Catalog values use canonical snake_case identifiers, and typed input that
-matches a catalog entry (by raw value or display name, case-insensitively)
-is canonicalized before storing — so the same concept serializes
-identically for every user, which keeps data comparable if it is ever
-shared or aggregated. Only free-form values with no catalog match are
-stored verbatim.
+Catalog and free-form values are **display-ready text stored as-is**
+("Red Wine", "MSG") — only the legacy built-ins use snake_case
+identifiers, and only they get a display-name transformation. Typed input
+that matches a catalog entry case-insensitively adopts the entry's exact
+casing (preventing casing near-duplicates); nothing else is transformed,
+since derived casing can mangle text we don't control (e.g. unknown
+acronyms). Because users picking the same catalog entry store the same
+string, shared data stays consistent; mapping values to canonical
+identifiers is deliberately deferred to whatever future layer actually
+shares or aggregates data.
 
 ### Pain Qualities (6 built-in)
 ```

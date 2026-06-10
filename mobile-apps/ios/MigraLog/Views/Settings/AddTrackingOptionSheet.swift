@@ -1,9 +1,9 @@
 import SwiftUI
 
 /// Sheet for adding a tracking option: type a name and either pick one of the
-/// suggested catalog values (filtered as you type) or add the typed text as a
-/// free-form custom option. Suggestions store canonical snake_case values so
-/// the same concept serializes identically for every user.
+/// suggested catalog chips (filtered as you type) or add the typed text as a
+/// free-form custom option. Suggestions are display-ready text stored as-is;
+/// typed input that matches one case-insensitively adopts its casing.
 struct AddTrackingOptionSheet: View {
     let category: TrackingOptionCategory
     let viewModel: TrackingOptionsViewModel
@@ -29,25 +29,20 @@ struct AddTrackingOptionSheet: View {
                         .foregroundStyle(.secondary)
                 }
 
+                // Same chip idiom as the episode pickers — tap to add.
                 let matches = viewModel.suggestions(for: category, query: name)
                 if !matches.isEmpty {
                     Section("Suggestions") {
-                        ForEach(matches) { suggestion in
-                            Button {
-                                add(suggestion.displayName)
-                            } label: {
-                                HStack {
-                                    Text(suggestion.displayName)
-                                        .foregroundStyle(.primary)
-                                    Spacer()
-                                    Image(systemName: "plus.circle")
-                                        .foregroundStyle(.tint)
-                                        .accessibilityHidden(true)
+                        FlowLayout(spacing: 8) {
+                            ForEach(matches) { suggestion in
+                                SelectableChip(
+                                    title: suggestion.displayName,
+                                    isSelected: false
+                                ) {
+                                    add(suggestion.value)
                                 }
-                                .contentShape(Rectangle())
+                                .accessibilityIdentifier("tracking-option-suggestion-\(suggestion.value)")
                             }
-                            .buttonStyle(.plain)
-                            .accessibilityIdentifier("tracking-option-suggestion-\(suggestion.value)")
                         }
                     }
                 }

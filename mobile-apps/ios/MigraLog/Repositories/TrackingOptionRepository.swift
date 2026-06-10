@@ -36,9 +36,9 @@ enum TrackingOptionCategory: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// Raw values of the suggested catalog (well-known options offered via
-    /// autocomplete when adding), in display order. Disjoint from
-    /// `builtInValues`.
+    /// Values of the suggested catalog (well-known options offered via
+    /// autocomplete when adding), in display order. These are display-ready
+    /// text, stored as-is. Disjoint from `builtInValues`.
     var suggestedValues: [String] {
         switch self {
         case .painQuality: return PainQuality.suggested.map(\.rawValue)
@@ -56,11 +56,13 @@ enum TrackingOptionCategory: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// Canonical raw value for typed input: if `text` matches a built-in or
-    /// suggested value (by raw value or display name, case-insensitively),
-    /// returns its snake_case raw value; otherwise nil. Keeps user-entered
-    /// names from becoming verbatim near-duplicates of catalog values.
-    func canonicalValue(matching text: String) -> String? {
+    /// Stored form for typed input: if `text` matches a built-in or suggested
+    /// value (by value or display name, case-insensitively), returns that
+    /// catalog entry's value — so typed input adopts the catalog casing and
+    /// built-in matches hit duplicate detection — otherwise nil. No derived
+    /// transformation is applied; canonical-identifier mapping is deferred to
+    /// whatever layer actually shares or aggregates data.
+    func catalogValue(matching text: String) -> String? {
         switch self {
         case .painQuality: return PainQuality.known(matching: text)?.rawValue
         case .symptom: return Symptom.known(matching: text)?.rawValue
@@ -157,10 +159,10 @@ final class TrackingOptionRepository: TrackingOptionRepositoryProtocol {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw TrackingOptionError.emptyValue }
 
-        // Store the canonical snake_case value when the input matches a
-        // catalog entry, so the same concept serializes identically for
-        // every user; otherwise keep the user's text verbatim.
-        let storedValue = category.canonicalValue(matching: trimmed) ?? trimmed
+        // Adopt the catalog entry's exact text when the input matches one
+        // case-insensitively (avoids casing near-duplicates); otherwise
+        // store the user's text verbatim.
+        let storedValue = category.catalogValue(matching: trimmed) ?? trimmed
 
         let existing = category.builtInValues
             + (try getOptions(category: category).map(\.value))

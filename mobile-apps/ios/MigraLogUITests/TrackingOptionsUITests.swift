@@ -32,14 +32,13 @@ final class TrackingOptionsUITests: XCTestCase {
         nameField.tap()
         nameField.typeText("wine")
 
-        // Typing filters the catalog; tap the "Red Wine" suggestion. It is
-        // stored under its canonical snake_case value.
-        let suggestion = app.buttons["tracking-option-suggestion-red_wine"]
+        // Typing filters the catalog; tap the "Red Wine" suggestion chip.
+        let suggestion = app.buttons["tracking-option-suggestion-Red Wine"]
         UITestHelpers.waitForHittable(suggestion)
         suggestion.tap()
 
-        // The option appears in the list under its canonical value
-        let customRow = toggleElement("tracking-option-trigger-red_wine")
+        // The option appears in the list, stored as display-ready text
+        let customRow = toggleElement("tracking-option-trigger-Red Wine")
         scrollToInList(customRow)
         UITestHelpers.waitForElement(customRow)
 
@@ -103,8 +102,8 @@ final class TrackingOptionsUITests: XCTestCase {
         errorAlert.buttons["OK"].tap()
         app.buttons["Cancel"].tap()
 
-        // Step 2: Add a typed symptom that matches a catalog entry — it is
-        // canonicalized to snake_case — then delete it via swipe
+        // Step 2: Add a typed symptom that matches a catalog entry — it
+        // adopts the entry's casing — then delete it via swipe
         scrollToInList(addSymptom)
         UITestHelpers.waitForHittable(addSymptom)
         addSymptom.tap()
@@ -112,15 +111,15 @@ final class TrackingOptionsUITests: XCTestCase {
         nameField = app.textFields["tracking-option-name-field"]
         UITestHelpers.waitForElement(nameField)
         nameField.tap()
-        nameField.typeText("Brain Fog")
+        nameField.typeText("brain fog")
         app.buttons["tracking-option-add-confirm"].tap()
 
-        let customRow = toggleElement("tracking-option-symptom-brain_fog")
+        let customRow = toggleElement("tracking-option-symptom-Brain Fog")
         scrollToInList(customRow)
         UITestHelpers.waitForElement(customRow)
 
         customRow.swipeLeft()
-        let deleteButton = app.buttons["tracking-option-delete-brain_fog"]
+        let deleteButton = app.buttons["tracking-option-delete-Brain Fog"]
         UITestHelpers.waitForHittable(deleteButton)
         deleteButton.tap()
         UITestHelpers.waitForElementToDisappear(customRow)

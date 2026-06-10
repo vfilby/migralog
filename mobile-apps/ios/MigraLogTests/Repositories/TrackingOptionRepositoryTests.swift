@@ -35,11 +35,10 @@ final class TrackingOptionRepositoryTests: XCTestCase {
     // MARK: - Custom options
 
     func test_addCustomOption_appearsAfterBuiltIns() throws {
-        // "Red Wine" matches the suggested catalog, so it stores canonically.
         try repo.addCustomOption(category: .trigger, value: "Red Wine")
 
         let values = try repo.getActiveValues(category: .trigger)
-        XCTAssertEqual(values.last, "red_wine")
+        XCTAssertEqual(values.last, "Red Wine")
         XCTAssertEqual(values.count, Trigger.allCases.count + 1)
     }
 
@@ -84,7 +83,7 @@ final class TrackingOptionRepositoryTests: XCTestCase {
         let option = try repo.addCustomOption(category: .trigger, value: "Red Wine")
         try repo.deleteCustomOption(id: option.id)
 
-        XCTAssertFalse(try repo.getActiveValues(category: .trigger).contains("red_wine"))
+        XCTAssertFalse(try repo.getActiveValues(category: .trigger).contains("Red Wine"))
         XCTAssertTrue(try repo.getAllOptions().isEmpty)
     }
 
@@ -112,10 +111,9 @@ final class TrackingOptionRepositoryTests: XCTestCase {
 
     func test_hideCustomOption_keepsRowButRemovesFromActiveValues() throws {
         try repo.addCustomOption(category: .symptom, value: "Brain Fog")
-        // The catalog match stores canonically; hide by the stored value.
-        try repo.setHidden(category: .symptom, value: "brain_fog", hidden: true)
+        try repo.setHidden(category: .symptom, value: "Brain Fog", hidden: true)
 
-        XCTAssertFalse(try repo.getActiveValues(category: .symptom).contains("brain_fog"))
+        XCTAssertFalse(try repo.getActiveValues(category: .symptom).contains("Brain Fog"))
         let options = try repo.getAllOptions()
         XCTAssertEqual(options.count, 1)
         XCTAssertTrue(options[0].isHidden)
@@ -132,7 +130,11 @@ final class TrackingOptionRepositoryTests: XCTestCase {
 
     func test_suggestedCatalog_isDisjointFromBuiltIns() {
         for category in TrackingOptionCategory.allCases {
-            let overlap = Set(category.suggestedValues).intersection(category.builtInValues)
+            let builtIn = Set(
+                (category.builtInValues + category.builtInValues.map { category.displayName(forValue: $0) })
+                    .map { $0.lowercased() }
+            )
+            let overlap = category.suggestedValues.filter { builtIn.contains($0.lowercased()) }
             XCTAssertTrue(overlap.isEmpty, "\(category) suggested values overlap built-ins: \(overlap)")
         }
     }
@@ -144,17 +146,17 @@ final class TrackingOptionRepositoryTests: XCTestCase {
         }
     }
 
-    func test_addCustomOption_canonicalizesSuggestedDisplayName() throws {
-        // Typing the display name of a catalog entry stores the canonical
-        // snake_case value, so shared data stays consistent across users.
+    func test_addCustomOption_typedMatchAdoptsCatalogCasing() throws {
+        // Typed input matching a catalog entry case-insensitively stores the
+        // entry's exact text — no derived transformation, just its casing.
         let option = try repo.addCustomOption(category: .trigger, value: "red wine")
-        XCTAssertEqual(option.value, "red_wine")
-        XCTAssertEqual(try repo.getActiveValues(category: .trigger).last, "red_wine")
+        XCTAssertEqual(option.value, "Red Wine")
+        XCTAssertEqual(try repo.getActiveValues(category: .trigger).last, "Red Wine")
     }
 
-    func test_addCustomOption_canonicalizesSuggestedRawValue() throws {
-        let option = try repo.addCustomOption(category: .symptom, value: "BRAIN_FOG")
-        XCTAssertEqual(option.value, "brain_fog")
+    func test_addCustomOption_typedMatchAdoptsCatalogCasing_acronym() throws {
+        let option = try repo.addCustomOption(category: .trigger, value: "msg")
+        XCTAssertEqual(option.value, "MSG")
     }
 
     func test_addCustomOption_freeFormTextStoredVerbatim() throws {
@@ -164,18 +166,22 @@ final class TrackingOptionRepositoryTests: XCTestCase {
 
     func test_addCustomOption_duplicateOfAddedSuggestion_rejected() throws {
         try repo.addCustomOption(category: .trigger, value: "Red Wine")
-        XCTAssertThrowsError(try repo.addCustomOption(category: .trigger, value: "red_wine")) { error in
+        XCTAssertThrowsError(try repo.addCustomOption(category: .trigger, value: "red wine")) { error in
             XCTAssertEqual(error as? TrackingOptionError, .duplicateValue)
         }
     }
 
-    func test_displayNames_forSuggestedValues() {
-        XCTAssertEqual(Trigger(rawValue: "red_wine").displayName, "Red Wine")
-        XCTAssertEqual(Trigger(rawValue: "msg").displayName, "MSG")
-        XCTAssertEqual(Symptom(rawValue: "brain_fog").displayName, "Brain Fog")
-        XCTAssertEqual(PainQuality(rawValue: "band_like").displayName, "Band-like")
-        // Free-form custom values display verbatim
+    func test_displayNames_nonBuiltInsDisplayVerbatim() {
+        // Only legacy snake_case built-ins are transformed for display;
+        // suggested and free-form values show exactly as stored.
+        XCTAssertEqual(Trigger(rawValue: "lack_of_sleep").displayName, "Lack of Sleep")
+        XCTAssertEqual(Trigger(rawValue: "bright_lights").displayName, "Bright Lights")
+        XCTAssertEqual(Trigger(rawValue: "Red Wine").displayName, "Red Wine")
+        XCTAssertEqual(Trigger(rawValue: "MSG").displayName, "MSG")
+        XCTAssertEqual(PainQuality(rawValue: "Band-like").displayName, "Band-like")
         XCTAssertEqual(Trigger(rawValue: "Grandma's Cooking").displayName, "Grandma's Cooking")
+        // Unknown acronyms are never mangled by a casing transformation
+        XCTAssertEqual(Trigger(rawValue: "TMJ flare-up").displayName, "TMJ flare-up")
     }
 
     // MARK: - Episode round-trip with custom values
