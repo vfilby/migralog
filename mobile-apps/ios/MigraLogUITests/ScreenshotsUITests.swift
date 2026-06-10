@@ -124,6 +124,25 @@ final class ScreenshotsUITests: XCTestCase {
         attachScreenshot(named: "06-Episode-History")
     }
 
+    /// 7. Trends → Insight charts — warning callouts, the rolling 28-day
+    /// headache-burden trend vs. the chronic range, and medication-overuse
+    /// risk in intake days (issue #435). On iPad these fill the wide
+    /// visualization pane below the calendar.
+    func test07_TrendsInsights() throws {
+        navigate(to: "Trends")
+        let scroll = app.scrollViews.firstMatch
+
+        let headacheBurden = app.staticTexts["Headache Burden"]
+        UITestHelpers.scrollToElement(headacheBurden, in: scroll, maxScrolls: 15)
+        Thread.sleep(forTimeInterval: 1.0)
+        attachScreenshot(named: "07-Trends-Insights")
+
+        let timeOfDay = app.staticTexts["Time of Day"]
+        UITestHelpers.scrollToElement(timeOfDay, in: scroll, maxScrolls: 15)
+        Thread.sleep(forTimeInterval: 1.0)
+        attachScreenshot(named: "08-Trends-Insights-Distributions")
+    }
+
     // MARK: - Helpers
 
     /// True when running on iPad, where TabView renders as a top pill bar

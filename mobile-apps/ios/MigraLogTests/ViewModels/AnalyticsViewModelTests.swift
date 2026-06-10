@@ -6,6 +6,7 @@ final class AnalyticsViewModelTests: XCTestCase {
     private var mockEpisodeRepo: MockEpisodeRepository!
     private var mockStatusRepo: MockDailyStatusRepository!
     private var mockMedicationRepo: MockMedicationRepository!
+    private var mockOverlayRepo: MockCalendarOverlayRepository!
     private var sut: AnalyticsViewModel!
 
     override func setUp() {
@@ -16,10 +17,12 @@ final class AnalyticsViewModelTests: XCTestCase {
         mockEpisodeRepo = MockEpisodeRepository()
         mockStatusRepo = MockDailyStatusRepository()
         mockMedicationRepo = MockMedicationRepository()
+        mockOverlayRepo = MockCalendarOverlayRepository()
         sut = AnalyticsViewModel(
             episodeRepository: mockEpisodeRepo,
             dailyStatusRepository: mockStatusRepo,
-            medicationRepository: mockMedicationRepo
+            medicationRepository: mockMedicationRepo,
+            overlayRepository: mockOverlayRepo
         )
     }
 
@@ -166,5 +169,67 @@ final class AnalyticsViewModelTests: XCTestCase {
         let todayStat = sut.dayStats.first { $0.date == today }
         XCTAssertNotNil(todayStat)
         XCTAssertEqual(todayStat?.status, .green)
+    }
+
+    // MARK: - Insight Series
+
+    func testFetchData_populatesInsightSeries() async throws {
+        let now = TimestampHelper.now
+        let ep = TestFixtures.makeEpisode(id: "ep-1", startTime: now - 3600000, endTime: now - 1800000)
+        mockEpisodeRepo.episodes = [ep]
+        mockEpisodeRepo.intensityReadings = [
+            TestFixtures.makeReading(episodeId: "ep-1", intensity: 6.0, timestamp: now - 3000000)
+        ]
+        let triptan = TestFixtures.makeMedication(id: "med-t", type: .rescue, category: .triptan)
+        mockMedicationRepo.medications = [triptan]
+        mockMedicationRepo.doses = [
+            TestFixtures.makeDose(medicationId: "med-t", timestamp: now - 3000000)
+        ]
+
+        await sut.setDateRange(.sevenDays)
+
+        // One rolling-count point per day in the selected range (7 back + today).
+        XCTAssertEqual(sut.headacheDayTrend.count, 8)
+        XCTAssertEqual(sut.headacheDayTrend.last?.count, 1)
+        // Both acute classes always present; triptan series ends at 1 intake day.
+        XCTAssertEqual(sut.intakeSeries.count, 2)
+        let triptanSeries = sut.intakeSeries.first { $0.medClass == .triptanLike }
+        XCTAssertEqual(triptanSeries?.points.last?.count, 1)
+        // One rated episode this week → one severity entry; time-of-day total is 1.
+        XCTAssertEqual(sut.severityWeekCounts.map(\.count).reduce(0, +), 1)
+        XCTAssertEqual(sut.severityWeekCounts.first?.bin, .severe)
+        XCTAssertEqual(sut.timeOfDayBins.map(\.count).reduce(0, +), 1)
+    }
+
+    func testFetchData_excludedOverlayRemovesDaysFromInsights() async throws {
+        let now = TimestampHelper.now
+        let today = TimestampHelper.dateString()
+        let ep = TestFixtures.makeEpisode(id: "ep-1", startTime: now - 3600000, endTime: now - 1800000)
+        mockEpisodeRepo.episodes = [ep]
+        mockEpisodeRepo.intensityReadings = [
+            TestFixtures.makeReading(episodeId: "ep-1", intensity: 6.0, timestamp: now - 3000000)
+        ]
+        // Cover yesterday too so the test is stable when run near midnight.
+        let yesterday = TimestampHelper.dateString(
+            from: Calendar.current.date(byAdding: .day, value: -1, to: Date())!
+        )
+        mockOverlayRepo.overlays = [
+            CalendarOverlay(
+                id: "ov-1",
+                startDate: yesterday,
+                endDate: today,
+                label: "Sick",
+                notes: nil,
+                excludeFromStats: true,
+                createdAt: now,
+                updatedAt: now
+            )
+        ]
+
+        await sut.fetchData()
+
+        XCTAssertEqual(sut.headacheDayTrend.last?.count, 0)
+        XCTAssertTrue(sut.severityWeekCounts.isEmpty)
+        XCTAssertTrue(sut.insightWarnings.isEmpty)
     }
 }

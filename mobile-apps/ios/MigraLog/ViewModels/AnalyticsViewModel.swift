@@ -27,6 +27,14 @@ final class AnalyticsViewModel {
     var isLoading = false
     var error: String?
 
+    // MARK: - Insights State
+
+    var headacheDayTrend: [AnalyticsInsights.DailyCount] = []
+    var intakeSeries: [AnalyticsInsights.ClassIntakeSeries] = []
+    var severityWeekCounts: [AnalyticsInsights.SeverityWeekCount] = []
+    var timeOfDayBins: [AnalyticsInsights.TimeOfDayBin] = []
+    var insightWarnings: [AnalyticsInsights.Warning] = []
+
     // MARK: - Cache
 
     private static let cacheTTL: TimeInterval = 300
@@ -95,6 +103,11 @@ final class AnalyticsViewModel {
             dailyStatuses = cached.dailyStatuses
             rescueDoses = cached.rescueDoses
             medicationNames = cached.medicationNames
+            headacheDayTrend = cached.headacheDayTrend
+            intakeSeries = cached.intakeSeries
+            severityWeekCounts = cached.severityWeekCounts
+            timeOfDayBins = cached.timeOfDayBins
+            insightWarnings = cached.insightWarnings
             return
         }
 
@@ -144,6 +157,9 @@ final class AnalyticsViewModel {
                 statuses: fetchedStatuses
             )
 
+            // Compute insight chart series over an extended lookback window
+            try await computeInsights(rangeStart: TimestampHelper.toDate(range.start))
+
             // Cache the results
             let cached = CachedAnalytics(
                 episodes: episodes,
@@ -151,7 +167,12 @@ final class AnalyticsViewModel {
                 dayStats: dayStats,
                 dailyStatuses: dailyStatuses,
                 rescueDoses: rescueDoses,
-                medicationNames: medicationNames
+                medicationNames: medicationNames,
+                headacheDayTrend: headacheDayTrend,
+                intakeSeries: intakeSeries,
+                severityWeekCounts: severityWeekCounts,
+                timeOfDayBins: timeOfDayBins,
+                insightWarnings: insightWarnings
             )
             cache.set(cacheKey, value: cached, ttl: Self.cacheTTL)
 
@@ -308,6 +329,82 @@ final class AnalyticsViewModel {
 
     // MARK: - Private
 
+    /// Computes the insight chart series (issue #435). Uses an extended
+    /// lookback window so rolling 28-day counts have full history at the
+    /// start of the selected range and warnings can compare against the
+    /// previous 28-day window.
+    @MainActor
+    private func computeInsights(rangeStart: Date, now: Date = Date()) async throws {
+        let calendar = Calendar.current
+        let lookbackDays = max(
+            selectedRange.rawValue + AnalyticsInsights.rollingWindowDays - 1,
+            2 * AnalyticsInsights.rollingWindowDays
+        )
+        let extendedStart = calendar.date(byAdding: .day, value: -lookbackDays, to: now) ?? now
+        let extendedStartMs = TimestampHelper.fromDate(extendedStart)
+        let nowMs = TimestampHelper.fromDate(now)
+        let extendedStartString = TimestampHelper.dateString(from: extendedStart)
+        let nowString = TimestampHelper.dateString(from: now)
+
+        async let episodesTask = episodeRepository.getEpisodesByDateRange(start: extendedStartMs, end: nowMs)
+        async let statusesTask = dailyStatusRepository.getStatusesByDateRange(start: extendedStartString, end: nowString)
+        let extendedEpisodes = try await episodesTask
+        let extendedStatuses = try await statusesTask
+
+        var extendedReadings: [IntensityReading] = []
+        let episodeIds = extendedEpisodes.map(\.id)
+        if !episodeIds.isEmpty {
+            let readingsMap = try await episodeRepository.getIntensityReadings(episodeIds: episodeIds)
+            extendedReadings = readingsMap.values.flatMap { $0 }
+        }
+
+        let allDoses = try medicationRepository.getDosesByDateRange(start: extendedStartMs, end: nowMs)
+        let allMedications = try medicationRepository.getAllMedications()
+        let overlays = try overlayRepository.getOverlaysByDateRange(start: extendedStartString, end: nowString)
+
+        let excluded = AnalyticsInsights.excludedDates(overlays: overlays, now: now, calendar: calendar)
+        let headacheDays = AnalyticsInsights.headacheDays(
+            episodes: extendedEpisodes,
+            statuses: extendedStatuses,
+            excluded: excluded,
+            now: now,
+            calendar: calendar
+        )
+        let intake = AnalyticsInsights.intakeDays(
+            doses: allDoses,
+            medications: allMedications,
+            excluded: excluded,
+            calendar: calendar
+        )
+
+        headacheDayTrend = AnalyticsInsights.rollingCounts(of: headacheDays, from: rangeStart, to: now, calendar: calendar)
+        intakeSeries = AnalyticsInsights.AcuteMedClass.allCases.map { medClass in
+            AnalyticsInsights.ClassIntakeSeries(
+                medClass: medClass,
+                points: AnalyticsInsights.rollingCounts(of: intake[medClass] ?? [], from: rangeStart, to: now, calendar: calendar)
+            )
+        }
+
+        let rangeStartMs = TimestampHelper.fromDate(rangeStart)
+        let rangeEpisodes = extendedEpisodes.filter { $0.startTime >= rangeStartMs }
+        severityWeekCounts = AnalyticsInsights.severityWeekCounts(
+            episodes: rangeEpisodes,
+            readings: extendedReadings,
+            excluded: excluded,
+            calendar: calendar
+        )
+        timeOfDayBins = AnalyticsInsights.timeOfDayBins(episodes: rangeEpisodes, excluded: excluded, calendar: calendar)
+        insightWarnings = AnalyticsInsights.warnings(
+            headacheDays: headacheDays,
+            intakeDays: intake,
+            episodes: extendedEpisodes,
+            readings: extendedReadings,
+            excluded: excluded,
+            now: now,
+            calendar: calendar
+        )
+    }
+
     private func computeDayStats(
         episodes: [Episode],
         readings: [IntensityReading],
@@ -368,4 +465,9 @@ private struct CachedAnalytics {
     let dailyStatuses: [DailyStatusLog]
     let rescueDoses: [MedicationDose]
     let medicationNames: [String: String]
+    let headacheDayTrend: [AnalyticsInsights.DailyCount]
+    let intakeSeries: [AnalyticsInsights.ClassIntakeSeries]
+    let severityWeekCounts: [AnalyticsInsights.SeverityWeekCount]
+    let timeOfDayBins: [AnalyticsInsights.TimeOfDayBin]
+    let insightWarnings: [AnalyticsInsights.Warning]
 }

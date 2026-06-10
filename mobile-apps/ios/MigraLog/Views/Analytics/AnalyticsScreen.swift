@@ -32,6 +32,9 @@ struct AnalyticsScreen: View {
 
                 // Medication Usage
                 MedicationUsageCard(viewModel: viewModel)
+
+                // Insight charts (Swift Charts)
+                InsightsChartsSection(viewModel: viewModel)
             }
             .padding()
         }
@@ -612,6 +615,8 @@ struct AnalyticsVisualizationPane: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 MonthlyCalendarView(viewModel: viewModel)
+
+                InsightsChartsSection(viewModel: viewModel)
             }
             .padding()
         }

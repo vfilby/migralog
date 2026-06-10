@@ -194,4 +194,22 @@ final class TrendsAnalyticsUITests: XCTestCase {
         XCTAssertTrue(range90dAfter.isSelected || range90dAfter.exists,
                        "90d time range should persist after navigating away and back")
     }
+
+    // MARK: - 7.9 Insight charts (issue #435)
+
+    func testInsightChartCardsRender() throws {
+        app = UITestHelpers.launchWithFixtures()
+        UITestHelpers.waitForDashboard(in: app)
+        UITestHelpers.navigateTo(tab: .trends, in: app)
+
+        let scroll = app.scrollViews.firstMatch
+
+        // Each insight card renders with its headline. The warnings card is
+        // always present (with findings or the all-clear state).
+        for title in ["Warning Signs", "Headache Burden", "Medication Overuse Risk", "Severity by Week", "Time of Day"] {
+            let header = app.staticTexts[title]
+            UITestHelpers.scrollToElement(header, in: scroll, maxScrolls: 15)
+            UITestHelpers.waitForElement(header)
+        }
+    }
 }

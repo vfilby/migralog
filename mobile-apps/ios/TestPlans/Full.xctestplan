@@ -30,7 +30,8 @@
         "ScreenshotsUITests\/test03_Medications()",
         "ScreenshotsUITests\/test04_Calendar()",
         "ScreenshotsUITests\/test05_Statistics()",
-        "ScreenshotsUITests\/test06_EpisodeHistory()"
+        "ScreenshotsUITests\/test06_EpisodeHistory()",
+        "ScreenshotsUITests\/test07_TrendsInsights()"
       ],
       "target" : {
         "containerPath" : "container:MigraLog.xcodeproj",
