@@ -44,26 +44,38 @@ enum PainLocation: String, Codable, CaseIterable, Identifiable {
 }
 
 /// Pain qualities, symptoms and triggers are open value sets: the built-in
-/// values below ship with the app, and users can add their own via
-/// Settings → Tracking Options (stored in the `tracking_options` table).
-/// They are structs wrapping a raw string — not closed enums — so custom
-/// values and values synced from a newer app version survive decoding
-/// instead of being silently dropped.
+/// values ship enabled, a larger suggested catalog is offered via
+/// autocomplete when adding options, and users can also add free-form
+/// values (stored in the `tracking_options` table). They are structs
+/// wrapping a raw string — not closed enums — so custom values and values
+/// synced from a newer app version survive decoding instead of being
+/// silently dropped.
 ///
-/// Raw-value conventions: built-ins use snake_case identifiers; custom
-/// values store the user's text verbatim, and `displayName` shows it as
-/// typed. The stable identity is the raw value, so renaming a custom
-/// option is intentionally unsupported (delete + re-add creates a new
-/// identity without rewriting history).
-struct PainQuality: RawRepresentable, Codable, Hashable, Identifiable, CaseIterable, Sendable {
-    let rawValue: String
+/// Raw-value conventions: built-in and suggested values use canonical
+/// snake_case identifiers (so the same concept serializes identically for
+/// every user — important if data is ever shared or aggregated); free-form
+/// custom values store the user's text verbatim and display as typed. The
+/// stable identity is the raw value, so renaming an option is intentionally
+/// unsupported (delete + re-add creates a new identity without rewriting
+/// history).
+protocol TrackableOptionValue: RawRepresentable, Codable, Hashable, Identifiable, CaseIterable, Sendable
+where RawValue == String, AllCases == [Self] {
+    init(rawValue: String)
+    /// The built-in values that ship enabled, in display order.
+    static var allCases: [Self] { get }
+    /// The suggested catalog: well-known values offered via autocomplete,
+    /// in display order. Disjoint from `allCases`.
+    static var suggested: [Self] { get }
+    /// Display names that the default snake_case → Title Case formatting
+    /// gets wrong (e.g. "msg" → "MSG", "lack_of_sleep" → "Lack of Sleep").
+    static var displayNameOverrides: [String: String] { get }
+}
 
-    init(rawValue: String) {
-        self.rawValue = rawValue
-    }
+extension TrackableOptionValue {
+    var id: String { rawValue }
 
     init(from decoder: Decoder) throws {
-        rawValue = try decoder.singleValueContainer().decode(String.self)
+        self.init(rawValue: try decoder.singleValueContainer().decode(String.self))
     }
 
     func encode(to encoder: Encoder) throws {
@@ -71,7 +83,34 @@ struct PainQuality: RawRepresentable, Codable, Hashable, Identifiable, CaseItera
         try container.encode(rawValue)
     }
 
-    var id: String { rawValue }
+    var isBuiltIn: Bool { Self.allCases.contains(self) }
+
+    /// Built-in or part of the suggested catalog (i.e. has a canonical
+    /// snake_case raw value the app knows how to display).
+    var isKnown: Bool { isBuiltIn || Self.suggested.contains(self) }
+
+    var displayName: String {
+        if let override = Self.displayNameOverrides[rawValue] { return override }
+        guard isKnown else { return rawValue }
+        return rawValue.split(separator: "_")
+            .map { String($0).capitalized }
+            .joined(separator: " ")
+    }
+
+    /// The catalog value (built-in or suggested) whose raw value or display
+    /// name matches `text` case-insensitively, if any. Used to canonicalize
+    /// typed input so "red wine" stores as `red_wine` rather than a verbatim
+    /// near-duplicate.
+    static func known(matching text: String) -> Self? {
+        (allCases + suggested).first {
+            $0.rawValue.caseInsensitiveCompare(text) == .orderedSame
+                || $0.displayName.caseInsensitiveCompare(text) == .orderedSame
+        }
+    }
+}
+
+struct PainQuality: TrackableOptionValue {
+    let rawValue: String
 
     static let throbbing = PainQuality(rawValue: "throbbing")
     static let sharp = PainQuality(rawValue: "sharp")
@@ -80,36 +119,23 @@ struct PainQuality: RawRepresentable, Codable, Hashable, Identifiable, CaseItera
     static let stabbing = PainQuality(rawValue: "stabbing")
     static let burning = PainQuality(rawValue: "burning")
 
-    /// The built-in qualities, in display order. Custom values come from
-    /// `tracking_options`; see TrackingOptionsStore.
     static let allCases: [PainQuality] = [
         .throbbing, .sharp, .dull, .pressure, .stabbing, .burning
     ]
 
-    var isBuiltIn: Bool { Self.allCases.contains(self) }
+    static let suggested: [PainQuality] = [
+        "pounding", "piercing", "squeezing", "band_like", "vise_like",
+        "shooting", "electric", "aching", "splitting", "drilling", "radiating"
+    ].map(PainQuality.init(rawValue:))
 
-    var displayName: String {
-        isBuiltIn ? rawValue.capitalized : rawValue
-    }
+    static let displayNameOverrides: [String: String] = [
+        "band_like": "Band-like",
+        "vise_like": "Vise-like"
+    ]
 }
 
-struct Symptom: RawRepresentable, Codable, Hashable, Identifiable, CaseIterable, Sendable {
+struct Symptom: TrackableOptionValue {
     let rawValue: String
-
-    init(rawValue: String) {
-        self.rawValue = rawValue
-    }
-
-    init(from decoder: Decoder) throws {
-        rawValue = try decoder.singleValueContainer().decode(String.self)
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        try container.encode(rawValue)
-    }
-
-    var id: String { rawValue }
 
     static let nausea = Symptom(rawValue: "nausea")
     static let vomiting = Symptom(rawValue: "vomiting")
@@ -121,43 +147,26 @@ struct Symptom: RawRepresentable, Codable, Hashable, Identifiable, CaseIterable,
     static let dizziness = Symptom(rawValue: "dizziness")
     static let confusion = Symptom(rawValue: "confusion")
 
-    /// The built-in symptoms, in display order. Custom values come from
-    /// `tracking_options`; see TrackingOptionsStore.
     static let allCases: [Symptom] = [
         .nausea, .vomiting, .visualDisturbances, .aura, .lightSensitivity,
         .soundSensitivity, .smellSensitivity, .dizziness, .confusion
     ]
 
-    var isBuiltIn: Bool { Self.allCases.contains(self) }
+    static let suggested: [Symptom] = [
+        "neck_pain", "neck_stiffness", "brain_fog", "fatigue", "yawning",
+        "food_cravings", "irritability", "mood_changes", "euphoria",
+        "tinnitus", "vertigo", "numbness", "tingling", "weakness",
+        "speech_difficulty", "scalp_tenderness", "eye_watering",
+        "nasal_congestion", "droopy_eyelid", "restlessness",
+        "frequent_urination", "diarrhea", "constipation",
+        "difficulty_concentrating"
+    ].map(Symptom.init(rawValue:))
 
-    var displayName: String {
-        switch self {
-        case .visualDisturbances: return "Visual Disturbances"
-        case .lightSensitivity: return "Light Sensitivity"
-        case .soundSensitivity: return "Sound Sensitivity"
-        case .smellSensitivity: return "Smell Sensitivity"
-        default: return isBuiltIn ? rawValue.capitalized : rawValue
-        }
-    }
+    static let displayNameOverrides: [String: String] = [:]
 }
 
-struct Trigger: RawRepresentable, Codable, Hashable, Identifiable, CaseIterable, Sendable {
+struct Trigger: TrackableOptionValue {
     let rawValue: String
-
-    init(rawValue: String) {
-        self.rawValue = rawValue
-    }
-
-    init(from decoder: Decoder) throws {
-        rawValue = try decoder.singleValueContainer().decode(String.self)
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        try container.encode(rawValue)
-    }
-
-    var id: String { rawValue }
 
     static let stress = Trigger(rawValue: "stress")
     static let lackOfSleep = Trigger(rawValue: "lack_of_sleep")
@@ -170,24 +179,24 @@ struct Trigger: RawRepresentable, Codable, Hashable, Identifiable, CaseIterable,
     static let hormonal = Trigger(rawValue: "hormonal")
     static let exercise = Trigger(rawValue: "exercise")
 
-    /// The built-in triggers, in display order. Custom values come from
-    /// `tracking_options`; see TrackingOptionsStore.
     static let allCases: [Trigger] = [
         .stress, .lackOfSleep, .weatherChange, .brightLights, .loudSounds,
         .alcohol, .caffeine, .food, .hormonal, .exercise
     ]
 
-    var isBuiltIn: Bool { Self.allCases.contains(self) }
+    static let suggested: [Trigger] = [
+        "dehydration", "skipped_meals", "red_wine", "chocolate",
+        "aged_cheese", "msg", "artificial_sweeteners", "processed_meat",
+        "citrus", "oversleeping", "jet_lag", "screen_time", "strong_smells",
+        "smoke", "neck_tension", "poor_posture", "allergies",
+        "high_altitude", "heat", "humidity", "menstruation", "anxiety",
+        "crying", "motion_sickness"
+    ].map(Trigger.init(rawValue:))
 
-    var displayName: String {
-        switch self {
-        case .lackOfSleep: return "Lack of Sleep"
-        case .weatherChange: return "Weather Change"
-        case .brightLights: return "Bright Lights"
-        case .loudSounds: return "Loud Sounds"
-        default: return isBuiltIn ? rawValue.capitalized : rawValue
-        }
-    }
+    static let displayNameOverrides: [String: String] = [
+        "lack_of_sleep": "Lack of Sleep",
+        "msg": "MSG"
+    ]
 }
 
 // MARK: - Medication Enums

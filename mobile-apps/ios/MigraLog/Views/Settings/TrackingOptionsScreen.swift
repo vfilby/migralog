@@ -8,7 +8,6 @@ import SwiftUI
 struct TrackingOptionsScreen: View {
     @State private var viewModel = TrackingOptionsViewModel()
     @State private var addingCategory: TrackingOptionCategory?
-    @State private var newOptionName = ""
 
     var body: some View {
         List {
@@ -21,31 +20,16 @@ struct TrackingOptionsScreen: View {
         .task {
             viewModel.load()
         }
-        .alert(
-            "Add \(addingCategory.map { singularName(for: $0) } ?? "Option")",
-            isPresented: Binding(
-                get: { addingCategory != nil },
-                set: { if !$0 { addingCategory = nil } }
-            )
-        ) {
-            TextField("Name", text: $newOptionName)
-                .accessibilityIdentifier("tracking-option-name-field")
-            Button("Cancel", role: .cancel) {
-                newOptionName = ""
-            }
-            Button("Add") {
-                if let category = addingCategory {
-                    viewModel.addCustomOption(category: category, value: newOptionName)
-                }
-                newOptionName = ""
-            }
-        } message: {
-            Text("Custom options appear in the episode pickers alongside the built-in ones.")
+        .sheet(item: $addingCategory) { category in
+            AddTrackingOptionSheet(category: category, viewModel: viewModel)
         }
+        // While the add sheet is up, its own alert presents the error —
+        // a second presentation attempt from the covered screen would
+        // conflict and neither alert would show.
         .alert(
             "Couldn't Update Options",
             isPresented: Binding(
-                get: { viewModel.error != nil },
+                get: { viewModel.error != nil && addingCategory == nil },
                 set: { if !$0 { viewModel.error = nil } }
             )
         ) {
@@ -63,10 +47,9 @@ struct TrackingOptionsScreen: View {
                 optionRow(row, in: category)
             }
             Button {
-                newOptionName = ""
                 addingCategory = category
             } label: {
-                Label("Add \(singularName(for: category))", systemImage: "plus.circle.fill")
+                Label("Add \(category.singularDisplayName)", systemImage: "plus.circle.fill")
             }
             .accessibilityIdentifier("tracking-options-add-\(category.rawValue)")
         } header: {
@@ -111,13 +94,4 @@ struct TrackingOptionsScreen: View {
         }
     }
 
-    // MARK: - Helpers
-
-    private func singularName(for category: TrackingOptionCategory) -> String {
-        switch category {
-        case .painQuality: return "Pain Quality"
-        case .symptom: return "Symptom"
-        case .trigger: return "Trigger"
-        }
-    }
 }

@@ -425,13 +425,22 @@ left_teeth, right_teeth
 ```
 
 Pain qualities, symptoms and triggers are **open value sets** (schema v35+):
-the built-in values below ship with the app, and users can add custom values
-or hide built-ins via Settings → Tracking Options. Customizations are stored
+the built-in values below ship enabled, and users can add more values or
+hide built-ins via Settings → Tracking Options. Customizations are stored
 in the `tracking_options` table (synced); only deviations from the defaults
-are stored — a built-in with no row is visible. Built-in values use
-snake_case identifiers; custom values store the user's text verbatim.
-Episodes keep whatever values they were logged with, even after the option
-is hidden or deleted, so consumers must treat these as free-form strings.
+are stored — a built-in with no row is visible. Episodes keep whatever
+values they were logged with, even after the option is hidden or deleted,
+so consumers must treat these as free-form strings.
+
+Besides the enabled built-ins, each category has a larger **suggested
+catalog** of well-known values (defined in `Enums.swift` as
+`Trigger.suggested` etc.) offered via autocomplete in the add flow.
+Catalog values use canonical snake_case identifiers, and typed input that
+matches a catalog entry (by raw value or display name, case-insensitively)
+is canonicalized before storing — so the same concept serializes
+identically for every user, which keeps data comparable if it is ever
+shared or aggregated. Only free-form values with no catalog match are
+stored verbatim.
 
 ### Pain Qualities (6 built-in)
 ```

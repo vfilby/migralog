@@ -35,16 +35,18 @@ final class TrackingOptionRepositoryTests: XCTestCase {
     // MARK: - Custom options
 
     func test_addCustomOption_appearsAfterBuiltIns() throws {
+        // "Red Wine" matches the suggested catalog, so it stores canonically.
         try repo.addCustomOption(category: .trigger, value: "Red Wine")
 
         let values = try repo.getActiveValues(category: .trigger)
-        XCTAssertEqual(values.last, "Red Wine")
+        XCTAssertEqual(values.last, "red_wine")
         XCTAssertEqual(values.count, Trigger.allCases.count + 1)
     }
 
     func test_addCustomOption_trimsWhitespace() throws {
-        let option = try repo.addCustomOption(category: .symptom, value: "  Neck Stiffness  ")
-        XCTAssertEqual(option.value, "Neck Stiffness")
+        // A free-form value (no catalog match) is stored verbatim, trimmed.
+        let option = try repo.addCustomOption(category: .symptom, value: "  Skipping Lunch  ")
+        XCTAssertEqual(option.value, "Skipping Lunch")
     }
 
     func test_addCustomOption_rejectsEmptyValue() {
@@ -82,7 +84,7 @@ final class TrackingOptionRepositoryTests: XCTestCase {
         let option = try repo.addCustomOption(category: .trigger, value: "Red Wine")
         try repo.deleteCustomOption(id: option.id)
 
-        XCTAssertFalse(try repo.getActiveValues(category: .trigger).contains("Red Wine"))
+        XCTAssertFalse(try repo.getActiveValues(category: .trigger).contains("red_wine"))
         XCTAssertTrue(try repo.getAllOptions().isEmpty)
     }
 
@@ -110,9 +112,10 @@ final class TrackingOptionRepositoryTests: XCTestCase {
 
     func test_hideCustomOption_keepsRowButRemovesFromActiveValues() throws {
         try repo.addCustomOption(category: .symptom, value: "Brain Fog")
-        try repo.setHidden(category: .symptom, value: "Brain Fog", hidden: true)
+        // The catalog match stores canonically; hide by the stored value.
+        try repo.setHidden(category: .symptom, value: "brain_fog", hidden: true)
 
-        XCTAssertFalse(try repo.getActiveValues(category: .symptom).contains("Brain Fog"))
+        XCTAssertFalse(try repo.getActiveValues(category: .symptom).contains("brain_fog"))
         let options = try repo.getAllOptions()
         XCTAssertEqual(options.count, 1)
         XCTAssertTrue(options[0].isHidden)
@@ -123,6 +126,56 @@ final class TrackingOptionRepositoryTests: XCTestCase {
         try repo.setHidden(category: .painQuality, value: "dull", hidden: true)
         XCTAssertNoThrow(try repo.setHidden(category: .painQuality, value: "dull", hidden: true))
         XCTAssertEqual(try repo.getAllOptions().count, 1)
+    }
+
+    // MARK: - Suggested catalog & canonicalization
+
+    func test_suggestedCatalog_isDisjointFromBuiltIns() {
+        for category in TrackingOptionCategory.allCases {
+            let overlap = Set(category.suggestedValues).intersection(category.builtInValues)
+            XCTAssertTrue(overlap.isEmpty, "\(category) suggested values overlap built-ins: \(overlap)")
+        }
+    }
+
+    func test_suggestedCatalog_hasNoDuplicates() {
+        for category in TrackingOptionCategory.allCases {
+            let values = category.suggestedValues
+            XCTAssertEqual(values.count, Set(values).count, "\(category) suggested values contain duplicates")
+        }
+    }
+
+    func test_addCustomOption_canonicalizesSuggestedDisplayName() throws {
+        // Typing the display name of a catalog entry stores the canonical
+        // snake_case value, so shared data stays consistent across users.
+        let option = try repo.addCustomOption(category: .trigger, value: "red wine")
+        XCTAssertEqual(option.value, "red_wine")
+        XCTAssertEqual(try repo.getActiveValues(category: .trigger).last, "red_wine")
+    }
+
+    func test_addCustomOption_canonicalizesSuggestedRawValue() throws {
+        let option = try repo.addCustomOption(category: .symptom, value: "BRAIN_FOG")
+        XCTAssertEqual(option.value, "brain_fog")
+    }
+
+    func test_addCustomOption_freeFormTextStoredVerbatim() throws {
+        let option = try repo.addCustomOption(category: .trigger, value: "Grandma's Cooking")
+        XCTAssertEqual(option.value, "Grandma's Cooking")
+    }
+
+    func test_addCustomOption_duplicateOfAddedSuggestion_rejected() throws {
+        try repo.addCustomOption(category: .trigger, value: "Red Wine")
+        XCTAssertThrowsError(try repo.addCustomOption(category: .trigger, value: "red_wine")) { error in
+            XCTAssertEqual(error as? TrackingOptionError, .duplicateValue)
+        }
+    }
+
+    func test_displayNames_forSuggestedValues() {
+        XCTAssertEqual(Trigger(rawValue: "red_wine").displayName, "Red Wine")
+        XCTAssertEqual(Trigger(rawValue: "msg").displayName, "MSG")
+        XCTAssertEqual(Symptom(rawValue: "brain_fog").displayName, "Brain Fog")
+        XCTAssertEqual(PainQuality(rawValue: "band_like").displayName, "Band-like")
+        // Free-form custom values display verbatim
+        XCTAssertEqual(Trigger(rawValue: "Grandma's Cooking").displayName, "Grandma's Cooking")
     }
 
     // MARK: - Episode round-trip with custom values

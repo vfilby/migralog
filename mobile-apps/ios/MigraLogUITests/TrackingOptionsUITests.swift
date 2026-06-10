@@ -21,23 +21,25 @@ final class TrackingOptionsUITests: XCTestCase {
         // Step 1: Settings → Tracking Options
         openTrackingOptions()
 
-        // Step 2: Add a custom trigger
+        // Step 2: Add a trigger from the suggested catalog via autocomplete
         let addTrigger = app.buttons["tracking-options-add-trigger"]
         scrollToInList(addTrigger)
         UITestHelpers.waitForHittable(addTrigger)
         addTrigger.tap()
 
-        // Identifiers aren't exposed on alert text fields; scope to the alert.
-        let alert = app.alerts.firstMatch
-        UITestHelpers.waitForElement(alert)
-        let nameField = alert.textFields.firstMatch
+        let nameField = app.textFields["tracking-option-name-field"]
         UITestHelpers.waitForElement(nameField)
         nameField.tap()
-        nameField.typeText("Red Wine")
-        alert.buttons["Add"].tap()
+        nameField.typeText("wine")
 
-        // The custom option appears in the list
-        let customRow = toggleElement("tracking-option-trigger-Red Wine")
+        // Typing filters the catalog; tap the "Red Wine" suggestion. It is
+        // stored under its canonical snake_case value.
+        let suggestion = app.buttons["tracking-option-suggestion-red_wine"]
+        UITestHelpers.waitForHittable(suggestion)
+        suggestion.tap()
+
+        // The option appears in the list under its canonical value
+        let customRow = toggleElement("tracking-option-trigger-red_wine")
         scrollToInList(customRow)
         UITestHelpers.waitForElement(customRow)
 
@@ -81,6 +83,62 @@ final class TrackingOptionsUITests: XCTestCase {
         UITestHelpers.waitForDashboard(in: app)
     }
 
+    func testManageOptions_duplicateRejected_deleteCustom_reshowBuiltIn() throws {
+        openTrackingOptions()
+
+        // Step 1: Adding a symptom that duplicates a built-in display name is rejected
+        let addSymptom = app.buttons["tracking-options-add-symptom"]
+        scrollToInList(addSymptom)
+        UITestHelpers.waitForHittable(addSymptom)
+        addSymptom.tap()
+
+        var nameField = app.textFields["tracking-option-name-field"]
+        UITestHelpers.waitForElement(nameField)
+        nameField.tap()
+        nameField.typeText("Nausea")
+        app.buttons["tracking-option-add-confirm"].tap()
+
+        let errorAlert = app.alerts["Couldn't Add Option"]
+        UITestHelpers.waitForElement(errorAlert)
+        errorAlert.buttons["OK"].tap()
+        app.buttons["Cancel"].tap()
+
+        // Step 2: Add a typed symptom that matches a catalog entry — it is
+        // canonicalized to snake_case — then delete it via swipe
+        scrollToInList(addSymptom)
+        UITestHelpers.waitForHittable(addSymptom)
+        addSymptom.tap()
+
+        nameField = app.textFields["tracking-option-name-field"]
+        UITestHelpers.waitForElement(nameField)
+        nameField.tap()
+        nameField.typeText("Brain Fog")
+        app.buttons["tracking-option-add-confirm"].tap()
+
+        let customRow = toggleElement("tracking-option-symptom-brain_fog")
+        scrollToInList(customRow)
+        UITestHelpers.waitForElement(customRow)
+
+        customRow.swipeLeft()
+        let deleteButton = app.buttons["tracking-option-delete-brain_fog"]
+        UITestHelpers.waitForHittable(deleteButton)
+        deleteButton.tap()
+        UITestHelpers.waitForElementToDisappear(customRow)
+
+        // Step 3: Hide a built-in pain quality, then re-show it.
+        // Pain Qualities is the first section — scroll back up to it.
+        let dullToggle = toggleElement("tracking-option-pain_quality-dull")
+        let listView = app.collectionViews.firstMatch.exists
+            ? app.collectionViews.firstMatch
+            : app.tables.firstMatch
+        if !dullToggle.isHittable && listView.exists {
+            UITestHelpers.scrollUpToElement(dullToggle, in: listView)
+        }
+        UITestHelpers.waitForHittable(dullToggle)
+        turnOff(dullToggle)
+        setToggle(dullToggle, on: true)
+    }
+
     // MARK: - Helpers
 
     private func openTrackingOptions() {
@@ -112,15 +170,19 @@ final class TrackingOptionsUITests: XCTestCase {
     /// control (or the row's right edge, where the control sits) and verify
     /// the value actually changed.
     private func turnOff(_ toggle: XCUIElement) {
+        setToggle(toggle, on: false)
+    }
+
+    private func setToggle(_ toggle: XCUIElement, on: Bool) {
         let control = toggle.switches.firstMatch.exists ? toggle.switches.firstMatch : toggle
         control.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
 
-        let isOff = NSPredicate(format: "value == '0'")
+        let predicate = NSPredicate(format: "value == %@", on ? "1" : "0")
         let result = XCTWaiter.wait(
-            for: [XCTNSPredicateExpectation(predicate: isOff, object: control)],
+            for: [XCTNSPredicateExpectation(predicate: predicate, object: control)],
             timeout: UITestHelpers.defaultTimeout
         )
-        XCTAssertEqual(result, .completed, "Toggle \(toggle) did not turn off")
+        XCTAssertEqual(result, .completed, "Toggle \(toggle) did not switch \(on ? "on" : "off")")
     }
 
     private func scrollToInList(_ element: XCUIElement) {

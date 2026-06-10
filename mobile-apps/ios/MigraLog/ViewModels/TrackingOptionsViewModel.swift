@@ -85,6 +85,35 @@ final class TrackingOptionsViewModel {
         return builtIns + customs
     }
 
+    // MARK: - Suggestions
+
+    struct Suggestion: Identifiable {
+        let value: String
+        let displayName: String
+
+        var id: String { value }
+    }
+
+    /// Catalog values offered via autocomplete when adding to `category`:
+    /// every suggested value not already present (as an active built-in,
+    /// override or custom row), filtered by `query` (case-insensitive
+    /// substring on the display name; empty query returns all).
+    func suggestions(for category: TrackingOptionCategory, query: String) -> [Suggestion] {
+        let taken = Set(
+            (category.builtInValues + options.filter { $0.category == category }.map(\.value))
+                .map { $0.lowercased() }
+        )
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        return category.suggestedValues
+            .filter { !taken.contains($0.lowercased()) }
+            .map { Suggestion(value: $0, displayName: category.displayName(forValue: $0)) }
+            .filter {
+                trimmed.isEmpty
+                    || $0.displayName.localizedCaseInsensitiveContains(trimmed)
+                    || $0.value.localizedCaseInsensitiveContains(trimmed)
+            }
+    }
+
     // MARK: - Mutations
 
     /// Adds a custom option. Returns true on success; on a duplicate or

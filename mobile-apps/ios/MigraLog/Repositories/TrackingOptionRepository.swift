@@ -19,12 +19,31 @@ enum TrackingOptionCategory: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// Raw values of the options that ship with the app, in display order.
+    var singularDisplayName: String {
+        switch self {
+        case .painQuality: return "Pain Quality"
+        case .symptom: return "Symptom"
+        case .trigger: return "Trigger"
+        }
+    }
+
+    /// Raw values of the options that ship enabled, in display order.
     var builtInValues: [String] {
         switch self {
         case .painQuality: return PainQuality.allCases.map(\.rawValue)
         case .symptom: return Symptom.allCases.map(\.rawValue)
         case .trigger: return Trigger.allCases.map(\.rawValue)
+        }
+    }
+
+    /// Raw values of the suggested catalog (well-known options offered via
+    /// autocomplete when adding), in display order. Disjoint from
+    /// `builtInValues`.
+    var suggestedValues: [String] {
+        switch self {
+        case .painQuality: return PainQuality.suggested.map(\.rawValue)
+        case .symptom: return Symptom.suggested.map(\.rawValue)
+        case .trigger: return Trigger.suggested.map(\.rawValue)
         }
     }
 
@@ -34,6 +53,18 @@ enum TrackingOptionCategory: String, CaseIterable, Identifiable, Sendable {
         case .painQuality: return PainQuality(rawValue: value).displayName
         case .symptom: return Symptom(rawValue: value).displayName
         case .trigger: return Trigger(rawValue: value).displayName
+        }
+    }
+
+    /// Canonical raw value for typed input: if `text` matches a built-in or
+    /// suggested value (by raw value or display name, case-insensitively),
+    /// returns its snake_case raw value; otherwise nil. Keeps user-entered
+    /// names from becoming verbatim near-duplicates of catalog values.
+    func canonicalValue(matching text: String) -> String? {
+        switch self {
+        case .painQuality: return PainQuality.known(matching: text)?.rawValue
+        case .symptom: return Symptom.known(matching: text)?.rawValue
+        case .trigger: return Trigger.known(matching: text)?.rawValue
         }
     }
 }
@@ -126,10 +157,15 @@ final class TrackingOptionRepository: TrackingOptionRepositoryProtocol {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw TrackingOptionError.emptyValue }
 
+        // Store the canonical snake_case value when the input matches a
+        // catalog entry, so the same concept serializes identically for
+        // every user; otherwise keep the user's text verbatim.
+        let storedValue = category.canonicalValue(matching: trimmed) ?? trimmed
+
         let existing = category.builtInValues
             + (try getOptions(category: category).map(\.value))
         let collides = existing.contains {
-            $0.caseInsensitiveCompare(trimmed) == .orderedSame
+            $0.caseInsensitiveCompare(storedValue) == .orderedSame
                 || category.displayName(forValue: $0).caseInsensitiveCompare(trimmed) == .orderedSame
         }
         guard !collides else { throw TrackingOptionError.duplicateValue }
@@ -137,7 +173,7 @@ final class TrackingOptionRepository: TrackingOptionRepositoryProtocol {
         let option = TrackingOption(
             id: UUID().uuidString,
             category: category,
-            value: trimmed,
+            value: storedValue,
             isBuiltIn: false,
             isHidden: false,
             createdAt: TimestampHelper.now,
