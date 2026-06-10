@@ -7,12 +7,16 @@ options:
   generateEmptyDirectories: true
 
 packages:
+  # Pinned exactly for reproducible builds — the resolved Package.resolved lives
+  # inside the git-ignored xcodeproj, so floating `from:` ranges let CI drift
+  # silently. Bumped weekly by .github/workflows/swift-deps-update.yml
+  # (Dependabot's swift ecosystem can't read XcodeGen manifests).
   GRDB:
     url: https://github.com/groue/GRDB.swift
-    from: "7.0.0"
+    exactVersion: "7.11.0"
   Sentry:
     url: https://github.com/getsentry/sentry-cocoa
-    from: "8.0.0"
+    exactVersion: "8.58.3"
 
 settings:
   base:
