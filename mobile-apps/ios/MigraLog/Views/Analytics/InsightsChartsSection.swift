@@ -427,6 +427,11 @@ struct MonthlySummaryCard: View {
         .frame(width: labelWidth, alignment: .leading)
     }
 
+    /// True while at least one column is hidden past the trailing edge.
+    private var showMoreHint: Bool {
+        scrollMetrics.contentWidth - scrollMetrics.offsetX > viewportWidth + 2
+    }
+
     private var scrollableValueColumns: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
@@ -446,10 +451,20 @@ struct MonthlySummaryCard: View {
                     valueRow(row)
                 }
             }
-            .reportHorizontalScrollMetrics(in: "monthly-summary-scroll")
+            .background(
+                GeometryReader { geometry in
+                    let frame = geometry.frame(in: .named("monthly-summary-scroll"))
+                    Color.clear
+                        .onAppear {
+                            scrollMetrics = HorizontalScrollMetrics(offsetX: -frame.minX, contentWidth: frame.width)
+                        }
+                        .onChange(of: frame) { _, newFrame in
+                            scrollMetrics = HorizontalScrollMetrics(offsetX: -newFrame.minX, contentWidth: newFrame.width)
+                        }
+                }
+            )
         }
         .coordinateSpace(name: "monthly-summary-scroll")
-        .onPreferenceChange(HorizontalScrollMetricsKey.self) { scrollMetrics = $0 }
         .background(
             GeometryReader { geometry in
                 Color.clear
@@ -458,7 +473,7 @@ struct MonthlySummaryCard: View {
             }
         )
         .overlay(alignment: .trailing) {
-            if scrollMetrics.contentWidth - scrollMetrics.offsetX > viewportWidth + 2 {
+            if showMoreHint {
                 ScrollMoreHint()
             }
         }
@@ -494,34 +509,11 @@ struct MonthlySummaryCard: View {
 
 // MARK: - Horizontal scroll affordance
 
-/// Offset + content width of a horizontally scrolling table, reported via
-/// preference so the container can show a "more content" hint.
+/// Offset + content width of a horizontally scrolling table, used to decide
+/// whether a "more content" hint should show.
 private struct HorizontalScrollMetrics: Equatable {
     var offsetX: CGFloat = 0
     var contentWidth: CGFloat = 0
-}
-
-private struct HorizontalScrollMetricsKey: PreferenceKey {
-    static var defaultValue = HorizontalScrollMetrics()
-    static func reduce(value: inout HorizontalScrollMetrics, nextValue: () -> HorizontalScrollMetrics) {
-        value = nextValue()
-    }
-}
-
-private extension View {
-    func reportHorizontalScrollMetrics(in coordinateSpace: String) -> some View {
-        background(
-            GeometryReader { geometry in
-                Color.clear.preference(
-                    key: HorizontalScrollMetricsKey.self,
-                    value: HorizontalScrollMetrics(
-                        offsetX: -geometry.frame(in: .named(coordinateSpace)).minX,
-                        contentWidth: geometry.size.width
-                    )
-                )
-            }
-        )
-    }
 }
 
 /// Trailing-edge gradient + chevron shown while more columns are off-screen.
@@ -534,10 +526,10 @@ private struct ScrollMoreHint: View {
                 endPoint: .trailing
             )
             Image(systemName: "chevron.right")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.tertiary)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
         }
-        .frame(width: 28)
+        .frame(width: 32)
         .allowsHitTesting(false)
     }
 }

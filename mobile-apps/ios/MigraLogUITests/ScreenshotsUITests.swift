@@ -136,6 +136,14 @@ final class ScreenshotsUITests: XCTestCase {
         let insightsSegment = app.buttons["Insights"]
         UITestHelpers.waitForHittable(insightsSegment).tap()
         Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
+
+        // 90d range: multiple summary months so the table overflows on iPhone
+        // (exercises the pinned labels + scroll hint).
+        let range90d = app.buttons["time-range-90"]
+        if range90d.waitForExistence(timeout: 5) {
+            range90d.tap()
+            Thread.sleep(forTimeInterval: 1.0)
+        }
         let scroll = app.scrollViews.firstMatch
 
         let headacheBurden = app.staticTexts["Headache Burden"]
