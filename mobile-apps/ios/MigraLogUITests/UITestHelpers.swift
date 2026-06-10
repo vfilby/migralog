@@ -81,6 +81,13 @@ enum UITestHelpers {
     }
 
     /// Wait for an element to become hittable (visible and interactable).
+    ///
+    /// Polls existence + a non-empty frame before querying `isHittable`. Right after
+    /// launch the dashboard's root `GeometryReader` can briefly report a zero size,
+    /// giving its children an empty frame; querying `isHittable` in that window raises
+    /// "Activation point invalid / no suggested hit points based on element frame" and
+    /// fails the wait even though the element settles a moment later. Guarding on the
+    /// frame skips that transient and waits it out instead of failing on it.
     @discardableResult
     static func waitForHittable(
         _ element: XCUIElement,
@@ -88,10 +95,14 @@ enum UITestHelpers {
         file: StaticString = #file,
         line: UInt = #line
     ) -> XCUIElement {
-        let predicate = NSPredicate(format: "isHittable == true")
-        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
-        let result = XCTWaiter.wait(for: [expectation], timeout: timeout)
-        XCTAssertEqual(result, .completed, "Element \(element) did not become hittable within \(timeout)s", file: file, line: line)
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if element.exists && !element.frame.isEmpty && element.isHittable {
+                return element
+            }
+            Thread.sleep(forTimeInterval: 0.1)
+        }
+        XCTFail("Element \(element) did not become hittable within \(timeout)s", file: file, line: line)
         return element
     }
 
