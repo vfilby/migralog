@@ -115,6 +115,9 @@ struct EpisodeCardView: View {
 struct EpisodeListRowView: View {
     let episode: Episode
     let readings: [IntensityReading]
+    /// Swaps the "Ongoing" pill to white-on-translucent-white so it stays
+    /// legible on the accent-colored selection background.
+    var isSelected: Bool = false
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
@@ -127,8 +130,8 @@ struct EpisodeListRowView: View {
                             .font(.caption)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(Color.red.opacity(0.2))
-                            .foregroundStyle(.red)
+                            .background(isSelected ? Color.white.opacity(0.25) : Color.red.opacity(0.2))
+                            .foregroundStyle(isSelected ? .white : .red)
                             .clipShape(Capsule())
                     }
                 }
@@ -197,7 +200,8 @@ struct EpisodesListColumn: View {
                 List(viewModel.episodes, selection: $selectedEpisodeId) { episode in
                     EpisodeListRowView(
                         episode: episode,
-                        readings: viewModel.readingsMap[episode.id] ?? []
+                        readings: viewModel.readingsMap[episode.id] ?? [],
+                        isSelected: episode.id == selectedEpisodeId
                     )
                     .tag(episode.id)
                 }

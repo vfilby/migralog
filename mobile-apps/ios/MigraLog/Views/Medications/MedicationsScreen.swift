@@ -119,8 +119,11 @@ struct MedicationRowView: View {
 
 /// Plain list row for Medications iPad list column.
 /// Avoids `.secondary` foreground styles that fade on List selection highlight.
+/// `isSelected` swaps the chips to white-on-translucent-white so they stay
+/// legible on the accent-colored selection background.
 struct MedicationListRowView: View {
     let medication: Medication
+    var isSelected: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -131,14 +134,14 @@ struct MedicationListRowView: View {
                 .font(.subheadline)
                 .foregroundStyle(.primary)
             HStack(spacing: 6) {
-                MedicationTypeBadge(type: medication.type)
+                MedicationTypeBadge(type: medication.type, onSelectionHighlight: isSelected)
                 if let category = medication.category {
                     Text(category.displayName)
                         .font(.caption2.weight(.semibold))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
-                        .foregroundStyle(.primary)
-                        .background(Color(.systemGray5))
+                        .foregroundStyle(isSelected ? .white : .primary)
+                        .background(isSelected ? Color.white.opacity(0.25) : Color(.systemGray5))
                         .clipShape(Capsule())
                 }
             }
@@ -158,7 +161,7 @@ struct MedicationsListColumn: View {
             if !viewModel.preventativeMedications.isEmpty {
                 Section("Preventative") {
                     ForEach(viewModel.preventativeMedications) { med in
-                        MedicationListRowView(medication: med)
+                        MedicationListRowView(medication: med, isSelected: med.id == selectedMedicationId)
                             .tag(med.id)
                     }
                 }
@@ -167,7 +170,7 @@ struct MedicationsListColumn: View {
             if !viewModel.rescueMedications.isEmpty {
                 Section("Rescue") {
                     ForEach(viewModel.rescueMedications) { med in
-                        MedicationListRowView(medication: med)
+                        MedicationListRowView(medication: med, isSelected: med.id == selectedMedicationId)
                             .tag(med.id)
                     }
                 }
@@ -176,7 +179,7 @@ struct MedicationsListColumn: View {
             if !viewModel.otherMedications.isEmpty {
                 Section("Other") {
                     ForEach(viewModel.otherMedications) { med in
-                        MedicationListRowView(medication: med)
+                        MedicationListRowView(medication: med, isSelected: med.id == selectedMedicationId)
                             .tag(med.id)
                     }
                 }
@@ -223,9 +226,12 @@ struct MedicationsListColumn: View {
     }
 }
 
-/// Colored badge for medication type (Preventative/Rescue/Other)
+/// Colored badge for medication type (Preventative/Rescue/Other).
+/// `onSelectionHighlight` switches to white-on-translucent-white for
+/// legibility on a List selection's accent-colored background.
 struct MedicationTypeBadge: View {
     let type: MedicationType
+    var onSelectionHighlight: Bool = false
 
     var body: some View {
         let badgeColor = MedicationTypeColors.color(for: type)
@@ -233,8 +239,8 @@ struct MedicationTypeBadge: View {
             .font(.caption2.weight(.semibold))
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
-            .foregroundStyle(badgeColor)
-            .background(badgeColor.opacity(0.2))
+            .foregroundStyle(onSelectionHighlight ? .white : badgeColor)
+            .background(onSelectionHighlight ? Color.white.opacity(0.25) : badgeColor.opacity(0.2))
             .clipShape(Capsule())
     }
 }
