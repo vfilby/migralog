@@ -128,13 +128,16 @@ final class AccessibilityUITests: XCTestCase {
         app = UITestHelpers.launchWithFixtures()
         UITestHelpers.waitForDashboard(in: app)
 
-        // Step 3: Medication log/skip buttons are tappable
-        let logButton = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Log'")).firstMatch
+        // Step 3: Medication log/skip buttons are tappable. Scoped to the card so
+        // the queries hit the dose-row buttons, not the "Log Medication" action
+        // button (the card contains its accessibility children since #490).
+        let medsCard = app.otherElements["todays-medications-card"]
+        let logButton = medsCard.buttons.matching(NSPredicate(format: "label CONTAINS 'Log'")).firstMatch
         if logButton.waitForExistence(timeout: UITestHelpers.defaultTimeout) {
             XCTAssertTrue(logButton.isHittable, "Log button should be tappable")
         }
 
-        let skipButton = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Skip'")).firstMatch
+        let skipButton = medsCard.buttons.matching(NSPredicate(format: "label CONTAINS 'Skip'")).firstMatch
         if skipButton.waitForExistence(timeout: UITestHelpers.defaultTimeout) {
             XCTAssertTrue(skipButton.isHittable, "Skip button should be tappable")
         }

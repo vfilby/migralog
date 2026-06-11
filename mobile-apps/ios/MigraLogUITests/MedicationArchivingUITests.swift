@@ -112,13 +112,16 @@ final class MedicationArchivingUITests: XCTestCase {
         let medsCard = app.staticTexts["Today's Medications"]
         UITestHelpers.waitForElement(medsCard)
 
-        // Step 11: Log a dose
-        let logButton = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Log'")).firstMatch
+        // Step 11: Log a dose. Scope to the card — an app-level 'Log' firstMatch
+        // resolves to the "Log Medication" action button since the card contains
+        // its accessibility children (#490).
+        let medsCardContainer = app.otherElements["todays-medications-card"]
+        let logButton = medsCardContainer.buttons.matching(NSPredicate(format: "label CONTAINS 'Log'")).firstMatch
         if logButton.waitForExistence(timeout: UITestHelpers.defaultTimeout) {
             logButton.tap()
             Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
 
-            let takenLabel = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Taken at'")).firstMatch
+            let takenLabel = medsCardContainer.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Taken at'")).firstMatch
             UITestHelpers.waitForElement(takenLabel)
         }
     }
