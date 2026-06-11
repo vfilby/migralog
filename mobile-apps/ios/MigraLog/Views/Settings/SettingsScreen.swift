@@ -86,16 +86,14 @@ struct SettingsScreen: View {
 // MARK: - Theme Section
 
 struct ThemeSectionView: View {
-    @AppStorage("selectedTheme") private var selectedTheme: String = "system"
+    @AppStorage("selectedTheme") private var selectedTheme: ThemePreference = .system
 
     var body: some View {
         Picker("Theme", selection: $selectedTheme) {
-            Text("Light").tag("light")
-                .accessibilityIdentifier("theme-light")
-            Text("Dark").tag("dark")
-                .accessibilityIdentifier("theme-dark")
-            Text("System").tag("system")
-                .accessibilityIdentifier("theme-system")
+            ForEach(ThemePreference.allCases) { theme in
+                Text(theme.displayName).tag(theme)
+                    .accessibilityIdentifier("theme-\(theme.rawValue)")
+            }
         }
         .pickerStyle(.segmented)
     }
