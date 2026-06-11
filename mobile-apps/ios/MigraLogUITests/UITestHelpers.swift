@@ -122,11 +122,44 @@ enum UITestHelpers {
     /// app has not reached idle (e.g. the screen we're leaving is still reloading). On a
     /// loaded CI runner that settle can exceed the default 5s window, so we wait longer
     /// here rather than fail a navigation that would otherwise succeed.
-    static func navigateTo(tab: Tab, in app: XCUIApplication) {
+    ///
+    /// Under reload churn SwiftUI's `TabView` can also drop a tap-initiated tab switch:
+    /// the tapped tab highlights, then an in-flight render re-applies the stale selection
+    /// binding and the bar snaps back to the previous tab (#488 — visible in the nightly
+    /// screen recording). Verify the selection stuck and retap if it reverted.
+    static func navigateTo(
+        tab: Tab,
+        in app: XCUIApplication,
+        file: StaticString = #file,
+        line: UInt = #line
+    ) {
         let tabButton = app.tabBars.buttons[tab.rawValue]
-        waitForHittable(tabButton, timeout: 15)
-        tabButton.tap()
-        Thread.sleep(forTimeInterval: animationWait)
+        let maxAttempts = 3
+        for _ in 0..<maxAttempts {
+            waitForHittable(tabButton, timeout: 15, file: file, line: line)
+            tabButton.tap()
+            Thread.sleep(forTimeInterval: animationWait)
+            if waitForSelected(tabButton, timeout: 3) {
+                return
+            }
+        }
+        XCTFail(
+            "Tab \(tab.rawValue) did not stay selected after \(maxAttempts) taps (selection reverted)",
+            file: file,
+            line: line
+        )
+    }
+
+    /// Poll until the element reports `isSelected`. Returns whether it became selected.
+    private static func waitForSelected(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if element.exists && element.isSelected {
+                return true
+            }
+            Thread.sleep(forTimeInterval: 0.1)
+        }
+        return false
     }
 
     // MARK: - Flexible Element Finding
@@ -173,6 +206,16 @@ enum UITestHelpers {
         file: StaticString = #file,
         line: UInt = #line
     ) {
+        // Swiping a container that hasn't rendered yet crashes the whole test with an
+        // unresolvable query error (#488); assert existence first for a clear failure.
+        if !element.isHittable {
+            XCTAssertTrue(
+                scrollView.waitForExistence(timeout: defaultTimeout),
+                "Scroll container \(scrollView) does not exist",
+                file: file,
+                line: line
+            )
+        }
         var scrollCount = 0
         while !element.isHittable && scrollCount < maxScrolls {
             scrollView.swipeUp()
