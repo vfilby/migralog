@@ -146,7 +146,7 @@ struct EpisodeDetailScreen: View {
             NavigationStack {
                 EditDoseFromTimelineScreen(
                     dose: doseWithMed.dose,
-                    medicationName: doseWithMed.medication.name,
+                    medication: doseWithMed.medication,
                     viewModel: viewModel
                 )
             }
