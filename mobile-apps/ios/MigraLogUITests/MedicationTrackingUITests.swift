@@ -26,10 +26,16 @@ final class MedicationTrackingUITests: XCTestCase {
         let medsCardTitle = app.staticTexts["Today's Medications"]
         UITestHelpers.waitForElement(medsCardTitle)
 
+        // Scope queries to the card: an app-level `label CONTAINS 'Log'` firstMatch
+        // resolves to the "Log Medication" action button now that the card contains
+        // its accessibility children (#490), and 'Undo' would match the daily-status
+        // widget's Undo.
+        let medsCard = app.otherElements["todays-medications-card"]
+
         // === Phase 2: Log medication ===
 
         // Step 2-3: Find medication with Log/Skip buttons and tap Log
-        let logButton = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Log'")).firstMatch
+        let logButton = medsCard.buttons.matching(NSPredicate(format: "label CONTAINS 'Log'")).firstMatch
         UITestHelpers.waitForHittable(logButton)
         logButton.tap()
         Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
@@ -37,11 +43,11 @@ final class MedicationTrackingUITests: XCTestCase {
         // === Phase 3: Verify UI ===
 
         // Step 4: "Taken at" label appears
-        let takenLabel = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Taken at'")).firstMatch
+        let takenLabel = medsCard.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Taken at'")).firstMatch
         UITestHelpers.waitForElement(takenLabel)
 
         // Step 5: Undo button visible
-        let undoButton = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Undo'")).firstMatch
+        let undoButton = medsCard.buttons.matching(NSPredicate(format: "label CONTAINS 'Undo'")).firstMatch
         XCTAssertTrue(undoButton.waitForExistence(timeout: UITestHelpers.defaultTimeout),
                        "Undo button should be visible after logging")
 
@@ -52,10 +58,10 @@ final class MedicationTrackingUITests: XCTestCase {
         Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
 
         // Step 8: Log and Skip buttons reappear
-        let logButtonAfterUndo = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Log'")).firstMatch
+        let logButtonAfterUndo = medsCard.buttons.matching(NSPredicate(format: "label CONTAINS 'Log'")).firstMatch
         UITestHelpers.waitForElement(logButtonAfterUndo)
 
-        let skipButton = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Skip'")).firstMatch
+        let skipButton = medsCard.buttons.matching(NSPredicate(format: "label CONTAINS 'Skip'")).firstMatch
         XCTAssertTrue(skipButton.waitForExistence(timeout: UITestHelpers.defaultTimeout),
                        "Skip button should reappear after undo")
 
@@ -66,7 +72,7 @@ final class MedicationTrackingUITests: XCTestCase {
         Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
 
         // Step 10: "Skipped" label appears
-        let skippedLabel = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Skipped'")).firstMatch
+        let skippedLabel = medsCard.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Skipped'")).firstMatch
         UITestHelpers.waitForElement(skippedLabel)
     }
 
@@ -106,8 +112,11 @@ final class MedicationTrackingUITests: XCTestCase {
     // MARK: - 4.3 Status sync between Dashboard and Medications screen
 
     func testStatusSyncBetweenScreens() throws {
+        // Scoped to the card for the same reason as testPreventativeMedicationLogging.
+        let medsCard = app.otherElements["todays-medications-card"]
+
         // Step 1: Verify unlogged medication on dashboard
-        let skipButton = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Skip'")).firstMatch
+        let skipButton = medsCard.buttons.matching(NSPredicate(format: "label CONTAINS 'Skip'")).firstMatch
         UITestHelpers.waitForElement(skipButton)
 
         // Step 2: Navigate to Medications tab
@@ -117,13 +126,13 @@ final class MedicationTrackingUITests: XCTestCase {
 
         // Step 3: Return to Dashboard, skip medication
         UITestHelpers.navigateTo(tab: .dashboard, in: app)
-        let skipButtonDash = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Skip'")).firstMatch
+        let skipButtonDash = medsCard.buttons.matching(NSPredicate(format: "label CONTAINS 'Skip'")).firstMatch
         UITestHelpers.waitForHittable(skipButtonDash)
         skipButtonDash.tap()
         Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
 
         // Verify skipped status
-        let skippedLabel = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Skipped'")).firstMatch
+        let skippedLabel = medsCard.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Skipped'")).firstMatch
         UITestHelpers.waitForElement(skippedLabel)
 
         // Step 4: Navigate to Medications tab, verify sync
@@ -132,20 +141,20 @@ final class MedicationTrackingUITests: XCTestCase {
 
         // Step 5: Return to Dashboard, undo skip
         UITestHelpers.navigateTo(tab: .dashboard, in: app)
-        let undoButton = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Undo'")).firstMatch
+        let undoButton = medsCard.buttons.matching(NSPredicate(format: "label CONTAINS 'Undo'")).firstMatch
         if undoButton.waitForExistence(timeout: UITestHelpers.defaultTimeout) {
             undoButton.tap()
             Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
         }
 
         // Step 6: Log the medication
-        let logButton = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Log'")).firstMatch
+        let logButton = medsCard.buttons.matching(NSPredicate(format: "label CONTAINS 'Log'")).firstMatch
         UITestHelpers.waitForHittable(logButton)
         logButton.tap()
         Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
 
         // Verify taken status
-        let takenLabel = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Taken at'")).firstMatch
+        let takenLabel = medsCard.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Taken at'")).firstMatch
         UITestHelpers.waitForElement(takenLabel)
 
         // Step 7: Navigate to Medications, verify sync

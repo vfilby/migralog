@@ -15,6 +15,13 @@ final class IPadLayoutAuditUITests: XCTestCase {
     private var app: XCUIApplication!
 
     override func setUpWithError() throws {
+        // Layout-audit tour of iPad layouts; on iPhone the screens it drives
+        // don't exist in this form (e.g. Episodes has no split-view list cells),
+        // so the suite only runs on an iPad destination.
+        try XCTSkipUnless(
+            UIDevice.current.userInterfaceIdiom == .pad,
+            "iPad layout audit requires an iPad destination"
+        )
         continueAfterFailure = false
         XCUIDevice.shared.orientation = .portrait
         app = XCUIApplication()
