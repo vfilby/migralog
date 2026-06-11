@@ -10,25 +10,15 @@ import SwiftUI
 struct InsightsChartsSection: View {
     @Bindable var viewModel: AnalyticsViewModel
 
-    /// Two-up on wide iPad panes, single column on narrow widths. Driven by
-    /// available width, so iPhone layouts are unaffected.
-    private static let pairedColumns = [
-        GridItem(.adaptive(minimum: 420, maximum: .infinity), spacing: 16, alignment: .top)
-    ]
-
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             WarningCalloutsCard(warnings: viewModel.insightWarnings)
-            LazyVGrid(columns: Self.pairedColumns, alignment: .leading, spacing: 16) {
-                MonthlySummaryCard(summaries: viewModel.monthlySummaries, medications: viewModel.summaryMedications)
-                HeadacheBurdenChartCard(points: viewModel.headacheDayTrend)
-            }
+            MonthlySummaryCard(summaries: viewModel.monthlySummaries, medications: viewModel.summaryMedications)
+            HeadacheBurdenChartCard(points: viewModel.headacheDayTrend)
             MedicationOveruseChartCard(series: viewModel.intakeSeries)
-            LazyVGrid(columns: Self.pairedColumns, alignment: .leading, spacing: 16) {
-                SeverityDistributionChartCard(counts: viewModel.severityWeekCounts)
-                TimeOfDayChartCard(bins: viewModel.timeOfDayBins)
-                AdherenceChartCard(weeks: viewModel.weeklyAdherence)
-            }
+            SeverityDistributionChartCard(counts: viewModel.severityWeekCounts)
+            TimeOfDayChartCard(bins: viewModel.timeOfDayBins)
+            AdherenceChartCard(weeks: viewModel.weeklyAdherence)
         }
     }
 }

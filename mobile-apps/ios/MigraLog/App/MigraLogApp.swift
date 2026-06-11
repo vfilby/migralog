@@ -99,6 +99,28 @@ final class AppState {
     var isOnboardingComplete: Bool = false
     var isLoading: Bool = true
 
+    // MARK: - Cross-tab navigation
+
+    /// Tab selection lives here so any screen (e.g. Dashboard cards) can
+    /// switch tabs and preselect an item in that tab's split view.
+    var selectedTab: TabSection = .dashboard
+    /// Selection for the Episodes split view (iPad regular width).
+    var selectedEpisodeId: String?
+    /// Selection for the Medications split view (iPad regular width).
+    var selectedMedicationId: String?
+
+    /// Switch to the Episodes tab with the given episode selected.
+    func showEpisode(_ episodeId: String) {
+        selectedEpisodeId = episodeId
+        selectedTab = .episodes
+    }
+
+    /// Switch to the Medications tab with the given medication selected.
+    func showMedication(_ medicationId: String) {
+        selectedMedicationId = medicationId
+        selectedTab = .medications
+    }
+
     private let onboardingKey = "isOnboardingComplete"
 
     /// Whether the app is running under UI testing mode

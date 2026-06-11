@@ -170,7 +170,64 @@ final class IPadLayoutAuditUITests: XCTestCase {
         }
     }
 
+    // MARK: - Dashboard cross-tab navigation (iPad)
+
+    /// Tapping an episode on the Dashboard should switch to the Episodes tab
+    /// with the episode preselected — list column visible, not a pushed
+    /// detail without the list.
+    func test11_DashboardEpisodeOpensEpisodesTab() throws {
+        try XCTSkipUnless(isIPad, "Cross-tab selection only applies to iPad")
+        navigate(to: "Dashboard")
+        let card = UITestHelpers.findElement("active-episode-card", in: app)
+        UITestHelpers.waitForHittable(card).tap()
+        Thread.sleep(forTimeInterval: 1.0)
+
+        XCTAssertTrue(
+            app.staticTexts["Episode Details"].waitForExistence(timeout: 5),
+            "Episode detail should be shown"
+        )
+        XCTAssertTrue(
+            app.cells.firstMatch.exists,
+            "Episodes list column should be visible alongside the detail"
+        )
+        snapBoth("dashboard-to-episode")
+    }
+
+    /// Same pattern for medications: tapping a medication name on the
+    /// Dashboard switches to the Medications tab with it preselected.
+    func test12_DashboardMedicationOpensMedicationsTab() throws {
+        try XCTSkipUnless(isIPad, "Cross-tab selection only applies to iPad")
+        navigate(to: "Dashboard")
+        // The plain-styled name button may surface as a non-button element
+        // type, so match any descendant by identifier (as findElement does).
+        let link = app.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier BEGINSWITH 'medication-name-link-'")
+        ).firstMatch
+        if !link.waitForExistence(timeout: 5) {
+            let dump = XCTAttachment(string: app.debugDescription)
+            dump.name = "accessibility-tree"
+            dump.lifetime = .keepAlways
+            add(dump)
+        }
+        UITestHelpers.waitForHittable(link).tap()
+        Thread.sleep(forTimeInterval: 1.0)
+
+        XCTAssertTrue(
+            app.staticTexts["Log Dose"].waitForExistence(timeout: 5),
+            "Medication detail should be shown"
+        )
+        XCTAssertTrue(
+            app.staticTexts["Preventative"].exists || app.staticTexts["Rescue"].exists,
+            "Medications list column should be visible alongside the detail"
+        )
+        snapBoth("dashboard-to-medication")
+    }
+
     // MARK: - Helpers
+
+    private var isIPad: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad
+    }
 
     /// Navigate to a top-level section (iPad top pill bar or iPhone tab bar).
     private func navigate(to label: String) {

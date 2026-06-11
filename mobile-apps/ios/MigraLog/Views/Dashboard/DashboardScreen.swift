@@ -285,6 +285,10 @@ struct TodaysMedicationsCard: View {
                 .padding()
                 .background(Color(.secondarySystemBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
+                // Contain children so this identifier stays on the card and
+                // doesn't override the per-row identifiers (e.g.
+                // medication-name-link-*).
+                .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("todays-medications-card")
             }
         }
@@ -295,6 +299,13 @@ struct MedicationScheduleRow: View {
     let item: MedicationScheduleItem
     @Bindable var viewModel: DashboardViewModel
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(AppState.self) private var appState
+
+    private var medicationNameLabel: some View {
+        Text(item.medication.name)
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(.primary)
+    }
 
     private var doseLabel: String {
         MedicationFormatting.formatDose(
@@ -333,16 +344,28 @@ struct MedicationScheduleRow: View {
             }
 
             HStack {
-                NavigationLink {
-                    MedicationDetailScreen(medicationId: item.medication.id)
-                } label: {
-                    Text(item.medication.name)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.primary)
+                // iPad: jump to the Medications tab with this medication
+                // selected so the split-view list stays visible; iPhone
+                // pushes the detail screen as before.
+                if sizeClass == .regular {
+                    Button {
+                        appState.showMedication(item.medication.id)
+                    } label: {
+                        medicationNameLabel
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("medication-name-link-\(item.medication.id)")
+                    .accessibilityHint("Open medication details")
+                } else {
+                    NavigationLink {
+                        MedicationDetailScreen(medicationId: item.medication.id)
+                    } label: {
+                        medicationNameLabel
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("medication-name-link-\(item.medication.id)")
+                    .accessibilityHint("Open medication details")
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("medication-name-link-\(item.medication.id)")
-                .accessibilityHint("Open medication details")
 
                 Spacer()
 
@@ -407,6 +430,8 @@ struct MedicationScheduleRow: View {
 
 struct RecentEpisodesCard: View {
     @Bindable var viewModel: DashboardViewModel
+    @Environment(AppState.self) private var appState
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     private var hasContent: Bool {
         viewModel.currentEpisode != nil || !viewModel.recentEpisodes.isEmpty
@@ -420,31 +445,41 @@ struct RecentEpisodesCard: View {
 
                 // Ongoing episode first
                 if let episode = viewModel.currentEpisode {
-                    NavigationLink {
-                        EpisodeDetailScreen(episodeId: episode.id)
-                    } label: {
-                        EpisodeCardView(
-                            episode: episode,
-                            readings: viewModel.recentReadings[episode.id] ?? []
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("active-episode-card")
+                    episodeLink(episode)
+                        .accessibilityIdentifier("active-episode-card")
                 }
 
                 // Recent closed episodes
                 ForEach(viewModel.recentEpisodes) { episode in
-                    NavigationLink {
-                        EpisodeDetailScreen(episodeId: episode.id)
-                    } label: {
-                        EpisodeCardView(
-                            episode: episode,
-                            readings: viewModel.recentReadings[episode.id] ?? []
-                        )
-                    }
-                    .buttonStyle(.plain)
+                    episodeLink(episode)
                 }
             }
+        }
+    }
+
+    /// On iPad (regular width) switch to the Episodes tab with the episode
+    /// preselected so the split-view list stays visible; on iPhone push the
+    /// detail screen as before.
+    @ViewBuilder
+    private func episodeLink(_ episode: Episode) -> some View {
+        let card = EpisodeCardView(
+            episode: episode,
+            readings: viewModel.recentReadings[episode.id] ?? []
+        )
+        if sizeClass == .regular {
+            Button {
+                appState.showEpisode(episode.id)
+            } label: {
+                card
+            }
+            .buttonStyle(.plain)
+        } else {
+            NavigationLink {
+                EpisodeDetailScreen(episodeId: episode.id)
+            } label: {
+                card
+            }
+            .buttonStyle(.plain)
         }
     }
 }

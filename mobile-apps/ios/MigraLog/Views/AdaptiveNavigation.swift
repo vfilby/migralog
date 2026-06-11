@@ -60,19 +60,20 @@ private enum SplitViewMetrics {
 
 struct EpisodesTab: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
-    @State private var selectedEpisodeId: String?
+    @Environment(AppState.self) private var appState
 
     var body: some View {
+        @Bindable var appState = appState
         if sizeClass == .regular {
             NavigationSplitView {
-                EpisodesListColumn(selectedEpisodeId: $selectedEpisodeId)
+                EpisodesListColumn(selectedEpisodeId: $appState.selectedEpisodeId)
                     .navigationSplitViewColumnWidth(
                         min: SplitViewMetrics.listColumnMin,
                         ideal: SplitViewMetrics.listColumnIdeal,
                         max: SplitViewMetrics.listColumnMax
                     )
             } detail: {
-                if let episodeId = selectedEpisodeId {
+                if let episodeId = appState.selectedEpisodeId {
                     EpisodeDetailScreen(episodeId: episodeId)
                 } else {
                     ContentUnavailableView(
@@ -94,19 +95,20 @@ struct EpisodesTab: View {
 
 struct MedicationsTab: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
-    @State private var selectedMedicationId: String?
+    @Environment(AppState.self) private var appState
 
     var body: some View {
+        @Bindable var appState = appState
         if sizeClass == .regular {
             NavigationSplitView {
-                MedicationsListColumn(selectedMedicationId: $selectedMedicationId)
+                MedicationsListColumn(selectedMedicationId: $appState.selectedMedicationId)
                     .navigationSplitViewColumnWidth(
                         min: SplitViewMetrics.listColumnMin,
                         ideal: SplitViewMetrics.listColumnIdeal,
                         max: SplitViewMetrics.listColumnMax
                     )
             } detail: {
-                if let medicationId = selectedMedicationId {
+                if let medicationId = appState.selectedMedicationId {
                     MedicationDetailScreen(medicationId: medicationId)
                 } else {
                     ContentUnavailableView(
