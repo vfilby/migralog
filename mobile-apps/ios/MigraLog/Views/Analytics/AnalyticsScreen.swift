@@ -99,9 +99,23 @@ struct AnalyticsScreen: View {
 
 struct MonthlyCalendarView: View {
     @Bindable var viewModel: AnalyticsViewModel
+    /// When set, day cells grow so the month grid fills this height
+    /// (wide iPad panes). When nil, cells use the compact 44pt minimum.
+    var fillHeight: CGFloat?
     @State private var displayMonth = Date()
 
     private let weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+
+    /// Vertical space inside the card not occupied by the day grid:
+    /// card padding, month navigation, weekday header, and stack spacing.
+    private static let cardChromeHeight: CGFloat = 110
+
+    private func dayCellHeight(rows: Int) -> CGFloat {
+        guard let fillHeight, rows > 0 else { return 44 }
+        let gridSpacing = CGFloat(rows - 1) * 6
+        let available = fillHeight - Self.cardChromeHeight - gridSpacing
+        return max(44, min(160, available / CGFloat(rows)))
+    }
 
     var body: some View {
         VStack(spacing: 8) {
@@ -141,6 +155,7 @@ struct MonthlyCalendarView: View {
 
             // Calendar grid
             let days = calendarDays(for: displayMonth)
+            let cellHeight = dayCellHeight(rows: days.count / 7)
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 7), spacing: 6) {
                 ForEach(days, id: \.self) { date in
                     if let date = date {
@@ -149,6 +164,7 @@ struct MonthlyCalendarView: View {
                             date: date,
                             status: viewModel.calendarStatuses[dateStr],
                             hasOverlay: viewModel.calendarOverlayDates.contains(dateStr),
+                            minHeight: cellHeight,
                             onTap: {
                                 viewModel.selectedCalendarDate = date
                                 viewModel.showDailyStatusPrompt = true
@@ -157,7 +173,7 @@ struct MonthlyCalendarView: View {
                         .accessibilityIdentifier("calendar-day-\(DateFormatting.dateString(from: date))")
                     } else {
                         Color.clear
-                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .frame(maxWidth: .infinity, minHeight: cellHeight)
                     }
                 }
             }
@@ -212,6 +228,7 @@ struct CalendarDayCell: View {
     let date: Date
     let status: DayStatus?
     let hasOverlay: Bool
+    var minHeight: CGFloat = 44
     let onTap: () -> Void
 
     private var isToday: Bool {
@@ -239,7 +256,7 @@ struct CalendarDayCell: View {
                     .fill(hasOverlay ? Color(.systemGray3) : .clear)
                     .frame(height: 4)
             }
-            .frame(maxWidth: .infinity, minHeight: 44)
+            .frame(maxWidth: .infinity, minHeight: minHeight)
             .background(isToday ? Color.accentColor.opacity(0.1) : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: 6))
         }
@@ -629,19 +646,30 @@ struct AnalyticsVisualizationPane: View {
     @Bindable var viewModel: AnalyticsViewModel
     @State private var selectedSection: AnalyticsSection = .calendar
 
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                AnalyticsSectionPicker(selection: $selectedSection)
+    /// Vertical space above the calendar card: pane padding, the
+    /// Calendar/Insights picker, and the stack spacing below it.
+    private static let paneChromeHeight: CGFloat = 96
 
-                switch selectedSection {
-                case .calendar:
-                    MonthlyCalendarView(viewModel: viewModel)
-                case .insights:
-                    InsightsChartsSection(viewModel: viewModel)
+    var body: some View {
+        GeometryReader { geo in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    AnalyticsSectionPicker(selection: $selectedSection)
+
+                    switch selectedSection {
+                    case .calendar:
+                        // Fill the pane height so the month grid uses the
+                        // wide canvas instead of floating over empty space.
+                        MonthlyCalendarView(
+                            viewModel: viewModel,
+                            fillHeight: geo.size.height - Self.paneChromeHeight
+                        )
+                    case .insights:
+                        InsightsChartsSection(viewModel: viewModel)
+                    }
                 }
+                .padding()
             }
-            .padding()
         }
     }
 }

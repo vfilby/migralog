@@ -16,6 +16,7 @@ struct TrackingOptionsScreen: View {
             }
         }
         .navigationTitle("Tracking Options")
+        .readableContentWidth()
         .navigationBarTitleDisplayMode(.inline)
         .task {
             viewModel.load()

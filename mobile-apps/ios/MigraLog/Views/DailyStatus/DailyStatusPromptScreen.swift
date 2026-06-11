@@ -317,6 +317,7 @@ struct DailyStatusPromptScreen: View {
             await checkinService.topUp()
 
             await viewModel.loadCalendarData(for: date)
+            NotificationCenter.default.post(name: .dailyStatusDataChanged, object: nil)
             dismiss()
         } catch {
             AppLogger.shared.error("Failed to save daily status", error: error)
@@ -329,6 +330,7 @@ struct DailyStatusPromptScreen: View {
             let repo = DailyStatusRepository(dbManager: DatabaseManager.shared)
             try repo.deleteStatus(status.id)
             await viewModel.loadCalendarData(for: date)
+            NotificationCenter.default.post(name: .dailyStatusDataChanged, object: nil)
             dismiss()
         } catch {
             AppLogger.shared.error("Failed to delete daily status", error: error)

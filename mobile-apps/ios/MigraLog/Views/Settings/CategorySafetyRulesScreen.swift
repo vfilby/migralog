@@ -17,6 +17,7 @@ struct CategorySafetyRulesScreen: View {
             }
         }
         .navigationTitle("Medication Safety Limits")
+        .readableContentWidth()
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

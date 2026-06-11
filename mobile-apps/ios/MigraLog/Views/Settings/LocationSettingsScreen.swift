@@ -31,6 +31,7 @@ struct LocationSettingsScreen: View {
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Location Services")
+        .readableContentWidth()
         .onAppear {
             authStatus = LocationService.shared.authorizationStatus
         }

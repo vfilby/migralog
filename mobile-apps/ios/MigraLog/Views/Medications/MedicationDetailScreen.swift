@@ -185,7 +185,7 @@ struct MedicationDetailScreen: View {
             }
             Button("Cancel", role: .cancel) { showDeleteDoseConfirm = nil }
         }
-        .task {
+        .task(id: medicationId) {
             await viewModel.loadMedication(medicationId)
         }
     }

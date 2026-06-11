@@ -64,6 +64,7 @@ struct TestNotificationsScreen: View {
             }
         }
         .navigationTitle("Test Notifications")
+        .readableContentWidth()
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
