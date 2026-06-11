@@ -75,6 +75,40 @@ final class SyncServiceTests: XCTestCase {
         }
         XCTAssertNotNil(service.lastError, "failure recorded for the UI")
     }
+
+    func testForceFullResyncRepushesEditWhosePendingChangeWasLost() async throws {
+        let db = try DatabaseManager(inMemory: true)
+        try insertMedication(db, "m1")
+        let transport = InMemoryCloudKitTransport()
+        let service = SyncService(dbManager: db, transport: transport, backupService: SpyBackupService())
+        try await service.enable()
+
+        // Edit the row, then drop the captured pending change — simulating an edit whose
+        // push was lost, so only a full re-sync can get it to the server.
+        try await db.dbQueue.write {
+            try $0.execute(sql: "UPDATE medications SET name = 'Renamed', updated_at = 2000 WHERE id = 'm1'")
+            try $0.execute(sql: "DELETE FROM sync_pending_changes")
+        }
+
+        let enqueued = try await service.forceFullResync()
+
+        XCTAssertGreaterThan(enqueued, 0)
+        let pushed = transport.record(named: "medications:m1")
+        XCTAssertEqual(pushed?.updatedAt, 2000, "edited row re-pushed with its real LWW timestamp")
+        XCTAssertTrue(pushed?.payload.contains("Renamed") == true)
+    }
+
+    func testForceFullResyncIsNoOpWhenDisabled() async throws {
+        let db = try DatabaseManager(inMemory: true)
+        try insertMedication(db, "m1")
+        let transport = InMemoryCloudKitTransport()
+        let service = SyncService(dbManager: db, transport: transport, backupService: SpyBackupService())
+
+        let enqueued = try await service.forceFullResync()
+
+        XCTAssertEqual(enqueued, 0)
+        XCTAssertNil(transport.record(named: "medications:m1"), "nothing pushed while sync is off")
+    }
 }
 
 private final class SpyBackupService: BackupServiceProtocol {

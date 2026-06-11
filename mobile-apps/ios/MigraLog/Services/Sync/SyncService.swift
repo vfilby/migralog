@@ -87,6 +87,19 @@ final class SyncService {
         try? await syncNow()
     }
 
+    /// Re-enqueue every row in every synced table and run a sync, so devices reconverge
+    /// after a missed window (e.g. changes dropped by an earlier defect). Safe to run
+    /// any time: pushes resolve by last-write-wins, and rows already queued — including
+    /// pending deletes — are left as-is. A no-op while sync is disabled (enabling later
+    /// backfills anyway). Returns the number of rows enqueued.
+    @discardableResult
+    func forceFullResync() async throws -> Int {
+        guard isEnabled else { return 0 }
+        let enqueued = try pendingStore.backfillExistingRows(at: TimestampHelper.now)
+        try await syncNow()
+        return enqueued
+    }
+
     // MARK: - Automatic triggers
 
     /// Start watching the pending queue so a local edit triggers an automatic sync.

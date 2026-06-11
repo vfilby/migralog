@@ -2,7 +2,10 @@ import SwiftUI
 
 struct DeveloperToolsScreen: View {
     @Environment(AppState.self) private var appState
+    @Environment(SyncService.self) private var syncService
     @State private var showResetConfirm = false
+    @State private var showResyncConfirm = false
+    @State private var resyncResult: String?
 
     var body: some View {
         List {
@@ -36,6 +39,34 @@ struct DeveloperToolsScreen: View {
                 }
             }
 
+            Section {
+                Button {
+                    showResyncConfirm = true
+                } label: {
+                    if syncService.isSyncing {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                            Text("Re-syncing…")
+                        }
+                    } else {
+                        Label("Force Re-sync All Data", systemImage: "arrow.triangle.2.circlepath.icloud")
+                    }
+                }
+                .disabled(!syncService.isEnabled || syncService.isSyncing)
+                if let resyncResult {
+                    Text(resyncResult)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } header: {
+                Text("Sync")
+            } footer: {
+                Text(syncService.isEnabled
+                    ? "Re-uploads every local record to iCloud. Devices reconverge by "
+                        + "last-write-wins; run it on each device that has unsynced edits."
+                    : "Enable iCloud Sync in Settings first.")
+            }
+
             Section("Onboarding") {
                 Button("Reset Onboarding") {
                     appState.resetOnboarding()
@@ -45,6 +76,15 @@ struct DeveloperToolsScreen: View {
         .listStyle(.insetGrouped)
         .navigationTitle("Developer Tools")
         .readableContentWidth()
+        .alert("Force Re-sync All Data", isPresented: $showResyncConfirm) {
+            Button("Re-sync") {
+                Task { await forceResync() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Queues every local record for upload and syncs now. "
+                + "Existing data is merged by last-write-wins; nothing is deleted.")
+        }
         .alert("Reset Database", isPresented: $showResetConfirm) {
             Button("Reset", role: .destructive) {
                 try? DatabaseManager.shared.resetDatabase()
@@ -52,6 +92,15 @@ struct DeveloperToolsScreen: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This will delete all data. This action cannot be undone.")
+        }
+    }
+
+    private func forceResync() async {
+        do {
+            let enqueued = try await syncService.forceFullResync()
+            resyncResult = "Re-queued \(enqueued) records and synced."
+        } catch {
+            resyncResult = "Re-sync failed: \(error.localizedDescription)"
         }
     }
 }
