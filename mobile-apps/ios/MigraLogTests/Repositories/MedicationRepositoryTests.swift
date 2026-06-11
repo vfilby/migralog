@@ -310,11 +310,17 @@ final class MedicationRepositoryTests: XCTestCase {
 
         var toUpdate = dose
         toUpdate.quantity = 2.0
+        toUpdate.dosageAmount = 500.0
+        toUpdate.dosageUnit = "mcg"
         let updated = try repo.updateDose(toUpdate)
         XCTAssertEqual(updated.quantity, 2.0)
+        XCTAssertEqual(updated.dosageAmount, 500.0)
+        XCTAssertEqual(updated.dosageUnit, "mcg")
 
         let fetched = try repo.getDosesByMedicationId(med.id)
         XCTAssertEqual(fetched.first?.quantity, 2.0)
+        XCTAssertEqual(fetched.first?.dosageAmount, 500.0)
+        XCTAssertEqual(fetched.first?.dosageUnit, "mcg")
     }
 
     func testDeleteDose() throws {

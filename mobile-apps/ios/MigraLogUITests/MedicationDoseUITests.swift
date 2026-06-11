@@ -96,14 +96,26 @@ final class MedicationDoseUITests: XCTestCase {
                     amountInput.clearAndTypeText("4")
                 }
 
+                // Step 3b: Change dosage strength and unit (e.g. medication was misconfigured)
+                let dosageAmountInput = app.textFields["dose-dosage-amount-input"]
+                if dosageAmountInput.waitForExistence(timeout: UITestHelpers.defaultTimeout) {
+                    dosageAmountInput.tap()
+                    dosageAmountInput.clearAndTypeText("100")
+                }
+                let dosageUnitInput = app.textFields["dose-dosage-unit-input"]
+                if dosageUnitInput.waitForExistence(timeout: UITestHelpers.defaultTimeout) {
+                    dosageUnitInput.tap()
+                    dosageUnitInput.clearAndTypeText("mcg")
+                }
+
                 // Step 4: Tap Save
                 let saveButton = app.buttons["Save"]
                 UITestHelpers.waitForHittable(saveButton)
                 saveButton.tap()
                 Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
 
-                // Step 5: Verify "4 x 50mg" visible
-                let updatedDose = app.staticTexts.matching(NSPredicate(format: "label CONTAINS '4'")).firstMatch
+                // Step 5: Verify "4 × 100mcg" visible
+                let updatedDose = app.staticTexts.matching(NSPredicate(format: "label CONTAINS '100mcg'")).firstMatch
                 UITestHelpers.waitForElement(updatedDose)
 
                 // Step 6: Navigate back to medications list, then away and back to verify persistence
