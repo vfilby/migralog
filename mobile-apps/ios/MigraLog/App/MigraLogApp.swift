@@ -8,6 +8,7 @@ struct MigraLogApp: App {
     /// app finishes launching (BGTaskScheduler requires registration at launch — #462).
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var appState = AppState()
+    @AppStorage("selectedTheme") private var selectedTheme: ThemePreference = .system
 
     /// Notification response handler — must be retained for the lifetime of the app.
     private let notificationResponseHandler: NotificationResponseHandler
@@ -67,6 +68,7 @@ struct MigraLogApp: App {
                 .environment(appState)
                 .environment(timezoneChangeService)
                 .environment(appDelegate.syncService)
+                .preferredColorScheme(selectedTheme.colorScheme)
                 .task {
                     await reconciliationService.reconcile()
                     await medicationNotificationService.topUp()
