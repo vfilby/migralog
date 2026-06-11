@@ -119,6 +119,8 @@ struct MedicationRowView: View {
 
 /// Plain list row for Medications iPad list column.
 /// Avoids `.secondary` foreground styles that fade on List selection highlight.
+/// Chips use explicit colors and opaque backgrounds so they look the same on
+/// the accent-colored selection highlight as on a normal row.
 struct MedicationListRowView: View {
     let medication: Medication
 
@@ -137,8 +139,9 @@ struct MedicationListRowView: View {
                         .font(.caption2.weight(.semibold))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Color(.secondaryLabel))
                         .background(Color(.systemGray5))
+                        .background(Color(.systemBackground))
                         .clipShape(Capsule())
                 }
             }
@@ -223,7 +226,9 @@ struct MedicationsListColumn: View {
     }
 }
 
-/// Colored badge for medication type (Preventative/Rescue/Other)
+/// Colored badge for medication type (Preventative/Rescue/Other).
+/// The tint layers over an opaque base so the badge keeps its color
+/// identity on a List selection's accent-colored highlight.
 struct MedicationTypeBadge: View {
     let type: MedicationType
 
@@ -235,6 +240,7 @@ struct MedicationTypeBadge: View {
             .padding(.vertical, 4)
             .foregroundStyle(badgeColor)
             .background(badgeColor.opacity(0.2))
+            .background(Color(.systemBackground))
             .clipShape(Capsule())
     }
 }

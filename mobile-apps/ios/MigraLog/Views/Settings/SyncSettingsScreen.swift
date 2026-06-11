@@ -45,6 +45,7 @@ struct SyncSettingsScreen: View {
             }
         }
         .navigationTitle("iCloud Sync")
+        .readableContentWidth()
         .alert("Sync Error", isPresented: Binding(
             get: { errorMessage != nil },
             set: { if !$0 { errorMessage = nil } }

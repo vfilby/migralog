@@ -9,7 +9,8 @@ import SwiftUI
 /// the same detail view adapts as the iPad split pane grows/shrinks (rotation,
 /// Split View / Slide Over multitasking).
 ///
-/// `footer` always spans the full width below the columns.
+/// `footer` follows the content on narrow widths; on wide panes it joins the
+/// bottom of the primary column rather than spanning both columns.
 struct AdaptiveDetailLayout<Primary: View, Secondary: View, Footer: View>: View {
     /// Width at or above which the two-column layout is used.
     var breakpoint: CGFloat = 760
@@ -27,9 +28,13 @@ struct AdaptiveDetailLayout<Primary: View, Secondary: View, Footer: View>: View 
             ScrollView {
                 VStack(alignment: .leading, spacing: sectionSpacing) {
                     if geo.size.width >= breakpoint {
+                        // Wide: footer joins the primary column so actions sit
+                        // with the summary instead of stretching pane-wide
+                        // below both columns.
                         HStack(alignment: .top, spacing: columnSpacing) {
                             VStack(alignment: .leading, spacing: sectionSpacing) {
                                 primary()
+                                footer()
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -41,8 +46,8 @@ struct AdaptiveDetailLayout<Primary: View, Secondary: View, Footer: View>: View 
                     } else {
                         primary()
                         secondary()
+                        footer()
                     }
-                    footer()
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)

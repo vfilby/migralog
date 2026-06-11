@@ -75,6 +75,7 @@ struct DataSettingsScreen: View {
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Backup & Export")
+        .readableContentWidth()
         .sheet(isPresented: $showShareSheet, onDismiss: {
             // The export is plaintext health data in tmp — remove it as soon
             // as the share sheet is done with it.

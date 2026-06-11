@@ -77,6 +77,7 @@ struct ScheduledNotificationsScreen: View {
             }
         }
         .navigationTitle("Scheduled Notifications")
+        .readableContentWidth()
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -284,6 +285,7 @@ private struct ScheduledNotificationDetailView: View {
             }
         }
         .navigationTitle("Notification Detail")
+        .readableContentWidth()
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

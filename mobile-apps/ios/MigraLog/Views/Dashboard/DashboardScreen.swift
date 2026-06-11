@@ -3,6 +3,8 @@ import SwiftUI
 struct DashboardScreen: View {
     @Environment(AppState.self) private var appState
     @State private var viewModel = DashboardViewModel()
+    /// Backs the iPad-only "This Month" calendar card; never fetched on iPhone.
+    @State private var calendarViewModel = AnalyticsViewModel()
     @State private var refreshId = UUID()
     @State private var refreshTask: Task<Void, Never>?
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -11,7 +13,7 @@ struct DashboardScreen: View {
         GeometryReader { geo in
             ScrollView {
                 if sizeClass == .regular {
-                    iPadDashboardLayout(width: geo.size.width)
+                    iPadDashboardLayout(width: geo.size.width, height: geo.size.height)
                 } else {
                     iPhoneDashboardLayout
                 }
@@ -59,6 +61,9 @@ struct DashboardScreen: View {
                 refreshId = UUID()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .dailyStatusDataChanged)) { _ in
+            refreshId = UUID()
+        }
     }
 
     // MARK: - iPhone Layout (existing single-column)
@@ -78,18 +83,23 @@ struct DashboardScreen: View {
 
     // MARK: - iPad Layout (adapts to available width / orientation)
 
-    /// Width at/above which the dashboard uses the wide (landscape) two-column
-    /// master arrangement instead of the stacked portrait grid.
-    private static let dashboardLandscapeBreakpoint: CGFloat = 1000
+    /// Width at/above which the dashboard uses the wide (landscape) three-column
+    /// master arrangement instead of the stacked portrait grid. Above 13" iPad
+    /// portrait width (1032) so portrait never gets three cramped columns.
+    private static let dashboardLandscapeBreakpoint: CGFloat = 1100
     /// Cap so content doesn't stretch edge-to-edge on a 13" display.
-    private static let dashboardMaxWidth: CGFloat = 1200
+    private static let dashboardMaxWidth: CGFloat = 1400
+    /// Chrome above the landscape columns: outer padding plus nav bar slack,
+    /// used to size the month calendar to the visible column height.
+    private static let landscapeChromeHeight: CGFloat = 48
 
     @ViewBuilder
-    private func iPadDashboardLayout(width: CGFloat) -> some View {
+    private func iPadDashboardLayout(width: CGFloat, height: CGFloat) -> some View {
         Group {
             if width >= Self.dashboardLandscapeBreakpoint {
-                // Landscape / wide: two balanced columns so the tall cards use
-                // the horizontal space instead of scrolling vertically.
+                // Landscape / wide: three balanced columns — actions, activity,
+                // and the month calendar — so the wide canvas carries real
+                // content instead of trailing whitespace.
                 HStack(alignment: .top, spacing: 16) {
                     VStack(spacing: 16) {
                         TodaysMedicationsCard(viewModel: viewModel)
@@ -105,10 +115,17 @@ struct DashboardScreen: View {
                         RecentEpisodesCard(viewModel: viewModel)
                     }
                     .frame(maxWidth: .infinity, alignment: .top)
+
+                    MonthlyCalendarView(
+                        viewModel: calendarViewModel,
+                        fillHeight: height - Self.landscapeChromeHeight
+                    )
+                    .frame(maxWidth: .infinity, alignment: .top)
                 }
             } else {
                 // Portrait iPad: medications + status side by side, then
-                // full-width actions and recent episodes.
+                // full-width actions, then recent episodes beside the
+                // month calendar.
                 VStack(spacing: 16) {
                     HStack(alignment: .top, spacing: 16) {
                         TodaysMedicationsCard(viewModel: viewModel)
@@ -120,7 +137,12 @@ struct DashboardScreen: View {
                         startEpisodeButton
                         logMedicationButton
                     }
-                    RecentEpisodesCard(viewModel: viewModel)
+                    HStack(alignment: .top, spacing: 16) {
+                        RecentEpisodesCard(viewModel: viewModel)
+                            .frame(maxWidth: .infinity)
+                        MonthlyCalendarView(viewModel: calendarViewModel)
+                            .frame(maxWidth: .infinity)
+                    }
                 }
             }
         }
@@ -263,6 +285,10 @@ struct TodaysMedicationsCard: View {
                 .padding()
                 .background(Color(.secondarySystemBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
+                // Contain children so this identifier stays on the card and
+                // doesn't override the per-row identifiers (e.g.
+                // medication-name-link-*).
+                .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("todays-medications-card")
             }
         }
@@ -273,6 +299,13 @@ struct MedicationScheduleRow: View {
     let item: MedicationScheduleItem
     @Bindable var viewModel: DashboardViewModel
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(AppState.self) private var appState
+
+    private var medicationNameLabel: some View {
+        Text(item.medication.name)
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(.primary)
+    }
 
     private var doseLabel: String {
         MedicationFormatting.formatDose(
@@ -311,16 +344,28 @@ struct MedicationScheduleRow: View {
             }
 
             HStack {
-                NavigationLink {
-                    MedicationDetailScreen(medicationId: item.medication.id)
-                } label: {
-                    Text(item.medication.name)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.primary)
+                // iPad: jump to the Medications tab with this medication
+                // selected so the split-view list stays visible; iPhone
+                // pushes the detail screen as before.
+                if sizeClass == .regular {
+                    Button {
+                        appState.showMedication(item.medication.id)
+                    } label: {
+                        medicationNameLabel
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("medication-name-link-\(item.medication.id)")
+                    .accessibilityHint("Open medication details")
+                } else {
+                    NavigationLink {
+                        MedicationDetailScreen(medicationId: item.medication.id)
+                    } label: {
+                        medicationNameLabel
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("medication-name-link-\(item.medication.id)")
+                    .accessibilityHint("Open medication details")
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("medication-name-link-\(item.medication.id)")
-                .accessibilityHint("Open medication details")
 
                 Spacer()
 
@@ -385,6 +430,8 @@ struct MedicationScheduleRow: View {
 
 struct RecentEpisodesCard: View {
     @Bindable var viewModel: DashboardViewModel
+    @Environment(AppState.self) private var appState
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     private var hasContent: Bool {
         viewModel.currentEpisode != nil || !viewModel.recentEpisodes.isEmpty
@@ -398,31 +445,41 @@ struct RecentEpisodesCard: View {
 
                 // Ongoing episode first
                 if let episode = viewModel.currentEpisode {
-                    NavigationLink {
-                        EpisodeDetailScreen(episodeId: episode.id)
-                    } label: {
-                        EpisodeCardView(
-                            episode: episode,
-                            readings: viewModel.recentReadings[episode.id] ?? []
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("active-episode-card")
+                    episodeLink(episode)
+                        .accessibilityIdentifier("active-episode-card")
                 }
 
                 // Recent closed episodes
                 ForEach(viewModel.recentEpisodes) { episode in
-                    NavigationLink {
-                        EpisodeDetailScreen(episodeId: episode.id)
-                    } label: {
-                        EpisodeCardView(
-                            episode: episode,
-                            readings: viewModel.recentReadings[episode.id] ?? []
-                        )
-                    }
-                    .buttonStyle(.plain)
+                    episodeLink(episode)
                 }
             }
+        }
+    }
+
+    /// On iPad (regular width) switch to the Episodes tab with the episode
+    /// preselected so the split-view list stays visible; on iPhone push the
+    /// detail screen as before.
+    @ViewBuilder
+    private func episodeLink(_ episode: Episode) -> some View {
+        let card = EpisodeCardView(
+            episode: episode,
+            readings: viewModel.recentReadings[episode.id] ?? []
+        )
+        if sizeClass == .regular {
+            Button {
+                appState.showEpisode(episode.id)
+            } label: {
+                card
+            }
+            .buttonStyle(.plain)
+        } else {
+            NavigationLink {
+                EpisodeDetailScreen(episodeId: episode.id)
+            } label: {
+                card
+            }
+            .buttonStyle(.plain)
         }
     }
 }

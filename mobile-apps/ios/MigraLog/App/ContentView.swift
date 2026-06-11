@@ -5,9 +5,9 @@ struct ContentView: View {
     @Environment(TimezoneChangeService.self) private var timezoneChangeService
     @Environment(SyncService.self) private var syncService
     @Environment(\.scenePhase) private var scenePhase
-    @State private var selectedTab: TabSection = .dashboard
 
     var body: some View {
+        @Bindable var appState = appState
         Group {
             if DatabaseManager.initializationError != nil {
                 DatabaseErrorView()
@@ -16,7 +16,7 @@ struct ContentView: View {
             } else if !appState.isOnboardingComplete {
                 WelcomeScreen()
             } else {
-                AdaptiveNavigation(selectedTab: $selectedTab)
+                AdaptiveNavigation(selectedTab: $appState.selectedTab)
             }
         }
         .alert(
@@ -28,7 +28,7 @@ struct ContentView: View {
             presenting: timezoneChangeService.pendingChange
         ) { change in
             Button("Review Schedules") {
-                selectedTab = .medications
+                appState.selectedTab = .medications
                 timezoneChangeService.dismissChange()
             }
             Button("OK", role: .cancel) {

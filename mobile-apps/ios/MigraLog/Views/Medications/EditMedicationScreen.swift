@@ -82,6 +82,7 @@ struct EditMedicationScreen: View {
             }
         }
         .navigationTitle("Edit Medication")
+        .readableContentWidth()
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {

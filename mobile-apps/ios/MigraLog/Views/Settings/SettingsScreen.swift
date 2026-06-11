@@ -80,6 +80,7 @@ struct SettingsScreen: View {
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Settings")
+        .readableContentWidth()
     }
 }
 

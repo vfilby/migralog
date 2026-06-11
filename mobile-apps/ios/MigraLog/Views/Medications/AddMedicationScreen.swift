@@ -127,6 +127,7 @@ struct AddMedicationScreen: View {
             }
         }
         .navigationTitle("Add Medication")
+        .readableContentWidth()
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {

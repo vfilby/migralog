@@ -123,11 +123,14 @@ struct EpisodeListRowView: View {
                     Text(DateFormatting.relativeDate(episode.startDate))
                         .font(.headline)
                     if episode.isActive {
+                        // Tint over an opaque base so the pill keeps its
+                        // color identity on the selection highlight.
                         Text("Ongoing")
                             .font(.caption)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
                             .background(Color.red.opacity(0.2))
+                            .background(Color(.systemBackground))
                             .foregroundStyle(.red)
                             .clipShape(Capsule())
                     }

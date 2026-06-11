@@ -161,7 +161,7 @@ struct EpisodeDetailScreen: View {
         } message: {
             Text("This cannot be undone.")
         }
-        .task {
+        .task(id: episodeId) {
             await viewModel.loadEpisode(episodeId)
         }
     }

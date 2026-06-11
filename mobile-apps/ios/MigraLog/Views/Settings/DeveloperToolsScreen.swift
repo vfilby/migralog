@@ -44,6 +44,7 @@ struct DeveloperToolsScreen: View {
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Developer Tools")
+        .readableContentWidth()
         .alert("Reset Database", isPresented: $showResetConfirm) {
             Button("Reset", role: .destructive) {
                 try? DatabaseManager.shared.resetDatabase()
@@ -77,5 +78,6 @@ struct ErrorLogsScreen: View {
             }
         }
         .navigationTitle("Error Logs")
+        .readableContentWidth()
     }
 }

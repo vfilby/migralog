@@ -83,6 +83,7 @@ struct NotificationSettingsScreen: View {
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Notification Settings")
+        .readableContentWidth()
         .task {
             viewModel.loadSettings()
             await viewModel.syncDailyCheckinNotification()
