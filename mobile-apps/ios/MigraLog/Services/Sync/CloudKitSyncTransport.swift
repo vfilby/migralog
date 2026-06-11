@@ -99,12 +99,18 @@ final class CloudKitSyncTransport: CloudKitTransport, @unchecked Sendable {
         // Last resort after repeated conflicts on the same hot record: force-save what
         // remains so our edit isn't silently lost. Bounded by maxPushAttempts above.
         if !toSave.isEmpty {
+            let results: [CKRecord.ID: Result<CKRecord, Error>]
             do {
-                _ = try await database.modifyRecords(
+                (results, _) = try await database.modifyRecords(
                     saving: toSave, deleting: [], savePolicy: .allKeys, atomically: false
                 )
             } catch {
                 throw Self.mapError(error)
+            }
+            // Even a force-save can fail per-record (quota, size, …) — surface the first
+            // failure so the engine keeps the queue and retries, rather than dropping it.
+            for case .failure(let itemError) in results.values {
+                throw Self.mapError(itemError)
             }
         }
         return serverWon
@@ -113,29 +119,42 @@ final class CloudKitSyncTransport: CloudKitTransport, @unchecked Sendable {
     /// One optimistic-concurrency save pass. Returns the records the server rejected
     /// because it holds a changed version, paired with that server record. Throws (mapped)
     /// for any other failure so the engine keeps the queue and retries.
+    ///
+    /// With `atomically: false`, `modifyRecords` does NOT throw for per-record failures —
+    /// only whole-operation ones. Per-record `.serverRecordChanged` rejections arrive in
+    /// the returned `saveResults` tuple, so reading that tuple is load-bearing: every save
+    /// of an already-existing server record is rejected there (our CKRecords carry no
+    /// change tag) and discarding it loses the update.
     private func saveResolvingConflicts(_ ckRecords: [CKRecord]) async throws -> [(CKRecord.ID, CKRecord)] {
+        let saveResults: [CKRecord.ID: Result<CKRecord, Error>]
         do {
-            _ = try await database.modifyRecords(
+            (saveResults, _) = try await database.modifyRecords(
                 saving: ckRecords, deleting: [], savePolicy: .ifServerRecordUnchanged, atomically: false
             )
-            return []
         } catch {
-            guard let ckError = error as? CKError, ckError.code == .partialFailure,
-                  let perItem = ckError.partialErrorsByItemID else {
-                throw Self.mapError(error)
-            }
-            var conflicts: [(CKRecord.ID, CKRecord)] = []
-            for (key, itemError) in perItem {
-                guard let itemCK = itemError as? CKError, itemCK.code == .serverRecordChanged else {
-                    // A non-conflict per-item failure (zone gone, quota, …) — surface it.
-                    throw Self.mapError(error)
-                }
-                if let id = key as? CKRecord.ID, let server = itemCK.serverRecord {
-                    conflicts.append((id, server))
-                }
-            }
-            return conflicts
+            throw Self.mapError(error)
         }
+        return try Self.conflictedSaves(saveResults)
+    }
+
+    /// Partition per-record save results: successes are dropped, `.serverRecordChanged`
+    /// rejections become conflicts paired with the server's current record, and anything
+    /// else (zone gone, quota, a conflict missing its server record, …) throws so the
+    /// engine keeps the pending queue and retries later — never drop silently. Internal
+    /// for unit testing; the CloudKit round-trip itself can't run in CI.
+    static func conflictedSaves(
+        _ saveResults: [CKRecord.ID: Result<CKRecord, Error>]
+    ) throws -> [(CKRecord.ID, CKRecord)] {
+        var conflicts: [(CKRecord.ID, CKRecord)] = []
+        for (id, result) in saveResults {
+            guard case .failure(let itemError) = result else { continue }
+            guard let itemCK = itemError as? CKError, itemCK.code == .serverRecordChanged,
+                  let server = itemCK.serverRecord else {
+                throw Self.mapError(itemError)
+            }
+            conflicts.append((id, server))
+        }
+        return conflicts
     }
 
     /// Fetch changes since `token` (nil for a first full sync), mapping each changed
