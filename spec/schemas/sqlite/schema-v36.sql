@@ -1,4 +1,4 @@
--- MigraLog SQLite Schema v35
+-- MigraLog SQLite Schema v36
 -- Canonical schema definition for the migraine tracking database.
 -- Source of truth: mobile-apps/ios/MigraLog/Database/DatabaseManager.swift
 --   (createSchema + registered migrations). This .sql is a formal mirror and
@@ -23,6 +23,11 @@
 --   (recoverable tombstones). See sync-schema-v1.sql.
 -- v35: added tracking_options — user customization of the pain-quality / symptom /
 --   trigger pick lists (custom additions + hidden built-ins). Synced.
+-- v36 (#469): added the nullable `last_synced_schema` column to sync_zone_state — the
+--   synced-column manifest (SyncedSchemaManifest, canonical JSON of table → synced
+--   columns) stamped after each completed pull. A mismatch (a migration added synced
+--   columns) makes the sync engine reset the zone change token once and re-pull,
+--   backfilling columns that migrate-on-read dropped before the upgrade.
 --
 -- Conventions:
 --   - All IDs are TEXT (UUIDs)
@@ -306,7 +311,8 @@ CREATE TABLE IF NOT EXISTS sync_zone_state (
   server_change_token BLOB,
   last_sync_at INTEGER CHECK(last_sync_at IS NULL OR last_sync_at > 0),
   last_error TEXT,
-  last_error_at INTEGER CHECK(last_error_at IS NULL OR last_error_at > 0)
+  last_error_at INTEGER CHECK(last_error_at IS NULL OR last_error_at > 0),
+  last_synced_schema TEXT  -- v36 (#469): synced-column manifest at last completed pull
 );
 
 CREATE INDEX IF NOT EXISTS idx_sync_pending_created ON sync_pending_changes(created_at);

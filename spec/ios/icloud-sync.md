@@ -65,6 +65,14 @@ CloudKit's built-in `modificationDate` reflects upload time, not edit time, so w
 
 The losing payload is **never discarded** — see Data Safety below.
 
+**Timestamp ties merge, not pick (#469):** when two versions carry the *same* `updatedAt` but different payloads, that is usually the same logical version seen through different schemas, not a competing edit. If every column both sides hold a value for agrees, the applier performs a non-destructive column merge — remote non-null values fill locally missing/NULL columns, remote NULLs never overwrite, local-only columns are kept — so both devices converge on the column-union. Only a genuine value disagreement falls back to the deterministic payload-byte tiebreak.
+
+## Schema Evolution (#469)
+
+Payloads are column dictionaries and the applier is column-tolerant: incoming columns the local schema doesn't know are dropped (**migrate-on-read**), so a newer device can always sync to an older one. New synced columns MUST be nullable or have a default, or applying an older payload would fail a NOT NULL constraint.
+
+Migrate-on-read leaves a backfill gap: rows pulled *before* a schema upgrade are missing the dropped columns, and the incremental cursor never redelivers them (the source rows haven't changed). To close it, the engine stamps `sync_zone_state.last_synced_schema` with the synced-column manifest (`SyncedSchemaManifest`, canonical JSON of table → synced columns) after each completed pull. When a migration **adds** synced columns or tables, the stored manifest goes stale and the next pull resets the zone change token once, re-pulling the zone; the timestamp-tie merge above backfills the missing columns. Removals don't trigger a re-pull — nothing was dropped on read.
+
 ## Data Safety
 
 Data loss prevention has three layers:

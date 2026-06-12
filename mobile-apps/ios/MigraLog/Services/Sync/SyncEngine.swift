@@ -133,8 +133,22 @@ actor SyncEngine {
     @discardableResult
     func pull(now: Int64) async throws -> Int {
         var applied = 0
-        var token = try zoneStore.state(zoneName: Self.zoneName)?.serverChangeToken
+        let zoneState = try zoneStore.state(zoneName: Self.zoneName)
+        var token = zoneState?.serverChangeToken
         var didResetToken = false
+
+        // #469: if a migration added synced columns since the last pull, already-synced
+        // rows are locally missing those columns (migrate-on-read dropped them) and the
+        // incremental cursor will never redeliver them — the source rows haven't
+        // changed. Drop the cursor once to re-pull the whole zone; the applier's tie
+        // merge backfills the missing columns without touching anything the local rows
+        // legitimately own.
+        let schemaManifest = SyncedSchemaManifest.current
+        if token != nil,
+           SyncedSchemaManifest.addsSyncedColumns(from: zoneState?.lastSyncedSchema, to: schemaManifest) {
+            token = nil
+            try zoneStore.saveChangeToken(nil, zoneName: Self.zoneName, syncedAt: now)
+        }
 
         while true {
             let batch: SyncChangeBatch
@@ -162,6 +176,11 @@ actor SyncEngine {
             token = batch.newToken
             try zoneStore.saveChangeToken(token, zoneName: Self.zoneName, syncedAt: now)
             if !batch.moreComing { break }
+        }
+        // Stamp the manifest only after the pull completed — if a re-pull fails midway
+        // the stored manifest stays stale and the next sync resets the cursor again.
+        if zoneState?.lastSyncedSchema != schemaManifest {
+            try zoneStore.saveSyncedSchema(schemaManifest, zoneName: Self.zoneName)
         }
         return applied
     }

@@ -4,7 +4,7 @@ import GRDB
 /// Central database manager. Owns the DatabaseQueue and handles schema creation/migration.
 final class DatabaseManager: Sendable {
     /// The current schema version
-    static let schemaVersion = 35
+    static let schemaVersion = 36
 
     /// Shared singleton for the app's main database
     static let shared = DatabaseManager()
@@ -184,6 +184,14 @@ final class DatabaseManager: Sendable {
             try DatabaseManager.createSyncCaptureTriggers(in: db, includePayload: true)
         }
 
+        // v36 (#469): add `last_synced_schema` to sync_zone_state — the synced-column
+        // manifest stamped after each completed pull, so the sync engine can detect
+        // that a migration added synced columns and force a one-time full re-pull to
+        // backfill rows synced before the upgrade.
+        migrator.registerMigration("v36") { db in
+            try DatabaseManager.addLastSyncedSchemaColumn(in: db)
+        }
+
         return migrator
     }
 
@@ -276,7 +284,7 @@ final class DatabaseManager: Sendable {
     }
 
     /// Create the v25 baseline schema. Later registered migrations evolve it to the
-    /// current version; see spec/schemas/sqlite/schema-v35.sql for the current end-state.
+    /// current version; see spec/schemas/sqlite/schema-v36.sql for the current end-state.
     // swiftlint:disable:next function_body_length
     static func createSchema(in db: Database) throws {
         // Episodes table
@@ -537,7 +545,8 @@ final class DatabaseManager: Sendable {
                 server_change_token BLOB,
                 last_sync_at INTEGER CHECK(last_sync_at IS NULL OR last_sync_at > 0),
                 last_error TEXT,
-                last_error_at INTEGER CHECK(last_error_at IS NULL OR last_error_at > 0)
+                last_error_at INTEGER CHECK(last_error_at IS NULL OR last_error_at > 0),
+                last_synced_schema TEXT
             )
             """)
         try db.execute(sql: "CREATE INDEX IF NOT EXISTS idx_sync_pending_created ON sync_pending_changes(created_at)")
@@ -578,6 +587,19 @@ final class DatabaseManager: Sendable {
             }
         }
         try DatabaseManager.createSyncCaptureTriggers(in: db, includePayload: true)
+    }
+
+    /// v36 (#469): add the nullable `last_synced_schema` column (the synced-column
+    /// manifest, see SyncedSchemaManifest) to sync_zone_state when missing. Fresh
+    /// installs already create it in createSyncStateTables.
+    static func addLastSyncedSchemaColumn(in db: Database) throws {
+        let columns = try Row.fetchAll(db, sql: "PRAGMA table_info(sync_zone_state)")
+        let hasColumn = columns.contains { (row: Row) in
+            (row["name"] as String?) == "last_synced_schema"
+        }
+        if !hasColumn {
+            try db.execute(sql: "ALTER TABLE sync_zone_state ADD COLUMN last_synced_schema TEXT")
+        }
     }
 
     /// Create `tracking_options` (v35): user customization of the pain-quality /

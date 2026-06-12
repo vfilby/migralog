@@ -17,6 +17,7 @@ final class RemoteChangeApplier: Sendable {
         case noopTombstone      // a tombstone for a row we don't have
         case appliedRemoteWin   // remote newer → local upserted or deleted
         case keptLocalWin       // local newer → remote ignored (engine re-pushes local)
+        case backfilledColumns  // timestamp tie → remote filled locally-NULL columns (#469)
     }
 
     private let dbManager: DatabaseManager
@@ -53,8 +54,38 @@ final class RemoteChangeApplier: Sendable {
             }
 
             let localPayload = try SyncPayloadCodec.encodePayload(row: localRow, table: table)
+            let localUpdatedAt = Self.lwwTimestamp(of: localRow)
+
+            // An exact-timestamp tie between differing payloads is usually not a
+            // competing edit but the same version seen through different schemas —
+            // e.g. the one-time re-pull after a migration added synced columns (#469),
+            // where the remote payload holds columns migrate-on-read dropped before
+            // the upgrade. Merge non-destructively when the shared columns agree;
+            // only a genuine value disagreement falls through to the byte tiebreak.
+            if !record.deleted, record.updatedAt == localUpdatedAt, record.payload != localPayload {
+                let local = try SyncPayloadCodec.decodePayload(localPayload)
+                let remote = try SyncPayloadCodec.decodePayload(record.payload)
+                switch LWWResolver.tieMerge(localPayload: local, remotePayload: remote) {
+                case .keepLocal:
+                    return .keptLocalWin
+                case .fillColumns(let columns):
+                    let existing = try Self.columnNames(of: table.tableName, in: db)
+                    let fillable = columns.filter { existing.contains($0) }
+                    guard !fillable.isEmpty else { return .keptLocalWin }
+                    let assignments = fillable.map { "\($0) = ?" }.joined(separator: ", ")
+                    try db.execute(
+                        sql: "UPDATE \(table.tableName) SET \(assignments) WHERE \(table.primaryKeyColumn) = ?",
+                        arguments: StatementArguments(fillable.map { remote[$0]?.databaseValue ?? .null }
+                            + [record.recordId.databaseValue])
+                    )
+                    return .backfilledColumns
+                case .conflictingValues:
+                    break
+                }
+            }
+
             let winner = LWWResolver.resolve(
-                localUpdatedAt: Self.lwwTimestamp(of: localRow), localPayload: localPayload,
+                localUpdatedAt: localUpdatedAt, localPayload: localPayload,
                 remoteUpdatedAt: record.updatedAt, remotePayload: record.payload
             )
 

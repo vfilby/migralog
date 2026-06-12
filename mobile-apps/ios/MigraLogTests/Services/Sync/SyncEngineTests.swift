@@ -195,6 +195,69 @@ final class SyncEngineTests: XCTestCase {
         XCTAssertEqual(secondApplied, 0, "nothing new since the saved token")
     }
 
+    // MARK: - Schema-upgrade backfill (#469)
+
+    /// Every completed pull stamps the synced-schema manifest, so later pulls can tell
+    /// whether a migration has added synced columns since.
+    func testPullStampsSyncedSchemaManifest() async throws {
+        _ = try await engine.pull(now: 10)
+        XCTAssertEqual(
+            try zoneStore.state(zoneName: SyncEngine.zoneName)?.lastSyncedSchema,
+            SyncedSchemaManifest.current
+        )
+    }
+
+    /// The #469 end-to-end scenario: a record was pulled while this device's schema
+    /// lacked a synced column (`notes`), so the column is NULL locally and the cursor
+    /// is past the record — incremental pulls will never redeliver it. When the stored
+    /// manifest goes stale (the upgrade added the column), the engine must reset the
+    /// cursor once, re-pull the zone, and backfill the column via the tie merge.
+    func testPullBackfillsMissingColumnsAfterSchemaUpgrade() async throws {
+        let rich = SyncRecord(
+            tableName: "medications", recordId: "m1",
+            payload: payload([
+                "id": "m1", "name": "Sumatriptan", "type": "rescue", "dosage_amount": 1.0,
+                "dosage_unit": "mg", "active": Int64(1), "notes": "Take with food",
+                "created_at": Int64(1000), "updated_at": Int64(1000),
+            ]),
+            schemaVersion: 36, updatedAt: 1000, deleted: false
+        )
+        try await transport.push([rich])
+        _ = try await engine.pull(now: 10)
+
+        // Simulate the pre-upgrade state: the older schema dropped `notes` on read…
+        try await dbManager.dbQueue.write { db in
+            try db.execute(sql: "UPDATE medications SET notes = NULL WHERE id = 'm1'")
+        }
+        // …and the stamped manifest predates the column.
+        try zoneStore.saveSyncedSchema("{}", zoneName: SyncEngine.zoneName)
+
+        let applied = try await engine.pull(now: 20)
+        XCTAssertEqual(applied, 1, "stale manifest reset the cursor and redelivered the record")
+        let notes = try await dbManager.dbQueue.read { db in
+            try String.fetchOne(db, sql: "SELECT notes FROM medications WHERE id = 'm1'")
+        }
+        XCTAssertEqual(notes, "Take with food", "dropped column backfilled from the re-pulled record")
+
+        // The manifest is current again: the next pull must be incremental, not a re-pull.
+        let third = try await engine.pull(now: 30)
+        XCTAssertEqual(third, 0, "no second reset once the manifest is stamped")
+    }
+
+    /// An unchanged manifest must never reset the cursor — pulls stay incremental.
+    func testPullDoesNotResetCursorWhenManifestUnchanged() async throws {
+        try await transport.push([remoteMedication("m1", name: "X", updatedAt: 1000)])
+        _ = try await engine.pull(now: 10)
+
+        let tokenBefore = try zoneStore.state(zoneName: SyncEngine.zoneName)?.serverChangeToken
+        let applied = try await engine.pull(now: 20)
+        XCTAssertEqual(applied, 0)
+        XCTAssertEqual(
+            try zoneStore.state(zoneName: SyncEngine.zoneName)?.serverChangeToken, tokenBefore,
+            "cursor untouched when no synced columns were added"
+        )
+    }
+
     // MARK: - Full cycle
 
     func testSyncEnsuresZonePushesAndPulls() async throws {

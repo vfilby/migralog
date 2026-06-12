@@ -201,6 +201,124 @@ final class RemoteChangeApplierTests: XCTestCase {
         }
     }
 
+    // MARK: - Timestamp-tie column merge (#469)
+
+    /// The signature #469 case: a re-pulled record carries the same `updated_at` as the
+    /// local row but holds a column (`notes`) that migrate-on-read dropped before the
+    /// schema upgrade. The applier must fill that column and leave the rest untouched.
+    func testTieFillsLocallyNullColumnFromRicherRemote() throws {
+        try insertMedication("m1", name: "Med", updatedAt: 1000) // notes is NULL
+        let remote = SyncRecord(
+            tableName: "medications", recordId: "m1",
+            payload: makePayload([
+                "id": "m1", "name": "Med", "type": "rescue", "dosage_amount": 1.0,
+                "dosage_unit": "mg", "active": Int64(1), "notes": "From newer device",
+                "created_at": Int64(1000), "updated_at": Int64(1000),
+            ]),
+            schemaVersion: 36, updatedAt: 1000, deleted: false
+        )
+
+        XCTAssertEqual(try applier.apply(remote, now: 10), .backfilledColumns)
+        try dbManager.dbQueue.read { db in
+            let notes = try String.fetchOne(db, sql: "SELECT notes FROM medications WHERE id = 'm1'")
+            XCTAssertEqual(notes, "From newer device", "missing column backfilled")
+            let name = try String.fetchOne(db, sql: "SELECT name FROM medications WHERE id = 'm1'")
+            XCTAssertEqual(name, "Med", "owned columns untouched")
+        }
+        XCTAssertEqual(try conflicts().count, 0, "a fill loses no data, so nothing to archive")
+    }
+
+    /// The mirror case: local is the richer side. The column-deficient remote must not
+    /// displace it (the old byte tiebreak could have).
+    func testTieKeepsLocalWhenRemoteIsColumnDeficient() throws {
+        try insertMedication("m1", name: "Med", updatedAt: 1000)
+        try dbManager.dbQueue.write { db in
+            try db.execute(sql: "UPDATE medications SET notes = 'Local detail' WHERE id = 'm1'")
+        }
+        let remote = SyncRecord(
+            tableName: "medications", recordId: "m1",
+            payload: makePayload([
+                "id": "m1", "name": "Med", "type": "rescue", "dosage_amount": 1.0,
+                "dosage_unit": "mg", "active": Int64(1),
+                "created_at": Int64(1000), "updated_at": Int64(1000),
+            ]),
+            schemaVersion: 31, updatedAt: 1000, deleted: false
+        )
+
+        XCTAssertEqual(try applier.apply(remote, now: 10), .keptLocalWin)
+        try dbManager.dbQueue.read { db in
+            let notes = try String.fetchOne(db, sql: "SELECT notes FROM medications WHERE id = 'm1'")
+            XCTAssertEqual(notes, "Local detail", "richer local row kept")
+        }
+    }
+
+    /// An explicit remote NULL at the same timestamp must not wipe a local value —
+    /// the merge only ever adds data.
+    func testTieRemoteNullDoesNotOverwriteLocalValue() throws {
+        try insertMedication("m1", name: "Med", updatedAt: 1000)
+        try dbManager.dbQueue.write { db in
+            try db.execute(sql: "UPDATE medications SET notes = 'Keep me' WHERE id = 'm1'")
+        }
+        let remote = SyncRecord(
+            tableName: "medications", recordId: "m1",
+            payload: makePayload([
+                "id": "m1", "name": "Med", "type": "rescue", "dosage_amount": 1.0,
+                "dosage_unit": "mg", "active": Int64(1), "notes": nil,
+                "created_at": Int64(1000), "updated_at": Int64(1000),
+            ]),
+            schemaVersion: 31, updatedAt: 1000, deleted: false
+        )
+
+        XCTAssertEqual(try applier.apply(remote, now: 10), .keptLocalWin)
+        try dbManager.dbQueue.read { db in
+            let notes = try String.fetchOne(db, sql: "SELECT notes FROM medications WHERE id = 'm1'")
+            XCTAssertEqual(notes, "Keep me")
+        }
+    }
+
+    /// A genuine same-timestamp conflict (a shared column with two different values)
+    /// still resolves through the deterministic byte tiebreak, not the merge.
+    func testTieWithConflictingValuesFallsBackToByteTiebreak() throws {
+        try insertMedication("m1", name: "AAA", updatedAt: 1000)
+        // Mirror the full local column set so the payloads differ only in `name`, making
+        // the lexicographic outcome unambiguous: "ZZZ" > "AAA" → remote wins.
+        let remote = SyncRecord(
+            tableName: "medications", recordId: "m1",
+            payload: makePayload([
+                "id": "m1", "name": "ZZZ", "type": "rescue", "dosage_amount": 1.0,
+                "dosage_unit": "mg", "default_quantity": nil, "schedule_frequency": nil,
+                "photo_uri": nil, "active": Int64(1), "notes": nil, "category": nil,
+                "created_at": Int64(1000), "updated_at": Int64(1000), "min_interval_hours": nil,
+            ]),
+            schemaVersion: 31, updatedAt: 1000, deleted: false
+        )
+
+        XCTAssertEqual(try applier.apply(remote, now: 10), .appliedRemoteWin)
+        XCTAssertEqual(try medicationName("m1"), "ZZZ")
+    }
+
+    /// A fill column the local schema doesn't know yet (remote is *two* schema versions
+    /// ahead) is dropped from the merge — migrate-on-read still applies.
+    func testTieFillSkipsColumnsUnknownToLocalSchema() throws {
+        try insertMedication("m1", name: "Med", updatedAt: 1000)
+        let remote = SyncRecord(
+            tableName: "medications", recordId: "m1",
+            payload: makePayload([
+                "id": "m1", "name": "Med", "type": "rescue", "dosage_amount": 1.0,
+                "dosage_unit": "mg", "active": Int64(1), "notes": "fillable",
+                "future_column": "not yet known locally",
+                "created_at": Int64(1000), "updated_at": Int64(1000),
+            ]),
+            schemaVersion: 99, updatedAt: 1000, deleted: false
+        )
+
+        XCTAssertEqual(try applier.apply(remote, now: 10), .backfilledColumns)
+        try dbManager.dbQueue.read { db in
+            let notes = try String.fetchOne(db, sql: "SELECT notes FROM medications WHERE id = 'm1'")
+            XCTAssertEqual(notes, "fillable", "known column still fills")
+        }
+    }
+
     /// A payload column the local schema doesn't have (newer remote schema) is dropped,
     /// not an error — basic forward-compatible migrate-on-read.
     func testUnknownPayloadColumnIsDropped() throws {

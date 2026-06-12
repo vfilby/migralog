@@ -34,4 +34,40 @@ enum LWWResolver {
         }
         return .local
     }
+
+    /// How an exact-timestamp tie between two *differing* payloads should be handled
+    /// when the difference may be schema richness rather than a competing edit (#469).
+    enum TieMerge: Equatable, Sendable {
+        /// Remote offers nothing the local row lacks — keep local untouched.
+        case keepLocal
+        /// The payloads agree on every column both sides hold a value for; remote
+        /// additionally has non-null values for these locally missing/NULL columns.
+        /// It's the same logical version — one side just knows more columns.
+        case fillColumns([String])
+        /// Some column carries different values on the two sides — a genuine
+        /// same-timestamp conflict; fall back to the payload-byte tiebreak.
+        case conflictingValues
+    }
+
+    /// Classify an exact-timestamp tie for a non-destructive column merge (#469): a row
+    /// re-pulled after a schema upgrade carries the same `updated_at` as the local copy
+    /// but may hold columns that migrate-on-read dropped before the upgrade. Remote
+    /// NULLs never overwrite local values and local-only columns are always kept, so a
+    /// `.fillColumns` merge can only add data. Convergent: both devices end at the
+    /// column-union of the two payloads.
+    static func tieMerge(
+        localPayload: [String: SyncPayloadCodec.Value],
+        remotePayload: [String: SyncPayloadCodec.Value]
+    ) -> TieMerge {
+        var fill: [String] = []
+        for (column, remoteValue) in remotePayload where remoteValue != .null {
+            let localValue = localPayload[column] ?? .null
+            if localValue == .null {
+                fill.append(column)
+            } else if localValue != remoteValue {
+                return .conflictingValues
+            }
+        }
+        return fill.isEmpty ? .keepLocal : .fillColumns(fill.sorted())
+    }
 }
