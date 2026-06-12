@@ -11,6 +11,10 @@ struct SyncZoneState: Equatable, Sendable {
     let lastSyncAt: Int64?
     let lastError: String?
     let lastErrorAt: Int64?
+    /// The `SyncedSchemaManifest` in effect when this zone last completed a pull (#469).
+    /// When a migration adds synced columns, the stored manifest goes stale and the
+    /// engine forces a one-time full re-pull to backfill them.
+    let lastSyncedSchema: String?
 }
 
 /// Persists the incremental-pull cursor (the `CKServerChangeToken`) per zone, plus
@@ -30,7 +34,8 @@ final class SyncZoneStateStore: Sendable {
             let row = try Row.fetchOne(
                 db,
                 sql: """
-                    SELECT zone_name, server_change_token, last_sync_at, last_error, last_error_at
+                    SELECT zone_name, server_change_token, last_sync_at, last_error, last_error_at,
+                           last_synced_schema
                     FROM sync_zone_state WHERE zone_name = ?
                     """,
                 arguments: [zoneName]
@@ -55,6 +60,22 @@ final class SyncZoneStateStore: Sendable {
                         last_error_at = NULL
                     """,
                 arguments: [zoneName, token, syncedAt]
+            )
+        }
+    }
+
+    /// Persist the synced-schema manifest after a completed pull (#469), without
+    /// disturbing the change token or sync/error bookkeeping.
+    func saveSyncedSchema(_ manifest: String, zoneName: String) throws {
+        try dbManager.dbQueue.write { db in
+            try db.execute(
+                sql: """
+                    INSERT INTO sync_zone_state (zone_name, last_synced_schema)
+                    VALUES (?, ?)
+                    ON CONFLICT(zone_name) DO UPDATE SET
+                        last_synced_schema = excluded.last_synced_schema
+                    """,
+                arguments: [zoneName, manifest]
             )
         }
     }
@@ -85,7 +106,8 @@ final class SyncZoneStateStore: Sendable {
             serverChangeToken: row["server_change_token"] as Data?,
             lastSyncAt: row["last_sync_at"] as Int64?,
             lastError: row["last_error"] as String?,
-            lastErrorAt: row["last_error_at"] as Int64?
+            lastErrorAt: row["last_error_at"] as Int64?,
+            lastSyncedSchema: row["last_synced_schema"] as String?
         )
     }
 }

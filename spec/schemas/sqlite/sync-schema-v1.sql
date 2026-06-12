@@ -29,7 +29,11 @@ CREATE TABLE IF NOT EXISTS sync_zone_state (
   server_change_token BLOB,                       -- CKServerChangeToken (opaque, NSKeyedArchiver'd)
   last_sync_at INTEGER CHECK(last_sync_at IS NULL OR last_sync_at > 0),
   last_error TEXT,
-  last_error_at INTEGER CHECK(last_error_at IS NULL OR last_error_at > 0)
+  last_error_at INTEGER CHECK(last_error_at IS NULL OR last_error_at > 0),
+  last_synced_schema TEXT                         -- v36 (#469): synced-column manifest (canonical JSON of
+                                                  -- table → synced columns) at the last completed pull; a
+                                                  -- mismatch (a migration added synced columns) forces a
+                                                  -- one-time full re-pull that backfills the new columns
 );
 
 -- Pending changes queue (outbound changes waiting to be pushed to CloudKit)

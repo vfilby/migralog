@@ -43,4 +43,56 @@ final class LWWResolverTests: XCTestCase {
         XCTAssertEqual(deviceA, .remote, "device A keeps remote 'y'")
         XCTAssertEqual(deviceB, .local, "device B keeps local 'y'")
     }
+
+    // MARK: - Timestamp-tie column merge (#469)
+
+    func testTieMergeFillsLocallyMissingAndNullColumns() {
+        let result = LWWResolver.tieMerge(
+            localPayload: ["id": .text("m1"), "name": .text("Med"), "notes": .null],
+            remotePayload: ["id": .text("m1"), "name": .text("Med"),
+                            "notes": .text("rich"), "strength": .int(50)]
+        )
+        XCTAssertEqual(result, .fillColumns(["notes", "strength"]),
+                       "remote fills the locally-NULL and locally-missing columns")
+    }
+
+    func testTieMergeKeepsLocalWhenRemoteIsSubset() {
+        let result = LWWResolver.tieMerge(
+            localPayload: ["id": .text("m1"), "name": .text("Med"), "notes": .text("mine")],
+            remotePayload: ["id": .text("m1"), "name": .text("Med")]
+        )
+        XCTAssertEqual(result, .keepLocal, "remote offers nothing new")
+    }
+
+    func testTieMergeRemoteNullNeverOverwritesLocalValue() {
+        let result = LWWResolver.tieMerge(
+            localPayload: ["id": .text("m1"), "notes": .text("mine")],
+            remotePayload: ["id": .text("m1"), "notes": .null]
+        )
+        XCTAssertEqual(result, .keepLocal)
+    }
+
+    func testTieMergeConflictingValuesFallBackToTiebreak() {
+        let result = LWWResolver.tieMerge(
+            localPayload: ["id": .text("m1"), "name": .text("Mine")],
+            remotePayload: ["id": .text("m1"), "name": .text("Theirs"), "notes": .text("x")]
+        )
+        XCTAssertEqual(result, .conflictingValues,
+                       "a genuine value disagreement is not a schema-richness merge")
+    }
+
+    /// Mirror-image merge converges: each device fills the column it lacks, both end
+    /// at the column-union.
+    func testTieMergeConvergesAcrossDevices() {
+        let base: [String: SyncPayloadCodec.Value] = ["id": .text("m1"), "name": .text("Med")]
+        var withNotes = base
+        withNotes["notes"] = .text("n")
+        var withStrength = base
+        withStrength["strength"] = .int(50)
+
+        XCTAssertEqual(LWWResolver.tieMerge(localPayload: withNotes, remotePayload: withStrength),
+                       .fillColumns(["strength"]))
+        XCTAssertEqual(LWWResolver.tieMerge(localPayload: withStrength, remotePayload: withNotes),
+                       .fillColumns(["notes"]))
+    }
 }
