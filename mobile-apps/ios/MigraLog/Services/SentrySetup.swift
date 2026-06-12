@@ -22,6 +22,13 @@ enum SentrySetup {
             options.attachScreenshot = true
             options.enableUserInteractionTracing = true
 
+            // App Hangs V2 (default-on since sentry-cocoa 9.0) reports app
+            // suspension as fully-blocked hangs — including unfilterable
+            // "fatal" hangs when iOS terminates the suspended app (#489).
+            // Watchdog termination tracking stays enabled and still catches
+            // real severe hangs.
+            options.enableAppHangTracking = false
+
             // HIPAA: Scrub sensitive health data before sending
             options.beforeSend = { event in
                 return scrubSensitiveData(from: event)
