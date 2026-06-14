@@ -260,6 +260,148 @@ final class AnalyticsInsightsTests: XCTestCase {
         XCTAssertEqual(bins.map(\.count).reduce(0, +), 3)
     }
 
+    // MARK: - Symptom frequency
+
+    func testSymptomFrequencies_ranksByEpisodeCountWithPercent() {
+        let episodes = [
+            TestFixtures.makeEpisode(id: "ep-1", startTime: ms(daysAgo: 1), symptoms: [.nausea, .aura]),
+            TestFixtures.makeEpisode(id: "ep-2", startTime: ms(daysAgo: 2), symptoms: [.nausea]),
+            TestFixtures.makeEpisode(id: "ep-3", startTime: ms(daysAgo: 3), symptoms: [.nausea, .lightSensitivity]),
+            TestFixtures.makeEpisode(id: "ep-4", startTime: ms(daysAgo: 4), symptoms: []),
+        ]
+
+        let freqs = AnalyticsInsights.symptomFrequencies(episodes: episodes, excluded: [], calendar: calendar)
+
+        // Nausea in 3 of 4 episodes leads; aura and light sensitivity tie at 1
+        // and break by raw value ("aura" < "light_sensitivity").
+        XCTAssertEqual(freqs.map(\.symptom), [.nausea, .aura, .lightSensitivity])
+        XCTAssertEqual(freqs[0].episodeCount, 3)
+        XCTAssertEqual(freqs[0].percentOfEpisodes, 75, accuracy: 0.001)
+        XCTAssertEqual(freqs[1].percentOfEpisodes, 25, accuracy: 0.001)
+    }
+
+    func testSymptomFrequencies_countsEachSymptomOncePerEpisode() {
+        let episode = TestFixtures.makeEpisode(id: "ep-1", startTime: ms(daysAgo: 1), symptoms: [.nausea, .nausea])
+
+        let freqs = AnalyticsInsights.symptomFrequencies(episodes: [episode], excluded: [], calendar: calendar)
+
+        XCTAssertEqual(freqs.count, 1)
+        XCTAssertEqual(freqs[0].episodeCount, 1)
+        XCTAssertEqual(freqs[0].percentOfEpisodes, 100, accuracy: 0.001)
+    }
+
+    func testSymptomFrequencies_skipsExcludedEpisodesFromCountAndDenominator() {
+        let episodes = [
+            TestFixtures.makeEpisode(id: "ep-1", startTime: ms(daysAgo: 1), symptoms: [.nausea]),
+            TestFixtures.makeEpisode(id: "ep-2", startTime: ms(daysAgo: 5), symptoms: [.nausea, .aura]),
+        ]
+
+        let freqs = AnalyticsInsights.symptomFrequencies(
+            episodes: episodes, excluded: [dayString(daysAgo: 5)], calendar: calendar
+        )
+
+        // Only ep-1 counts: nausea 1/1 = 100%, aura gone with the excluded episode.
+        XCTAssertEqual(freqs.map(\.symptom), [.nausea])
+        XCTAssertEqual(freqs[0].percentOfEpisodes, 100, accuracy: 0.001)
+    }
+
+    func testSymptomFrequencies_emptyWhenNoEpisodes() {
+        XCTAssertTrue(AnalyticsInsights.symptomFrequencies(episodes: [], excluded: [], calendar: calendar).isEmpty)
+    }
+
+    // MARK: - Pain location frequency
+
+    func testPainLocationFrequencies_ranksByEpisodeCountWithPercent() {
+        let episodes = [
+            TestFixtures.makeEpisode(id: "ep-1", startTime: ms(daysAgo: 1), locations: [.leftTemple, .leftEye]),
+            TestFixtures.makeEpisode(id: "ep-2", startTime: ms(daysAgo: 2), locations: [.leftTemple]),
+            TestFixtures.makeEpisode(id: "ep-3", startTime: ms(daysAgo: 3), locations: [.rightEye]),
+        ]
+
+        let freqs = AnalyticsInsights.painLocationFrequencies(episodes: episodes, excluded: [], calendar: calendar)
+
+        XCTAssertEqual(freqs.first?.location, .leftTemple)
+        XCTAssertEqual(freqs.first?.episodeCount, 2)
+        XCTAssertEqual(freqs.first?.percentOfEpisodes ?? 0, 200.0 / 3.0, accuracy: 0.001)
+        XCTAssertEqual(Set(freqs.map(\.location)), [.leftTemple, .leftEye, .rightEye])
+    }
+
+    // MARK: - Frequency union with mid-episode logs
+
+    private func symptomLog(episodeId: String, _ symptom: Symptom) -> SymptomLog {
+        SymptomLog(
+            id: UUID().uuidString, episodeId: episodeId, symptom: symptom,
+            onsetTime: ms(daysAgo: 1), resolutionTime: nil, severity: nil,
+            createdAt: ms(daysAgo: 1), updatedAt: ms(daysAgo: 1)
+        )
+    }
+
+    private func locationLog(episodeId: String, _ locations: [PainLocation]) -> PainLocationLog {
+        PainLocationLog(
+            id: UUID().uuidString, episodeId: episodeId, timestamp: ms(daysAgo: 1),
+            painLocations: locations, createdAt: ms(daysAgo: 1), updatedAt: ms(daysAgo: 1)
+        )
+    }
+
+    func testSymptomFrequencies_unionsMidEpisodeSymptomLogs() {
+        // ep-1 starts with nausea; aura is added later via a Log Update.
+        let episode = TestFixtures.makeEpisode(id: "ep-1", startTime: ms(daysAgo: 1), symptoms: [.nausea])
+        let logs = [symptomLog(episodeId: "ep-1", .aura)]
+
+        let freqs = AnalyticsInsights.symptomFrequencies(
+            episodes: [episode], symptomLogs: logs, excluded: [], calendar: calendar
+        )
+
+        XCTAssertEqual(Set(freqs.map(\.symptom)), [.nausea, .aura])
+        XCTAssertTrue(freqs.allSatisfy { $0.episodeCount == 1 })
+        XCTAssertTrue(freqs.allSatisfy { $0.percentOfEpisodes == 100 })
+    }
+
+    func testPainLocationFrequencies_addRemoveReAddCountsLocationOnce() {
+        // ep-1 starts with leftTemple; rightEye is added, removed, then re-added
+        // across three Log Update snapshots. Each snapshot is the full set.
+        let episode = TestFixtures.makeEpisode(id: "ep-1", startTime: ms(daysAgo: 1), locations: [.leftTemple])
+        let logs = [
+            locationLog(episodeId: "ep-1", [.leftTemple, .rightEye]),
+            locationLog(episodeId: "ep-1", [.leftTemple]),
+            locationLog(episodeId: "ep-1", [.leftTemple, .rightEye]),
+        ]
+
+        let freqs = AnalyticsInsights.painLocationFrequencies(
+            episodes: [episode], locationLogs: logs, excluded: [], calendar: calendar
+        )
+
+        // rightEye counted once despite three snapshots; both at 1/1 = 100%.
+        XCTAssertEqual(Set(freqs.map(\.location)), [.leftTemple, .rightEye])
+        XCTAssertEqual(freqs.first { $0.location == .rightEye }?.episodeCount, 1)
+        XCTAssertTrue(freqs.allSatisfy { $0.percentOfEpisodes == 100 })
+    }
+
+    func testPainLocationFrequencies_countsLocationOnlyEverAddedMidEpisode() {
+        // ep-1's record has no locations; rightNeck appears only in a log.
+        let episode = TestFixtures.makeEpisode(id: "ep-1", startTime: ms(daysAgo: 1), locations: [])
+        let logs = [locationLog(episodeId: "ep-1", [.rightNeck])]
+
+        let freqs = AnalyticsInsights.painLocationFrequencies(
+            episodes: [episode], locationLogs: logs, excluded: [], calendar: calendar
+        )
+
+        XCTAssertEqual(freqs.map(\.location), [.rightNeck])
+        XCTAssertEqual(freqs.first?.episodeCount, 1)
+    }
+
+    func testFrequencies_ignoreLogsForEpisodesOutsideTheSet() {
+        // A log whose episode isn't in the analyzed set must not be counted.
+        let episode = TestFixtures.makeEpisode(id: "ep-1", startTime: ms(daysAgo: 1), locations: [.leftTemple])
+        let logs = [locationLog(episodeId: "ep-other", [.rightEye])]
+
+        let freqs = AnalyticsInsights.painLocationFrequencies(
+            episodes: [episode], locationLogs: logs, excluded: [], calendar: calendar
+        )
+
+        XCTAssertEqual(freqs.map(\.location), [.leftTemple])
+    }
+
     // MARK: - Warnings
 
     private func headacheDaySet(count: Int) -> Set<String> {

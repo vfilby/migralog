@@ -299,10 +299,12 @@ private final class ReadingFailRepository: EpisodeRepositoryProtocol, @unchecked
     func deleteReading(_ id: String) throws {}
     func createSymptomLog(_ log: SymptomLog) throws -> SymptomLog { log }
     func getSymptomLogsByEpisodeId(_ episodeId: String) throws -> [SymptomLog] { [] }
+    func getSymptomLogsByMultipleEpisodeIds(_ episodeIds: [String]) throws -> [String: [SymptomLog]] { [:] }
     func updateSymptomLog(_ log: SymptomLog) throws -> SymptomLog { log }
     func deleteSymptomLog(_ id: String) throws {}
     func createPainLocationLog(_ log: PainLocationLog) throws -> PainLocationLog { log }
     func getLocationLogsByEpisodeId(_ episodeId: String) throws -> [PainLocationLog] { [] }
+    func getLocationLogsByMultipleEpisodeIds(_ episodeIds: [String]) throws -> [String: [PainLocationLog]] { [:] }
     func updatePainLocationLog(_ log: PainLocationLog) throws -> PainLocationLog { log }
     func deletePainLocationLog(_ id: String) throws {}
     func createEpisodeNote(_ note: EpisodeNote) throws -> EpisodeNote { note }
