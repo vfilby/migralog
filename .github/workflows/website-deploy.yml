@@ -1,0 +1,99 @@
+name: '[Web] Deploy'
+
+# Single website deployment pipeline:
+#
+#   deploy staging  ->  test staging  ->  [production gate]  ->  deploy prod  ->  test prod
+#
+# A push to main touching the website auto-deploys staging.migralog.app, runs
+# the Playwright suite against the live staging site, and only then offers the
+# production deploy. The production job is bound to the GitHub `production`
+# Environment, which both gates it behind a required reviewer and scopes its
+# OIDC token so it can assume the production deploy role. After production
+# deploys, the same suite runs against migralog.app.
+#
+# Auth is GitHub OIDC into the Migralog AWS account (483643755230) — no stored
+# AWS keys. Role trust is scoped per environment in
+# website/infrastructure/lib/github-oidc-stack.ts:
+#   - staging role    -> repo:vfilby/migralog:ref:refs/heads/main
+#   - production role -> repo:vfilby/migralog:environment:production
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - '.github/workflows/website-deploy.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: website-deploy
+  cancel-in-progress: false
+
+permissions:
+  id-token: write   # required to request the OIDC token
+  contents: read
+
+jobs:
+  deploy-staging:
+    name: Deploy staging.migralog.app
+    runs-on: ubuntu-latest
+    env:
+      HOSTED_ZONE_ID: ${{ secrets.HOSTED_ZONE_ID }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::483643755230:role/migralog-website-deploy-staging
+          aws-region: us-east-1
+
+      - name: Deploy staging
+        working-directory: website
+        run: ./deploy-website.sh staging --force
+
+  test-staging:
+    name: Test staging.migralog.app
+    needs: deploy-staging
+    uses: ./.github/workflows/website-test.yml
+    with:
+      base_url: https://staging.migralog.app
+      environment_name: staging
+
+  deploy-production:
+    name: Deploy migralog.app
+    needs: test-staging
+    runs-on: ubuntu-latest
+    environment: production   # approval gate + scopes OIDC token to environment:production
+    env:
+      HOSTED_ZONE_ID: ${{ secrets.HOSTED_ZONE_ID }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::483643755230:role/migralog-website-deploy-production
+          aws-region: us-east-1
+
+      - name: Deploy production
+        working-directory: website
+        run: ./deploy-website.sh production --force
+
+  test-production:
+    name: Test migralog.app
+    needs: deploy-production
+    uses: ./.github/workflows/website-test.yml
+    with:
+      base_url: https://migralog.app
+      environment_name: production
