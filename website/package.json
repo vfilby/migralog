@@ -4,6 +4,7 @@
   "description": "Marketing website for MigraLog - a migraine and chronic pain tracking app.",
   "scripts": {
     "test": "playwright test",
+    "test:ci": "playwright test --grep-invert @visual",
     "test:ui": "playwright test --ui",
     "test:headed": "playwright test --headed",
     "serve": "cd website && python3 -m http.server 8000",

@@ -8,15 +8,44 @@ Deployments to `migralog.app` now happen from GitHub Actions in this repo, using
 
 ## Flow
 
-| Environment | Trigger | Auth | Gate |
-|---|---|---|---|
-| **staging** (`staging.migralog.app`) | push to `main` touching `website/**` (or manual) | OIDC role `migralog-website-deploy-staging`, trust-scoped to `repo:vfilby/migralog:ref:refs/heads/main` | none — auto |
-| **production** (`migralog.app`) | manual `workflow_dispatch` ("[Web] Deploy Production", type `deploy`) | OIDC role `migralog-website-deploy-production`, trust-scoped to `repo:vfilby/migralog:environment:production` | GitHub `production` Environment (required reviewer) |
+It's a **single pipeline** (`.github/workflows/website-deploy.yml`, "[Web] Deploy")
+triggered by a push to `main` touching `website/**` (or manual `workflow_dispatch`):
 
-Both workflows run `website/deploy-website.sh <env> --force`, which deploys the
+```
+deploy staging ──▶ test staging ──▶ [production gate] ──▶ deploy prod ──▶ test prod
+```
+
+| Stage | What | Auth / Gate |
+|---|---|---|
+| **deploy staging** | deploy `staging.migralog.app` | OIDC role `migralog-website-deploy-staging`, trust-scoped to `repo:vfilby/migralog:ref:refs/heads/main` |
+| **test staging** | Playwright suite vs `https://staging.migralog.app` | none (public URL) |
+| **production gate** | manual approval | GitHub `production` Environment (required reviewer) — staging must be deployed *and* its tests green first |
+| **deploy prod** | deploy `migralog.app` | OIDC role `migralog-website-deploy-production`, trust-scoped to `repo:vfilby/migralog:environment:production` (the job's `environment: production` both gates it and scopes the OIDC token) |
+| **test prod** | Playwright suite vs `https://migralog.app` | none (public URL) |
+
+If the staging tests fail, the production stages never run. The production deploy
+waits on the environment's required-reviewer approval.
+
+The deploy stages run `website/deploy-website.sh <env> --force`, which deploys the
 CDK stack, syncs `website/website/` to S3 with cache headers, and invalidates
 CloudFront. The script auto-detects CI (`$CI`) and skips its local `aws-vault`
 re-exec, using the OIDC credentials directly.
+
+## Testing
+
+It's all one workflow file (`.github/workflows/website-deploy.yml`). The
+Playwright suite (`website/tests/`) runs via `npm run test:ci`, which excludes
+the `@visual` platform-specific screenshot specs, in three places:
+
+- **Pre-merge gate** — on every PR touching `website/**`, the `test` job serves
+  `website/` locally and runs the functional suite. This keeps the tests in sync
+  with the site (they drifted before because nothing ran them pre-merge).
+- **Post-deploy smoke** — the `test-staging` and `test-production` stages run the
+  same suite against the live URLs (`PLAYWRIGHT_BASE_URL`), waiting for HTTP 200
+  first.
+
+Run locally with `cd website && npm run test` (serves `website/` and tests it),
+or against a deployed site with `PLAYWRIGHT_BASE_URL=https://staging.migralog.app npm run test:ci`.
 
 ## One-time setup
 
@@ -36,9 +65,9 @@ re-exec, using the OIDC credentials directly.
    → Actions → Secrets → New repository secret**:
    - `HOSTED_ZONE_ID` = `Z0406970129G0QZZ2UCT6`
 
-That's it. After this:
-- Pushing to `main` with changes under `website/**` auto-deploys staging.
-- Running **[Web] Deploy Production** (and approving the environment) ships prod.
+That's it. After this, pushing to `main` with changes under `website/**` runs the
+full pipeline: deploy staging → test staging → (approve the `production`
+environment) → deploy prod → test prod.
 
 ## Roles / trust (defined in `infrastructure/lib/github-oidc-stack.ts`)
 

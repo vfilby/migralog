@@ -1,6 +1,9 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Visual Regression', () => {
+// Tagged @visual so the deploy pipeline can exclude it (--grep-invert @visual).
+// Snapshots are platform-specific (chromium-darwin) and pixel-diff tests are the
+// wrong fit for a live-site deploy gate; run these locally during dev instead.
+test.describe('Visual Regression @visual', () => {
   test('should match homepage screenshot on desktop', async ({ page }) => {
     await page.goto('/');
     await expect(page).toHaveScreenshot('homepage-desktop.png', { fullPage: true });

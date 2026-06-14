@@ -1,0 +1,190 @@
+name: '[Web] Deploy'
+
+# One website pipeline. On a pull request touching the website it runs the
+# Playwright suite against a locally-served copy (pre-merge gate). On a push to
+# main it runs the full deployment:
+#
+#   deploy staging -> test staging -> [production gate] -> deploy prod -> test prod
+#
+# Auth is GitHub OIDC into the Migralog AWS account (483643755230) — no stored
+# AWS keys. Role trust is scoped per environment in
+# website/infrastructure/lib/github-oidc-stack.ts:
+#   - staging role    -> repo:vfilby/migralog:ref:refs/heads/main
+#   - production role -> repo:vfilby/migralog:environment:production
+# The production deploy job's `environment: production` does double duty: it is
+# the required-reviewer approval gate AND it scopes the OIDC token so the job
+# can assume the production role.
+#
+# The Playwright suite excludes @visual screenshot specs (npm run test:ci).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - '.github/workflows/website-deploy.yml'
+  pull_request:
+    paths:
+      - 'website/**'
+      - '.github/workflows/website-deploy.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: website-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write   # required to request the OIDC token
+  contents: read
+
+jobs:
+  # ── Pre-merge gate: serve website/ locally and run the functional suite ──────
+  test:
+    name: Test (PR)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - name: Run Playwright tests (local)
+        env:
+          CI: 'true'
+        run: npm run test:ci
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-pr
+          path: website/playwright-report/
+          retention-days: 14
+
+  # ── Stage 1: deploy staging.migralog.app ────────────────────────────────────
+  deploy-staging:
+    name: Deploy staging.migralog.app
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      HOSTED_ZONE_ID: ${{ secrets.HOSTED_ZONE_ID }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::483643755230:role/migralog-website-deploy-staging
+          aws-region: us-east-1
+      - name: Deploy staging
+        working-directory: website
+        run: ./deploy-website.sh staging --force
+
+  # ── Stage 2: test the live staging site ─────────────────────────────────────
+  test-staging:
+    name: Test staging.migralog.app
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - name: Wait for staging to respond
+        env:
+          URL: https://staging.migralog.app
+        run: |
+          echo "Waiting for $URL to return HTTP 200..."
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$URL/" || echo 000)
+            if [ "$code" = "200" ]; then echo "Site is up."; exit 0; fi
+            echo "Attempt $i: HTTP $code — retrying in 5s"; sleep 5
+          done
+          echo "::error::$URL did not return HTTP 200 in time" >&2; exit 1
+      - name: Run Playwright tests (staging)
+        env:
+          CI: 'true'
+          PLAYWRIGHT_BASE_URL: https://staging.migralog.app
+        run: npm run test:ci
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-staging
+          path: website/playwright-report/
+          retention-days: 14
+
+  # ── Stage 3: deploy migralog.app (gated by the production environment) ───────
+  deploy-production:
+    name: Deploy migralog.app
+    needs: test-staging
+    runs-on: ubuntu-latest
+    environment: production   # approval gate + scopes OIDC token to environment:production
+    env:
+      HOSTED_ZONE_ID: ${{ secrets.HOSTED_ZONE_ID }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::483643755230:role/migralog-website-deploy-production
+          aws-region: us-east-1
+      - name: Deploy production
+        working-directory: website
+        run: ./deploy-website.sh production --force
+
+  # ── Stage 4: test the live production site ──────────────────────────────────
+  test-production:
+    name: Test migralog.app
+    needs: deploy-production
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - name: Wait for production to respond
+        env:
+          URL: https://migralog.app
+        run: |
+          echo "Waiting for $URL to return HTTP 200..."
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$URL/" || echo 000)
+            if [ "$code" = "200" ]; then echo "Site is up."; exit 0; fi
+            echo "Attempt $i: HTTP $code — retrying in 5s"; sleep 5
+          done
+          echo "::error::$URL did not return HTTP 200 in time" >&2; exit 1
+      - name: Run Playwright tests (production)
+        env:
+          CI: 'true'
+          PLAYWRIGHT_BASE_URL: https://migralog.app
+        run: npm run test:ci
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-production
+          path: website/playwright-report/
+          retention-days: 14
