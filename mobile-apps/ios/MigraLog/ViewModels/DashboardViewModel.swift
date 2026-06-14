@@ -31,6 +31,7 @@ final class DashboardViewModel {
     var yesterdayStatus: DailyStatusLog?
     var shouldShowYesterdayPrompt: Bool = false
     var showNewEpisode = false
+    var showLogUpdate = false
     var showLogMedication = false
     var isLoading = false
     var error: String?

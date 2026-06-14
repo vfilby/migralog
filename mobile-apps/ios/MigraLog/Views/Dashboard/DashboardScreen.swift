@@ -3,6 +3,9 @@ import SwiftUI
 struct DashboardScreen: View {
     @Environment(AppState.self) private var appState
     @State private var viewModel = DashboardViewModel()
+    /// Backs the Log Update flow shown in place of "Start Episode" while an
+    /// episode is ongoing; loaded on demand for the current episode.
+    @State private var detailViewModel = EpisodeDetailViewModel()
     /// Backs the iPad-only "This Month" calendar card; never fetched on iPhone.
     @State private var calendarViewModel = AnalyticsViewModel()
     @State private var refreshId = UUID()
@@ -38,6 +41,27 @@ struct DashboardScreen: View {
         }) {
             NavigationStack {
                 NewEpisodeScreen()
+            }
+        }
+        .sheet(isPresented: $viewModel.showLogUpdate, onDismiss: {
+            Task { await viewModel.loadData() }
+        }) {
+            NavigationStack {
+                // Gate on the detail view model having loaded the *current*
+                // episode so LogUpdateScreen prefills from real data rather
+                // than a stale or empty state.
+                if let episode = detailViewModel.episode,
+                   episode.id == viewModel.currentEpisode?.id {
+                    LogUpdateScreen(episodeId: episode.id, viewModel: detailViewModel)
+                } else {
+                    ProgressView()
+                        .accessibilityIdentifier("log-update-loading")
+                }
+            }
+            .task {
+                if let id = viewModel.currentEpisode?.id {
+                    await detailViewModel.loadEpisode(id)
+                }
             }
         }
         .sheet(isPresented: $viewModel.showLogMedication, onDismiss: {
@@ -151,11 +175,22 @@ struct DashboardScreen: View {
         .padding()
     }
 
+    /// While an episode is ongoing the primary action logs an update to it
+    /// rather than starting a second episode.
+    private var hasOngoingEpisode: Bool { viewModel.currentEpisode != nil }
+
     private var startEpisodeButton: some View {
         Button {
-            viewModel.showNewEpisode = true
+            if hasOngoingEpisode {
+                viewModel.showLogUpdate = true
+            } else {
+                viewModel.showNewEpisode = true
+            }
         } label: {
-            Label("Start Episode", systemImage: "plus.circle.fill")
+            Label(
+                hasOngoingEpisode ? "Log Update" : "Start Episode",
+                systemImage: "plus.circle.fill"
+            )
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
                 .fontWeight(.semibold)
@@ -165,8 +200,10 @@ struct DashboardScreen: View {
                 .foregroundStyle(.white)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
         }
-        .accessibilityIdentifier("start-episode-button")
-        .accessibilityHint("Start tracking a new migraine episode")
+        .accessibilityIdentifier(hasOngoingEpisode ? "log-update-button" : "start-episode-button")
+        .accessibilityHint(hasOngoingEpisode
+            ? "Log an update to the ongoing migraine episode"
+            : "Start tracking a new migraine episode")
     }
 
     private var logMedicationButton: some View {
