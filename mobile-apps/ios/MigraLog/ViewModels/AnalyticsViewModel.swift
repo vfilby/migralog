@@ -441,20 +441,7 @@ final class AnalyticsViewModel {
             calendar: calendar
         )
         timeOfDayBins = AnalyticsInsights.timeOfDayBins(episodes: rangeEpisodes, excluded: excluded, calendar: calendar)
-
-        // Symptom/location frequency count a value once per episode if it was
-        // present at any point, so include mid-episode log snapshots — a
-        // location toggled on/off/on still counts once, and one only ever
-        // added via a Log Update isn't missed.
-        let rangeEpisodeIds = rangeEpisodes.map(\.id)
-        let symptomLogs = try episodeRepository.getSymptomLogsByMultipleEpisodeIds(rangeEpisodeIds).values.flatMap { $0 }
-        let locationLogs = try episodeRepository.getLocationLogsByMultipleEpisodeIds(rangeEpisodeIds).values.flatMap { $0 }
-        symptomFrequencies = AnalyticsInsights.symptomFrequencies(
-            episodes: rangeEpisodes, symptomLogs: symptomLogs, excluded: excluded, calendar: calendar
-        )
-        painLocationFrequencies = AnalyticsInsights.painLocationFrequencies(
-            episodes: rangeEpisodes, locationLogs: locationLogs, excluded: excluded, calendar: calendar
-        )
+        try computeFrequencies(rangeEpisodes: rangeEpisodes, excluded: excluded, calendar: calendar)
         insightWarnings = AnalyticsInsights.warnings(
             headacheDays: headacheDays,
             intakeDays: intake,
@@ -494,6 +481,23 @@ final class AnalyticsViewModel {
             from: rangeStart,
             to: rangeEnd,
             calendar: calendar
+        )
+    }
+
+    /// Computes symptom and pain-location frequency over the in-range episodes.
+    /// A value counts once per episode if it was present at any point, so
+    /// mid-episode log snapshots are unioned in — a location toggled on/off/on
+    /// still counts once, and one only ever added via a Log Update isn't missed.
+    @MainActor
+    private func computeFrequencies(rangeEpisodes: [Episode], excluded: Set<String>, calendar: Calendar) throws {
+        let rangeEpisodeIds = rangeEpisodes.map(\.id)
+        let symptomLogs = try episodeRepository.getSymptomLogsByMultipleEpisodeIds(rangeEpisodeIds).values.flatMap { $0 }
+        let locationLogs = try episodeRepository.getLocationLogsByMultipleEpisodeIds(rangeEpisodeIds).values.flatMap { $0 }
+        symptomFrequencies = AnalyticsInsights.symptomFrequencies(
+            episodes: rangeEpisodes, symptomLogs: symptomLogs, excluded: excluded, calendar: calendar
+        )
+        painLocationFrequencies = AnalyticsInsights.painLocationFrequencies(
+            episodes: rangeEpisodes, locationLogs: locationLogs, excluded: excluded, calendar: calendar
         )
     }
 
