@@ -19,7 +19,10 @@ enum SentrySetup {
                 $0.lifecycle = .trace
             }
             options.enableAutoSessionTracking = true
-            options.attachScreenshot = true
+            // HIPAA: never attach screenshots. The visible screen routinely
+            // contains PHI (medication names/doses, intensity/symptoms, notes)
+            // and the key-based beforeSend scrubber cannot redact image content.
+            options.attachScreenshot = false
             options.enableUserInteractionTracing = true
 
             // App Hangs V2 (default-on since sentry-cocoa 9.0) reports app
