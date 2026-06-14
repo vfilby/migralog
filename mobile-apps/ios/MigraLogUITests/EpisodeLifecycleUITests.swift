@@ -268,6 +268,43 @@ final class EpisodeLifecycleUITests: XCTestCase {
                        "Episode should still show Ongoing after canceling")
     }
 
+    // MARK: - 2.x Ongoing episode swaps the dashboard primary action
+
+    /// While an episode is ongoing the dashboard's primary button should be
+    /// "Log Update" (not "Start Episode") and follow the Log Update flow.
+    func testOngoingEpisodeDashboardButtonLogsUpdate() throws {
+        createActiveEpisode()
+
+        // Dashboard now shows the ongoing episode.
+        let activeEpisodeCard = app.buttons["active-episode-card"]
+        UITestHelpers.waitForElement(activeEpisodeCard)
+
+        // Start Episode is replaced by Log Update.
+        XCTAssertFalse(app.buttons["start-episode-button"].exists,
+                       "Start Episode should be hidden while an episode is ongoing")
+
+        let logUpdateButton = app.buttons["log-update-button"]
+        UITestHelpers.waitForHittable(logUpdateButton)
+        logUpdateButton.tap()
+        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
+
+        // The Log Update flow presents the intensity slider; adjust and save.
+        let slider = app.sliders.firstMatch
+        XCTAssertTrue(slider.waitForExistence(timeout: UITestHelpers.defaultTimeout),
+                      "Log Update flow should present the intensity slider")
+        slider.adjust(toNormalizedSliderPosition: 0.8)
+
+        let saveButton = app.buttons["Save"]
+        UITestHelpers.waitForHittable(saveButton)
+        saveButton.tap()
+        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
+
+        // Back on the dashboard, the episode is still ongoing.
+        UITestHelpers.waitForElement(activeEpisodeCard)
+        XCTAssertTrue(app.buttons["log-update-button"].waitForExistence(timeout: UITestHelpers.defaultTimeout),
+                      "Primary action should remain Log Update while the episode stays ongoing")
+    }
+
     // MARK: - Helpers
 
     private func createActiveEpisode() {
