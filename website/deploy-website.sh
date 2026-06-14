@@ -17,16 +17,19 @@ AWS_PROFILE="migralog-website-deployer"
 INFRASTRUCTURE_DIR="infrastructure"
 WEBSITE_DIR="website"
 
-# Prefer aws-vault-op (1Password-aware wrapper), fall back to aws-vault
-if command -v aws-vault-op >/dev/null 2>&1; then
-    AWS_VAULT_CMD="aws-vault-op"
-else
-    echo "Warning: aws-vault-op not found — falling back to aws-vault (expect passphrase + MFA prompts)" >&2
-    AWS_VAULT_CMD="aws-vault"
-fi
-
-# Re-exec under aws-vault once so every child (aws CLI, CDK) inherits session creds
-if [ -z "$AWS_VAULT" ]; then
+# Credentials:
+#   - In CI (GitHub Actions sets CI=true), credentials are already in the
+#     environment via OIDC role assumption — use them directly.
+#   - Locally, re-exec under aws-vault once so every child (aws CLI, CDK)
+#     inherits session creds for the migralog-website-deployer profile.
+if [ -z "$CI" ] && [ -z "$AWS_VAULT" ]; then
+    # Prefer aws-vault-op (1Password-aware wrapper), fall back to aws-vault
+    if command -v aws-vault-op >/dev/null 2>&1; then
+        AWS_VAULT_CMD="aws-vault-op"
+    else
+        echo "Warning: aws-vault-op not found — falling back to aws-vault (expect passphrase + MFA prompts)" >&2
+        AWS_VAULT_CMD="aws-vault"
+    fi
     exec $AWS_VAULT_CMD exec "$AWS_PROFILE" -- "$0" "$@"
 fi
 
@@ -198,10 +201,17 @@ deploy_infrastructure() {
         context_args="-c hostedZoneId=$HOSTED_ZONE_ID"
     fi
 
+    # In CI there is no TTY to confirm an IAM diff, so deploy non-interactively.
+    # (deploy:staging already passes --require-approval never.)
+    local approval_args=""
+    if [ -n "$CI" ]; then
+        approval_args="--require-approval never"
+    fi
+
     if [ "$environment" = "staging" ]; then
         npm run deploy:staging -- $context_args
     else
-        npm run deploy:production -- $context_args
+        npm run deploy:production -- $context_args $approval_args
     fi
 
     cd ..
