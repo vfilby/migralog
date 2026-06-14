@@ -59,7 +59,7 @@ jobs:
         env:
           CI: 'true'
         run: npm run test:ci
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-report-pr
@@ -79,7 +79,7 @@ jobs:
         with:
           node-version: '20'
       - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::483643755230:role/migralog-website-deploy-staging
           aws-region: us-east-1
@@ -120,7 +120,7 @@ jobs:
           CI: 'true'
           PLAYWRIGHT_BASE_URL: https://staging.migralog.app
         run: npm run test:ci
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-report-staging
@@ -141,7 +141,7 @@ jobs:
         with:
           node-version: '20'
       - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::483643755230:role/migralog-website-deploy-production
           aws-region: us-east-1
@@ -182,7 +182,7 @@ jobs:
           CI: 'true'
           PLAYWRIGHT_BASE_URL: https://migralog.app
         run: npm run test:ci
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-report-production
