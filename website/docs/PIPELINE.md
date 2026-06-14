@@ -33,15 +33,16 @@ re-exec, using the OIDC credentials directly.
 
 ## Testing
 
-The Playwright suite (`website/tests/`) runs in two places, both via the reusable
-`website-test.yml` workflow (`npm run test:ci`, which excludes the `@visual`
-platform-specific screenshot specs):
+It's all one workflow file (`.github/workflows/website-deploy.yml`). The
+Playwright suite (`website/tests/`) runs via `npm run test:ci`, which excludes
+the `@visual` platform-specific screenshot specs, in three places:
 
-- **Pre-merge CI** (`website-ci.yml`, "[Web] CI") — on every PR touching
-  `website/**`, serves `website/` locally and runs the functional suite. This is
-  the gate that keeps the tests in sync with the site.
-- **Post-deploy smoke** — the deploy pipeline runs the same suite against the live
-  staging and production URLs (`PLAYWRIGHT_BASE_URL`), waiting for HTTP 200 first.
+- **Pre-merge gate** — on every PR touching `website/**`, the `test` job serves
+  `website/` locally and runs the functional suite. This keeps the tests in sync
+  with the site (they drifted before because nothing ran them pre-merge).
+- **Post-deploy smoke** — the `test-staging` and `test-production` stages run the
+  same suite against the live URLs (`PLAYWRIGHT_BASE_URL`), waiting for HTTP 200
+  first.
 
 Run locally with `cd website && npm run test` (serves `website/` and tests it),
 or against a deployed site with `PLAYWRIGHT_BASE_URL=https://staging.migralog.app npm run test:ci`.
