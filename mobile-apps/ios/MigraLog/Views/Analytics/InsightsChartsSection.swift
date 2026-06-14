@@ -18,6 +18,8 @@ struct InsightsChartsSection: View {
             MedicationOveruseChartCard(series: viewModel.intakeSeries)
             SeverityDistributionChartCard(counts: viewModel.severityWeekCounts)
             TimeOfDayChartCard(bins: viewModel.timeOfDayBins)
+            SymptomFrequencyChartCard(frequencies: viewModel.symptomFrequencies)
+            PainLocationFrequencyChartCard(frequencies: viewModel.painLocationFrequencies)
             AdherenceChartCard(weeks: viewModel.weeklyAdherence)
         }
     }
@@ -567,6 +569,97 @@ struct TimeOfDayChartCard: View {
                 }
                 .chartXScale(domain: bins.map(\.label))
                 .frame(height: 160)
+            }
+        }
+    }
+}
+
+// MARK: - Symptom & pain-location frequency
+
+/// One ranked row in a frequency bar chart.
+private struct FrequencyRow: Identifiable {
+    let label: String
+    let count: Int
+    let percent: Double
+    var id: String { label }
+}
+
+/// Horizontal bar chart of the top frequency rows, most frequent at the top,
+/// each annotated with its share of episodes.
+private struct FrequencyBarChart: View {
+    let rows: [FrequencyRow]
+    let color: Color
+
+    var body: some View {
+        Chart(rows) { row in
+            BarMark(
+                x: .value("Episodes", row.count),
+                y: .value("Item", row.label)
+            )
+            .foregroundStyle(color)
+            .annotation(position: .trailing, alignment: .leading) {
+                Text("\(Int(row.percent.rounded()))%")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        // Rows are sorted most-frequent first; the first domain entry renders
+        // at the top of the axis, so the busiest row sits on top.
+        .chartYScale(domain: rows.map(\.label))
+        .chartXAxis {
+            AxisMarks(values: .automatic(desiredCount: 4)) {
+                AxisGridLine()
+                AxisValueLabel()
+            }
+        }
+        .frame(height: CGFloat(rows.count) * 30 + 24)
+    }
+}
+
+struct SymptomFrequencyChartCard: View {
+    let frequencies: [AnalyticsInsights.SymptomFrequency]
+
+    /// Cap the chart at the most common handful so it stays readable.
+    private var rows: [FrequencyRow] {
+        frequencies.prefix(8).map {
+            FrequencyRow(label: $0.symptom.displayName, count: $0.episodeCount, percent: $0.percentOfEpisodes)
+        }
+    }
+
+    var body: some View {
+        InsightCard(
+            title: "Symptom Frequency",
+            subtitle: "Most common symptoms recorded with your episodes in this range, as a share of those episodes.",
+            accessibilityId: "symptom-frequency-chart"
+        ) {
+            if rows.isEmpty {
+                EmptyChartPlaceholder()
+            } else {
+                FrequencyBarChart(rows: rows, color: .accentColor)
+            }
+        }
+    }
+}
+
+struct PainLocationFrequencyChartCard: View {
+    let frequencies: [AnalyticsInsights.PainLocationFrequency]
+
+    private var rows: [FrequencyRow] {
+        frequencies.prefix(8).map {
+            FrequencyRow(label: $0.location.displayName, count: $0.episodeCount, percent: $0.percentOfEpisodes)
+        }
+    }
+
+    var body: some View {
+        InsightCard(
+            title: "Pain Location Frequency",
+            subtitle: "Where pain was recorded most often across your episodes in this range, as a share of those episodes.",
+            accessibilityId: "pain-location-frequency-chart"
+        ) {
+            if rows.isEmpty {
+                EmptyChartPlaceholder()
+            } else {
+                FrequencyBarChart(rows: rows, color: .pink)
             }
         }
     }

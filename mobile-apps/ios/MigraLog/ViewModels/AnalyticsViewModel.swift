@@ -36,6 +36,8 @@ final class AnalyticsViewModel {
     var intakeSeries: [AnalyticsInsights.ClassIntakeSeries] = []
     var severityWeekCounts: [AnalyticsInsights.SeverityWeekCount] = []
     var timeOfDayBins: [AnalyticsInsights.TimeOfDayBin] = []
+    var symptomFrequencies: [AnalyticsInsights.SymptomFrequency] = []
+    var painLocationFrequencies: [AnalyticsInsights.PainLocationFrequency] = []
     var insightWarnings: [AnalyticsInsights.Warning] = []
     var monthlySummaries: [AnalyticsInsights.MonthSummary] = []
     var weeklyAdherence: [AnalyticsInsights.WeeklyAdherence] = []
@@ -144,6 +146,8 @@ final class AnalyticsViewModel {
             intakeSeries = cached.intakeSeries
             severityWeekCounts = cached.severityWeekCounts
             timeOfDayBins = cached.timeOfDayBins
+            symptomFrequencies = cached.symptomFrequencies
+            painLocationFrequencies = cached.painLocationFrequencies
             insightWarnings = cached.insightWarnings
             monthlySummaries = cached.monthlySummaries
             weeklyAdherence = cached.weeklyAdherence
@@ -217,6 +221,8 @@ final class AnalyticsViewModel {
                 intakeSeries: intakeSeries,
                 severityWeekCounts: severityWeekCounts,
                 timeOfDayBins: timeOfDayBins,
+                symptomFrequencies: symptomFrequencies,
+                painLocationFrequencies: painLocationFrequencies,
                 insightWarnings: insightWarnings,
                 monthlySummaries: monthlySummaries,
                 weeklyAdherence: weeklyAdherence,
@@ -435,6 +441,20 @@ final class AnalyticsViewModel {
             calendar: calendar
         )
         timeOfDayBins = AnalyticsInsights.timeOfDayBins(episodes: rangeEpisodes, excluded: excluded, calendar: calendar)
+
+        // Symptom/location frequency count a value once per episode if it was
+        // present at any point, so include mid-episode log snapshots — a
+        // location toggled on/off/on still counts once, and one only ever
+        // added via a Log Update isn't missed.
+        let rangeEpisodeIds = rangeEpisodes.map(\.id)
+        let symptomLogs = try episodeRepository.getSymptomLogsByMultipleEpisodeIds(rangeEpisodeIds).values.flatMap { $0 }
+        let locationLogs = try episodeRepository.getLocationLogsByMultipleEpisodeIds(rangeEpisodeIds).values.flatMap { $0 }
+        symptomFrequencies = AnalyticsInsights.symptomFrequencies(
+            episodes: rangeEpisodes, symptomLogs: symptomLogs, excluded: excluded, calendar: calendar
+        )
+        painLocationFrequencies = AnalyticsInsights.painLocationFrequencies(
+            episodes: rangeEpisodes, locationLogs: locationLogs, excluded: excluded, calendar: calendar
+        )
         insightWarnings = AnalyticsInsights.warnings(
             headacheDays: headacheDays,
             intakeDays: intake,
@@ -541,6 +561,8 @@ private struct CachedAnalytics {
     let intakeSeries: [AnalyticsInsights.ClassIntakeSeries]
     let severityWeekCounts: [AnalyticsInsights.SeverityWeekCount]
     let timeOfDayBins: [AnalyticsInsights.TimeOfDayBin]
+    let symptomFrequencies: [AnalyticsInsights.SymptomFrequency]
+    let painLocationFrequencies: [AnalyticsInsights.PainLocationFrequency]
     let insightWarnings: [AnalyticsInsights.Warning]
     let monthlySummaries: [AnalyticsInsights.MonthSummary]
     let weeklyAdherence: [AnalyticsInsights.WeeklyAdherence]

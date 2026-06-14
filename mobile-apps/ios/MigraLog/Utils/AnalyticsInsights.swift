@@ -324,6 +324,90 @@ enum AnalyticsInsights {
         return stride(from: 0, to: 24, by: 3).map { TimeOfDayBin(hour: $0, count: counts[$0] ?? 0) }
     }
 
+    // MARK: - Symptom & pain-location frequency
+
+    struct SymptomFrequency: Equatable, Identifiable {
+        let symptom: Symptom
+        /// Episodes (in range) that recorded this symptom.
+        let episodeCount: Int
+        /// `episodeCount` as a percentage of the episodes counted (0–100).
+        let percentOfEpisodes: Double
+        var id: String { symptom.rawValue }
+    }
+
+    struct PainLocationFrequency: Equatable, Identifiable {
+        let location: PainLocation
+        /// Episodes (in range) that recorded this location.
+        let episodeCount: Int
+        /// `episodeCount` as a percentage of the episodes counted (0–100).
+        let percentOfEpisodes: Double
+        var id: String { location.rawValue }
+    }
+
+    /// Symptoms ranked by how many episodes recorded them, most frequent
+    /// first. A symptom counts for an episode if it was present at any point:
+    /// the episode's own `symptoms` set unioned with every `SymptomLog` added
+    /// mid-episode. Episodes starting on an excluded day are skipped, and the
+    /// percentage denominator is the episodes that remain.
+    static func symptomFrequencies(
+        episodes: [Episode],
+        symptomLogs: [SymptomLog] = [],
+        excluded: Set<String>,
+        calendar: Calendar = .current
+    ) -> [SymptomFrequency] {
+        var byEpisode: [String: [Symptom]] = [:]
+        for log in symptomLogs { byEpisode[log.episodeId, default: []].append(log.symptom) }
+        return frequencies(in: episodes, excluded: excluded, episodeValues: \.symptoms, loggedValues: byEpisode)
+            .map { SymptomFrequency(symptom: $0.value, episodeCount: $0.count, percentOfEpisodes: $0.percent) }
+    }
+
+    /// Pain locations ranked by how many episodes recorded them, most frequent
+    /// first. A location counts for an episode if it was present at any point:
+    /// the episode's own `locations` set unioned with every `PainLocationLog`
+    /// snapshot recorded mid-episode. Because each location is counted once per
+    /// episode, a location that was added, removed, and re-added still counts
+    /// exactly once. Same exclusion/percentage rules as `symptomFrequencies`.
+    static func painLocationFrequencies(
+        episodes: [Episode],
+        locationLogs: [PainLocationLog] = [],
+        excluded: Set<String>,
+        calendar: Calendar = .current
+    ) -> [PainLocationFrequency] {
+        var byEpisode: [String: [PainLocation]] = [:]
+        for log in locationLogs { byEpisode[log.episodeId, default: []].append(contentsOf: log.painLocations) }
+        return frequencies(in: episodes, excluded: excluded, episodeValues: \.locations, loggedValues: byEpisode)
+            .map { PainLocationFrequency(location: $0.value, episodeCount: $0.count, percentOfEpisodes: $0.percent) }
+    }
+
+    /// Distinct-episode counts for a per-episode value set (symptoms,
+    /// locations, …). For each episode the values from the episode record are
+    /// unioned with any values logged mid-episode (`loggedValues`, keyed by
+    /// episode id) and counted once, so neither a duplicate nor an
+    /// add/remove/re-add can inflate the count. Sorted by count descending,
+    /// then raw value ascending for a stable order.
+    private static func frequencies<Value>(
+        in episodes: [Episode],
+        excluded: Set<String>,
+        episodeValues: (Episode) -> [Value],
+        loggedValues: [String: [Value]]
+    ) -> [(value: Value, count: Int, percent: Double)]
+    where Value: Hashable & RawRepresentable, Value.RawValue == String {
+        var counts: [Value: Int] = [:]
+        var total = 0
+        for episode in episodes {
+            let startDay = TimestampHelper.dateString(from: TimestampHelper.toDate(episode.startTime))
+            guard !excluded.contains(startDay) else { continue }
+            total += 1
+            var present = Set(episodeValues(episode))
+            if let logged = loggedValues[episode.id] { present.formUnion(logged) }
+            for value in present { counts[value, default: 0] += 1 }
+        }
+        guard total > 0 else { return [] }
+        return counts
+            .map { (value: $0.key, count: $0.value, percent: Double($0.value) / Double(total) * 100) }
+            .sorted { $0.count != $1.count ? $0.count > $1.count : $0.value.rawValue < $1.value.rawValue }
+    }
+
     // MARK: - Monthly summary
 
     struct DoseStat: Equatable {

@@ -189,7 +189,7 @@ final class TrendsAnalyticsUITests: XCTestCase {
 
         // Each insight card renders with its headline. The warnings card is
         // always present (with findings or the all-clear state).
-        for title in ["Warning Signs", "Headache Burden", "Medication Overuse Risk", "Severity by Week", "Time of Day", "Preventative Adherence", "Monthly Summary"] {
+        for title in ["Warning Signs", "Headache Burden", "Medication Overuse Risk", "Severity by Week", "Time of Day", "Symptom Frequency", "Pain Location Frequency", "Preventative Adherence", "Monthly Summary"] {
             let header = app.staticTexts[title]
             UITestHelpers.scrollToElement(header, in: scroll, maxScrolls: 15)
             UITestHelpers.waitForElement(header)

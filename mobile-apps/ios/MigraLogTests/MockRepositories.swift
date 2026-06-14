@@ -173,6 +173,15 @@ final class MockEpisodeRepository: EpisodeRepositoryProtocol, @unchecked Sendabl
         return symptomLogs.filter { $0.episodeId == episodeId }
     }
 
+    func getSymptomLogsByMultipleEpisodeIds(_ episodeIds: [String]) throws -> [String: [SymptomLog]] {
+        try throwIfNeeded()
+        var result: [String: [SymptomLog]] = [:]
+        for log in symptomLogs where episodeIds.contains(log.episodeId) {
+            result[log.episodeId, default: []].append(log)
+        }
+        return result
+    }
+
     func updateSymptomLog(_ log: SymptomLog) throws -> SymptomLog {
         try throwIfNeeded()
         updateSymptomLogCalled = true
@@ -200,6 +209,15 @@ final class MockEpisodeRepository: EpisodeRepositoryProtocol, @unchecked Sendabl
     func getLocationLogsByEpisodeId(_ episodeId: String) throws -> [PainLocationLog] {
         try throwIfNeeded()
         return painLocationLogs.filter { $0.episodeId == episodeId }
+    }
+
+    func getLocationLogsByMultipleEpisodeIds(_ episodeIds: [String]) throws -> [String: [PainLocationLog]] {
+        try throwIfNeeded()
+        var result: [String: [PainLocationLog]] = [:]
+        for log in painLocationLogs where episodeIds.contains(log.episodeId) {
+            result[log.episodeId, default: []].append(log)
+        }
+        return result
     }
 
     func updatePainLocationLog(_ log: PainLocationLog) throws -> PainLocationLog {

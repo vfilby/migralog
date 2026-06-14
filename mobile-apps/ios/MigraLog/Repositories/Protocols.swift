@@ -26,12 +26,14 @@ protocol EpisodeRepositoryProtocol: Sendable {
     // Symptom Logs
     func createSymptomLog(_ log: SymptomLog) throws -> SymptomLog
     func getSymptomLogsByEpisodeId(_ episodeId: String) throws -> [SymptomLog]
+    func getSymptomLogsByMultipleEpisodeIds(_ episodeIds: [String]) throws -> [String: [SymptomLog]]
     func updateSymptomLog(_ log: SymptomLog) throws -> SymptomLog
     func deleteSymptomLog(_ id: String) throws
 
     // Pain Location Logs
     func createPainLocationLog(_ log: PainLocationLog) throws -> PainLocationLog
     func getLocationLogsByEpisodeId(_ episodeId: String) throws -> [PainLocationLog]
+    func getLocationLogsByMultipleEpisodeIds(_ episodeIds: [String]) throws -> [String: [PainLocationLog]]
     func updatePainLocationLog(_ log: PainLocationLog) throws -> PainLocationLog
     func deletePainLocationLog(_ id: String) throws
 

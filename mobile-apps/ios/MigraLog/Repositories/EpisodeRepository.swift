@@ -280,6 +280,24 @@ final class EpisodeRepository: EpisodeRepositoryProtocol {
         }
     }
 
+    func getSymptomLogsByMultipleEpisodeIds(_ episodeIds: [String]) throws -> [String: [SymptomLog]] {
+        guard !episodeIds.isEmpty else { return [:] }
+        let placeholders = episodeIds.map { _ in "?" }.joined(separator: ", ")
+        return try dbManager.dbQueue.read { db in
+            let rows = try Row.fetchAll(
+                db,
+                sql: "SELECT * FROM symptom_logs WHERE episode_id IN (\(placeholders)) ORDER BY onset_time ASC",
+                arguments: StatementArguments(episodeIds)
+            )
+            var result: [String: [SymptomLog]] = [:]
+            for row in rows {
+                let log = Self.symptomLogFromRow(row)
+                result[log.episodeId, default: []].append(log)
+            }
+            return result
+        }
+    }
+
     func updateSymptomLog(_ log: SymptomLog) throws -> SymptomLog {
         let now = TimestampHelper.now
         var updated = log
@@ -340,6 +358,24 @@ final class EpisodeRepository: EpisodeRepositoryProtocol {
                 arguments: [episodeId]
             )
             return rows.map { Self.painLocationLogFromRow($0) }
+        }
+    }
+
+    func getLocationLogsByMultipleEpisodeIds(_ episodeIds: [String]) throws -> [String: [PainLocationLog]] {
+        guard !episodeIds.isEmpty else { return [:] }
+        let placeholders = episodeIds.map { _ in "?" }.joined(separator: ", ")
+        return try dbManager.dbQueue.read { db in
+            let rows = try Row.fetchAll(
+                db,
+                sql: "SELECT * FROM pain_location_logs WHERE episode_id IN (\(placeholders)) ORDER BY timestamp ASC",
+                arguments: StatementArguments(episodeIds)
+            )
+            var result: [String: [PainLocationLog]] = [:]
+            for row in rows {
+                let log = Self.painLocationLogFromRow(row)
+                result[log.episodeId, default: []].append(log)
+            }
+            return result
         }
     }
 
