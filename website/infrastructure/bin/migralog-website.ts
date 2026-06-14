@@ -2,6 +2,7 @@
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import { MigralogWebsiteStack } from '../lib/migralog-website-stack';
+import { GitHubOidcStack } from '../lib/github-oidc-stack';
 
 const app = new cdk.App();
 
@@ -49,6 +50,16 @@ new MigralogWebsiteStack(app, 'MigraLogWebsiteStack-production', {
   hostedZoneName: 'migralog.app',
   environment: 'production',
   description: 'MigraLog production website infrastructure',
+});
+
+// GitHub Actions OIDC provider + scoped deploy roles (deployed once, by hand).
+new GitHubOidcStack(app, 'MigraLogWebsiteOidc', {
+  env: {
+    account: process.env.CDK_DEFAULT_ACCOUNT,
+    region: 'us-east-1',
+  },
+  repo: 'vfilby/migralog',
+  description: 'GitHub Actions OIDC provider and website deploy roles',
 });
 
 app.synth();
