@@ -15,6 +15,7 @@ final class EpisodeDetailViewModel {
     private let episodeRepository: EpisodeRepositoryProtocol
     private let medicationRepository: MedicationRepositoryProtocol
     private let dailyCheckinService: DailyCheckinNotificationServiceProtocol
+    private let liveActivityManager: LiveActivityManaging
     private var episodeId: String
 
     // MARK: - Init
@@ -28,12 +29,14 @@ final class EpisodeDetailViewModel {
             scheduledNotificationRepo: ScheduledNotificationRepository(dbManager: DatabaseManager.shared),
             episodeRepo: EpisodeRepository(dbManager: DatabaseManager.shared),
             dailyStatusRepo: DailyStatusRepository(dbManager: DatabaseManager.shared)
-        )
+        ),
+        liveActivityManager: LiveActivityManaging = LiveActivityManager.shared
     ) {
         self.episodeId = episodeId
         self.episodeRepository = episodeRepository
         self.medicationRepository = medicationRepository
         self.dailyCheckinService = dailyCheckinService
+        self.liveActivityManager = liveActivityManager
     }
 
     // MARK: - Computed
@@ -94,6 +97,8 @@ final class EpisodeDetailViewModel {
             )
             // Reinstate daily check-in notifications now that episode is complete
             try? await dailyCheckinService.scheduleNotifications()
+            // Transition the Live Activity to its warm post-episode close.
+            liveActivityManager.end(episodeId: episode.id, at: timestamp)
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "EpisodeDetailViewModel", "action": "endEpisode"])
             self.error = error.localizedDescription
@@ -117,6 +122,8 @@ final class EpisodeDetailViewModel {
             )
             // Reinstate daily check-in notifications now that episode is complete
             try? await dailyCheckinService.scheduleNotifications()
+            // Transition the Live Activity to its warm post-episode close.
+            liveActivityManager.end(episodeId: episode.id, at: now)
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "EpisodeDetailViewModel", "action": "endEpisode"])
             self.error = error.localizedDescription
@@ -141,6 +148,8 @@ final class EpisodeDetailViewModel {
                 painLocationLogs: details?.painLocationLogs ?? [],
                 episodeNotes: details?.episodeNotes ?? []
             )
+            // Correct the end time on a still-lingering post-episode activity.
+            liveActivityManager.end(episodeId: episode.id, at: timestamp)
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "EpisodeDetailViewModel", "action": "editEndTime"])
             self.error = error.localizedDescription
@@ -185,6 +194,8 @@ final class EpisodeDetailViewModel {
                 painLocationLogs: details?.painLocationLogs ?? [],
                 episodeNotes: details?.episodeNotes ?? []
             )
+            // The episode is active again — surface a fresh Live Activity.
+            liveActivityManager.start(for: episode)
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "EpisodeDetailViewModel", "action": "reopenEpisode"])
             self.error = error.localizedDescription
@@ -225,6 +236,10 @@ final class EpisodeDetailViewModel {
             let saved = try await episodeRepository.createIntensityReading(reading)
             details?.intensityReadings.append(saved)
             details?.intensityReadings.sort { $0.timestamp < $1.timestamp }
+            // Reflect the new intensity on the Live Activity, if running.
+            if details?.episode.isActive == true {
+                liveActivityManager.refresh(episodeId: episodeId)
+            }
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "EpisodeDetailViewModel", "action": "addIntensityReading"])
             self.error = error.localizedDescription
