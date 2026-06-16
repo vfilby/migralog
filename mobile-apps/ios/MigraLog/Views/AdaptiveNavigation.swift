@@ -74,7 +74,7 @@ struct EpisodesTab: View {
                     )
             } detail: {
                 if let episodeId = appState.selectedEpisodeId {
-                    EpisodeDetailScreen(episodeId: episodeId)
+                    EpisodeDetailScreen(episodeId: episodeId, consumesDeepLinks: true)
                 } else {
                     ContentUnavailableView(
                         "No Episode Selected",
@@ -89,7 +89,7 @@ struct EpisodesTab: View {
             NavigationStack(path: episodePath(appState: appState)) {
                 EpisodesScreen()
                     .navigationDestination(for: String.self) { episodeId in
-                        EpisodeDetailScreen(episodeId: episodeId)
+                        EpisodeDetailScreen(episodeId: episodeId, consumesDeepLinks: true)
                     }
             }
         }

@@ -2,6 +2,10 @@ import SwiftUI
 
 struct EpisodeDetailScreen: View {
     let episodeId: String
+    /// Whether this instance should consume Live Activity deep-link actions
+    /// (`pendingEpisodeAction`). Only the Episodes-tab instances set this true so
+    /// a same-episode detail alive in another tab can't steal the action. See #416.
+    var consumesDeepLinks: Bool = false
     @Environment(AppState.self) private var appState
     @State private var viewModel = EpisodeDetailViewModel()
     @State private var showEndTimePicker = false
@@ -173,6 +177,11 @@ struct EpisodeDetailScreen: View {
         }
         .task(id: episodeId) {
             await viewModel.loadEpisode(episodeId)
+            // If a deep link targeted an episode that no longer exists, clear the
+            // queued action so it can't linger and fire on an unrelated screen.
+            if consumesDeepLinks, viewModel.details == nil {
+                appState.pendingEpisodeAction = nil
+            }
         }
         // A Live Activity deep link may queue a surface to present. Fire it once the
         // episode is loaded, and again if a new link arrives while we're on screen.
@@ -181,10 +190,13 @@ struct EpisodeDetailScreen: View {
     }
 
     /// Present the surface a deep link requested, then clear the request so it
-    /// doesn't re-fire. Only acts when the loaded episode matches this screen.
+    /// doesn't re-fire. Only the Episodes-tab instance acts (`consumesDeepLinks`),
+    /// and only when the loaded episode matches this screen.
     private func consumePendingAction() {
-        guard let action = appState.pendingEpisodeAction,
-              viewModel.details?.episode.id == episodeId else { return }
+        guard consumesDeepLinks,
+              let action = appState.pendingEpisodeAction,
+              let episode = viewModel.details?.episode,
+              episode.id == episodeId else { return }
         appState.pendingEpisodeAction = nil
         switch action {
         case .logMedication:
@@ -192,7 +204,9 @@ struct EpisodeDetailScreen: View {
         case .logIntensity:
             showLogUpdate = true
         case .endConfirm:
-            showEndConfirm = true
+            // Only offer to end an episode that is still active — matches the in-app
+            // End buttons, which only render for an active episode.
+            if episode.isActive { showEndConfirm = true }
         }
     }
 
