@@ -1,5 +1,6 @@
 included:
   - MigraLog
+  - MigraLogWidgets
   - MigraLogTests
 
 excluded:
