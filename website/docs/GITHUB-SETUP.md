@@ -1,5 +1,11 @@
 # GitHub Setup Guide
 
+> **⚠️ Superseded.** This guide describes the original standalone repo and the
+> long-lived IAM access-key CI approach with a `.github/workflows/deploy.yml`. The
+> site now lives in the monorepo and deploys via the OIDC pipeline
+> (`.github/workflows/website-deploy.yml`) — see [PIPELINE.md](PIPELINE.md). Kept
+> for historical reference only.
+
 ## Initial Repository Setup
 
 ### 1. Create GitHub Repository

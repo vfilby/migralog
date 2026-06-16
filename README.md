@@ -128,7 +128,7 @@ This is a monorepo containing the app, its specifications, and the marketing web
 | [`spec/`](spec/) | Shared specifications, wireframes, data models, and test specs |
 | [`website/`](website/) | Marketing website (static site + AWS CDK infrastructure). See [`website/README.md`](website/README.md) |
 
-The marketing website is a static site deployed to AWS (S3 + CloudFront via CDK). It was previously maintained in a standalone repository and has been moved here so the brand, app, and site live together. See [`website/README.md`](website/README.md) and [`website/DEPLOYMENT.md`](website/DEPLOYMENT.md) for build and deploy instructions.
+The marketing website is a static site deployed to AWS (S3 + CloudFront via CDK). It was previously maintained in a standalone repository, now retired, and has been moved here so the brand, app, and site live together. Deployment is automated from `main` via the **[Web] Deploy** pipeline (GitHub Actions + OIDC). See [`website/README.md`](website/README.md) and [`website/docs/PIPELINE.md`](website/docs/PIPELINE.md) for build and deploy instructions.
 
 ## About
 

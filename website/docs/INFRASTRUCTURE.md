@@ -1,5 +1,10 @@
 # Infrastructure Setup - AWS CDK
 
+> **Note:** The "GitHub Actions (Optional)" example below shows an illustrative
+> `.github/workflows/deploy.yml`. The actual deploy workflow is
+> `.github/workflows/website-deploy.yml` (OIDC, staging→prod) — see
+> [PIPELINE.md](PIPELINE.md).
+
 ## Overview
 Static website hosted on AWS S3 with CloudFront CDN, managed via AWS CDK.
 
