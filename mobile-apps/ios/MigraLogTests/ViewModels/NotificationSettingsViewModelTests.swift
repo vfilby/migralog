@@ -66,6 +66,20 @@ private final class MockMedNotifService: MedicationNotificationServiceProtocol, 
     func rebalance() async {}
 }
 
+private final class MockLiveActivityManager: LiveActivityManaging, @unchecked Sendable {
+    var endAllCallCount = 0
+
+    func start(for episode: Episode) {}
+    func refresh(episodeId: String) {}
+    func end(episodeId: String, at endTime: Int64) {}
+    func dismiss(episodeId: String) {}
+    func reconcileOnLaunch() {}
+
+    func endAll() {
+        endAllCallCount += 1
+    }
+}
+
 // MARK: - Tests
 
 @MainActor
@@ -74,6 +88,7 @@ final class NotificationSettingsViewModelTests: XCTestCase {
     private var mockCheckinService: MockDailyCheckinService!
     private var mockNotifService: MockNotifService!
     private var mockMedNotifService: MockMedNotifService!
+    private var mockLiveActivityManager: MockLiveActivityManager!
     private var sut: NotificationSettingsViewModel!
 
     private let suiteName = "NotificationSettingsViewModelTests"
@@ -85,11 +100,13 @@ final class NotificationSettingsViewModelTests: XCTestCase {
         mockCheckinService = MockDailyCheckinService()
         mockNotifService = MockNotifService()
         mockMedNotifService = MockMedNotifService()
+        mockLiveActivityManager = MockLiveActivityManager()
         sut = NotificationSettingsViewModel(
             defaults: defaults,
             dailyCheckinService: mockCheckinService,
             notificationService: mockNotifService,
-            medicationNotificationService: mockMedNotifService
+            medicationNotificationService: mockMedNotifService,
+            liveActivityManager: mockLiveActivityManager
         )
     }
 
@@ -100,6 +117,7 @@ final class NotificationSettingsViewModelTests: XCTestCase {
         mockCheckinService = nil
         mockNotifService = nil
         mockMedNotifService = nil
+        mockLiveActivityManager = nil
         super.tearDown()
     }
 
@@ -118,6 +136,7 @@ final class NotificationSettingsViewModelTests: XCTestCase {
         XCTAssertEqual(vm.followUpDelay, 30)
         XCTAssertFalse(vm.criticalAlertsEnabled)
         XCTAssertTrue(vm.dailyCheckinEnabled)
+        XCTAssertTrue(vm.liveActivitiesEnabled)
         XCTAssertTrue(vm.medicationOverrides.isEmpty)
         XCTAssertNil(vm.error)
     }
@@ -152,6 +171,37 @@ final class NotificationSettingsViewModelTests: XCTestCase {
         XCTAssertEqual(sut.followUpDelay, 30)
         XCTAssertFalse(sut.criticalAlertsEnabled)
         XCTAssertTrue(sut.dailyCheckinEnabled)
+    }
+
+    // MARK: - Live Activities setting
+
+    func testLiveActivities_defaultsEnabledWhenKeyAbsent() {
+        sut.loadSettings()
+        XCTAssertTrue(sut.liveActivitiesEnabled)
+    }
+
+    func testLiveActivities_loadReadsStoredValue() {
+        defaults.set(false, forKey: "live_activities_enabled")
+        sut.loadSettings()
+        XCTAssertFalse(sut.liveActivitiesEnabled)
+    }
+
+    func testLiveActivities_saveRoundTripsKey() {
+        sut.liveActivitiesEnabled = false
+        sut.saveSettings()
+        XCTAssertEqual(defaults.object(forKey: "live_activities_enabled") as? Bool, false)
+    }
+
+    func testLiveActivities_disablingEndsRunningActivities() {
+        sut.liveActivitiesEnabled = false
+        sut.applyLiveActivitiesSettingChange()
+        XCTAssertEqual(mockLiveActivityManager.endAllCallCount, 1)
+    }
+
+    func testLiveActivities_enablingDoesNotEndActivities() {
+        sut.liveActivitiesEnabled = true
+        sut.applyLiveActivitiesSettingChange()
+        XCTAssertEqual(mockLiveActivityManager.endAllCallCount, 0)
     }
 
     func testLoadSettings_loadsMedicationOverrides() {
