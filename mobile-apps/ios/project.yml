@@ -43,12 +43,16 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
       configs:
         Release:
-          CODE_SIGN_STYLE: Manual
+          # Automatic signing (App Store Connect API key, -allowProvisioningUpdates
+          # in release-pipeline.yml) so CI can manage profiles for both the app and
+          # the MigraLogWidgets extension without a hand-maintained profile per
+          # bundle id. See #416.
+          CODE_SIGN_STYLE: Automatic
           CODE_SIGN_IDENTITY: "Apple Distribution"
-          PROVISIONING_PROFILE_SPECIFIER: "MigraLog App Store"
     dependencies:
       - package: GRDB
       - package: Sentry
+      - target: MigraLogWidgets
     entitlements:
       path: MigraLog/App/MigraLog.entitlements
       properties:
@@ -58,6 +62,34 @@ targets:
           - CloudKit
         com.apple.developer.icloud-container-identifiers:
           - iCloud.com.eff3.migralog
+
+  MigraLogWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: MigraLogWidgets
+      # Shared ActivityKit contract — also compiled into the app target via its
+      # MigraLog/ source root. Both targets must see the same types.
+      - path: MigraLog/LiveActivity/Shared
+    settings:
+      base:
+        INFOPLIST_FILE: MigraLogWidgets/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.eff3.migralog.widgets
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        DEVELOPMENT_TEAM: "43DNX2P3T6"
+        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: false
+        SWIFT_STRICT_CONCURRENCY: complete
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SKIP_INSTALL: true
+      configs:
+        Release:
+          CODE_SIGN_STYLE: Automatic
+          CODE_SIGN_IDENTITY: "Apple Distribution"
+    dependencies:
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
 
   MigraLogTests:
     type: bundle.unit-test
@@ -89,6 +121,7 @@ schemes:
     build:
       targets:
         MigraLog: all
+        MigraLogWidgets: all
         MigraLogTests: [test]
         MigraLogUITests: [test]
     test:

@@ -152,15 +152,18 @@ jobs:
           security list-keychain -d user -s "$KEYCHAIN_PATH"
           security find-identity -v -p codesigning "$KEYCHAIN_PATH"
 
-      - name: Install provisioning profile
+      # Automatic signing (#416): xcodebuild manages the distribution profiles for
+      # both the app and the MigraLogWidgets extension using the App Store Connect
+      # API key. The key is set up BEFORE the archive so -allowProvisioningUpdates
+      # can register/download profiles on the fly — no hand-maintained
+      # per-bundle-id provisioning profile secret required.
+      - name: Setup App Store Connect API key
         env:
-          PROVISIONING_PROFILE: ${{ secrets.SWIFT_PROVISIONING_PROFILE }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
         run: |
-          PROFILE_PATH=$RUNNER_TEMP/profile.mobileprovision
-          echo -n "$PROVISIONING_PROFILE" | base64 --decode -o "$PROFILE_PATH"
-          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< $(security cms -D -i "$PROFILE_PATH"))
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          cp "$PROFILE_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/${PROFILE_UUID}.mobileprovision
+          mkdir -p ~/.private_keys
+          echo -n "$ASC_API_KEY_P8" > ~/.private_keys/AuthKey_${ASC_KEY_ID}.p8
 
       # Patch-bump the marketing version + build number from the latest release
       # tag. We read both deploy/* (new scheme) and alpha-v* (the pre-existing
@@ -191,6 +194,8 @@ jobs:
       - name: Build archive
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
         run: |
           security find-identity -v -p codesigning $RUNNER_TEMP/app-signing.keychain-db
           xcodebuild archive \
@@ -198,17 +203,14 @@ jobs:
             -project $PROJECT \
             -archivePath $ARCHIVE_PATH \
             -destination 'generic/platform=iOS' \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/.private_keys/AuthKey_${ASC_KEY_ID}.p8 \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Automatic \
             MARKETING_VERSION="$APP_VERSION" \
             CURRENT_PROJECT_VERSION="$APP_BUILD"
-
-      - name: Setup App Store Connect API key
-        env:
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
-        run: |
-          mkdir -p ~/.private_keys
-          echo -n "$ASC_API_KEY_P8" > ~/.private_keys/AuthKey_${ASC_KEY_ID}.p8
 
       - name: Export and upload to TestFlight
         env:
@@ -219,6 +221,7 @@ jobs:
             -archivePath $ARCHIVE_PATH \
             -exportOptionsPlist ExportOptions.plist \
             -exportPath $EXPORT_PATH \
+            -allowProvisioningUpdates \
             -authenticationKeyPath ~/.private_keys/AuthKey_${ASC_KEY_ID}.p8 \
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID"

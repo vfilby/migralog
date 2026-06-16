@@ -6,14 +6,14 @@
 	<string>app-store-connect</string>
 	<key>destination</key>
 	<string>upload</string>
+	<!-- Automatic signing: xcodebuild manages distribution profiles for the app
+	     and the MigraLogWidgets extension via the App Store Connect API key passed
+	     to -exportArchive (and -allowProvisioningUpdates at archive time). This
+	     replaces the per-bundle-id manual profile map, which could not cover the
+	     widget extension's bundle id. See #416. -->
 	<key>signingStyle</key>
-	<string>manual</string>
-	<key>signingCertificate</key>
-	<string>Apple Distribution</string>
-	<key>provisioningProfiles</key>
-	<dict>
-		<key>com.eff3.migralog</key>
-		<string>MigraLog App Store</string>
-	</dict>
+	<string>automatic</string>
+	<key>teamID</key>
+	<string>43DNX2P3T6</string>
 </dict>
 </plist>
