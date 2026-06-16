@@ -2,7 +2,7 @@
 
 Marketing website for MigraLog - a migraine and chronic pain tracking app.
 
-> **Note:** This site was moved into the main [MigraLog monorepo](../README.md) (under `website/`) from its former standalone repository. Deployment is currently performed locally via [`deploy-website.sh`](./deploy-website.sh) (AWS CDK + S3/CloudFront, `migralog-website-deployer` profile). Automated CI deployment from the monorepo — described in [`docs/GITHUB-SETUP.md`](docs/GITHUB-SETUP.md) and [`docs/SECRETS-MANAGEMENT.md`](docs/SECRETS-MANAGEMENT.md) — still needs its AWS secrets configured on this repository; until then the `.github/workflows/deploy.yml` referenced below is not yet present here.
+> **Note:** This site lives in the main [MigraLog monorepo](../README.md) under `website/` (the former standalone website repository has been retired). Deployment is automated: a push to `main` touching `website/**` runs the **[Web] Deploy** pipeline (`.github/workflows/website-deploy.yml`), which deploys `staging.migralog.app`, runs the Playwright suite against it, waits for the `production` environment approval, then deploys and tests `migralog.app`. Auth is via GitHub OIDC into the Migralog AWS account — no stored AWS keys. See [`docs/PIPELINE.md`](docs/PIPELINE.md) for the full flow. The local [`deploy-website.sh`](./deploy-website.sh) is still available for manual/break-glass deploys.
 
 ## Project Structure
 
@@ -21,12 +21,13 @@ Marketing website for MigraLog - a migraine and chronic pain tracking app.
 │   ├── COPY.md           # Marketing copy
 │   ├── BUILD-PLAN.md     # Implementation plan
 │   ├── INFRASTRUCTURE.md # Infrastructure overview
-│   ├── SECRETS-MANAGEMENT.md # Secrets & security
-│   └── GITHUB-SETUP.md   # GitHub Actions setup
-├── .github/
-│   └── workflows/
-│       └── deploy.yml    # CI/CD pipeline
+│   ├── PIPELINE.md       # CI/CD pipeline (current)
+│   ├── SECRETS-MANAGEMENT.md # Secrets & security (legacy)
+│   └── GITHUB-SETUP.md   # IAM access-key CI setup (superseded by PIPELINE.md)
+├── deploy-website.sh     # Manual/break-glass deploy script
 └── README.md             # This file
+
+The CI/CD workflow lives at the repo root: .github/workflows/website-deploy.yml
 ```
 
 ## Quick Start
@@ -41,25 +42,28 @@ cd website && python -m http.server 8000
 
 ### Deploy to AWS
 
-**Simple S3 Deployment (Recommended):**
-See [DEPLOYMENT.md](DEPLOYMENT.md) for step-by-step S3 static hosting instructions.
+**Automated (default):** Merge a change touching `website/**` to `main`. The
+**[Web] Deploy** pipeline deploys staging → tests it → (production approval) →
+deploys and tests production. See [docs/PIPELINE.md](docs/PIPELINE.md).
 
-**Advanced CDK Deployment:**
-See [infrastructure/README.md](infrastructure/README.md) for CDK infrastructure deployment.
+**Manual / break-glass:** Run `./deploy-website.sh <staging|production>` locally
+(requires the `migralog-website-deployer` AWS profile). See
+[infrastructure/README.md](infrastructure/README.md) for the underlying CDK stack.
 
 ## Documentation
 
 | Document | Description |
 |----------|-------------|
-| [DEPLOYMENT.md](DEPLOYMENT.md) | **Step-by-step AWS S3 deployment guide** |
+| [docs/PIPELINE.md](docs/PIPELINE.md) | **CI/CD deploy pipeline (current — OIDC, staging→prod)** |
 | [docs/PRODUCT.md](docs/PRODUCT.md) | Product definition and philosophy |
 | [docs/WEBSITE-SPEC.md](docs/WEBSITE-SPEC.md) | Website technical specification |
 | [docs/COPY.md](docs/COPY.md) | All marketing copy for the website |
 | [docs/BUILD-PLAN.md](docs/BUILD-PLAN.md) | Implementation phases and recommendations |
 | [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) | AWS architecture overview |
-| [docs/SECRETS-MANAGEMENT.md](docs/SECRETS-MANAGEMENT.md) | How to manage secrets and credentials |
-| [docs/GITHUB-SETUP.md](docs/GITHUB-SETUP.md) | GitHub Actions setup guide |
 | [infrastructure/README.md](infrastructure/README.md) | CDK deployment instructions |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Legacy: manual AWS S3 deployment guide |
+| [docs/SECRETS-MANAGEMENT.md](docs/SECRETS-MANAGEMENT.md) | Legacy: managing access-key secrets |
+| [docs/GITHUB-SETUP.md](docs/GITHUB-SETUP.md) | Legacy: IAM access-key CI setup (superseded by PIPELINE.md) |
 
 ## Website Features
 
@@ -138,15 +142,17 @@ npm run deploy:production
 
 ### Automatic Deployment (GitHub Actions)
 
-1. Set up GitHub Secrets (see [docs/GITHUB-SETUP.md](docs/GITHUB-SETUP.md))
-2. Push to `main` branch
-3. GitHub Actions automatically deploys
+Merge a change touching `website/**` to `main` — the **[Web] Deploy** pipeline
+(`.github/workflows/website-deploy.yml`) deploys staging, tests it, waits for the
+`production` environment approval, then deploys and tests production. It uses
+GitHub OIDC to assume short-lived roles in AWS (no stored keys). Full details and
+one-time setup are in [docs/PIPELINE.md](docs/PIPELINE.md).
 
 ## Next Steps
 
-1. ✅ Set up GitHub repository
-2. ✅ Configure GitHub Secrets
-3. ✅ Deploy infrastructure (see infrastructure/README.md)
+1. ✅ Move site into the monorepo and retire the standalone repo
+2. ✅ Deploy infrastructure (see infrastructure/README.md)
+3. ✅ Automated OIDC CI/CD pipeline (see docs/PIPELINE.md)
 4. ⏳ Replace placeholder screenshots with real app screenshots
 5. ⏳ Set up email signup integration
 6. ⏳ Update app store links when available

@@ -1,5 +1,11 @@
 # Secrets Management
 
+> **⚠️ Partly superseded.** The live pipeline uses GitHub OIDC to assume
+> short-lived AWS roles — there are no stored AWS access keys, and the
+> `.github/workflows/deploy.yml` referenced below no longer exists (the workflow
+> is `.github/workflows/website-deploy.yml`). See [PIPELINE.md](PIPELINE.md). The
+> general "what not to commit" guidance here still applies.
+
 ## Overview
 
 This project uses AWS CDK which does not require secrets to be stored in the repository. AWS credentials are managed through the AWS CLI and IAM, not committed to git.
