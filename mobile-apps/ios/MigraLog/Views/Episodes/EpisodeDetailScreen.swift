@@ -2,11 +2,17 @@ import SwiftUI
 
 struct EpisodeDetailScreen: View {
     let episodeId: String
+    /// Whether this instance should consume Live Activity deep-link actions
+    /// (`pendingEpisodeAction`). Only the Episodes-tab instances set this true so
+    /// a same-episode detail alive in another tab can't steal the action. See #416.
+    var consumesDeepLinks: Bool = false
+    @Environment(AppState.self) private var appState
     @State private var viewModel = EpisodeDetailViewModel()
     @State private var showEndTimePicker = false
     @State private var showEditSheet = false
     @State private var showLogUpdate = false
     @State private var showLogMedication = false
+    @State private var showEndConfirm = false
     @State private var customEndTime = Date()
 
     // Timeline editing state
@@ -161,8 +167,46 @@ struct EpisodeDetailScreen: View {
         } message: {
             Text("This cannot be undone.")
         }
+        .confirmationDialog("End this episode?", isPresented: $showEndConfirm, titleVisibility: .visible) {
+            Button("End Episode", role: .destructive) {
+                Task { await viewModel.endEpisode(episodeId, at: TimestampHelper.now) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This marks the episode as ended now.")
+        }
         .task(id: episodeId) {
             await viewModel.loadEpisode(episodeId)
+            // If a deep link targeted an episode that no longer exists, clear the
+            // queued action so it can't linger and fire on an unrelated screen.
+            if consumesDeepLinks, viewModel.details == nil {
+                appState.pendingEpisodeAction = nil
+            }
+        }
+        // A Live Activity deep link may queue a surface to present. Fire it once the
+        // episode is loaded, and again if a new link arrives while we're on screen.
+        .onChange(of: viewModel.details?.episode.id) { _, _ in consumePendingAction() }
+        .onChange(of: appState.pendingEpisodeAction) { _, _ in consumePendingAction() }
+    }
+
+    /// Present the surface a deep link requested, then clear the request so it
+    /// doesn't re-fire. Only the Episodes-tab instance acts (`consumesDeepLinks`),
+    /// and only when the loaded episode matches this screen.
+    private func consumePendingAction() {
+        guard consumesDeepLinks,
+              let action = appState.pendingEpisodeAction,
+              let episode = viewModel.details?.episode,
+              episode.id == episodeId else { return }
+        appState.pendingEpisodeAction = nil
+        switch action {
+        case .logMedication:
+            showLogMedication = true
+        case .logIntensity:
+            showLogUpdate = true
+        case .endConfirm:
+            // Only offer to end an episode that is still active — matches the in-app
+            // End buttons, which only render for an active episode.
+            if episode.isActive { showEndConfirm = true }
         }
     }
 

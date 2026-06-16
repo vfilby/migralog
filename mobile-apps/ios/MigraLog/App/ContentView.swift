@@ -43,6 +43,11 @@ struct ContentView: View {
             )
         }
         .task { syncService.startAutoSync() }
+        .onOpenURL { url in
+            // Live Activity quick actions open migralog:// URLs; route them into
+            // navigation state. AppState ignores anything it doesn't recognize.
+            appState.handle(url: url)
+        }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:

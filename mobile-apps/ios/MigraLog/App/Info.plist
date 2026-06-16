@@ -20,6 +20,20 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<!-- Custom URL scheme for Live Activity quick-action deep links (#416).
+	     The widget builds migralog:// URLs (see EpisodeActivityDeepLink); the app
+	     parses them in ContentView.onOpenURL via DeepLinkParser. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.eff3.migralog.deeplink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>migralog</string>
+			</array>
+		</dict>
+	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

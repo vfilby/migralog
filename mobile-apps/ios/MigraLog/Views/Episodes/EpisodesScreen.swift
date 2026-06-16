@@ -15,9 +15,9 @@ struct EpisodesScreen: View {
                 ScrollView {
                     LazyVStack(spacing: 12) {
                         ForEach(viewModel.episodes) { episode in
-                            NavigationLink {
-                                EpisodeDetailScreen(episodeId: episode.id)
-                            } label: {
+                            // Value-based link so taps drive the same path binding
+                            // (selectedEpisodeId) that deep links use — one nav system.
+                            NavigationLink(value: episode.id) {
                                 EpisodeCardView(episode: episode, readings: viewModel.readingsMap[episode.id] ?? [])
                             }
                             .buttonStyle(.plain)
