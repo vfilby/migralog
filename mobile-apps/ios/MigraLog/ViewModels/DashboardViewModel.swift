@@ -44,6 +44,7 @@ final class DashboardViewModel {
     private let categoryLimitRepository: CategorySafetyRuleRepositoryProtocol
     private let dailyCheckinService: DailyCheckinNotificationServiceProtocol
     private let doseLogger: MedicationDoseLoggerProtocol
+    private let liveActivityManager: LiveActivityManaging
 
     // MARK: - Init
 
@@ -58,7 +59,8 @@ final class DashboardViewModel {
             episodeRepo: EpisodeRepository(dbManager: DatabaseManager.shared),
             dailyStatusRepo: DailyStatusRepository(dbManager: DatabaseManager.shared)
         ),
-        doseLogger: MedicationDoseLoggerProtocol = MedicationDoseLogger()
+        doseLogger: MedicationDoseLoggerProtocol = MedicationDoseLogger(),
+        liveActivityManager: LiveActivityManaging = LiveActivityManager.shared
     ) {
         self.episodeRepository = episodeRepository
         self.medicationRepository = medicationRepository
@@ -66,6 +68,7 @@ final class DashboardViewModel {
         self.categoryLimitRepository = categoryLimitRepository
         self.dailyCheckinService = dailyCheckinService
         self.doseLogger = doseLogger
+        self.liveActivityManager = liveActivityManager
     }
 
     // MARK: - Actions
@@ -160,6 +163,10 @@ final class DashboardViewModel {
                 for: todaysMedications.map(\.medication),
                 now: Date()
             )
+            // Refresh the Live Activity's last-rescue-med readout, if running.
+            if let episode = currentEpisode, scheduleItem.medication.isRescue {
+                liveActivityManager.refresh(episodeId: episode.id)
+            }
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "DashboardViewModel", "action": "logDose"])
             self.error = error.localizedDescription

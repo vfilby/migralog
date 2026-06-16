@@ -13,11 +13,16 @@ final class EpisodesListViewModel {
     // MARK: - Dependencies
 
     private let episodeRepository: EpisodeRepositoryProtocol
+    private let liveActivityManager: LiveActivityManaging
 
     // MARK: - Init
 
-    init(episodeRepository: EpisodeRepositoryProtocol = EpisodeRepository(dbManager: DatabaseManager.shared)) {
+    init(
+        episodeRepository: EpisodeRepositoryProtocol = EpisodeRepository(dbManager: DatabaseManager.shared),
+        liveActivityManager: LiveActivityManaging = LiveActivityManager.shared
+    ) {
         self.episodeRepository = episodeRepository
+        self.liveActivityManager = liveActivityManager
     }
 
     // MARK: - Actions
@@ -50,6 +55,8 @@ final class EpisodesListViewModel {
             try await episodeRepository.deleteEpisode(id)
             episodes.removeAll { $0.id == id }
             readingsMap.removeValue(forKey: id)
+            // Drop any Live Activity for the now-deleted episode.
+            liveActivityManager.dismiss(episodeId: id)
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "EpisodesListViewModel"])
             self.error = error.localizedDescription

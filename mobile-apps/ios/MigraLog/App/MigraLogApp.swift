@@ -74,6 +74,9 @@ struct MigraLogApp: App {
                     await medicationNotificationService.topUp()
                     try? await dailyCheckinService.scheduleNotifications()
                     await timezoneChangeService.checkForChange()
+                    // Re-attach or clean up the active-episode Live Activity after
+                    // launch (e.g. recover from a force-quit, or dismiss a stale one).
+                    LiveActivityManager.shared.reconcileOnLaunch()
                 }
         }
     }

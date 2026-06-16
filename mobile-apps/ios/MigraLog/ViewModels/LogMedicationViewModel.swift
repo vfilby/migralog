@@ -16,17 +16,20 @@ final class LogMedicationViewModel {
     private let episodeRepository: EpisodeRepositoryProtocol
     private let categoryLimitRepository: CategorySafetyRuleRepositoryProtocol
     private let doseLogger: MedicationDoseLoggerProtocol
+    private let liveActivityManager: LiveActivityManaging
 
     init(
         medicationRepository: MedicationRepositoryProtocol = MedicationRepository(dbManager: DatabaseManager.shared),
         episodeRepository: EpisodeRepositoryProtocol = EpisodeRepository(dbManager: DatabaseManager.shared),
         categoryLimitRepository: CategorySafetyRuleRepositoryProtocol = CategorySafetyRuleRepository(dbManager: DatabaseManager.shared),
-        doseLogger: MedicationDoseLoggerProtocol = MedicationDoseLogger()
+        doseLogger: MedicationDoseLoggerProtocol = MedicationDoseLogger(),
+        liveActivityManager: LiveActivityManaging = LiveActivityManager.shared
     ) {
         self.medicationRepository = medicationRepository
         self.episodeRepository = episodeRepository
         self.categoryLimitRepository = categoryLimitRepository
         self.doseLogger = doseLogger
+        self.liveActivityManager = liveActivityManager
     }
 
     @MainActor
@@ -117,6 +120,10 @@ final class LogMedicationViewModel {
             let categories = Set(medications.compactMap { $0.category })
             categoryUsage = computeCategoryUsage(for: categories, now: Date())
             categoryCooldowns = computeCategoryCooldowns(for: medications, now: Date())
+            // Refresh the Live Activity's last-rescue-med readout, if running.
+            if let episode = activeEpisode, medication.isRescue {
+                liveActivityManager.refresh(episodeId: episode.id)
+            }
         } catch {
             ErrorLogger.shared.logError(error, context: ["action": "quickLog", "medicationId": medication.id])
         }

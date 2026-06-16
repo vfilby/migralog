@@ -17,11 +17,16 @@ final class NewEpisodeViewModel {
     // MARK: - Dependencies
 
     private let episodeRepository: EpisodeRepositoryProtocol
+    private let liveActivityManager: LiveActivityManaging
 
     // MARK: - Init
 
-    init(episodeRepository: EpisodeRepositoryProtocol = EpisodeRepository(dbManager: DatabaseManager.shared)) {
+    init(
+        episodeRepository: EpisodeRepositoryProtocol = EpisodeRepository(dbManager: DatabaseManager.shared),
+        liveActivityManager: LiveActivityManaging = LiveActivityManager.shared
+    ) {
         self.episodeRepository = episodeRepository
+        self.liveActivityManager = liveActivityManager
     }
 
     // MARK: - Computed
@@ -70,6 +75,9 @@ final class NewEpisodeViewModel {
                 updatedAt: now
             )
             _ = try await episodeRepository.createIntensityReading(reading)
+
+            // Surface the episode as a Live Activity (Lock Screen / Dynamic Island).
+            liveActivityManager.start(for: saved)
 
             isSaving = false
             return saved
