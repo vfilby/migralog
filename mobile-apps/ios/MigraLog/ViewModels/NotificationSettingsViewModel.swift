@@ -19,6 +19,7 @@ final class NotificationSettingsViewModel {
     var timeSensitiveEnabled: Bool = false
     var followUpDelay: Int = 30 // minutes
     var criticalAlertsEnabled: Bool = false
+    var liveActivitiesEnabled: Bool = true
     var showMedicationNames: Bool = true
     var dailyCheckinEnabled: Bool = true
     var dailyCheckinTime: Date = {
@@ -37,6 +38,7 @@ final class NotificationSettingsViewModel {
         static let timeSensitiveEnabled = "notification_time_sensitive_enabled"
         static let followUpDelay = "notification_follow_up_delay"
         static let criticalAlertsEnabled = "notification_critical_alerts_enabled"
+        static let liveActivitiesEnabled = "live_activities_enabled"
         static let medicationOverrides = "notification_medication_overrides"
         static let showMedicationNames = "notification_show_medication_names"
         static let dailyCheckinEnabled = "daily_checkin_enabled"
@@ -49,6 +51,7 @@ final class NotificationSettingsViewModel {
     private let dailyCheckinService: DailyCheckinNotificationServiceProtocol
     private let notificationService: NotificationServiceProtocol
     private let medicationNotificationService: MedicationNotificationServiceProtocol?
+    private let liveActivityManager: LiveActivityManaging
 
     // MARK: - Init
 
@@ -65,12 +68,14 @@ final class NotificationSettingsViewModel {
             notificationService: NotificationService.shared,
             scheduledNotificationRepo: ScheduledNotificationRepository(dbManager: DatabaseManager.shared),
             medicationRepo: MedicationRepository(dbManager: DatabaseManager.shared)
-        )
+        ),
+        liveActivityManager: LiveActivityManaging = LiveActivityManager.shared
     ) {
         self.defaults = defaults
         self.dailyCheckinService = dailyCheckinService
         self.notificationService = notificationService
         self.medicationNotificationService = medicationNotificationService
+        self.liveActivityManager = liveActivityManager
     }
 
     // MARK: - Actions
@@ -80,6 +85,7 @@ final class NotificationSettingsViewModel {
         timeSensitiveEnabled = defaults.bool(forKey: Keys.timeSensitiveEnabled)
         followUpDelay = defaults.object(forKey: Keys.followUpDelay) as? Int ?? 30
         criticalAlertsEnabled = defaults.bool(forKey: Keys.criticalAlertsEnabled)
+        liveActivitiesEnabled = defaults.object(forKey: Keys.liveActivitiesEnabled) as? Bool ?? true
         showMedicationNames = defaults.object(forKey: Keys.showMedicationNames) as? Bool ?? true
         dailyCheckinEnabled = defaults.object(forKey: Keys.dailyCheckinEnabled) as? Bool ?? true
 
@@ -99,6 +105,7 @@ final class NotificationSettingsViewModel {
         defaults.set(timeSensitiveEnabled, forKey: Keys.timeSensitiveEnabled)
         defaults.set(followUpDelay, forKey: Keys.followUpDelay)
         defaults.set(criticalAlertsEnabled, forKey: Keys.criticalAlertsEnabled)
+        defaults.set(liveActivitiesEnabled, forKey: Keys.liveActivitiesEnabled)
         defaults.set(showMedicationNames, forKey: Keys.showMedicationNames)
         defaults.set(dailyCheckinEnabled, forKey: Keys.dailyCheckinEnabled)
         defaults.set(dailyCheckinTime.timeIntervalSinceReferenceDate, forKey: Keys.dailyCheckinTime)
@@ -166,6 +173,15 @@ final class NotificationSettingsViewModel {
     func applyMedicationNotificationSettingChange() async {
         _ = await notificationService.requestPermission()
         await syncMedicationNotifications()
+    }
+
+    /// Apply a change to the Live Activities setting. Turning it off ends any
+    /// running episode activity immediately; turning it on does nothing now (the
+    /// next episode starts one). Call after `liveActivitiesEnabled` changes.
+    func applyLiveActivitiesSettingChange() {
+        if !liveActivitiesEnabled {
+            liveActivityManager.endAll()
+        }
     }
 
     func updateMedicationSettings(_ override: MedicationNotificationOverride) {
