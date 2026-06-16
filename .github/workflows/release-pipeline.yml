@@ -152,11 +152,26 @@ jobs:
           security list-keychain -d user -s "$KEYCHAIN_PATH"
           security find-identity -v -p codesigning "$KEYCHAIN_PATH"
 
-      # Automatic signing (#416): xcodebuild manages the distribution profiles for
-      # both the app and the MigraLogWidgets extension using the App Store Connect
-      # API key. The key is set up BEFORE the archive so -allowProvisioningUpdates
-      # can register/download profiles on the fly — no hand-maintained
-      # per-bundle-id provisioning profile secret required.
+      # Manual signing (#416): install the pre-created App Store distribution
+      # profiles for both bundle ids. The ASC API key cannot create profiles via
+      # cloud signing, so each is supplied as a base64-encoded secret.
+      - name: Install provisioning profiles
+        env:
+          APP_PROFILE: ${{ secrets.SWIFT_PROVISIONING_PROFILE }}
+          WIDGET_PROFILE: ${{ secrets.SWIFT_WIDGET_PROVISIONING_PROFILE }}
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          install_profile() {
+            local path="$RUNNER_TEMP/$2.mobileprovision"
+            echo -n "$1" | base64 --decode -o "$path"
+            local uuid
+            uuid=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< "$(security cms -D -i "$path")")
+            cp "$path" ~/Library/MobileDevice/Provisioning\ Profiles/${uuid}.mobileprovision
+          }
+          install_profile "$APP_PROFILE" app
+          install_profile "$WIDGET_PROFILE" widget
+
+      # The API key authenticates the TestFlight upload at export time.
       - name: Setup App Store Connect API key
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
@@ -191,13 +206,10 @@ jobs:
           echo "APP_VERSION=$MARKETING" >> "$GITHUB_ENV"
           echo "APP_BUILD=$BUILD" >> "$GITHUB_ENV"
 
-      # Archive WITHOUT signing. Automatic signing during `archive` would try to
-      # resolve an "Apple Development" identity (which CI doesn't have — only the
-      # distribution cert is imported), so all signing is deferred to the export
-      # step below, which signs with the distribution cert and lets
-      # -allowProvisioningUpdates create the App Store profiles for both the app
-      # and the MigraLogWidgets extension via the API key. See #416.
-      - name: Build archive (unsigned — signing happens at export)
+      # Archive with manual signing using the installed distribution profiles
+      # (project.yml pins CODE_SIGN_STYLE=Manual + the profile specifiers per
+      # target). See #416.
+      - name: Build archive
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
@@ -207,7 +219,6 @@ jobs:
             -project $PROJECT \
             -archivePath $ARCHIVE_PATH \
             -destination 'generic/platform=iOS' \
-            CODE_SIGNING_ALLOWED=NO \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             MARKETING_VERSION="$APP_VERSION" \
             CURRENT_PROJECT_VERSION="$APP_BUILD"
@@ -221,7 +232,6 @@ jobs:
             -archivePath $ARCHIVE_PATH \
             -exportOptionsPlist ExportOptions.plist \
             -exportPath $EXPORT_PATH \
-            -allowProvisioningUpdates \
             -authenticationKeyPath ~/.private_keys/AuthKey_${ASC_KEY_ID}.p8 \
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID"

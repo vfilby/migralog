@@ -43,14 +43,13 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
       configs:
         Release:
-          # Automatic signing (App Store Connect API key, -allowProvisioningUpdates
-          # in release-pipeline.yml) so CI can manage profiles for both the app and
-          # the MigraLogWidgets extension without a hand-maintained profile per
-          # bundle id. Do NOT pin CODE_SIGN_IDENTITY here: with automatic signing
-          # the archive action resolves the distribution identity itself, and a
-          # pinned "Apple Distribution" conflicts with automatic ("conflicting
-          # provisioning settings"). See #416.
-          CODE_SIGN_STYLE: Automatic
+          # Manual signing with pre-created App Store distribution profiles
+          # installed in CI (release-pipeline.yml). The App Store Connect API key
+          # cannot do cloud signing, so each bundle id needs its own profile. See
+          # #416.
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_IDENTITY: "Apple Distribution"
+          PROVISIONING_PROFILE_SPECIFIER: "MigraLog App Store"
     dependencies:
       - package: GRDB
       - package: Sentry
@@ -87,7 +86,9 @@ targets:
         SKIP_INSTALL: true
       configs:
         Release:
-          CODE_SIGN_STYLE: Automatic
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_IDENTITY: "Apple Distribution"
+          PROVISIONING_PROFILE_SPECIFIER: "MigraLog Widgets App Store"
     dependencies:
       - sdk: WidgetKit.framework
       - sdk: SwiftUI.framework
