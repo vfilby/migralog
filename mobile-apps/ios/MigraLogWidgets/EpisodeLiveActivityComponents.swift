@@ -35,6 +35,9 @@ struct LastMedLabel: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
+            // Combine so VoiceOver reads the name together with the relative time
+            // (e.g. "Advil, 45 minutes") instead of two separate elements.
+            .accessibilityElement(children: .combine)
         }
     }
 }
@@ -141,5 +144,6 @@ struct PulsingDot: View {
         Circle()
             .fill(color)
             .frame(width: 8, height: 8)
+            .accessibilityLabel("Active migraine episode")
     }
 }
