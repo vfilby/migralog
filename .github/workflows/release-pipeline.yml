@@ -191,11 +191,15 @@ jobs:
           echo "APP_VERSION=$MARKETING" >> "$GITHUB_ENV"
           echo "APP_BUILD=$BUILD" >> "$GITHUB_ENV"
 
-      - name: Build archive
+      # Archive WITHOUT signing. Automatic signing during `archive` would try to
+      # resolve an "Apple Development" identity (which CI doesn't have — only the
+      # distribution cert is imported), so all signing is deferred to the export
+      # step below, which signs with the distribution cert and lets
+      # -allowProvisioningUpdates create the App Store profiles for both the app
+      # and the MigraLogWidgets extension via the API key. See #416.
+      - name: Build archive (unsigned — signing happens at export)
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
         run: |
           security find-identity -v -p codesigning $RUNNER_TEMP/app-signing.keychain-db
           xcodebuild archive \
@@ -203,12 +207,8 @@ jobs:
             -project $PROJECT \
             -archivePath $ARCHIVE_PATH \
             -destination 'generic/platform=iOS' \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath ~/.private_keys/AuthKey_${ASC_KEY_ID}.p8 \
-            -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            CODE_SIGNING_ALLOWED=NO \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            CODE_SIGN_STYLE=Automatic \
             MARKETING_VERSION="$APP_VERSION" \
             CURRENT_PROJECT_VERSION="$APP_BUILD"
 
