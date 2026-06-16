@@ -36,7 +36,11 @@ struct EpisodeLiveActivity: Widget {
         } compactLeading: {
             Image(systemName: "bolt.heart.fill")
                 .foregroundStyle(tint(for: context.state))
+                .accessibilityHidden(true)
         } compactTrailing: {
+            // No accessibilityLabel here: it would override the live timer's
+            // spoken value. VoiceOver reads the elapsed time, and the minimal
+            // presentation already labels the activity as a migraine episode.
             DurationText(attributes: context.attributes, state: context.state)
                 .font(.caption2.monospacedDigit())
                 .frame(maxWidth: 52)
@@ -81,9 +85,12 @@ struct EpisodeLockScreenView: View {
                     .font(.title3.monospacedDigit().weight(.semibold))
                     .foregroundStyle(LiveActivityStyle.activeColor)
             }
+            // Read "In migraine, <elapsed>" as one element.
+            .accessibilityElement(children: .combine)
             HStack(spacing: 12) {
                 if let intensity = LiveActivityStyle.intensityLabel(context.state.currentIntensity) {
                     StatChip(systemImage: "gauge.with.dots.needle.50percent", text: intensity)
+                        .accessibilityLabel("Pain intensity \(intensity)")
                 }
                 LastMedLabel(state: context.state, alignment: .leading)
                 Spacer()

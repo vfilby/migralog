@@ -128,6 +128,11 @@ final class LiveActivityManager: LiveActivityManaging {
         Activity<EpisodeActivityAttributes>.activities.first { $0.attributes.episodeId == episodeId }
     }
 
+    /// Generic stand-in shown instead of a medication's name when the user has
+    /// turned off "Show Medication Names" — keeps the Lock Screen from revealing
+    /// the specific drug while still surfacing that a rescue dose was taken.
+    static let genericRescueName = "Rescue medication"
+
     private func contentState(
         for episodeId: String,
         endedAt: Date?
@@ -135,12 +140,35 @@ final class LiveActivityManager: LiveActivityManaging {
         let readings = (try? episodeRepository.getReadingsByEpisodeId(episodeId)) ?? []
         let intensity = readings.max { $0.timestamp < $1.timestamp }?.intensity
         let lastRescue = latestRescueDose(episodeId: episodeId)
-        return EpisodeActivityAttributes.ContentState(
-            currentIntensity: intensity,
-            lastRescueMedName: lastRescue?.name,
-            lastRescueMedAt: lastRescue?.takenAt,
+        return Self.makeContentState(
+            intensity: intensity,
+            rescue: lastRescue,
+            showMedicationNames: showMedicationNames,
             endedAt: endedAt
         )
+    }
+
+    /// Pure assembly of the activity content, split out for testability. When
+    /// `showMedicationNames` is false the specific drug name is replaced with a
+    /// generic label, mirroring how medication notifications hide names.
+    static func makeContentState(
+        intensity: Double?,
+        rescue: (name: String, takenAt: Date)?,
+        showMedicationNames: Bool,
+        endedAt: Date?
+    ) -> EpisodeActivityAttributes.ContentState {
+        EpisodeActivityAttributes.ContentState(
+            currentIntensity: intensity,
+            lastRescueMedName: rescue.map { showMedicationNames ? $0.name : genericRescueName },
+            lastRescueMedAt: rescue?.takenAt,
+            endedAt: endedAt
+        )
+    }
+
+    /// Honour the existing "Show Medication Names" privacy setting on the Lock
+    /// Screen (shared key with medication notifications).
+    private var showMedicationNames: Bool {
+        UserDefaults.standard.object(forKey: "notification_show_medication_names") as? Bool ?? true
     }
 
     /// The most recent rescue-category dose taken during the episode, if any.
