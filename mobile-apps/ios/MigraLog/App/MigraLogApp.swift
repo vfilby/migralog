@@ -114,6 +114,12 @@ final class AppState {
     /// Selection for the Medications split view (iPad regular width).
     var selectedMedicationId: String?
 
+    /// A surface an open Episode Detail should present once it loads, set when a
+    /// Live Activity deep link asks for more than just opening the episode
+    /// (log a rescue med, log intensity, or end the episode). `EpisodeDetailScreen`
+    /// consumes and clears this so it fires once per link.
+    var pendingEpisodeAction: PendingEpisodeAction?
+
     /// Switch to the Episodes tab with the given episode selected.
     func showEpisode(_ episodeId: String) {
         selectedEpisodeId = episodeId
@@ -124,6 +130,33 @@ final class AppState {
     func showMedication(_ medicationId: String) {
         selectedMedicationId = medicationId
         selectedTab = .medications
+    }
+
+    // MARK: - Deep links
+
+    /// Route an incoming `migralog://` URL (from a Live Activity quick action).
+    /// Non-`migralog` or malformed URLs are ignored. Every recognized target
+    /// selects the episode in the Episodes tab; sub-actions additionally queue a
+    /// surface for `EpisodeDetailScreen` to present.
+    func handle(url: URL) {
+        guard let target = DeepLinkParser.parse(url) else { return }
+        route(to: target)
+    }
+
+    /// Apply a parsed deep-link target to navigation state. Split out from
+    /// `handle(url:)` so tests can exercise routing without constructing URLs.
+    func route(to target: DeepLinkTarget) {
+        showEpisode(target.episodeId)
+        switch target {
+        case .openEpisode:
+            pendingEpisodeAction = nil
+        case .logRescueMed:
+            pendingEpisodeAction = .logMedication
+        case .logIntensity:
+            pendingEpisodeAction = .logIntensity
+        case .endEpisode:
+            pendingEpisodeAction = .endConfirm
+        }
     }
 
     private let onboardingKey = "isOnboardingComplete"

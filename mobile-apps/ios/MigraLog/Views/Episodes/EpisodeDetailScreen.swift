@@ -2,11 +2,13 @@ import SwiftUI
 
 struct EpisodeDetailScreen: View {
     let episodeId: String
+    @Environment(AppState.self) private var appState
     @State private var viewModel = EpisodeDetailViewModel()
     @State private var showEndTimePicker = false
     @State private var showEditSheet = false
     @State private var showLogUpdate = false
     @State private var showLogMedication = false
+    @State private var showEndConfirm = false
     @State private var customEndTime = Date()
 
     // Timeline editing state
@@ -161,8 +163,36 @@ struct EpisodeDetailScreen: View {
         } message: {
             Text("This cannot be undone.")
         }
+        .confirmationDialog("End this episode?", isPresented: $showEndConfirm, titleVisibility: .visible) {
+            Button("End Episode", role: .destructive) {
+                Task { await viewModel.endEpisode(episodeId, at: TimestampHelper.now) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This marks the episode as ended now.")
+        }
         .task(id: episodeId) {
             await viewModel.loadEpisode(episodeId)
+        }
+        // A Live Activity deep link may queue a surface to present. Fire it once the
+        // episode is loaded, and again if a new link arrives while we're on screen.
+        .onChange(of: viewModel.details?.episode.id) { _, _ in consumePendingAction() }
+        .onChange(of: appState.pendingEpisodeAction) { _, _ in consumePendingAction() }
+    }
+
+    /// Present the surface a deep link requested, then clear the request so it
+    /// doesn't re-fire. Only acts when the loaded episode matches this screen.
+    private func consumePendingAction() {
+        guard let action = appState.pendingEpisodeAction,
+              viewModel.details?.episode.id == episodeId else { return }
+        appState.pendingEpisodeAction = nil
+        switch action {
+        case .logMedication:
+            showLogMedication = true
+        case .logIntensity:
+            showLogUpdate = true
+        case .endConfirm:
+            showEndConfirm = true
         }
     }
 

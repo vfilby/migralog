@@ -84,10 +84,24 @@ struct EpisodesTab: View {
                 }
             }
         } else {
-            NavigationStack {
+            // iPhone: a path-bound stack so taps push detail and a Live Activity
+            // deep link (which sets `selectedEpisodeId`) pushes it programmatically.
+            NavigationStack(path: episodePath(appState: appState)) {
                 EpisodesScreen()
+                    .navigationDestination(for: String.self) { episodeId in
+                        EpisodeDetailScreen(episodeId: episodeId)
+                    }
             }
         }
+    }
+
+    /// Bridges `appState.selectedEpisodeId` to a `NavigationPath`-style binding:
+    /// a non-nil id means the detail is pushed; popping clears the selection.
+    private func episodePath(appState: AppState) -> Binding<[String]> {
+        Binding(
+            get: { appState.selectedEpisodeId.map { [$0] } ?? [] },
+            set: { appState.selectedEpisodeId = $0.last }
+        )
     }
 }
 
