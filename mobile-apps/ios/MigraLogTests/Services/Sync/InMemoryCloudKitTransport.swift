@@ -20,6 +20,10 @@ final class InMemoryCloudKitTransport: CloudKitTransport, @unchecked Sendable {
     var failNextFetch: Error?
     /// Controls `accountAvailable()` for precondition tests.
     var accountIsAvailable = true
+    /// When set, `fetchChanges` returns at most this many records per call and flags
+    /// `moreComing`, modelling CloudKit's zone pagination (so cross-page ordering can be
+    /// exercised). `nil` returns the whole zone in one batch.
+    var pageSize: Int?
 
     func accountAvailable() async throws -> Bool {
         lock.lock(); defer { lock.unlock() }
@@ -83,9 +87,14 @@ final class InMemoryCloudKitTransport: CloudKitTransport, @unchecked Sendable {
             .filter { $0.value > sinceSeq }
             .sorted { $0.value < $1.value }
             .map { $0.key }
-        let records = changedNames.compactMap { storage[$0] }
-        let newSeq = changeSeq.values.max() ?? sinceSeq
-        return SyncChangeBatch(records: records, newToken: Data(String(newSeq).utf8), moreComing: false)
+
+        // Paginate when pageSize is set: return one page and advance the token to the last
+        // record in it, leaving the rest for the next fetch (moreComing = true).
+        let pageNames = pageSize.map { Array(changedNames.prefix($0)) } ?? changedNames
+        let records = pageNames.compactMap { storage[$0] }
+        let moreComing = pageSize != nil && pageNames.count < changedNames.count
+        let newSeq = pageNames.last.flatMap { changeSeq[$0] } ?? (changeSeq.values.max() ?? sinceSeq)
+        return SyncChangeBatch(records: records, newToken: Data(String(newSeq).utf8), moreComing: moreComing)
     }
 
     /// Test helper: the current stored record for a recordName, if any.

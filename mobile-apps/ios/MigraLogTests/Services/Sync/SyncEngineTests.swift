@@ -188,6 +188,64 @@ final class SyncEngineTests: XCTestCase {
         XCTAssertEqual(childCount, 1, "child applied after parent, no FK error")
     }
 
+    /// #523: on a full-history pull CloudKit paginates the zone, so the per-batch
+    /// parents-first sort can't help when a child (intensity_readings) lands in an earlier
+    /// page than its parent (episodes). The FK insert fails on that page; the engine must
+    /// defer it and retry once the parent arrives, instead of aborting the whole sync.
+    func testPullDefersChildUntilParentArrivesInLaterPage() async throws {
+        let reading = SyncRecord(
+            tableName: "intensity_readings", recordId: "ir1",
+            payload: payload([
+                "id": "ir1", "episode_id": "e1", "timestamp": Int64(1000), "intensity": 5.0,
+                "created_at": Int64(1000), "updated_at": Int64(1000),
+            ]),
+            schemaVersion: 31, updatedAt: 1000, deleted: false
+        )
+        let episode = SyncRecord(
+            tableName: "episodes", recordId: "e1",
+            payload: payload([
+                "id": "e1", "start_time": Int64(1000), "locations": "[]", "qualities": "[]",
+                "symptoms": "[]", "triggers": "[]", "created_at": Int64(1000), "updated_at": Int64(1000),
+            ]),
+            schemaVersion: 31, updatedAt: 1000, deleted: false
+        )
+        // Child seeded first → page 1 is the child, page 2 is the parent. The sort cannot
+        // reorder across pages, so page 1's child hits the FK constraint.
+        try await transport.push([reading])
+        try await transport.push([episode])
+        transport.pageSize = 1
+
+        let applied = try await engine.pull(now: 10)
+        XCTAssertEqual(applied, 2, "both records applied: deferred child retried after parent landed")
+        let childCount = try await dbManager.dbQueue.read { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM intensity_readings WHERE id = 'ir1'")
+        }
+        XCTAssertEqual(childCount, 1, "child survived the cross-page FK race")
+    }
+
+    /// A child whose parent never arrives (e.g. the episode was deleted upstream) must not
+    /// crash the sync — it is dropped, and every other record still applies.
+    func testPullDropsOrphanChildWithoutAbortingSync() async throws {
+        let orphan = SyncRecord(
+            tableName: "intensity_readings", recordId: "ir-orphan",
+            payload: payload([
+                "id": "ir-orphan", "episode_id": "missing", "timestamp": Int64(1000), "intensity": 5.0,
+                "created_at": Int64(1000), "updated_at": Int64(1000),
+            ]),
+            schemaVersion: 31, updatedAt: 1000, deleted: false
+        )
+        try await transport.push([orphan])
+        try await transport.push([remoteMedication("m1", name: "Survivor", updatedAt: 1000)])
+
+        let applied = try await engine.pull(now: 10)
+        XCTAssertEqual(applied, 1, "orphan dropped, the medication still applied")
+        XCTAssertEqual(try medicationName("m1"), "Survivor", "sync did not abort on the orphan")
+        let orphanCount = try await dbManager.dbQueue.read { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM intensity_readings WHERE id = 'ir-orphan'")
+        }
+        XCTAssertEqual(orphanCount, 0, "child with no parent was discarded, not inserted")
+    }
+
     func testPullIsIncremental() async throws {
         try await transport.push([remoteMedication("m1", name: "X", updatedAt: 1000)])
         _ = try await engine.pull(now: 10)

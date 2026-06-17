@@ -137,6 +137,14 @@ actor SyncEngine {
         var token = zoneState?.serverChangeToken
         var didResetToken = false
 
+        // A child record (e.g. intensity_readings) whose FK parent (episodes) hasn't been
+        // applied yet when we reach it. The per-batch parents-first sort below orders one
+        // batch correctly, but CloudKit paginates the zone, so on a full-history pull a
+        // child can arrive in an earlier page than its parent — its FK insert then fails
+        // (SQLite error 19) and, left to propagate, aborts the whole sync. Collect those
+        // failures and retry them once every batch has landed (#523).
+        var deferredChildren: [SyncRecord] = []
+
         // #469: if a migration added synced columns since the last pull, already-synced
         // rows are locally missing those columns (migrate-on-read dropped them) and the
         // incremental cursor will never redeliver them — the source rows haven't
@@ -164,23 +172,59 @@ actor SyncEngine {
             }
             let ordered = batch.records.sorted { Self.applyRank($0) < Self.applyRank($1) }
             for record in ordered {
-                let outcome = try applier.apply(record, now: now)
-                // A remote change that won last-write-wins supersedes any locally-queued
-                // edit for the same row — drop it so push doesn't send the now-stale local
-                // version back and clobber the winner.
-                if outcome == .appliedRemoteWin {
-                    try pendingStore.removePending(tableName: record.tableName, recordId: record.recordId)
+                do {
+                    if try applyAndReconcile(record, now: now) { applied += 1 }
+                } catch let error as DatabaseError where error.extendedResultCode == .SQLITE_CONSTRAINT_FOREIGNKEY {
+                    // Parent not here yet (later page) — retry after the pull completes.
+                    deferredChildren.append(record)
                 }
-                applied += 1
             }
             token = batch.newToken
             try zoneStore.saveChangeToken(token, zoneName: Self.zoneName, syncedAt: now)
             if !batch.moreComing { break }
         }
+        applied += try drainDeferred(deferredChildren, now: now)
         // Stamp the manifest only after the pull completed — if a re-pull fails midway
         // the stored manifest stays stale and the next sync resets the cursor again.
         if zoneState?.lastSyncedSchema != schemaManifest {
             try zoneStore.saveSyncedSchema(schemaManifest, zoneName: Self.zoneName)
+        }
+        return applied
+    }
+
+    /// Apply one remote record and reconcile the local outbound queue. Returns whether the
+    /// record counts toward the applied total (every successful apply does). A remote change
+    /// that won last-write-wins supersedes any locally-queued edit for the same row — drop it
+    /// so push doesn't send the now-stale local version back and clobber the winner.
+    @discardableResult
+    private func applyAndReconcile(_ record: SyncRecord, now: Int64) throws -> Bool {
+        let outcome = try applier.apply(record, now: now)
+        if outcome == .appliedRemoteWin {
+            try pendingStore.removePending(tableName: record.tableName, recordId: record.recordId)
+        }
+        return true
+    }
+
+    /// Retry records that failed their FK check during the batched pull, now that the rest
+    /// of the zone has landed and their parents exist. Loops until a full pass applies
+    /// nothing new: anything still failing is a genuine orphan (its parent was deleted
+    /// upstream, so a cascade would drop it anyway) and is discarded rather than aborting
+    /// the sync. Returns the number applied.
+    private func drainDeferred(_ deferred: [SyncRecord], now: Int64) throws -> Int {
+        var pending = deferred
+        var applied = 0
+        while !pending.isEmpty {
+            var stillDeferred: [SyncRecord] = []
+            for record in pending {
+                do {
+                    if try applyAndReconcile(record, now: now) { applied += 1 }
+                } catch let error as DatabaseError where error.extendedResultCode == .SQLITE_CONSTRAINT_FOREIGNKEY {
+                    stillDeferred.append(record)
+                }
+            }
+            // No progress this pass → the remainder are unresolvable orphans.
+            if stillDeferred.count == pending.count { break }
+            pending = stillDeferred
         }
         return applied
     }
