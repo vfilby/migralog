@@ -97,8 +97,8 @@ struct ScheduledNotificationsScreen: View {
 
     @ViewBuilder
     private func row(_ entry: ScheduledNotificationEntry) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.xs) {
+            HStack(spacing: DesignTokens.Spacing.sm) {
                 Text(entry.status.label)
                     .font(.caption.weight(.semibold))
                     .padding(.horizontal, 6)
@@ -271,7 +271,7 @@ private struct ScheduledNotificationDetailView: View {
                     LabeledContent("Sound", value: os.content.sound.map { "\($0)" } ?? "—")
                     LabeledContent("Interruption", value: "\(os.content.interruptionLevel.rawValue)")
                     if !os.content.userInfo.isEmpty {
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: DesignTokens.Spacing.xs) {
                             Text("userInfo").font(.caption).foregroundStyle(.secondary)
                             Text(formatUserInfo(os.content.userInfo))
                                 .font(.caption.monospaced())

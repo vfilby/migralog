@@ -11,7 +11,7 @@ struct PainIntensitySlider: View {
     var body: some View {
         let level = PainScale.level(for: intensity)
 
-        VStack(spacing: 8) {
+        VStack(spacing: DesignTokens.Spacing.sm) {
             // Number + Label
             HStack {
                 Text(String(format: "%.0f", intensity))

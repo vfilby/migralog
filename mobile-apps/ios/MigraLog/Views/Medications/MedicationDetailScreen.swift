@@ -41,7 +41,7 @@ struct MedicationDetailScreen: View {
                             .padding()
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(Color.orange.opacity(0.1))
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
                             .accessibilityIdentifier("cooldown-banner")
                     }
 
@@ -57,7 +57,7 @@ struct MedicationDetailScreen: View {
                             .padding()
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(tint.opacity(0.12))
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
                             .accessibilityIdentifier("category-warning-banner")
                     }
 
@@ -82,7 +82,7 @@ struct MedicationDetailScreen: View {
                         .padding()
                         .background(Color.accentColor)
                         .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
                     }
                     .accessibilityIdentifier("log-dose-button")
                 } secondary: {
@@ -101,7 +101,7 @@ struct MedicationDetailScreen: View {
                             .padding()
                             .background(Color.orange.opacity(0.1))
                             .foregroundStyle(.orange)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
                     }
                     .accessibilityIdentifier("archive-medication-button")
                 }
@@ -192,7 +192,7 @@ struct MedicationDetailScreen: View {
 
     @ViewBuilder
     private func medicationInfoSection(_ medication: Medication) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
             LabeledContent("Type") { Text(medication.type.displayName) }
             LabeledContent("Dosage") {
                 Text(MedicationFormatting.formatDosage(amount: medication.dosageAmount, unit: medication.dosageUnit))
@@ -209,12 +209,12 @@ struct MedicationDetailScreen: View {
         }
         .padding()
         .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
     }
 
     @ViewBuilder
     private func schedulesSection(_ medication: Medication) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
             HStack {
                 Text("Reminders")
                     .font(.headline)
@@ -279,7 +279,7 @@ struct MedicationDetailScreen: View {
         }
         .padding()
         .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
     }
 
     @ViewBuilder
@@ -291,7 +291,7 @@ struct MedicationDetailScreen: View {
         }
         .padding()
         .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
     }
 
     @ViewBuilder
@@ -313,7 +313,7 @@ struct MedicationDetailScreen: View {
             } label: {
                 Image(systemName: "ellipsis.circle")
                     .foregroundStyle(.secondary)
-                    .padding(.leading, 4)
+                    .padding(.leading, DesignTokens.Spacing.xs)
             }
             .accessibilityIdentifier("dose-menu-\(dose.id)")
         }
@@ -333,7 +333,7 @@ struct MedicationDetailScreen: View {
 
     @ViewBuilder
     private func recentActivitySection() -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
             Text("Recent Activity")
                 .font(.headline)
 
@@ -350,7 +350,7 @@ struct MedicationDetailScreen: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
     }
 }
 
@@ -380,6 +380,6 @@ struct DoseRowView: View {
                     .foregroundStyle(.red)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, DesignTokens.Spacing.xs)
     }
 }

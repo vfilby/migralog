@@ -44,7 +44,7 @@ struct DeveloperToolsScreen: View {
                     showResyncConfirm = true
                 } label: {
                     if syncService.isSyncing {
-                        HStack(spacing: 8) {
+                        HStack(spacing: DesignTokens.Spacing.sm) {
                             ProgressView()
                             Text("Re-syncing…")
                         }

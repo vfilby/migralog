@@ -33,7 +33,7 @@ struct AddTrackingOptionSheet: View {
                 let matches = viewModel.suggestions(for: category, query: name)
                 if !matches.isEmpty {
                     Section("Suggestions") {
-                        FlowLayout(spacing: 8) {
+                        FlowLayout(spacing: DesignTokens.Spacing.sm) {
                             ForEach(matches) { suggestion in
                                 SelectableChip(
                                     title: suggestion.displayName,

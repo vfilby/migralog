@@ -11,7 +11,7 @@ struct InsightsChartsSection: View {
     @Bindable var viewModel: AnalyticsViewModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.lg) {
             WarningCalloutsCard(warnings: viewModel.insightWarnings)
             MonthlySummaryCard(summaries: viewModel.monthlySummaries, medications: viewModel.summaryMedications)
             HeadacheBurdenChartCard(points: viewModel.headacheDayTrend)
@@ -34,7 +34,7 @@ private struct InsightCard<Content: View>: View {
     @ViewBuilder var content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
             Text(title)
                 .font(.headline)
             Text(subtitle)
@@ -45,7 +45,7 @@ private struct InsightCard<Content: View>: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
         .accessibilityIdentifier(accessibilityId)
     }
 }
@@ -65,12 +65,12 @@ struct WarningCalloutsCard: View {
     let warnings: [AnalyticsInsights.Warning]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.md) {
             Text("Warning Signs")
                 .font(.headline)
 
             if warnings.isEmpty {
-                HStack(spacing: 8) {
+                HStack(spacing: DesignTokens.Spacing.sm) {
                     Image(systemName: "checkmark.seal.fill")
                         .foregroundStyle(.green)
                     Text("Nothing flagged in the current data.")
@@ -101,7 +101,7 @@ struct WarningCalloutsCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
         .accessibilityIdentifier("insights-warnings-card")
     }
 
@@ -216,7 +216,7 @@ private struct ClassIntakeChart: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.xs) {
             HStack(spacing: 6) {
                 Circle()
                     .fill(color)
@@ -254,7 +254,7 @@ private struct ClassIntakeChart: View {
                     .foregroundStyle(.tertiary)
             }
         }
-        .padding(.top, 4)
+        .padding(.top, DesignTokens.Spacing.xs)
     }
 }
 
@@ -404,7 +404,7 @@ struct MonthlySummaryCard: View {
             if summaries.isEmpty {
                 EmptyChartPlaceholder()
             } else {
-                HStack(alignment: .top, spacing: 8) {
+                HStack(alignment: .top, spacing: DesignTokens.Spacing.sm) {
                     labelColumn
                     scrollableValueColumns
                 }

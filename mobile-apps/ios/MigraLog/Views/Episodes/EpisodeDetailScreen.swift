@@ -212,7 +212,7 @@ struct EpisodeDetailScreen: View {
 
     @ViewBuilder
     private func episodeSummarySection(_ episode: Episode) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.md) {
             // Dates row
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
@@ -228,7 +228,7 @@ struct EpisodeDetailScreen: View {
                 if episode.isActive {
                     Text("Ongoing")
                         .font(.caption.weight(.bold))
-                        .padding(.horizontal, 12)
+                        .padding(.horizontal, DesignTokens.Spacing.md)
                         .padding(.vertical, 6)
                         .background(Color.red.opacity(0.2))
                         .foregroundStyle(.red)
@@ -267,12 +267,12 @@ struct EpisodeDetailScreen: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     Spacer()
-                    FlowLayout(spacing: 4) {
+                    FlowLayout(spacing: DesignTokens.Spacing.xs) {
                         ForEach(episode.symptoms) { symptom in
                             Text(symptom.displayName)
                                 .font(.caption)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
+                                .padding(.horizontal, DesignTokens.Spacing.sm)
+                                .padding(.vertical, DesignTokens.Spacing.xs)
                                 .background(Color.purple.opacity(0.1))
                                 .clipShape(Capsule())
                         }
@@ -288,12 +288,12 @@ struct EpisodeDetailScreen: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     Spacer()
-                    FlowLayout(spacing: 4) {
+                    FlowLayout(spacing: DesignTokens.Spacing.xs) {
                         ForEach(episode.triggers) { trigger in
                             Text(trigger.displayName)
                                 .font(.caption)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
+                                .padding(.horizontal, DesignTokens.Spacing.sm)
+                                .padding(.vertical, DesignTokens.Spacing.xs)
                                 .background(Color.orange.opacity(0.1))
                                 .clipShape(Capsule())
                         }
@@ -316,7 +316,7 @@ struct EpisodeDetailScreen: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
     }
 }
 

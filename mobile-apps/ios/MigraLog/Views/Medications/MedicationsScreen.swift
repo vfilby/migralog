@@ -94,7 +94,7 @@ struct MedicationRowView: View {
     let medication: Medication
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.xs) {
             Text(medication.name)
                 .font(.headline)
             Text(MedicationFormatting.formatDosage(amount: medication.dosageAmount, unit: medication.dosageUnit))
@@ -106,7 +106,7 @@ struct MedicationRowView: View {
                     Text(category.displayName)
                         .font(.caption2.weight(.semibold))
                         .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
+                        .padding(.vertical, DesignTokens.Spacing.xs)
                         .foregroundStyle(.secondary)
                         .background(Color(.systemGray5))
                         .clipShape(Capsule())
@@ -125,7 +125,7 @@ struct MedicationListRowView: View {
     let medication: Medication
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.xs) {
             Text(medication.name)
                 .font(.headline)
                 .foregroundStyle(.primary)
@@ -138,7 +138,7 @@ struct MedicationListRowView: View {
                     Text(category.displayName)
                         .font(.caption2.weight(.semibold))
                         .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
+                        .padding(.vertical, DesignTokens.Spacing.xs)
                         .foregroundStyle(Color(.secondaryLabel))
                         .background(Color(.systemGray5))
                         .background(Color(.systemBackground))
@@ -237,7 +237,7 @@ struct MedicationTypeBadge: View {
         Text(MedicationTypeColors.label(for: type))
             .font(.caption2.weight(.semibold))
             .padding(.horizontal, 10)
-            .padding(.vertical, 4)
+            .padding(.vertical, DesignTokens.Spacing.xs)
             .foregroundStyle(badgeColor)
             .background(badgeColor.opacity(0.2))
             .background(Color(.systemBackground))

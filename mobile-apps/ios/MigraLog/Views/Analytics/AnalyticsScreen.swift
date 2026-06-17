@@ -39,7 +39,7 @@ struct AnalyticsScreen: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: DesignTokens.Spacing.lg) {
                 AnalyticsSectionPicker(selection: $selectedSection)
 
                 switch selectedSection {
@@ -118,7 +118,7 @@ struct MonthlyCalendarView: View {
     }
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: DesignTokens.Spacing.sm) {
             // Month navigation
             HStack {
                 Button {
@@ -181,7 +181,7 @@ struct MonthlyCalendarView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
         .sheet(isPresented: $viewModel.showDailyStatusPrompt) {
             if let date = viewModel.selectedCalendarDate {
                 NavigationStack {
@@ -290,7 +290,7 @@ struct TimeRangeSelectorView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
+            HStack(spacing: DesignTokens.Spacing.sm) {
                 ForEach(TimeRangeDays.allCases) { range in
                     let isSelected = viewModel.customRange == nil && viewModel.selectedRange == range
                     Button {
@@ -331,7 +331,7 @@ struct TimeRangeSelectorView: View {
     private func chipLabel(_ text: String, isSelected: Bool) -> some View {
         Text(text)
             .font(.caption.weight(isSelected ? .bold : .regular))
-            .padding(.horizontal, 12)
+            .padding(.horizontal, DesignTokens.Spacing.md)
             .padding(.vertical, 6)
             .background(isSelected ? Color.accentColor : Color(.secondarySystemBackground))
             .foregroundStyle(isSelected ? .white : .primary)
@@ -397,7 +397,7 @@ struct DayStatisticsCard: View {
     @Bindable var viewModel: AnalyticsViewModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
             Text("Day Statistics")
                 .font(.headline)
 
@@ -416,7 +416,7 @@ struct DayStatisticsCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
         .accessibilityIdentifier("day-statistics-card")
     }
 }
@@ -445,7 +445,7 @@ struct DurationMetricsCard: View {
 
     var body: some View {
         if !viewModel.episodes.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
                 Text("Duration Metrics")
                     .font(.headline)
 
@@ -466,7 +466,7 @@ struct DurationMetricsCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
             .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
             .accessibilityIdentifier("duration-metrics-card")
         }
     }
@@ -480,7 +480,7 @@ struct OverlayListCard: View {
     var onEdit: ((CalendarOverlay) -> Void)?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
             HStack {
                 Text("Overlays")
                     .font(.headline)
@@ -528,7 +528,7 @@ struct OverlayListCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
     }
 
     private func formatDateRange(_ overlay: CalendarOverlay) -> String {
@@ -653,7 +653,7 @@ struct AnalyticsVisualizationPane: View {
     var body: some View {
         GeometryReader { geo in
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: DesignTokens.Spacing.lg) {
                     AnalyticsSectionPicker(selection: $selectedSection)
 
                     switch selectedSection {

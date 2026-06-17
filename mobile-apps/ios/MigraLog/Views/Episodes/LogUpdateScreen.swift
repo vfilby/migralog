@@ -26,7 +26,7 @@ struct LogUpdateScreen: View {
             }
 
             Section("Additional Symptoms") {
-                FlowLayout(spacing: 8) {
+                FlowLayout(spacing: DesignTokens.Spacing.sm) {
                     ForEach(symptomChoices) { symptom in
                         SelectableChip(
                             title: symptom.displayName,

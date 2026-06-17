@@ -33,7 +33,7 @@ struct IntensitySparklineView: View {
                 )
 
                 // Background gradient (green at bottom, purple at top)
-                RoundedRectangle(cornerRadius: 4)
+                RoundedRectangle(cornerRadius: DesignTokens.Radius.sm)
                     .fill(
                         LinearGradient(
                             colors: Self.gradientColors.map { $0.opacity(0.15) },

@@ -32,7 +32,7 @@ struct SyncSettingsScreen: View {
                         Task { await syncNow() }
                     } label: {
                         if syncService.isSyncing {
-                            HStack(spacing: 8) {
+                            HStack(spacing: DesignTokens.Spacing.sm) {
                                 ProgressView()
                                 Text("Syncing…")
                             }

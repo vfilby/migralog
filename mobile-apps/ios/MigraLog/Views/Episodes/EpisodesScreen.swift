@@ -13,7 +13,7 @@ struct EpisodesScreen: View {
                 )
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 12) {
+                    LazyVStack(spacing: DesignTokens.Spacing.md) {
                         ForEach(viewModel.episodes) { episode in
                             // Value-based link so taps drive the same path binding
                             // (selectedEpisodeId) that deep links use — one nav system.
@@ -41,17 +41,17 @@ struct EpisodeCardView: View {
     let readings: [IntensityReading]
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: DesignTokens.Spacing.md) {
             // Left side: text info
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: DesignTokens.Spacing.xs) {
                 HStack {
                     Text(DateFormatting.relativeDate(episode.startDate))
                         .font(.headline)
                     if episode.isActive {
                         Text("Ongoing")
                             .font(.caption)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
+                            .padding(.horizontal, DesignTokens.Spacing.sm)
+                            .padding(.vertical, DesignTokens.Spacing.xs)
                             .background(Color.red.opacity(0.2))
                             .foregroundStyle(.red)
                             .clipShape(Capsule())
@@ -99,12 +99,12 @@ struct EpisodeCardView: View {
                     episodeEnd: episode.endTime
                 )
                 .frame(width: 160, height: 50)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
+                .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.sm))
             }
         }
         .padding()
         .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
     }
 }
 
@@ -117,8 +117,8 @@ struct EpisodeListRowView: View {
     let readings: [IntensityReading]
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
+        HStack(alignment: .center, spacing: DesignTokens.Spacing.md) {
+            VStack(alignment: .leading, spacing: DesignTokens.Spacing.xs) {
                 HStack {
                     Text(DateFormatting.relativeDate(episode.startDate))
                         .font(.headline)
@@ -127,8 +127,8 @@ struct EpisodeListRowView: View {
                         // color identity on the selection highlight.
                         Text("Ongoing")
                             .font(.caption)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
+                            .padding(.horizontal, DesignTokens.Spacing.sm)
+                            .padding(.vertical, DesignTokens.Spacing.xs)
                             .background(Color.red.opacity(0.2))
                             .background(Color(.systemBackground))
                             .foregroundStyle(.red)
@@ -175,10 +175,10 @@ struct EpisodeListRowView: View {
                     episodeEnd: episode.endTime
                 )
                 .frame(width: 140, height: 44)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
+                .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.sm))
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, DesignTokens.Spacing.xs)
     }
 }
 

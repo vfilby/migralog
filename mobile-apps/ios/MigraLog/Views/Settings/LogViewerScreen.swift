@@ -22,8 +22,8 @@ struct LogViewerScreen: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(filtered) { entry in
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(spacing: 8) {
+                        VStack(alignment: .leading, spacing: DesignTokens.Spacing.xs) {
+                            HStack(spacing: DesignTokens.Spacing.sm) {
                                 Text(entry.level.label)
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(color(for: entry.level))

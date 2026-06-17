@@ -87,7 +87,7 @@ struct EpisodeLockScreenView: View {
             }
             // Read "In migraine, <elapsed>" as one element.
             .accessibilityElement(children: .combine)
-            HStack(spacing: 12) {
+            HStack(spacing: DesignTokens.Spacing.md) {
                 if let intensity = LiveActivityStyle.intensityLabel(context.state.currentIntensity) {
                     StatChip(systemImage: "gauge.with.dots.needle.50percent", text: intensity)
                         .accessibilityLabel("Pain intensity \(intensity)")
