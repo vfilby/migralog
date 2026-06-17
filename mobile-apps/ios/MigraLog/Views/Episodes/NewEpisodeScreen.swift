@@ -22,7 +22,7 @@ struct NewEpisodeScreen: View {
             }
 
             Section("Pain Qualities") {
-                FlowLayout(spacing: 8) {
+                FlowLayout(spacing: DesignTokens.Spacing.sm) {
                     ForEach(trackingOptions.activeQualities) { quality in
                         SelectableChip(
                             title: quality.displayName,
@@ -39,7 +39,7 @@ struct NewEpisodeScreen: View {
             }
 
             Section("Symptoms") {
-                FlowLayout(spacing: 8) {
+                FlowLayout(spacing: DesignTokens.Spacing.sm) {
                     ForEach(trackingOptions.activeSymptoms) { symptom in
                         SelectableChip(
                             title: symptom.displayName,
@@ -56,7 +56,7 @@ struct NewEpisodeScreen: View {
             }
 
             Section("Possible Triggers") {
-                FlowLayout(spacing: 8) {
+                FlowLayout(spacing: DesignTokens.Spacing.sm) {
                     ForEach(trackingOptions.activeTriggers) { trigger in
                         SelectableChip(
                             title: trigger.displayName,

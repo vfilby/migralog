@@ -23,7 +23,7 @@ struct DailyStatusPromptScreen: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: DesignTokens.Spacing.lg) {
                 // Date header
                 Text(DateFormatting.displayDate(date))
                     .font(.title3.weight(.bold))
@@ -99,7 +99,7 @@ struct DailyStatusPromptScreen: View {
         }
         .padding()
         .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
 
         // Show notes if logged
         if let existingNotes = existingStatus?.notes, !existingNotes.isEmpty, !isEditing {
@@ -114,7 +114,7 @@ struct DailyStatusPromptScreen: View {
 
     @ViewBuilder
     private var episodesSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
             Text("Episodes")
                 .font(.headline)
 
@@ -139,7 +139,7 @@ struct DailyStatusPromptScreen: View {
                     }
                     .padding()
                     .background(Color(.secondarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
                 }
                 .buttonStyle(.plain)
             }
@@ -150,7 +150,7 @@ struct DailyStatusPromptScreen: View {
 
     @ViewBuilder
     private var overlaysSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
             Text("Overlays")
                 .font(.headline)
 
@@ -171,7 +171,7 @@ struct DailyStatusPromptScreen: View {
                 }
                 .padding()
                 .background(Color(.secondarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
             }
         }
     }
@@ -180,7 +180,7 @@ struct DailyStatusPromptScreen: View {
 
     @ViewBuilder
     private var editStatusSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.md) {
             if existingStatus == nil && !isImplicitRed {
                 Text("Log this day")
                     .font(.headline)
@@ -189,7 +189,7 @@ struct DailyStatusPromptScreen: View {
                     .font(.headline)
             }
 
-            HStack(spacing: 16) {
+            HStack(spacing: DesignTokens.Spacing.lg) {
                 StatusButton(title: "Clear", color: .green, isSelected: selectedStatus == .green) {
                     selectedStatus = .green
                     selectedType = nil
@@ -203,12 +203,12 @@ struct DailyStatusPromptScreen: View {
             }
 
             if selectedStatus == .yellow {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
                     Text("Type (optional)")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
-                    FlowLayout(spacing: 8) {
+                    FlowLayout(spacing: DesignTokens.Spacing.sm) {
                         ForEach(YellowDayType.allCases) { type in
                             SelectableChip(
                                 title: type.displayName,
@@ -361,7 +361,7 @@ struct StatusButton: View {
                 .padding()
                 .background(isSelected ? color : color.opacity(0.2))
                 .foregroundStyle(isSelected ? .white : color)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
         }
     }
 }

@@ -51,7 +51,7 @@ struct EditEpisodeScreen: View {
             }
 
             Section("Symptoms") {
-                FlowLayout(spacing: 8) {
+                FlowLayout(spacing: DesignTokens.Spacing.sm) {
                     ForEach(symptomChoices) { symptom in
                         Toggle(isOn: Binding(
                             get: { selectedSymptoms.contains(symptom) },
@@ -67,7 +67,7 @@ struct EditEpisodeScreen: View {
             }
 
             Section("Triggers") {
-                FlowLayout(spacing: 8) {
+                FlowLayout(spacing: DesignTokens.Spacing.sm) {
                     ForEach(triggerChoices) { trigger in
                         Toggle(isOn: Binding(
                             get: { selectedTriggers.contains(trigger) },

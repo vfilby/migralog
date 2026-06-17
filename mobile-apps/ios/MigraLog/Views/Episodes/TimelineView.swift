@@ -56,7 +56,7 @@ struct TimelineView: View {
     @Binding var showEditEpisodeSheet: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.md) {
             Text("Timeline")
                 .font(.headline)
 
@@ -68,8 +68,8 @@ struct TimelineView: View {
                     episodeEnd: details.episode.endTime
                 )
                 .frame(height: 80)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-                .padding(.bottom, 4)
+                .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.sm))
+                .padding(.bottom, DesignTokens.Spacing.xs)
             }
 
             // Merge all events into a chronological timeline
@@ -129,7 +129,7 @@ struct TimelineView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
     }
 
     private func buildTimelineEvents(from details: EpisodeWithDetails) -> [TimelineEvent] {
@@ -230,7 +230,7 @@ struct TimelineView: View {
     /// Day separator row marking the start of a calendar day within the timeline.
     @ViewBuilder
     private func dayHeader(for date: Date, isFirst: Bool) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: DesignTokens.Spacing.sm) {
             Text(DateFormatting.timelineDayHeader(date))
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
@@ -239,7 +239,7 @@ struct TimelineView: View {
                 .frame(height: 1)
         }
         .padding(.top, isFirst ? 0 : 12)
-        .padding(.bottom, 4)
+        .padding(.bottom, DesignTokens.Spacing.xs)
     }
 
     @ViewBuilder
@@ -280,7 +280,7 @@ struct TimelineView: View {
         switch event.kind {
         case .intensity(let reading):
             let intensityColor = PainScale.color(for: reading.intensity)
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: DesignTokens.Spacing.xs) {
                 // Intensity bar
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
@@ -298,7 +298,7 @@ struct TimelineView: View {
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(intensityColor)
             }
-            .padding(.top, 4)
+            .padding(.top, DesignTokens.Spacing.xs)
 
         case .symptomOnset, .symptomResolved:
             EmptyView()
@@ -337,7 +337,7 @@ struct TimelineView: View {
                         .clipShape(Capsule())
                 }
             }
-            .padding(.top, 4)
+            .padding(.top, DesignTokens.Spacing.xs)
 
         case .note(let note):
             Text(note.note)

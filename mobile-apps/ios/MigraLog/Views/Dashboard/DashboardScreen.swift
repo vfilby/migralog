@@ -93,10 +93,10 @@ struct DashboardScreen: View {
     // MARK: - iPhone Layout (existing single-column)
 
     private var iPhoneDashboardLayout: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: DesignTokens.Spacing.lg) {
             TodaysMedicationsCard(viewModel: viewModel)
             DailyStatusWidgetView(viewModel: viewModel)
-            HStack(spacing: 12) {
+            HStack(spacing: DesignTokens.Spacing.md) {
                 startEpisodeButton
                 logMedicationButton
             }
@@ -124,17 +124,17 @@ struct DashboardScreen: View {
                 // Landscape / wide: three balanced columns — actions, activity,
                 // and the month calendar — so the wide canvas carries real
                 // content instead of trailing whitespace.
-                HStack(alignment: .top, spacing: 16) {
-                    VStack(spacing: 16) {
+                HStack(alignment: .top, spacing: DesignTokens.Spacing.lg) {
+                    VStack(spacing: DesignTokens.Spacing.lg) {
                         TodaysMedicationsCard(viewModel: viewModel)
-                        HStack(spacing: 12) {
+                        HStack(spacing: DesignTokens.Spacing.md) {
                             startEpisodeButton
                             logMedicationButton
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .top)
 
-                    VStack(spacing: 16) {
+                    VStack(spacing: DesignTokens.Spacing.lg) {
                         DailyStatusWidgetView(viewModel: viewModel)
                         RecentEpisodesCard(viewModel: viewModel)
                     }
@@ -150,18 +150,18 @@ struct DashboardScreen: View {
                 // Portrait iPad: medications + status side by side, then
                 // full-width actions, then recent episodes beside the
                 // month calendar.
-                VStack(spacing: 16) {
-                    HStack(alignment: .top, spacing: 16) {
+                VStack(spacing: DesignTokens.Spacing.lg) {
+                    HStack(alignment: .top, spacing: DesignTokens.Spacing.lg) {
                         TodaysMedicationsCard(viewModel: viewModel)
                             .frame(maxWidth: .infinity)
                         DailyStatusWidgetView(viewModel: viewModel)
                             .frame(maxWidth: .infinity)
                     }
-                    HStack(spacing: 12) {
+                    HStack(spacing: DesignTokens.Spacing.md) {
                         startEpisodeButton
                         logMedicationButton
                     }
-                    HStack(alignment: .top, spacing: 16) {
+                    HStack(alignment: .top, spacing: DesignTokens.Spacing.lg) {
                         RecentEpisodesCard(viewModel: viewModel)
                             .frame(maxWidth: .infinity)
                         MonthlyCalendarView(viewModel: calendarViewModel)
@@ -198,7 +198,7 @@ struct DashboardScreen: View {
                 .padding(.vertical, 14)
                 .background(Color.accentColor)
                 .foregroundStyle(.white)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
         }
         .accessibilityIdentifier(hasOngoingEpisode ? "log-update-button" : "start-episode-button")
         .accessibilityHint(hasOngoingEpisode
@@ -217,7 +217,7 @@ struct DashboardScreen: View {
                 .padding(.vertical, 14)
                 .background(Color.blue.opacity(0.1))
                 .foregroundStyle(.blue)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
         }
         .accessibilityIdentifier("log-medication-button")
     }
@@ -230,7 +230,7 @@ struct DailyStatusWidgetView: View {
 
     var body: some View {
         if viewModel.yesterdayStatus != nil || viewModel.shouldShowYesterdayPrompt {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
                 if let yesterdayStatus = viewModel.yesterdayStatus {
                     HStack {
                         Text("Yesterday logged as \(yesterdayStatus.status.displayName) day")
@@ -243,11 +243,11 @@ struct DailyStatusWidgetView: View {
                     }
                     .accessibilityIdentifier("daily-status-widget-logged")
                 } else {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
                         Text("How was yesterday?")
                             .font(.headline)
 
-                        HStack(spacing: 12) {
+                        HStack(spacing: DesignTokens.Spacing.md) {
                             Button {
                                 Task { await viewModel.logYesterdayStatus(.green) }
                             } label: {
@@ -256,7 +256,7 @@ struct DailyStatusWidgetView: View {
                                     .padding(.vertical, 10)
                                     .background(Color.green.opacity(0.2))
                                     .foregroundStyle(.green)
-                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
                             }
                             .accessibilityLabel("Clear day")
                             .accessibilityIdentifier("green-day-button")
@@ -269,7 +269,7 @@ struct DailyStatusWidgetView: View {
                                     .padding(.vertical, 10)
                                     .background(Color.yellow.opacity(0.2))
                                     .foregroundStyle(.orange)
-                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
                             }
                             .accessibilityLabel("Not clear day")
                             .accessibilityIdentifier("yellow-day-button")
@@ -281,7 +281,7 @@ struct DailyStatusWidgetView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
             .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
         }
     }
 }
@@ -307,7 +307,7 @@ struct TodaysMedicationsCard: View {
         SwiftUI.TimelineView(.periodic(from: .now, by: 60)) { context in
             let items = visibleItems(now: context.date)
             if !items.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
                     Text("Today's Medications")
                         .font(.headline)
 
@@ -321,7 +321,7 @@ struct TodaysMedicationsCard: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
                 .background(Color(.secondarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
                 // Contain children so this identifier stays on the card and
                 // doesn't override the per-row identifiers (e.g.
                 // medication-name-link-*).
@@ -369,7 +369,7 @@ struct MedicationScheduleRow: View {
         let catStatus = categoryStatus
         let showBanners = item.dose == nil
 
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.xs) {
             if showBanners {
                 MedicationSafetyBanners(
                     cooldown: status,
@@ -424,7 +424,7 @@ struct MedicationScheduleRow: View {
                     Button {
                         Task { await viewModel.logDose(scheduleItem: item) }
                     } label: {
-                        HStack(spacing: 4) {
+                        HStack(spacing: DesignTokens.Spacing.xs) {
                             if status.isOnCooldown {
                                 Image(systemName: "clock.fill")
                                     .foregroundStyle(.orange)
@@ -438,11 +438,11 @@ struct MedicationScheduleRow: View {
                             Text("Log \(doseLabel)")
                         }
                         .font(.caption.weight(.medium))
-                        .padding(.horizontal, 12)
+                        .padding(.horizontal, DesignTokens.Spacing.md)
                         .padding(.vertical, 6)
                         .background(Color.accentColor)
                         .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.md))
                     }
 
                     Button {
@@ -450,16 +450,16 @@ struct MedicationScheduleRow: View {
                     } label: {
                         Text("Skip")
                             .font(.caption.weight(.medium))
-                            .padding(.horizontal, 12)
+                            .padding(.horizontal, DesignTokens.Spacing.md)
                             .padding(.vertical, 6)
                             .background(Color.red.opacity(0.15))
                             .foregroundStyle(.red)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.md))
                     }
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, DesignTokens.Spacing.xs)
     }
 }
 
@@ -476,7 +476,7 @@ struct RecentEpisodesCard: View {
 
     var body: some View {
         if hasContent {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: DesignTokens.Spacing.md) {
                 Text("Recent Episodes")
                     .font(.headline)
 

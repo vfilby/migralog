@@ -20,7 +20,7 @@ struct MedicationSafetyBanners: View {
     var medicationId: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.xs) {
             if let cooldown, let text = cooldownText(cooldown) {
                 Label(text, systemImage: "clock.fill")
                     .font(.caption)

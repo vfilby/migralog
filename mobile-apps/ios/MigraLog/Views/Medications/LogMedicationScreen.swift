@@ -11,7 +11,7 @@ struct LogMedicationScreen: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 12) {
+            LazyVStack(spacing: DesignTokens.Spacing.md) {
                 let allMeds = rescueOnly
                     ? viewModel.medications.filter { $0.type == .rescue }
                     : viewModel.medications
@@ -92,7 +92,7 @@ struct LogMedicationCard: View {
     var body: some View {
         let status = cooldownStatus
         let catStatus = categoryStatus
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.md) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(medication.name)
                     .font(.headline)
@@ -109,7 +109,7 @@ struct LogMedicationCard: View {
                 medicationId: medication.id
             )
 
-            HStack(spacing: 8) {
+            HStack(spacing: DesignTokens.Spacing.sm) {
                 Button(action: onQuickLog) {
                     HStack(spacing: 6) {
                         if status.isOnCooldown {
@@ -125,7 +125,7 @@ struct LogMedicationCard: View {
                         Text("Log \(MedicationFormatting.formatDose(quantity: medication.defaultQuantity ?? 1, amount: medication.dosageAmount, unit: medication.dosageUnit))")
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
+                    .padding(.vertical, DesignTokens.Spacing.md)
                     .background(Color.accentColor)
                     .foregroundStyle(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
@@ -134,7 +134,7 @@ struct LogMedicationCard: View {
                 Button(action: onDetails) {
                     Text("Details")
                         .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, DesignTokens.Spacing.md)
                         .background(Color(.systemGray4))
                         .foregroundStyle(.primary)
                         .clipShape(RoundedRectangle(cornerRadius: 10))
@@ -143,7 +143,7 @@ struct LogMedicationCard: View {
         }
         .padding()
         .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
     }
 }
 

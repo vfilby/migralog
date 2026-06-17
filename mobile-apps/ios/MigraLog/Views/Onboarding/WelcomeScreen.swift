@@ -11,7 +11,7 @@ struct WelcomeScreen: View {
     var body: some View {
         VStack {
             // Progress
-            HStack(spacing: 8) {
+            HStack(spacing: DesignTokens.Spacing.sm) {
                 ForEach(0..<totalSteps, id: \.self) { step in
                     RoundedRectangle(cornerRadius: 2)
                         .fill(step <= currentStep ? Color.accentColor : Color(.systemGray4))
@@ -55,7 +55,7 @@ struct WelcomeScreen: View {
                         .padding()
                         .background(Color.accentColor)
                         .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
                 }
                 .padding(.horizontal)
                 .padding(.bottom)
@@ -68,16 +68,16 @@ struct WelcomeScreen: View {
 
 struct WelcomeStepView: View {
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: DesignTokens.Spacing.xl) {
             Spacer()
             Image(systemName: "brain.head.profile")
-                .font(.system(size: 80))
+                .font(.system(size: DesignTokens.Typography.displayXL))
                 .foregroundStyle(Color.accentColor)
 
             Text("Welcome to MigraLog")
                 .font(.largeTitle.weight(.bold))
 
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: DesignTokens.Spacing.lg) {
                 FeatureRow(icon: "bolt.heart", title: "Track Episodes", description: "Log migraine episodes with intensity, symptoms, and triggers")
                 FeatureRow(icon: "pills", title: "Medication Tracking", description: "Track preventative and rescue medications")
                 FeatureRow(icon: "chart.bar", title: "Insights", description: "Discover patterns and trends over time")
@@ -90,10 +90,10 @@ struct WelcomeStepView: View {
 
 struct DisclaimerStepView: View {
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: DesignTokens.Spacing.xl) {
             Spacer()
             Image(systemName: "heart.text.square")
-                .font(.system(size: 60))
+                .font(.system(size: DesignTokens.Typography.displayLarge))
                 .foregroundStyle(.red)
 
             Text("Medical Disclaimer")
@@ -113,10 +113,10 @@ struct NotificationPermissionStepView: View {
     let onContinue: () -> Void
 
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: DesignTokens.Spacing.xl) {
             Spacer()
             Image(systemName: "bell.badge")
-                .font(.system(size: 60))
+                .font(.system(size: DesignTokens.Typography.displayLarge))
                 .foregroundStyle(.blue)
 
             Text("Notification Permissions")
@@ -139,7 +139,7 @@ struct NotificationPermissionStepView: View {
                     .padding()
                     .background(Color.accentColor)
                     .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
             }
             .padding(.horizontal)
             Spacer()
@@ -152,10 +152,10 @@ struct LocationPermissionStepView: View {
     let onComplete: () -> Void
 
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: DesignTokens.Spacing.xl) {
             Spacer()
             Image(systemName: "location")
-                .font(.system(size: 60))
+                .font(.system(size: DesignTokens.Typography.displayLarge))
                 .foregroundStyle(.green)
 
             Text("Location Services")
@@ -179,7 +179,7 @@ struct LocationPermissionStepView: View {
                     .padding()
                     .background(Color.accentColor)
                     .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
             }
             .padding(.horizontal)
             Spacer()
@@ -195,7 +195,7 @@ struct FeatureRow: View {
     let description: String
 
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: DesignTokens.Spacing.lg) {
             Image(systemName: icon)
                 .font(.title2)
                 .foregroundStyle(Color.accentColor)

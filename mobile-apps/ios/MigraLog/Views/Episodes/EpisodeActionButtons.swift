@@ -12,7 +12,7 @@ struct EpisodeActionButtons: View {
     @Binding var showEndTimePicker: Bool
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: DesignTokens.Spacing.sm) {
             Button {
                 showLogUpdate = true
             } label: {
@@ -21,7 +21,7 @@ struct EpisodeActionButtons: View {
                     .padding()
                     .background(Color.blue.opacity(0.1))
                     .foregroundStyle(.blue)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
             }
             .accessibilityIdentifier("log-update-button")
 
@@ -33,11 +33,11 @@ struct EpisodeActionButtons: View {
                     .padding()
                     .background(Color.green.opacity(0.1))
                     .foregroundStyle(.green)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
             }
             .accessibilityIdentifier("log-medication-button")
 
-            HStack(spacing: 8) {
+            HStack(spacing: DesignTokens.Spacing.sm) {
                 Button {
                     Task {
                         await viewModel.endEpisode(episodeId, at: TimestampHelper.now)
@@ -48,7 +48,7 @@ struct EpisodeActionButtons: View {
                         .padding()
                         .background(Color.red.opacity(0.1))
                         .foregroundStyle(.red)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
                 }
                 .accessibilityIdentifier("end-now-button")
 
@@ -61,7 +61,7 @@ struct EpisodeActionButtons: View {
                         .padding()
                         .background(Color.orange.opacity(0.1))
                         .foregroundStyle(.orange)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
                 }
                 .accessibilityIdentifier("end-custom-button")
             }

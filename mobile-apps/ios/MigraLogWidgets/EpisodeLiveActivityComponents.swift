@@ -63,7 +63,7 @@ struct ActionRow: View {
     let episodeId: String
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: DesignTokens.Spacing.sm) {
             ActionLink(
                 title: "Log",
                 systemImage: "pills.fill",

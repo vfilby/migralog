@@ -51,9 +51,9 @@ struct PainLocationGrid: View {
                 .frame(minHeight: 44)
                 .background(isSelected ? Color.accentColor : Color(.tertiarySystemBackground))
                 .foregroundStyle(isSelected ? .white : .primary)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.md))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: DesignTokens.Radius.md)
                         .stroke(isSelected ? Color.accentColor : Color(.separator), lineWidth: 1)
                 )
         }

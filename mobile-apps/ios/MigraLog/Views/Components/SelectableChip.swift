@@ -12,7 +12,7 @@ struct SelectableChip: View {
         Button(action: action) {
             Text(title)
                 .font(.subheadline)
-                .padding(.horizontal, 16)
+                .padding(.horizontal, DesignTokens.Spacing.lg)
                 .padding(.vertical, 10)
                 .foregroundStyle(isSelected ? .white : .primary)
                 .background(isSelected ? Color.accentColor : Color(.tertiarySystemBackground))

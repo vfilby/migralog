@@ -15,11 +15,11 @@ struct DatabaseErrorView: View {
     }
 
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: DesignTokens.Spacing.xl) {
             Spacer()
 
             Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 56))
+                .font(.system(size: DesignTokens.Typography.displayMedium))
                 .foregroundStyle(.orange)
 
             Text("Database Error")
@@ -30,23 +30,23 @@ struct DatabaseErrorView: View {
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
+                .padding(.horizontal, DesignTokens.Spacing.xxl)
 
             if let error {
                 Text(error.localizedDescription)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
+                    .padding(.horizontal, DesignTokens.Spacing.xxl)
             }
 
             if databaseFileExists {
-                VStack(spacing: 12) {
+                VStack(spacing: DesignTokens.Spacing.md) {
                     Text("You can export the database file so it can be recovered or sent to support.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
+                        .padding(.horizontal, DesignTokens.Spacing.xxl)
 
                     Button {
                         showShareSheet = true
@@ -55,14 +55,14 @@ struct DatabaseErrorView: View {
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
-                    .padding(.horizontal, 32)
+                    .padding(.horizontal, DesignTokens.Spacing.xxl)
                 }
             } else {
                 Text("No database file was found on this device.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
+                    .padding(.horizontal, DesignTokens.Spacing.xxl)
             }
 
             Spacer()

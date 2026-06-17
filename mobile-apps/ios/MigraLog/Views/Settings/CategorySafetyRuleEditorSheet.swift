@@ -111,7 +111,7 @@ struct CategorySafetyRuleEditorSheet: View {
                     .accessibilityIdentifier("rule-editor-max-days")
             }
             LabeledContent("In any rolling window of") {
-                HStack(spacing: 4) {
+                HStack(spacing: DesignTokens.Spacing.xs) {
                     TextField("", text: $windowDaysText, prompt: Text("e.g. 30"))
                         .keyboardType(.numberPad)
                         .multilineTextAlignment(.trailing)
@@ -138,7 +138,7 @@ struct CategorySafetyRuleEditorSheet: View {
     private var cooldownSection: some View {
         Section {
             LabeledContent("Minimum time between doses") {
-                HStack(spacing: 4) {
+                HStack(spacing: DesignTokens.Spacing.xs) {
                     TextField("", text: $cooldownHoursText, prompt: Text("e.g. 4"))
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
