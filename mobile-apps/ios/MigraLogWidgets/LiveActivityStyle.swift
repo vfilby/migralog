@@ -5,10 +5,10 @@ import SwiftUI
 enum LiveActivityStyle {
     /// The "active episode" accent — a warm red used for the icon, keyline and
     /// duration emphasis.
-    static let activeColor = Color(red: 0.84, green: 0.23, blue: 0.30)
+    static let activeColor = DesignTokens.LiveActivity.active
 
     /// A softer tint used for the post-episode close state.
-    static let calmColor = Color(red: 0.30, green: 0.55, blue: 0.50)
+    static let calmColor = DesignTokens.LiveActivity.calm
 
     static func intensityLabel(_ intensity: Double?) -> String? {
         guard let intensity else { return nil }

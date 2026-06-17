@@ -42,6 +42,9 @@
     <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
     <link rel="manifest" href="site.webmanifest">
+    <!-- Design tokens — single source of truth for brand colors/spacing/type -->
+    <link rel="stylesheet" href="css/tokens.css">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -49,12 +52,12 @@
             theme: {
                 extend: {
                     colors: {
-                        'migralog-navy': '#152233',
-                        'migralog-navy-light': '#2A3D54',
-                        'migralog-navy-lighter': '#3F5875',
-                        'migralog-orange': '#FF552A',
-                        'migralog-orange-hover': '#E64D26',
-                        'migralog-orange-light': '#FF7055',
+                        'migralog-navy': 'var(--migralog-navy)',
+                        'migralog-navy-light': 'var(--migralog-navy-light)',
+                        'migralog-navy-lighter': 'var(--migralog-navy-lighter)',
+                        'migralog-orange': 'var(--migralog-orange)',
+                        'migralog-orange-hover': 'var(--migralog-orange-hover)',
+                        'migralog-orange-light': 'var(--migralog-orange-light)',
                     }
                 }
             }
@@ -83,7 +86,7 @@
         }
         
         *:focus-visible {
-            outline: 3px solid #FF552A;
+            outline: 3px solid var(--migralog-orange);
             outline-offset: 2px;
         }
         
@@ -143,11 +146,11 @@
         }
         
         .theme-toggle button:hover {
-            background: rgba(255, 85, 42, 0.2);
+            background: rgb(var(--migralog-orange-rgb) / 0.2);
         }
 
         .theme-toggle button.active {
-            background: rgba(255, 85, 42, 0.3);
+            background: rgb(var(--migralog-orange-rgb) / 0.3);
         }
     </style>
     <!-- Structured Data -->

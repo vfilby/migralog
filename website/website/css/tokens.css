@@ -1,0 +1,58 @@
+/*
+ * MigraLog design tokens — the single source of truth for the marketing site.
+ *
+ * Mirrors the brand guidelines in branding.html and the iOS app's
+ * mobile-apps/ios/MigraLog/DesignSystem/DesignTokens.swift. When a brand value
+ * changes, update it here, in branding.html, and in the iOS tokens together.
+ *
+ * Every page links this file in <head>, and each page's Tailwind config maps its
+ * brand color names to these variables (e.g. 'migralog-orange':
+ * 'var(--migralog-orange)'), so all color values trace back to this file.
+ *
+ * Colors are also exposed as space-separated RGB triplets (…-rgb) for use with
+ * rgb(var(--token-rgb) / <alpha>) wherever a translucent tint is needed.
+ */
+:root {
+  /* Brand */
+  --migralog-navy: #152233;
+  --migralog-navy-light: #2A3D54;
+  --migralog-navy-lighter: #3F5875;
+  --migralog-orange: #FF552A;
+  --migralog-orange-hover: #E64D26;
+  --migralog-orange-light: #FF7055;
+
+  --migralog-navy-rgb: 21 34 51;
+  --migralog-orange-rgb: 255 85 42;
+
+  /* Neutrals */
+  --color-white: #FFFFFF;
+  --color-gray-50: #F8F9FA;
+  --color-gray-600: #6C757D;
+  --color-gray-900: #343A40;
+  --color-orange-50: #FFF8F0; /* tinted surface behind orange callouts */
+
+  /* Typography — Inter primary typeface (see branding.html §3) */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Courier New', monospace;
+
+  --text-h1: 3.75rem;   /* 60px Bold,    -0.02em tracking */
+  --text-h2: 2.5rem;    /* 40px Semibold,-0.01em tracking */
+  --text-h3: 1.5rem;    /* 24px Medium */
+  --text-lead: 1.125rem;/* 18px Regular, 1.625 line height */
+  --text-body: 1rem;    /* 16px Regular, 1.5 line height */
+  --text-small: 0.875rem;/* 14px Regular, 1.5 line height */
+
+  /* Spacing — 4px scale */
+  --space-xs: 0.25rem;  /* 4  */
+  --space-sm: 0.5rem;   /* 8  */
+  --space-md: 0.75rem;  /* 12 */
+  --space-lg: 1rem;     /* 16 */
+  --space-xl: 1.5rem;   /* 24 */
+  --space-2xl: 2rem;    /* 32 */
+
+  /* Radius */
+  --radius-sm: 0.25rem; /* 4  */
+  --radius-md: 0.5rem;  /* 8  */
+  --radius-lg: 0.75rem; /* 12 */
+  --radius-pill: 9999px;
+}

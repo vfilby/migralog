@@ -5,9 +5,9 @@ enum MedicationTypeColors {
     /// Get the badge color for a medication type, adapting to light/dark mode
     static func color(for type: MedicationType) -> Color {
         switch type {
-        case .preventative: Color(hex: "#32D65F") // green
-        case .rescue: Color(hex: "#0066CC")       // blue
-        case .other: Color(hex: "#AEAEB2")        // gray
+        case .preventative: DesignTokens.Medication.preventative
+        case .rescue: DesignTokens.Medication.rescue
+        case .other: DesignTokens.Medication.other
         }
     }
 
