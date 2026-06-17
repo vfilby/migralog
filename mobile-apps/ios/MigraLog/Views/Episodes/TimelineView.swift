@@ -311,10 +311,10 @@ struct TimelineView: View {
                         .font(.caption.weight(.medium))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
-                        .foregroundStyle(Color(hex: "#2E7D32"))
-                        .background(Color(hex: "#E8F5E9"))
+                        .foregroundStyle(DesignTokens.Status.successText)
+                        .background(DesignTokens.Status.successFill)
                         .clipShape(Capsule())
-                        .overlay(Capsule().stroke(Color(hex: "#66BB6A"), lineWidth: 1))
+                        .overlay(Capsule().stroke(DesignTokens.Status.successBorder, lineWidth: 1))
                 }
                 // Removed locations — light bg, red text
                 ForEach(delta.removed) { location in
@@ -322,10 +322,10 @@ struct TimelineView: View {
                         .font(.caption.weight(.medium))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
-                        .foregroundStyle(Color(hex: "#C62828"))
-                        .background(Color(hex: "#FFEBEE"))
+                        .foregroundStyle(DesignTokens.Status.dangerText)
+                        .background(DesignTokens.Status.dangerFill)
                         .clipShape(Capsule())
-                        .overlay(Capsule().stroke(Color(hex: "#FFCDD2"), lineWidth: 1))
+                        .overlay(Capsule().stroke(DesignTokens.Status.dangerBorder, lineWidth: 1))
                 }
                 // Unchanged locations (neutral gray)
                 ForEach(delta.unchanged) { location in

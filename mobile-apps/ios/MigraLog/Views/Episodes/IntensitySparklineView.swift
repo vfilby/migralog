@@ -9,20 +9,9 @@ struct IntensitySparklineView: View {
     /// Episode end time (nil for ongoing — uses current time)
     var episodeEnd: Int64?
 
-    /// Pain scale gradient colors from 0 (green) to 10 (purple)
-    private static let gradientColors: [Color] = [
-        Color(hex: "#2E7D32"), // 0 - Dark Green
-        Color(hex: "#558B2F"), // 1
-        Color(hex: "#689F38"), // 2
-        Color(hex: "#F9A825"), // 3
-        Color(hex: "#FF8F00"), // 4
-        Color(hex: "#EF6C00"), // 5
-        Color(hex: "#E65100"), // 6
-        Color(hex: "#D84315"), // 7
-        Color(hex: "#C62828"), // 8
-        Color(hex: "#EC407A"), // 9
-        Color(hex: "#AB47BC"), // 10
-    ]
+    /// Pain scale gradient colors from 0 (green) to 10 (purple).
+    /// Sourced from the shared palette in DesignTokens.Pain.
+    private static let gradientColors: [Color] = DesignTokens.Pain.palette
 
     var body: some View {
         GeometryReader { geo in
