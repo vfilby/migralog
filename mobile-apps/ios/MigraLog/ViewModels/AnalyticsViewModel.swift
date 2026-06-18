@@ -209,7 +209,15 @@ final class AnalyticsViewModel {
                 rangeEnd: TimestampHelper.toDate(range.end)
             )
 
-            // Cache the results
+            // Cache the results — but never cache an empty result. A fetch
+            // that lands before sync delivers data would otherwise pin an
+            // empty snapshot under this range's key for the full TTL. Because
+            // 30 days is the default range it's the one viewed first (often
+            // before the initial sync finishes), which left it stuck showing
+            // "no data" while ranges visited later — 14d, 90d — fetched fresh
+            // and rendered correctly. Empty fetches are cheap to recompute, so
+            // skip caching them and let the next visit re-query.
+            let hasData = !episodes.isEmpty || !dailyStatuses.isEmpty || !rescueDoses.isEmpty
             let cached = CachedAnalytics(
                 episodes: episodes,
                 intensityReadings: intensityReadings,
@@ -228,7 +236,9 @@ final class AnalyticsViewModel {
                 weeklyAdherence: weeklyAdherence,
                 summaryMedications: summaryMedications
             )
-            cache.set(cacheKey, value: cached, ttl: Self.cacheTTL)
+            if hasData {
+                cache.set(cacheKey, value: cached, ttl: Self.cacheTTL)
+            }
 
             isLoading = false
         } catch {
