@@ -36,11 +36,12 @@ final class BackupService: BackupServiceProtocol {
     private let logger = AppLogger.shared
 
     // MARK: - Validation Bounds
+    //
+    // Backup ids are always `UUID().uuidString` (see `createBackup`). They are read
+    // back out of an on-disk metadata sidecar, so a tampered/foreign metadata file
+    // could otherwise smuggle `../` (or other path separators) into the file name we
+    // build. Reject anything that is not a canonical UUID before any file op.
 
-    /// Backup ids are always `UUID().uuidString` (see `createBackup`). They are read
-    /// back out of an on-disk metadata sidecar, so a tampered/foreign metadata file
-    /// could otherwise smuggle `../` (or other path separators) into the file name we
-    /// build. Reject anything that is not a canonical UUID before any file op.
     /// Upper bound for a restorable / loadable backup file. The on-device health DB is
     /// kilobytes-to-low-megabytes; anything past this is almost certainly corrupt or
     /// hostile, and we refuse to copy/open it. 1 GiB is far above any legitimate size.
