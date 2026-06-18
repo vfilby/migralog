@@ -41,10 +41,6 @@ final class BackupService: BackupServiceProtocol {
     /// back out of an on-disk metadata sidecar, so a tampered/foreign metadata file
     /// could otherwise smuggle `../` (or other path separators) into the file name we
     /// build. Reject anything that is not a canonical UUID before any file op.
-    private static let uuidRegex = try! NSRegularExpression(
-        pattern: "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
-    )
-
     /// Upper bound for a restorable / loadable backup file. The on-device health DB is
     /// kilobytes-to-low-megabytes; anything past this is almost certainly corrupt or
     /// hostile, and we refuse to copy/open it. 1 GiB is far above any legitimate size.
@@ -59,10 +55,12 @@ final class BackupService: BackupServiceProtocol {
     static let minRestorableSchemaVersion = 1
 
     /// Returns `true` iff `id` is a canonical UUID string and therefore safe to
-    /// interpolate into a backup file name.
+    /// interpolate into a backup file name. Uses `Foundation.UUID`'s own parser rather
+    /// than a regex so there is no force-try / construction failure path.
     static func isValidBackupID(_ id: String) -> Bool {
-        let range = NSRange(id.startIndex..<id.endIndex, in: id)
-        return uuidRegex.firstMatch(in: id, options: [], range: range) != nil
+        // UUID(uuidString:) accepts only the canonical 8-4-4-4-12 hex form and
+        // rejects anything containing path separators (e.g. "../").
+        UUID(uuidString: id) != nil
     }
 
     /// Validates a backup id and throws `invalidBackupID` if it is not a UUID.
