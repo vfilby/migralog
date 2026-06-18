@@ -41,48 +41,104 @@ enum SentrySetup {
 
     // MARK: - Privacy Scrubbing
 
-    /// Keys that may contain PHI/sensitive health data
+    /// Keys that may contain PHI/sensitive health data.
+    ///
+    /// Compared case-insensitively (see `isSensitiveKey`), so list the
+    /// canonical form once.
     private static let sensitiveKeys: Set<String> = [
         // Medication fields
-        "medication", "medicationName", "medication_name",
-        "dose", "dosage", "units", "medicationId",
+        "medication", "medicationname", "medication_name",
+        "dose", "dosage", "units", "medicationid",
         // Episode fields
-        "intensity", "pain_location", "painLocation",
+        "intensity", "pain_location", "painlocation",
         "symptom", "symptoms", "trigger", "triggers",
         // User data
-        "notes", "note", "userNotes", "user_notes",
-        "name", "userName", "email",
+        "notes", "note", "usernotes", "user_notes",
+        "name", "username", "email",
         // Location
         "latitude", "longitude", "location",
-        "locationAccuracy", "locationTimestamp",
+        "locationaccuracy", "locationtimestamp",
+        // Dates/times. A specific episode/dose date is PHI on its own
+        // (it reveals when a person had a migraine or took medication),
+        // so any date-bearing key is redacted. Sentry's own automatic
+        // event/breadcrumb timestamps are separate fields and unaffected.
+        "date", "datestring", "timestamp", "createdat", "created_at",
+        "updatedat", "updated_at", "loggedat", "logged_at",
+        "starttime", "start_time", "endtime", "end_time",
+        "occurredat", "occurred_at", "onset", "onsetdate",
     ]
 
-    /// Scrub sensitive data from Sentry events (HIPAA compliance)
-    private static func scrubSensitiveData(from event: Event) -> Event {
+    /// Substrings that mark any containing key as sensitive (case-insensitive),
+    /// so newly-introduced variants (e.g. `medicationLogId`, `symptomNotes`,
+    /// `episodeDate`) are caught without an exact match.
+    private static let sensitiveSubstrings: [String] = [
+        "medication", "symptom", "date",
+    ]
+
+    /// Whether a dictionary key should be redacted. Case-insensitive, with a
+    /// substring fallback for un-enumerated variants.
+    private static func isSensitiveKey(_ key: String) -> Bool {
+        let lowered = key.lowercased()
+        if sensitiveKeys.contains(lowered) { return true }
+        return sensitiveSubstrings.contains { lowered.contains($0) }
+    }
+
+    private static let redacted = "[REDACTED]"
+
+    /// Scrub sensitive data from Sentry events (HIPAA compliance).
+    ///
+    /// Walks every event field where caller-supplied PHI can land:
+    /// `extra`, `breadcrumbs[].data`, `tags`, and custom `context` values.
+    /// Sentry-maintained fields (message/exception strings, stack traces,
+    /// auto-populated contexts like device/os/app) are not key:value PHI
+    /// carriers; we deliberately do not attempt free-text redaction there.
+    ///
+    /// Internal (not private) so the HIPAA regression test can exercise it
+    /// directly via `@testable import`.
+    static func scrubSensitiveData(from event: Event) -> Event {
         // Scrub extra data
-        if var extra = event.extra {
-            for key in extra.keys {
-                if sensitiveKeys.contains(key) || key.lowercased().contains("medication") || key.lowercased().contains("symptom") {
-                    extra[key] = "[REDACTED]"
-                }
-            }
-            event.extra = extra
+        if let extra = event.extra {
+            event.extra = redactSensitiveValues(in: extra)
         }
 
         // Scrub breadcrumb data
         if let breadcrumbs = event.breadcrumbs {
             for breadcrumb in breadcrumbs {
-                if var data = breadcrumb.data {
-                    for key in data.keys {
-                        if sensitiveKeys.contains(key) || key.lowercased().contains("medication") || key.lowercased().contains("symptom") {
-                            data[key] = "[REDACTED]"
-                        }
-                    }
-                    breadcrumb.data = data
+                if let data = breadcrumb.data {
+                    breadcrumb.data = redactSensitiveValues(in: data)
                 }
             }
         }
 
+        // Scrub tags (String:String) — callers can attach arbitrary tags.
+        if let tags = event.tags {
+            var scrubbed = tags
+            for key in tags.keys where isSensitiveKey(key) {
+                scrubbed[key] = redacted
+            }
+            event.tags = scrubbed
+        }
+
+        // Scrub custom contexts. `context` is a dict of named context
+        // dictionaries; redact sensitive keys inside each one.
+        if let context = event.context {
+            var scrubbedContext = context
+            for (name, values) in context {
+                scrubbedContext[name] = redactSensitiveValues(in: values)
+            }
+            event.context = scrubbedContext
+        }
+
         return event
+    }
+
+    /// Returns a copy of `dictionary` with sensitive keys' values replaced by
+    /// `[REDACTED]`.
+    private static func redactSensitiveValues(in dictionary: [String: Any]) -> [String: Any] {
+        var result = dictionary
+        for key in dictionary.keys where isSensitiveKey(key) {
+            result[key] = redacted
+        }
+        return result
     }
 }
