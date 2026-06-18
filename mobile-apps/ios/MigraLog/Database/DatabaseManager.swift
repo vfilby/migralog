@@ -1,5 +1,25 @@
 import Foundation
 import GRDB
+#if canImport(UIKit)
+import UIKit
+#endif
+
+/// Classifies why database initialization failed so callers can react
+/// differently to a recoverable, transient locked-device condition versus
+/// genuine file corruption.
+enum DatabaseInitializationError: Error {
+    /// The database file could not be opened because the device is in the
+    /// boot→first-unlock (BFU) window and the file's data-protection class
+    /// keeps it encrypted at rest until the first unlock. This is transient:
+    /// the file is intact and becomes readable once the device is unlocked.
+    /// We must NOT treat this as corruption — doing so would let writes (e.g. a
+    /// lock-screen dose log) silently land in an empty in-memory DB and be lost.
+    case protectedDataUnavailable(underlying: Error)
+
+    /// The database file appears genuinely unreadable (e.g. on-disk
+    /// corruption). The in-memory fallback is used so recovery UI can run.
+    case corruption(underlying: Error)
+}
 
 /// Central database manager. Owns the DatabaseQueue and handles schema creation/migration.
 final class DatabaseManager: Sendable {
@@ -14,12 +34,37 @@ final class DatabaseManager: Sendable {
     /// Written once during singleton init, read-only thereafter.
     nonisolated(unsafe) static private(set) var initializationError: Error?
 
+    /// True when the live `dbQueue` is the empty in-memory fallback rather than
+    /// the on-disk database. Any path that persists data (dose logging, sync)
+    /// MUST check this and refuse to write/sync rather than silently committing
+    /// to a throwaway DB. Written once during singleton init, read-only thereafter.
+    nonisolated(unsafe) static private(set) var isUsingInMemoryFallback = false
+
+    /// True when initialization failed specifically because protected data was
+    /// unavailable (BFU window). Distinguishes the transient locked-device case
+    /// from genuine corruption so callers can defer/retry instead of dropping data.
+    nonisolated(unsafe) static private(set) var protectedDataUnavailable = false
+
     /// The file URL of the database, available even when initialization failed
     /// so the user can export the file for recovery.
     /// Written once during singleton init, read-only thereafter.
     nonisolated(unsafe) static private(set) var databaseFileURL: URL?
 
-    let dbQueue: DatabaseQueue
+    #if DEBUG
+    /// Test-only: override the in-memory-fallback flag so the sync/dose gating can be
+    /// exercised without forcing a real locked-device open failure. Always reset in the
+    /// test's teardown. Not compiled into Release.
+    static func setInMemoryFallbackForTesting(_ value: Bool) {
+        isUsingInMemoryFallback = value
+    }
+    #endif
+
+    /// The live database queue. Internally mutable only so the transient
+    /// locked-device (BFU) fallback can be swapped for the real on-disk queue
+    /// once the device unlocks (see `reopenOnDiskDatabaseIfNeeded()`); after a
+    /// genuine-corruption fallback it is never swapped. The swap happens on the
+    /// main actor at foreground, before any normal write path runs.
+    nonisolated(unsafe) private(set) var dbQueue: DatabaseQueue
 
     /// Initialize with a file-based database at the default app location.
     /// On failure, falls back to an in-memory database so the app can launch
@@ -28,7 +73,47 @@ final class DatabaseManager: Sendable {
         dbQueue = DatabaseManager.createDatabaseQueue()
     }
 
-    /// Creates the database queue, falling back to in-memory on failure.
+    /// Whether the device's protected data (Data Protection–encrypted files) is
+    /// currently available. False during the BFU window before the first unlock.
+    /// Defaults to `true` on platforms without UIKit so tests/tools aren't gated.
+    static var isProtectedDataAvailable: Bool {
+        #if canImport(UIKit)
+        return UIApplication.shared.isProtectedDataAvailable
+        #else
+        return true
+        #endif
+    }
+
+    /// Classify a database-open failure. Returns a `DatabaseInitializationError`
+    /// describing whether this is a transient locked-device (BFU) condition or
+    /// genuine corruption. Pure and side-effect free so it can be unit tested:
+    /// `protectedDataAvailable` is injected rather than read from UIKit.
+    ///
+    /// Transient when the SQLite primary result code is `SQLITE_IOERR` (10),
+    /// `SQLITE_CANTOPEN` (14), or `SQLITE_AUTH` (23) AND protected data is
+    /// unavailable — the file is encrypted at rest until first unlock.
+    static func classifyOpenFailure(
+        _ error: Error,
+        protectedDataAvailable: Bool
+    ) -> DatabaseInitializationError {
+        let transientCodes: [ResultCode] = [.SQLITE_IOERR, .SQLITE_CANTOPEN, .SQLITE_AUTH]
+        if let dbError = error as? DatabaseError,
+           transientCodes.contains(dbError.resultCode),
+           !protectedDataAvailable {
+            return .protectedDataUnavailable(underlying: error)
+        }
+        return .corruption(underlying: error)
+    }
+
+    /// Creates the database queue.
+    ///
+    /// On a genuine open failure (corruption) it falls back to an empty in-memory
+    /// database so the app can launch and present recovery UI. On a transient
+    /// locked-device (BFU) failure it records the error and still returns an
+    /// in-memory queue (the app process must come up), but flags
+    /// `protectedDataUnavailable` / `isUsingInMemoryFallback` so write paths and
+    /// sync refuse to commit to the throwaway DB — the real on-disk DB is reopened
+    /// in `reopenOnDiskDatabaseIfNeeded()` once the device is unlocked.
     /// Sets static properties for error state and file URL as side effects.
     private static func createDatabaseQueue() -> DatabaseQueue {
         let fileManager = FileManager.default
@@ -51,9 +136,20 @@ final class DatabaseManager: Sendable {
             try mgr.migrate(queue)
             return queue
         } catch {
-            initializationError = error
-            // Fall back to an in-memory database so the app can launch
-            // and present recovery UI to the user
+            let classified = classifyOpenFailure(
+                error,
+                protectedDataAvailable: isProtectedDataAvailable
+            )
+            initializationError = classified
+            isUsingInMemoryFallback = true
+            if case .protectedDataUnavailable = classified {
+                // Transient: the on-disk DB is intact but encrypted until first
+                // unlock. Do NOT treat this as corruption. The in-memory queue
+                // exists only so the process launches; writers/sync must check
+                // `isUsingInMemoryFallback` and defer. Reopened once unlocked.
+                protectedDataUnavailable = true
+            }
+            // Fall back to an in-memory database so the app can launch.
             var fallbackConfig = Configuration()
             fallbackConfig.foreignKeysEnabled = true
             // swiftlint:disable:next force_try
@@ -61,6 +157,63 @@ final class DatabaseManager: Sendable {
             let mgr = DatabaseManager.buildMigrator()
             try? mgr.migrate(queue)
             return queue
+        }
+    }
+
+    /// After the device has unlocked for the first time (protected data is now
+    /// available), attempt to reopen the real on-disk database if we are running
+    /// on the transient BFU in-memory fallback. On success the in-memory queue is
+    /// swapped out, the error/fallback flags are cleared, and the explicit Class C
+    /// file-protection attribute is (re-)applied. A no-op once already on disk, or
+    /// when the fallback was due to genuine corruption (recovery UI owns that).
+    ///
+    /// Safe to call repeatedly. Must be called once protected data is available
+    /// (e.g. from `applicationProtectedDataDidBecomeAvailable` or at foreground).
+    func reopenOnDiskDatabaseIfNeeded() {
+        guard DatabaseManager.protectedDataUnavailable,
+              DatabaseManager.isProtectedDataAvailable,
+              let dbURL = DatabaseManager.databaseFileURL else {
+            // Still on disk, genuine corruption, or protected data not yet
+            // available — apply protection where it's safe and return.
+            DatabaseManager.applyFileProtectionIfPossible()
+            return
+        }
+        do {
+            var config = Configuration()
+            config.foreignKeysEnabled = true
+            let queue = try DatabaseQueue(path: dbURL.path, configuration: config)
+            try DatabaseManager.buildMigrator().migrate(queue)
+            dbQueue = queue
+            DatabaseManager.initializationError = nil
+            DatabaseManager.isUsingInMemoryFallback = false
+            DatabaseManager.protectedDataUnavailable = false
+            DatabaseManager.applyFileProtectionIfPossible()
+        } catch {
+            // Reopen still failing after unlock: leave the fallback flags set so
+            // writers/sync keep deferring rather than committing to the throwaway
+            // in-memory DB. Will be retried on the next protected-data/foreground
+            // signal. No PHI in the error description.
+            AppLogger.shared.error("Failed to reopen on-disk database after unlock", error: error)
+        }
+    }
+
+    /// Make the Class C data-protection class explicit on the existing database
+    /// file by setting `.completeUntilFirstUserAuthentication`. This is a fast key
+    /// re-wrap, not a migration. Only runs when protected data is available (so the
+    /// file is readable) and the file exists. Safe to call repeatedly.
+    static func applyFileProtectionIfPossible() {
+        guard isProtectedDataAvailable, let dbURL = databaseFileURL else { return }
+        let fileManager = FileManager.default
+        guard fileManager.fileExists(atPath: dbURL.path) else { return }
+        do {
+            try fileManager.setAttributes(
+                [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+                ofItemAtPath: dbURL.path
+            )
+        } catch {
+            // Non-fatal: the entitlement-driven default already covers most
+            // installs. No PHI in the error description.
+            AppLogger.shared.error("Failed to set database file protection", error: error)
         }
     }
 

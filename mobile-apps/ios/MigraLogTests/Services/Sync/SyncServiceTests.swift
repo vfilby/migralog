@@ -61,6 +61,32 @@ final class SyncServiceTests: XCTestCase {
         XCTAssertFalse(transport.zoneCreated, "no sync work when disabled")
     }
 
+    /// #527: even when sync is enabled, an automatic trigger must NOT run while the
+    /// database fell back to the empty in-memory DB (locked-device BFU or corruption).
+    /// Pushing the fallback's state could clobber real data on other devices.
+    func testSyncIfEnabledSkipsWhenUsingInMemoryFallback() async throws {
+        let db = try DatabaseManager(inMemory: true)
+        try insertMedication(db, "m1")
+        let transport = InMemoryCloudKitTransport()
+        let service = SyncService(dbManager: db, transport: transport, backupService: SpyBackupService())
+        try await service.enable()
+        // enable() runs a first sync; ignore its effects and re-arm the transport.
+        let baseline = transport.zoneCreated
+
+        DatabaseManager.setInMemoryFallbackForTesting(true)
+        defer { DatabaseManager.setInMemoryFallbackForTesting(false) }
+
+        // A row edit would normally trigger an automatic sync; the gate must block it.
+        try await db.dbQueue.write {
+            try $0.execute(sql: "UPDATE medications SET name = 'Renamed', updated_at = 2000 WHERE id = 'm1'")
+        }
+        await service.syncIfEnabled()
+
+        XCTAssertTrue(service.isEnabled, "sync stays enabled — only the run is skipped")
+        // Nothing new should have been pushed while on the fallback DB.
+        XCTAssertEqual(transport.zoneCreated, baseline, "no sync work against the in-memory fallback")
+    }
+
     func testSyncNowRecordsFailure() async throws {
         let db = try DatabaseManager(inMemory: true)
         let transport = InMemoryCloudKitTransport()

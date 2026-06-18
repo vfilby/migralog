@@ -82,8 +82,13 @@ final class SyncService {
     }
 
     /// Sync only if enabled — the entry point for automatic triggers (foreground, etc.).
+    /// Never runs against the in-memory fallback DB: when database initialization fell
+    /// back to memory (corruption, or a locked-device BFU window), syncing would push the
+    /// empty fallback's state and could clobber real data on other devices, or operate on
+    /// data that isn't actually persisted (#527). Bail out until the real DB is in use.
     func syncIfEnabled() async {
         guard isEnabled else { return }
+        guard !DatabaseManager.isUsingInMemoryFallback else { return }
         try? await syncNow()
     }
 

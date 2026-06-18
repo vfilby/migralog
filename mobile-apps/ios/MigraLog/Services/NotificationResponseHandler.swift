@@ -162,12 +162,19 @@ final class NotificationResponseHandler: NSObject, UNUserNotificationCenterDeleg
 
         switch actionIdentifier {
         case NotificationAction.medicationTaken:
-            await logDoseFromNotification(medicationId: medicationId, status: .taken)
-            await medicationNotificationService.handleTakenResponse(medicationId: medicationId, scheduleId: scheduleId)
+            let logged = await logDoseFromNotification(medicationId: medicationId, status: .taken, scheduleId: scheduleId)
+            // Only advance reminder state if the dose actually persisted — when the
+            // DB is unavailable (locked device) we deferred, so leave the reminder
+            // intact for the re-delivered prompt (#527).
+            if logged {
+                await medicationNotificationService.handleTakenResponse(medicationId: medicationId, scheduleId: scheduleId)
+            }
 
         case NotificationAction.medicationSkipped:
-            await logDoseFromNotification(medicationId: medicationId, status: .skipped)
-            await medicationNotificationService.handleSkippedResponse(medicationId: medicationId, scheduleId: scheduleId)
+            let logged = await logDoseFromNotification(medicationId: medicationId, status: .skipped, scheduleId: scheduleId)
+            if logged {
+                await medicationNotificationService.handleSkippedResponse(medicationId: medicationId, scheduleId: scheduleId)
+            }
 
         case NotificationAction.medicationSnooze:
             if let content = content {
@@ -248,6 +255,20 @@ final class NotificationResponseHandler: NSObject, UNUserNotificationCenterDeleg
     }
 
     func logClearDay(date: String) async {
+        // BFU guard (#527): refuse to write a clear-day status into the empty
+        // in-memory fallback when the device is locked, or it would be silently
+        // lost. The check-in reminder remains scheduled so the user is re-prompted.
+        if DatabaseManager.isUsingInMemoryFallback {
+            logger.warn("Skipping clear-day log from notification: database unavailable (locked device)")
+            ErrorLogger.shared.logError(
+                DatabaseManager.initializationError
+                    ?? DatabaseInitializationError.protectedDataUnavailable(
+                        underlying: NSError(domain: "DatabaseManager", code: -1)
+                    ),
+                context: ["action": "clearDay.deferred", "reason": "inMemoryFallback"]
+            )
+            return
+        }
         let now = TimestampHelper.now
         let status = DailyStatusLog(
             id: UUID().uuidString,
@@ -279,11 +300,39 @@ final class NotificationResponseHandler: NSObject, UNUserNotificationCenterDeleg
 
     // MARK: - Helpers
 
-    func logDoseFromNotification(medicationId: String, status: DoseStatus) async {
+    /// Persist a dose logged from a notification action.
+    ///
+    /// Returns `true` when the dose was written, `false` when it was deferred
+    /// because the database is unavailable (locked-device in-memory fallback) or
+    /// the medication couldn't be found. Callers use the result to avoid advancing
+    /// reminder state for a dose that didn't actually land (#527).
+    @discardableResult
+    func logDoseFromNotification(medicationId: String, status: DoseStatus, scheduleId: String? = nil) async -> Bool {
+        // BFU guard: if the on-disk DB couldn't be opened because the device is
+        // still locked (boot→first-unlock), the live queue is an empty in-memory
+        // fallback. Writing here would "succeed" against a throwaway DB and the
+        // dose would be silently lost (#527). Refuse to write so the dose is NOT
+        // dropped — re-deliver the action so the user can retry after unlock.
+        if DatabaseManager.isUsingInMemoryFallback {
+            logger.warn("Skipping dose log from notification: database unavailable (locked device)")
+            ErrorLogger.shared.logError(
+                DatabaseManager.initializationError
+                    ?? DatabaseInitializationError.protectedDataUnavailable(
+                        underlying: NSError(domain: "DatabaseManager", code: -1)
+                    ),
+                context: [
+                    "handler": "NotificationResponseHandler",
+                    "action": "logDoseFromNotification.deferred",
+                    "reason": "inMemoryFallback"
+                ]
+            )
+            await redeliverMissedDoseAction(medicationId: medicationId, scheduleId: scheduleId)
+            return false
+        }
         do {
             guard let medication = try medicationRepository.getMedicationById(medicationId) else {
                 logger.warn("Medication not found for notification response: \(medicationId)")
-                return
+                return false
             }
 
             let now = TimestampHelper.now
@@ -310,6 +359,7 @@ final class NotificationResponseHandler: NSObject, UNUserNotificationCenterDeleg
             await MainActor.run {
                 NotificationCenter.default.post(name: .medicationDataChanged, object: nil)
             }
+            return true
         } catch {
             logger.error("Failed to log dose from notification", error: error)
             ErrorLogger.shared.logError(error, context: [
@@ -317,6 +367,36 @@ final class NotificationResponseHandler: NSObject, UNUserNotificationCenterDeleg
                 "action": "logDoseFromNotification",
                 "medicationId": medicationId,
                 "status": "\(status)"
+            ])
+            return false
+        }
+    }
+
+    /// The database was unavailable (locked device) when a dose action arrived, so the
+    /// write was deferred rather than dropped (#527). Re-deliver the medication reminder
+    /// a short interval out so the user is prompted again once the device has likely been
+    /// unlocked, at which point the on-disk DB is reopened and the dose can be logged.
+    /// Best-effort: failure to reschedule is logged, never silently swallowed.
+    private func redeliverMissedDoseAction(medicationId: String, scheduleId: String?) async {
+        let retryId = "bfu_retry_\(medicationId)_\(UUID().uuidString)"
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 600, repeats: false)
+        var userInfo: [String: Any] = ["medicationId": medicationId]
+        if let scheduleId { userInfo["scheduleId"] = scheduleId }
+        do {
+            try await notificationService.scheduleNotification(
+                id: retryId,
+                title: "Reminder",
+                body: "Tap to log your medication.",
+                trigger: trigger,
+                categoryIdentifier: NotificationCategory.medication,
+                userInfo: userInfo
+            )
+            logger.info("Re-delivered deferred medication reminder after locked-device defer")
+        } catch {
+            logger.error("Failed to re-deliver deferred medication reminder", error: error)
+            ErrorLogger.shared.logError(error, context: [
+                "handler": "NotificationResponseHandler",
+                "action": "redeliverMissedDoseAction"
             ])
         }
     }
