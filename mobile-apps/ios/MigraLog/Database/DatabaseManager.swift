@@ -252,12 +252,18 @@ final class DatabaseManager: Sendable {
     /// sit inert until SyncService owns keeping them current. Existing rows are
     /// backfilled so historical data carries a usable LWW timestamp.
     static func addSyncTimestampColumns(in db: Database) throws {
+        // SECURITY: the `table` values below are interpolated into SQL strings
+        // (SQLite cannot bind table/column identifiers as parameters). Every value
+        // here is a hardcoded constant from the literal list below — constants only,
+        // never user/sync input. Do not feed dynamic/untrusted names into `hasColumn`
+        // or the ALTER TABLE statements without an allowlist check first.
         func hasColumn(_ table: String, _ column: String) throws -> Bool {
             let columns = try Row.fetchAll(db, sql: "PRAGMA table_info(\(table))")
             return columns.contains { (row: Row) in (row["name"] as String?) == column }
         }
 
         // Append-only / created_at-bearing tables: updated_at backfills from created_at.
+        // Hardcoded constants only — see SECURITY note above.
         for table in ["symptom_logs", "episode_notes", "category_safety_rules"] {
             if try !hasColumn(table, "updated_at") {
                 try db.execute(sql: "ALTER TABLE \(table) ADD COLUMN updated_at INTEGER CHECK(updated_at IS NULL OR updated_at > 0)")
