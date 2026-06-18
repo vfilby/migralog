@@ -116,6 +116,27 @@ final class AnalyticsViewModelTests: XCTestCase {
         XCTAssertEqual(sut.episodes.count, 1)
     }
 
+    /// Regression: an empty fetch (e.g. before the initial sync delivers
+    /// data) must not be cached, otherwise the default 30-day range stays
+    /// pinned to "no data" for the full TTL while data that arrives via sync
+    /// only shows on ranges visited afterwards. The same range must re-query
+    /// and pick up the freshly synced data on the next visit.
+    func testFetchData_emptyResultNotCached() async throws {
+        // First fetch lands before any data exists (pre-sync).
+        await sut.fetchData()
+        XCTAssertTrue(sut.episodes.isEmpty)
+
+        // Sync delivers an episode in range.
+        mockEpisodeRepo.episodes = [
+            TestFixtures.makeEpisode(id: "ep-1", startTime: TimestampHelper.now - 3600000)
+        ]
+
+        // Same range, same cache key: must re-query rather than serve the
+        // stale empty snapshot.
+        await sut.fetchData()
+        XCTAssertEqual(sut.episodes.count, 1)
+    }
+
     func testRefreshData_invalidatesCache() async throws {
         let ep = TestFixtures.makeEpisode(id: "ep-1", startTime: TimestampHelper.now - 3600000)
         mockEpisodeRepo.episodes = [ep]
