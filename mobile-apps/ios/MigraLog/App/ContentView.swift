@@ -42,6 +42,18 @@ struct ContentView: View {
                 + "Review your schedules if you'd like to adjust them."
             )
         }
+        // Privacy shield for the app-switcher snapshot (#531). iOS snapshots the
+        // app during the `.inactive` transition (before `.background`), so cover the
+        // content whenever the scene is anything other than `.active`. The cover is
+        // opaque and carries no PHI, so the thumbnail shows the logo, not health data.
+        // No transition/animation keeps it from flickering on foreground return.
+        .overlay {
+            if scenePhase != .active {
+                PrivacyCoverView()
+                    .transition(.identity)
+            }
+        }
+        .animation(nil, value: scenePhase)
         .task { syncService.startAutoSync() }
         .onOpenURL { url in
             // Live Activity quick actions open migralog:// URLs; route them into
