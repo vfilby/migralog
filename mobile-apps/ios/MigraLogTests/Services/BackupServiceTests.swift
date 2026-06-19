@@ -119,9 +119,10 @@ final class BackupServiceTests: XCTestCase {
     }
 
     func testDeleteNonexistentBackupDoesNotThrow() throws {
-        // Deleting a backup that doesn't exist should not throw
-        // (files simply don't exist, no error)
-        XCTAssertNoThrow(try backupService.deleteBackup(id: "nonexistent-id"))
+        // Deleting a (well-formed) backup id whose files don't exist should not throw
+        // (files simply don't exist, no error). Uses a valid UUID so it passes the
+        // #529 id-format guard; non-UUID ids are covered by testDeleteBackupRejectsNonUUIDID.
+        XCTAssertNoThrow(try backupService.deleteBackup(id: UUID().uuidString))
     }
 
     // MARK: - Validate Backup
@@ -299,5 +300,115 @@ final class BackupServiceTests: XCTestCase {
 
         // Clean up
         try? backupService.deleteBackup(id: metadata.id)
+    }
+
+    // MARK: - Backup ID Validation (#529)
+
+    func testIsValidBackupIDAcceptsCanonicalUUID() {
+        XCTAssertTrue(BackupService.isValidBackupID(UUID().uuidString))
+        // Canonical uppercase form
+        XCTAssertTrue(BackupService.isValidBackupID("AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE"))
+    }
+
+    func testIsValidBackupIDRejectsNonUUID() {
+        let bad = [
+            "",
+            "not-a-uuid",
+            "../../etc/passwd",
+            "../malicious",
+            "12345678-1234-1234-1234-1234567890",          // too short
+            "12345678-1234-1234-1234-1234567890123",       // too long
+            "gggggggg-gggg-gggg-gggg-gggggggggggg",         // non-hex
+            "\(UUID().uuidString)/../escape",
+            "\(UUID().uuidString).db",
+            " \(UUID().uuidString)"                          // leading space
+        ]
+        for id in bad {
+            XCTAssertFalse(BackupService.isValidBackupID(id), "Should reject id: \(id)")
+        }
+    }
+
+    func testDeleteBackupRejectsNonUUIDID() {
+        for id in ["../../etc/passwd", "not-a-uuid", "migralog_backup_x"] {
+            XCTAssertThrowsError(try backupService.deleteBackup(id: id)) { error in
+                XCTAssertEqual(error as? BackupError, .invalidBackupID("Backup id must be a UUID"))
+            }
+        }
+    }
+
+    func testBackupFileURLRejectsNonUUIDID() {
+        for id in ["../escape", "abc"] {
+            XCTAssertThrowsError(try backupService.backupFileURL(for: id)) { error in
+                XCTAssertEqual(error as? BackupError, .invalidBackupID("Backup id must be a UUID"))
+            }
+        }
+    }
+
+    func testBackupFileURLAcceptsValidUUID() throws {
+        let id = UUID().uuidString
+        let url = try backupService.backupFileURL(for: id)
+        XCTAssertEqual(url.lastPathComponent, "migralog_backup_\(id).db")
+        // Path must stay inside the backups directory (no traversal).
+        XCTAssertTrue(url.deletingLastPathComponent().lastPathComponent == "backups")
+    }
+
+    // MARK: - Metadata Bounds Validation (#529)
+
+    private func makeMetadata(
+        id: String = UUID().uuidString,
+        timestamp: Int64 = 1_700_000_000_000,
+        schemaVersion: Int = DatabaseManager.schemaVersion,
+        episodeCount: Int = 1,
+        medicationCount: Int = 1,
+        fileSize: Int64? = 1024,
+        fileName: String? = "migralog_backup.db"
+    ) -> BackupMetadata {
+        BackupMetadata(
+            id: id,
+            timestamp: timestamp,
+            version: "1.0.0",
+            schemaVersion: schemaVersion,
+            episodeCount: episodeCount,
+            medicationCount: medicationCount,
+            fileSize: fileSize,
+            fileName: fileName,
+            backupType: "manual"
+        )
+    }
+
+    func testMetadataWellFormedAcceptsValid() {
+        XCTAssertTrue(backupService.isMetadataWellFormed(makeMetadata()))
+        // Optional fields absent is fine.
+        XCTAssertTrue(backupService.isMetadataWellFormed(makeMetadata(fileSize: nil, fileName: nil)))
+    }
+
+    func testMetadataWellFormedRejectsBadID() {
+        XCTAssertFalse(backupService.isMetadataWellFormed(makeMetadata(id: "../traversal")))
+    }
+
+    func testMetadataWellFormedRejectsBadTimestamp() {
+        XCTAssertFalse(backupService.isMetadataWellFormed(makeMetadata(timestamp: 0)))
+        XCTAssertFalse(backupService.isMetadataWellFormed(makeMetadata(timestamp: -1)))
+    }
+
+    func testMetadataWellFormedRejectsBadSchemaVersion() {
+        XCTAssertFalse(backupService.isMetadataWellFormed(makeMetadata(schemaVersion: 0)))
+        XCTAssertFalse(backupService.isMetadataWellFormed(makeMetadata(schemaVersion: -5)))
+    }
+
+    func testMetadataWellFormedRejectsNegativeCounts() {
+        XCTAssertFalse(backupService.isMetadataWellFormed(makeMetadata(episodeCount: -1)))
+        XCTAssertFalse(backupService.isMetadataWellFormed(makeMetadata(medicationCount: -1)))
+    }
+
+    func testMetadataWellFormedRejectsOversizedFile() {
+        let huge = BackupService.maxBackupFileSize + 1
+        XCTAssertFalse(backupService.isMetadataWellFormed(makeMetadata(fileSize: huge)))
+        XCTAssertFalse(backupService.isMetadataWellFormed(makeMetadata(fileSize: -1)))
+    }
+
+    func testMetadataWellFormedRejectsOverlongFileName() {
+        let longName = String(repeating: "a", count: BackupService.maxFileNameLength + 1)
+        XCTAssertFalse(backupService.isMetadataWellFormed(makeMetadata(fileName: longName)))
     }
 }

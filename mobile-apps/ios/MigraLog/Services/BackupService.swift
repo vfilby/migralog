@@ -11,6 +11,8 @@ enum BackupError: Error, Equatable {
     case invalidBackup(String)
     case restoreFailed(String)
     case deleteFailed(String)
+    /// A backup id failed UUID-format validation before being used in a file path.
+    case invalidBackupID(String)
 }
 
 // MARK: - Protocol
@@ -32,6 +34,62 @@ protocol BackupServiceProtocol {
 final class BackupService: BackupServiceProtocol {
     private let fileManager: FileManager
     private let logger = AppLogger.shared
+
+    // MARK: - Validation Bounds
+    //
+    // Backup ids are always `UUID().uuidString` (see `createBackup`). They are read
+    // back out of an on-disk metadata sidecar, so a tampered/foreign metadata file
+    // could otherwise smuggle `../` (or other path separators) into the file name we
+    // build. Reject anything that is not a canonical UUID before any file op.
+
+    /// Upper bound for a restorable / loadable backup file. The on-device health DB is
+    /// kilobytes-to-low-megabytes; anything past this is almost certainly corrupt or
+    /// hostile, and we refuse to copy/open it. 1 GiB is far above any legitimate size.
+    static let maxBackupFileSize: Int64 = 1_024 * 1_024 * 1_024
+
+    /// Defensive bound on the metadata `fileName` field so a bad sidecar cannot carry a
+    /// pathologically long string into UI/logging paths.
+    static let maxFileNameLength = 256
+
+    /// Lowest schema version this build knows how to restore. Backups stamped with an
+    /// older schema predate the Swift app's table shapes and are rejected up front.
+    static let minRestorableSchemaVersion = 1
+
+    /// Returns `true` iff `id` is a canonical UUID string and therefore safe to
+    /// interpolate into a backup file name. Uses `Foundation.UUID`'s own parser rather
+    /// than a regex so there is no force-try / construction failure path.
+    static func isValidBackupID(_ id: String) -> Bool {
+        // UUID(uuidString:) accepts only the canonical 8-4-4-4-12 hex form and
+        // rejects anything containing path separators (e.g. "../").
+        UUID(uuidString: id) != nil
+    }
+
+    /// Validates a backup id and throws `invalidBackupID` if it is not a UUID.
+    private func validateBackupID(_ id: String) throws {
+        guard BackupService.isValidBackupID(id) else {
+            // Do NOT log the raw id: it originates from on-disk data and is not trusted.
+            logger.warn("Rejected backup id with invalid (non-UUID) format")
+            throw BackupError.invalidBackupID("Backup id must be a UUID")
+        }
+    }
+
+    /// Bounds-checks a decoded `BackupMetadata`. The sidecar JSON is on-disk data that
+    /// could be tampered with or corrupt, so we reject obviously bad/oversized values
+    /// (non-UUID id, negative or absurd counts/sizes, over-long file name) rather than
+    /// surface them to the UI or feed them back into file ops.
+    func isMetadataWellFormed(_ metadata: BackupMetadata) -> Bool {
+        guard BackupService.isValidBackupID(metadata.id) else { return false }
+        guard metadata.timestamp > 0 else { return false }
+        guard metadata.schemaVersion >= BackupService.minRestorableSchemaVersion else { return false }
+        guard metadata.episodeCount >= 0, metadata.medicationCount >= 0 else { return false }
+        if let size = metadata.fileSize {
+            guard size >= 0, size <= BackupService.maxBackupFileSize else { return false }
+        }
+        if let name = metadata.fileName {
+            guard name.count <= BackupService.maxFileNameLength else { return false }
+        }
+        return true
+    }
 
     /// App version for backup metadata
     private var appVersion: String {
@@ -158,10 +216,12 @@ final class BackupService: BackupServiceProtocol {
 
         for metaFile in metaFiles {
             if let data = try? Data(contentsOf: metaFile),
-               let metadata = try? decoder.decode(BackupMetadata.self, from: data) {
+               let metadata = try? decoder.decode(BackupMetadata.self, from: data),
+               isMetadataWellFormed(metadata) {
                 backups.append(metadata)
             } else {
-                logger.warn("Failed to read backup metadata: \(metaFile.lastPathComponent)")
+                // File name only — never the metadata contents (may be PHI/untrusted).
+                logger.warn("Failed to read or validate backup metadata: \(metaFile.lastPathComponent)")
             }
         }
 
@@ -174,6 +234,7 @@ final class BackupService: BackupServiceProtocol {
     /// Returns the on-disk URL for a backup's `.db` file. The file may not exist;
     /// callers should validate before sharing if that matters.
     func backupFileURL(for id: String) throws -> URL {
+        try validateBackupID(id)
         let backupDir = try backupDirectoryURL()
         return backupDir.appendingPathComponent("migralog_backup_\(id).db")
     }
@@ -181,6 +242,7 @@ final class BackupService: BackupServiceProtocol {
     // MARK: - Delete Backup
 
     func deleteBackup(id: String) throws {
+        try validateBackupID(id)
         let backupDir = try backupDirectoryURL()
         let dbFile = backupDir.appendingPathComponent("migralog_backup_\(id).db")
         let metaFile = backupDir.appendingPathComponent("migralog_backup_\(id).meta.json")
@@ -217,14 +279,37 @@ final class BackupService: BackupServiceProtocol {
             throw BackupError.backupNotFound
         }
 
+        // Bound the file size before doing anything expensive: refuse to open/copy a
+        // file that is empty or absurdly large (corrupt or hostile input).
+        guard let attrs = try? fileManager.attributesOfItem(atPath: path),
+              let size = attrs[.size] as? Int64 else {
+            throw BackupError.invalidBackup("Cannot read backup file attributes")
+        }
+        guard size > 0 else {
+            throw BackupError.invalidBackup("Backup file is empty")
+        }
+        guard size <= BackupService.maxBackupFileSize else {
+            throw BackupError.invalidBackup("Backup file exceeds maximum allowed size")
+        }
+
         guard validateBackup(path: path) else {
             throw BackupError.invalidBackup("Backup validation failed")
         }
 
-        // Verify the backup database can be opened and has the expected tables
+        // Verify the backup database can be opened, carries a restorable schema version,
+        // and has the expected tables.
         do {
             let backupDb = try DatabaseManager(path: path)
             try backupDb.dbQueue.read { db in
+                // Reject backups whose schema predates anything this build can restore.
+                let userVersion = try Int.fetchOne(db, sql: "PRAGMA user_version") ?? 0
+                guard userVersion >= BackupService.minRestorableSchemaVersion,
+                      userVersion <= DatabaseManager.schemaVersion else {
+                    throw BackupError.invalidBackup(
+                        "Unsupported backup schema version \(userVersion)"
+                    )
+                }
+
                 // Log tables found for debugging
                 let tables = try String.fetchAll(db, sql: """
                     SELECT name FROM sqlite_master WHERE type='table' ORDER BY name
@@ -234,6 +319,8 @@ final class BackupService: BackupServiceProtocol {
                 _ = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM episodes")
                 _ = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM medications")
             }
+        } catch let error as BackupError {
+            throw error
         } catch {
             throw BackupError.invalidBackup("Cannot read backup database: \(error.localizedDescription)")
         }
@@ -427,14 +514,54 @@ final class BackupService: BackupServiceProtocol {
         }
     }
 
+    /// Allowlist of every table/column identifier that `restoreTable` may interpolate
+    /// into SQL. SQLite cannot bind identifiers as parameters, so table and column names
+    /// are spliced into the SQL string directly. Today every caller passes hardcoded
+    /// constants (see `restoreData`), so this is a defense-in-depth guard: if a future
+    /// refactor ever routes user/sync-controlled names here, the allowlist check below
+    /// rejects them instead of allowing SQL injection. KEEP IN SYNC with `restoreData`.
+    private static let allowedRestoreTables: Set<String> = [
+        "episodes", "medications", "intensity_readings", "symptom_logs",
+        "pain_location_logs", "episode_notes", "medication_schedules",
+        "medication_doses", "daily_status_logs", "calendar_overlays",
+        "medication_reminders"
+    ]
+    private static let allowedRestoreColumns: Set<String> = [
+        "id", "start_time", "end_time", "locations", "qualities", "symptoms",
+        "triggers", "notes", "latitude", "longitude", "location_accuracy",
+        "location_timestamp", "created_at", "updated_at", "name", "type",
+        "dosage_amount", "dosage_unit", "default_quantity", "schedule_frequency",
+        "photo_uri", "active", "category", "episode_id", "timestamp", "intensity",
+        "symptom", "onset_time", "resolution_time", "severity", "pain_locations",
+        "note", "medication_id", "time", "timezone", "dosage", "enabled",
+        "notification_id", "reminder_enabled", "quantity", "status",
+        "effectiveness_rating", "time_to_relief", "side_effects", "date",
+        "status_type", "prompted", "start_date", "end_date", "label",
+        "exclude_from_stats", "scheduled_time", "completed", "snoozed_until",
+        "completed_at"
+    ]
+
     /// Restore a table by copying only the columns that exist in both source and destination.
     /// Fixes timestamp columns with invalid zero values by falling back to created_at.
+    ///
+    /// SECURITY: `table` and `destColumns` are interpolated into SQL (identifiers can't
+    /// be bound). Callers pass hardcoded constants only — never user/sync input. The
+    /// allowlist guards below enforce that invariant so a future refactor can't smuggle
+    /// an injection in.
     private func restoreTable(
         _ table: String,
         from sourceDb: Database,
         to destDb: Database,
         columns destColumns: [String]
     ) throws {
+        // Allowlist check: every interpolated identifier must be a known constant.
+        guard BackupService.allowedRestoreTables.contains(table) else {
+            throw BackupError.restoreFailed("Refusing to restore non-allowlisted table")
+        }
+        for column in destColumns where !BackupService.allowedRestoreColumns.contains(column) {
+            throw BackupError.restoreFailed("Refusing to restore non-allowlisted column")
+        }
+
         guard try tableExists(table, in: sourceDb) else {
             logger.info("Skipping restore of \(table): table not found in backup")
             return
