@@ -95,7 +95,20 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         BackgroundSyncScheduler.register(syncService: syncService)
+        // If we cold-launched in the BFU window onto the in-memory fallback, the
+        // device may already be unlocked by now; reopen the real on-disk DB and
+        // make the Class C protection class explicit on the file (#527). No-op
+        // when already on disk or when protected data is still unavailable.
+        DatabaseManager.shared.reopenOnDiskDatabaseIfNeeded()
         return true
+    }
+
+    /// Protected data became available (device unlocked for the first time after
+    /// boot). Reopen the real on-disk database if we fell back to in-memory during
+    /// the BFU window, so deferred writes and sync resume against persistent
+    /// storage rather than the throwaway in-memory DB (#527).
+    func applicationProtectedDataDidBecomeAvailable(_ application: UIApplication) {
+        DatabaseManager.shared.reopenOnDiskDatabaseIfNeeded()
     }
 }
 

@@ -63,6 +63,11 @@ targets:
           - CloudKit
         com.apple.developer.icloud-container-identifiers:
           - iCloud.com.eff3.migralog
+        # Class C data protection (#527): files default to "complete until first
+        # user authentication" so the SQLite DB stays encrypted at rest until the
+        # device's first unlock after boot, while remaining readable thereafter
+        # (lock-screen dose logging keeps working after first unlock).
+        com.apple.developer.default-data-protection: NSFileProtectionCompleteUntilFirstUserAuthentication
 
   MigraLogWidgets:
     type: app-extension

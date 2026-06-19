@@ -316,6 +316,53 @@ final class DatabaseManagerTests: XCTestCase {
         }
     }
 
+    // MARK: - Open-failure classification (#527)
+
+    /// A locked-device (BFU) open failure surfaces as one of SQLITE_IOERR/CANTOPEN/AUTH
+    /// while protected data is unavailable. These MUST be classified as the transient
+    /// `.protectedDataUnavailable` case so writers/sync defer rather than committing to
+    /// an empty in-memory DB and silently dropping the write.
+    func testClassifyOpenFailureTreatsLockedDeviceCodesAsTransient() {
+        let transientCodes: [ResultCode] = [.SQLITE_IOERR, .SQLITE_CANTOPEN, .SQLITE_AUTH]
+        for code in transientCodes {
+            let error = DatabaseError(resultCode: code, message: "open failed")
+            let classified = DatabaseManager.classifyOpenFailure(error, protectedDataAvailable: false)
+            guard case .protectedDataUnavailable = classified else {
+                XCTFail("code \(code) while locked should be .protectedDataUnavailable, got \(classified)")
+                continue
+            }
+        }
+    }
+
+    /// The same SQLite codes, when protected data IS available, are genuine corruption —
+    /// the in-memory fallback (and recovery UI) is appropriate.
+    func testClassifyOpenFailureWithProtectedDataAvailableIsCorruption() {
+        let error = DatabaseError(resultCode: .SQLITE_CANTOPEN, message: "open failed")
+        let classified = DatabaseManager.classifyOpenFailure(error, protectedDataAvailable: true)
+        guard case .corruption = classified else {
+            return XCTFail("CANTOPEN with protected data available should be .corruption, got \(classified)")
+        }
+    }
+
+    /// A corruption-class code (e.g. SQLITE_CORRUPT) is never transient, even while locked —
+    /// it must not be mistaken for a recoverable lock-screen condition.
+    func testClassifyOpenFailureCorruptCodeIsNeverTransient() {
+        let error = DatabaseError(resultCode: .SQLITE_CORRUPT, message: "malformed")
+        let classified = DatabaseManager.classifyOpenFailure(error, protectedDataAvailable: false)
+        guard case .corruption = classified else {
+            return XCTFail("SQLITE_CORRUPT should be .corruption regardless of lock state, got \(classified)")
+        }
+    }
+
+    /// A non-DatabaseError open failure is treated as corruption (conservative default).
+    func testClassifyOpenFailureNonDatabaseErrorIsCorruption() {
+        let error = NSError(domain: "test", code: 1)
+        let classified = DatabaseManager.classifyOpenFailure(error, protectedDataAvailable: false)
+        guard case .corruption = classified else {
+            return XCTFail("non-DatabaseError should be .corruption, got \(classified)")
+        }
+    }
+
     // MARK: - Reset Database
 
     func testResetDatabaseClearsAllData() throws {
