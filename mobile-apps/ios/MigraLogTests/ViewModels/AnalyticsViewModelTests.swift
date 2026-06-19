@@ -195,16 +195,25 @@ final class AnalyticsViewModelTests: XCTestCase {
     // MARK: - Insight Series
 
     func testFetchData_populatesInsightSeries() async throws {
+        // Keep the whole fixture within *today* and strictly in the past so it
+        // lands in the trend's last (today) bucket without straddling midnight.
+        // `now - 1h` would cross into yesterday (double-counting the headache
+        // day) and a fixed noon anchor would fall in the future — both fail
+        // non-deterministically when CI runs moments after 00:00 UTC. Clamping
+        // the episode to [startOfToday, now] is stable at any wall-clock time.
         let now = TimestampHelper.now
-        let ep = TestFixtures.makeEpisode(id: "ep-1", startTime: now - 3600000, endTime: now - 1800000)
+        let startOfToday = TimestampHelper.fromDate(Calendar.current.startOfDay(for: Date()))
+        let episodeStart = max(startOfToday, now - 1800000)
+        let episodeEnd = max(episodeStart, now - 1000)
+        let ep = TestFixtures.makeEpisode(id: "ep-1", startTime: episodeStart, endTime: episodeEnd)
         mockEpisodeRepo.episodes = [ep]
         mockEpisodeRepo.intensityReadings = [
-            TestFixtures.makeReading(episodeId: "ep-1", intensity: 6.0, timestamp: now - 3000000)
+            TestFixtures.makeReading(episodeId: "ep-1", intensity: 6.0, timestamp: episodeStart)
         ]
         let triptan = TestFixtures.makeMedication(id: "med-t", type: .rescue, category: .triptan)
         mockMedicationRepo.medications = [triptan]
         mockMedicationRepo.doses = [
-            TestFixtures.makeDose(medicationId: "med-t", timestamp: now - 3000000)
+            TestFixtures.makeDose(medicationId: "med-t", timestamp: episodeStart)
         ]
 
         await sut.setDateRange(.fourteenDays)
@@ -285,8 +294,13 @@ final class AnalyticsViewModelTests: XCTestCase {
 
     func testSetCustomRange_overridesPresetAndAnchorsAtEnd() async throws {
         let calendar = Calendar.current
-        // Historical 7-day window ending 10 days ago.
-        let end = calendar.date(byAdding: .day, value: -10, to: Date())!
+        // Historical 7-day window ending 10 days ago. Anchor the end at local
+        // noon so the fixture episode never straddles midnight (which would
+        // double-count the headache day when CI runs near 00:00 UTC).
+        let end = calendar.date(
+            byAdding: .hour, value: 12,
+            to: calendar.startOfDay(for: calendar.date(byAdding: .day, value: -10, to: Date())!)
+        )!
         let start = calendar.date(byAdding: .day, value: -6, to: end)!
         let ep = TestFixtures.makeEpisode(
             id: "ep-1",
