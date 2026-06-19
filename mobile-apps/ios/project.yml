@@ -63,14 +63,13 @@ targets:
           - CloudKit
         com.apple.developer.icloud-container-identifiers:
           - iCloud.com.eff3.migralog
-        # NOTE (#527): the `com.apple.developer.default-data-protection`
-        # entitlement (Class C "complete until first user authentication") was
-        # intentionally deferred. It requires the "Data Protection" capability to
-        # be enabled on the App ID and the "MigraLog App Store" provisioning
-        # profile regenerated — without that the distribution archive fails. The
-        # at-rest protection is still applied at runtime via the DB file's
-        # `.fileProtectionKey` (see DatabaseManager.applyFileProtectionIfPossible);
-        # re-add this entitlement once the App ID capability + profile are in place.
+        # Class C data protection (#527): files default to "complete until first
+        # user authentication" so the SQLite DB stays encrypted at rest until the
+        # device's first unlock after boot, while remaining readable thereafter
+        # (lock-screen dose logging keeps working after first unlock). Requires
+        # the App ID "Data Protection" capability (set to "Protected Until First
+        # User Authentication") and the "MigraLog App Store" profile to include it.
+        com.apple.developer.default-data-protection: NSFileProtectionCompleteUntilFirstUserAuthentication
 
   MigraLogWidgets:
     type: app-extension
