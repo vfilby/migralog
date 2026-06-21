@@ -739,4 +739,134 @@ enum AnalyticsInsights {
         guard !peaks.isEmpty else { return (nil, 0) }
         return (peaks.reduce(0, +) / Double(peaks.count), peaks.count)
     }
+
+    // MARK: - Medication response (time to relief)
+
+    /// Minimum number of doses with a measurable relief time before a
+    /// medication's time-to-relief is summarized — keeps a comparison from
+    /// resting on one or two data points.
+    static let minimumReliefDoses = 3
+
+    /// Cap on time-to-relief, mirroring the `time_to_relief` column's 24-hour
+    /// ceiling. A relief signal that takes longer is treated as "no relief".
+    static let reliefCapMinutes = 1440
+
+    /// Per-rescue-medication response, for comparing how quickly each rescue
+    /// medication brought relief over the range. `reliefMedianMinutes` is
+    /// non-nil only once the medication clears the minimum-sample gate, so
+    /// sparse data never produces a misleading comparison.
+    struct MedicationEffectiveness: Identifiable, Equatable {
+        let medicationId: String
+        let medicationName: String
+        let category: MedicationCategory?
+        /// Taken doses of this medication counted in the range.
+        let takenDoses: Int
+        /// Doses that contributed a measurable relief time.
+        let reliefDoses: Int
+        /// Median minutes to relief, nil below the sample gate.
+        let reliefMedianMinutes: Double?
+        var id: String { medicationId }
+    }
+
+    /// Per-rescue-medication time-to-relief comparison.
+    ///
+    /// For each rescue medication, summarizes the time to relief over its taken
+    /// doses in range (excluded-overlay days dropped). Time to relief is the
+    /// dose's explicit `timeToRelief` when recorded, otherwise derived as the
+    /// minutes from the dose to the first intensity reading in the same episode
+    /// that falls below the dose-time baseline (the last reading at or before
+    /// the dose). Derived relief is capped at `reliefCapMinutes`; a longer gap
+    /// counts as no measured relief. This mirrors the neurologist report's
+    /// time-to-pain-drop.
+    ///
+    /// The median is reported only once a medication has at least
+    /// `minimumDoses` relief times. Medications with at least one taken dose are
+    /// returned (sorted by name) so the view can still prompt for more data;
+    /// medications with no taken doses in range are omitted.
+    static func medicationEffectiveness(
+        doses: [MedicationDose],
+        medications: [Medication],
+        readings: [IntensityReading],
+        excluded: Set<String>,
+        minimumDoses: Int = minimumReliefDoses,
+        calendar: Calendar = .current
+    ) -> [MedicationEffectiveness] {
+        let rescueById = Dictionary(
+            medications.filter { $0.type == .rescue }.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        guard !rescueById.isEmpty else { return [] }
+
+        // Intensity readings per episode, ascending by time, for relief.
+        var readingsByEpisode: [String: [IntensityReading]] = [:]
+        for reading in readings {
+            readingsByEpisode[reading.episodeId, default: []].append(reading)
+        }
+        for key in readingsByEpisode.keys {
+            readingsByEpisode[key]?.sort { $0.timestamp < $1.timestamp }
+        }
+
+        var takenCount: [String: Int] = [:]
+        var reliefs: [String: [Double]] = [:]
+
+        for dose in doses where dose.status == .taken {
+            guard rescueById[dose.medicationId] != nil else { continue }
+            let day = TimestampHelper.dateString(from: TimestampHelper.toDate(dose.timestamp))
+            guard !excluded.contains(day) else { continue }
+            takenCount[dose.medicationId, default: 0] += 1
+
+            if let relief = reliefMinutes(for: dose, readingsByEpisode: readingsByEpisode) {
+                reliefs[dose.medicationId, default: []].append(Double(relief))
+            }
+        }
+
+        return takenCount.keys.compactMap { medId -> MedicationEffectiveness? in
+            guard let med = rescueById[medId], let taken = takenCount[medId], taken > 0 else { return nil }
+            let reliefValues = reliefs[medId] ?? []
+            let medianMinutes = reliefValues.count >= minimumDoses ? median(of: reliefValues.sorted()) : nil
+            return MedicationEffectiveness(
+                medicationId: medId,
+                medicationName: med.name,
+                category: med.category,
+                takenDoses: taken,
+                reliefDoses: reliefValues.count,
+                reliefMedianMinutes: medianMinutes
+            )
+        }
+        .sorted {
+            $0.medicationName != $1.medicationName
+                ? $0.medicationName < $1.medicationName
+                : $0.medicationId < $1.medicationId
+        }
+    }
+
+    /// Minutes from a dose to its first relief signal, or nil when none is
+    /// measurable. An explicit `timeToRelief` wins; otherwise the first
+    /// in-episode reading after the dose that falls below the dose-time
+    /// baseline, capped at `reliefCapMinutes`.
+    private static func reliefMinutes(
+        for dose: MedicationDose,
+        readingsByEpisode: [String: [IntensityReading]]
+    ) -> Int? {
+        if let explicit = dose.timeToRelief, explicit > 0 {
+            return min(explicit, reliefCapMinutes)
+        }
+        guard let episodeId = dose.episodeId,
+              let readings = readingsByEpisode[episodeId],
+              let baseline = readings.last(where: { $0.timestamp <= dose.timestamp })?.intensity else {
+            return nil
+        }
+        for reading in readings where reading.timestamp > dose.timestamp && reading.intensity < baseline {
+            let minutes = Int((reading.timestamp - dose.timestamp) / 60_000)
+            return minutes <= reliefCapMinutes ? max(minutes, 0) : nil
+        }
+        return nil
+    }
+
+    /// Median of an ascending, non-empty array.
+    private static func median(of sorted: [Double]) -> Double {
+        let count = sorted.count
+        if count % 2 == 1 { return sorted[count / 2] }
+        return (sorted[count / 2 - 1] + sorted[count / 2]) / 2
+    }
 }

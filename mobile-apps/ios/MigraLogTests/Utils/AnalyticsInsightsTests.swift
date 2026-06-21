@@ -701,4 +701,114 @@ final class AnalyticsInsightsTests: XCTestCase {
 
         XCTAssertTrue(warnings.isEmpty)
     }
+
+    // MARK: - medicationEffectiveness (time to relief)
+
+    func testMedicationEffectiveness_summarizesReliefMedian() {
+        let triptan = TestFixtures.makeMedication(id: "med-t", type: .rescue, category: .triptan)
+        // Three doses with explicit relief 20, 30, 40 → median 30, n=3.
+        let reliefs = [20, 30, 40]
+        let doses = reliefs.enumerated().map { index, relief in
+            TestFixtures.makeDose(id: "d\(index)", medicationId: "med-t", timestamp: ms(daysAgo: index + 1), timeToRelief: relief)
+        }
+
+        let result = AnalyticsInsights.medicationEffectiveness(
+            doses: doses, medications: [triptan], readings: [], excluded: [], calendar: calendar
+        )
+
+        XCTAssertEqual(result.count, 1)
+        XCTAssertEqual(result.first?.takenDoses, 3)
+        XCTAssertEqual(result.first?.reliefDoses, 3)
+        XCTAssertEqual(result.first?.reliefMedianMinutes ?? 0, 30, accuracy: 0.0001)
+    }
+
+    func testMedicationEffectiveness_gatesReliefBelowMinimumDoses() {
+        let triptan = TestFixtures.makeMedication(id: "med-t", type: .rescue, category: .triptan)
+        let doses = [
+            TestFixtures.makeDose(id: "d0", medicationId: "med-t", timestamp: ms(daysAgo: 1), timeToRelief: 30),
+            TestFixtures.makeDose(id: "d1", medicationId: "med-t", timestamp: ms(daysAgo: 2), timeToRelief: 45),
+        ]
+
+        let result = AnalyticsInsights.medicationEffectiveness(
+            doses: doses, medications: [triptan], readings: [], excluded: [], calendar: calendar
+        )
+
+        // The medication still appears (2 taken doses) but its median is gated.
+        XCTAssertEqual(result.count, 1)
+        XCTAssertEqual(result.first?.takenDoses, 2)
+        XCTAssertEqual(result.first?.reliefDoses, 2)
+        XCTAssertNil(result.first?.reliefMedianMinutes)
+    }
+
+    func testMedicationEffectiveness_derivesReliefFromIntensityDrop() {
+        let triptan = TestFixtures.makeMedication(id: "med-t", type: .rescue, category: .triptan)
+        var doses: [MedicationDose] = []
+        var readings: [IntensityReading] = []
+        // Three episodes, each: baseline reading, dose, then a drop 30 min later.
+        for index in 0..<3 {
+            let episodeId = "ep\(index)"
+            let doseTime = ms(daysAgo: index + 1, hour: 12)
+            readings.append(TestFixtures.makeReading(episodeId: episodeId, intensity: 8, timestamp: doseTime - 5 * 60_000))
+            readings.append(TestFixtures.makeReading(episodeId: episodeId, intensity: 4, timestamp: doseTime + 30 * 60_000))
+            doses.append(TestFixtures.makeDose(id: "d\(index)", medicationId: "med-t", timestamp: doseTime, episodeId: episodeId))
+        }
+
+        let result = AnalyticsInsights.medicationEffectiveness(
+            doses: doses, medications: [triptan], readings: readings, excluded: [], calendar: calendar
+        )
+
+        XCTAssertEqual(result.first?.reliefDoses, 3)
+        XCTAssertEqual(result.first?.reliefMedianMinutes ?? 0, 30, accuracy: 0.0001)
+    }
+
+    func testMedicationEffectiveness_explicitTimeToReliefWinsOverDerived() {
+        let triptan = TestFixtures.makeMedication(id: "med-t", type: .rescue, category: .triptan)
+        // Episode readings would derive a 30-minute drop, but the explicit
+        // 45-minute relief takes precedence.
+        let doseTime = ms(daysAgo: 1, hour: 12)
+        let readings = [
+            TestFixtures.makeReading(episodeId: "ep", intensity: 8, timestamp: doseTime - 5 * 60_000),
+            TestFixtures.makeReading(episodeId: "ep", intensity: 4, timestamp: doseTime + 30 * 60_000),
+        ]
+        let doses = (0..<3).map { index in
+            TestFixtures.makeDose(
+                id: "d\(index)", medicationId: "med-t", timestamp: ms(daysAgo: index + 1),
+                episodeId: "ep", timeToRelief: 45
+            )
+        }
+
+        let result = AnalyticsInsights.medicationEffectiveness(
+            doses: doses, medications: [triptan], readings: readings, excluded: [], calendar: calendar
+        )
+
+        XCTAssertEqual(result.first?.reliefMedianMinutes ?? 0, 45, accuracy: 0.0001)
+    }
+
+    func testMedicationEffectiveness_ignoresSkippedExcludedAndPreventative() {
+        let triptan = TestFixtures.makeMedication(id: "med-t", type: .rescue, category: .triptan)
+        let preventative = TestFixtures.makeMedication(id: "med-p", type: .preventative, category: .cgrp)
+        let doses = [
+            // Counted.
+            TestFixtures.makeDose(id: "d0", medicationId: "med-t", timestamp: ms(daysAgo: 1), timeToRelief: 30),
+            // Skipped — ignored.
+            TestFixtures.makeDose(id: "d1", medicationId: "med-t", timestamp: ms(daysAgo: 2), status: .skipped, timeToRelief: 30),
+            // Excluded day — ignored.
+            TestFixtures.makeDose(id: "d2", medicationId: "med-t", timestamp: ms(daysAgo: 3), timeToRelief: 30),
+            // Preventative medication — not a rescue, ignored.
+            TestFixtures.makeDose(id: "d3", medicationId: "med-p", timestamp: ms(daysAgo: 1), timeToRelief: 30),
+        ]
+
+        let result = AnalyticsInsights.medicationEffectiveness(
+            doses: doses,
+            medications: [triptan, preventative],
+            readings: [],
+            excluded: [dayString(daysAgo: 3)],
+            calendar: calendar
+        )
+
+        XCTAssertEqual(result.count, 1)
+        XCTAssertEqual(result.first?.medicationId, "med-t")
+        XCTAssertEqual(result.first?.takenDoses, 1)
+        XCTAssertEqual(result.first?.reliefDoses, 1)
+    }
 }

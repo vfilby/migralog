@@ -880,7 +880,10 @@ enum TestFixtures {
         medicationId: String,
         timestamp: Int64? = nil,
         status: DoseStatus = .taken,
-        quantity: Double = 1.0
+        quantity: Double = 1.0,
+        episodeId: String? = nil,
+        effectivenessRating: Double? = nil,
+        timeToRelief: Int? = nil
     ) -> MedicationDose {
         let ts = timestamp ?? now
         return MedicationDose(
@@ -891,9 +894,9 @@ enum TestFixtures {
             dosageAmount: 400,
             dosageUnit: "mg",
             status: status,
-            episodeId: nil,
-            effectivenessRating: nil,
-            timeToRelief: nil,
+            episodeId: episodeId,
+            effectivenessRating: effectivenessRating,
+            timeToRelief: timeToRelief,
             sideEffects: [],
             notes: nil,
             createdAt: ts,
