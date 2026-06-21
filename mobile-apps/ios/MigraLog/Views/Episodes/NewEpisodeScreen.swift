@@ -9,10 +9,20 @@ struct NewEpisodeScreen: View {
     @State private var selectedTriggers: Set<Trigger> = []
     @State private var notes: String = ""
     @State private var initialIntensity: Double = 5.0
+    @State private var startTime: Date = Date()
     @State private var isSaving = false
 
     var body: some View {
         Form {
+            Section("Start Time") {
+                DatePicker(
+                    "Started",
+                    selection: $startTime,
+                    in: ...Date(),
+                    displayedComponents: [.date, .hourAndMinute]
+                )
+            }
+
             Section("Initial Pain Intensity") {
                 PainIntensitySlider(intensity: $initialIntensity)
             }
@@ -103,9 +113,12 @@ struct NewEpisodeScreen: View {
         defer { isSaving = false }
 
         let now = TimestampHelper.now
+        // The episode begins at the user-chosen start time (defaults to now),
+        // while createdAt/updatedAt record when the record was actually written.
+        let start = TimestampHelper.fromDate(startTime)
         let episode = Episode(
             id: UUID().uuidString,
-            startTime: now,
+            startTime: start,
             endTime: nil,
             locations: Array(selectedLocations),
             qualities: Array(selectedQualities),
@@ -128,7 +141,7 @@ struct NewEpisodeScreen: View {
             let reading = IntensityReading(
                 id: UUID().uuidString,
                 episodeId: episode.id,
-                timestamp: now,
+                timestamp: start,
                 intensity: initialIntensity,
                 createdAt: now,
                 updatedAt: now
