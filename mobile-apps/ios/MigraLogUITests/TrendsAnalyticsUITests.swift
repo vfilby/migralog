@@ -50,6 +50,24 @@ final class TrendsAnalyticsUITests: XCTestCase {
         UITestHelpers.waitForElement(dayStatsCard)
     }
 
+    // MARK: - 7.1b Med Response section
+
+    func testMedResponseSectionAppears() throws {
+        app = UITestHelpers.launchCleanDashboard()
+        UITestHelpers.waitForDashboard(in: app)
+        UITestHelpers.navigateTo(tab: .trends, in: app)
+        let trendsScreen = app.navigationBars.staticTexts["Trends & Analytics"]
+        UITestHelpers.waitForElement(trendsScreen)
+
+        // Switch to the Med Response section; the range selector and the
+        // empty-state card should be present (no rescue doses with clean data).
+        selectSection("Med Response")
+        let rangeCustom = app.buttons["time-range-custom"]
+        UITestHelpers.waitForElement(rangeCustom)
+        let emptyTitle = app.staticTexts["Medication Response"]
+        UITestHelpers.waitForElement(emptyTitle)
+    }
+
     // MARK: - 7.2 Time range switching
 
     func testTimeRangeSwitching() throws {

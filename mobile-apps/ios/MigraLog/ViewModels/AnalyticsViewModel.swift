@@ -43,6 +43,8 @@ final class AnalyticsViewModel {
     var weeklyAdherence: [AnalyticsInsights.WeeklyAdherence] = []
     /// Medications referenced by `monthlySummaries`, for display names/order.
     var summaryMedications: [Medication] = []
+    /// Per-rescue-medication effectiveness comparison (Med Response section).
+    var medicationEffectiveness: [AnalyticsInsights.MedicationEffectiveness] = []
 
     // MARK: - Cache
 
@@ -152,6 +154,7 @@ final class AnalyticsViewModel {
             monthlySummaries = cached.monthlySummaries
             weeklyAdherence = cached.weeklyAdherence
             summaryMedications = cached.summaryMedications
+            medicationEffectiveness = cached.medicationEffectiveness
             return
         }
 
@@ -234,7 +237,8 @@ final class AnalyticsViewModel {
                 insightWarnings: insightWarnings,
                 monthlySummaries: monthlySummaries,
                 weeklyAdherence: weeklyAdherence,
-                summaryMedications: summaryMedications
+                summaryMedications: summaryMedications,
+                medicationEffectiveness: medicationEffectiveness
             )
             if hasData {
                 cache.set(cacheKey, value: cached, ttl: Self.cacheTTL)
@@ -492,6 +496,17 @@ final class AnalyticsViewModel {
             to: rangeEnd,
             calendar: calendar
         )
+
+        // Per-medication effectiveness comparison over the selected range.
+        // Readings come from the extended window, which is a superset of the
+        // range episodes, so in-range doses can resolve their episode's curve.
+        medicationEffectiveness = AnalyticsInsights.medicationEffectiveness(
+            doses: rangeDoses,
+            medications: allMedications,
+            readings: extendedReadings,
+            excluded: excluded,
+            calendar: calendar
+        )
     }
 
     /// Computes symptom and pain-location frequency over the in-range episodes.
@@ -581,4 +596,5 @@ private struct CachedAnalytics {
     let monthlySummaries: [AnalyticsInsights.MonthSummary]
     let weeklyAdherence: [AnalyticsInsights.WeeklyAdherence]
     let summaryMedications: [Medication]
+    let medicationEffectiveness: [AnalyticsInsights.MedicationEffectiveness]
 }

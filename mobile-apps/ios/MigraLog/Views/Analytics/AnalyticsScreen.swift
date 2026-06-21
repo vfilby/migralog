@@ -6,6 +6,7 @@ import SwiftUI
 enum AnalyticsSection: String, CaseIterable, Identifiable {
     case calendar
     case insights
+    case medResponse
 
     var id: String { rawValue }
 
@@ -13,6 +14,7 @@ enum AnalyticsSection: String, CaseIterable, Identifiable {
         switch self {
         case .calendar: return "Calendar"
         case .insights: return "Insights"
+        case .medResponse: return "Med Response"
         }
     }
 }
@@ -67,6 +69,11 @@ struct AnalyticsScreen: View {
                     // Insight charts and summary table (episode totals and
                     // per-medication usage live in the Monthly Summary)
                     InsightsChartsSection(viewModel: viewModel)
+
+                case .medResponse:
+                    // Med Response follows the same range selector as Insights.
+                    TimeRangeSelectorView(viewModel: viewModel)
+                    MedicationResponseSection(viewModel: viewModel)
                 }
             }
             .padding()
@@ -666,6 +673,8 @@ struct AnalyticsVisualizationPane: View {
                         )
                     case .insights:
                         InsightsChartsSection(viewModel: viewModel)
+                    case .medResponse:
+                        MedicationResponseSection(viewModel: viewModel)
                     }
                 }
                 .padding()
