@@ -3,11 +3,12 @@ import SwiftUI
 
 /// "Med Response" section of the Trends tab (issue #487).
 ///
-/// Compares how well each rescue medication worked over the selected range:
-/// the median + IQR of its effectiveness rating and of its time to relief.
-/// A medication's metric only appears once it clears the minimum-sample gate
-/// in `AnalyticsInsights.medicationEffectiveness`, so a comparison never rests
-/// on one or two doses. Informational only — not medical advice.
+/// Compares how quickly each rescue medication brought relief over the
+/// selected range: the median time from a dose to the first drop in headache
+/// intensity. A medication's median only appears once it clears the
+/// minimum-sample gate in `AnalyticsInsights.medicationEffectiveness`, so a
+/// comparison never rests on one or two doses. Informational only — not
+/// medical advice.
 struct MedicationResponseSection: View {
     @Bindable var viewModel: AnalyticsViewModel
 
@@ -15,10 +16,10 @@ struct MedicationResponseSection: View {
         viewModel.medicationEffectiveness
     }
 
-    /// Medications that cleared the gate for the effectiveness rating, used for
-    /// the at-a-glance comparison chart.
-    private var ratedMeds: [AnalyticsInsights.MedicationEffectiveness] {
-        meds.filter { $0.rating != nil }
+    /// Medications that cleared the gate, fastest median first, for the chart.
+    private var reliefMeds: [AnalyticsInsights.MedicationEffectiveness] {
+        meds.filter { $0.reliefMedianMinutes != nil }
+            .sorted { ($0.reliefMedianMinutes ?? 0) < ($1.reliefMedianMinutes ?? 0) }
     }
 
     var body: some View {
@@ -26,8 +27,8 @@ struct MedicationResponseSection: View {
             if meds.isEmpty {
                 MedResponseEmptyState()
             } else {
-                if !ratedMeds.isEmpty {
-                    EffectivenessComparisonCard(meds: ratedMeds)
+                if !reliefMeds.isEmpty {
+                    ReliefComparisonCard(meds: reliefMeds)
                 }
                 ForEach(meds) { med in
                     MedicationResponseCard(med: med)
@@ -74,10 +75,10 @@ private struct MedResponseEmptyState: View {
     var body: some View {
         ResponseCard(
             title: "Medication Response",
-            subtitle: "How well each rescue medication worked, side by side.",
+            subtitle: "How quickly each rescue medication brought relief, side by side.",
             accessibilityId: "med-response-empty"
         ) {
-            Text("No rescue-medication doses in this range yet. Log doses against your episodes — and rate how well they worked — to compare medications here.")
+            Text("No rescue-medication doses in this range yet. Log doses against your episodes — and keep tracking intensity — to compare how fast each one works here.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
@@ -85,51 +86,41 @@ private struct MedResponseEmptyState: View {
     }
 }
 
-// MARK: - Effectiveness comparison chart
+// MARK: - Time-to-relief comparison chart
 
-/// Horizontal IQR comparison of effectiveness ratings: a band from Q25 to Q75
-/// with a dot at the median, one row per medication. Higher is better.
-private struct EffectivenessComparisonCard: View {
+/// Horizontal bars of each medication's median time to relief, fastest first.
+/// Lower is faster.
+private struct ReliefComparisonCard: View {
     let meds: [AnalyticsInsights.MedicationEffectiveness]
 
     var body: some View {
         ResponseCard(
-            title: "Effectiveness Compared",
-            subtitle: "Median rating with its interquartile range (25th–75th percentile). Higher is better; the dot is the median.",
+            title: "Time to Relief Compared",
+            subtitle: "Median time from a rescue dose to the first drop in headache intensity. Lower is faster.",
             accessibilityId: "med-response-comparison"
         ) {
             Chart(meds) { med in
-                if let rating = med.rating {
+                if let minutes = med.reliefMedianMinutes {
                     BarMark(
-                        xStart: .value("Q25", rating.q25),
-                        xEnd: .value("Q75", rating.q75),
-                        y: .value("Medication", med.medicationName),
-                        height: 14
-                    )
-                    .foregroundStyle(Color.accentColor.opacity(0.25))
-                    .cornerRadius(4)
-
-                    PointMark(
-                        x: .value("Median", rating.median),
+                        x: .value("Time to relief", minutes),
                         y: .value("Medication", med.medicationName)
                     )
                     .foregroundStyle(Color.accentColor)
-                    .symbolSize(90)
                     .annotation(position: .trailing, alignment: .leading) {
-                        Text(MedResponseFormat.rating(rating.median))
+                        Text(MedResponseFormat.minutes(minutes))
                             .font(.caption2.monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
                 }
             }
-            .chartXScale(domain: 0...10)
+            // Fastest median sits at the top (rows are pre-sorted ascending).
+            .chartYScale(domain: meds.map(\.medicationName))
             .chartXAxis {
-                AxisMarks(values: [0, 2, 4, 6, 8, 10]) {
+                AxisMarks(values: .automatic(desiredCount: 4)) {
                     AxisGridLine()
                     AxisValueLabel()
                 }
             }
-            .chartYScale(domain: meds.map(\.medicationName))
             .frame(height: CGFloat(meds.count) * 40 + 24)
         }
     }
@@ -161,71 +152,33 @@ private struct MedicationResponseCard: View {
             }
             .padding(.bottom, 4)
 
-            MetricRow(
-                label: "Effectiveness",
-                summary: med.rating,
-                value: { MedResponseFormat.rating($0) },
-                range: { "\(MedResponseFormat.rating($0)) – \(MedResponseFormat.rating($1))" },
-                hint: "Need ≥\(AnalyticsInsights.minimumEffectivenessDoses) rated doses",
-                accessibilityId: "med-response-rating-\(med.medicationId)"
-            )
-
-            Divider()
-
-            MetricRow(
-                label: "Time to relief",
-                summary: med.relief,
-                value: { MedResponseFormat.minutes($0) },
-                range: { "\(MedResponseFormat.minutes($0)) – \(MedResponseFormat.minutes($1))" },
-                hint: "Need ≥\(AnalyticsInsights.minimumEffectivenessDoses) doses with relief data",
-                accessibilityId: "med-response-relief-\(med.medicationId)"
-            )
-        }
-    }
-}
-
-/// One labeled metric: the median big, IQR + sample size beneath, or a
-/// minimum-sample hint when the metric hasn't cleared the gate.
-private struct MetricRow: View {
-    let label: String
-    let summary: AnalyticsInsights.MetricSummary?
-    let value: (Double) -> String
-    let range: (Double, Double) -> String
-    let hint: String
-    let accessibilityId: String
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(label)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Spacer()
-            if let summary {
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(value(summary.median))
-                        .font(.title3.weight(.semibold).monospacedDigit())
-                    Text("IQR \(range(summary.q25, summary.q75)) · n=\(summary.n)")
-                        .font(.caption2.monospacedDigit())
-                        .foregroundStyle(.secondary)
+            HStack(alignment: .firstTextBaseline) {
+                Text("Time to relief")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if let minutes = med.reliefMedianMinutes {
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(MedResponseFormat.minutes(minutes))
+                            .font(.title3.weight(.semibold).monospacedDigit())
+                        Text("median · \(med.reliefDoses) \(med.reliefDoses == 1 ? "dose" : "doses")")
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    Text("Need ≥\(AnalyticsInsights.minimumReliefDoses) doses with relief data")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                 }
-            } else {
-                Text(hint)
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
             }
+            .accessibilityIdentifier("med-response-relief-\(med.medicationId)")
         }
-        .accessibilityIdentifier(accessibilityId)
     }
 }
 
 // MARK: - Formatting
 
 private enum MedResponseFormat {
-    /// Effectiveness rating on the 0–10 scale, no decimals.
-    static func rating(_ value: Double) -> String {
-        String(Int(value.rounded()))
-    }
-
     /// Time-to-relief minutes rendered as a duration (e.g. "45m", "2h 15m").
     static func minutes(_ value: Double) -> String {
         DateFormatting.formatDuration(milliseconds: Int64(value.rounded()) * 60_000)

@@ -740,67 +740,55 @@ enum AnalyticsInsights {
         return (peaks.reduce(0, +) / Double(peaks.count), peaks.count)
     }
 
-    // MARK: - Medication effectiveness
+    // MARK: - Medication response (time to relief)
 
-    /// Default minimum number of qualifying doses before a metric is
-    /// summarized — keeps a comparison from resting on one or two data points.
-    static let minimumEffectivenessDoses = 3
+    /// Minimum number of doses with a measurable relief time before a
+    /// medication's time-to-relief is summarized — keeps a comparison from
+    /// resting on one or two data points.
+    static let minimumReliefDoses = 3
 
     /// Cap on time-to-relief, mirroring the `time_to_relief` column's 24-hour
     /// ceiling. A relief signal that takes longer is treated as "no relief".
     static let reliefCapMinutes = 1440
 
-    /// Median + interquartile range of a single metric, plus its sample size.
-    struct MetricSummary: Equatable {
-        let n: Int
-        let median: Double
-        let q25: Double
-        let q75: Double
-        let minimum: Double
-        let maximum: Double
-    }
-
-    /// Per-rescue-medication response, for comparing how well each rescue
-    /// medication worked over the range. `rating` and `relief` are each non-nil
-    /// only once the medication clears the minimum-sample gate for that metric,
-    /// so sparse data never produces a misleading comparison.
+    /// Per-rescue-medication response, for comparing how quickly each rescue
+    /// medication brought relief over the range. `reliefMedianMinutes` is
+    /// non-nil only once the medication clears the minimum-sample gate, so
+    /// sparse data never produces a misleading comparison.
     struct MedicationEffectiveness: Identifiable, Equatable {
         let medicationId: String
         let medicationName: String
         let category: MedicationCategory?
-        /// Taken doses of this medication counted in the range. `rating` and
-        /// `relief` are computed from the subset of those doses carrying the
-        /// needed data.
+        /// Taken doses of this medication counted in the range.
         let takenDoses: Int
-        /// Effectiveness-rating distribution (0–10), nil below the sample gate.
-        let rating: MetricSummary?
-        /// Time-to-relief distribution in minutes, nil below the sample gate.
-        let relief: MetricSummary?
+        /// Doses that contributed a measurable relief time.
+        let reliefDoses: Int
+        /// Median minutes to relief, nil below the sample gate.
+        let reliefMedianMinutes: Double?
         var id: String { medicationId }
     }
 
-    /// Per-rescue-medication effectiveness comparison.
+    /// Per-rescue-medication time-to-relief comparison.
     ///
-    /// For each rescue medication, summarizes two metrics over its taken doses
-    /// in range (excluded-overlay days dropped):
-    /// - **Effectiveness rating** — the user-entered 0–10 rating on the dose.
-    /// - **Time to relief (minutes)** — the dose's explicit `timeToRelief` when
-    ///   recorded, otherwise derived as the minutes from the dose to the first
-    ///   intensity reading in the same episode that falls below the dose-time
-    ///   baseline (the last reading at or before the dose). Derived relief is
-    ///   capped at `reliefCapMinutes`; a longer gap counts as no measured
-    ///   relief. This mirrors the neurologist report's time-to-pain-drop.
+    /// For each rescue medication, summarizes the time to relief over its taken
+    /// doses in range (excluded-overlay days dropped). Time to relief is the
+    /// dose's explicit `timeToRelief` when recorded, otherwise derived as the
+    /// minutes from the dose to the first intensity reading in the same episode
+    /// that falls below the dose-time baseline (the last reading at or before
+    /// the dose). Derived relief is capped at `reliefCapMinutes`; a longer gap
+    /// counts as no measured relief. This mirrors the neurologist report's
+    /// time-to-pain-drop.
     ///
-    /// A metric is summarized only once it has at least `minimumDoses` values.
-    /// Medications with at least one taken dose are returned (sorted by name)
-    /// so the view can still prompt for more ratings; medications with no taken
-    /// doses in range are omitted.
+    /// The median is reported only once a medication has at least
+    /// `minimumDoses` relief times. Medications with at least one taken dose are
+    /// returned (sorted by name) so the view can still prompt for more data;
+    /// medications with no taken doses in range are omitted.
     static func medicationEffectiveness(
         doses: [MedicationDose],
         medications: [Medication],
         readings: [IntensityReading],
         excluded: Set<String>,
-        minimumDoses: Int = minimumEffectivenessDoses,
+        minimumDoses: Int = minimumReliefDoses,
         calendar: Calendar = .current
     ) -> [MedicationEffectiveness] {
         let rescueById = Dictionary(
@@ -819,7 +807,6 @@ enum AnalyticsInsights {
         }
 
         var takenCount: [String: Int] = [:]
-        var ratings: [String: [Double]] = [:]
         var reliefs: [String: [Double]] = [:]
 
         for dose in doses where dose.status == .taken {
@@ -828,9 +815,6 @@ enum AnalyticsInsights {
             guard !excluded.contains(day) else { continue }
             takenCount[dose.medicationId, default: 0] += 1
 
-            if let rating = dose.effectivenessRating {
-                ratings[dose.medicationId, default: []].append(rating)
-            }
             if let relief = reliefMinutes(for: dose, readingsByEpisode: readingsByEpisode) {
                 reliefs[dose.medicationId, default: []].append(Double(relief))
             }
@@ -838,13 +822,15 @@ enum AnalyticsInsights {
 
         return takenCount.keys.compactMap { medId -> MedicationEffectiveness? in
             guard let med = rescueById[medId], let taken = takenCount[medId], taken > 0 else { return nil }
+            let reliefValues = reliefs[medId] ?? []
+            let medianMinutes = reliefValues.count >= minimumDoses ? median(of: reliefValues.sorted()) : nil
             return MedicationEffectiveness(
                 medicationId: medId,
                 medicationName: med.name,
                 category: med.category,
                 takenDoses: taken,
-                rating: summary(of: ratings[medId] ?? [], minimum: minimumDoses),
-                relief: summary(of: reliefs[medId] ?? [], minimum: minimumDoses)
+                reliefDoses: reliefValues.count,
+                reliefMedianMinutes: medianMinutes
             )
         }
         .sorted {
@@ -877,28 +863,10 @@ enum AnalyticsInsights {
         return nil
     }
 
-    /// Median + IQR of `values`, or nil below `minimum` samples.
-    private static func summary(of values: [Double], minimum: Int) -> MetricSummary? {
-        guard values.count >= minimum else { return nil }
-        let sorted = values.sorted()
-        return MetricSummary(
-            n: sorted.count,
-            median: percentile(sorted, 0.5),
-            q25: percentile(sorted, 0.25),
-            q75: percentile(sorted, 0.75),
-            minimum: sorted.first ?? 0,
-            maximum: sorted.last ?? 0
-        )
-    }
-
-    /// Linear-interpolation percentile (numpy default), `p` in 0...1. `sorted`
-    /// must be ascending and non-empty.
-    private static func percentile(_ sorted: [Double], _ p: Double) -> Double {
-        if sorted.count == 1 { return sorted[0] }
-        let rank = p * Double(sorted.count - 1)
-        let low = Int(rank.rounded(.down))
-        let high = Int(rank.rounded(.up))
-        let weight = rank - Double(low)
-        return sorted[low] + (sorted[high] - sorted[low]) * weight
+    /// Median of an ascending, non-empty array.
+    private static func median(of sorted: [Double]) -> Double {
+        let count = sorted.count
+        if count % 2 == 1 { return sorted[count / 2] }
+        return (sorted[count / 2 - 1] + sorted[count / 2]) / 2
     }
 }
