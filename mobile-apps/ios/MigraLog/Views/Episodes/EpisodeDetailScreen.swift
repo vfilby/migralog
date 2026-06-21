@@ -7,6 +7,7 @@ struct EpisodeDetailScreen: View {
     /// a same-episode detail alive in another tab can't steal the action. See #416.
     var consumesDeepLinks: Bool = false
     @Environment(AppState.self) private var appState
+    @Environment(\.dismiss) private var dismiss
     @State private var viewModel = EpisodeDetailViewModel()
     @State private var showEndTimePicker = false
     @State private var showEditSheet = false
@@ -54,16 +55,42 @@ struct EpisodeDetailScreen: View {
                     }
                 } footer: {
                     // Actions span the full width below the columns
-                    if details.episode.isActive {
-                        EpisodeActionButtons(
-                            episode: details.episode,
-                            episodeId: episodeId,
-                            viewModel: viewModel,
-                            showLogUpdate: $showLogUpdate,
-                            showLogMedication: $showLogMedication,
-                            customEndTime: $customEndTime,
-                            showEndTimePicker: $showEndTimePicker
-                        )
+                    VStack(spacing: 12) {
+                        if details.episode.isActive {
+                            EpisodeActionButtons(
+                                episode: details.episode,
+                                episodeId: episodeId,
+                                viewModel: viewModel,
+                                showLogUpdate: $showLogUpdate,
+                                showLogMedication: $showLogMedication,
+                                customEndTime: $customEndTime,
+                                showEndTimePicker: $showEndTimePicker
+                            )
+                        }
+
+                        // Discard an episode entirely (e.g. started by accident).
+                        // Available whether it's still active or already ended.
+                        Button {
+                            pendingDeleteLabel = "Episode"
+                            pendingDeleteAction = {
+                                await viewModel.deleteEpisode()
+                                // Clearing the selection pops the iPhone detail
+                                // (path binding) and empties the iPad detail
+                                // column; dismiss() covers plain pushes from
+                                // Dashboard / Daily Status.
+                                appState.selectedEpisodeId = nil
+                                dismiss()
+                            }
+                            showDeleteConfirmation = true
+                        } label: {
+                            Label("Delete Episode", systemImage: "trash")
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.red.opacity(0.1))
+                                .foregroundStyle(.red)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                        .accessibilityIdentifier("delete-episode-button")
                     }
                 }
                 .accessibilityIdentifier("episode-detail-scroll")

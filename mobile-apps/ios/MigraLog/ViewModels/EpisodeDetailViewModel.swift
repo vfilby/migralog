@@ -219,6 +219,29 @@ final class EpisodeDetailViewModel {
         }
     }
 
+    /// Permanently delete this episode and everything attached to it (intensity
+    /// readings, symptom/pain logs, notes — cascaded by the DB). Doses keep their
+    /// history; their `episode_id` is nulled by the foreign key. Used to discard an
+    /// episode started by accident, whether it's still active or already ended.
+    @MainActor
+    func deleteEpisode() async {
+        guard let episode = details?.episode else { return }
+        do {
+            try await episodeRepository.deleteEpisode(episode.id)
+            // Drop any Live Activity tied to the now-deleted episode.
+            liveActivityManager.dismiss(episodeId: episode.id)
+            // If it was active, daily check-ins were suppressed — reinstate them
+            // now that no episode is in progress.
+            if episode.isActive {
+                try? await dailyCheckinService.scheduleNotifications()
+            }
+            details = nil
+        } catch {
+            ErrorLogger.shared.logError(error, context: ["viewModel": "EpisodeDetailViewModel", "action": "deleteEpisode"])
+            self.error = error.localizedDescription
+        }
+    }
+
     // MARK: - Intensity Readings
 
     @MainActor

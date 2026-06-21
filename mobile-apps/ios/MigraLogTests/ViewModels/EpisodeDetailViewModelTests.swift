@@ -94,6 +94,47 @@ final class EpisodeDetailViewModelTests: XCTestCase {
         XCTAssertFalse(mockRepo.updateEpisodeCalled)
     }
 
+    // MARK: - Delete Episode
+
+    func testDeleteEpisode_deletesAndClearsDetails() async throws {
+        await sut.loadEpisode()
+        XCTAssertNotNil(sut.details)
+
+        await sut.deleteEpisode()
+
+        XCTAssertTrue(mockRepo.deleteEpisodeCalled)
+        XCTAssertNil(sut.details, "Detail should clear so the screen can dismiss")
+        XCTAssertNil(sut.error)
+    }
+
+    func testDeleteEpisode_completedEpisode_deletes() async throws {
+        mockRepo.episodes = [TestFixtures.makeEpisode(id: "ep-1", endTime: TimestampHelper.now)]
+        await sut.loadEpisode()
+        XCTAssertFalse(sut.episode!.isActive)
+
+        await sut.deleteEpisode()
+
+        XCTAssertTrue(mockRepo.deleteEpisodeCalled)
+        XCTAssertNil(sut.details)
+    }
+
+    func testDeleteEpisode_notLoaded_noOp() async throws {
+        // details is nil — nothing loaded yet
+        await sut.deleteEpisode()
+
+        XCTAssertFalse(mockRepo.deleteEpisodeCalled)
+    }
+
+    func testDeleteEpisode_error_setsError() async throws {
+        await sut.loadEpisode()
+        mockRepo.errorToThrow = TestError.mockError("delete failed")
+
+        await sut.deleteEpisode()
+
+        XCTAssertNotNil(sut.error)
+        XCTAssertNotNil(sut.details, "Details should remain when the delete fails")
+    }
+
     // MARK: - Add Intensity Reading
 
     func testAddIntensityReading_addsToDetails() async throws {
