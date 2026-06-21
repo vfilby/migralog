@@ -305,6 +305,48 @@ final class EpisodeLifecycleUITests: XCTestCase {
                       "Primary action should remain Log Update while the episode stays ongoing")
     }
 
+    // MARK: - 2.4 Delete an episode started by accident
+
+    func testDeleteOngoingEpisode() throws {
+        createActiveEpisode()
+
+        // Open the ongoing episode's detail.
+        let activeCard = app.buttons["active-episode-card"]
+        UITestHelpers.waitForHittable(activeCard)
+        activeCard.tap()
+        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
+
+        // Find and tap "Delete Episode".
+        let deleteButton = app.buttons["delete-episode-button"]
+        let scroll = app.scrollViews.firstMatch
+        if !deleteButton.isHittable {
+            UITestHelpers.scrollToElement(deleteButton, in: scroll)
+        }
+        UITestHelpers.waitForHittable(deleteButton)
+        deleteButton.tap()
+        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
+
+        // Confirm the destructive alert.
+        let confirm = app.alerts.buttons["Delete"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: UITestHelpers.defaultTimeout),
+                      "A confirmation alert should appear before deleting")
+        confirm.tap()
+        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
+
+        // Back on the dashboard there is no longer an active episode — the
+        // primary action returns to "Start Episode".
+        let startButton = app.buttons["start-episode-button"]
+        XCTAssertTrue(startButton.waitForExistence(timeout: UITestHelpers.defaultTimeout),
+                      "Start Episode should return once the episode is deleted")
+        XCTAssertFalse(app.buttons["active-episode-card"].exists,
+                       "The deleted episode should no longer show on the dashboard")
+
+        // The Episodes list is empty too.
+        UITestHelpers.navigateTo(tab: .episodes, in: app)
+        XCTAssertFalse(app.buttons["episode-card-0"].waitForExistence(timeout: 2),
+                       "The deleted episode should not appear in history")
+    }
+
     // MARK: - Helpers
 
     private func createActiveEpisode() {
