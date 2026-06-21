@@ -704,7 +704,7 @@ final class AnalyticsInsightsTests: XCTestCase {
 
     // MARK: - medicationEffectiveness
 
-    func testMedicationEffectiveness_summarizesRatingMedianAndIQR() {
+    func testMedicationEffectiveness_summarizesRatingMedianAndIQR() throws {
         let triptan = TestFixtures.makeMedication(id: "med-t", name: "Sumatriptan", type: .rescue, category: .triptan)
         // Ratings 4,6,8,10 → median 7, Q25 5.5, Q75 8.5 (linear interpolation).
         let ratings: [Double] = [4, 6, 8, 10]
@@ -717,7 +717,7 @@ final class AnalyticsInsightsTests: XCTestCase {
         )
 
         XCTAssertEqual(result.count, 1)
-        let rating = try! XCTUnwrap(result.first?.rating)
+        let rating = try XCTUnwrap(result.first?.rating)
         XCTAssertEqual(rating.n, 4)
         XCTAssertEqual(rating.median, 7, accuracy: 0.0001)
         XCTAssertEqual(rating.q25, 5.5, accuracy: 0.0001)
@@ -743,7 +743,7 @@ final class AnalyticsInsightsTests: XCTestCase {
         XCTAssertNil(result.first?.rating)
     }
 
-    func testMedicationEffectiveness_derivesReliefFromIntensityDrop() {
+    func testMedicationEffectiveness_derivesReliefFromIntensityDrop() throws {
         let triptan = TestFixtures.makeMedication(id: "med-t", type: .rescue, category: .triptan)
         var doses: [MedicationDose] = []
         var readings: [IntensityReading] = []
@@ -760,12 +760,12 @@ final class AnalyticsInsightsTests: XCTestCase {
             doses: doses, medications: [triptan], readings: readings, excluded: [], calendar: calendar
         )
 
-        let relief = try! XCTUnwrap(result.first?.relief)
+        let relief = try XCTUnwrap(result.first?.relief)
         XCTAssertEqual(relief.n, 3)
         XCTAssertEqual(relief.median, 30, accuracy: 0.0001)
     }
 
-    func testMedicationEffectiveness_explicitTimeToReliefWinsOverDerived() {
+    func testMedicationEffectiveness_explicitTimeToReliefWinsOverDerived() throws {
         let triptan = TestFixtures.makeMedication(id: "med-t", type: .rescue, category: .triptan)
         // Explicit 45-minute relief, no episode/readings needed.
         let doses = (0..<3).map { index in
@@ -776,7 +776,7 @@ final class AnalyticsInsightsTests: XCTestCase {
             doses: doses, medications: [triptan], readings: [], excluded: [], calendar: calendar
         )
 
-        let relief = try! XCTUnwrap(result.first?.relief)
+        let relief = try XCTUnwrap(result.first?.relief)
         XCTAssertEqual(relief.median, 45, accuracy: 0.0001)
     }
 
