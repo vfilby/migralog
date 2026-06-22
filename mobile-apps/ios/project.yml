@@ -13,10 +13,10 @@ packages:
   # (Dependabot's swift ecosystem can't read XcodeGen manifests).
   GRDB:
     url: https://github.com/groue/GRDB.swift
-    exactVersion: "7.11.0"
+    exactVersion: "7.11.1"
   Sentry:
     url: https://github.com/getsentry/sentry-cocoa
-    exactVersion: "9.17.1"
+    exactVersion: "9.18.0"
 
 settings:
   base:
