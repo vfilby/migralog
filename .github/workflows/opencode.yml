@@ -18,7 +18,7 @@ jobs:
         with:
           fetch-depth: 1
       - name: Run opencode
-        uses: sst/opencode/github@4ed4f749e644ffb5b279fb30b7b915e743d80142 # v1.17.7
+        uses: sst/opencode/github@5c23e88419c4743b9be42cea132f2fb1e6cb63ff # v1.17.9
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         with:
