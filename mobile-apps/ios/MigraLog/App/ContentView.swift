@@ -6,6 +6,10 @@ struct ContentView: View {
     @Environment(SyncService.self) private var syncService
     @Environment(\.scenePhase) private var scenePhase
 
+    /// Ensures the launch-time Live Activity reconcile runs exactly once per app
+    /// launch, on the first foreground (see the `.active` handler below).
+    @State private var didReconcileLiveActivities = false
+
     var body: some View {
         @Bindable var appState = appState
         Group {
@@ -64,6 +68,18 @@ struct ContentView: View {
             switch phase {
             case .active:
                 Task { await syncService.syncIfEnabled() }
+                // Re-attach or clean up the active-episode Live Activity after
+                // launch (recover from a force-quit, or dismiss a stale one).
+                // This must run on the `.active` scene phase, not a launch-time
+                // `.task`: ActivityKit rejects `Activity.request()` with an
+                // `ActivityAuthorization: visibility (Code 7)` error when the app
+                // isn't yet foreground, which the launch `.task` could not
+                // guarantee. Gated to the first foreground per launch so it
+                // doesn't dismiss the warm post-episode close on every return.
+                if !didReconcileLiveActivities {
+                    didReconcileLiveActivities = true
+                    LiveActivityManager.shared.reconcileOnLaunch()
+                }
             case .background:
                 // Queue a background refresh so changes keep syncing while backgrounded (#462).
                 BackgroundSyncScheduler.schedule()
