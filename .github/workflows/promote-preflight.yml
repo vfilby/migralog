@@ -26,7 +26,7 @@ jobs:
     steps:
       # Full history + tags: the rollup "What to Test" walks git log between the
       # deploy/<version> tags of the last Pre-flight build and the promoted build.
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           fetch-tags: true
