@@ -65,6 +65,12 @@ struct SettingsScreen: View {
                 }
             }
 
+            // Sample Data (test builds only) — lets evaluators explore the app
+            // with realistic data without hand-entering it.
+            if BuildEnvironment.isPreRelease {
+                SampleDataSectionView()
+            }
+
             // Developer Tools (unlocked by tapping the version row 7 times)
             if developerModeEnabled {
                 Section("Developer") {
