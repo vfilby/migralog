@@ -32,7 +32,34 @@ import {
   listBuildsInGroup,
   attachBuildToGroup,
   submitForBetaReview,
+  setBetaBuildNotes,
 } from './asc-client.mjs';
+import { resolveVersionRef, generateNotes } from './changelog.mjs';
+
+// Roll up "What to Test" across every build accumulated since the last build in
+// Pre-flight. The promoted build's upload-time notes only cover its own one-build
+// delta; testers promoting weekly want the whole span. Range is bounded by deploy
+// tags (deploy/<version>) so it works from the promotion job's checkout, which is
+// not necessarily at the promoted build's commit. Returns notes, or null when the
+// span can't be resolved or has no tester-facing commits (caller keeps existing).
+function rollupNotes(prevPreflightVersion, promotedVersion) {
+  if (!prevPreflightVersion) {
+    console.log('No prior Pre-flight build; keeping the build\'s upload-time notes.');
+    return null;
+  }
+  const lowerRef = resolveVersionRef(prevPreflightVersion);
+  const upperRef = resolveVersionRef(promotedVersion);
+  if (!lowerRef) {
+    console.log(`No deploy tag for previous Pre-flight version ${prevPreflightVersion}; keeping upload-time notes.`);
+    return null;
+  }
+  if (!upperRef) {
+    console.log(`No deploy tag for promoted version ${promotedVersion}; keeping upload-time notes.`);
+    return null;
+  }
+  console.log(`Rollup "What to Test" range: ${lowerRef}..${upperRef}`);
+  return generateNotes(lowerRef, upperRef);
+}
 
 let _sentryProjectId;
 async function sentryProjectId(org, projectSlug, token) {
@@ -121,10 +148,11 @@ async function main() {
   const sourceBuilds = await listBuildsInGroup(appId, sourceName);
   const targetBuilds = await listBuildsInGroup(appId, targetName);
   const targetBuildIds = new Set(targetBuilds.map((b) => b.id));
-  const maxTargetBuildNumber = targetBuilds.reduce(
-    (max, b) => Math.max(max, Number(b.buildNumber) || 0),
-    0,
+  const latestTarget = targetBuilds.reduce(
+    (best, b) => (!best || (Number(b.buildNumber) || 0) > (Number(best.buildNumber) || 0) ? b : best),
+    null,
   );
+  const maxTargetBuildNumber = latestTarget ? Number(latestTarget.buildNumber) || 0 : 0;
 
   sourceBuilds.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
 
@@ -170,12 +198,28 @@ async function main() {
     return;
   }
 
+  const notes = rollupNotes(latestTarget?.version, eligible.build.version);
+
   if (dryRun) {
     console.log(`DRY RUN: would promote build ${eligible.build.buildNumber} to ${targetName}`);
+    if (notes) console.log(`DRY RUN: would set rollup "What to Test":\n${notes}`);
+    else console.log('DRY RUN: no rollup notes; build would keep its upload-time "What to Test".');
     return;
   }
 
   await attachBuildToGroup(eligible.build.id, targetGroupId);
+  // Cosmetic and best-effort: a notes failure must not strand a promoted build
+  // un-submitted, so swallow it and proceed to Beta App Review.
+  if (notes) {
+    try {
+      await setBetaBuildNotes(eligible.build.id, notes);
+      console.log(`Set rollup "What to Test" on build ${eligible.build.buildNumber}.`);
+    } catch (err) {
+      console.warn(`::warning::Failed to set rollup "What to Test": ${err.message}`);
+    }
+  } else {
+    console.log('No rollup notes; keeping the build\'s upload-time "What to Test".');
+  }
   await submitForBetaReview(eligible.build.id);
   console.log(`Promoted build ${eligible.build.buildNumber} to ${targetName} and submitted for Beta App Review`);
 }
