@@ -74,9 +74,11 @@ struct MigraLogApp: App {
                     await medicationNotificationService.topUp()
                     try? await dailyCheckinService.scheduleNotifications()
                     await timezoneChangeService.checkForChange()
-                    // Re-attach or clean up the active-episode Live Activity after
-                    // launch (e.g. recover from a force-quit, or dismiss a stale one).
-                    LiveActivityManager.shared.reconcileOnLaunch()
+                    // Note: the active-episode Live Activity is reconciled from
+                    // ContentView's `.active` scene-phase handler, not here — a
+                    // launch-time `.task` runs before the scene is foreground and
+                    // ActivityKit rejects `Activity.request()` with a `visibility`
+                    // error if the app isn't yet active.
                 }
         }
     }
