@@ -1,0 +1,43 @@
+name: '[Sentry] Weekly Triage'
+
+# Triages unresolved Sentry issues for eff3/migralog and files a [Sentry] GitHub
+# issue for each new actionable one. Runs in GitHub's cloud (no local machine
+# needed). Custom MCP connectors (Sentry) can't attach to Claude Code routines,
+# so this is the remote home for the job — auth is the SENTRY_AUTH_TOKEN repo
+# secret plus the built-in GITHUB_TOKEN.
+#
+# Schedule + manual only — never on push/PR, so the secret is never exposed to a
+# pull-request context.
+
+on:
+  schedule:
+    # Mondays at 15:00 UTC ≈ 08:00 America/Los_Angeles (drifts ±1h with US DST).
+    - cron: '0 15 * * 1'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Print the triage plan without filing issues'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['true', 'false']
+
+permissions:
+  issues: write
+  contents: read
+
+concurrency:
+  group: sentry-triage
+  cancel-in-progress: false
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Triage Sentry issues
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}
+        run: python3 scripts/sentry-triage.py
