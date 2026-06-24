@@ -286,6 +286,124 @@ final class BackupServiceTests: XCTestCase {
         }
     }
 
+    // MARK: - Backup Type
+
+    func testCreateBackupRecordsExplicitType() throws {
+        let metadata = try backupService.createBackup(
+            dbManager: dbManager,
+            episodeCount: 0,
+            medicationCount: 0,
+            backupType: BackupType.automatic
+        )
+        defer { try? backupService.deleteBackup(id: metadata.id) }
+
+        XCTAssertEqual(metadata.backupType, BackupType.automatic)
+    }
+
+    // MARK: - Pre-Migration Backup
+
+    func testCreatePreMigrationBackupCopiesFileAndStampsVersion() throws {
+        let now = TimestampHelper.now
+        try dbManager.dbQueue.write { db in
+            try db.execute(
+                sql: """
+                    INSERT INTO medications (id, name, type, dosage_amount, dosage_unit,
+                        active, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                arguments: ["med1", "Aspirin", "rescue", 325.0, "mg", 1, now, now]
+            )
+        }
+
+        let metadata = try backupService.createPreMigrationBackup(
+            sourceDBPath: dbManager.dbQueue.path,
+            schemaVersion: 30,
+            episodeCount: 0,
+            medicationCount: 1
+        )
+        defer { try? backupService.deleteBackup(id: metadata.id) }
+
+        XCTAssertEqual(metadata.backupType, BackupType.migration)
+        XCTAssertEqual(metadata.schemaVersion, 30, "Should record the pre-migration version")
+        XCTAssertEqual(metadata.medicationCount, 1)
+
+        // The copied file is a valid, restorable database.
+        let url = try backupService.backupFileURL(for: metadata.id)
+        XCTAssertTrue(backupService.validateBackup(path: url.path))
+    }
+
+    // MARK: - Prune
+
+    /// Remove every existing automatic/migration backup so a prune test owns the set.
+    private func clearPrunableBackups() throws {
+        for backup in try backupService.listBackups()
+        where BackupType.prunable.contains(backup.backupType ?? BackupType.manual) {
+            try? backupService.deleteBackup(id: backup.id)
+        }
+    }
+
+    private func makeAutomaticBackups(_ count: Int) throws -> [BackupMetadata] {
+        var created: [BackupMetadata] = []
+        for _ in 0..<count {
+            created.append(try backupService.createBackup(
+                dbManager: dbManager, episodeCount: 0, medicationCount: 0,
+                backupType: BackupType.automatic
+            ))
+            // Ensure distinct millisecond timestamps so newest-first ordering is stable.
+            Thread.sleep(forTimeInterval: 0.01)
+        }
+        return created
+    }
+
+    func testPruneKeepsNewestAndDeletesOldestAutomaticBackups() throws {
+        try clearPrunableBackups()
+        let created = try makeAutomaticBackups(12)
+        defer { for b in created { try? backupService.deleteBackup(id: b.id) } }
+
+        let deleted = try backupService.pruneAutomaticBackups(keeping: 10)
+        XCTAssertEqual(deleted.count, 2, "Should delete the 2 oldest beyond the limit of 10")
+
+        let remaining = Set(try backupService.listBackups().map(\.id))
+        let newestFirst = created.sorted { $0.timestamp > $1.timestamp }
+        for b in newestFirst.prefix(10) {
+            XCTAssertTrue(remaining.contains(b.id), "Newest 10 should be kept")
+        }
+        for b in newestFirst.suffix(2) {
+            XCTAssertFalse(remaining.contains(b.id), "Oldest 2 should be pruned")
+        }
+    }
+
+    func testPruneUnderLimitDeletesNothing() throws {
+        try clearPrunableBackups()
+        let created = try makeAutomaticBackups(3)
+        defer { for b in created { try? backupService.deleteBackup(id: b.id) } }
+
+        let deleted = try backupService.pruneAutomaticBackups(keeping: 10)
+        XCTAssertTrue(deleted.isEmpty)
+    }
+
+    func testPruneNeverDeletesManualOrSyncBackups() throws {
+        try clearPrunableBackups()
+        let manual = try backupService.createBackup(
+            dbManager: dbManager, episodeCount: 0, medicationCount: 0, backupType: BackupType.manual)
+        let sync = try backupService.createBackup(
+            dbManager: dbManager, episodeCount: 0, medicationCount: 0, backupType: BackupType.sync)
+        let autos = try makeAutomaticBackups(5)
+        defer {
+            try? backupService.deleteBackup(id: manual.id)
+            try? backupService.deleteBackup(id: sync.id)
+            for b in autos { try? backupService.deleteBackup(id: b.id) }
+        }
+
+        // Aggressively prune to 2 — only automatic backups should be affected.
+        let deleted = try backupService.pruneAutomaticBackups(keeping: 2)
+        XCTAssertEqual(deleted.count, 3, "Only the 3 oldest automatic backups should be deleted")
+
+        let remaining = Set(try backupService.listBackups().map(\.id))
+        XCTAssertTrue(remaining.contains(manual.id), "Manual backups are exempt from pruning")
+        XCTAssertTrue(remaining.contains(sync.id), "Sync backups are exempt from pruning")
+    }
+
     // MARK: - File Size
 
     func testBackupFileSize() throws {

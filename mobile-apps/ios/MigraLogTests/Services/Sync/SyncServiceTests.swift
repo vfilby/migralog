@@ -139,9 +139,13 @@ final class SyncServiceTests: XCTestCase {
 
 private final class SpyBackupService: BackupServiceProtocol {
     private(set) var createBackupCalled = false
+    private(set) var lastBackupType: String?
 
-    func createBackup(dbManager: DatabaseManager, episodeCount: Int, medicationCount: Int) throws -> BackupMetadata {
+    func createBackup(
+        dbManager: DatabaseManager, episodeCount: Int, medicationCount: Int, backupType: String
+    ) throws -> BackupMetadata {
         createBackupCalled = true
+        lastBackupType = backupType
         return BackupMetadata(
             id: "test", timestamp: 0, version: "test", schemaVersion: 0,
             episodeCount: episodeCount, medicationCount: medicationCount
@@ -152,4 +156,6 @@ private final class SpyBackupService: BackupServiceProtocol {
     func deleteBackup(id: String) throws {}
     func restoreFromBackup(path: String, dbManager: DatabaseManager) throws {}
     func validateBackup(path: String) -> Bool { true }
+    @discardableResult
+    func pruneAutomaticBackups(keeping limit: Int) throws -> [String] { [] }
 }

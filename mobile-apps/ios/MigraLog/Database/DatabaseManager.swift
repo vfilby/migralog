@@ -133,6 +133,7 @@ final class DatabaseManager: Sendable {
             // output and captured build/test logs.
             let queue = try DatabaseQueue(path: dbURL.path, configuration: config)
             let mgr = DatabaseManager.buildMigrator()
+            backUpBeforePendingMigrations(queue: queue, migrator: mgr)
             try mgr.migrate(queue)
             return queue
         } catch {
@@ -160,6 +161,50 @@ final class DatabaseManager: Sendable {
         }
     }
 
+    /// Take a `migration` backup of the on-disk database when there are pending schema
+    /// migrations, so a failed or incorrect migration can be rolled back. Best-effort:
+    /// any failure is logged and swallowed so it never blocks app launch / migration.
+    ///
+    /// Skips two cases that need no protection:
+    /// - Fresh installs (no migrations applied yet) — there is no existing data to lose.
+    /// - Already up-to-date databases (no pending migrations) — nothing is about to change.
+    ///
+    /// After backing up, prunes old auto-created backups to the retention limit.
+    private static func backUpBeforePendingMigrations(queue: DatabaseQueue, migrator: DatabaseMigrator) {
+        do {
+            let (applied, isComplete) = try queue.read { db in
+                (try migrator.appliedMigrations(db), try migrator.hasCompletedMigrations(db))
+            }
+            // Fresh install (nothing applied) or already current → no backup needed.
+            guard !applied.isEmpty, !isComplete else { return }
+
+            // Derive the pre-migration version for the metadata, e.g. "v34" → 34.
+            let fromVersion = applied
+                .compactMap { Int($0.drop { !$0.isNumber }) }
+                .max() ?? 0
+
+            // Counts are best-effort: the episodes/medications tables exist from the v25
+            // baseline, but a pre-baseline import might lack them — default to 0 if so.
+            let counts = (try? queue.read { db in
+                (episodes: try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM episodes") ?? 0,
+                 medications: try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM medications") ?? 0)
+            }) ?? (episodes: 0, medications: 0)
+
+            let service = BackupService()
+            _ = try service.createPreMigrationBackup(
+                sourceDBPath: queue.path,
+                schemaVersion: fromVersion,
+                episodeCount: counts.episodes,
+                medicationCount: counts.medications
+            )
+            try? service.pruneAutomaticBackups()
+            AppLogger.shared.info("Created pre-migration backup (schema v\(fromVersion) → v\(schemaVersion))")
+        } catch {
+            // Never block migration on a backup failure. No PHI in the error description.
+            AppLogger.shared.error("Pre-migration backup failed (continuing with migration)", error: error)
+        }
+    }
+
     /// After the device has unlocked for the first time (protected data is now
     /// available), attempt to reopen the real on-disk database if we are running
     /// on the transient BFU in-memory fallback. On success the in-memory queue is
@@ -182,7 +227,9 @@ final class DatabaseManager: Sendable {
             var config = Configuration()
             config.foreignKeysEnabled = true
             let queue = try DatabaseQueue(path: dbURL.path, configuration: config)
-            try DatabaseManager.buildMigrator().migrate(queue)
+            let mgr = DatabaseManager.buildMigrator()
+            DatabaseManager.backUpBeforePendingMigrations(queue: queue, migrator: mgr)
+            try mgr.migrate(queue)
             dbQueue = queue
             DatabaseManager.initializationError = nil
             DatabaseManager.isUsingInMemoryFallback = false

@@ -10,6 +10,10 @@ struct ContentView: View {
     /// launch, on the first foreground (see the `.active` handler below).
     @State private var didReconcileLiveActivities = false
 
+    /// Drives the periodic (~weekly) automatic database backup. Self-throttles via a
+    /// persisted timestamp, so calling `runIfDue()` on launch and every foreground is safe.
+    @State private var autoBackupService = AutoBackupService()
+
     var body: some View {
         @Bindable var appState = appState
         Group {
@@ -58,7 +62,10 @@ struct ContentView: View {
             }
         }
         .animation(nil, value: scenePhase)
-        .task { syncService.startAutoSync() }
+        .task {
+            syncService.startAutoSync()
+            autoBackupService.runIfDue()
+        }
         .onOpenURL { url in
             // Live Activity quick actions open migralog:// URLs; route them into
             // navigation state. AppState ignores anything it doesn't recognize.
@@ -68,6 +75,7 @@ struct ContentView: View {
             switch phase {
             case .active:
                 Task { await syncService.syncIfEnabled() }
+                autoBackupService.runIfDue()
                 // Re-attach or clean up the active-episode Live Activity after
                 // launch (recover from a force-quit, or dismiss a stale one).
                 // This must run on the `.active` scene phase, not a launch-time

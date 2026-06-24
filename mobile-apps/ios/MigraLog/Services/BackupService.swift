@@ -15,18 +15,40 @@ enum BackupError: Error, Equatable {
     case invalidBackupID(String)
 }
 
+// MARK: - Backup Types
+
+/// The `backupType` recorded in `BackupMetadata`, identifying what created a backup.
+/// Only `automatic` and `migration` backups are subject to the keep-last-N retention
+/// limit; `manual` and `sync` backups are kept until the user deletes them.
+enum BackupType {
+    /// User tapped "Create Backup" in Settings.
+    static let manual = "manual"
+    /// One-time safety copy taken before iCloud sync is first enabled.
+    static let sync = "sync"
+    /// Periodic (~weekly) safety copy taken from the app lifecycle.
+    static let automatic = "automatic"
+    /// Safety copy taken before a pending schema migration runs.
+    static let migration = "migration"
+
+    /// Backup types pruned by `pruneAutomaticBackups`. Manual and sync backups are exempt.
+    static let prunable: Set<String> = [automatic, migration]
+}
+
 // MARK: - Protocol
 
 protocol BackupServiceProtocol {
     func createBackup(
         dbManager: DatabaseManager,
         episodeCount: Int,
-        medicationCount: Int
+        medicationCount: Int,
+        backupType: String
     ) throws -> BackupMetadata
     func listBackups() throws -> [BackupMetadata]
     func deleteBackup(id: String) throws
     func restoreFromBackup(path: String, dbManager: DatabaseManager) throws
     func validateBackup(path: String) -> Bool
+    @discardableResult
+    func pruneAutomaticBackups(keeping limit: Int) throws -> [String]
 }
 
 // MARK: - Implementation
@@ -137,50 +159,56 @@ final class BackupService: BackupServiceProtocol {
 
     // MARK: - Create Backup
 
-    func createBackup(
-        dbManager: DatabaseManager,
-        episodeCount: Int,
-        medicationCount: Int
-    ) throws -> BackupMetadata {
+    /// A reserved backup id plus the on-disk paths derived from it.
+    private struct BackupFilePrep {
+        let backupDir: URL
+        let backupId: String
+        let fileName: String
+        let dbPath: String
+    }
+
+    /// Reserve a fresh backup id and the file paths it maps to. The id is always a
+    /// `UUID().uuidString`, so it satisfies `isValidBackupID` for later file ops.
+    private func prepareBackupFile() throws -> BackupFilePrep {
         let backupDir = try backupDirectoryURL()
         let backupId = UUID().uuidString
-        let timestamp = TimestampHelper.now
         let fileName = "migralog_backup_\(backupId).db"
         let dbPath = backupDir.appendingPathComponent(fileName).path
+        return BackupFilePrep(backupDir: backupDir, backupId: backupId, fileName: fileName, dbPath: dbPath)
+    }
 
-        // Copy the database file
-        do {
-            try dbManager.copyDatabase(to: dbPath)
-        } catch {
-            logger.error("Failed to copy database for backup", error: error)
-            throw BackupError.databaseCopyFailed(error.localizedDescription)
-        }
-
-        // Get file size
+    /// Write the metadata sidecar for a backup whose `.db` file is already in place,
+    /// cleaning up the orphaned `.db` if the sidecar write fails. Shared by every
+    /// backup entry point so they stamp metadata identically.
+    private func finalizeBackup(
+        prep: BackupFilePrep,
+        schemaVersion: Int,
+        episodeCount: Int,
+        medicationCount: Int,
+        backupType: String
+    ) throws -> BackupMetadata {
         let fileSize: Int64
-        if let attrs = try? fileManager.attributesOfItem(atPath: dbPath),
+        if let attrs = try? fileManager.attributesOfItem(atPath: prep.dbPath),
            let size = attrs[.size] as? Int64 {
             fileSize = size
         } else {
             fileSize = 0
         }
 
-        // Create metadata
         let metadata = BackupMetadata(
-            id: backupId,
-            timestamp: timestamp,
+            id: prep.backupId,
+            timestamp: TimestampHelper.now,
             version: appVersion,
-            schemaVersion: DatabaseManager.schemaVersion,
+            schemaVersion: schemaVersion,
             episodeCount: episodeCount,
             medicationCount: medicationCount,
             fileSize: fileSize,
-            fileName: fileName,
-            backupType: "manual"
+            fileName: prep.fileName,
+            backupType: backupType
         )
 
-        // Write metadata sidecar
-        let metaFileName = "migralog_backup_\(backupId).meta.json"
-        let metaPath = backupDir.appendingPathComponent(metaFileName)
+        let metaFileName = "migralog_backup_\(prep.backupId).meta.json"
+        let metaPath = prep.backupDir.appendingPathComponent(metaFileName)
 
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -190,13 +218,99 @@ final class BackupService: BackupServiceProtocol {
             try metaData.write(to: metaPath)
         } catch {
             // Clean up the db file if metadata fails
-            try? fileManager.removeItem(atPath: dbPath)
+            try? fileManager.removeItem(atPath: prep.dbPath)
             logger.error("Failed to write backup metadata", error: error)
             throw BackupError.metadataWriteFailed
         }
 
-        logger.info("Created backup: \(backupId) (\(episodeCount) episodes, \(medicationCount) medications)")
+        logger.info("Created \(backupType) backup: \(prep.backupId) (\(episodeCount) episodes, \(medicationCount) medications)")
         return metadata
+    }
+
+    func createBackup(
+        dbManager: DatabaseManager,
+        episodeCount: Int,
+        medicationCount: Int,
+        backupType: String = BackupType.manual
+    ) throws -> BackupMetadata {
+        let prep = try prepareBackupFile()
+
+        // Copy the database file (interrupts + vacuums to capture a consistent snapshot)
+        do {
+            try dbManager.copyDatabase(to: prep.dbPath)
+        } catch {
+            logger.error("Failed to copy database for backup", error: error)
+            throw BackupError.databaseCopyFailed(error.localizedDescription)
+        }
+
+        return try finalizeBackup(
+            prep: prep,
+            schemaVersion: DatabaseManager.schemaVersion,
+            episodeCount: episodeCount,
+            medicationCount: medicationCount,
+            backupType: backupType
+        )
+    }
+
+    /// Create a `migration` backup by copying the database file directly from disk.
+    ///
+    /// Used before pending schema migrations run, where no `DatabaseManager` exists yet
+    /// (we are mid-init). The source file is copied as-is — at this point the queue has
+    /// just been opened with no concurrent writers, so a plain file copy is a consistent
+    /// snapshot. `schemaVersion` is the *pre-migration* version the backup represents.
+    func createPreMigrationBackup(
+        sourceDBPath: String,
+        schemaVersion: Int,
+        episodeCount: Int,
+        medicationCount: Int
+    ) throws -> BackupMetadata {
+        let prep = try prepareBackupFile()
+
+        do {
+            if fileManager.fileExists(atPath: prep.dbPath) {
+                try fileManager.removeItem(atPath: prep.dbPath)
+            }
+            try fileManager.copyItem(atPath: sourceDBPath, toPath: prep.dbPath)
+        } catch {
+            logger.error("Failed to copy database for pre-migration backup", error: error)
+            throw BackupError.databaseCopyFailed(error.localizedDescription)
+        }
+
+        return try finalizeBackup(
+            prep: prep,
+            schemaVersion: schemaVersion,
+            episodeCount: episodeCount,
+            medicationCount: medicationCount,
+            backupType: BackupType.migration
+        )
+    }
+
+    // MARK: - Prune
+
+    /// Enforce the keep-last-N retention limit on auto-created backups.
+    ///
+    /// Deletes the oldest `automatic` / `migration` backups beyond the newest `limit`,
+    /// leaving `manual` and `sync` backups untouched. Best-effort per file: a delete that
+    /// fails is logged and skipped rather than aborting the prune. Returns the ids deleted.
+    @discardableResult
+    func pruneAutomaticBackups(keeping limit: Int = 10) throws -> [String] {
+        // listBackups() returns newest-first.
+        let prunable = try listBackups().filter { BackupType.prunable.contains($0.backupType ?? BackupType.manual) }
+        guard prunable.count > limit else { return [] }
+
+        var deleted: [String] = []
+        for backup in prunable.dropFirst(limit) {
+            do {
+                try deleteBackup(id: backup.id)
+                deleted.append(backup.id)
+            } catch {
+                logger.warn("Failed to prune backup \(backup.id): \(error.localizedDescription)")
+            }
+        }
+        if !deleted.isEmpty {
+            logger.info("Pruned \(deleted.count) old automatic backup(s), keeping newest \(limit)")
+        }
+        return deleted
     }
 
     // MARK: - List Backups
