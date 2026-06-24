@@ -150,7 +150,8 @@ final class SyncService {
              medications: try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM medications") ?? 0)
         }
         _ = try backupService.createBackup(
-            dbManager: dbManager, episodeCount: counts.episodes, medicationCount: counts.medications
+            dbManager: dbManager, episodeCount: counts.episodes, medicationCount: counts.medications,
+            backupType: BackupType.sync
         )
     }
 
