@@ -285,6 +285,50 @@ final class BackupService: BackupServiceProtocol {
         )
     }
 
+    /// Take a `migration` backup of the on-disk database when there are pending schema
+    /// migrations, so a failed or incorrect migration can be rolled back, then prune old
+    /// auto-created backups. Best-effort: any failure is logged and swallowed so it never
+    /// blocks app launch / migration.
+    ///
+    /// Skips two cases that need no protection:
+    /// - Fresh installs (no migrations applied yet) — there is no existing data to lose.
+    /// - Already up-to-date databases (no pending migrations) — nothing is about to change.
+    func backUpForPendingMigrations(
+        queue: DatabaseQueue,
+        migrator: DatabaseMigrator,
+        targetSchemaVersion: Int
+    ) {
+        do {
+            let (applied, isComplete) = try queue.read { db in
+                (try migrator.appliedMigrations(db), try migrator.hasCompletedMigrations(db))
+            }
+            // Fresh install (nothing applied) or already current → no backup needed.
+            guard !applied.isEmpty, !isComplete else { return }
+
+            // Derive the pre-migration version for the metadata, e.g. "v34" → 34.
+            let fromVersion = applied.compactMap { Int($0.drop { !$0.isNumber }) }.max() ?? 0
+
+            // Counts are best-effort: the episodes/medications tables exist from the v25
+            // baseline, but a pre-baseline import might lack them — default to 0 if so.
+            let counts = (try? queue.read { db in
+                (episodes: try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM episodes") ?? 0,
+                 medications: try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM medications") ?? 0)
+            }) ?? (episodes: 0, medications: 0)
+
+            _ = try createPreMigrationBackup(
+                sourceDBPath: queue.path,
+                schemaVersion: fromVersion,
+                episodeCount: counts.episodes,
+                medicationCount: counts.medications
+            )
+            try? pruneAutomaticBackups()
+            logger.info("Created pre-migration backup (schema v\(fromVersion) → v\(targetSchemaVersion))")
+        } catch {
+            // Never block migration on a backup failure. No PHI in the error description.
+            logger.error("Pre-migration backup failed (continuing with migration)", error: error)
+        }
+    }
+
     // MARK: - Prune
 
     /// Enforce the keep-last-N retention limit on auto-created backups.
