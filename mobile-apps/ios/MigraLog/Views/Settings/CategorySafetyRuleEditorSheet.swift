@@ -139,7 +139,7 @@ struct CategorySafetyRuleEditorSheet: View {
         Section {
             LabeledContent("Minimum time between doses") {
                 HStack(spacing: DesignTokens.Spacing.xs) {
-                    TextField("", text: $cooldownHoursText, prompt: Text("e.g. 4"))
+                    TextField("", text: $cooldownHoursText, prompt: Text("e.g. 8"))
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                         .accessibilityIdentifier("rule-editor-cooldown-hours")
