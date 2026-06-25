@@ -811,4 +811,146 @@ final class AnalyticsInsightsTests: XCTestCase {
         XCTAssertEqual(result.first?.takenDoses, 1)
         XCTAssertEqual(result.first?.reliefDoses, 1)
     }
+
+    // MARK: - monthlyHeadacheDays
+
+    func testMonthlyHeadacheDays_bucketsDaysByMonthAndClipsRange() {
+        // Two days this month plus one day 40 days ago (prior month).
+        let days: Set<String> = [dayString(daysAgo: 0), dayString(daysAgo: 1), dayString(daysAgo: 40)]
+        let from = date(daysAgo: 60)
+        let result = AnalyticsInsights.monthlyHeadacheDays(headacheDays: days, from: from, to: now, calendar: calendar)
+
+        XCTAssertEqual(result.map(\.headacheDayCount).reduce(0, +), 3)
+        // The current month's bucket holds the two recent days.
+        let currentMonthKey = String(dayString(daysAgo: 0).prefix(7))
+        let currentBucket = result.first { String(TimestampHelper.dateString(from: $0.monthStart).prefix(7)) == currentMonthKey }
+        XCTAssertEqual(currentBucket?.headacheDayCount, 2)
+    }
+
+    func testMonthlyHeadacheDays_daysOutsideRangeAreExcluded() {
+        // A day before the range start must not be counted even if its month is shown.
+        let days: Set<String> = [dayString(daysAgo: 0), dayString(daysAgo: 90)]
+        let result = AnalyticsInsights.monthlyHeadacheDays(
+            headacheDays: days, from: date(daysAgo: 10), to: now, calendar: calendar
+        )
+
+        XCTAssertEqual(result.map(\.headacheDayCount).reduce(0, +), 1)
+    }
+
+    // MARK: - medicationUsage
+
+    func testMedicationUsage_aggregatesDosesDaysAndAmount() {
+        let med = TestFixtures.makeMedication(id: "med-r", type: .rescue, dosageAmount: 400, dosageUnit: "mg", category: .nsaid)
+        // 3 doses across 2 days; one day has two doses.
+        let doses = [
+            TestFixtures.makeDose(medicationId: "med-r", timestamp: ms(daysAgo: 1, hour: 8), quantity: 1),
+            TestFixtures.makeDose(medicationId: "med-r", timestamp: ms(daysAgo: 1, hour: 20), quantity: 2),
+            TestFixtures.makeDose(medicationId: "med-r", timestamp: ms(daysAgo: 2), quantity: 1),
+        ]
+
+        let result = AnalyticsInsights.medicationUsage(
+            doses: doses, medications: [med], excluded: [], from: date(daysAgo: 5), to: now, calendar: calendar
+        )
+
+        XCTAssertEqual(result.count, 1)
+        XCTAssertEqual(result.first?.doseCount, 3)
+        XCTAssertEqual(result.first?.dayCount, 2)
+        // makeDose stamps dosageAmount 400; total = (1 + 2 + 1) × 400.
+        XCTAssertEqual(result.first?.totalAmount, 1600)
+        XCTAssertEqual(result.first?.dosageUnit, "mg")
+    }
+
+    func testMedicationUsage_skipsExcludedDaysSkippedDosesAndPreventatives() {
+        let rescue = TestFixtures.makeMedication(id: "med-r", type: .rescue, category: .triptan)
+        let preventative = TestFixtures.makeMedication(id: "med-p", type: .preventative, category: .supplement)
+        let doses = [
+            TestFixtures.makeDose(medicationId: "med-r", timestamp: ms(daysAgo: 1)),
+            TestFixtures.makeDose(medicationId: "med-r", timestamp: ms(daysAgo: 2), status: .skipped),
+            TestFixtures.makeDose(medicationId: "med-r", timestamp: ms(daysAgo: 3)), // excluded day
+            TestFixtures.makeDose(medicationId: "med-p", timestamp: ms(daysAgo: 1)), // preventative
+        ]
+
+        let result = AnalyticsInsights.medicationUsage(
+            doses: doses, medications: [rescue, preventative],
+            excluded: [dayString(daysAgo: 3)], from: date(daysAgo: 5), to: now, calendar: calendar
+        )
+
+        XCTAssertEqual(result.count, 1)
+        XCTAssertEqual(result.first?.medicationId, "med-r")
+        XCTAssertEqual(result.first?.doseCount, 1)
+    }
+
+    func testMedicationUsage_sortsByDoseCountDescending() {
+        let light = TestFixtures.makeMedication(id: "med-a", name: "Aspirin", type: .rescue, category: .otc)
+        let heavy = TestFixtures.makeMedication(id: "med-z", name: "Zomig", type: .rescue, category: .triptan)
+        let doses = [
+            TestFixtures.makeDose(medicationId: "med-a", timestamp: ms(daysAgo: 1)),
+            TestFixtures.makeDose(medicationId: "med-z", timestamp: ms(daysAgo: 1)),
+            TestFixtures.makeDose(medicationId: "med-z", timestamp: ms(daysAgo: 2)),
+        ]
+
+        let result = AnalyticsInsights.medicationUsage(
+            doses: doses, medications: [light, heavy], excluded: [], from: date(daysAgo: 5), to: now, calendar: calendar
+        )
+
+        XCTAssertEqual(result.map(\.medicationId), ["med-z", "med-a"])
+    }
+
+    // MARK: - preventativeCompliance
+
+    func testPreventativeCompliance_aggregatesAcrossRange() {
+        let med = TestFixtures.makeMedication(id: "med-p", type: .preventative, category: .supplement)
+        let schedules = [TestFixtures.makeSchedule(medicationId: "med-p")]
+        // Taken on 2 distinct days; a third day double-logs and must cap at 1.
+        let doses = [
+            TestFixtures.makeDose(medicationId: "med-p", timestamp: ms(daysAgo: 1)),
+            TestFixtures.makeDose(medicationId: "med-p", timestamp: ms(daysAgo: 2)),
+            TestFixtures.makeDose(medicationId: "med-p", timestamp: ms(daysAgo: 3, hour: 8)),
+            TestFixtures.makeDose(medicationId: "med-p", timestamp: ms(daysAgo: 3, hour: 20)),
+        ]
+
+        let result = AnalyticsInsights.preventativeCompliance(
+            doses: doses, medications: [med], schedulesByMedication: ["med-p": schedules],
+            excluded: [], from: date(daysAgo: 6), to: now, calendar: calendar
+        )
+
+        XCTAssertEqual(result.count, 1)
+        XCTAssertEqual(result.first?.expectedDoses, 7)
+        XCTAssertEqual(result.first?.takenDoses, 3)
+        XCTAssertEqual(result.first?.dosesPerDay, 1)
+    }
+
+    func testPreventativeCompliance_twiceDailyAndMissedMedStillListed() {
+        let med = TestFixtures.makeMedication(id: "med-p", type: .preventative)
+        let schedules = [
+            TestFixtures.makeSchedule(id: "s1", medicationId: "med-p", time: "08:00"),
+            TestFixtures.makeSchedule(id: "s2", medicationId: "med-p", time: "20:00"),
+        ]
+
+        let result = AnalyticsInsights.preventativeCompliance(
+            doses: [], medications: [med], schedulesByMedication: ["med-p": schedules],
+            excluded: [], from: date(daysAgo: 2), to: now, calendar: calendar
+        )
+
+        XCTAssertEqual(result.count, 1)
+        XCTAssertEqual(result.first?.dosesPerDay, 2)
+        XCTAssertEqual(result.first?.expectedDoses, 6) // 2/day × 3 days
+        XCTAssertEqual(result.first?.takenDoses, 0)
+        XCTAssertEqual(result.first?.percent, 0)
+    }
+
+    func testPreventativeCompliance_excludedDaysDropFromBothSides() {
+        let med = TestFixtures.makeMedication(id: "med-p", type: .preventative)
+        let schedules = [TestFixtures.makeSchedule(medicationId: "med-p")]
+        let doses = [TestFixtures.makeDose(medicationId: "med-p", timestamp: ms(daysAgo: 1))]
+
+        let result = AnalyticsInsights.preventativeCompliance(
+            doses: doses, medications: [med], schedulesByMedication: ["med-p": schedules],
+            excluded: [dayString(daysAgo: 1)], from: date(daysAgo: 2), to: now, calendar: calendar
+        )
+
+        // Day 1 excluded: expected over days 0 and 2 only, nothing taken counts.
+        XCTAssertEqual(result.first?.expectedDoses, 2)
+        XCTAssertEqual(result.first?.takenDoses, 0)
+    }
 }
