@@ -25,6 +25,7 @@
 //   DRY_RUN ('true' evaluates without promoting)
 //   ASC_* (via asc-client)
 
+import { writeFileSync } from 'node:fs';
 import {
   required,
   getAppId,
@@ -129,6 +130,19 @@ function parseBlocked(csv) {
   return new Set((csv || '').split(',').map((s) => s.trim()).filter(Boolean));
 }
 
+// Additive: when SUMMARY_FILE is set, write a machine-readable JSON summary of the
+// evaluation so callers (e.g. the preview-notification workflow) can build a clean
+// message without scraping logs. No-op when unset, so the real promotion is unchanged.
+function writeSummary(obj) {
+  const path = process.env.SUMMARY_FILE;
+  if (!path) return;
+  try {
+    writeFileSync(path, JSON.stringify(obj, null, 2));
+  } catch (err) {
+    console.warn(`::warning::Failed to write SUMMARY_FILE: ${err.message}`);
+  }
+}
+
 async function main() {
   const bundleId = required('APP_BUNDLE_ID');
   const sourceName = required('SOURCE_GROUP_NAME');
@@ -187,6 +201,13 @@ async function main() {
   }
 
   console.log('## Evaluation');
+  const evaluation = results.map((r) => ({
+    build: r.build.buildNumber,
+    version: r.build.version,
+    ageHours: Number(r.ageHours.toFixed(1)),
+    eligible: r.reasons.length === 0,
+    reasons: r.reasons,
+  }));
   for (const r of results) {
     const tag = r.reasons.length === 0 ? 'ELIGIBLE' : 'skip';
     console.log(`- [${tag}] build ${r.build.buildNumber} (${r.build.version}), age ${r.ageHours.toFixed(1)}h${r.reasons.length ? ' — ' + r.reasons.join('; ') : ''}`);
@@ -195,10 +216,28 @@ async function main() {
   const eligible = results.find((r) => r.reasons.length === 0);
   if (!eligible) {
     console.log('No eligible build to promote.');
+    writeSummary({
+      eligible: false,
+      soakHours,
+      targetGroup: targetName,
+      currentTargetBuild: maxTargetBuildNumber || null,
+      evaluation,
+    });
     return;
   }
 
   const notes = rollupNotes(latestTarget?.version, eligible.build.version);
+
+  writeSummary({
+    eligible: true,
+    soakHours,
+    targetGroup: targetName,
+    currentTargetBuild: maxTargetBuildNumber || null,
+    build: eligible.build.buildNumber,
+    version: eligible.build.version,
+    notes: notes || null,
+    evaluation,
+  });
 
   if (dryRun) {
     console.log(`DRY RUN: would promote build ${eligible.build.buildNumber} to ${targetName}`);
