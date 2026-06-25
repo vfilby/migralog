@@ -1,0 +1,88 @@
+name: '[iOS] Pre-flight promote preview (notify)'
+
+# Runs the Beta → Pre-flight eligibility gate in DRY-RUN ~9h before the real
+# promotion (promote-preflight.yml, Tue 12:00 UTC) and sends a Pushover preview of
+# which build is likely to promote and what changed — so there is time to push a
+# block-promotion/build-<N> tag before it ships.
+#
+# Scheduled Tue 03:00 UTC = Mon 8:00 PM PDT (7:00 PM PST). Keep the gate inputs
+# (SOAK_HOURS / MIN_* / MAX_*) identical to promote-preflight.yml so the preview
+# reflects the real decision; if you change them there, change them here too.
+
+on:
+  schedule:
+    - cron: '0 3 * * 2'
+  workflow_dispatch:
+
+concurrency:
+  group: promote-preflight-preview
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    name: Preview the next Pre-flight promotion and notify via Pushover
+    runs-on: ubuntu-latest
+    steps:
+      # Full history + tags: the rollup "What to Test" walks git log between the
+      # deploy/<version> tags, same as the real promotion job.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Setup App Store Connect API key
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: |
+          mkdir -p ~/.private_keys
+          echo -n "$ASC_API_KEY_P8" > ~/.private_keys/AuthKey_${ASC_KEY_ID}.p8
+
+      - name: Fetch blocked build numbers from git tags
+        id: blocks
+        run: |
+          git fetch --tags --quiet
+          BLOCKED=$(git tag -l 'block-promotion/build-*' | sed 's|block-promotion/build-||' | tr '\n' ',' | sed 's/,$//')
+          echo "blocked=${BLOCKED}" >> "$GITHUB_OUTPUT"
+          echo "Blocked builds: ${BLOCKED:-(none)}"
+
+      - name: Evaluate eligibility (dry run) and write summary
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_PATH: ~/.private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8
+          APP_BUNDLE_ID: com.eff3.migralog
+          SOURCE_GROUP_NAME: Beta
+          TARGET_GROUP_NAME: Pre-flight
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SOAK_HOURS: '72'
+          MIN_SESSIONS: '5'
+          MIN_CRASH_FREE_RATE: '0.99'
+          MAX_UNRESOLVED_ISSUES: '0'
+          BLOCKED_BUILDS: ${{ steps.blocks.outputs.blocked }}
+          DRY_RUN: 'true'
+          SUMMARY_FILE: ${{ runner.temp }}/preflight-preview.json
+        run: node .github/scripts/promote-preflight.mjs
+
+      - name: Send Pushover preview
+        env:
+          SUMMARY_FILE: ${{ runner.temp }}/preflight-preview.json
+          PUSHOVER_TOKEN: ${{ secrets.PUSHOVER_TOKEN }}
+          PUSHOVER_USER: ${{ secrets.PUSHOVER_USER }}
+          LEAD_HOURS: '9'
+          PROMOTE_WHEN: 'Tue 12:00 UTC'
+        run: node .github/scripts/pushover-preflight-preview.mjs
+
+      - name: Cleanup
+        if: always()
+        run: rm -rf ~/.private_keys || true

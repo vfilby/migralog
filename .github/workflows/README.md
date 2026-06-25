@@ -10,6 +10,7 @@ CI/CD for the MigraLog iOS Swift app (`mobile-apps/ios`).
 | `swift-nightly.yml` — `[iOS] Nightly UI suite` | Daily 09:17 UTC + manual | Runs the **Full** test plan (entire suite minus screenshot capture). On failure opens/appends a `nightly-failure` tracking issue. Does **not** gate PRs. |
 | `release-pipeline.yml` — `[iOS] Release Pipeline` | Push → `main` (iOS paths) + manual | Unit tests, then archive + upload to the **Beta** (internal) TestFlight group. Build number patch-bumps from the latest `deploy/*` (or legacy `alpha-v*`) git tag; tags `deploy/<version>` on success. |
 | `promote-preflight.yml` — `[iOS] Promote Beta → Pre-flight` | Weekly (Tue 12:00 UTC) + manual | Promotes the latest eligible Beta build to the **Pre-flight** external group behind a Sentry crash-free soak gate (72 h, ≥ 99 % crash-free, 0 unresolved issues). Respects `block-promotion/build-*` tags. |
+| `promote-preflight-preview.yml` — `[iOS] Pre-flight promote preview (notify)` | Weekly (Tue 03:00 UTC ≈ Mon 8 PM PT) + manual | Runs the **same** eligibility gate in dry-run ~9 h before the promotion and sends a **Pushover** preview of the build likely to promote, its rolled-up "What to Test", and any build whose soak will clear by promote time — leaving a window to push a `block-promotion/build-<N>` tag. Keep its gate inputs (`SOAK_HOURS`/`MIN_*`/`MAX_*`) in sync with `promote-preflight.yml`. |
 | `promote-manual.yml` — `[iOS] Promote Build → Group (manual)` | Manual | Attach a specific build number to any TestFlight group, bypassing the soak gate. |
 | `promote-production.yml` — `[iOS] Promote Beta → Production` | Manual | Submit a build to App Store review (phased release by default). Uses the `production` environment. |
 | `swift-deps-update.yml` — `[iOS] Swift package updates` | Weekly (Mon 09:00 UTC) + manual | Checks the exact pins in `mobile-apps/ios/project.yml` against the latest GitHub releases (via `.github/scripts/swift-deps-check.mjs`) and opens/updates a bump PR on the `automated/swift-deps-update` branch. The PR is opened with the default `GITHUB_TOKEN`, which can't trigger CI — close & reopen it (or push to the branch) to run the gate. |
@@ -53,6 +54,10 @@ Signing / upload (already configured): `SWIFT_CERTIFICATE_P12`,
 `ASC_KEY_ID`, `ASC_API_KEY_P8`, `ASC_ISSUER_ID`.
 
 Pre-flight soak gate (new): `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`.
+
+Pre-flight promote preview (new): `PUSHOVER_TOKEN` (Pushover application/API token)
+and `PUSHOVER_USER` (your Pushover user/group key). Used only by
+`promote-preflight-preview.yml`.
 
 Also requires TestFlight groups named **`Beta`** (internal, auto-distribute on)
 and **`Pre-flight`** (external) in App Store Connect, and a `nightly-failure`
