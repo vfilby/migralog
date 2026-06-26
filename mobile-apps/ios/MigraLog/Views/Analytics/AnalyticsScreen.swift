@@ -75,6 +75,8 @@ struct AnalyticsScreen: View {
                     TimeRangeSelectorView(viewModel: viewModel)
                     MedicationResponseSection(viewModel: viewModel)
                 }
+
+                DoctorSummaryExportSection()
             }
             .padding()
         }
@@ -99,6 +101,39 @@ struct AnalyticsScreen: View {
                 })
             }
         }
+    }
+}
+
+// MARK: - Doctor Summary Export
+
+/// Prominent entry point to the one-page Doctor Visit Summary PDF, shown at the
+/// bottom of the Trends screen. The caption makes clear the report uses fixed
+/// windows (last 30 days + 6-month trend), not the range selected above — so it
+/// reads differently from "share what's on screen".
+struct DoctorSummaryExportSection: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.xs) {
+            DoctorSummaryExportButton { isGenerating in
+                HStack(spacing: DesignTokens.Spacing.sm) {
+                    if isGenerating {
+                        ProgressView().tint(.white)
+                    } else {
+                        Image(systemName: "doc.richtext")
+                    }
+                    Text("Export Doctor Visit Summary")
+                        .fontWeight(.semibold)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .accessibilityIdentifier("export-doctor-summary")
+
+            Text("A one-page PDF for a doctor's visit: the last 30 days and the 6-month trend, regardless of the range selected above.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.top, DesignTokens.Spacing.sm)
     }
 }
 
@@ -574,6 +609,19 @@ struct AnalyticsControlsColumn: View {
                     onAdd: onAddOverlay,
                     onEdit: onEditOverlay
                 )
+            }
+
+            Section {
+                DoctorSummaryExportButton { isGenerating in
+                    HStack {
+                        Label("Doctor Visit Summary (PDF)", systemImage: "doc.richtext")
+                        Spacer()
+                        if isGenerating { ProgressView() }
+                    }
+                }
+                .accessibilityIdentifier("export-doctor-summary")
+            } footer: {
+                Text("A one-page PDF: the last 30 days and the 6-month trend, regardless of the range selected.")
             }
         }
         .listStyle(.insetGrouped)
