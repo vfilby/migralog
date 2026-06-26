@@ -68,9 +68,15 @@ extension AnalyticsInsights {
         let dayCount: Int
         /// Sum over taken doses of `quantity × per-dose dosage amount`.
         let totalAmount: Double
-        /// Unit label for `totalAmount` (the medication's configured unit).
+        /// Unit label for `totalAmount`/`averageAmount` (the medication's unit).
         let dosageUnit: String
         var id: String { medicationId }
+
+        /// Mean amount per taken dose — the typical strength taken each time,
+        /// which reads more usefully on the report than a 30-day total.
+        var averageAmount: Double {
+            doseCount > 0 ? totalAmount / Double(doseCount) : 0
+        }
     }
 
     /// Per-rescue-medication usage over `from...to` (excluded-overlay days
