@@ -857,6 +857,8 @@ final class AnalyticsInsightsTests: XCTestCase {
         XCTAssertEqual(result.first?.dayCount, 2)
         // makeDose stamps dosageAmount 400; total = (1 + 2 + 1) × 400.
         XCTAssertEqual(result.first?.totalAmount, 1600)
+        // Average is per-dose: 1600 / 3 doses.
+        XCTAssertEqual(try XCTUnwrap(result.first).averageAmount, 1600.0 / 3.0, accuracy: 0.001)
         XCTAssertEqual(result.first?.dosageUnit, "mg")
     }
 

@@ -175,7 +175,7 @@ struct DoctorSummaryReportView: View {
             Text("Type").frame(width: 70, alignment: .leading)
             Text("Doses").frame(width: 50, alignment: .trailing)
             Text("Days").frame(width: 50, alignment: .trailing)
-            Text("Total").frame(width: 80, alignment: .trailing)
+            Text("Avg dose").frame(width: 80, alignment: .trailing)
         }
         .font(.system(size: 10, weight: .semibold))
         .foregroundStyle(subtle)
@@ -196,7 +196,7 @@ struct DoctorSummaryReportView: View {
                 .frame(width: 70, alignment: .leading)
             Text("\(med.doseCount)").frame(width: 50, alignment: .trailing)
             Text("\(med.dayCount)").frame(width: 50, alignment: .trailing)
-            Text(MedicationFormatting.formatDosage(amount: med.totalAmount, unit: med.dosageUnit))
+            Text(MedicationFormatting.formatDosage(amount: med.averageAmount, unit: med.dosageUnit))
                 .frame(width: 80, alignment: .trailing)
         }
         .font(.system(size: 11))
