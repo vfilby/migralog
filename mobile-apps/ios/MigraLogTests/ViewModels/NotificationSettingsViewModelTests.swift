@@ -74,6 +74,7 @@ private final class MockLiveActivityManager: LiveActivityManaging, @unchecked Se
     func end(episodeId: String, at endTime: Int64) {}
     func dismiss(episodeId: String) {}
     func reconcileOnLaunch() {}
+    func ensureActivityForCurrentEpisode() {}
 
     func endAll() {
         endAllCallCount += 1

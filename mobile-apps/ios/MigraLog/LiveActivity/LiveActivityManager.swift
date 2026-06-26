@@ -12,8 +12,16 @@ protocol LiveActivityManaging: Sendable {
     /// Immediately dismiss an episode's activity with no close state (e.g. the
     /// episode was deleted).
     func dismiss(episodeId: String)
-    /// Reconcile running activities with the source of truth at launch.
+    /// Reconcile running activities with the source of truth at launch:
+    /// dismiss stale/mismatched activities *and* start one for the current
+    /// episode if it's missing. Run once per launch — the dismiss step would
+    /// otherwise tear down the warm post-episode close on every foreground.
     func reconcileOnLaunch()
+    /// Start a Live Activity for the current episode if one isn't already
+    /// running. Safe to call on every foreground: it never dismisses an
+    /// activity, and `start(for:)` no-ops when disabled or already running.
+    /// This is the recovery path for a create-time start that didn't take.
+    func ensureActivityForCurrentEpisode()
     /// End every running episode activity immediately (feature turned off).
     func endAll()
 }
@@ -100,13 +108,27 @@ final class LiveActivityManager: LiveActivityManaging {
             ErrorLogger.shared.logError(error, context: ["service": "LiveActivityManager", "action": "reconcileOnLaunch"])
             return
         }
+        // Dismiss any activity that isn't the current episode's (e.g. an orphan
+        // left by a force-quit, or a stale warm close with no active episode).
         for activity in Activity<EpisodeActivityAttributes>.activities
         where activity.attributes.episodeId != current?.id {
             Task { await activity.end(nil, dismissalPolicy: .immediate) }
         }
-        if let current, isEnabled, activity(for: current.id) == nil {
-            start(for: current)
+        if let current { start(for: current) }
+    }
+
+    func ensureActivityForCurrentEpisode() {
+        let current: Episode?
+        do {
+            current = try episodeRepository.getCurrentEpisode()
+        } catch {
+            ErrorLogger.shared.logError(error, context: ["service": "LiveActivityManager", "action": "ensureActivityForCurrentEpisode"])
+            return
         }
+        // `start(for:)` is a no-op when activities are disabled or one is already
+        // running for this episode, so this only ever *adds* a missing activity —
+        // never dismisses one. That makes it safe on every foreground.
+        if let current { start(for: current) }
     }
 
     func endAll() {

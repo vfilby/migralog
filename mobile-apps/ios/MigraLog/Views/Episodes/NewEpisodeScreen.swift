@@ -148,6 +148,12 @@ struct NewEpisodeScreen: View {
             )
             try await repo.createIntensityReading(reading)
 
+            // Surface the episode as a Live Activity (Lock Screen / Dynamic
+            // Island) right away. We're foreground-active here, so the
+            // `Activity.request()` inside succeeds; if it ever doesn't, the
+            // next-foreground reconcile recovers it.
+            LiveActivityManager.shared.start(for: episode)
+
             // Cancel all pending daily check-ins — an active episode means we
             // shouldn't prompt "how was your day?" on any day it spans. The
             // notifications are rebuilt (with correct suppression) when the
