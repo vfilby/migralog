@@ -3,9 +3,6 @@ import UniformTypeIdentifiers
 
 struct DataSettingsScreen: View {
     @State private var isExporting = false
-    @State private var isGeneratingPDF = false
-    @State private var showPDFShareSheet = false
-    @State private var pdfURL: URL?
     @State private var isBackingUp = false
     @State private var isRestoring = false
     @State private var showShareSheet = false
@@ -34,16 +31,13 @@ struct DataSettingsScreen: View {
                     }
                 }
                 .disabled(isExporting)
-                Button {
-                    Task { await generateDoctorSummary() }
-                } label: {
+                DoctorSummaryExportButton { isGenerating in
                     HStack {
                         Label("Doctor Visit Summary (PDF)", systemImage: "doc.richtext")
                         Spacer()
-                        if isGeneratingPDF { ProgressView() }
+                        if isGenerating { ProgressView() }
                     }
                 }
-                .disabled(isGeneratingPDF)
             } header: {
                 Text("Export")
             } footer: {
@@ -98,18 +92,6 @@ struct DataSettingsScreen: View {
             }
         }) {
             if let url = exportURL {
-                ShareSheet(items: [url])
-            }
-        }
-        .sheet(isPresented: $showPDFShareSheet, onDismiss: {
-            // The summary is plaintext health data in tmp — remove it as soon
-            // as the share sheet is done with it.
-            if let url = pdfURL {
-                try? FileManager.default.removeItem(at: url)
-                pdfURL = nil
-            }
-        }) {
-            if let url = pdfURL {
                 ShareSheet(items: [url])
             }
         }
@@ -219,26 +201,6 @@ struct DataSettingsScreen: View {
         } catch {
             ErrorLogger.shared.logError(error, context: ["screen": "DataSettingsScreen", "action": "exportJSON"])
             errorMessage = "Export failed: \(error.localizedDescription)"
-            showError = true
-        }
-    }
-
-    private func generateDoctorSummary() async {
-        isGeneratingPDF = true
-        defer { isGeneratingPDF = false }
-        do {
-            // Build the report off the main actor (database reads), then render
-            // on the main actor (ImageRenderer requirement).
-            let report = try await Task.detached(priority: .userInitiated) {
-                try DoctorSummaryReportBuilder().buildReport()
-            }.value
-            pdfURL = try await MainActor.run {
-                try DoctorSummaryPDFRenderer.renderPDF(report: report)
-            }
-            showPDFShareSheet = true
-        } catch {
-            ErrorLogger.shared.logError(error, context: ["screen": "DataSettingsScreen", "action": "generateDoctorSummary"])
-            errorMessage = "Could not generate summary: \(error.localizedDescription)"
             showError = true
         }
     }
