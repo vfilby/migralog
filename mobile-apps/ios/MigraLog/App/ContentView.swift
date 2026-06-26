@@ -76,14 +76,21 @@ struct ContentView: View {
             case .active:
                 Task { await syncService.syncIfEnabled() }
                 autoBackupService.runIfDue()
-                // Re-attach or clean up the active-episode Live Activity after
-                // launch (recover from a force-quit, or dismiss a stale one).
-                // This must run on the `.active` scene phase, not a launch-time
-                // `.task`: ActivityKit rejects `Activity.request()` with an
-                // `ActivityAuthorization: visibility (Code 7)` error when the app
-                // isn't yet foreground, which the launch `.task` could not
-                // guarantee. Gated to the first foreground per launch so it
-                // doesn't dismiss the warm post-episode close on every return.
+                // Live Activity work must run on the `.active` scene phase, not a
+                // launch-time `.task`: ActivityKit rejects `Activity.request()`
+                // with an `ActivityAuthorization: visibility (Code 7)` error when
+                // the app isn't yet foreground, which the launch `.task` couldn't
+                // guarantee.
+                //
+                // Every foreground: make sure the active episode has a Live
+                // Activity. This recovers a create-time start that didn't take
+                // (e.g. ActivityKit not ready at first use). It only ever *adds*
+                // a missing activity, so it's safe to repeat.
+                LiveActivityManager.shared.ensureActivityForCurrentEpisode()
+                // First foreground per launch only: also dismiss stale/mismatched
+                // activities (orphan from a force-quit, stale warm close). Gated
+                // so it doesn't tear down the warm post-episode close on every
+                // return.
                 if !didReconcileLiveActivities {
                     didReconcileLiveActivities = true
                     LiveActivityManager.shared.reconcileOnLaunch()
