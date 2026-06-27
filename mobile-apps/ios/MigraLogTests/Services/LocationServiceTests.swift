@@ -168,6 +168,52 @@ final class LocationServiceTests: XCTestCase {
         XCTAssertTrue(mockManager.requestLocationCalled)
     }
 
+    // MARK: - In-App Disable (Settings → Privacy → Location Services)
+
+    func testGetCurrentLocationReturnsNilWhenDisabledInApp() async {
+        UserDefaults.standard.set(false, forKey: LocationService.enabledPreferenceKey)
+        defer { UserDefaults.standard.removeObject(forKey: LocationService.enabledPreferenceKey) }
+
+        mockManager.authorizationStatus = .authorizedWhenInUse
+        mockManager.simulatedLocation = CLLocation(latitude: 45.5, longitude: -122.6)
+
+        let result = await locationService.getCurrentLocation()
+
+        XCTAssertNil(result, "Disabling location in the app must stop capture even when iOS authorizes it")
+        XCTAssertFalse(mockManager.requestLocationCalled, "Should not even ask iOS for a location when disabled in-app")
+    }
+
+    func testGetCurrentLocationWorksWhenEnabledInApp() async throws {
+        UserDefaults.standard.set(true, forKey: LocationService.enabledPreferenceKey)
+        defer { UserDefaults.standard.removeObject(forKey: LocationService.enabledPreferenceKey) }
+
+        mockManager.authorizationStatus = .authorizedWhenInUse
+        mockManager.simulatedLocation = CLLocation(
+            coordinate: CLLocationCoordinate2D(latitude: 45.5, longitude: -122.6),
+            altitude: 0,
+            horizontalAccuracy: 50.0,
+            verticalAccuracy: 0,
+            timestamp: Date()
+        )
+
+        let result = await locationService.getCurrentLocation()
+
+        XCTAssertNotNil(result, "Location should work when enabled in-app and authorized")
+    }
+
+    func testGetCurrentLocationDefaultsToEnabled() async throws {
+        // No preference set — should behave as enabled (opt-out default).
+        UserDefaults.standard.removeObject(forKey: LocationService.enabledPreferenceKey)
+        XCTAssertTrue(LocationService.isEnabledInApp, "Defaults to enabled when unset")
+
+        mockManager.authorizationStatus = .authorizedWhenInUse
+        mockManager.simulatedLocation = CLLocation(latitude: 45.5, longitude: -122.6)
+
+        let result = await locationService.getCurrentLocation()
+
+        XCTAssertNotNil(result, "Unset preference should not block location")
+    }
+
     // MARK: - Get Location Error
 
     func testGetCurrentLocationError() async {
