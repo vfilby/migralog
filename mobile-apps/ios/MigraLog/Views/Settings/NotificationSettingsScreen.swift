@@ -80,17 +80,6 @@ struct NotificationSettingsScreen: View {
                     }
                 }
             }
-
-            Section {
-                Toggle("Live Activities", isOn: $viewModel.liveActivitiesEnabled)
-                    .onChange(of: viewModel.liveActivitiesEnabled) { _, _ in
-                        viewModel.saveSettings()
-                        viewModel.applyLiveActivitiesSettingChange()
-                    }
-                    .accessibilityIdentifier("live-activities-toggle")
-            } footer: {
-                Text("Show live episode status on the Lock Screen and in the Dynamic Island while an episode is active.")
-            }
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Notification Settings")
