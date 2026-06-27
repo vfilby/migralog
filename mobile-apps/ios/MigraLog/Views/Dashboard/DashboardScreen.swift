@@ -8,6 +8,12 @@ struct DashboardScreen: View {
     @State private var detailViewModel = EpisodeDetailViewModel()
     /// Backs the iPad-only "This Month" calendar card; never fetched on iPhone.
     @State private var calendarViewModel = AnalyticsViewModel()
+    /// Backs the "Get Started" onboarding checklist card.
+    @State private var onboardingViewModel = OnboardingChecklistViewModel()
+    /// Drives the add-medication sheet launched from the onboarding checklist,
+    /// with the type preselected to match the tapped item.
+    @State private var showAddMedication = false
+    @State private var addMedicationType: MedicationType = .rescue
     @State private var refreshId = UUID()
     @State private var refreshTask: Task<Void, Never>?
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -38,6 +44,7 @@ struct DashboardScreen: View {
         }
         .sheet(isPresented: $viewModel.showNewEpisode, onDismiss: {
             Task { await viewModel.loadData() }
+            onboardingViewModel.refresh()
         }) {
             NavigationStack {
                 NewEpisodeScreen()
@@ -66,13 +73,23 @@ struct DashboardScreen: View {
         }
         .sheet(isPresented: $viewModel.showLogMedication, onDismiss: {
             Task { await viewModel.loadData() }
+            onboardingViewModel.refresh()
         }) {
             NavigationStack {
                 LogMedicationScreen()
             }
         }
+        .sheet(isPresented: $showAddMedication, onDismiss: {
+            Task { await viewModel.loadData() }
+            onboardingViewModel.refresh()
+        }) {
+            NavigationStack {
+                AddMedicationScreen(initialType: addMedicationType)
+            }
+        }
         .task(id: refreshId) {
             await viewModel.loadData()
+            onboardingViewModel.refresh()
         }
         .onAppear {
             refreshId = UUID()
@@ -94,6 +111,7 @@ struct DashboardScreen: View {
 
     private var iPhoneDashboardLayout: some View {
         VStack(spacing: DesignTokens.Spacing.lg) {
+            OnboardingChecklistCard(viewModel: onboardingViewModel, onAction: handleOnboardingAction)
             TodaysMedicationsCard(viewModel: viewModel)
             DailyStatusWidgetView(viewModel: viewModel)
             HStack(spacing: DesignTokens.Spacing.md) {
@@ -119,7 +137,9 @@ struct DashboardScreen: View {
 
     @ViewBuilder
     private func iPadDashboardLayout(width: CGFloat, height: CGFloat) -> some View {
-        Group {
+        VStack(spacing: DesignTokens.Spacing.lg) {
+            OnboardingChecklistCard(viewModel: onboardingViewModel, onAction: handleOnboardingAction)
+
             if width >= Self.dashboardLandscapeBreakpoint {
                 // Landscape / wide: three balanced columns — actions, activity,
                 // and the month calendar — so the wide canvas carries real
@@ -173,6 +193,28 @@ struct DashboardScreen: View {
         .frame(maxWidth: Self.dashboardMaxWidth)
         .frame(maxWidth: .infinity, alignment: .center)
         .padding()
+    }
+
+    /// Routes a tapped onboarding checklist item to the relevant feature: episode
+    /// and daily-status flows reuse the dashboard's own surfaces; the medication
+    /// items open the add-medication sheet with the type preselected.
+    private func handleOnboardingAction(_ item: OnboardingChecklistViewModel.Item) {
+        switch item {
+        case .firstEpisode:
+            viewModel.showNewEpisode = true
+        case .trackDay:
+            // Surface the calendar so the user can tap a day and log its status.
+            appState.selectedTab = .trends
+        case .preventative:
+            addMedicationType = .preventative
+            showAddMedication = true
+        case .rescue:
+            addMedicationType = .rescue
+            showAddMedication = true
+        case .trends:
+            onboardingViewModel.markTrendsVisited()
+            appState.selectedTab = .trends
+        }
     }
 
     /// While an episode is ongoing the primary action logs an update to it

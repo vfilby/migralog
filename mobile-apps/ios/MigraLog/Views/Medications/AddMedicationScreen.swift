@@ -17,6 +17,14 @@ struct AddMedicationScreen: View {
     @State private var reminderEnabled = true
     @State private var minIntervalHoursText: String = ""
 
+    /// `initialType` preselects the Type picker so callers (e.g. the onboarding
+    /// checklist's "Add a preventative medication") can drop the user straight into
+    /// the right kind of medication. Defaults to `.rescue`, matching the prior
+    /// hard-coded default so existing `AddMedicationScreen()` callers are unchanged.
+    init(initialType: MedicationType = .rescue) {
+        _type = State(initialValue: initialType)
+    }
+
     var body: some View {
         Form {
             Section("Medication Name") {
