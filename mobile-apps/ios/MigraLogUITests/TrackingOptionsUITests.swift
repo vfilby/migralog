@@ -18,8 +18,8 @@ final class TrackingOptionsUITests: XCTestCase {
     }
 
     func testCustomTriggerAppearsInNewEpisodePicker() throws {
-        // Step 1: Settings → Tracking Options
-        openTrackingOptions()
+        // Step 1: Settings → Tracking → Triggers
+        openTrackingCategory(rowID: "tracking-triggers", title: "Triggers")
 
         // Step 2: Add a trigger from the suggested catalog via autocomplete
         let addTrigger = app.buttons["tracking-options-add-trigger"]
@@ -83,7 +83,7 @@ final class TrackingOptionsUITests: XCTestCase {
     }
 
     func testManageOptions_duplicateRejected_deleteCustom_reshowBuiltIn() throws {
-        openTrackingOptions()
+        openTrackingCategory(rowID: "tracking-symptoms", title: "Symptoms")
 
         // Step 1: Adding a symptom that duplicates a built-in display name is rejected
         let addSymptom = app.buttons["tracking-options-add-symptom"]
@@ -124,15 +124,17 @@ final class TrackingOptionsUITests: XCTestCase {
         deleteButton.tap()
         UITestHelpers.waitForElementToDisappear(customRow)
 
-        // Step 3: Hide a built-in pain quality, then re-show it.
-        // Pain Qualities is the first section — scroll back up to it.
+        // Step 3: Pain Qualities is now its own screen — back out to Settings
+        // and open it, then hide a built-in pain quality and re-show it.
+        app.navigationBars.buttons.firstMatch.tap()
+        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
+        let painQualities = app.buttons["tracking-pain-qualities"]
+        scrollToInList(painQualities)
+        UITestHelpers.waitForHittable(painQualities)
+        painQualities.tap()
+        UITestHelpers.waitForElement(app.navigationBars.staticTexts["Pain Qualities"])
+
         let dullToggle = toggleElement("tracking-option-pain_quality-dull")
-        let listView = app.collectionViews.firstMatch.exists
-            ? app.collectionViews.firstMatch
-            : app.tables.firstMatch
-        if !dullToggle.isHittable && listView.exists {
-            UITestHelpers.scrollUpToElement(dullToggle, in: listView)
-        }
         UITestHelpers.waitForHittable(dullToggle)
         turnOff(dullToggle)
         setToggle(dullToggle, on: true)
@@ -140,19 +142,30 @@ final class TrackingOptionsUITests: XCTestCase {
 
     // MARK: - Helpers
 
-    private func openTrackingOptions() {
+    private func openSettings() {
         let settingsButton = app.buttons["settings-button"]
         UITestHelpers.waitForHittable(settingsButton)
         settingsButton.tap()
-        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
 
-        let trackingOptions = app.buttons["tracking-options"]
-        scrollToInList(trackingOptions)
-        UITestHelpers.waitForHittable(trackingOptions)
-        trackingOptions.tap()
+        // Wait for the Settings list to settle before scrolling/querying — the
+        // collection view isn't queryable mid-transition.
+        let settingsTitle = app.navigationBars.staticTexts["Settings"]
+        UITestHelpers.waitForElement(settingsTitle)
+    }
 
-        let title = app.navigationBars.staticTexts["Tracking Options"]
-        UITestHelpers.waitForElement(title)
+    /// Open a single tracking category screen (Symptoms / Triggers / Pain
+    /// Qualities) from Settings. Each pick list is its own top-level row under
+    /// the Tracking category.
+    private func openTrackingCategory(rowID: String, title: String) {
+        openSettings()
+
+        let row = app.buttons[rowID]
+        scrollToInList(row)
+        UITestHelpers.waitForHittable(row)
+        row.tap()
+
+        let titleElement = app.navigationBars.staticTexts[title]
+        UITestHelpers.waitForElement(titleElement)
     }
 
     /// SwiftUI Toggles in a List usually surface as `.switch` elements, but the

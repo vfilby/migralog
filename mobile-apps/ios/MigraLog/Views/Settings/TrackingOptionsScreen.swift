@@ -6,16 +6,30 @@ import SwiftUI
 /// swipe. Hiding or deleting an option never changes past episodes — it only
 /// affects what the episode-entry pickers offer.
 struct TrackingOptionsScreen: View {
+    /// When set, the screen shows only this category — used by the per-category
+    /// rows under Settings → Tracking (Symptoms, Triggers, Pain Qualities).
+    /// When nil, every category is shown in one combined list.
+    let category: TrackingOptionCategory?
+
     @State private var viewModel = TrackingOptionsViewModel()
     @State private var addingCategory: TrackingOptionCategory?
 
+    init(category: TrackingOptionCategory? = nil) {
+        self.category = category
+    }
+
+    private var categories: [TrackingOptionCategory] {
+        if let category { return [category] }
+        return TrackingOptionCategory.allCases
+    }
+
     var body: some View {
         List {
-            ForEach(TrackingOptionCategory.allCases) { category in
+            ForEach(categories) { category in
                 section(for: category)
             }
         }
-        .navigationTitle("Tracking Options")
+        .navigationTitle(category?.displayName ?? "Tracking Options")
         .readableContentWidth()
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -54,9 +68,15 @@ struct TrackingOptionsScreen: View {
             }
             .accessibilityIdentifier("tracking-options-add-\(category.rawValue)")
         } header: {
-            Text(category.displayName)
+            // In the combined list each section needs its own header; when the
+            // screen is scoped to one category the navigation title already names it.
+            if self.category == nil {
+                Text(category.displayName)
+            }
         } footer: {
-            if category == .trigger {
+            // Show the "only affects the pickers" note once: under Triggers in the
+            // combined list, or on every scoped per-category screen.
+            if self.category != nil || category == .trigger {
                 // swiftlint:disable:next line_length
                 Text("Hiding or deleting an option only changes which choices the pickers offer — episodes you already logged keep their values.")
                     .font(.footnote)

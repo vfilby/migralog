@@ -31,17 +31,10 @@ struct DataSettingsScreen: View {
                     }
                 }
                 .disabled(isExporting)
-                DoctorSummaryExportButton { isGenerating in
-                    HStack {
-                        Label("Doctor Visit Summary (PDF)", systemImage: "doc.richtext")
-                        Spacer()
-                        if isGenerating { ProgressView() }
-                    }
-                }
             } header: {
                 Text("Export")
             } footer: {
-                Text("Export your data as JSON for sharing with healthcare providers, or a one-page PDF summary for a doctor's visit — headache days, medication usage, and preventative compliance.")
+                Text("Export your data as JSON for sharing with healthcare providers.")
             }
 
             Section("Backup") {
