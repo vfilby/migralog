@@ -29,6 +29,17 @@ targets:
     platform: iOS
     sources:
       - path: MigraLog
+      # User-guide Markdown, bundled as a `guide/` folder reference so the app
+      # ships the exact same content that drives the website — a single source of
+      # truth. Loaded at runtime via Bundle.main (see HelpArticle.loadMarkdown).
+      - path: ../../user-guide/guide
+        type: folder
+        buildPhase: resources
+      # Legal docs (privacy policy) bundled as a `legal/` folder reference, same
+      # single-source approach as the user guide.
+      - path: ../../legal
+        type: folder
+        buildPhase: resources
     settings:
       base:
         INFOPLIST_FILE: MigraLog/App/Info.plist

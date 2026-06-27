@@ -4,12 +4,36 @@ import Sentry
 enum SentrySetup {
     private static let dsn = "https://15bd8c3b6589a60a5e10f2703923db39@o4510275950608384.ingest.us.sentry.io/4510275952312320"
 
+    /// UserDefaults key backing the Settings → Privacy "Crash Reporting" toggle.
+    static let crashReportingPreferenceKey = "crashReportingEnabled"
+
+    /// Whether the user currently allows crash + error reporting. Defaults to
+    /// `true` (opt-out). Read directly from UserDefaults so it's valid during
+    /// `App.init`, before SwiftUI's `@AppStorage` is wired up.
+    static var isCrashReportingEnabled: Bool {
+        UserDefaults.standard.object(forKey: crashReportingPreferenceKey) as? Bool ?? true
+    }
+
+    /// Apply a runtime change to the preference (from the Settings toggle).
+    /// Starting/closing the SDK live means the change takes effect immediately
+    /// rather than only on the next launch.
+    static func setCrashReportingEnabled(_ enabled: Bool) {
+        if enabled {
+            start()
+        } else {
+            SentrySDK.close()
+        }
+    }
+
     /// Initialize Sentry. Call once at app startup.
     static func start() {
         #if DEBUG
         // Only enable in debug if explicitly requested
         guard ProcessInfo.processInfo.environment["SENTRY_ENABLED"] == "true" else { return }
         #endif
+
+        // Respect the user's crash-reporting opt-out (Settings → Privacy).
+        guard isCrashReportingEnabled else { return }
 
         SentrySDK.start { options in
             options.dsn = dsn

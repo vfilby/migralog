@@ -33,6 +33,19 @@ extension CLLocationManager: LocationManagerProtocol {}
 final class LocationService: NSObject, LocationServiceProtocol {
     static let shared = LocationService()
 
+    /// UserDefaults key backing the in-app "Location Services" toggle
+    /// (Settings → Privacy). This is the app's own switch, independent of the
+    /// iOS-level permission: when off, the app never captures location even if
+    /// iOS has granted permission.
+    static let enabledPreferenceKey = "locationEnabled"
+
+    /// Whether the user has enabled location use within the app. Defaults to
+    /// `true` (opt-out). Read directly from UserDefaults so non-View callers can
+    /// check it.
+    static var isEnabledInApp: Bool {
+        UserDefaults.standard.object(forKey: enabledPreferenceKey) as? Bool ?? true
+    }
+
     private let locationManager: LocationManagerProtocol
     private let logger = AppLogger.shared
     private let timeoutSeconds: TimeInterval
@@ -85,6 +98,11 @@ final class LocationService: NSObject, LocationServiceProtocol {
     // MARK: - Get Current Location
 
     func getCurrentLocation() async -> LocationResult? {
+        guard Self.isEnabledInApp else {
+            logger.info("Location disabled in app, returning nil")
+            return nil
+        }
+
         let status = locationManager.authorizationStatus
         guard status == .authorizedWhenInUse || status == .authorizedAlways else {
             logger.info("Location not authorized, returning nil")

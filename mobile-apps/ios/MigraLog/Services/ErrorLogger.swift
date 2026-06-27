@@ -62,9 +62,11 @@ final class ErrorLogger: ErrorLoggerProtocol, @unchecked Sendable {
             context: context.isEmpty ? nil : context.mapValues { $0 as Any }
         )
 
-        SentrySDK.capture(error: error) { scope in
-            for (key, value) in context {
-                scope.setExtra(value: value, key: key)
+        if SentrySetup.isCrashReportingEnabled {
+            SentrySDK.capture(error: error) { scope in
+                for (key, value) in context {
+                    scope.setExtra(value: value, key: key)
+                }
             }
         }
     }
@@ -78,7 +80,9 @@ final class ErrorLogger: ErrorLoggerProtocol, @unchecked Sendable {
 
         appLogger.info(message)
 
-        SentrySDK.capture(message: message)
+        if SentrySetup.isCrashReportingEnabled {
+            SentrySDK.capture(message: message)
+        }
     }
 
     // MARK: - Get Recent Errors

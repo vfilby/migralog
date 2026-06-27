@@ -3,12 +3,23 @@ import SwiftUI
 struct SettingsScreen: View {
     @Environment(AppState.self) private var appState
     @AppStorage("developerModeEnabled") private var developerModeEnabled = false
+    @AppStorage(SentrySetup.crashReportingPreferenceKey) private var crashReportingEnabled = true
 
     var body: some View {
         List {
             // Theme Section
             Section("Appearance") {
                 ThemeSectionView()
+            }
+
+            // User Guide — header-less so it reads as a single standalone row.
+            Section {
+                NavigationLink {
+                    HelpScreen()
+                } label: {
+                    Label("User Guide", systemImage: "questionmark.circle")
+                }
+                .accessibilityIdentifier("user-guide")
             }
 
             // Notifications
@@ -60,13 +71,28 @@ struct SettingsScreen: View {
                 .accessibilityIdentifier("medication-safety-limits")
             }
 
-            // Location
-            Section("Location") {
-                NavigationLink {
-                    LocationSettingsScreen()
-                } label: {
-                    Label("Location Services", systemImage: "location")
+            // Privacy
+            Section {
+                LocationToggleRow()
+
+                Toggle(isOn: $crashReportingEnabled) {
+                    Label("Crash Reporting", systemImage: "ladybug")
                 }
+                .accessibilityIdentifier("crash-reporting-toggle")
+                .onChange(of: crashReportingEnabled) { _, enabled in
+                    SentrySetup.setCrashReportingEnabled(enabled)
+                }
+
+                NavigationLink {
+                    PrivacyPolicyScreen()
+                } label: {
+                    Label("Privacy Policy", systemImage: "hand.raised")
+                }
+                .accessibilityIdentifier("privacy-policy")
+            } header: {
+                Text("Privacy")
+            } footer: {
+                Text("Crash reports help us find and fix problems. They never include your health data. Turn this off to stop sending them.")
             }
 
             // Data
