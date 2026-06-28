@@ -99,4 +99,36 @@ final class SetupChecklistViewModel {
         dismissed.insert(task.id)
         defaults.set(Array(dismissed), forKey: Self.dismissedKey)
     }
+
+    // MARK: - Checklist management (Settings)
+
+    /// Every task in catalog order, for the Settings checklist control.
+    var allTasks: [SetupTask] { SetupTask.allCases }
+
+    /// Tasks that are neither done nor dismissed — the ones "Dismiss All" acts on.
+    var dismissableTasks: [SetupTask] {
+        allTasks.filter { !isCompleted($0) && !isDismissed($0) }
+    }
+
+    var hasDismissableTasks: Bool { !dismissableTasks.isEmpty }
+    var hasDismissedTasks: Bool { allTasks.contains { isDismissed($0) } }
+
+    /// Re-show a previously dismissed task on the dashboard checklist (if still
+    /// incomplete).
+    func restore(_ task: SetupTask) {
+        dismissed.remove(task.id)
+        defaults.set(Array(dismissed), forKey: Self.dismissedKey)
+    }
+
+    /// Dismiss every remaining incomplete task in one tap.
+    func dismissAll() {
+        for task in dismissableTasks { dismissed.insert(task.id) }
+        defaults.set(Array(dismissed), forKey: Self.dismissedKey)
+    }
+
+    /// Clear all dismissals so incomplete tasks reappear on the dashboard.
+    func restoreAll() {
+        dismissed.removeAll()
+        defaults.set(Array(dismissed), forKey: Self.dismissedKey)
+    }
 }

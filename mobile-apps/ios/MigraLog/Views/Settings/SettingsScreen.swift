@@ -120,15 +120,6 @@ struct SettingsScreen: View {
                 }
             }
 
-            Section("Help") {
-                NavigationLink {
-                    TipsScreen()
-                } label: {
-                    Label("Tips", systemImage: "lightbulb")
-                }
-                .accessibilityIdentifier("settings-tips")
-            }
-
             // Beta Features (test builds only) — feature flags, sample data, and
             // other tools for evaluators and internal testing. Hidden in App
             // Store builds via BuildEnvironment.isPreRelease.
