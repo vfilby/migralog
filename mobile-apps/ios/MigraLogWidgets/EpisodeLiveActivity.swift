@@ -38,12 +38,14 @@ struct EpisodeLiveActivity: Widget {
                 .foregroundStyle(tint(for: context.state))
                 .accessibilityHidden(true)
         } compactTrailing: {
-            // No accessibilityLabel here: it would override the live timer's
+            // No accessibilityLabel here: it would override the live duration's
             // spoken value. VoiceOver reads the elapsed time, and the minimal
             // presentation already labels the activity as a migraine episode.
             DurationText(attributes: context.attributes, state: context.state)
                 .font(.caption2.monospacedDigit())
-                .frame(maxWidth: 52)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .frame(maxWidth: 78)
         } minimal: {
             PulsingDot(color: tint(for: context.state))
         }
