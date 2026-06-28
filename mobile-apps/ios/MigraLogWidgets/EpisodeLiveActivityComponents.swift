@@ -4,8 +4,13 @@ import WidgetKit
 
 // MARK: - Duration
 
-/// Live-ticking duration. While active it counts up from the episode start via
-/// `Text(_:style:.timer)`; once ended it shows the frozen total.
+/// Live-updating duration. While active it counts up from the episode start via
+/// `Text(_:style:.relative)` — seconds in the first minute, then minutes/hours
+/// (e.g. "6 min", "2 hr, 14 min"). We deliberately avoid `.timer`'s per-second
+/// HH:MM:SS readout: watching it tick for hours during a long migraine is
+/// disheartening, and minute granularity is what matters past the first minute.
+/// `.relative` also self-updates without the host app pushing changes. Once
+/// ended it shows the frozen total in the compact "4h 20m" form.
 struct DurationText: View {
     let attributes: EpisodeActivityAttributes
     let state: EpisodeActivityAttributes.ContentState
@@ -14,7 +19,7 @@ struct DurationText: View {
         if let endedAt = state.endedAt {
             Text(LiveActivityStyle.durationLabel(from: attributes.startDate, to: endedAt))
         } else {
-            Text(attributes.startDate, style: .timer)
+            Text(attributes.startDate, style: .relative)
         }
     }
 }
