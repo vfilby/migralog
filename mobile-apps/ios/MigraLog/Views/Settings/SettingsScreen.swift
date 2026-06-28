@@ -4,6 +4,7 @@ struct SettingsScreen: View {
     @Environment(AppState.self) private var appState
     @AppStorage("developerModeEnabled") private var developerModeEnabled = false
     @AppStorage(SentrySetup.crashReportingPreferenceKey) private var crashReportingEnabled = true
+    @State private var showResetConfirm = false
 
     var body: some View {
         List {
@@ -119,6 +120,15 @@ struct SettingsScreen: View {
                 }
             }
 
+            Section("Help") {
+                NavigationLink {
+                    TipsScreen()
+                } label: {
+                    Label("Tips", systemImage: "lightbulb")
+                }
+                .accessibilityIdentifier("settings-tips")
+            }
+
             // Beta Features (test builds only) — feature flags, sample data, and
             // other tools for evaluators and internal testing. Hidden in App
             // Store builds via BuildEnvironment.isPreRelease.
@@ -143,6 +153,19 @@ struct SettingsScreen: View {
                     }
                     .accessibilityIdentifier("developer-tools")
                 }
+            }
+
+            // Danger Zone — irreversible, destructive actions kept visually
+            // separate and styled red so they're hard to trigger by accident.
+            Section {
+                Button("Reset Database", role: .destructive) {
+                    showResetConfirm = true
+                }
+                .accessibilityIdentifier("reset-database")
+            } header: {
+                Text("Danger Zone")
+            } footer: {
+                Text("Permanently deletes all episodes, medications, and logs. This cannot be undone.")
             }
 
             // App Information — version, source repo, and open source licenses.
@@ -171,6 +194,14 @@ struct SettingsScreen: View {
         .listStyle(.insetGrouped)
         .navigationTitle("Settings")
         .readableContentWidth()
+        .alert("Reset Database", isPresented: $showResetConfirm) {
+            Button("Reset", role: .destructive) {
+                try? DatabaseManager.shared.resetDatabase()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will delete all data. This action cannot be undone.")
+        }
     }
 }
 

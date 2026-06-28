@@ -8,6 +8,14 @@ struct DashboardScreen: View {
     @State private var detailViewModel = EpisodeDetailViewModel()
     /// Backs the iPad-only "This Month" calendar card; never fetched on iPhone.
     @State private var calendarViewModel = AnalyticsViewModel()
+    /// Backs the "Did you know?" contextual tip slot.
+    @State private var didYouKnowViewModel = DidYouKnowViewModel()
+    /// Backs the setup checklist shown where the episode list will be.
+    @State private var setupChecklistViewModel = SetupChecklistViewModel()
+    /// Drives the add-medication sheet launched from a setup-checklist task, with
+    /// the type preselected to match the task.
+    @State private var showAddMedication = false
+    @State private var addMedicationType: MedicationType = .rescue
     @State private var refreshId = UUID()
     @State private var refreshTask: Task<Void, Never>?
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -38,6 +46,8 @@ struct DashboardScreen: View {
         }
         .sheet(isPresented: $viewModel.showNewEpisode, onDismiss: {
             Task { await viewModel.loadData() }
+            didYouKnowViewModel.refresh()
+            setupChecklistViewModel.refresh()
         }) {
             NavigationStack {
                 NewEpisodeScreen()
@@ -66,13 +76,26 @@ struct DashboardScreen: View {
         }
         .sheet(isPresented: $viewModel.showLogMedication, onDismiss: {
             Task { await viewModel.loadData() }
+            didYouKnowViewModel.refresh()
+            setupChecklistViewModel.refresh()
         }) {
             NavigationStack {
                 LogMedicationScreen()
             }
         }
+        .sheet(isPresented: $showAddMedication, onDismiss: {
+            Task { await viewModel.loadData() }
+            didYouKnowViewModel.refresh()
+            setupChecklistViewModel.refresh()
+        }) {
+            NavigationStack {
+                AddMedicationScreen(initialType: addMedicationType)
+            }
+        }
         .task(id: refreshId) {
             await viewModel.loadData()
+            didYouKnowViewModel.refresh()
+            setupChecklistViewModel.refresh()
         }
         .onAppear {
             refreshId = UUID()
@@ -94,6 +117,7 @@ struct DashboardScreen: View {
 
     private var iPhoneDashboardLayout: some View {
         VStack(spacing: DesignTokens.Spacing.lg) {
+            topSlot
             TodaysMedicationsCard(viewModel: viewModel)
             DailyStatusWidgetView(viewModel: viewModel)
             HStack(spacing: DesignTokens.Spacing.md) {
@@ -103,6 +127,21 @@ struct DashboardScreen: View {
             RecentEpisodesCard(viewModel: viewModel)
         }
         .padding()
+    }
+
+    /// The single top slot. The onboarding checklist takes precedence; tips only
+    /// appear once it's completed or dismissed. The two are never shown together.
+    @ViewBuilder
+    private var topSlot: some View {
+        if setupChecklistViewModel.shouldShow {
+            SetupChecklistCard(
+                viewModel: setupChecklistViewModel,
+                onAction: handleSetupTask,
+                onDismiss: { setupChecklistViewModel.dismiss($0) }
+            )
+        } else {
+            DidYouKnowCard(viewModel: didYouKnowViewModel, onAction: handleTipAction)
+        }
     }
 
     // MARK: - iPad Layout (adapts to available width / orientation)
@@ -119,7 +158,9 @@ struct DashboardScreen: View {
 
     @ViewBuilder
     private func iPadDashboardLayout(width: CGFloat, height: CGFloat) -> some View {
-        Group {
+        VStack(spacing: DesignTokens.Spacing.lg) {
+            topSlot
+
             if width >= Self.dashboardLandscapeBreakpoint {
                 // Landscape / wide: three balanced columns — actions, activity,
                 // and the month calendar — so the wide canvas carries real
@@ -173,6 +214,26 @@ struct DashboardScreen: View {
         .frame(maxWidth: Self.dashboardMaxWidth)
         .frame(maxWidth: .infinity, alignment: .center)
         .padding()
+    }
+
+    /// Routes a tapped tip CTA to the relevant feature. Tips with no
+    /// data-completion signal are dismissed via `registerAction` so they don't
+    /// keep reappearing after the user has acted on them.
+    private func handleTipAction(_ tip: Tip) {
+        didYouKnowViewModel.registerAction(on: tip)
+        switch tip.cta {
+        case .openCalendar, .openTrends, .exportDoctorSummary:
+            // The Trends tab opens on the calendar; the doctor-summary export
+            // lives at the bottom of that screen.
+            appState.selectedTab = .trends
+        }
+    }
+
+    /// Opens the add-medication screen for a setup-checklist task, with the
+    /// medication type preselected.
+    private func handleSetupTask(_ task: SetupTask) {
+        addMedicationType = task.medicationType
+        showAddMedication = true
     }
 
     /// While an episode is ongoing the primary action logs an update to it
