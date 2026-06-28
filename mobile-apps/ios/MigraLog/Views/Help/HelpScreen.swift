@@ -27,6 +27,25 @@ struct HelpScreen: View {
             } footer: {
                 Text("Guides for getting the most out of MigraLog. The same content is available at migralog.app.")
             }
+
+            Section {
+                NavigationLink {
+                    TipsAndChecklistScreen()
+                } label: {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Tips & Reminders")
+                            Text("Manage dashboard tips and the setup checklist")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "lightbulb")
+                            .foregroundStyle(DesignTokens.Brand.orange)
+                    }
+                }
+                .accessibilityIdentifier("help-tips-and-reminders")
+            }
         }
         .listStyle(.insetGrouped)
         .navigationTitle("User Guide")

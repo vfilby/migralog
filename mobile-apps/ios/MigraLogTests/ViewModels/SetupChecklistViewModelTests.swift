@@ -69,4 +69,78 @@ final class SetupChecklistViewModelTests: XCTestCase {
         sut.dismiss(.addPreventative)
         XCTAssertFalse(sut.shouldShow)
     }
+
+    // MARK: - Settings management
+
+    func testAllTasks_listsEveryTaskRegardlessOfState() {
+        medRepo.medications = [TestFixtures.makeMedication(id: "r", type: .rescue)]
+        let sut = makeSUT()
+        sut.refresh()
+        sut.dismiss(.addPreventative)
+        // Settings shows the full catalog even when done/dismissed.
+        XCTAssertEqual(sut.allTasks, [.addRescue, .addPreventative])
+    }
+
+    func testDismissableTasks_excludesCompletedAndDismissed() {
+        medRepo.medications = [TestFixtures.makeMedication(id: "r", type: .rescue)]
+        let sut = makeSUT()
+        sut.refresh()
+        // addRescue is completed; only addPreventative is dismissable.
+        XCTAssertTrue(sut.hasDismissableTasks)
+        XCTAssertEqual(sut.dismissableTasks, [.addPreventative])
+
+        sut.dismiss(.addPreventative)
+        XCTAssertFalse(sut.hasDismissableTasks)
+        XCTAssertTrue(sut.dismissableTasks.isEmpty)
+    }
+
+    func testDismissAll_dismissesIncompleteTasksAndPersists() {
+        let sut = makeSUT()
+        sut.refresh()
+        sut.dismissAll()
+        XCTAssertTrue(sut.isDismissed(.addRescue))
+        XCTAssertTrue(sut.isDismissed(.addPreventative))
+        XCTAssertFalse(sut.shouldShow)
+
+        let reloaded = makeSUT()
+        reloaded.refresh()
+        XCTAssertTrue(reloaded.isDismissed(.addRescue))
+        XCTAssertTrue(reloaded.isDismissed(.addPreventative))
+    }
+
+    func testDismissAll_leavesCompletedTasksUntouched() {
+        medRepo.medications = [TestFixtures.makeMedication(id: "r", type: .rescue)]
+        let sut = makeSUT()
+        sut.refresh()
+        sut.dismissAll()
+        // Completed tasks are never "dismissed" — they're just done.
+        XCTAssertFalse(sut.isDismissed(.addRescue))
+        XCTAssertTrue(sut.isDismissed(.addPreventative))
+    }
+
+    func testRestore_bringsBackADismissedTask() {
+        let sut = makeSUT()
+        sut.refresh()
+        sut.dismiss(.addRescue)
+        XCTAssertTrue(sut.hasDismissedTasks)
+
+        sut.restore(.addRescue)
+        XCTAssertFalse(sut.isDismissed(.addRescue))
+        XCTAssertTrue(sut.visibleTasks.contains(.addRescue))
+
+        let reloaded = makeSUT()
+        reloaded.refresh()
+        XCTAssertFalse(reloaded.isDismissed(.addRescue))
+    }
+
+    func testRestoreAll_clearsEveryDismissal() {
+        let sut = makeSUT()
+        sut.refresh()
+        sut.dismissAll()
+        XCTAssertTrue(sut.hasDismissedTasks)
+
+        sut.restoreAll()
+        XCTAssertFalse(sut.hasDismissedTasks)
+        XCTAssertEqual(sut.visibleTasks, [.addRescue, .addPreventative])
+    }
 }
