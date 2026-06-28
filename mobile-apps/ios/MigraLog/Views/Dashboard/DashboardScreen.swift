@@ -8,10 +8,12 @@ struct DashboardScreen: View {
     @State private var detailViewModel = EpisodeDetailViewModel()
     /// Backs the iPad-only "This Month" calendar card; never fetched on iPhone.
     @State private var calendarViewModel = AnalyticsViewModel()
-    /// Backs the "Get Started" onboarding checklist card.
-    @State private var onboardingViewModel = OnboardingChecklistViewModel()
-    /// Drives the add-medication sheet launched from the onboarding checklist,
-    /// with the type preselected to match the tapped item.
+    /// Backs the "Did you know?" contextual tip slot.
+    @State private var didYouKnowViewModel = DidYouKnowViewModel()
+    /// Backs the setup checklist shown where the episode list will be.
+    @State private var setupChecklistViewModel = SetupChecklistViewModel()
+    /// Drives the add-medication sheet launched from a setup-checklist task, with
+    /// the type preselected to match the task.
     @State private var showAddMedication = false
     @State private var addMedicationType: MedicationType = .rescue
     @State private var refreshId = UUID()
@@ -44,7 +46,8 @@ struct DashboardScreen: View {
         }
         .sheet(isPresented: $viewModel.showNewEpisode, onDismiss: {
             Task { await viewModel.loadData() }
-            onboardingViewModel.refresh()
+            didYouKnowViewModel.refresh()
+            setupChecklistViewModel.refresh()
         }) {
             NavigationStack {
                 NewEpisodeScreen()
@@ -73,7 +76,8 @@ struct DashboardScreen: View {
         }
         .sheet(isPresented: $viewModel.showLogMedication, onDismiss: {
             Task { await viewModel.loadData() }
-            onboardingViewModel.refresh()
+            didYouKnowViewModel.refresh()
+            setupChecklistViewModel.refresh()
         }) {
             NavigationStack {
                 LogMedicationScreen()
@@ -81,7 +85,8 @@ struct DashboardScreen: View {
         }
         .sheet(isPresented: $showAddMedication, onDismiss: {
             Task { await viewModel.loadData() }
-            onboardingViewModel.refresh()
+            didYouKnowViewModel.refresh()
+            setupChecklistViewModel.refresh()
         }) {
             NavigationStack {
                 AddMedicationScreen(initialType: addMedicationType)
@@ -89,7 +94,8 @@ struct DashboardScreen: View {
         }
         .task(id: refreshId) {
             await viewModel.loadData()
-            onboardingViewModel.refresh()
+            didYouKnowViewModel.refresh()
+            setupChecklistViewModel.refresh()
         }
         .onAppear {
             refreshId = UUID()
@@ -111,7 +117,7 @@ struct DashboardScreen: View {
 
     private var iPhoneDashboardLayout: some View {
         VStack(spacing: DesignTokens.Spacing.lg) {
-            OnboardingChecklistCard(viewModel: onboardingViewModel, onAction: handleOnboardingAction)
+            topSlot
             TodaysMedicationsCard(viewModel: viewModel)
             DailyStatusWidgetView(viewModel: viewModel)
             HStack(spacing: DesignTokens.Spacing.md) {
@@ -121,6 +127,21 @@ struct DashboardScreen: View {
             RecentEpisodesCard(viewModel: viewModel)
         }
         .padding()
+    }
+
+    /// The single top slot. The onboarding checklist takes precedence; tips only
+    /// appear once it's completed or dismissed. The two are never shown together.
+    @ViewBuilder
+    private var topSlot: some View {
+        if setupChecklistViewModel.shouldShow {
+            SetupChecklistCard(
+                viewModel: setupChecklistViewModel,
+                onAction: handleSetupTask,
+                onDismiss: { setupChecklistViewModel.dismiss($0) }
+            )
+        } else {
+            DidYouKnowCard(viewModel: didYouKnowViewModel, onAction: handleTipAction)
+        }
     }
 
     // MARK: - iPad Layout (adapts to available width / orientation)
@@ -138,7 +159,7 @@ struct DashboardScreen: View {
     @ViewBuilder
     private func iPadDashboardLayout(width: CGFloat, height: CGFloat) -> some View {
         VStack(spacing: DesignTokens.Spacing.lg) {
-            OnboardingChecklistCard(viewModel: onboardingViewModel, onAction: handleOnboardingAction)
+            topSlot
 
             if width >= Self.dashboardLandscapeBreakpoint {
                 // Landscape / wide: three balanced columns — actions, activity,
@@ -195,26 +216,24 @@ struct DashboardScreen: View {
         .padding()
     }
 
-    /// Routes a tapped onboarding checklist item to the relevant feature: episode
-    /// and daily-status flows reuse the dashboard's own surfaces; the medication
-    /// items open the add-medication sheet with the type preselected.
-    private func handleOnboardingAction(_ item: OnboardingChecklistViewModel.Item) {
-        switch item {
-        case .firstEpisode:
-            viewModel.showNewEpisode = true
-        case .trackDay:
-            // Surface the calendar so the user can tap a day and log its status.
-            appState.selectedTab = .trends
-        case .preventative:
-            addMedicationType = .preventative
-            showAddMedication = true
-        case .rescue:
-            addMedicationType = .rescue
-            showAddMedication = true
-        case .trends:
-            onboardingViewModel.markTrendsVisited()
+    /// Routes a tapped tip CTA to the relevant feature. Tips with no
+    /// data-completion signal are dismissed via `registerAction` so they don't
+    /// keep reappearing after the user has acted on them.
+    private func handleTipAction(_ tip: Tip) {
+        didYouKnowViewModel.registerAction(on: tip)
+        switch tip.cta {
+        case .openCalendar, .openTrends, .exportDoctorSummary:
+            // The Trends tab opens on the calendar; the doctor-summary export
+            // lives at the bottom of that screen.
             appState.selectedTab = .trends
         }
+    }
+
+    /// Opens the add-medication screen for a setup-checklist task, with the
+    /// medication type preselected.
+    private func handleSetupTask(_ task: SetupTask) {
+        addMedicationType = task.medicationType
+        showAddMedication = true
     }
 
     /// While an episode is ongoing the primary action logs an update to it
