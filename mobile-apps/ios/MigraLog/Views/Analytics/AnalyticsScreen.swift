@@ -34,6 +34,7 @@ struct AnalyticsSectionPicker: View {
 }
 
 struct AnalyticsScreen: View {
+    @Environment(AppState.self) private var appState
     @State private var viewModel = AnalyticsViewModel()
     @State private var showAddOverlay = false
     @State private var editingOverlay: CalendarOverlay?
@@ -84,6 +85,15 @@ struct AnalyticsScreen: View {
         .accessibilityIdentifier("trends-screen")
         .task {
             await viewModel.fetchData()
+        }
+        // Honor a deep link (e.g. the "See your trends" tip) that asks the
+        // Trends tab to open on a specific section. `initial: true` covers the
+        // first appearance; onChange covers later taps while the tab is alive.
+        .onChange(of: appState.pendingAnalyticsSection, initial: true) { _, section in
+            if let section {
+                selectedSection = section
+                appState.pendingAnalyticsSection = nil
+            }
         }
         .sheet(isPresented: $showAddOverlay, onDismiss: { Task { await viewModel.loadCalendarData(for: Date()) } }) {
             NavigationStack {
@@ -698,6 +708,7 @@ private struct OverlayListContent: View {
 
 /// Calendar and visualizations for the iPad wide pane.
 struct AnalyticsVisualizationPane: View {
+    @Environment(AppState.self) private var appState
     @Bindable var viewModel: AnalyticsViewModel
     @State private var selectedSection: AnalyticsSection = .calendar
 
@@ -726,6 +737,15 @@ struct AnalyticsVisualizationPane: View {
                     }
                 }
                 .padding()
+            }
+        }
+        // Honor a deep link (e.g. the "See your trends" tip) requesting a
+        // specific section. `initial: true` covers the first appearance;
+        // onChange covers later taps while the tab stays alive.
+        .onChange(of: appState.pendingAnalyticsSection, initial: true) { _, section in
+            if let section {
+                selectedSection = section
+                appState.pendingAnalyticsSection = nil
             }
         }
     }

@@ -222,10 +222,16 @@ struct DashboardScreen: View {
     private func handleTipAction(_ tip: Tip) {
         didYouKnowViewModel.registerAction(on: tip)
         switch tip.cta {
-        case .openCalendar, .openTrends, .exportDoctorSummary:
-            // The Trends tab opens on the calendar; the doctor-summary export
-            // lives at the bottom of that screen.
-            appState.selectedTab = .trends
+        case .openCalendar:
+            appState.showTrends(section: .calendar)
+        case .openTrends:
+            // Deep-link straight to Insights, not the Trends tab's default
+            // Calendar view, so the patterns the tip promises are on screen.
+            appState.showTrends(section: .insights)
+        case .exportDoctorSummary:
+            // The doctor-summary export lives at the bottom of the Trends
+            // screen regardless of section; the default Calendar view is fine.
+            appState.showTrends()
         }
     }
 

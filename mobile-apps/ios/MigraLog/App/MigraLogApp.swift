@@ -129,6 +129,11 @@ final class AppState {
     /// Selection for the Medications split view (iPad regular width).
     var selectedMedicationId: String?
 
+    /// When set, the Trends tab should open on this section instead of its
+    /// default Calendar view (e.g. the "See your trends" tip deep-links to
+    /// Insights). The Trends screens consume and clear it so it fires once.
+    var pendingAnalyticsSection: AnalyticsSection?
+
     /// A surface an open Episode Detail should present once it loads, set when a
     /// Live Activity deep link asks for more than just opening the episode
     /// (log a rescue med, log intensity, or end the episode). `EpisodeDetailScreen`
@@ -145,6 +150,13 @@ final class AppState {
     func showMedication(_ medicationId: String) {
         selectedMedicationId = medicationId
         selectedTab = .medications
+    }
+
+    /// Switch to the Trends tab, optionally opening on a specific section
+    /// (e.g. `.insights`) rather than the default Calendar view.
+    func showTrends(section: AnalyticsSection? = nil) {
+        pendingAnalyticsSection = section
+        selectedTab = .trends
     }
 
     // MARK: - Deep links
