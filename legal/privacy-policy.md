@@ -11,7 +11,7 @@ you have.
 In plain terms: **your health records stay on your device and in your own iCloud
 account.** We do not run servers that collect them, we do not sell or share them,
 and the only information the app sends anywhere automatically is opt-out
-diagnostic data that has your health details stripped out first.
+diagnostic data that removes health details before sending.
 
 ## Your health data stays on your device
 
