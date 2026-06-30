@@ -527,17 +527,34 @@ final class AnalyticsInsightsTests: XCTestCase {
     // MARK: - Monthly summary
 
     func testMonthlySummaries_countsAndPartialFlags() {
-        // Range: last 40 days — spans two calendar months, both partial
-        // unless the range happens to align exactly with month boundaries.
-        let from = date(daysAgo: 40)
+        // Use a FIXED mid-month reference instant rather than the wall clock so
+        // the "current month is partial" assertion is deterministic. With the real
+        // `now` this test was flaky: on a month's final day the exclusive range end
+        // aligns with the month boundary (isPartial == false), and `now` re-samples
+        // the clock on each access so separate reads could straddle a boundary.
+        // May 15 sits mid-month and well clear of any DST transition.
+        let refDay = calendar.startOfDay(
+            for: calendar.date(from: DateComponents(year: 2025, month: 5, day: 15))!
+        )
+        func dateAt(daysAgo: Int, hour: Int = 12) -> Date {
+            let day = calendar.date(byAdding: .day, value: -daysAgo, to: refDay)!
+            return calendar.date(byAdding: .hour, value: hour, to: day)!
+        }
+        func msAt(daysAgo: Int, hour: Int = 12) -> Int64 {
+            TimestampHelper.fromDate(dateAt(daysAgo: daysAgo, hour: hour))
+        }
+        let referenceNow = dateAt(daysAgo: 0)
+        // Range: last 40 days — spans two calendar months (April and May 2025),
+        // both partial: April's start precedes the range, May is still running.
+        let from = calendar.date(byAdding: .day, value: -40, to: referenceNow)!
         let triptan = TestFixtures.makeMedication(id: "med-t", type: .rescue, category: .triptan)
         let episodes = [
-            TestFixtures.makeEpisode(id: "ep-1", startTime: ms(daysAgo: 1), endTime: ms(daysAgo: 1, hour: 18)),
-            TestFixtures.makeEpisode(id: "ep-2", startTime: ms(daysAgo: 2, hour: 20), endTime: ms(daysAgo: 1, hour: 2)),
+            TestFixtures.makeEpisode(id: "ep-1", startTime: msAt(daysAgo: 1), endTime: msAt(daysAgo: 1, hour: 18)),
+            TestFixtures.makeEpisode(id: "ep-2", startTime: msAt(daysAgo: 2, hour: 20), endTime: msAt(daysAgo: 1, hour: 2)),
         ]
         let doses = [
-            TestFixtures.makeDose(medicationId: "med-t", timestamp: ms(daysAgo: 1, hour: 9)),
-            TestFixtures.makeDose(medicationId: "med-t", timestamp: ms(daysAgo: 1, hour: 21)),
+            TestFixtures.makeDose(medicationId: "med-t", timestamp: msAt(daysAgo: 1, hour: 9)),
+            TestFixtures.makeDose(medicationId: "med-t", timestamp: msAt(daysAgo: 1, hour: 21)),
         ]
 
         let summaries = AnalyticsInsights.monthlySummaries(
@@ -546,12 +563,14 @@ final class AnalyticsInsightsTests: XCTestCase {
             medications: [triptan],
             excluded: [],
             from: from,
-            to: now,
+            to: referenceNow,
             calendar: calendar
         )
 
         XCTAssertGreaterThanOrEqual(summaries.count, 2)
-        // The current month is always partial (it is still running).
+        // The final summary is the current month (May 2025). Because the reference
+        // instant is mid-month, the range ends before the month boundary, so the
+        // current month is unambiguously partial.
         XCTAssertEqual(summaries.last?.isPartial, true)
         XCTAssertEqual(summaries.map(\.episodeCount).reduce(0, +), 2)
         // ep-1 covers one day, ep-2 covers two days (one shared with ep-1) → 2 distinct days.
