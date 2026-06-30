@@ -469,7 +469,12 @@ enum AnalyticsInsights {
         while monthStart < rangeEndExclusive {
             guard let monthEnd = calendar.date(byAdding: .month, value: 1, to: monthStart) else { break }
             let monthKey = monthPrefix(of: monthStart, calendar: calendar)
-            let isPartial = monthStart < rangeStartDay || monthEnd > rangeEndExclusive
+            // A month is partial when the range doesn't fully cover it. Compare
+            // the trailing edge against `to` (not the day-rounded
+            // `rangeEndExclusive`): on the last calendar day of a month the
+            // rounded bound equals `monthEnd`, which would otherwise mark the
+            // still-running current month as complete.
+            let isPartial = monthStart < rangeStartDay || monthEnd > to
 
             let monthStartMs = TimestampHelper.fromDate(max(monthStart, rangeStartDay))
             let monthEndMs = TimestampHelper.fromDate(min(monthEnd, rangeEndExclusive))
