@@ -69,6 +69,18 @@ final class LiveActivityManager: LiveActivityManaging {
                 content: ActivityContent(state: state, staleDate: nil),
                 pushType: nil
             )
+        } catch let error as ActivityAuthorizationError {
+            // ActivityKit declined the start. Every code here is an environmental
+            // or user-configuration condition — the app wasn't visible/foreground
+            // at request time (`.visibility`), the user disabled Live Activities
+            // (`.denied`), a system limit was hit, etc. — not a bug. The recovery
+            // path (`ensureActivityForCurrentEpisode()`) retries on the next
+            // foreground, so log locally for diagnostics but don't report it to
+            // Sentry as an error (#572).
+            AppLogger.shared.warn(
+                "Live Activity start declined by ActivityKit",
+                context: ["service": "LiveActivityManager", "code": "\(error)"]
+            )
         } catch {
             ErrorLogger.shared.logError(error, context: ["service": "LiveActivityManager", "action": "start"])
         }
