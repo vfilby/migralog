@@ -834,14 +834,22 @@ final class AnalyticsInsightsTests: XCTestCase {
     // MARK: - monthlyHeadacheDays
 
     func testMonthlyHeadacheDays_bucketsDaysByMonthAndClipsRange() {
-        // Two days this month plus one day 40 days ago (prior month).
-        let days: Set<String> = [dayString(daysAgo: 0), dayString(daysAgo: 1), dayString(daysAgo: 40)]
-        let from = date(daysAgo: 60)
-        let result = AnalyticsInsights.monthlyHeadacheDays(headacheDays: days, from: from, to: now, calendar: calendar)
+        // Anchor to a fixed mid-month reference date rather than the real "now":
+        // the "two days this month" premise fails on the first of a month, where
+        // daysAgo:0 and daysAgo:1 straddle a month boundary and land in separate
+        // buckets. A fixed anchor keeps this deterministic on every run date.
+        let anchor = calendar.date(from: DateComponents(year: 2026, month: 3, day: 15, hour: 12))!
+        func day(_ offset: Int) -> String {
+            TimestampHelper.dateString(from: calendar.date(byAdding: .day, value: offset, to: anchor)!)
+        }
+        // Two days in the anchor month plus one day 40 days earlier (prior month).
+        let days: Set<String> = [day(0), day(-1), day(-40)]
+        let from = calendar.date(byAdding: .day, value: -60, to: anchor)!
+        let result = AnalyticsInsights.monthlyHeadacheDays(headacheDays: days, from: from, to: anchor, calendar: calendar)
 
         XCTAssertEqual(result.map(\.headacheDayCount).reduce(0, +), 3)
-        // The current month's bucket holds the two recent days.
-        let currentMonthKey = String(dayString(daysAgo: 0).prefix(7))
+        // The anchor month's bucket holds the two recent days.
+        let currentMonthKey = String(day(0).prefix(7))
         let currentBucket = result.first { String(TimestampHelper.dateString(from: $0.monthStart).prefix(7)) == currentMonthKey }
         XCTAssertEqual(currentBucket?.headacheDayCount, 2)
     }
