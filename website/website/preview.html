@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MigraLog — Feature Preview for Beta Testers</title>
+    <meta name="description" content="A guided tour of what MigraLog does: timeline-based episode tracking, medication logging with cooldowns and overuse safety limits, a colour-coded calendar, clinical insights, and a one-page doctor visit summary. Everything stays on your device.">
+
+    <!-- Private preview: not indexed and not linked from the public site. -->
+    <meta name="robots" content="noindex, nofollow">
+
+    <!-- Open Graph — so the link previews nicely when shared with prospects -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://migralog.app/preview.html">
+    <meta property="og:title" content="MigraLog — Feature Preview for Beta Testers">
+    <meta property="og:description" content="See exactly what MigraLog does before you install. Timeline-based tracking, smart medication logging, a colour-coded calendar, clinical insights, and a doctor visit summary — all on your device.">
+    <meta property="og:image" content="https://migralog.app/Simulator%20Screenshot%20-%20iPhone%2017%20Pro%20Max%20-%202025-11-23%20at%2018.41.33.png">
+    <meta property="og:site_name" content="MigraLog">
+    <meta property="og:locale" content="en_US">
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:title" content="MigraLog — Feature Preview for Beta Testers">
+    <meta property="twitter:description" content="See exactly what MigraLog does before you install.">
+    <meta property="twitter:image" content="https://migralog.app/Simulator%20Screenshot%20-%20iPhone%2017%20Pro%20Max%20-%202025-11-23%20at%2018.41.33.png">
+
+    <meta name="theme-color" content="#152233">
+    <meta name="apple-mobile-web-app-title" content="MigraLog">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+
+    <!-- Design tokens — single source of truth for brand colors/spacing/type -->
+    <link rel="stylesheet" href="css/tokens.css">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'migralog-navy': 'var(--migralog-navy)',
+                        'migralog-navy-light': 'var(--migralog-navy-light)',
+                        'migralog-navy-lighter': 'var(--migralog-navy-lighter)',
+                        'migralog-orange': 'var(--migralog-orange)',
+                        'migralog-orange-hover': 'var(--migralog-orange-hover)',
+                        'migralog-orange-light': 'var(--migralog-orange-light)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .phone-mockup {
+            width: 300px;
+            background: #1c1c1e;
+            border-radius: 45px;
+            padding: 4px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+            position: relative;
+        }
+        .phone-screen {
+            width: 100%;
+            border-radius: 41px;
+            overflow: hidden;
+            display: block;
+            background: #000;
+        }
+        .phone-screen img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        *:focus-visible {
+            outline: 3px solid var(--migralog-orange);
+            outline-offset: 2px;
+        }
+
+        .btn-primary {
+            transition: all 0.2s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .section-separator {
+            height: 1px;
+            background: linear-gradient(to right, transparent, #e5e7eb, transparent);
+        }
+        .dark .section-separator {
+            background: linear-gradient(to right, transparent, #374151, transparent);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * { animation: none !important; transition: none !important; }
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 9999px;
+            padding: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .dark .theme-toggle { background: rgba(31, 41, 55, 0.9); }
+        .theme-toggle button {
+            display: flex; align-items: center; justify-content: center;
+            width: 40px; height: 40px; border-radius: 9999px; transition: all 0.2s;
+        }
+        .theme-toggle button:hover { background: rgb(var(--migralog-orange-rgb) / 0.2); }
+        .theme-toggle button.active { background: rgb(var(--migralog-orange-rgb) / 0.3); }
+    </style>
+
+    <script>
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark')
+        } else {
+            document.documentElement.classList.remove('dark')
+        }
+    </script>
+</head>
+<body class="bg-white dark:bg-black transition-colors duration-200">
+    <!-- Skip to main content -->
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-6 focus:py-3 focus:bg-migralog-orange focus:text-white focus:rounded-lg">
+        Skip to main content
+    </a>
+
+    <!-- Theme Toggle -->
+    <div class="theme-toggle" role="toolbar" aria-label="Theme selector">
+        <button id="theme-toggle-btn" aria-label="Toggle dark mode" class="text-gray-700 dark:text-gray-200">
+            <svg id="theme-icon-light" class="w-6 h-6 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+            </svg>
+            <svg id="theme-icon-dark" class="w-6 h-6 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Hero -->
+    <header role="banner">
+    <section class="bg-gradient-to-br from-migralog-navy to-migralog-navy-light dark:from-migralog-navy dark:to-black text-white">
+        <div class="container mx-auto px-6 py-20">
+            <div class="flex flex-col lg:flex-row items-center justify-between">
+                <div class="lg:w-1/2 mb-12 lg:mb-0">
+                    <div class="inline-block bg-white bg-opacity-20 backdrop-blur-sm rounded-full px-5 py-2 mb-6">
+                        <span class="text-sm font-semibold text-gray-100">Private Beta · Feature Preview</span>
+                    </div>
+                    <h1 class="text-5xl lg:text-6xl font-bold mb-4 leading-tight">
+                        See MigraLog before you install
+                    </h1>
+                    <p class="text-xl mb-6 text-gray-100 dark:text-gray-50">
+                        After three decades of migraines, I was frustrated with tracking apps that made logging hard exactly when I needed it most. MigraLog is a simple, focused app that captures everything you need to understand your pain today — so you can look forward to clearer days tomorrow.
+                    </p>
+                    <p class="text-lg mb-8 text-gray-200 dark:text-gray-100">
+                        This page is a guided tour of what the app actually does. Have a look, and if it fits how you manage your migraines, request an invite to the beta.
+                    </p>
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <a href="index.html#signup" class="btn-primary bg-migralog-orange text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-lg hover:bg-migralog-orange-hover transition text-center" aria-label="Request MigraLog beta access">
+                            Request Beta Access
+                        </a>
+                        <a href="#tour" class="border-2 border-migralog-orange text-migralog-orange px-8 py-4 rounded-lg font-semibold text-lg hover:bg-migralog-orange hover:text-white transition text-center" aria-label="Start the feature tour">
+                            Start the Tour
+                        </a>
+                    </div>
+                </div>
+                <div class="lg:w-1/2 flex justify-center" aria-hidden="true">
+                    <div class="phone-mockup">
+                        <div class="phone-screen">
+                            <img src="Simulator Screenshot - iPhone 17 Pro Max - 2025-11-23 at 18.41.33.png"
+                                 alt="MigraLog home screen showing today's medications, a Start Episode button, and recent episodes with intensity sparklines"
+                                 loading="eager"
+                                 width="292"
+                                 height="632">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    </header>
+
+    <main id="main-content">
+
+    <!-- The idea -->
+    <section id="tour" class="py-20 bg-gray-50 dark:bg-gray-950" aria-labelledby="idea-heading">
+        <div class="container mx-auto px-6 max-w-4xl text-center">
+            <h2 id="idea-heading" class="text-4xl font-bold mb-6 text-gray-900 dark:text-white">
+                A migraine isn't a moment — it's a course of events
+            </h2>
+            <p class="text-xl text-gray-600 dark:text-gray-200 leading-relaxed mb-10">
+                Pain builds and fades, symptoms come and go, and the medication you take unfolds over hours. Instead of asking you to summarise an attack after it's over, MigraLog lets you record what's happening <em>as it happens</em> and assembles it into a continuous timeline. That shape is what reveals patterns — and what a clinician can actually use.
+            </p>
+            <div class="grid sm:grid-cols-3 gap-6 text-left">
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
+                    <div class="text-migralog-orange dark:text-migralog-orange-light font-bold text-sm mb-2">LAYER 1</div>
+                    <h3 class="text-lg font-bold mb-2 text-gray-900 dark:text-gray-50">Episodes</h3>
+                    <p class="text-gray-600 dark:text-gray-200 text-sm leading-relaxed">Each attack, tracked start to finish — even when it spans more than a day.</p>
+                </div>
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
+                    <div class="text-migralog-orange dark:text-migralog-orange-light font-bold text-sm mb-2">LAYER 2</div>
+                    <h3 class="text-lg font-bold mb-2 text-gray-900 dark:text-gray-50">Timeline</h3>
+                    <p class="text-gray-600 dark:text-gray-200 text-sm leading-relaxed">Timestamped moments within an attack — intensity, symptoms, locations, and doses.</p>
+                </div>
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
+                    <div class="text-migralog-orange dark:text-migralog-orange-light font-bold text-sm mb-2">LAYER 3</div>
+                    <h3 class="text-lg font-bold mb-2 text-gray-900 dark:text-gray-50">Daily status</h3>
+                    <p class="text-gray-600 dark:text-gray-200 text-sm leading-relaxed">A colour for every day, so scattered attacks become a long-term picture of how often you're well.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Home dashboard -->
+    <section class="py-20 bg-white dark:bg-gray-950">
+        <div class="container mx-auto px-6">
+            <div class="grid md:grid-cols-2 gap-12 items-center">
+                <div>
+                    <div class="text-migralog-orange dark:text-migralog-orange-light font-semibold mb-3">HOME</div>
+                    <h2 class="text-4xl font-bold mb-6 text-gray-900 dark:text-gray-50">Everything you need for today, on one screen</h2>
+                    <p class="text-xl text-gray-600 dark:text-gray-200 mb-6">
+                        The home dashboard is built for a day in pain: big, obvious actions and nothing to fiddle with. Start an episode, log a dose, and see your recent history at a glance.
+                    </p>
+                    <ul class="space-y-4">
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 text-migralog-orange dark:text-migralog-orange-light mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-gray-700 dark:text-gray-100"><strong>Today's medications</strong> — see scheduled doses, tap to log, or undo a mistake</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 text-migralog-orange dark:text-migralog-orange-light mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-gray-700 dark:text-gray-100"><strong>One-tap Start Episode</strong> — begins tracking instantly; becomes <em>Log Update</em> while one is ongoing</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 text-migralog-orange dark:text-migralog-orange-light mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-gray-700 dark:text-gray-100"><strong>Recent episodes</strong> — each with a sparkline showing how the attack's intensity rose and fell</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="flex justify-center">
+                    <div class="phone-mockup">
+                        <div class="phone-screen">
+                            <img src="Simulator Screenshot - iPhone 17 Pro Max - 2025-11-23 at 18.41.33.png"
+                                 alt="MigraLog home dashboard with Today's Medications, Start Episode and Log Medication buttons, and a list of recent episodes"
+                                 loading="lazy" width="292" height="632">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Episode details -->
+    <section class="py-20 bg-gray-50 dark:bg-gray-950">
+        <div class="container mx-auto px-6">
+            <div class="grid md:grid-cols-2 gap-12 items-center">
+                <div class="flex justify-center order-2 md:order-1">
+                    <div class="phone-mockup">
+                        <div class="phone-screen">
+                            <img src="Simulator Screenshot - iPhone 17 Pro Max - 2025-11-23 at 18.42.12.png"
+                                 alt="MigraLog episode details showing start and end times, duration, location, pain locations, and the start of the timeline"
+                                 loading="lazy" width="292" height="632">
+                        </div>
+                    </div>
+                </div>
+                <div class="order-1 md:order-2">
+                    <div class="text-migralog-orange dark:text-migralog-orange-light font-semibold mb-3">EPISODES</div>
+                    <h2 class="text-4xl font-bold mb-6 text-gray-900 dark:text-gray-50">Capture an attack as it unfolds</h2>
+                    <p class="text-xl text-gray-600 dark:text-gray-200 mb-6">
+                        An episode records a single migraine from start to finish. Start it the moment one begins — or backdate it if you're catching up — and add to it as things change.
+                    </p>
+                    <ul class="space-y-4">
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 text-migralog-orange dark:text-migralog-orange-light mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-gray-700 dark:text-gray-100">Where and when it started, and total duration — even across midnight</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 text-migralog-orange dark:text-migralog-orange-light mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-gray-700 dark:text-gray-100">Pain intensity on a 0–10 scale, logged as often as it changes</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 text-migralog-orange dark:text-migralog-orange-light mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-gray-700 dark:text-gray-100">Pain locations and symptoms, marked when they start and when they resolve</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 text-migralog-orange dark:text-migralog-orange-light mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-gray-700 dark:text-gray-100">End it when it's over — and reopen it if you closed one by mistake</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Timeline -->
+    <section class="py-20 bg-white dark:bg-gray-950">
+        <div class="container mx-auto px-6">
+            <div class="grid md:grid-cols-2 gap-12 items-center">
+                <div>
+                    <div class="text-migralog-orange dark:text-migralog-orange-light font-semibold mb-3">TIMELINE</div>
+                    <h2 class="text-4xl font-bold mb-6 text-gray-900 dark:text-gray-50">One timeline for the whole attack</h2>
+                    <p class="text-xl text-gray-600 dark:text-gray-200 mb-6">
+                        Every intensity update, symptom, location change, dose, and note shares a single chronological timeline — so you can see medication timing, symptom changes, and pain peaks all in relation to one another. It's essential when an attack spans many hours or even days.
+                    </p>
+                    <ul class="space-y-4">
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 text-migralog-orange dark:text-migralog-orange-light mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-gray-700 dark:text-gray-100">Intensity trajectory shown as a sparkline across the whole episode</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 text-migralog-orange dark:text-migralog-orange-light mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-gray-700 dark:text-gray-100">See exactly what you took and when, so you know when the next dose is due</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 text-migralog-orange dark:text-migralog-orange-light mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-gray-700 dark:text-gray-100">Nothing is set in stone — press and hold any entry to fix a time or detail</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="flex justify-center">
+                    <div class="phone-mockup">
+                        <div class="phone-screen">
+                            <img src="Simulator Screenshot - iPhone 17 Pro Max - 2025-11-23 at 18.43.02.png"
+                                 alt="MigraLog episode timeline spanning two days, showing intensity updates, medications taken, and pain location changes"
+                                 loading="lazy" width="292" height="632">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Medications -->
+    <section class="py-20 bg-gray-50 dark:bg-gray-950">
+        <div class="container mx-auto px-6">
+            <div class="grid md:grid-cols-2 gap-12 items-center">
+                <div class="flex justify-center order-2 md:order-1">
+                    <div class="phone-mockup">
+                        <div class="phone-screen">
+                            <img src="Simulator Screenshot - iPhone 17 Pro Max - 2025-11-23 at 18.42.40.png"
+                                 alt="MigraLog medications screen with preventative and rescue medication cards, categories, and Quick Log and Log Details buttons"
+                                 loading="lazy" width="292" height="632">
+                        </div>
+                    </div>
+                </div>
+                <div class="order-1 md:order-2">
+                    <div class="text-migralog-orange dark:text-migralog-orange-light font-semibold mb-3">MEDICATIONS</div>
+                    <h2 class="text-4xl font-bold mb-6 text-gray-900 dark:text-gray-50">Log doses in a tap</h2>
+                    <p class="text-xl text-gray-600 dark:text-gray-200 mb-6">
+                        Track rescue, preventative, and other medications with smart autocomplete for common migraine drugs. Quick-log your usual dose, or open the details to adjust quantity, backdate the time, and add a note.
+                    </p>
+                    <ul class="space-y-4">
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 text-migralog-orange dark:text-migralog-orange-light mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-gray-700 dark:text-gray-100">Organised by type and class — Triptan, CGRP, NSAID, and more</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 text-migralog-orange dark:text-migralog-orange-light mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-gray-700 dark:text-gray-100">Schedules for preventatives — daily, monthly, or quarterly — with reminders</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 text-migralog-orange dark:text-migralog-orange-light mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-gray-700 dark:text-gray-100">Time-sensitive reminders, with optional critical follow-ups that alert even in Do Not Disturb</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 text-migralog-orange dark:text-migralog-orange-light mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-gray-700 dark:text-gray-100">Doses logged during an attack attach to that episode automatically</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Cooldowns & safety limits (no screenshot — cards) -->
+    <section class="py-20 bg-white dark:bg-gray-950">
+        <div class="container mx-auto px-6">
+            <div class="max-w-3xl mx-auto text-center mb-14">
+                <div class="text-migralog-orange dark:text-migralog-orange-light font-semibold mb-3">SAFETY</div>
+                <h2 class="text-4xl font-bold mb-6 text-gray-900 dark:text-gray-50">Cooldowns and overuse limits that watch your back</h2>
+                <p class="text-xl text-gray-600 dark:text-gray-200">
+                    Taking rescue medication too soon, or on too many days, is easy to lose track of when you're in pain. MigraLog keeps count and shows a clear warning — it never blocks you, it just helps you make an informed decision and gives you something concrete to raise with your doctor.
+                </p>
+            </div>
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="bg-gray-50 dark:bg-gray-800 p-8 rounded-xl shadow-sm">
+                    <h3 class="text-xl font-bold mb-3 text-gray-900 dark:text-gray-50">Per-medication cooldown</h3>
+                    <p class="text-gray-600 dark:text-gray-200 leading-relaxed">Set a minimum time between doses for a single medication. Its card shows how long ago the last dose was and how long remains — <span class="text-amber-600 dark:text-amber-400 font-medium">"Last dose 2h ago — wait 4h."</span></p>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-800 p-8 rounded-xl shadow-sm">
+                    <h3 class="text-xl font-bold mb-3 text-gray-900 dark:text-gray-50">Per-class cooldown</h3>
+                    <p class="text-gray-600 dark:text-gray-200 leading-relaxed">Require a gap between <em>any</em> medications in the same class — useful for triptans. The warning names the drug that triggered it, even if you're about to log a different one.</p>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-800 p-8 rounded-xl shadow-sm">
+                    <h3 class="text-xl font-bold mb-3 text-gray-900 dark:text-gray-50">Overuse safety limits</h3>
+                    <p class="text-gray-600 dark:text-gray-200 leading-relaxed">Track days of use against class guidelines over a rolling window. It turns <span class="text-amber-600 dark:text-amber-400 font-medium">amber</span> as you approach a limit and <span class="text-red-600 dark:text-red-400 font-medium">red</span> at or over it.</p>
+                </div>
+            </div>
+            <p class="text-center text-sm text-gray-500 dark:text-gray-400 mt-10 max-w-3xl mx-auto">
+                Suggested defaults follow common clinical guidance, but they're general starting points — not medical advice. Your neurologist's guidance always takes precedence.
+            </p>
+        </div>
+    </section>
+
+    <!-- Calendar -->
+    <section class="py-20 bg-gray-50 dark:bg-gray-950">
+        <div class="container mx-auto px-6">
+            <div class="grid md:grid-cols-2 gap-12 items-center">
+                <div>
+                    <div class="text-migralog-orange dark:text-migralog-orange-light font-semibold mb-3">CALENDAR</div>
+                    <h2 class="text-4xl font-bold mb-6 text-gray-900 dark:text-gray-50">A month at a glance</h2>
+                    <p class="text-xl text-gray-600 dark:text-gray-200 mb-6">
+                        Every day carries a colour, so over time you can see clusters of good days and difficult ones without reading a single entry. Migraine days are set automatically from your episodes — you only ever log the days in between.
+                    </p>
+                    <ul class="space-y-4">
+                        <li class="flex items-start">
+                            <span class="inline-block w-4 h-4 rounded-full bg-red-500 mr-3 mt-1.5 flex-shrink-0"></span>
+                            <span class="text-gray-700 dark:text-gray-100"><strong>Migraine day</strong> — automatic whenever an episode covers the day</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="inline-block w-4 h-4 rounded-full bg-green-500 mr-3 mt-1.5 flex-shrink-0"></span>
+                            <span class="text-gray-700 dark:text-gray-100"><strong>Clear</strong> — a good day, no symptoms or concerns</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="inline-block w-4 h-4 rounded-full bg-yellow-400 mr-3 mt-1.5 flex-shrink-0"></span>
+                            <span class="text-gray-700 dark:text-gray-100"><strong>Not Clear</strong> — prodrome, postdrome, or anxiety between attacks</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 text-migralog-orange dark:text-migralog-orange-light mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-gray-700 dark:text-gray-100"><strong>Overlays</strong> — mark travel, illness, stress, or a cycle, and line life events up against your attacks</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="flex justify-center">
+                    <div class="phone-mockup">
+                        <div class="phone-screen">
+                            <img src="Simulator Screenshot - iPhone 17 Pro Max - 2025-11-23 at 18.43.45.png"
+                                 alt="MigraLog calendar for November showing days colour-coded green for clear, yellow for not clear, and red for migraine days, with a legend"
+                                 loading="lazy" width="292" height="632">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Insights -->
+    <section class="py-20 bg-white dark:bg-gray-950">
+        <div class="container mx-auto px-6">
+            <div class="grid md:grid-cols-2 gap-12 items-center">
+                <div class="flex justify-center order-2 md:order-1">
+                    <div class="phone-mockup">
+                        <div class="phone-screen">
+                            <img src="Simulator Screenshot - iPhone 17 Pro Max - 2025-11-23 at 18.43.57.png"
+                                 alt="MigraLog insights showing day statistics, episode statistics, and a peak intensity distribution chart"
+                                 loading="lazy" width="292" height="632">
+                        </div>
+                    </div>
+                </div>
+                <div class="order-1 md:order-2">
+                    <div class="text-migralog-orange dark:text-migralog-orange-light font-semibold mb-3">INSIGHTS</div>
+                    <h2 class="text-4xl font-bold mb-6 text-gray-900 dark:text-gray-50">Your patterns, no extra work</h2>
+                    <p class="text-xl text-gray-600 dark:text-gray-200 mb-6">
+                        Insights are built entirely from what you already log. Pick a range — 14, 30, 60, 90 days or custom — and see how often attacks happen, how severe they are, when they strike, and how your medications are working.
+                    </p>
+                    <ul class="space-y-4">
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 text-migralog-orange dark:text-migralog-orange-light mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-gray-700 dark:text-gray-100">Migraine / clear / not-clear day counts and episode duration metrics</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 text-migralog-orange dark:text-migralog-orange-light mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-gray-700 dark:text-gray-100">Headache burden, severity by week, time-of-day onset, and symptom &amp; location frequency</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 text-migralog-orange dark:text-migralog-orange-light mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-gray-700 dark:text-gray-100">Warning signs flagged against widely used clinical thresholds — chronic-range headache days, overuse risk, rising rescue use</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Med Response + Doctor Summary (cards) -->
+    <section class="py-20 bg-gray-50 dark:bg-gray-950">
+        <div class="container mx-auto px-6">
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="bg-white dark:bg-gray-800 p-10 rounded-2xl shadow-sm">
+                    <div class="w-14 h-14 bg-orange-50 dark:bg-migralog-orange rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-7 h-7 text-migralog-orange dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-50">Which rescue works — and how fast</h3>
+                    <p class="text-gray-600 dark:text-gray-200 leading-relaxed mb-4">
+                        The Med Response view ranks your rescue medications by how quickly they bring intensity down — the median time from a dose to the first drop in pain. Faster medications rise to the top, with a detail card for each.
+                    </p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Needs at least three doses with measurable relief before a medication is rated.</p>
+                </div>
+                <div class="bg-white dark:bg-gray-800 p-10 rounded-2xl shadow-sm">
+                    <div class="w-14 h-14 bg-orange-50 dark:bg-migralog-orange rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-7 h-7 text-migralog-orange dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-50">A one-page Doctor Visit Summary</h3>
+                    <p class="text-gray-600 dark:text-gray-200 leading-relaxed mb-4">
+                        Export a concise, neutral PDF for your appointment: the last 30 days at a glance, headache burden over six months, rescue-medication use, and preventative compliance. Share or print it like any file.
+                    </p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Walk into appointments with confidence and data — no guesswork.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Privacy / your data -->
+    <section class="py-20 bg-white dark:bg-gray-950">
+        <div class="container mx-auto px-6">
+            <h2 class="text-4xl font-bold text-center mb-4 text-gray-900 dark:text-gray-50">Your data, your control</h2>
+            <p class="text-xl text-gray-600 dark:text-gray-200 text-center max-w-2xl mx-auto mb-16">MigraLog treats your records as sensitive health information. It's for your insight and your care team — on your terms.</p>
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div class="text-center">
+                    <div class="w-20 h-20 bg-orange-50 dark:bg-migralog-orange rounded-full flex items-center justify-center mx-auto mb-6">
+                        <svg class="w-10 h-10 text-migralog-orange dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 text-gray-900 dark:text-gray-50">Stays on your device</h3>
+                    <p class="text-gray-600 dark:text-gray-100">Your data lives on your phone. No external servers or databases — just you and your device.</p>
+                </div>
+                <div class="text-center">
+                    <div class="w-20 h-20 bg-orange-50 dark:bg-migralog-orange rounded-full flex items-center justify-center mx-auto mb-6">
+                        <svg class="w-10 h-10 text-migralog-orange dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 text-gray-900 dark:text-gray-50">Works offline</h3>
+                    <p class="text-gray-600 dark:text-gray-100">No internet? No problem. Everything works exactly as expected without a connection.</p>
+                </div>
+                <div class="text-center">
+                    <div class="w-20 h-20 bg-orange-50 dark:bg-migralog-orange rounded-full flex items-center justify-center mx-auto mb-6">
+                        <svg class="w-10 h-10 text-migralog-orange dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 text-gray-900 dark:text-gray-50">Export everything</h3>
+                    <p class="text-gray-600 dark:text-gray-100">It's all yours. Export your full history and take it to any doctor, any time.</p>
+                </div>
+                <div class="text-center">
+                    <div class="w-20 h-20 bg-orange-50 dark:bg-migralog-orange rounded-full flex items-center justify-center mx-auto mb-6">
+                        <svg class="w-10 h-10 text-migralog-orange dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 text-gray-900 dark:text-gray-50">Built for bad days</h3>
+                    <p class="text-gray-600 dark:text-gray-100">Large buttons, a simple UI, and full dark mode — no searing white screen, no fiddling in pain.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section id="signup" class="py-20 bg-gradient-to-br from-migralog-navy to-migralog-navy-light dark:from-migralog-navy dark:to-black text-white">
+        <div class="container mx-auto px-6">
+            <div class="max-w-2xl mx-auto text-center">
+                <div class="inline-block bg-white bg-opacity-20 backdrop-blur-sm rounded-full px-6 py-2 mb-6">
+                    <span class="text-sm font-semibold text-gray-100">Private Beta</span>
+                </div>
+                <h2 class="text-4xl font-bold mb-6">Like what you see?</h2>
+                <p class="text-xl mb-8 text-gray-100">
+                    Request an invite and help shape the app. Understand today. Improve tomorrow.
+                </p>
+                <div class="mb-8">
+                    <p class="text-lg text-gray-100 mb-4">Built for:</p>
+                    <div class="flex items-center justify-center gap-6">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+                            <span class="text-white font-medium">iOS</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993.0001.5511-.4482.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1518-.5972.416.416 0 00-.5972.1518l-2.0223 3.503C15.5902 8.2439 13.8533 7.8508 12 7.8508s-3.5902.3931-5.1333 1.0989L4.8442 5.4467a.4161.4161 0 00-.5972-.1518.416.416 0 00-.1518.5972l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3425-4.1021-2.6889-7.5743-6.1185-9.4396"/></svg>
+                            <span class="text-white font-medium">Android</span>
+                        </div>
+                    </div>
+                </div>
+                <a href="index.html#signup" class="btn-primary inline-block bg-migralog-orange text-white px-10 py-4 rounded-lg font-semibold text-lg shadow-lg hover:bg-migralog-orange-hover transition">
+                    Request Beta Access
+                </a>
+                <p class="mt-6 text-sm text-gray-100 dark:text-gray-50">
+                    We respect your privacy. No spam, ever. MigraLog does not diagnose and is not a substitute for medical advice.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 dark:bg-black text-gray-300 dark:text-gray-400 py-12" role="contentinfo">
+        <div class="container mx-auto px-6">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-6 md:mb-0">
+                    <p class="text-lg font-semibold text-white mb-2">MigraLog</p>
+                    <p class="text-sm">Understand today. Improve tomorrow.</p>
+                </div>
+                <nav aria-label="Footer navigation" class="flex gap-8">
+                    <a href="index.html" class="hover:text-white transition focus:text-white">Home</a>
+                    <a href="contact.html" class="hover:text-white transition focus:text-white">Contact</a>
+                </nav>
+            </div>
+            <div class="border-t border-gray-800 mt-8 pt-8 text-center text-sm">
+                <p>&copy; 2025 MigraLog. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Smooth scroll for in-page anchors
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    e.preventDefault();
+                    target.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+        });
+
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            if (!('theme' in localStorage)) {
+                document.documentElement.classList.toggle('dark', e.matches);
+            }
+        });
+
+        const themeToggleBtn = document.getElementById('theme-toggle-btn');
+        function setTheme(theme) {
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            }
+        }
+        function toggleTheme() {
+            setTheme(document.documentElement.classList.contains('dark') ? 'light' : 'dark');
+        }
+        themeToggleBtn.addEventListener('click', toggleTheme);
+        themeToggleBtn.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleTheme(); }
+        });
+    </script>
+</body>
+</html>
