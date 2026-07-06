@@ -56,11 +56,8 @@ final class TrackingOptionsUITests: XCTestCase {
 
         // Step 5: Start a new episode and check the trigger chips
         let startButton = app.buttons["start-episode-button"]
-        UITestHelpers.waitForHittable(startButton)
-        startButton.tap()
-
         let saveButton = app.buttons["save-episode-button"]
-        UITestHelpers.waitForElement(saveButton)
+        UITestHelpers.tapToPresent(startButton, expecting: saveButton)
 
         let formList = app.collectionViews.firstMatch.exists
             ? app.collectionViews.firstMatch
