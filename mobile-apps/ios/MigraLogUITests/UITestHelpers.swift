@@ -162,6 +162,43 @@ enum UITestHelpers {
         return false
     }
 
+    /// Tap a button that presents a sheet/screen and wait for an element on that
+    /// destination to appear, retapping if it doesn't.
+    ///
+    /// The trigger flips a SwiftUI presentation binding (e.g. `showNewEpisode`)
+    /// rather than performing navigation directly. Under reload churn that tap can
+    /// be dropped — the binding never flips, the sheet never presents, and the
+    /// destination element never appears, failing an otherwise-valid flow within
+    /// the default 5s window (#580 nightly; same dropped-tap class as #488). Retap
+    /// only while the trigger is still hittable: once the sheet is up the trigger
+    /// is covered, so a slow-rendering destination is waited out instead of
+    /// double-presented.
+    static func tapToPresent(
+        _ trigger: XCUIElement,
+        expecting destination: XCUIElement,
+        maxAttempts: Int = 3,
+        file: StaticString = #file,
+        line: UInt = #line
+    ) {
+        waitForHittable(trigger, timeout: 15, file: file, line: line)
+        for _ in 0..<maxAttempts {
+            // A covered trigger means a prior tap already presented the sheet; just
+            // keep waiting for the destination rather than tapping the backdrop.
+            if trigger.isHittable {
+                trigger.tap()
+                Thread.sleep(forTimeInterval: animationWait)
+            }
+            if destination.waitForExistence(timeout: defaultTimeout) {
+                return
+            }
+        }
+        XCTFail(
+            "Destination \(destination) did not appear after \(maxAttempts) taps on \(trigger)",
+            file: file,
+            line: line
+        )
+    }
+
     // MARK: - Flexible Element Finding
 
     /// Find an element by accessibility identifier across multiple element types.

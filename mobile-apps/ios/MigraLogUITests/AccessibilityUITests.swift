@@ -79,15 +79,13 @@ final class AccessibilityUITests: XCTestCase {
         app = UITestHelpers.launchCleanDashboard()
         UITestHelpers.waitForDashboard(in: app)
 
-        // Step 1: Open New Episode screen
+        // Step 1: Open New Episode screen. The button flips a presentation binding,
+        // a tap SwiftUI can drop under reload churn, so retap until the form appears.
         let startButton = app.buttons["start-episode-button"]
-        UITestHelpers.waitForHittable(startButton)
-        startButton.tap()
-        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
+        let saveButton = app.buttons["save-episode-button"]
+        UITestHelpers.tapToPresent(startButton, expecting: saveButton)
 
         // Step 2: Save button has accessibility label
-        let saveButton = app.buttons["save-episode-button"]
-        UITestHelpers.waitForElement(saveButton)
         XCTAssertTrue(saveButton.isHittable, "Save button should be accessible")
 
         // Step 3: Cancel/back button has accessibility label

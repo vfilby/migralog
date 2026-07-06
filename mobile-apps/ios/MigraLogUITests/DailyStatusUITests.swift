@@ -93,11 +93,8 @@ final class DailyStatusUITests: XCTestCase {
         // Step 11: Go to Dashboard, start episode
         UITestHelpers.navigateTo(tab: .dashboard, in: app)
         let startButton = app.buttons["start-episode-button"]
-        UITestHelpers.waitForHittable(startButton)
-        startButton.tap()
-        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
-
         let saveEpisode = app.buttons["save-episode-button"]
+        UITestHelpers.tapToPresent(startButton, expecting: saveEpisode)
         UITestHelpers.waitForHittable(saveEpisode)
         saveEpisode.tap()
         Thread.sleep(forTimeInterval: UITestHelpers.animationWait)

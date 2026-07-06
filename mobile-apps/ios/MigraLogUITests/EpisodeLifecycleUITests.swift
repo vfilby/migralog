@@ -22,14 +22,12 @@ final class EpisodeLifecycleUITests: XCTestCase {
     func testCompleteEpisodeLifecycle() throws {
         // === Phase 1: Create ===
 
-        // Step 1: Tap "Start Episode"
+        // Step 1: Tap "Start Episode" (retap if the sheet-presenting tap is dropped)
         let startButton = app.buttons["start-episode-button"]
-        UITestHelpers.waitForHittable(startButton)
-        startButton.tap()
-        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
+        let saveButton = app.buttons["save-episode-button"]
+        UITestHelpers.tapToPresent(startButton, expecting: saveButton)
 
         // Step 2: Tap Save (accept defaults)
-        let saveButton = app.buttons["save-episode-button"]
         UITestHelpers.waitForHittable(saveButton)
         saveButton.tap()
         Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
@@ -351,11 +349,9 @@ final class EpisodeLifecycleUITests: XCTestCase {
 
     private func createActiveEpisode() {
         let startButton = app.buttons["start-episode-button"]
-        UITestHelpers.waitForHittable(startButton)
-        startButton.tap()
-        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
-
         let saveButton = app.buttons["save-episode-button"]
+        UITestHelpers.tapToPresent(startButton, expecting: saveButton)
+
         UITestHelpers.waitForHittable(saveButton)
         saveButton.tap()
         Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
