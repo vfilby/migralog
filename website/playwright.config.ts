@@ -5,6 +5,14 @@ import { defineConfig, devices } from '@playwright/test';
 // skip the local static server. Otherwise we serve website/ locally for dev.
 const liveBaseURL = process.env.PLAYWRIGHT_BASE_URL;
 
+// PLAYWRIGHT_CHANNEL=chrome runs the Chromium-family projects against an
+// installed system browser instead of the downloaded Playwright build —
+// handy on dev machines where the browser CDN is unreachable. CI leaves
+// this unset.
+const chromiumChannel = process.env.PLAYWRIGHT_CHANNEL
+  ? { channel: process.env.PLAYWRIGHT_CHANNEL }
+  : {};
+
 export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
@@ -21,7 +29,7 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], ...chromiumChannel },
     },
     {
       name: 'firefox',
@@ -33,7 +41,7 @@ export default defineConfig({
     },
     {
       name: 'mobile-chrome',
-      use: { ...devices['Pixel 5'] },
+      use: { ...devices['Pixel 5'], ...chromiumChannel },
     },
     {
       name: 'mobile-safari',
