@@ -246,7 +246,7 @@
             letter-spacing: .06em; text-transform: uppercase; margin: 0 0 10px;
         }
         .carousel {
-            margin: 34px auto 0; max-width: 880px;
+            margin: 0 auto; max-width: 880px;
             display: grid; grid-template-areas: "prev phone info next";
             grid-template-columns: auto 230px 1fr auto; gap: 30px; align-items: center;
         }
@@ -269,17 +269,19 @@
             font-size: 15px; line-height: 1.55; color: var(--mut); font-weight: 450;
         }
         .car-bullets .dt { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: 0 0 auto; margin-top: 8px; }
+        /* Full-height edge tap targets with big chevrons */
         .car-btn {
-            width: 40px; height: 40px; border-radius: 999px; border: 1px solid var(--line);
-            background: var(--card); color: var(--ink); cursor: pointer; font-size: 16px;
-            display: flex; align-items: center; justify-content: center; padding: 0;
+            align-self: stretch; width: 64px; border: none; border-radius: 16px;
+            background: transparent; color: var(--soft); cursor: pointer; padding: 0;
+            display: flex; align-items: center; justify-content: center;
+            transition: color 150ms ease, background 150ms ease;
         }
-        .car-btn:hover { border-color: var(--soft); }
+        .car-btn:hover { color: var(--ink); background: var(--accs); }
         #car-prev { grid-area: prev; }
         #car-next { grid-area: next; }
-        .car-dots { display: flex; gap: 8px; margin-top: 24px; }
+        .car-dots { display: flex; gap: 9px; justify-content: center; margin: 26px 0 22px; }
         .car-dots button {
-            width: 8px; height: 8px; border-radius: 50%; border: none; padding: 0; cursor: pointer;
+            width: 9px; height: 9px; border-radius: 50%; border: none; padding: 0; cursor: pointer;
             background: var(--line); transition: background 150ms ease, transform 150ms ease;
         }
         .car-dots button[aria-current="true"] { background: var(--accent); transform: scale(1.25); }
@@ -378,7 +380,8 @@
             .phone-btn { max-width: 220px; margin: 0 auto; }
             .car-info { text-align: center; }
             .car-bullets li { text-align: left; }
-            .car-dots { justify-content: center; }
+            .car-btn { width: 48px; }
+            .car-dots { margin: 20px 0 16px; }
             .lightbox-grid { grid-template-columns: 1fr; gap: 22px; padding: 26px; justify-items: center; }
             .lightbox .dphone { max-width: 210px; }
             .fgrid { grid-template-columns: 1fr; }
@@ -482,8 +485,11 @@
 
         <section id="how-it-works" class="wrap devsec" aria-roledescription="carousel" aria-label="A quick look inside the app">
             <h2 class="lead2">A quick look inside</h2>
+            <div class="car-dots" id="car-dots"></div>
             <div class="carousel">
-                <button type="button" class="car-btn" id="car-prev" aria-label="Previous screenshot">&larr;</button>
+                <button type="button" class="car-btn" id="car-prev" aria-label="Previous screenshot">
+                    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="14.5 5 7.5 12 14.5 19"/></svg>
+                </button>
                 <button type="button" class="phone-btn" id="car-zoom" aria-label="View screenshot full size">
                     <span class="dphone">
                         <img id="car-img" class="car-fade" src="screenshots/dashboard-light.png" alt="" decoding="async">
@@ -492,9 +498,10 @@
                 <div class="car-info car-fade" aria-live="polite">
                     <h3 id="car-title"></h3>
                     <ul id="car-bullets" class="car-bullets"></ul>
-                    <div class="car-dots" id="car-dots"></div>
                 </div>
-                <button type="button" class="car-btn" id="car-next" aria-label="Next screenshot">&rarr;</button>
+                <button type="button" class="car-btn" id="car-next" aria-label="Next screenshot">
+                    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9.5 5 16.5 12 9.5 19"/></svg>
+                </button>
             </div>
 
             <dialog id="car-modal" class="lightbox" aria-label="Screenshot detail">
