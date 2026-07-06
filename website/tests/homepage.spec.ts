@@ -40,16 +40,18 @@ test.describe('Homepage', () => {
     await expect(page.getByText('avg. time to relief')).toBeVisible();
   });
 
-  test('should display the device screenshot strip', async ({ page }) => {
+  test('should display the screenshot carousel', async ({ page }) => {
     await page.goto('/');
 
     await expect(page.getByRole('heading', { name: 'A quick look inside' })).toBeVisible();
 
-    const shots = page.locator('.devices img');
-    await expect(shots).toHaveCount(3);
-    for (const img of await shots.all()) {
-      await expect(img).toHaveAttribute('alt', /.+/);
-    }
+    const shot = page.locator('#car-img');
+    await expect(shot).toBeVisible();
+    await expect(shot).toHaveAttribute('alt', /.+/);
+
+    await expect(page.getByRole('heading', { name: 'Your day at a glance', level: 3 })).toBeVisible();
+    await expect(page.locator('#car-bullets li')).toHaveCount(3);
+    await expect(page.locator('#car-dots button')).toHaveCount(3);
   });
 
   test('should display all four feature cards', async ({ page }) => {
