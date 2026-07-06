@@ -1,20 +1,20 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('User Interactions', () => {
-  test('should scroll to signup section when clicking "Join Private Beta"', async ({ page }) => {
+  test('should scroll to signup section when clicking "Join the private beta"', async ({ page }) => {
     await page.goto('/');
 
-    await page.getByRole('link', { name: /join migralog private beta/i }).click();
+    await page.locator('.hero').getByRole('link', { name: 'Join the private beta' }).click();
 
-    await expect(page.getByRole('heading', { name: 'Join the MigraLog Private Beta' })).toBeInViewport();
+    await expect(page.getByRole('heading', { name: 'Start understanding the pattern.' })).toBeInViewport();
   });
 
-  test('should scroll to features section when clicking "Learn More"', async ({ page }) => {
+  test('should scroll to the screenshots when clicking "See how it works"', async ({ page }) => {
     await page.goto('/');
 
-    await page.getByRole('link', { name: /learn more about migralog/i }).click();
+    await page.getByRole('link', { name: 'See how it works' }).click();
 
-    await expect(page.getByRole('heading', { name: 'Your daily dashboard for managing pain' })).toBeInViewport();
+    await expect(page.getByRole('heading', { name: 'A quick look inside' })).toBeInViewport();
   });
 
   test('should accept email input', async ({ page }) => {
@@ -40,9 +40,9 @@ test.describe('User Interactions', () => {
     await page.goto('/');
 
     await page.getByPlaceholder('Your email address').fill('test@example.com');
-    await page.getByRole('button', { name: 'Request Beta Access' }).click();
+    await page.getByRole('button', { name: 'Join the private beta' }).click();
 
-    await expect(page.getByText(/Thanks for requesting beta access/)).toBeVisible();
+    await expect(page.getByText(/You're on the list/)).toBeVisible();
   });
 
   test('should show an error message when the submission fails', async ({ page }) => {
@@ -57,9 +57,9 @@ test.describe('User Interactions', () => {
     await page.goto('/');
 
     await page.getByPlaceholder('Your email address').fill('test@example.com');
-    await page.getByRole('button', { name: 'Request Beta Access' }).click();
+    await page.getByRole('button', { name: 'Join the private beta' }).click();
 
-    await expect(page.getByText(/there was an error/i)).toBeVisible();
+    await expect(page.getByText(/Something went wrong/i)).toBeVisible();
   });
 
   test('should validate email format (HTML5 validation)', async ({ page }) => {
@@ -68,7 +68,7 @@ test.describe('User Interactions', () => {
     const emailInput = page.getByPlaceholder('Your email address');
     await emailInput.fill('invalid-email');
 
-    await page.getByRole('button', { name: 'Request Beta Access' }).click();
+    await page.getByRole('button', { name: 'Join the private beta' }).click();
 
     const validationMessage = await emailInput.evaluate((el: HTMLInputElement) => el.validationMessage);
     expect(validationMessage).toBeTruthy();
