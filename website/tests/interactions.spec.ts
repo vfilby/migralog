@@ -35,6 +35,26 @@ test.describe('User Interactions', () => {
     await expect(page.getByRole('heading', { name: 'Your day at a glance', level: 3 })).toBeVisible();
   });
 
+  test('should open the screenshot lightbox from the phone and close it', async ({ page }) => {
+    await page.goto('/');
+
+    await page.getByRole('button', { name: 'View screenshot full size' }).click();
+
+    const modal = page.locator('#car-modal');
+    await expect(modal).toBeVisible();
+    await expect(modal.getByRole('heading', { name: 'Your day at a glance', level: 3 })).toBeVisible();
+    await expect(modal.locator('#modal-bullets li')).toHaveCount(3);
+
+    await page.getByRole('button', { name: 'Close' }).click();
+    await expect(modal).toBeHidden();
+
+    // Reopen and close with Escape.
+    await page.getByRole('button', { name: 'View screenshot full size' }).click();
+    await expect(modal).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(modal).toBeHidden();
+  });
+
   test('should accept email input', async ({ page }) => {
     await page.goto('/');
 

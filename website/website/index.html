@@ -247,15 +247,21 @@
         }
         .carousel {
             margin: 34px auto 0; max-width: 880px;
-            display: grid; grid-template-columns: 320px 1fr; gap: 48px; align-items: center;
+            display: grid; grid-template-areas: "prev phone info next";
+            grid-template-columns: auto 230px 1fr auto; gap: 30px; align-items: center;
+        }
+        .phone-btn {
+            grid-area: phone; border: none; background: none; padding: 0; cursor: zoom-in;
+            border-radius: 32px; display: block;
         }
         .dphone {
-            margin: 0 auto; width: 100%; max-width: 320px; border-radius: 34px; background: var(--bezel);
-            padding: 8px; border: 1px solid var(--bezel-edge); box-shadow: var(--shadow-phone);
+            display: block; margin: 0 auto; width: 100%; border-radius: 30px; background: var(--bezel);
+            padding: 7px; border: 1px solid var(--bezel-edge); box-shadow: var(--shadow-phone);
         }
-        .dphone img { width: 100%; display: block; border-radius: 27px; aspect-ratio: 1320 / 2868; object-fit: cover; background: var(--inner); }
+        .dphone img { width: 100%; display: block; border-radius: 24px; aspect-ratio: 1320 / 2868; object-fit: cover; background: var(--inner); }
         .car-fade { transition: opacity 180ms ease; }
         .car-fade.out { opacity: 0; }
+        .car-info { grid-area: info; }
         .car-info h3 { font-size: 23px; font-weight: 800; letter-spacing: -.6px; margin: 0 0 14px; }
         .car-bullets { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 11px; }
         .car-bullets li {
@@ -263,19 +269,39 @@
             font-size: 15px; line-height: 1.55; color: var(--mut); font-weight: 450;
         }
         .car-bullets .dt { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: 0 0 auto; margin-top: 8px; }
-        .car-nav { display: flex; align-items: center; gap: 16px; margin-top: 26px; }
         .car-btn {
-            width: 38px; height: 38px; border-radius: 999px; border: 1px solid var(--line);
+            width: 40px; height: 40px; border-radius: 999px; border: 1px solid var(--line);
             background: var(--card); color: var(--ink); cursor: pointer; font-size: 16px;
             display: flex; align-items: center; justify-content: center; padding: 0;
         }
         .car-btn:hover { border-color: var(--soft); }
-        .car-dots { display: flex; gap: 8px; }
+        #car-prev { grid-area: prev; }
+        #car-next { grid-area: next; }
+        .car-dots { display: flex; gap: 8px; margin-top: 24px; }
         .car-dots button {
             width: 8px; height: 8px; border-radius: 50%; border: none; padding: 0; cursor: pointer;
             background: var(--line); transition: background 150ms ease, transform 150ms ease;
         }
         .car-dots button[aria-current="true"] { background: var(--accent); transform: scale(1.25); }
+
+        /* Screenshot lightbox */
+        .lightbox {
+            border: 1px solid var(--line); border-radius: 22px; background: var(--card); color: var(--ink);
+            padding: 0; max-width: min(760px, calc(100vw - 48px)); box-shadow: var(--shadow-card);
+        }
+        .lightbox::backdrop { background: rgba(10, 11, 14, .55); backdrop-filter: blur(3px); }
+        .lightbox-grid {
+            display: grid; grid-template-columns: 300px 1fr; gap: 36px; align-items: center;
+            padding: 36px 42px;
+        }
+        .lightbox .dphone { cursor: default; }
+        .lightbox h3 { font-size: 23px; font-weight: 800; letter-spacing: -.6px; margin: 0 0 14px; }
+        .lightbox-close {
+            position: absolute; top: 14px; right: 14px; width: 34px; height: 34px;
+            border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--mut);
+            font-size: 17px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;
+        }
+        .lightbox-close:hover { color: var(--ink); border-color: var(--soft); }
 
         /* ── Features ────────────────────────────────────── */
         .feats { padding: 78px 0 10px; }
@@ -345,11 +371,16 @@
             .showcase { grid-template-columns: 1fr; }
             .side { flex-direction: row; }
             .side .stat { flex: 1; }
-            .carousel { grid-template-columns: 1fr; gap: 28px; max-width: 440px; }
-            .dphone { max-width: 260px; }
+            .carousel {
+                grid-template-areas: "prev phone next" "info info info";
+                grid-template-columns: auto 1fr auto; gap: 22px; max-width: 400px;
+            }
+            .phone-btn { max-width: 220px; margin: 0 auto; }
             .car-info { text-align: center; }
             .car-bullets li { text-align: left; }
-            .car-nav { justify-content: center; }
+            .car-dots { justify-content: center; }
+            .lightbox-grid { grid-template-columns: 1fr; gap: 22px; padding: 26px; justify-items: center; }
+            .lightbox .dphone { max-width: 210px; }
             .fgrid { grid-template-columns: 1fr; }
             .priv { grid-template-columns: 1fr; padding: 34px 28px; gap: 30px; }
             .feats h2 { font-size: 29px; }
@@ -444,19 +475,30 @@
         <section id="how-it-works" class="wrap devsec" aria-roledescription="carousel" aria-label="A quick look inside the app">
             <h2 class="lead2">A quick look inside</h2>
             <div class="carousel">
-                <figure class="dphone">
-                    <img id="car-img" class="car-fade" src="screenshots/dashboard-light.png" alt="" loading="lazy">
-                </figure>
+                <button type="button" class="car-btn" id="car-prev" aria-label="Previous screenshot">&larr;</button>
+                <button type="button" class="phone-btn" id="car-zoom" aria-label="View screenshot full size">
+                    <span class="dphone">
+                        <img id="car-img" class="car-fade" src="screenshots/dashboard-light.png" alt="" loading="lazy">
+                    </span>
+                </button>
                 <div class="car-info car-fade" aria-live="polite">
                     <h3 id="car-title"></h3>
                     <ul id="car-bullets" class="car-bullets"></ul>
-                    <div class="car-nav">
-                        <button type="button" class="car-btn" id="car-prev" aria-label="Previous screenshot">&larr;</button>
-                        <div class="car-dots" id="car-dots"></div>
-                        <button type="button" class="car-btn" id="car-next" aria-label="Next screenshot">&rarr;</button>
+                    <div class="car-dots" id="car-dots"></div>
+                </div>
+                <button type="button" class="car-btn" id="car-next" aria-label="Next screenshot">&rarr;</button>
+            </div>
+
+            <dialog id="car-modal" class="lightbox" aria-label="Screenshot detail">
+                <button type="button" class="lightbox-close" id="car-modal-close" aria-label="Close">&times;</button>
+                <div class="lightbox-grid">
+                    <span class="dphone"><img id="modal-img" alt=""></span>
+                    <div>
+                        <h3 id="modal-title"></h3>
+                        <ul id="modal-bullets" class="car-bullets"></ul>
                     </div>
                 </div>
-            </div>
+            </dialog>
         </section>
 
         <section id="features" class="wrap feats">
@@ -622,12 +664,8 @@
                 dots.appendChild(dot);
             });
 
-            function render() {
-                const slide = slides[index];
-                img.src = src(slide);
-                img.alt = slide.alt;
-                title.textContent = slide.title;
-                list.innerHTML = '';
+            function fillBullets(ul, slide) {
+                ul.innerHTML = '';
                 slide.bullets.forEach(text => {
                     const li = document.createElement('li');
                     const dt = document.createElement('span');
@@ -635,8 +673,16 @@
                     dt.setAttribute('aria-hidden', 'true');
                     li.appendChild(dt);
                     li.appendChild(document.createTextNode(text));
-                    list.appendChild(li);
+                    ul.appendChild(li);
                 });
+            }
+
+            function render() {
+                const slide = slides[index];
+                img.src = src(slide);
+                img.alt = slide.alt;
+                title.textContent = slide.title;
+                fillBullets(list, slide);
                 Array.from(dots.children).forEach((d, i) =>
                     d.setAttribute('aria-current', String(i === index)));
             }
@@ -658,7 +704,31 @@
                 if (e.key === 'ArrowLeft') show(index - 1);
                 if (e.key === 'ArrowRight') show(index + 1);
             });
-            document.addEventListener('themechange', () => { img.src = src(slides[index]); });
+
+            // Lightbox: click the phone to see the screenshot and bullets larger.
+            const modal = document.getElementById('car-modal');
+            const modalImg = document.getElementById('modal-img');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBullets = document.getElementById('modal-bullets');
+
+            document.getElementById('car-zoom').addEventListener('click', () => {
+                const slide = slides[index];
+                modalImg.src = src(slide);
+                modalImg.alt = slide.alt;
+                modalTitle.textContent = slide.title;
+                fillBullets(modalBullets, slide);
+                modal.showModal();
+            });
+            document.getElementById('car-modal-close').addEventListener('click', () => modal.close());
+            modal.addEventListener('click', (e) => {
+                // A click on the backdrop targets the <dialog> itself.
+                if (e.target === modal) modal.close();
+            });
+
+            document.addEventListener('themechange', () => {
+                img.src = src(slides[index]);
+                if (modal.open) modalImg.src = src(slides[index]);
+            });
 
             render();
         })();
