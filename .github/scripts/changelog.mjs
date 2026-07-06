@@ -4,15 +4,19 @@
 // extra secret. `feat:` commits become a "New" list, `fix:` commits a "Fixed"
 // list; trailing PR refs like "(#486)" are stripped for tester-facing prose.
 //
-// Two classes of commit are dropped as non-tester-facing: those whose scope is
-// in EXCLUDE_SCOPES (default "ci"), and those whose subject matches
-// EXCLUDE_PATTERN (default: test-infrastructure churn).
+// Only commits that touch the iOS app (INCLUDE_PATHS, default "mobile-apps/ios")
+// are eligible — website, tooling, and repo-script changes never reach testers,
+// whatever their scope says. On top of that, two classes of commit are dropped as
+// non-tester-facing: those whose scope is in EXCLUDE_SCOPES (default "ci"), and
+// those whose subject matches EXCLUDE_PATTERN (default: test-infrastructure churn).
 //
 // Used by:
 //   set-beta-notes.mjs      — upload-time notes for a single build (range: prev release..HEAD)
 //   promote-preflight.mjs   — rollup notes at promotion (range: last Pre-flight..promoted build)
 //
 // Env (read once at import):
+//   INCLUDE_PATHS     — optional; comma-separated pathspecs a commit must touch to be
+//                       listed (default "mobile-apps/ios"). Empty string disables the filter.
 //   EXCLUDE_SCOPES    — optional; comma-separated scopes to drop (default "ci")
 //   EXCLUDE_PATTERN   — optional; JS regex (case-insensitive) dropping matching subjects
 
@@ -32,6 +36,11 @@ const excludeScopes = new Set(
     .filter(Boolean),
 );
 const excludePattern = new RegExp(process.env.EXCLUDE_PATTERN || DEFAULT_EXCLUDE_PATTERN, 'i');
+
+const includePaths = (process.env.INCLUDE_PATHS ?? 'mobile-apps/ios')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
 
 function capitalize(s) {
   // Leave camelCase / brand tokens like iCloud, iPad, iOS untouched.
@@ -55,12 +64,16 @@ export function resolveVersionRef(version) {
   return null;
 }
 
-// Generate "What to Test" notes from feat/fix commits in (lowerRef, upperRef].
-// lowerRef null → from the start of history. Returns the notes string, or null
-// when the range contains no tester-facing feat/fix commits.
+// Generate "What to Test" notes from feat/fix commits in (lowerRef, upperRef]
+// that touch INCLUDE_PATHS. lowerRef null → from the start of history. Returns
+// the notes string, or null when the range contains no tester-facing feat/fix
+// commits.
 export function generateNotes(lowerRef, upperRef = 'HEAD') {
   const range = lowerRef ? `${lowerRef}..${upperRef}` : upperRef;
-  const raw = execSync(`git log --no-merges --format=%s ${range}`, { encoding: 'utf8' });
+  const pathspec = includePaths.length
+    ? ` -- ${includePaths.map((p) => `"${p}"`).join(' ')}`
+    : '';
+  const raw = execSync(`git log --no-merges --format=%s ${range}${pathspec}`, { encoding: 'utf8' });
   const subjects = raw.split('\n').map((s) => s.trim()).filter(Boolean);
 
   const features = [];

@@ -1,9 +1,9 @@
 // Generates TestFlight "What to Test" notes from the commits since the previous
 // release and writes them to the just-uploaded build's betaBuildLocalizations.
 //
-// Note formatting (conventional-commit parsing, scope/pattern filtering, char
-// limit) lives in changelog.mjs and is shared with the Pre-flight promotion
-// rollup so both surfaces read identically.
+// Note formatting (conventional-commit parsing, iOS path filtering, scope/pattern
+// filtering, char limit) lives in changelog.mjs and is shared with the Pre-flight
+// promotion rollup so both surfaces read identically.
 //
 // Non-fatal by design: "What to Test" is cosmetic, so any failure (ASC hiccup,
 // build slow to process) logs a warning and exits 0 — it never blocks a deploy.
@@ -15,6 +15,7 @@
 //   PREVIOUS_VERSION  — marketing version of the previous release; lower bound for
 //                       the changelog range. Empty on the very first release.
 //   MAX_WAIT_SECONDS  — optional; how long to poll for the build to appear (default 1200)
+//   INCLUDE_PATHS     — optional; see changelog.mjs
 //   EXCLUDE_SCOPES    — optional; see changelog.mjs
 //   EXCLUDE_PATTERN   — optional; see changelog.mjs
 //   ASC_*             — via asc-client
@@ -51,7 +52,7 @@ async function main() {
 
   const notes = generateNotes(lowerRef);
   if (!notes) {
-    console.log('No feat/fix commits in range; leaving "What to Test" unset.');
+    console.log('No tester-facing iOS feat/fix commits in range; leaving "What to Test" unset.');
     return;
   }
   console.log(`Generated "What to Test":\n${notes}`);
