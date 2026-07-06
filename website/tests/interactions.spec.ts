@@ -20,11 +20,13 @@ test.describe('User Interactions', () => {
   test('should advance the carousel with next/prev and dots', async ({ page }) => {
     await page.goto('/');
 
-    await expect(page.getByRole('heading', { name: 'Your day at a glance', level: 3 })).toBeVisible();
-
-    await page.getByRole('button', { name: 'Next screenshot' }).click();
+    // The episode timeline leads the carousel.
     await expect(page.getByRole('heading', { name: 'Every attack, as it unfolds', level: 3 })).toBeVisible();
     await expect(page.locator('#car-img')).toHaveAttribute('src', /episode-details/);
+
+    await page.getByRole('button', { name: 'Next screenshot' }).click();
+    await expect(page.getByRole('heading', { name: 'Your day at a glance', level: 3 })).toBeVisible();
+    await expect(page.locator('#car-img')).toHaveAttribute('src', /dashboard/);
 
     // Prev wraps from the first slide to the last.
     await page.getByRole('button', { name: 'Previous screenshot' }).click();
@@ -32,7 +34,7 @@ test.describe('User Interactions', () => {
     await expect(page.getByRole('heading', { name: 'Patterns you can act on', level: 3 })).toBeVisible();
 
     await page.getByRole('button', { name: /Screenshot 1 of 3/ }).click();
-    await expect(page.getByRole('heading', { name: 'Your day at a glance', level: 3 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Every attack, as it unfolds', level: 3 })).toBeVisible();
   });
 
   test('should open the screenshot lightbox from the phone and close it', async ({ page }) => {
@@ -42,7 +44,7 @@ test.describe('User Interactions', () => {
 
     const modal = page.locator('#car-modal');
     await expect(modal).toBeVisible();
-    await expect(modal.getByRole('heading', { name: 'Your day at a glance', level: 3 })).toBeVisible();
+    await expect(modal.getByRole('heading', { name: 'Every attack, as it unfolds', level: 3 })).toBeVisible();
     await expect(modal.locator('#modal-bullets li')).toHaveCount(3);
 
     await page.getByRole('button', { name: 'Close' }).click();

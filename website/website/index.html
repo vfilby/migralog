@@ -537,7 +537,7 @@
                 </button>
                 <button type="button" class="phone-btn" id="car-zoom" aria-label="View screenshot full size">
                     <span class="dphone">
-                        <img id="car-img" class="car-fade" src="screenshots/dashboard-light.png" alt="" decoding="async">
+                        <img id="car-img" class="car-fade" src="screenshots/episode-details-light.png" alt="" decoding="async">
                     </span>
                 </button>
                 <div class="car-info car-fade" aria-live="polite">
@@ -673,6 +673,16 @@
         (function () {
             const slides = [
                 {
+                    img: 'screenshots/episode-details',
+                    alt: 'Episode timeline showing the intensity chart, intensity updates, and a rescue medication dose',
+                    title: 'Every attack, as it unfolds',
+                    bullets: [
+                        'Onset, intensity changes, doses, and relief on one timeline',
+                        'Rescue medications logged mid-attack, in context',
+                        'Duration and pain locations captured for you',
+                    ],
+                },
+                {
                     img: 'screenshots/dashboard',
                     alt: 'MigraLog dashboard with today’s medications, a start-episode button, and recent episodes with mini timelines',
                     title: 'Your day at a glance',
@@ -680,16 +690,6 @@
                         'Today’s medications, logged in one tap',
                         'Start an episode the moment it begins',
                         'Recent attacks with mini timelines you can read at a glance',
-                    ],
-                },
-                {
-                    img: 'screenshots/episode-details',
-                    alt: 'Episode details showing duration, pain locations, and a timeline of intensity updates and medication doses',
-                    title: 'Every attack, as it unfolds',
-                    bullets: [
-                        'Onset, intensity changes, doses, and relief on one timeline',
-                        'Pain locations tracked side by side',
-                        'Duration and location captured for you',
                     ],
                 },
                 {

@@ -50,7 +50,7 @@ test.describe('Homepage', () => {
     await expect(shot).toBeVisible();
     await expect(shot).toHaveAttribute('alt', /.+/);
 
-    await expect(page.getByRole('heading', { name: 'Your day at a glance', level: 3 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Every attack, as it unfolds', level: 3 })).toBeVisible();
     await expect(page.locator('#car-bullets li')).toHaveCount(3);
     await expect(page.locator('#car-dots button')).toHaveCount(3);
   });
