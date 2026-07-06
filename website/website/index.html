@@ -76,6 +76,12 @@
             --shadow-phone: 0 30px 60px -42px rgba(40, 40, 50, .55);
             --err: #a04545;
             --sw-symptom: #d8d5cd;
+            /* App intensity/day-status semantic colors, muted for the page */
+            --i-low: #4e9455;
+            --i-mid: #d07a2e;
+            --st-bad: #bf4d43;
+            --st-mid: #c98a2d;
+            --st-good: #4e9455;
             color-scheme: light;
         }
         @supports (color: oklch(0.5 0.1 200)) {
@@ -105,6 +111,11 @@
             --shadow-phone: 0 30px 60px -42px rgba(0, 0, 0, .9);
             --err: #d98080;
             --sw-symptom: #4a4d55;
+            --i-low: #7bbd84;
+            --i-mid: #e09a55;
+            --st-bad: #e08a80;
+            --st-mid: #ddb05e;
+            --st-good: #7bbd84;
             color-scheme: dark;
         }
         @supports (color: oklch(0.5 0.1 200)) {
@@ -218,18 +229,22 @@
         .tl-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
         .tl-head h3 { font-size: 17px; font-weight: 700; letter-spacing: -.3px; margin: 0; }
         .tl-head .sub { font-size: 13px; color: var(--soft); font-weight: 500; margin-left: auto; }
-        .axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--soft); font-weight: 600; margin-bottom: 14px; }
-        .curve { position: relative; height: 148px; margin-bottom: 10px; }
-        .ev { position: absolute; bottom: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; transform: translateX(-50%); }
-        .ev .lbl {
-            font-size: 10.5px; font-weight: 600; white-space: nowrap;
-            background: var(--accs); color: var(--accentd); padding: 2px 7px; border-radius: 5px;
-        }
-        .ev .stem { width: 1.5px; background: var(--line); }
-        .ev .pt { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); border: 2px solid var(--card); outline: 2px solid var(--accs); }
+        .tl-chart { margin: 12px 0 10px; }
+        .tl-chart svg { display: block; width: 100%; height: auto; }
+        .tl-chart .chip-txt { font-size: 10.5px; font-weight: 600; font-family: inherit; }
+        .tl-chart .ax { font-size: 11px; font-weight: 600; fill: var(--soft); font-family: inherit; }
         .legend { display: flex; gap: 18px; font-size: 11.5px; color: var(--mut); font-weight: 500; padding-top: 12px; border-top: 1px solid var(--line); }
         .legend span { display: flex; align-items: center; gap: 6px; }
         .sw { width: 9px; height: 9px; border-radius: 3px; flex: 0 0 auto; }
+        .sw.grad { background: linear-gradient(90deg, var(--i-low), var(--i-mid)); }
+        .day-row { display: flex; gap: 16px; margin-top: 9px; }
+        .day-row .n2 { font-size: 21px; font-weight: 800; letter-spacing: -.6px; line-height: 1; }
+        .day-row .l2 { font-size: 10.5px; color: var(--mut); font-weight: 500; margin-top: 3px; }
+        .okrow { display: flex; align-items: center; gap: 9px; font-size: 14.5px; font-weight: 600; }
+        .okrow .okb {
+            width: 20px; height: 20px; border-radius: 7px; background: var(--st-good); color: #fff; flex: 0 0 auto;
+            display: flex; align-items: center; justify-content: center; font-size: 11px;
+        }
         .side { display: flex; flex-direction: column; gap: 14px; }
         .stat { border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; background: var(--inner); }
         .stat .n { font-size: 30px; font-weight: 800; letter-spacing: -1.2px; line-height: 1; }
@@ -398,10 +413,7 @@
             .nav-right { gap: 12px; }
             .ghl-text { display: none; }
             .pill-btn { padding: 9px 14px; }
-            /* The event chips need the horizontal room the axis labels use. */
-            .axis { display: none; }
-            .curve { height: 152px; }
-            .ev .lbl { font-size: 9.5px; }
+            .day-row { gap: 12px; }
         }
     </style>
 </head>
@@ -454,31 +466,64 @@
 
             <div class="showcase">
                 <div class="tl">
-                    <div class="tl-head"><h3>June 14 &middot; attack timeline</h3><span class="sub">4h 12m</span></div>
-                    <div class="axis" aria-hidden="true"><span>8:00</span><span>9:00</span><span>10:00</span><span>11:00</span><span>12:00</span></div>
-                    <div class="curve" aria-hidden="true">
-                        <div class="ev" style="left: 6%"><span class="lbl">onset</span><span class="stem" style="height: 28px"></span><span class="pt"></span></div>
-                        <div class="ev" style="left: 26%"><span class="lbl">aura</span><span class="stem" style="height: 78px"></span><span class="pt"></span></div>
-                        <div class="ev" style="left: 44%"><span class="lbl">peak &middot; 7</span><span class="stem" style="height: 118px"></span><span class="pt"></span></div>
-                        <div class="ev" style="left: 60%"><span class="lbl">sumatriptan</span><span class="stem" style="height: 92px"></span><span class="pt"></span></div>
-                        <div class="ev" style="left: 82%"><span class="lbl">relief</span><span class="stem" style="height: 36px"></span><span class="pt"></span></div>
+                    <div class="tl-head"><h3>Fri, Jul 3 &middot; episode</h3><span class="sub">2:00 &ndash; 5:30 PM &middot; 3h 30m</span></div>
+                    <div class="tl-chart" aria-hidden="true">
+                        <svg viewBox="0 0 600 168" role="img">
+                            <defs>
+                                <linearGradient id="ig" x1="0" y1="0" x2="1" y2="0">
+                                    <stop offset="0" stop-color="var(--i-low)"/>
+                                    <stop offset=".46" stop-color="var(--i-low)"/>
+                                    <stop offset=".57" stop-color="var(--i-mid)"/>
+                                    <stop offset=".76" stop-color="var(--i-mid)"/>
+                                    <stop offset=".88" stop-color="var(--i-low)"/>
+                                    <stop offset="1" stop-color="var(--i-low)"/>
+                                </linearGradient>
+                            </defs>
+                            <path d="M0,109 H290 C310,109 315,70 335,70 H470 C495,70 490,122 512,122 H600 V150 H0 Z" fill="url(#ig)" fill-opacity=".09"/>
+                            <path d="M0,109 H290 C310,109 315,70 335,70 H470 C495,70 490,122 512,122 H600" fill="none" stroke="url(#ig)" stroke-width="2.5" stroke-linecap="round"/>
+                            <!-- medication dose -->
+                            <circle cx="205" cy="109" r="4.5" fill="var(--accent)" stroke="var(--card)" stroke-width="2"/>
+                            <rect x="148" y="120" width="114" height="18" rx="5" fill="var(--accs)"/>
+                            <text class="chip-txt" x="205" y="133" text-anchor="middle" fill="var(--accentd)">Sumatriptan &middot; 100 mg</text>
+                            <!-- intensity updates -->
+                            <circle cx="120" cy="109" r="5" fill="var(--i-low)" stroke="var(--card)" stroke-width="2"/>
+                            <rect x="95" y="77" width="50" height="18" rx="5" fill="var(--i-low)" fill-opacity=".13"/>
+                            <text class="chip-txt" x="120" y="90" text-anchor="middle" fill="var(--i-low)">2 &middot; Mild</text>
+                            <circle cx="335" cy="70" r="5" fill="var(--i-mid)" stroke="var(--card)" stroke-width="2"/>
+                            <rect x="299" y="38" width="72" height="18" rx="5" fill="var(--i-mid)" fill-opacity=".13"/>
+                            <text class="chip-txt" x="335" y="51" text-anchor="middle" fill="var(--i-mid)">5 &middot; Moderate</text>
+                            <circle cx="512" cy="122" r="5" fill="var(--i-low)" stroke="var(--card)" stroke-width="2"/>
+                            <rect x="482" y="132" width="62" height="18" rx="5" fill="var(--i-low)" fill-opacity=".13"/>
+                            <text class="chip-txt" x="513" y="145" text-anchor="middle" fill="var(--i-low)">1 &middot; Minimal</text>
+                            <!-- time axis -->
+                            <text class="ax" x="0" y="166">2 PM</text>
+                            <text class="ax" x="171" y="166" text-anchor="middle">3 PM</text>
+                            <text class="ax" x="343" y="166" text-anchor="middle">4 PM</text>
+                            <text class="ax" x="514" y="166" text-anchor="middle">5 PM</text>
+                        </svg>
                     </div>
                     <div class="legend">
-                        <span><span class="sw" style="background: var(--accent)"></span>pain level</span>
-                        <span><span class="sw" style="background: color-mix(in srgb, var(--accent) 40%, transparent)"></span>medication</span>
-                        <span><span class="sw" style="background: var(--sw-symptom)"></span>symptom</span>
+                        <span><span class="sw grad"></span>pain intensity</span>
+                        <span><span class="sw" style="background: var(--accent)"></span>medication</span>
                     </div>
                 </div>
                 <div class="side">
-                    <div class="stat"><div class="n acc">3.2</div><div class="l">attacks / month, trending down</div></div>
                     <div class="stat">
-                        <div class="l" style="margin-top: 0">last 8 weeks</div>
-                        <div class="bars" aria-hidden="true">
-                            <i style="height: 60%"></i><i style="height: 80%"></i><i style="height: 45%"></i><i style="height: 70%"></i>
-                            <i style="height: 35%"></i><i style="height: 50%"></i><i style="height: 30%"></i><i style="height: 25%"></i>
+                        <div class="l" style="margin-top: 0">last 30 days</div>
+                        <div class="day-row">
+                            <div class="day"><div class="n2" style="color: var(--st-bad)">7</div><div class="l2">migraine</div></div>
+                            <div class="day"><div class="n2" style="color: var(--st-mid)">8</div><div class="l2">not clear</div></div>
+                            <div class="day"><div class="n2" style="color: var(--st-good)">16</div><div class="l2">clear</div></div>
                         </div>
                     </div>
-                    <div class="stat"><div class="n">42<span class="unit">min</span></div><div class="l">avg. time to relief</div></div>
+                    <div class="stat">
+                        <div class="n">4<span class="unit">h</span> 12<span class="unit">m</span></div>
+                        <div class="l">average episode &middot; 2h 30m to 6h range</div>
+                    </div>
+                    <div class="stat">
+                        <div class="okrow"><span class="okb" aria-hidden="true">&#10003;</span>No warning signs</div>
+                        <div class="l">Overuse guardrails watch your dosing.</div>
+                    </div>
                 </div>
             </div>
         </header>

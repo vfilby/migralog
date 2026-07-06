@@ -32,12 +32,13 @@ test.describe('Homepage', () => {
     await expect(page.getByText('Free & open source')).toBeVisible();
   });
 
-  test('should display the attack timeline showcase', async ({ page }) => {
+  test('should display the episode timeline showcase', async ({ page }) => {
     await page.goto('/');
 
-    await expect(page.getByRole('heading', { name: /attack timeline/, level: 3 })).toBeVisible();
-    await expect(page.getByText('attacks / month, trending down')).toBeVisible();
-    await expect(page.getByText('avg. time to relief')).toBeVisible();
+    await expect(page.getByRole('heading', { name: /episode/, level: 3 })).toBeVisible();
+    await expect(page.getByText('last 30 days')).toBeVisible();
+    await expect(page.getByText(/average episode/)).toBeVisible();
+    await expect(page.getByText('No warning signs')).toBeVisible();
   });
 
   test('should display the screenshot carousel', async ({ page }) => {
