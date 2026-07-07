@@ -37,7 +37,8 @@ enum PresetMedications {
         // CGRP
         PresetMedication(name: "Ubrelvy (ubrogepant)", type: .rescue, dosageAmount: 50, dosageUnit: "mg", category: .cgrp, scheduleFrequency: nil),
         PresetMedication(name: "Nurtec (rimegepant)", type: .rescue, dosageAmount: 75, dosageUnit: "mg", category: .cgrp, scheduleFrequency: nil),
-        PresetMedication(name: "Qulipta (atogepant)", type: .preventative, dosageAmount: 60, dosageUnit: "mg", category: .cgrp, scheduleFrequency: .daily),
+        PresetMedication(name: "Qulipta (atogepant) 30 mg", type: .preventative, dosageAmount: 30, dosageUnit: "mg", category: .cgrp, scheduleFrequency: .daily),
+        PresetMedication(name: "Qulipta (atogepant) 60 mg", type: .preventative, dosageAmount: 60, dosageUnit: "mg", category: .cgrp, scheduleFrequency: .daily),
         PresetMedication(name: "Aimovig (erenumab)", type: .preventative, dosageAmount: 70, dosageUnit: "mg", category: .cgrp, scheduleFrequency: .monthly),
         PresetMedication(name: "Ajovy (fremanezumab)", type: .preventative, dosageAmount: 225, dosageUnit: "mg", category: .cgrp, scheduleFrequency: .monthly),
         PresetMedication(name: "Emgality (galcanezumab)", type: .preventative, dosageAmount: 120, dosageUnit: "mg", category: .cgrp, scheduleFrequency: .monthly),
