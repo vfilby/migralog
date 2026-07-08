@@ -18,8 +18,8 @@ final class MedicationRepository: MedicationRepositoryProtocol {
                 sql: """
                     INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, default_quantity,
                         schedule_frequency, photo_uri, active, notes, category, created_at, updated_at,
-                        min_interval_hours)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        min_interval_hours, excluded_from_safety_warnings)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                 arguments: [
                     medication.id,
@@ -35,7 +35,8 @@ final class MedicationRepository: MedicationRepositoryProtocol {
                     medication.category?.rawValue,
                     medication.createdAt,
                     medication.updatedAt,
-                    medication.minIntervalHours
+                    medication.minIntervalHours,
+                    medication.excludedFromSafetyWarnings ? 1 : 0
                 ]
             )
         }
@@ -87,7 +88,7 @@ final class MedicationRepository: MedicationRepositoryProtocol {
                         name = ?, type = ?, dosage_amount = ?, dosage_unit = ?,
                         default_quantity = ?, schedule_frequency = ?, photo_uri = ?,
                         active = ?, notes = ?, category = ?, updated_at = ?,
-                        min_interval_hours = ?
+                        min_interval_hours = ?, excluded_from_safety_warnings = ?
                     WHERE id = ?
                     """,
                 arguments: [
@@ -103,6 +104,7 @@ final class MedicationRepository: MedicationRepositoryProtocol {
                     updated.category?.rawValue,
                     updated.updatedAt,
                     updated.minIntervalHours,
+                    updated.excludedFromSafetyWarnings ? 1 : 0,
                     updated.id
                 ]
             )
@@ -212,6 +214,7 @@ final class MedicationRepository: MedicationRepositoryProtocol {
                     FROM medication_doses d
                     INNER JOIN medications m ON m.id = d.medication_id
                     WHERE m.category = ?
+                      AND COALESCE(m.excluded_from_safety_warnings, 0) = 0
                       AND d.status = 'taken'
                       AND d.timestamp <= ?
                     ORDER BY d.timestamp DESC
@@ -468,6 +471,7 @@ final class MedicationRepository: MedicationRepositoryProtocol {
             notes: row["notes"],
             category: (row["category"] as String?).flatMap { MedicationCategory(rawValue: $0) },
             minIntervalHours: row["min_interval_hours"],
+            excludedFromSafetyWarnings: ((row["excluded_from_safety_warnings"] as Int?) ?? 0) != 0,
             createdAt: row["created_at"],
             updatedAt: row["updated_at"]
         )

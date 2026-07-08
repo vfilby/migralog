@@ -103,6 +103,10 @@ struct Medication: Identifiable, Equatable, Sendable {
     var notes: String?
     var category: MedicationCategory?
     var minIntervalHours: Double?
+    /// When true, this medication's doses don't count toward its category's
+    /// safety warnings (usage limits and cooldowns), and those warnings are not
+    /// shown on this medication. User-controlled per category rule editor.
+    var excludedFromSafetyWarnings: Bool = false
     let createdAt: Int64
     var updatedAt: Int64
 }

@@ -112,7 +112,8 @@ final class MedicationDetailViewModel {
     /// Computes category MOH status for the given medication (if it has a category
     /// and a configured limit). Returns `.noLimit` otherwise.
     private func computeCategoryStatus(for medication: Medication?, now: Date) -> CategoryUsageStatus {
-        guard let category = medication?.category else { return .noLimit }
+        guard let medication, !medication.excludedFromSafetyWarnings,
+              let category = medication.category else { return .noLimit }
         guard let configured = (try? categoryLimitRepository.getRule(category: category, type: .periodLimit)) ?? nil else {
             return .noLimit
         }
@@ -135,7 +136,8 @@ final class MedicationDetailViewModel {
     /// Computes category cooldown status for the given medication. Returns an
     /// empty status when the medication has no category or evaluation fails.
     private func computeCategoryCooldown(for medication: Medication?, now: Date) -> CategoryCooldown.Status {
-        guard let category = medication?.category else { return Self.emptyCategoryCooldown }
+        guard let medication, !medication.excludedFromSafetyWarnings,
+              let category = medication.category else { return Self.emptyCategoryCooldown }
         let rule = try? categoryLimitRepository.getRule(category: category, type: .cooldown)
         let last = try? medicationRepository.getLastTakenDoseInCategory(category, now: now)
         return CategoryCooldown.evaluate(

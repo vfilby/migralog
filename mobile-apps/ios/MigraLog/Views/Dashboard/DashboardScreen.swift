@@ -427,8 +427,7 @@ struct MedicationScheduleRow: View {
     }
 
     private var categoryStatus: CategoryUsageStatus {
-        guard let category = item.medication.category else { return .noLimit }
-        return viewModel.categoryUsage[category] ?? .noLimit
+        viewModel.categoryUsageStatus(for: item.medication)
     }
 
     var body: some View {

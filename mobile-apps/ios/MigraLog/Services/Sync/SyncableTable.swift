@@ -85,7 +85,8 @@ enum SyncableTable: String, CaseIterable, Sendable {
         case .medications:
             return ["id", "name", "type", "dosage_amount", "dosage_unit", "default_quantity",
                     "schedule_frequency", "photo_uri", "active", "notes", "category",
-                    "created_at", "updated_at", "min_interval_hours"]
+                    "created_at", "updated_at", "min_interval_hours",
+                    "excluded_from_safety_warnings"]
         case .medicationSchedules:
             // notification_id is excluded (deviceLocalColumns).
             return ["id", "medication_id", "time", "timezone", "dosage", "enabled",

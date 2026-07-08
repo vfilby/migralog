@@ -5,6 +5,10 @@ import SwiftUI
 /// (category → addable types) options; the form auto-fills with the category's
 /// preset for the chosen type when one exists. In edit mode both category and
 /// type are locked.
+///
+/// Also exposes the category's medication checklist: unchecking a medication
+/// excludes its doses from ALL safety warnings for the category (both rule
+/// types) and hides those warnings on that medication.
 struct CategorySafetyRuleEditorSheet: View {
     enum Mode: Equatable {
         case add(available: [MedicationCategory: [CategorySafetyRuleType]])
@@ -12,7 +16,9 @@ struct CategorySafetyRuleEditorSheet: View {
     }
 
     let mode: Mode
-    let onSave: (CategorySafetyRule) -> Void
+    /// Active medications grouped by category, backing the checklist.
+    var medicationsByCategory: [MedicationCategory: [Medication]] = [:]
+    let onSave: (CategorySafetyRule, Set<String>) -> Void
 
     @Environment(\.dismiss) private var dismiss
 
@@ -22,6 +28,7 @@ struct CategorySafetyRuleEditorSheet: View {
     @State private var maxDaysText: String = ""
     @State private var windowDaysText: String = ""
     @State private var cooldownHoursText: String = ""
+    @State private var excludedMedicationIds: Set<String> = []
 
     var body: some View {
         NavigationStack {
@@ -30,6 +37,7 @@ struct CategorySafetyRuleEditorSheet: View {
                 typeSection
                 if resolvedType == .periodLimit { periodLimitSection }
                 if resolvedType == .cooldown { cooldownSection }
+                medicationsSection
             }
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
@@ -45,7 +53,7 @@ struct CategorySafetyRuleEditorSheet: View {
                 }
             }
             .onAppear(perform: configureInitialState)
-            .presentationDetents([.medium])
+            .presentationDetents([.medium, .large])
         }
     }
 
@@ -63,9 +71,10 @@ struct CategorySafetyRuleEditorSheet: View {
                     }
                 }
                 .accessibilityIdentifier("rule-editor-category-picker")
-                .onChange(of: selectedCategory) { _, _ in
+                .onChange(of: selectedCategory) { _, newValue in
                     selectedType = nil
                     clearFormFields()
+                    seedExcludedMedications(for: newValue)
                 }
             }
         case .edit(let existing):
@@ -156,6 +165,42 @@ struct CategorySafetyRuleEditorSheet: View {
         }
     }
 
+    /// Checklist of the category's medications. Unchecked medications are
+    /// excluded from every safety warning for the category.
+    @ViewBuilder
+    private var medicationsSection: some View {
+        if let category = resolvedCategory,
+           let medications = medicationsByCategory[category],
+           !medications.isEmpty {
+            Section {
+                ForEach(medications) { medication in
+                    Button {
+                        toggleExcluded(medication.id)
+                    } label: {
+                        HStack {
+                            Text(medication.name)
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            Image(systemName: excludedMedicationIds.contains(medication.id)
+                                  ? "circle" : "checkmark.circle.fill")
+                                .foregroundStyle(excludedMedicationIds.contains(medication.id)
+                                                 ? Color.secondary : Color.accentColor)
+                        }
+                    }
+                    .accessibilityIdentifier("rule-editor-medication-\(medication.id)")
+                    .accessibilityAddTraits(excludedMedicationIds.contains(medication.id) ? [] : [.isSelected])
+                }
+            } header: {
+                Text("Included Medications")
+            } footer: {
+                // swiftlint:disable:next line_length
+                Text("Unchecked medications don't count toward \(category.displayName) warnings and won't show them — e.g. a daily preventative you don't want counted. Applies to all \(category.displayName) safety rules.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
     // MARK: - Derived state
 
     private var navigationTitle: String {
@@ -224,6 +269,24 @@ struct CategorySafetyRuleEditorSheet: View {
             case .cooldown:
                 cooldownHoursText = formatHours(existing.periodHours)
             }
+            seedExcludedMedications(for: existing.category)
+        }
+    }
+
+    /// Seeds the checklist from the medications' current exclusion flags.
+    private func seedExcludedMedications(for category: MedicationCategory?) {
+        guard let category, let medications = medicationsByCategory[category] else {
+            excludedMedicationIds = []
+            return
+        }
+        excludedMedicationIds = Set(medications.filter(\.excludedFromSafetyWarnings).map(\.id))
+    }
+
+    private func toggleExcluded(_ medicationId: String) {
+        if excludedMedicationIds.contains(medicationId) {
+            excludedMedicationIds.remove(medicationId)
+        } else {
+            excludedMedicationIds.insert(medicationId)
         }
     }
 
@@ -286,7 +349,7 @@ struct CategorySafetyRuleEditorSheet: View {
             )
         }
 
-        onSave(rule)
+        onSave(rule, excludedMedicationIds)
         dismiss()
     }
 

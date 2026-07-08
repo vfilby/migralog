@@ -1,4 +1,4 @@
--- MigraLog SQLite Schema v36
+-- MigraLog SQLite Schema v37
 -- Canonical schema definition for the migraine tracking database.
 -- Source of truth: mobile-apps/ios/MigraLog/Database/DatabaseManager.swift
 --   (createSchema + registered migrations). This .sql is a formal mirror and
@@ -28,6 +28,11 @@
 --   columns) stamped after each completed pull. A mismatch (a migration added synced
 --   columns) makes the sync engine reset the zone change token once and re-pull,
 --   backfilling columns that migrate-on-read dropped before the upgrade.
+-- v37: added the nullable `excluded_from_safety_warnings` column to medications —
+--   user-controlled opt-out of a medication's doses counting toward its category's
+--   safety warnings (usage limits + cooldowns), set via the rule editor's medication
+--   checklist. Nullable (NULL = included) so payloads from older app versions apply.
+--   Synced; capture triggers rebuilt to include it.
 --
 -- Conventions:
 --   - All IDs are TEXT (UUIDs)
@@ -115,7 +120,8 @@ CREATE TABLE IF NOT EXISTS medications (
   category TEXT CHECK(category IS NULL OR category IN ('otc', 'nsaid', 'triptan', 'cgrp', 'preventive', 'supplement', 'other')),
   created_at INTEGER NOT NULL CHECK(created_at > 0),
   updated_at INTEGER NOT NULL CHECK(updated_at > 0),
-  min_interval_hours REAL CHECK(min_interval_hours IS NULL OR min_interval_hours > 0)  -- v26: per-med dose cooldown
+  min_interval_hours REAL CHECK(min_interval_hours IS NULL OR min_interval_hours > 0),  -- v26: per-med dose cooldown
+  excluded_from_safety_warnings INTEGER CHECK(excluded_from_safety_warnings IS NULL OR excluded_from_safety_warnings IN (0, 1))  -- v37: opt-out of category safety warnings
 );
 
 -- Medication schedules table

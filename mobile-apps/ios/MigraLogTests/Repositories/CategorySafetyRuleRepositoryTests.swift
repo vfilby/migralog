@@ -141,4 +141,62 @@ final class CategorySafetyRuleRepositoryTests: XCTestCase {
         let count = try repo.countUsageDays(category: .nsaid, windowDays: 30, now: Date(timeIntervalSince1970: 1_775_500_000))
         XCTAssertEqual(count, 2)
     }
+
+    func test_countUsageDays_ignores_doses_of_excluded_medications() throws {
+        // A daily preventative (e.g. Qulipta) excluded from safety warnings must
+        // not inflate its category's usage-day count; other meds still count.
+        try dbManager.dbQueue.write { db in
+            try db.execute(sql: """
+                INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, active,
+                                          category, created_at, updated_at, excluded_from_safety_warnings)
+                VALUES ('qulipta','Qulipta','preventative',60,'mg',1,'cgrp',1,1,1),
+                       ('ubrelvy','Ubrelvy','rescue',100,'mg',1,'cgrp',1,1,0)
+                """)
+            let base = Int64(1_775_304_000) * 1000
+            var doses: [(String, Int64)] = []
+            // Excluded preventative taken daily for 5 days.
+            for day in 0..<5 {
+                doses.append(("qulipta", base + Int64(day) * 86_400_000))
+            }
+            // Rescue med taken on 2 of those days.
+            doses.append(("ubrelvy", base))
+            doses.append(("ubrelvy", base + 3 * 86_400_000))
+            for (medId, ts) in doses {
+                try db.execute(
+                    sql: """
+                        INSERT INTO medication_doses (id, medication_id, timestamp, quantity,
+                                                       status, created_at, updated_at)
+                        VALUES (?, ?, ?, 1, 'taken', 1, 1)
+                        """,
+                    arguments: [UUID().uuidString, medId, ts]
+                )
+            }
+        }
+
+        let count = try repo.countUsageDays(category: .cgrp, windowDays: 30, now: Date(timeIntervalSince1970: 1_775_800_000))
+        XCTAssertEqual(count, 2, "only the non-excluded rescue med's days should count")
+    }
+
+    func test_countUsageDays_treats_null_exclusion_flag_as_included() throws {
+        // Rows synced from older app versions have NULL in the new column —
+        // they must count exactly as before the migration.
+        try dbManager.dbQueue.write { db in
+            try db.execute(sql: """
+                INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, active,
+                                          category, created_at, updated_at, excluded_from_safety_warnings)
+                VALUES ('m1','Advil','rescue',200,'mg',1,'nsaid',1,1,NULL)
+                """)
+            try db.execute(
+                sql: """
+                    INSERT INTO medication_doses (id, medication_id, timestamp, quantity,
+                                                   status, created_at, updated_at)
+                    VALUES (?, 'm1', ?, 1, 'taken', 1, 1)
+                    """,
+                arguments: [UUID().uuidString, Int64(1_775_304_000) * 1000]
+            )
+        }
+
+        let count = try repo.countUsageDays(category: .nsaid, windowDays: 30, now: Date(timeIntervalSince1970: 1_775_500_000))
+        XCTAssertEqual(count, 1)
+    }
 }
