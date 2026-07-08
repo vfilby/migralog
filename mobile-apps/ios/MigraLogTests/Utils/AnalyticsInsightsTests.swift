@@ -640,7 +640,7 @@ final class AnalyticsInsightsTests: XCTestCase {
     // MARK: - Weekly adherence
 
     func testWeeklyAdherence_countsExpectedAndTaken() {
-        let preventative = TestFixtures.makeMedication(id: "med-p", type: .preventative, category: .supplement)
+        let preventative = TestFixtures.makeMedication(id: "med-p", type: .preventative, category: .supplement, createdAt: ms(daysAgo: 30))
         let schedules = [TestFixtures.makeSchedule(medicationId: "med-p")]
         // Taken on 2 of 7 days; a third day has two logs that must cap at 1.
         let doses = [
@@ -665,8 +665,8 @@ final class AnalyticsInsightsTests: XCTestCase {
     }
 
     func testWeeklyAdherence_skippedDosesAndInactiveMedsIgnored() {
-        let active = TestFixtures.makeMedication(id: "med-a", type: .preventative)
-        let inactive = TestFixtures.makeMedication(id: "med-i", type: .preventative, active: false)
+        let active = TestFixtures.makeMedication(id: "med-a", type: .preventative, createdAt: ms(daysAgo: 30))
+        let inactive = TestFixtures.makeMedication(id: "med-i", type: .preventative, active: false, createdAt: ms(daysAgo: 30))
         let schedules = [
             TestFixtures.makeSchedule(medicationId: "med-a"),
             TestFixtures.makeSchedule(medicationId: "med-i"),
@@ -689,6 +689,32 @@ final class AnalyticsInsightsTests: XCTestCase {
         // Only the active med counts: 3 days expected, nothing taken.
         XCTAssertEqual(weeks.map(\.expected).reduce(0, +), 3)
         XCTAssertEqual(weeks.map(\.taken).reduce(0, +), 0)
+    }
+
+    func testWeeklyAdherence_medAddedMidRangeOnlyCountsFromItsStartDay() {
+        // A long-standing med plus one added 2 days ago: the new med must not
+        // add expected doses to days before it existed.
+        let old = TestFixtures.makeMedication(id: "med-old", type: .preventative, createdAt: ms(daysAgo: 30))
+        let new = TestFixtures.makeMedication(id: "med-new", type: .preventative, createdAt: ms(daysAgo: 2))
+        let doses = (0...6).map { TestFixtures.makeDose(medicationId: "med-old", timestamp: ms(daysAgo: $0)) }
+            + [TestFixtures.makeDose(medicationId: "med-new", timestamp: ms(daysAgo: 1))]
+
+        let weeks = AnalyticsInsights.weeklyAdherence(
+            doses: doses,
+            medications: [old, new],
+            schedulesByMedication: [
+                "med-old": [TestFixtures.makeSchedule(medicationId: "med-old")],
+                "med-new": [TestFixtures.makeSchedule(medicationId: "med-new")],
+            ],
+            excluded: [],
+            from: date(daysAgo: 6),
+            to: now,
+            calendar: calendar
+        )
+
+        // med-old: 7 expected / 7 taken. med-new: 3 expected (days 2..0) / 1 taken.
+        XCTAssertEqual(weeks.map(\.expected).reduce(0, +), 10)
+        XCTAssertEqual(weeks.map(\.taken).reduce(0, +), 8)
     }
 
     func testWeeklyAdherence_noSchedulesMeansNoData() {
