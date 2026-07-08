@@ -637,75 +637,7 @@ final class AnalyticsInsightsTests: XCTestCase {
         XCTAssertNil(AnalyticsInsights.totalSummary(of: []))
     }
 
-    // MARK: - Weekly adherence
-
-    func testWeeklyAdherence_countsExpectedAndTaken() {
-        let preventative = TestFixtures.makeMedication(id: "med-p", type: .preventative, category: .supplement)
-        let schedules = [TestFixtures.makeSchedule(medicationId: "med-p")]
-        // Taken on 2 of 7 days; a third day has two logs that must cap at 1.
-        let doses = [
-            TestFixtures.makeDose(medicationId: "med-p", timestamp: ms(daysAgo: 1)),
-            TestFixtures.makeDose(medicationId: "med-p", timestamp: ms(daysAgo: 2)),
-            TestFixtures.makeDose(medicationId: "med-p", timestamp: ms(daysAgo: 3, hour: 8)),
-            TestFixtures.makeDose(medicationId: "med-p", timestamp: ms(daysAgo: 3, hour: 20)),
-        ]
-
-        let weeks = AnalyticsInsights.weeklyAdherence(
-            doses: doses,
-            medications: [preventative],
-            schedulesByMedication: ["med-p": schedules],
-            excluded: [],
-            from: date(daysAgo: 6),
-            to: now,
-            calendar: calendar
-        )
-
-        XCTAssertEqual(weeks.map(\.expected).reduce(0, +), 7)
-        XCTAssertEqual(weeks.map(\.taken).reduce(0, +), 3)
-    }
-
-    func testWeeklyAdherence_skippedDosesAndInactiveMedsIgnored() {
-        let active = TestFixtures.makeMedication(id: "med-a", type: .preventative)
-        let inactive = TestFixtures.makeMedication(id: "med-i", type: .preventative, active: false)
-        let schedules = [
-            TestFixtures.makeSchedule(medicationId: "med-a"),
-            TestFixtures.makeSchedule(medicationId: "med-i"),
-        ]
-        let doses = [
-            TestFixtures.makeDose(medicationId: "med-a", timestamp: ms(daysAgo: 1), status: .skipped),
-            TestFixtures.makeDose(medicationId: "med-i", timestamp: ms(daysAgo: 1)),
-        ]
-
-        let weeks = AnalyticsInsights.weeklyAdherence(
-            doses: doses,
-            medications: [active, inactive],
-            schedulesByMedication: ["med-a": schedules.filter { $0.medicationId == "med-a" }, "med-i": schedules.filter { $0.medicationId == "med-i" }],
-            excluded: [],
-            from: date(daysAgo: 2),
-            to: now,
-            calendar: calendar
-        )
-
-        // Only the active med counts: 3 days expected, nothing taken.
-        XCTAssertEqual(weeks.map(\.expected).reduce(0, +), 3)
-        XCTAssertEqual(weeks.map(\.taken).reduce(0, +), 0)
-    }
-
-    func testWeeklyAdherence_noSchedulesMeansNoData() {
-        let preventative = TestFixtures.makeMedication(id: "med-p", type: .preventative)
-
-        let weeks = AnalyticsInsights.weeklyAdherence(
-            doses: [],
-            medications: [preventative],
-            schedulesByMedication: [:],
-            excluded: [],
-            from: date(daysAgo: 6),
-            to: now,
-            calendar: calendar
-        )
-
-        XCTAssertTrue(weeks.isEmpty)
-    }
+    // Weekly adherence tests live in AnalyticsInsightsAdherenceTests.swift.
 
     func testWarnings_quietDataProducesNoWarnings() {
         let warnings = AnalyticsInsights.warnings(

@@ -836,7 +836,8 @@ enum TestFixtures {
         active: Bool = true,
         category: MedicationCategory? = .nsaid,
         scheduleFrequency: ScheduleFrequency? = nil,
-        minIntervalHours: Double? = nil
+        minIntervalHours: Double? = nil,
+        createdAt: Int64 = now
     ) -> Medication {
         Medication(
             id: id,
@@ -851,7 +852,7 @@ enum TestFixtures {
             notes: nil,
             category: category,
             minIntervalHours: minIntervalHours,
-            createdAt: now,
+            createdAt: createdAt,
             updatedAt: now
         )
     }
