@@ -189,7 +189,7 @@ final class DatabaseManagerTests: XCTestCase {
     // MARK: - Schema Version
 
     func testSchemaVersionIsTracked() throws {
-        XCTAssertEqual(DatabaseManager.schemaVersion, 36)
+        XCTAssertEqual(DatabaseManager.schemaVersion, 37)
     }
 
     func testMigrationIsRecordedInGRDB() throws {
@@ -272,6 +272,29 @@ final class DatabaseManagerTests: XCTestCase {
             let identifiers = try Row.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations")
                 .map { $0["identifier"] as String }
             XCTAssertTrue(identifiers.contains("v33"), "Migration v33 should be recorded")
+        }
+    }
+
+    /// v37 adds medications.excluded_from_safety_warnings and rebuilds the
+    /// capture triggers so the DELETE tombstone payload includes the new column.
+    func testV37AddsExclusionColumnAndRebuildsMedicationTriggers() throws {
+        try dbManager.dbQueue.read { db in
+            let names = try Row.fetchAll(db, sql: "PRAGMA table_info(medications)")
+                .compactMap { $0["name"] as String? }
+            XCTAssertTrue(names.contains("excluded_from_safety_warnings"))
+
+            let triggerSql = try String.fetchOne(
+                db,
+                sql: "SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'sync_capture_medications_delete'"
+            )
+            XCTAssertTrue(
+                triggerSql?.contains("excluded_from_safety_warnings") == true,
+                "delete tombstone trigger should snapshot the new synced column"
+            )
+
+            let identifiers = try Row.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations")
+                .map { $0["identifier"] as String }
+            XCTAssertTrue(identifiers.contains("v37"), "Migration v37 should be recorded")
         }
     }
 

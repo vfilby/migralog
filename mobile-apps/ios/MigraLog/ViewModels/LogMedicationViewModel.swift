@@ -55,6 +55,15 @@ final class LogMedicationViewModel {
         }
     }
 
+    /// Category usage status to show on a specific medication's row. Excluded
+    /// medications never show their category's warning.
+    func categoryUsageStatus(for medication: Medication) -> CategoryUsageStatus {
+        guard !medication.excludedFromSafetyWarnings, let category = medication.category else {
+            return .noLimit
+        }
+        return categoryUsage[category] ?? .noLimit
+    }
+
     /// Computes the `CategoryUsageStatus` map for the given categories.
     private func computeCategoryUsage(
         for categories: Set<MedicationCategory>,
@@ -82,7 +91,7 @@ final class LogMedicationViewModel {
     ) -> [String: CategoryCooldown.Status] {
         var result: [String: CategoryCooldown.Status] = [:]
         for med in medications {
-            guard let category = med.category else { continue }
+            guard let category = med.category, !med.excludedFromSafetyWarnings else { continue }
             let rule = try? categoryLimitRepository.getRule(category: category, type: .cooldown)
             let last = try? medicationRepository.getLastTakenDoseInCategory(category, now: now)
             result[med.id] = CategoryCooldown.evaluate(

@@ -56,7 +56,7 @@ struct LogMedicationScreen: View {
                 LogMedicationDetailSheet(
                     medication: med,
                     lastDose: viewModel.lastDoseByMedication[med.id],
-                    categoryStatus: med.category.flatMap { viewModel.categoryUsage[$0] } ?? .noLimit,
+                    categoryStatus: viewModel.categoryUsageStatus(for: med),
                     categoryCooldown: viewModel.categoryCooldowns[med.id]
                 ) { dose in
                     Task {
@@ -113,7 +113,7 @@ struct LogMedicationScreen: View {
         LogMedicationCard(
             medication: med,
             lastDose: viewModel.lastDoseByMedication[med.id],
-            categoryStatus: med.category.flatMap { viewModel.categoryUsage[$0] } ?? .noLimit,
+            categoryStatus: viewModel.categoryUsageStatus(for: med),
             categoryCooldown: viewModel.categoryCooldowns[med.id],
             onQuickLog: {
                 Task {

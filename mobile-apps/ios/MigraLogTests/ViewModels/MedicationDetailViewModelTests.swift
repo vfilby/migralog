@@ -43,6 +43,36 @@ final class MedicationDetailViewModelTests: XCTestCase {
         XCTAssertNotNil(sut.medication)
     }
 
+    func testLoadMedication_categoryStatus_warnsForIncludedMedication() async throws {
+        mockCategoryLimitRepo.rules = ["r": CategorySafetyRule(
+            id: "r", category: .nsaid, type: .periodLimit,
+            periodHours: 720, maxCount: 15, createdAt: Date()
+        )]
+        mockCategoryLimitRepo.dayCounts = [.nsaid: 15]
+
+        await sut.loadMedication()
+
+        XCTAssertTrue(sut.categoryStatus.isWarning)
+    }
+
+    func testLoadMedication_categoryStatus_noLimitForExcludedMedication() async throws {
+        // Same rule and usage as above, but the medication is excluded from
+        // safety warnings — its detail screen must not show the category warning.
+        mockCategoryLimitRepo.rules = ["r": CategorySafetyRule(
+            id: "r", category: .nsaid, type: .periodLimit,
+            periodHours: 720, maxCount: 15, createdAt: Date()
+        )]
+        mockCategoryLimitRepo.dayCounts = [.nsaid: 15]
+        mockRepo.medications = [TestFixtures.makeMedication(
+            id: "med-1", name: "Ibuprofen", excludedFromSafetyWarnings: true
+        )]
+
+        await sut.loadMedication()
+
+        XCTAssertEqual(sut.categoryStatus, .noLimit)
+        XCTAssertFalse(sut.categoryCooldown.isOnCooldown)
+    }
+
     func testLoadMedication_notFound_stateEmpty() async throws {
         sut = MedicationDetailViewModel(
             medicationId: "nonexistent",

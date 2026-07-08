@@ -6,7 +6,7 @@ import GRDB
 // queue ownership and the migration registry (and under the file_length limit).
 extension DatabaseManager {
     /// Create the v25 baseline schema. Later registered migrations evolve it to the
-    /// current version; see spec/schemas/sqlite/schema-v36.sql for the current end-state.
+    /// current version; see spec/schemas/sqlite/schema-v37.sql for the current end-state.
     // swiftlint:disable:next function_body_length
     static func createSchema(in db: Database) throws {
         // Episodes table
@@ -99,7 +99,8 @@ extension DatabaseManager {
                 category TEXT CHECK(category IS NULL OR category IN ('otc', 'nsaid', 'triptan', 'cgrp', 'preventive', 'supplement', 'other')),
                 created_at INTEGER NOT NULL CHECK(created_at > 0),
                 updated_at INTEGER NOT NULL CHECK(updated_at > 0),
-                min_interval_hours REAL CHECK(min_interval_hours IS NULL OR min_interval_hours > 0)
+                min_interval_hours REAL CHECK(min_interval_hours IS NULL OR min_interval_hours > 0),
+                excluded_from_safety_warnings INTEGER CHECK(excluded_from_safety_warnings IS NULL OR excluded_from_safety_warnings IN (0, 1))
             )
             """)
 

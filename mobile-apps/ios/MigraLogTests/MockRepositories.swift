@@ -837,6 +837,7 @@ enum TestFixtures {
         category: MedicationCategory? = .nsaid,
         scheduleFrequency: ScheduleFrequency? = nil,
         minIntervalHours: Double? = nil,
+        excludedFromSafetyWarnings: Bool = false,
         createdAt: Int64 = now
     ) -> Medication {
         Medication(
@@ -852,6 +853,7 @@ enum TestFixtures {
             notes: nil,
             category: category,
             minIntervalHours: minIntervalHours,
+            excludedFromSafetyWarnings: excludedFromSafetyWarnings,
             createdAt: createdAt,
             updatedAt: now
         )

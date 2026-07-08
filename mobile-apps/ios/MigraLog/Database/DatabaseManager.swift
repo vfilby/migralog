@@ -24,7 +24,7 @@ enum DatabaseInitializationError: Error {
 /// Central database manager. Owns the DatabaseQueue and handles schema creation/migration.
 final class DatabaseManager: Sendable {
     /// The current schema version
-    static let schemaVersion = 36
+    static let schemaVersion = 37
 
     /// Shared singleton for the app's main database
     static let shared = DatabaseManager()
@@ -350,6 +350,30 @@ final class DatabaseManager: Sendable {
         // backfill rows synced before the upgrade.
         migrator.registerMigration("v36") { db in
             try DatabaseManager.addLastSyncedSchemaColumn(in: db)
+        }
+
+        // v37: add `excluded_from_safety_warnings` to medications — user-controlled
+        // opt-out of a medication's doses counting toward its category's safety
+        // warnings (e.g. a daily preventative CGRP shouldn't trip the CGRP usage
+        // limit). Nullable so sync payloads from older app versions still apply
+        // (see spec/ios/icloud-sync.md). The synced-column change means the
+        // DELETE-capture triggers must be rebuilt with the new column baked in
+        // (v34 precedent).
+        migrator.registerMigration("v37") { db in
+            let columns = try Row.fetchAll(db, sql: "PRAGMA table_info(medications)")
+            let hasColumn = columns.contains { (row: Row) in
+                (row["name"] as String?) == "excluded_from_safety_warnings"
+            }
+            if !hasColumn {
+                try db.execute(sql: "ALTER TABLE medications ADD COLUMN excluded_from_safety_warnings INTEGER CHECK(excluded_from_safety_warnings IS NULL OR excluded_from_safety_warnings IN (0, 1))")
+            }
+            // createSyncCaptureTriggers uses CREATE TRIGGER IF NOT EXISTS, so the
+            // stale medications triggers must be dropped first or upgrades keep
+            // the old column list (v34 precedent).
+            for suffix in ["insert", "update", "delete"] {
+                try db.execute(sql: "DROP TRIGGER IF EXISTS sync_capture_medications_\(suffix)")
+            }
+            try DatabaseManager.createSyncCaptureTriggers(in: db, includePayload: true)
         }
 
         return migrator

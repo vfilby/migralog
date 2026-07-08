@@ -307,11 +307,13 @@ final class AppState {
                     VALUES (?, ?, '08:00', ?, 1.0, 1, 1)
                     """, arguments: [magScheduleId, magId, TimeZone.current.identifier])
 
-                // Create rescue medication: Test Ibuprofen (400mg, as needed)
+                // Create rescue medication: Test Ibuprofen (400mg, as needed).
+                // Categorized (otc) so category safety-rule UI tests have a medication
+                // to list in the rule editor's inclusion checklist.
                 let ibuId = "fixture-med-ibuprofen"
                 try database.execute(sql: """
-                    INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, default_quantity, active, created_at, updated_at)
-                    VALUES (?, 'Test Ibuprofen', 'rescue', 400.0, 'mg', 1.0, 1, ?, ?)
+                    INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, default_quantity, active, category, created_at, updated_at)
+                    VALUES (?, 'Test Ibuprofen', 'rescue', 400.0, 'mg', 1.0, 1, 'otc', ?, ?)
                     """, arguments: [ibuId, now, now])
 
                 // Create closed episode from yesterday (4h duration, intensity 3->7->4)
