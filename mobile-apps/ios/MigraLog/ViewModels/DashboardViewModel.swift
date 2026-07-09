@@ -6,6 +6,9 @@ struct MedicationScheduleItem: Identifiable, Equatable {
     let medication: Medication
     let schedule: MedicationSchedule
     var dose: MedicationDose?
+    /// Whether to surface this row's scheduled time. Set when the medication has
+    /// more than one scheduled dose that day, so the rows can be told apart.
+    var showScheduleTime: Bool = false
 
     var id: String { schedule.id }
     var isTaken: Bool { dose?.status == .taken }
@@ -303,6 +306,25 @@ final class DashboardViewModel {
                 }
             }
         }
+        // Surface the scheduled time on a row only when its medication has more
+        // than one scheduled dose that day, so the otherwise-identical rows can
+        // be told apart.
+        let scheduleCounts = Dictionary(grouping: items, by: { $0.medication.id })
+            .mapValues(\.count)
+        for index in items.indices {
+            items[index].showScheduleTime = (scheduleCounts[items[index].medication.id] ?? 0) > 1
+        }
+
+        // Order the whole list by scheduled time. Times are stored as zero-padded
+        // "HH:mm", so a lexical compare is already chronological; fall back to the
+        // medication name so same-time doses keep a stable, alphabetical order.
+        items.sort { lhs, rhs in
+            if lhs.schedule.time != rhs.schedule.time {
+                return lhs.schedule.time < rhs.schedule.time
+            }
+            return lhs.medication.name.localizedCaseInsensitiveCompare(rhs.medication.name) == .orderedAscending
+        }
+
         let usage = computeCategoryUsage(for: usedCategories, now: Date())
         let cooldowns = computeCategoryCooldowns(
             for: activeMeds.filter { med in items.contains(where: { $0.medication.id == med.id }) },

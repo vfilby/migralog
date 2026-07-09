@@ -271,4 +271,45 @@ final class DashboardViewModelTests: XCTestCase {
 
         XCTAssertNil(sut.categoryUsage[.nsaid])
     }
+
+    // MARK: - Ordering & schedule time display
+
+    func testLoadData_ordersMedicationsByScheduleTime() async throws {
+        // Alphabetical name order (Aaa, Zzz) is the opposite of schedule-time
+        // order (Zzz @ 08:00, Aaa @ 20:00), so a correct result proves we sort
+        // by time rather than by name.
+        let evening = TestFixtures.makeMedication(id: "med-a", name: "Aaa")
+        let morning = TestFixtures.makeMedication(id: "med-z", name: "Zzz")
+        mockMedRepo.medications = [evening, morning]
+        mockMedRepo.schedules = [
+            TestFixtures.makeSchedule(id: "s-a", medicationId: "med-a", time: "20:00"),
+            TestFixtures.makeSchedule(id: "s-z", medicationId: "med-z", time: "08:00"),
+        ]
+
+        await sut.loadData()
+
+        XCTAssertEqual(sut.todaysMedications.map(\.schedule.time), ["08:00", "20:00"])
+        XCTAssertEqual(sut.todaysMedications.map(\.medication.name), ["Zzz", "Aaa"])
+    }
+
+    func testLoadData_multipleSchedulesForMed_showScheduleTimeOnlyForThatMed() async throws {
+        let twice = TestFixtures.makeMedication(id: "med-twice", name: "Topiramate")
+        let once = TestFixtures.makeMedication(id: "med-once", name: "Amitriptyline")
+        mockMedRepo.medications = [twice, once]
+        mockMedRepo.schedules = [
+            TestFixtures.makeSchedule(id: "s-t1", medicationId: "med-twice", time: "08:00"),
+            TestFixtures.makeSchedule(id: "s-t2", medicationId: "med-twice", time: "20:00"),
+            TestFixtures.makeSchedule(id: "s-o1", medicationId: "med-once", time: "12:00"),
+        ]
+
+        await sut.loadData()
+
+        let flags = Dictionary(
+            uniqueKeysWithValues: sut.todaysMedications.map { ($0.schedule.id, $0.showScheduleTime) }
+        )
+        // The twice-daily med surfaces its time on both rows; the once-daily med does not.
+        XCTAssertEqual(flags["s-t1"], true)
+        XCTAssertEqual(flags["s-t2"], true)
+        XCTAssertEqual(flags["s-o1"], false)
+    }
 }
