@@ -483,14 +483,9 @@ final class AnalyticsViewModel {
             .filter { summaryMedIds.contains($0.id) }
             .sorted { $0.name < $1.name }
 
-        let preventativeIds = allMedications.filter { $0.type == .preventative && $0.active }.map(\.id)
-        let schedulesByMedication = preventativeIds.isEmpty
-            ? [:]
-            : try medicationRepository.getSchedulesByMultipleMedicationIds(preventativeIds)
         weeklyAdherence = AnalyticsInsights.weeklyAdherence(
             doses: rangeDoses,
-            medications: allMedications,
-            schedulesByMedication: schedulesByMedication,
+            periods: try medicationRepository.getAllExpectationPeriods(),
             excluded: excluded,
             from: rangeStart,
             to: rangeEnd,

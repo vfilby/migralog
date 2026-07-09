@@ -24,7 +24,7 @@ enum DatabaseInitializationError: Error {
 /// Central database manager. Owns the DatabaseQueue and handles schema creation/migration.
 final class DatabaseManager: Sendable {
     /// The current schema version
-    static let schemaVersion = 37
+    static let schemaVersion = 38
 
     /// Shared singleton for the app's main database
     static let shared = DatabaseManager()
@@ -373,6 +373,19 @@ final class DatabaseManager: Sendable {
             for suffix in ["insert", "update", "delete"] {
                 try db.execute(sql: "DROP TRIGGER IF EXISTS sync_capture_medications_\(suffix)")
             }
+            try DatabaseManager.createSyncCaptureTriggers(in: db, includePayload: true)
+        }
+
+        // v38: medication_expectation_periods — effective-dated adherence
+        // expectations, so preventative-adherence stats grade each day against the
+        // medication configuration that was true on that day (descheduling keeps
+        // history; archive + re-enable doesn't grade the archived gap). Synced.
+        // Created after the trigger migrations so createSyncCaptureTriggers re-runs
+        // to add this table's capture triggers (v35 precedent). Backfills an open
+        // period per active scheduled preventative from its creation day.
+        migrator.registerMigration("v38") { db in
+            try DatabaseManager.createMedicationExpectationPeriodsTable(in: db)
+            try DatabaseManager.backfillExpectationPeriods(in: db)
             try DatabaseManager.createSyncCaptureTriggers(in: db, includePayload: true)
         }
 

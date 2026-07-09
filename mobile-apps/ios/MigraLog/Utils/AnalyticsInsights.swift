@@ -573,36 +573,30 @@ enum AnalyticsInsights {
 
     /// Scheduled preventative doses logged as taken, grouped by week.
     ///
-    /// Expected doses per day = enabled schedules of active preventative
-    /// medications (today's schedule configuration — schedule history is not
-    /// recorded). A medication only contributes expected doses from the day
-    /// it was added, so a med added mid-range doesn't retroactively drag
-    /// down earlier weeks. Taken doses are capped at the expected count per
-    /// medication per day so extra logs can't inflate adherence.
-    /// Excluded-overlay days are dropped from both sides.
+    /// Expected doses per day come from `MedicationExpectationPeriod` rows — the
+    /// effective-dated history the repository records whenever a medication's
+    /// active flag or enabled-schedule count changes. Each day is graded against
+    /// the expectation that was in force on that day: days before a medication
+    /// existed, or while it was archived/descheduled, carry no expectation, and a
+    /// closed period keeps its history when the medication is later descheduled
+    /// or archived. Should overlapping periods ever cover the same day (a sync
+    /// merge artifact), the max expectation wins — never the sum. Taken doses are
+    /// capped at the expected count per medication per day so extra logs can't
+    /// inflate adherence. Excluded-overlay days are dropped from both sides.
     static func weeklyAdherence(
         doses: [MedicationDose],
-        medications: [Medication],
-        schedulesByMedication: [String: [MedicationSchedule]],
+        periods: [MedicationExpectationPeriod],
         excluded: Set<String>,
         from: Date,
         to: Date,
         calendar: Calendar = .current
     ) -> [WeeklyAdherence] {
-        var expectedPerDay: [String: Int] = [:]
-        var medStartDay: [String: Date] = [:]
-        for med in medications where med.type == .preventative && med.active {
-            let enabled = (schedulesByMedication[med.id] ?? []).filter(\.enabled).count
-            if enabled > 0 {
-                expectedPerDay[med.id] = enabled
-                medStartDay[med.id] = calendar.startOfDay(for: TimestampHelper.toDate(med.createdAt))
-            }
-        }
-        guard !expectedPerDay.isEmpty else { return [] }
+        let periodsByMed = Dictionary(grouping: periods, by: \.medicationId)
+        guard !periodsByMed.isEmpty else { return [] }
 
         // Taken doses bucketed by medication and day.
         var takenByMedDay: [String: Int] = [:]
-        for dose in doses where dose.status == .taken && expectedPerDay[dose.medicationId] != nil {
+        for dose in doses where dose.status == .taken && periodsByMed[dose.medicationId] != nil {
             let dayString = TimestampHelper.dateString(from: TimestampHelper.toDate(dose.timestamp))
             takenByMedDay["\(dose.medicationId)|\(dayString)", default: 0] += 1
         }
@@ -614,8 +608,12 @@ enum AnalyticsInsights {
             let dayString = TimestampHelper.dateString(from: day)
             if !excluded.contains(dayString),
                let weekStart = calendar.dateInterval(of: .weekOfYear, for: day)?.start {
-                for (medId, expected) in expectedPerDay {
-                    guard let startDay = medStartDay[medId], day >= startDay else { continue }
+                for (medId, medPeriods) in periodsByMed {
+                    let expected = medPeriods.lazy
+                        .filter { $0.covers(dayString) }
+                        .map(\.expectedDailyDoses)
+                        .max() ?? 0
+                    guard expected > 0 else { continue }
                     let taken = min(takenByMedDay["\(medId)|\(dayString)"] ?? 0, expected)
                     weekly[weekStart, default: (0, 0)].expected += expected
                     weekly[weekStart, default: (0, 0)].taken += taken

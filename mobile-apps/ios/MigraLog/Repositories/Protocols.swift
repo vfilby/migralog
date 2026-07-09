@@ -84,6 +84,9 @@ protocol MedicationRepositoryProtocol: Sendable {
     func updateSchedule(_ schedule: MedicationSchedule) throws -> MedicationSchedule
     func deleteSchedule(_ id: String) throws
 
+    // Expectation periods (effective-dated adherence history)
+    func getAllExpectationPeriods() throws -> [MedicationExpectationPeriod]
+
     // Notification helpers
     func wasLoggedForScheduleToday(medicationId: String, date: String) throws -> Bool
 }
