@@ -247,8 +247,11 @@ final class AnalyticsViewModelTests: XCTestCase {
             createdAt: now - 30 * 86_400_000
         )
         mockMedicationRepo.medications = [preventative]
-        mockMedicationRepo.schedules = [
-            TestFixtures.makeSchedule(medicationId: "med-p")
+        let periodStart = TimestampHelper.dateString(
+            from: TimestampHelper.toDate(now - 30 * 86_400_000)
+        )
+        mockMedicationRepo.expectationPeriods = [
+            TestFixtures.makeExpectationPeriod(medicationId: "med-p", startDate: periodStart)
         ]
         mockMedicationRepo.doses = [
             TestFixtures.makeDose(medicationId: "med-p", timestamp: now - 3600000)

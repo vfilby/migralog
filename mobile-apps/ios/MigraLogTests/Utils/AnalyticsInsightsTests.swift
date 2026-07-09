@@ -861,7 +861,7 @@ final class AnalyticsInsightsTests: XCTestCase {
 
     func testPreventativeCompliance_aggregatesAcrossRange() {
         let med = TestFixtures.makeMedication(id: "med-p", type: .preventative, category: .supplement)
-        let schedules = [TestFixtures.makeSchedule(medicationId: "med-p")]
+        let periods = [TestFixtures.makeExpectationPeriod(medicationId: "med-p", startDate: dayString(daysAgo: 30))]
         // Taken on 2 distinct days; a third day double-logs and must cap at 1.
         let doses = [
             TestFixtures.makeDose(medicationId: "med-p", timestamp: ms(daysAgo: 1)),
@@ -871,7 +871,7 @@ final class AnalyticsInsightsTests: XCTestCase {
         ]
 
         let result = AnalyticsInsights.preventativeCompliance(
-            doses: doses, medications: [med], schedulesByMedication: ["med-p": schedules],
+            doses: doses, medications: [med], periods: periods,
             excluded: [], from: date(daysAgo: 6), to: now, calendar: calendar
         )
 
@@ -883,13 +883,14 @@ final class AnalyticsInsightsTests: XCTestCase {
 
     func testPreventativeCompliance_twiceDailyAndMissedMedStillListed() {
         let med = TestFixtures.makeMedication(id: "med-p", type: .preventative)
-        let schedules = [
-            TestFixtures.makeSchedule(id: "s1", medicationId: "med-p", time: "08:00"),
-            TestFixtures.makeSchedule(id: "s2", medicationId: "med-p", time: "20:00"),
+        let periods = [
+            TestFixtures.makeExpectationPeriod(
+                medicationId: "med-p", startDate: dayString(daysAgo: 30), expectedDailyDoses: 2
+            )
         ]
 
         let result = AnalyticsInsights.preventativeCompliance(
-            doses: [], medications: [med], schedulesByMedication: ["med-p": schedules],
+            doses: [], medications: [med], periods: periods,
             excluded: [], from: date(daysAgo: 2), to: now, calendar: calendar
         )
 
@@ -902,16 +903,31 @@ final class AnalyticsInsightsTests: XCTestCase {
 
     func testPreventativeCompliance_excludedDaysDropFromBothSides() {
         let med = TestFixtures.makeMedication(id: "med-p", type: .preventative)
-        let schedules = [TestFixtures.makeSchedule(medicationId: "med-p")]
+        let periods = [TestFixtures.makeExpectationPeriod(medicationId: "med-p", startDate: dayString(daysAgo: 30))]
         let doses = [TestFixtures.makeDose(medicationId: "med-p", timestamp: ms(daysAgo: 1))]
 
         let result = AnalyticsInsights.preventativeCompliance(
-            doses: doses, medications: [med], schedulesByMedication: ["med-p": schedules],
+            doses: doses, medications: [med], periods: periods,
             excluded: [dayString(daysAgo: 1)], from: date(daysAgo: 2), to: now, calendar: calendar
         )
 
         // Day 1 excluded: expected over days 0 and 2 only, nothing taken counts.
         XCTAssertEqual(result.first?.expectedDoses, 2)
         XCTAssertEqual(result.first?.takenDoses, 0)
+    }
+
+    func testPreventativeCompliance_medAddedMidWindowOnlyGradedFromItsStart() {
+        let med = TestFixtures.makeMedication(id: "med-p", type: .preventative)
+        let periods = [TestFixtures.makeExpectationPeriod(medicationId: "med-p", startDate: dayString(daysAgo: 2))]
+        let doses = [TestFixtures.makeDose(medicationId: "med-p", timestamp: ms(daysAgo: 1))]
+
+        let result = AnalyticsInsights.preventativeCompliance(
+            doses: doses, medications: [med], periods: periods,
+            excluded: [], from: date(daysAgo: 29), to: now, calendar: calendar
+        )
+
+        // Only days 2..0 are graded, not the full 30-day window.
+        XCTAssertEqual(result.first?.expectedDoses, 3)
+        XCTAssertEqual(result.first?.takenDoses, 1)
     }
 }

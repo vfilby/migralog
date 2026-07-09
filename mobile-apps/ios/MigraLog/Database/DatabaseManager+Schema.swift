@@ -6,7 +6,7 @@ import GRDB
 // queue ownership and the migration registry (and under the file_length limit).
 extension DatabaseManager {
     /// Create the v25 baseline schema. Later registered migrations evolve it to the
-    /// current version; see spec/schemas/sqlite/schema-v37.sql for the current end-state.
+    /// current version; see spec/schemas/sqlite/schema-v38.sql for the current end-state.
     // swiftlint:disable:next function_body_length
     static func createSchema(in db: Database) throws {
         // Episodes table
@@ -348,6 +348,70 @@ extension DatabaseManager {
             CREATE INDEX IF NOT EXISTS idx_tracking_options_category
             ON tracking_options(category)
             """)
+    }
+
+    /// Create `medication_expectation_periods` (v38): effective-dated adherence
+    /// expectations. Each row says "medication X was expected `expected_daily_doses`
+    /// times per day from start_date through end_date (inclusive, local days;
+    /// NULL end_date = still in effect)". Written by MedicationRepository whenever
+    /// a medication's active flag or enabled-schedule count changes, so adherence
+    /// stats grade each day against the configuration that was true on that day.
+    /// Synced via SyncableTable.medicationExpectationPeriods. Idempotent.
+    static func createMedicationExpectationPeriodsTable(in db: Database) throws {
+        try db.execute(sql: """
+            CREATE TABLE IF NOT EXISTS medication_expectation_periods (
+                id TEXT PRIMARY KEY,
+                medication_id TEXT NOT NULL,
+                start_date TEXT NOT NULL CHECK(start_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
+                end_date TEXT CHECK(end_date IS NULL OR end_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
+                expected_daily_doses INTEGER NOT NULL CHECK(expected_daily_doses > 0),
+                created_at INTEGER NOT NULL CHECK(created_at > 0),
+                updated_at INTEGER NOT NULL CHECK(updated_at > 0),
+                CHECK(end_date IS NULL OR end_date >= start_date),
+                FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE
+            )
+            """)
+        try db.execute(sql: """
+            CREATE INDEX IF NOT EXISTS idx_medication_expectation_periods_medication
+            ON medication_expectation_periods(medication_id, start_date)
+            """)
+    }
+
+    /// v38 backfill: seed an open expectation period for every currently active
+    /// preventative medication that has enabled schedules, starting on the day the
+    /// medication was created — the best available approximation of history (true
+    /// schedule history was never recorded; schedule created_at was backfilled by
+    /// v29 and is meaningless).
+    ///
+    /// Multi-device safety: every device runs this migration independently, so the
+    /// row id is deterministic (derived from the medication id) and created_at /
+    /// updated_at are pinned to the medication's created_at. Devices that backfill
+    /// the same medication produce the same row id, and any genuine runtime change
+    /// (which stamps a current updated_at) wins last-write-wins over a later
+    /// device's pristine backfill copy.
+    static func backfillExpectationPeriods(in db: Database) throws {
+        let rows = try Row.fetchAll(db, sql: """
+            SELECT m.id, m.created_at,
+                   (SELECT COUNT(*) FROM medication_schedules s
+                    WHERE s.medication_id = m.id AND s.enabled = 1) AS enabled_count
+            FROM medications m
+            WHERE m.type = 'preventative' AND m.active = 1
+            """)
+        for row in rows {
+            let enabledCount: Int = row["enabled_count"]
+            guard enabledCount > 0 else { continue }
+            let medId: String = row["id"]
+            let createdAt: Int64 = row["created_at"]
+            let startDate = TimestampHelper.dateString(from: TimestampHelper.toDate(createdAt))
+            try db.execute(
+                sql: """
+                    INSERT OR IGNORE INTO medication_expectation_periods
+                        (id, medication_id, start_date, end_date, expected_daily_doses, created_at, updated_at)
+                    VALUES (?, ?, ?, NULL, ?, ?, ?)
+                    """,
+                arguments: ["\(medId):expectation-backfill", medId, startDate, enabledCount, createdAt, createdAt]
+            )
+        }
     }
 
     /// Create the change-capture machinery for iCloud sync (#434): the sync_capture_state

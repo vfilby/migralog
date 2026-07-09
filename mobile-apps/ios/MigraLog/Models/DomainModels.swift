@@ -134,6 +134,31 @@ struct MedicationSchedule: Identifiable, Equatable, Sendable {
     }
 }
 
+// MARK: - Medication Expectation Period
+
+/// A date range (inclusive, local-day strings) during which a preventative
+/// medication was expected to be taken `expectedDailyDoses` times per day.
+/// Rows are written by MedicationRepository whenever a medication's active
+/// flag or enabled-schedule count changes, giving adherence stats an
+/// effective-dated history instead of grading the past against today's
+/// configuration. An open period (`endDate == nil`) is the current state;
+/// days not covered by any period carry no expectation.
+struct MedicationExpectationPeriod: Identifiable, Equatable, Sendable {
+    let id: String
+    let medicationId: String
+    var startDate: String // yyyy-MM-dd, local
+    var endDate: String?  // yyyy-MM-dd, local; nil = still in effect
+    var expectedDailyDoses: Int
+    let createdAt: Int64
+    var updatedAt: Int64
+
+    /// Whether this period covers the given local-day string. yyyy-MM-dd
+    /// strings compare correctly lexicographically.
+    func covers(_ day: String) -> Bool {
+        startDate <= day && (endDate == nil || endDate! >= day)
+    }
+}
+
 // MARK: - Medication Dose
 
 struct MedicationDose: Identifiable, Equatable, Sendable {

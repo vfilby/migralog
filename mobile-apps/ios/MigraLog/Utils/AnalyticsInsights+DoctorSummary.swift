@@ -159,27 +159,34 @@ extension AnalyticsInsights {
     }
 
     /// Per-active-preventative adherence over `from...to`. Expected doses per
-    /// day come from today's enabled schedule configuration (schedule history
-    /// is not recorded); taken doses are capped per day at the expected count
-    /// so extra logs can't push adherence over 100%. Excluded-overlay days are
-    /// dropped from both sides. Active preventatives with an enabled schedule
-    /// are always returned (sorted by name) — including 0%-adherence ones — so
-    /// a missed medication still shows on the report.
+    /// day come from the medication's expectation periods, so each day is
+    /// graded against the configuration true on that day — a medication added
+    /// mid-window only accrues expectations from its start, and archived gaps
+    /// aren't graded. Taken doses are capped per day at the expected count so
+    /// extra logs can't push adherence over 100%. Excluded-overlay days are
+    /// dropped from both sides. Active preventatives with a current (open)
+    /// period are always returned (sorted by name) — including 0%-adherence
+    /// ones — so a missed medication still shows on the report.
     static func preventativeCompliance(
         doses: [MedicationDose],
         medications: [Medication],
-        schedulesByMedication: [String: [MedicationSchedule]],
+        periods: [MedicationExpectationPeriod],
         excluded: Set<String>,
         from: Date,
         to: Date,
         calendar: Calendar = .current
     ) -> [PreventativeCompliance] {
+        let periodsByMed = Dictionary(grouping: periods, by: \.medicationId)
         var dosesPerDay: [String: Int] = [:]
         var nameById: [String: String] = [:]
         for med in medications where med.type == .preventative && med.active {
-            let enabled = (schedulesByMedication[med.id] ?? []).filter(\.enabled).count
-            if enabled > 0 {
-                dosesPerDay[med.id] = enabled
+            // The report describes the current regimen: the open period's rate.
+            let current = (periodsByMed[med.id] ?? [])
+                .filter { $0.endDate == nil }
+                .map(\.expectedDailyDoses)
+                .max()
+            if let current {
+                dosesPerDay[med.id] = current
                 nameById[med.id] = med.name
             }
         }
@@ -198,7 +205,12 @@ extension AnalyticsInsights {
         while day <= lastDay {
             let dayString = TimestampHelper.dateString(from: day)
             if !excluded.contains(dayString) {
-                for (medId, perDay) in dosesPerDay {
+                for medId in dosesPerDay.keys {
+                    let perDay = (periodsByMed[medId] ?? []).lazy
+                        .filter { $0.covers(dayString) }
+                        .map(\.expectedDailyDoses)
+                        .max() ?? 0
+                    guard perDay > 0 else { continue }
                     expected[medId, default: 0] += perDay
                     taken[medId, default: 0] += min(takenByMedDay["\(medId)|\(dayString)"] ?? 0, perDay)
                 }
