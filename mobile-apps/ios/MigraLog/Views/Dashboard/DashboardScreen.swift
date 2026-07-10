@@ -406,9 +406,17 @@ struct MedicationScheduleRow: View {
     @Environment(AppState.self) private var appState
 
     private var medicationNameLabel: some View {
-        Text(item.medication.name)
-            .font(.subheadline.weight(.medium))
-            .foregroundStyle(.primary)
+        VStack(alignment: .leading, spacing: 2) {
+            Text(item.medication.name)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.primary)
+            if item.showScheduleTime {
+                Text(DateFormatting.displayTime(from: item.schedule.time))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("schedule-time-\(item.schedule.id)")
+            }
+        }
     }
 
     private var doseLabel: String {
