@@ -398,4 +398,57 @@ final class DashboardViewModelTests: XCTestCase {
         XCTAssertNil(result["s-am"])
         XCTAssertEqual(result["s-pm"]?.id, "d-1")
     }
+
+    func testMatchDosesToSchedules_exactScheduleIdWinsOverTime() {
+        // The dose names the morning schedule but was logged near the evening
+        // one; the explicit scheduleId is authoritative and must win.
+        let schedules = [
+            TestFixtures.makeSchedule(id: "s-am", medicationId: "med-1", time: "08:00"),
+            TestFixtures.makeSchedule(id: "s-pm", medicationId: "med-1", time: "20:00"),
+        ]
+        let doses = [
+            TestFixtures.makeDose(
+                id: "d-am", medicationId: "med-1", scheduleId: "s-am", timestamp: todayAt(19, 55)
+            ),
+        ]
+
+        let result = DashboardViewModel.matchDosesToSchedules(schedules: schedules, doses: doses)
+
+        XCTAssertEqual(result["s-am"]?.id, "d-am")
+        XCTAssertNil(result["s-pm"])
+    }
+
+    func testMatchDosesToSchedules_mixesExactAndTimeFallback() {
+        // One dose names its schedule; a second, ad-hoc dose (no scheduleId)
+        // falls back to time and must take the remaining row.
+        let schedules = [
+            TestFixtures.makeSchedule(id: "s-am", medicationId: "med-1", time: "08:00"),
+            TestFixtures.makeSchedule(id: "s-pm", medicationId: "med-1", time: "20:00"),
+        ]
+        let doses = [
+            TestFixtures.makeDose(id: "d-pm", medicationId: "med-1", scheduleId: "s-pm", timestamp: todayAt(20, 10)),
+            TestFixtures.makeDose(id: "d-am", medicationId: "med-1", timestamp: todayAt(8, 15)),
+        ]
+
+        let result = DashboardViewModel.matchDosesToSchedules(schedules: schedules, doses: doses)
+
+        XCTAssertEqual(result["s-pm"]?.id, "d-pm")
+        XCTAssertEqual(result["s-am"]?.id, "d-am")
+    }
+
+    func testLogDose_stampsScheduleIdOnRecordedDose() async throws {
+        let med = TestFixtures.makeMedication(id: "med-1", name: "Topiramate")
+        mockMedRepo.medications = [med]
+        mockMedRepo.schedules = [
+            TestFixtures.makeSchedule(id: "s-am", medicationId: "med-1", time: "08:00"),
+            TestFixtures.makeSchedule(id: "s-pm", medicationId: "med-1", time: "20:00"),
+        ]
+        await sut.loadData()
+        let eveningRow = try XCTUnwrap(sut.todaysMedications.first { $0.schedule.id == "s-pm" })
+
+        await sut.logDose(scheduleItem: eveningRow)
+
+        let recorded = try XCTUnwrap(mockMedRepo.doses.first)
+        XCTAssertEqual(recorded.scheduleId, "s-pm")
+    }
 }

@@ -126,6 +126,7 @@ extension DatabaseManager {
             CREATE TABLE IF NOT EXISTS medication_doses (
                 id TEXT PRIMARY KEY,
                 medication_id TEXT NOT NULL,
+                schedule_id TEXT,
                 timestamp INTEGER NOT NULL CHECK(timestamp > 0),
                 quantity REAL NOT NULL CHECK(quantity >= 0),
                 dosage_amount REAL,

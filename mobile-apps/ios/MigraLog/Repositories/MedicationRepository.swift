@@ -146,14 +146,15 @@ final class MedicationRepository: MedicationRepositoryProtocol {
         try dbManager.dbQueue.write { db in
             try db.execute(
                 sql: """
-                    INSERT INTO medication_doses (id, medication_id, timestamp, quantity, dosage_amount,
+                    INSERT INTO medication_doses (id, medication_id, schedule_id, timestamp, quantity, dosage_amount,
                         dosage_unit, status, episode_id, effectiveness_rating, time_to_relief,
                         side_effects, notes, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                 arguments: [
                     dose.id,
                     dose.medicationId,
+                    dose.scheduleId,
                     dose.timestamp,
                     dose.quantity,
                     dose.dosageAmount,
@@ -603,6 +604,7 @@ final class MedicationRepository: MedicationRepositoryProtocol {
         MedicationDose(
             id: row["id"],
             medicationId: row["medication_id"],
+            scheduleId: row["schedule_id"],
             timestamp: row["timestamp"],
             quantity: row["quantity"],
             dosageAmount: row["dosage_amount"],

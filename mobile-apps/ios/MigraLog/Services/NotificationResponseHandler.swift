@@ -339,6 +339,7 @@ final class NotificationResponseHandler: NSObject, UNUserNotificationCenterDeleg
             let dose = MedicationDose(
                 id: UUID().uuidString,
                 medicationId: medicationId,
+                scheduleId: scheduleId,
                 timestamp: now,
                 quantity: medication.defaultQuantity ?? 1.0,
                 dosageAmount: medication.dosageAmount,

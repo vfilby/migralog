@@ -140,6 +140,7 @@ final class DashboardViewModel {
         let dose = MedicationDose(
             id: UUID().uuidString,
             medicationId: scheduleItem.medication.id,
+            scheduleId: scheduleItem.schedule.id,
             timestamp: now,
             quantity: scheduleItem.medication.defaultQuantity ?? 1,
             dosageAmount: scheduleItem.medication.dosageAmount,
@@ -182,6 +183,7 @@ final class DashboardViewModel {
         let dose = MedicationDose(
             id: UUID().uuidString,
             medicationId: scheduleItem.medication.id,
+            scheduleId: scheduleItem.schedule.id,
             timestamp: now,
             quantity: 0,
             dosageAmount: nil,
@@ -280,20 +282,39 @@ final class DashboardViewModel {
     }
 
     /// Associates each of a medication's logged doses for the day with the
-    /// scheduled occurrence it belongs to, keyed by schedule id.
+    /// scheduled occurrence it belongs to, keyed by schedule id, so a med
+    /// scheduled more than once a day tracks each dose independently (#592).
     ///
-    /// Doses record the actual time taken and carry no schedule reference, so a
-    /// med scheduled more than once a day can't be matched by id alone (that
-    /// would attach the first dose to every row). Instead we match on time of
-    /// day: each dose is bound to the schedule whose "HH:mm" is nearest to when
-    /// it was logged, and every schedule and dose is used at most once. Closest
-    /// pairs bind first; midnight wrap is treated as circular. Ties break
-    /// deterministically by id so results are stable across reloads.
+    /// Doses logged against a schedule row (or a reminder notification) carry the
+    /// `scheduleId` they satisfy — that binding is authoritative. Ad-hoc / PRN
+    /// doses, and any logged before `scheduleId` existed, have none; those fall
+    /// back to time-of-day: each is bound to the still-unclaimed schedule whose
+    /// "HH:mm" is nearest to when it was logged. Every schedule and dose is used
+    /// at most once; closest pairs bind first; midnight wrap is circular; ties
+    /// break by id so results are stable across reloads.
     static func matchDosesToSchedules(
         schedules: [MedicationSchedule],
         doses: [MedicationDose]
     ) -> [String: MedicationDose] {
         guard !schedules.isEmpty, !doses.isEmpty else { return [:] }
+
+        var result: [String: MedicationDose] = [:]
+        let scheduleIds = Set(schedules.map(\.id))
+
+        // Phase 1: bind doses that name their schedule directly.
+        var unboundDoses: [MedicationDose] = []
+        for dose in doses {
+            if let scheduleId = dose.scheduleId, scheduleIds.contains(scheduleId), result[scheduleId] == nil {
+                result[scheduleId] = dose
+            } else {
+                unboundDoses.append(dose)
+            }
+        }
+        guard !unboundDoses.isEmpty else { return result }
+
+        // Phase 2: time-of-day fallback over schedules Phase 1 didn't claim.
+        let openSchedules = schedules.filter { result[$0.id] == nil }
+        guard !openSchedules.isEmpty else { return result }
 
         func scheduleMinute(_ schedule: MedicationSchedule) -> Int {
             guard let components = schedule.timeComponents else { return 0 }
@@ -311,9 +332,9 @@ final class DashboardViewModel {
         }
 
         var pairs: [(scheduleId: String, doseIndex: Int, distance: Int)] = []
-        for schedule in schedules {
+        for schedule in openSchedules {
             let scheduleMin = scheduleMinute(schedule)
-            for (index, dose) in doses.enumerated() {
+            for (index, dose) in unboundDoses.enumerated() {
                 pairs.append((schedule.id, index, distance(scheduleMin, doseMinute(dose))))
             }
         }
@@ -323,11 +344,10 @@ final class DashboardViewModel {
             return lhs.doseIndex < rhs.doseIndex
         }
 
-        var result: [String: MedicationDose] = [:]
         var usedDoseIndices: Set<Int> = []
         for pair in pairs {
             guard result[pair.scheduleId] == nil, !usedDoseIndices.contains(pair.doseIndex) else { continue }
-            result[pair.scheduleId] = doses[pair.doseIndex]
+            result[pair.scheduleId] = unboundDoses[pair.doseIndex]
             usedDoseIndices.insert(pair.doseIndex)
         }
         return result
