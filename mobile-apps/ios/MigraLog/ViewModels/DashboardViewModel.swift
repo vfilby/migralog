@@ -279,6 +279,60 @@ final class DashboardViewModel {
         return recent
     }
 
+    /// Associates each of a medication's logged doses for the day with the
+    /// scheduled occurrence it belongs to, keyed by schedule id.
+    ///
+    /// Doses record the actual time taken and carry no schedule reference, so a
+    /// med scheduled more than once a day can't be matched by id alone (that
+    /// would attach the first dose to every row). Instead we match on time of
+    /// day: each dose is bound to the schedule whose "HH:mm" is nearest to when
+    /// it was logged, and every schedule and dose is used at most once. Closest
+    /// pairs bind first; midnight wrap is treated as circular. Ties break
+    /// deterministically by id so results are stable across reloads.
+    static func matchDosesToSchedules(
+        schedules: [MedicationSchedule],
+        doses: [MedicationDose]
+    ) -> [String: MedicationDose] {
+        guard !schedules.isEmpty, !doses.isEmpty else { return [:] }
+
+        func scheduleMinute(_ schedule: MedicationSchedule) -> Int {
+            guard let components = schedule.timeComponents else { return 0 }
+            return components.hour * 60 + components.minute
+        }
+        func doseMinute(_ dose: MedicationDose) -> Int {
+            let components = Calendar.current.dateComponents([.hour, .minute], from: dose.date)
+            return (components.hour ?? 0) * 60 + (components.minute ?? 0)
+        }
+        // Circular distance between two minute-of-day values (handles the case
+        // where, e.g., a 23:00 schedule is nearest a dose logged just after midnight).
+        func distance(_ lhs: Int, _ rhs: Int) -> Int {
+            let diff = abs(lhs - rhs)
+            return min(diff, (24 * 60) - diff)
+        }
+
+        var pairs: [(scheduleId: String, doseIndex: Int, distance: Int)] = []
+        for schedule in schedules {
+            let scheduleMin = scheduleMinute(schedule)
+            for (index, dose) in doses.enumerated() {
+                pairs.append((schedule.id, index, distance(scheduleMin, doseMinute(dose))))
+            }
+        }
+        pairs.sort { lhs, rhs in
+            if lhs.distance != rhs.distance { return lhs.distance < rhs.distance }
+            if lhs.scheduleId != rhs.scheduleId { return lhs.scheduleId < rhs.scheduleId }
+            return lhs.doseIndex < rhs.doseIndex
+        }
+
+        var result: [String: MedicationDose] = [:]
+        var usedDoseIndices: Set<Int> = []
+        for pair in pairs {
+            guard result[pair.scheduleId] == nil, !usedDoseIndices.contains(pair.doseIndex) else { continue }
+            result[pair.scheduleId] = doses[pair.doseIndex]
+            usedDoseIndices.insert(pair.doseIndex)
+        }
+        return result
+    }
+
     private func loadTodaysMedications() async throws -> [MedicationScheduleItem] {
         let activeMeds = try await medicationRepository.getActiveMedications()
         let today = TimestampHelper.dateString()
@@ -292,14 +346,18 @@ final class DashboardViewModel {
             if let last = try? medicationRepository.getLastDose(medicationId: med.id) {
                 lastDoses[med.id] = last
             }
-            for schedule in schedules where schedule.enabled {
-                let matchingDose = todayDoses.first { doseWithMed in
-                    doseWithMed.medication.id == med.id
-                }
+            let enabledSchedules = schedules.filter { $0.enabled }
+            // Attach each of the day's logged doses to the specific scheduled
+            // occurrence it belongs to, rather than the medication as a whole,
+            // so a med scheduled multiple times a day tracks each dose
+            // independently (logging one no longer marks every row taken).
+            let medDoses = todayDoses.filter { $0.medication.id == med.id }.map(\.dose)
+            let doseBySchedule = Self.matchDosesToSchedules(schedules: enabledSchedules, doses: medDoses)
+            for schedule in enabledSchedules {
                 items.append(MedicationScheduleItem(
                     medication: med,
                     schedule: schedule,
-                    dose: matchingDose?.dose
+                    dose: doseBySchedule[schedule.id]
                 ))
                 if let category = med.category {
                     usedCategories.insert(category)

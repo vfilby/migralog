@@ -312,4 +312,90 @@ final class DashboardViewModelTests: XCTestCase {
         XCTAssertEqual(flags["s-t2"], true)
         XCTAssertEqual(flags["s-o1"], false)
     }
+
+    // MARK: - Per-schedule dose matching (issue #592)
+
+    /// Local timestamp for today at the given hour/minute, so the mock's
+    /// today-range dose fetch includes it.
+    private func todayAt(_ hour: Int, _ minute: Int = 0) -> Int64 {
+        let calendar = Calendar.current
+        let date = calendar.date(
+            bySettingHour: hour, minute: minute, second: 0,
+            of: calendar.startOfDay(for: Date())
+        )!
+        return TimestampHelper.fromDate(date)
+    }
+
+    func testLoadData_multiScheduleMed_oneDose_marksOnlyNearestRowTaken() async throws {
+        // Twice-daily med; only the morning dose is logged. The evening row must
+        // stay pending rather than flipping to taken with it.
+        let med = TestFixtures.makeMedication(id: "med-1", name: "Topiramate")
+        mockMedRepo.medications = [med]
+        mockMedRepo.schedules = [
+            TestFixtures.makeSchedule(id: "s-am", medicationId: "med-1", time: "08:00"),
+            TestFixtures.makeSchedule(id: "s-pm", medicationId: "med-1", time: "20:00"),
+        ]
+        mockMedRepo.doses = [
+            TestFixtures.makeDose(id: "d-am", medicationId: "med-1", timestamp: todayAt(8, 5), status: .taken),
+        ]
+
+        await sut.loadData()
+
+        let byId = Dictionary(uniqueKeysWithValues: sut.todaysMedications.map { ($0.schedule.id, $0) })
+        XCTAssertEqual(byId["s-am"]?.isTaken, true)
+        XCTAssertEqual(byId["s-pm"]?.isPending, true)
+    }
+
+    func testLoadData_multiScheduleMed_bothDoses_markBothRowsByTime() async throws {
+        let med = TestFixtures.makeMedication(id: "med-1", name: "Topiramate")
+        mockMedRepo.medications = [med]
+        mockMedRepo.schedules = [
+            TestFixtures.makeSchedule(id: "s-am", medicationId: "med-1", time: "08:00"),
+            TestFixtures.makeSchedule(id: "s-pm", medicationId: "med-1", time: "20:00"),
+        ]
+        // Evening dose was skipped, morning taken — each must land on its own row.
+        mockMedRepo.doses = [
+            TestFixtures.makeDose(id: "d-am", medicationId: "med-1", timestamp: todayAt(7, 45), status: .taken),
+            TestFixtures.makeDose(id: "d-pm", medicationId: "med-1", timestamp: todayAt(21, 0), status: .skipped),
+        ]
+
+        await sut.loadData()
+
+        let byId = Dictionary(uniqueKeysWithValues: sut.todaysMedications.map { ($0.schedule.id, $0) })
+        XCTAssertEqual(byId["s-am"]?.dose?.id, "d-am")
+        XCTAssertEqual(byId["s-am"]?.isTaken, true)
+        XCTAssertEqual(byId["s-pm"]?.dose?.id, "d-pm")
+        XCTAssertEqual(byId["s-pm"]?.isSkipped, true)
+    }
+
+    func testMatchDosesToSchedules_bindsClosestFirstAndUsesEachOnce() {
+        let schedules = [
+            TestFixtures.makeSchedule(id: "s-am", medicationId: "med-1", time: "08:00"),
+            TestFixtures.makeSchedule(id: "s-pm", medicationId: "med-1", time: "20:00"),
+        ]
+        let doses = [
+            TestFixtures.makeDose(id: "d-pm", medicationId: "med-1", timestamp: todayAt(19, 30)),
+            TestFixtures.makeDose(id: "d-am", medicationId: "med-1", timestamp: todayAt(8, 30)),
+        ]
+
+        let result = DashboardViewModel.matchDosesToSchedules(schedules: schedules, doses: doses)
+
+        XCTAssertEqual(result["s-am"]?.id, "d-am")
+        XCTAssertEqual(result["s-pm"]?.id, "d-pm")
+    }
+
+    func testMatchDosesToSchedules_fewerDosesThanSchedules_leavesExtraRowUnmatched() {
+        let schedules = [
+            TestFixtures.makeSchedule(id: "s-am", medicationId: "med-1", time: "08:00"),
+            TestFixtures.makeSchedule(id: "s-pm", medicationId: "med-1", time: "20:00"),
+        ]
+        let doses = [
+            TestFixtures.makeDose(id: "d-1", medicationId: "med-1", timestamp: todayAt(19, 45)),
+        ]
+
+        let result = DashboardViewModel.matchDosesToSchedules(schedules: schedules, doses: doses)
+
+        XCTAssertNil(result["s-am"])
+        XCTAssertEqual(result["s-pm"]?.id, "d-1")
+    }
 }
