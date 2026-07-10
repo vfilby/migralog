@@ -24,7 +24,7 @@ enum DatabaseInitializationError: Error {
 /// Central database manager. Owns the DatabaseQueue and handles schema creation/migration.
 final class DatabaseManager: Sendable {
     /// The current schema version
-    static let schemaVersion = 38
+    static let schemaVersion = 39
 
     /// Shared singleton for the app's main database
     static let shared = DatabaseManager()
@@ -386,6 +386,27 @@ final class DatabaseManager: Sendable {
         migrator.registerMigration("v38") { db in
             try DatabaseManager.createMedicationExpectationPeriodsTable(in: db)
             try DatabaseManager.backfillExpectationPeriods(in: db)
+            try DatabaseManager.createSyncCaptureTriggers(in: db, includePayload: true)
+        }
+
+        // v39: associate a logged dose with the specific scheduled occurrence it
+        // satisfies, so the dashboard can track each of a med's daily doses
+        // independently (#592). Existing doses keep schedule_id NULL and fall
+        // back to time-of-day matching; nothing backfills them. Fresh installs
+        // already create the column in v39's CREATE TABLE, so only ALTER when
+        // missing. Recreate the doses capture triggers so the DELETE tombstone
+        // carries the new column (v37 precedent).
+        migrator.registerMigration("v39") { db in
+            let columns = try Row.fetchAll(db, sql: "PRAGMA table_info(medication_doses)")
+            let hasColumn = columns.contains { (row: Row) in
+                (row["name"] as String?) == "schedule_id"
+            }
+            if !hasColumn {
+                try db.execute(sql: "ALTER TABLE medication_doses ADD COLUMN schedule_id TEXT")
+            }
+            for suffix in ["insert", "update", "delete"] {
+                try db.execute(sql: "DROP TRIGGER IF EXISTS sync_capture_medication_doses_\(suffix)")
+            }
             try DatabaseManager.createSyncCaptureTriggers(in: db, includePayload: true)
         }
 

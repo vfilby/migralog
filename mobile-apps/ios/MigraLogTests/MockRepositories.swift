@@ -907,6 +907,7 @@ enum TestFixtures {
     static func makeDose(
         id: String = UUID().uuidString,
         medicationId: String,
+        scheduleId: String? = nil,
         timestamp: Int64? = nil,
         status: DoseStatus = .taken,
         quantity: Double = 1.0,
@@ -918,6 +919,7 @@ enum TestFixtures {
         return MedicationDose(
             id: id,
             medicationId: medicationId,
+            scheduleId: scheduleId,
             timestamp: ts,
             quantity: quantity,
             dosageAmount: 400,

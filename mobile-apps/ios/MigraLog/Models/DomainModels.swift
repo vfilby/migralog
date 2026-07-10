@@ -164,6 +164,12 @@ struct MedicationExpectationPeriod: Identifiable, Equatable, Sendable {
 struct MedicationDose: Identifiable, Equatable, Sendable {
     let id: String
     let medicationId: String
+    /// The scheduled occurrence this dose satisfies, when it was logged against
+    /// one (dashboard schedule row or a reminder notification). `nil` for ad-hoc
+    /// / PRN doses and for doses created before this field existed. The dashboard
+    /// uses it to bind a dose to the right row for meds scheduled multiple times
+    /// a day, falling back to time-of-day matching when it's absent.
+    var scheduleId: String? = nil
     var timestamp: Int64
     var quantity: Double
     var dosageAmount: Double?

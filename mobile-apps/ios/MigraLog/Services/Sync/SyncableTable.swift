@@ -93,7 +93,7 @@ enum SyncableTable: String, CaseIterable, Sendable {
             return ["id", "medication_id", "time", "timezone", "dosage", "enabled",
                     "reminder_enabled", "created_at", "updated_at"]
         case .medicationDoses:
-            return ["id", "medication_id", "timestamp", "quantity", "dosage_amount",
+            return ["id", "medication_id", "schedule_id", "timestamp", "quantity", "dosage_amount",
                     "dosage_unit", "status", "episode_id", "effectiveness_rating",
                     "time_to_relief", "side_effects", "notes", "created_at", "updated_at"]
         case .medicationExpectationPeriods:
