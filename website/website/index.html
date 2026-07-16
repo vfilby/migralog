@@ -29,9 +29,9 @@
     <meta property="twitter:image" content="https://migralog.com/og-image.png">
 
     <!-- Additional Meta Tags -->
-    <meta name="theme-color" content="#f4f2ed" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#16171b" media="(prefers-color-scheme: dark)">
-    <meta name="msapplication-TileColor" content="#3a5a7a">
+    <meta name="theme-color" content="#f8f9fa" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0e1826" media="(prefers-color-scheme: dark)">
+    <meta name="msapplication-TileColor" content="#152233">
     <meta name="application-name" content="MigraLog">
     <meta name="apple-mobile-web-app-title" content="MigraLog">
 
@@ -59,23 +59,26 @@
     </script>
 
     <style>
+        /* Brand palette — mirrors css/tokens.css on the live site:
+           navy #152233 / #2A3D54 / #3F5875, orange #FF552A / #E64D26 / #FF7055. */
         :root {
-            --ink: #23262b;
-            --mut: #6a7079;
-            --soft: #9aa0a8;
-            --line: #e8e6e1;
-            --bg: #f4f2ed;
-            --card: #fffdf9;
-            --inner: #fbfaf6;
-            --accent: #3a5a7a;
-            --accentd: #324f6b;
-            --accs: rgba(58, 90, 122, .10);
-            --bezel: #15171b;
+            --ink: #152233;
+            --mut: #5a6a80;
+            --soft: #8d99ab;
+            --line: #e3e7ec;
+            --bg: #f8f9fa;
+            --card: #ffffff;
+            --inner: #f4f6f9;
+            --accent: #ff552a;
+            --accentd: #ce4420;
+            --accs: rgba(255, 85, 42, .10);
+            --car-hov: rgba(63, 88, 117, .12);
+            --bezel: #152233;
             --bezel-edge: transparent;
-            --shadow-card: 0 40px 80px -50px rgba(40, 40, 50, .4);
-            --shadow-phone: 0 30px 60px -42px rgba(40, 40, 50, .55);
+            --shadow-card: 0 40px 80px -50px rgba(21, 34, 51, .4);
+            --shadow-phone: 0 30px 60px -42px rgba(21, 34, 51, .55);
             --err: #a04545;
-            --sw-symptom: #d8d5cd;
+            --sw-symptom: #d7dce3;
             /* App intensity/day-status semantic colors, muted for the page */
             --i-low: #4e9455;
             --i-mid: #d07a2e;
@@ -84,33 +87,27 @@
             --st-good: #4e9455;
             color-scheme: light;
         }
-        @supports (color: oklch(0.5 0.1 200)) {
-            :root {
-                --accent: oklch(0.46 0.06 245);
-                --accentd: oklch(0.40 0.065 245);
-                --accs: oklch(0.46 0.06 245 / .10);
-            }
-        }
         /* Dark tokens — applied by explicit choice (data-theme="dark") or by
            system preference when no explicit choice was made. Keep both blocks
            in sync. */
         [data-theme="dark"] {
-            --ink: #e9eaed;
-            --mut: #a2a8b0;
-            --soft: #6f757e;
-            --line: #33363d;
-            --bg: #16171b;
-            --card: #1e2025;
-            --inner: #23252b;
-            --accent: #6285a8;
-            --accentd: #8fb0cf;
-            --accs: rgba(98, 133, 168, .16);
+            --ink: #e8edf4;
+            --mut: #9faec2;
+            --soft: #6d7e95;
+            --line: #29394e;
+            --bg: #0e1826;
+            --card: #152233;
+            --inner: #1b2a3e;
+            --accent: #ff5f38;
+            --accentd: #ff8a6b;
+            --accs: rgba(255, 112, 85, .16);
+            --car-hov: rgba(143, 176, 207, .14);
             --bezel: #000;
-            --bezel-edge: #33363d;
+            --bezel-edge: #29394e;
             --shadow-card: 0 40px 80px -50px rgba(0, 0, 0, .8);
             --shadow-phone: 0 30px 60px -42px rgba(0, 0, 0, .9);
             --err: #d98080;
-            --sw-symptom: #4a4d55;
+            --sw-symptom: #3a4a5f;
             --i-low: #7bbd84;
             --i-mid: #e09a55;
             --st-bad: #e08a80;
@@ -118,38 +115,31 @@
             --st-good: #7bbd84;
             color-scheme: dark;
         }
-        @supports (color: oklch(0.5 0.1 200)) {
-            [data-theme="dark"] {
-                --accent: oklch(0.60 0.06 245);
-                --accentd: oklch(0.74 0.05 245);
-                --accs: oklch(0.60 0.06 245 / .16);
-            }
-        }
         @media (prefers-color-scheme: dark) {
             :root:not([data-theme="light"]) {
-                --ink: #e9eaed;
-                --mut: #a2a8b0;
-                --soft: #6f757e;
-                --line: #33363d;
-                --bg: #16171b;
-                --card: #1e2025;
-                --inner: #23252b;
-                --accent: #6285a8;
-                --accentd: #8fb0cf;
-                --accs: rgba(98, 133, 168, .16);
+                --ink: #e8edf4;
+                --mut: #9faec2;
+                --soft: #6d7e95;
+                --line: #29394e;
+                --bg: #0e1826;
+                --card: #152233;
+                --inner: #1b2a3e;
+                --accent: #ff5f38;
+                --accentd: #ff8a6b;
+                --accs: rgba(255, 112, 85, .16);
+                --car-hov: rgba(143, 176, 207, .14);
                 --bezel: #000;
-                --bezel-edge: #33363d;
+                --bezel-edge: #29394e;
                 --shadow-card: 0 40px 80px -50px rgba(0, 0, 0, .8);
                 --shadow-phone: 0 30px 60px -42px rgba(0, 0, 0, .9);
                 --err: #d98080;
+                --sw-symptom: #3a4a5f;
+                --i-low: #7bbd84;
+                --i-mid: #e09a55;
+                --st-bad: #e08a80;
+                --st-mid: #ddb05e;
+                --st-good: #7bbd84;
                 color-scheme: dark;
-            }
-            @supports (color: oklch(0.5 0.1 200)) {
-                :root:not([data-theme="light"]) {
-                    --accent: oklch(0.60 0.06 245);
-                    --accentd: oklch(0.74 0.05 245);
-                    --accs: oklch(0.60 0.06 245 / .16);
-                }
             }
         }
         * { box-sizing: border-box; }
@@ -174,12 +164,7 @@
         /* ── Nav ─────────────────────────────────────────── */
         nav { display: flex; align-items: center; height: 74px; }
         .brand { display: flex; align-items: center; gap: 11px; font-weight: 700; font-size: 19px; letter-spacing: -.4px; }
-        .mk { width: 24px; height: 24px; border-radius: 8px; background: var(--accent); position: relative; flex: 0 0 auto; }
-        .mk::after {
-            content: ""; position: absolute; left: 5px; right: 5px; top: 50%; height: 2.5px; border-radius: 2px;
-            background: var(--card); transform: translateY(-50%);
-            box-shadow: 0 -5px 0 rgba(255,255,255,.55), 0 5px 0 rgba(255,255,255,.55);
-        }
+        .mk { width: 24px; height: 24px; border-radius: 6px; flex: 0 0 auto; }
         nav .links { margin-left: 42px; display: flex; gap: 30px; font-size: 15px; color: var(--mut); font-weight: 500; }
         nav .links a:hover { color: var(--ink); }
         nav .nav-right { margin-left: auto; display: flex; align-items: center; gap: 20px; }
@@ -256,7 +241,9 @@
             display: flex; align-items: center; justify-content: center;
             transition: color 150ms ease, background 150ms ease;
         }
-        .car-btn:hover { color: var(--ink); background: var(--accs); }
+        /* Cool steel-blue hover: the orange accent tint muddies against the
+           dark navy surfaces, so the arrows get their own quiet highlight. */
+        .car-btn:hover { color: var(--ink); background: var(--car-hov); }
         #car-prev { grid-area: prev; }
         #car-next { grid-area: next; }
         .car-dots { display: flex; gap: 9px; justify-content: center; margin: 26px 0 22px; }
@@ -373,7 +360,7 @@
 
     <div class="wrap">
         <nav aria-label="Main navigation">
-            <a class="brand" href="/" aria-label="MigraLog home"><span class="mk" aria-hidden="true"></span>MigraLog</a>
+            <a class="brand" href="/" aria-label="MigraLog home"><img class="mk" src="android-chrome-192x192.png" alt="" aria-hidden="true">MigraLog</a>
             <div class="links">
                 <a href="why.html">Why</a>
                 <a href="guide/">User guide</a>
@@ -501,7 +488,7 @@
 
     <div class="wrap">
         <footer>
-            <a class="brand" href="/" aria-label="MigraLog home"><span class="mk" aria-hidden="true"></span>MigraLog</a>
+            <a class="brand" href="/" aria-label="MigraLog home"><img class="mk" src="android-chrome-192x192.png" alt="" aria-hidden="true">MigraLog</a>
             <div class="foot-right">
                 <a href="why.html">Why</a>
                 <a href="guide/">User guide</a>
@@ -564,7 +551,7 @@
                 {
                     img: 'screenshots/med-limits',
                     alt: 'Log Medication screen: an Ibuprofen card showing a cooldown warning and an approaching monthly-limit warning above the log button',
-                    title: 'Dose tracking that knows your limits',
+                    title: 'Dose tracking with customizable limits',
                     bullets: [
                         'Log rescue and preventative doses in a tap',
                         'Cooldown alerts: how long until the next safe dose',
@@ -584,7 +571,7 @@
                 {
                     img: 'screenshots/insights',
                     alt: 'Insights view with day statistics, duration metrics, warning signs, and a monthly summary table',
-                    title: 'Insights that read like a report',
+                    title: 'Insights and summary statistics',
                     bullets: [
                         'Migraine, not-clear, and clear days over 30, 60, or 90 days',
                         'Shortest, longest, and average episode duration',

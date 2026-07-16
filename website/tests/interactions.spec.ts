@@ -17,7 +17,7 @@ test.describe('User Interactions', () => {
     await expect(page.locator('#car-img')).toHaveAttribute('src', /episode-details/);
 
     await page.getByRole('button', { name: 'Next screenshot' }).click();
-    await expect(page.getByRole('heading', { name: 'Dose tracking that knows your limits', level: 3 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Dose tracking with customizable limits', level: 3 })).toBeVisible();
     await expect(page.locator('#car-img')).toHaveAttribute('src', /med-limits/);
 
     // Prev from med-limits → episode → wraps to the last slide (doctor summary).

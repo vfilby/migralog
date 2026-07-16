@@ -183,36 +183,28 @@ def render_markdown(md: str, *, heading_shift: int = 1) -> str:
 # Design tokens copied verbatim from website/website/index.html so the guide
 # matches the redesigned site (colours, dark mode, fonts).
 TOKENS = """
+        /* Brand palette — mirrors css/tokens.css: navy #152233, orange #FF552A. */
         :root {
-            --ink: #23262b; --mut: #6a7079; --soft: #9aa0a8; --line: #e8e6e1;
-            --bg: #f4f2ed; --card: #fffdf9; --inner: #fbfaf6; --accent: #3a5a7a;
-            --accentd: #324f6b; --accs: rgba(58, 90, 122, .10);
-            --shadow-card: 0 40px 80px -50px rgba(40, 40, 50, .4);
+            --ink: #152233; --mut: #5a6a80; --soft: #8d99ab; --line: #e3e7ec;
+            --bg: #f8f9fa; --card: #ffffff; --inner: #f4f6f9; --accent: #ff552a;
+            --accentd: #ce4420; --accs: rgba(255, 85, 42, .10);
+            --shadow-card: 0 40px 80px -50px rgba(21, 34, 51, .4);
             color-scheme: light;
         }
-        @supports (color: oklch(0.5 0.1 200)) {
-            :root { --accent: oklch(0.46 0.06 245); --accentd: oklch(0.40 0.065 245); --accs: oklch(0.46 0.06 245 / .10); }
-        }
         [data-theme="dark"] {
-            --ink: #e9eaed; --mut: #a2a8b0; --soft: #6f757e; --line: #33363d;
-            --bg: #16171b; --card: #1e2025; --inner: #23252b; --accent: #6285a8;
-            --accentd: #8fb0cf; --accs: rgba(98, 133, 168, .16);
+            --ink: #e8edf4; --mut: #9faec2; --soft: #6d7e95; --line: #29394e;
+            --bg: #0e1826; --card: #152233; --inner: #1b2a3e; --accent: #ff5f38;
+            --accentd: #ff8a6b; --accs: rgba(255, 112, 85, .16);
             --shadow-card: 0 40px 80px -50px rgba(0, 0, 0, .8);
             color-scheme: dark;
         }
-        @supports (color: oklch(0.5 0.1 200)) {
-            [data-theme="dark"] { --accent: oklch(0.60 0.06 245); --accentd: oklch(0.74 0.05 245); --accs: oklch(0.60 0.06 245 / .16); }
-        }
         @media (prefers-color-scheme: dark) {
             :root:not([data-theme="light"]) {
-                --ink: #e9eaed; --mut: #a2a8b0; --soft: #6f757e; --line: #33363d;
-                --bg: #16171b; --card: #1e2025; --inner: #23252b; --accent: #6285a8;
-                --accentd: #8fb0cf; --accs: rgba(98, 133, 168, .16);
+                --ink: #e8edf4; --mut: #9faec2; --soft: #6d7e95; --line: #29394e;
+                --bg: #0e1826; --card: #152233; --inner: #1b2a3e; --accent: #ff5f38;
+                --accentd: #ff8a6b; --accs: rgba(255, 112, 85, .16);
                 --shadow-card: 0 40px 80px -50px rgba(0, 0, 0, .8);
                 color-scheme: dark;
-            }
-            @supports (color: oklch(0.5 0.1 200)) {
-                :root:not([data-theme="light"]) { --accent: oklch(0.60 0.06 245); --accentd: oklch(0.74 0.05 245); --accs: oklch(0.60 0.06 245 / .16); }
             }
         }
 """
@@ -229,8 +221,7 @@ STYLES = """
 
         nav { display: flex; align-items: center; height: 74px; }
         .brand { display: flex; align-items: center; gap: 11px; font-weight: 700; font-size: 19px; letter-spacing: -.4px; }
-        .mk { width: 24px; height: 24px; border-radius: 8px; background: var(--accent); position: relative; flex: 0 0 auto; }
-        .mk::after { content: ""; position: absolute; left: 5px; right: 5px; top: 50%; height: 2.5px; border-radius: 2px; background: var(--card); transform: translateY(-50%); box-shadow: 0 -5px 0 rgba(255,255,255,.55), 0 5px 0 rgba(255,255,255,.55); }
+        .mk { width: 24px; height: 24px; border-radius: 6px; flex: 0 0 auto; }
         nav .links { margin-left: 42px; display: flex; gap: 30px; font-size: 15px; color: var(--mut); font-weight: 500; }
         nav .links a:hover, nav .links a.active { color: var(--ink); }
         nav .nav-right { margin-left: auto; display: flex; align-items: center; gap: 20px; }
@@ -338,7 +329,7 @@ THEME_SCRIPT = """
 NAV = """
     <div class="wrap">
         <nav aria-label="Main navigation">
-            <a class="brand" href="/" aria-label="MigraLog home"><span class="mk" aria-hidden="true"></span>MigraLog</a>
+            <a class="brand" href="/" aria-label="MigraLog home"><img class="mk" src="/android-chrome-192x192.png" alt="" aria-hidden="true">MigraLog</a>
             <div class="links">
                 <a href="/why.html">Why</a>
                 <a href="/guide/" class="active" aria-current="page">User guide</a>
@@ -368,7 +359,7 @@ NAV = """
 FOOTER = """
     <div class="wrap">
         <footer>
-            <a class="brand" href="/" aria-label="MigraLog home"><span class="mk" aria-hidden="true"></span>MigraLog</a>
+            <a class="brand" href="/" aria-label="MigraLog home"><img class="mk" src="/android-chrome-192x192.png" alt="" aria-hidden="true">MigraLog</a>
             <div class="foot-right">
                 <a href="/why.html">Why</a>
                 <a href="/guide/">User guide</a>
@@ -408,8 +399,8 @@ def build() -> None:
     <meta name="description" content="How to use MigraLog: the timeline-based approach to tracking, medications and safety limits, the calendar, and trends and analytics.">
     <link rel="canonical" href="https://migralog.app/guide/">
     <meta name="robots" content="index, follow">
-    <meta name="theme-color" content="#f4f2ed" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#16171b" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#f8f9fa" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0e1826" media="(prefers-color-scheme: dark)">
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">

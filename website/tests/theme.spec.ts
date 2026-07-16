@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
-const LIGHT_BG = 'rgb(244, 242, 237)'; // --bg light #f4f2ed
-const DARK_BG = 'rgb(22, 23, 27)'; // --bg dark #16171b
+const LIGHT_BG = 'rgb(248, 249, 250)'; // --bg light #f8f9fa
+const DARK_BG = 'rgb(14, 24, 38)'; // --bg dark #0e1826
 
 function bodyBackground(page: import('@playwright/test').Page) {
   return page.evaluate(() => getComputedStyle(document.body).backgroundColor);
