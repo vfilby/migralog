@@ -202,68 +202,30 @@
         .theme-switch button[aria-pressed="true"] { background: var(--accs); color: var(--accentd); }
 
         /* ── Hero ────────────────────────────────────────── */
-        .hero { text-align: center; padding: 68px 0 0; }
-        .kick { font-size: 14px; font-weight: 700; color: var(--accentd); letter-spacing: .02em; margin: 0 0 18px; }
-        h1 { font-size: clamp(36px, 5vw, 58px); line-height: 1.03; letter-spacing: -2.2px; font-weight: 800; margin: 0 auto 22px; max-width: 13ch; }
-        .lead { font-size: 19px; line-height: 1.6; color: var(--mut); max-width: 33em; margin: 0 auto 30px; font-weight: 450; }
-        .cta { display: flex; gap: 14px; justify-content: center; align-items: center; flex-wrap: wrap; }
+        .hero { text-align: center; padding: 40px 0 0; }
+        h1 { font-size: clamp(36px, 5vw, 58px); line-height: 1.03; letter-spacing: -2.2px; font-weight: 800; margin: 0 auto 20px; max-width: 13ch; }
+        .lead { font-size: 19px; line-height: 1.6; color: var(--mut); max-width: 33em; margin: 0 auto 22px; font-weight: 450; }
         .btn { display: inline-block; font-size: 15.5px; font-weight: 600; padding: 14px 24px; border-radius: 12px; border: none; cursor: pointer; font-family: inherit; }
         .btn.pri { background: var(--accent); color: #fff; box-shadow: 0 10px 24px -12px var(--accent); }
         .btn.pri:hover { background: var(--accentd); transform: translateY(-1px); }
-        .btn.sec { background: var(--card); color: var(--ink); border: 1px solid var(--line); }
-        .btn.sec:hover { border-color: var(--soft); }
-        .trust { margin: 20px 0 0; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; list-style: none; padding: 0; }
+        .trust { margin: 0; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; list-style: none; padding: 0; }
         .trust li {
             display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: var(--mut);
             background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 6px 13px;
         }
         .trust .dt { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 
-        /* ── Showcase card ───────────────────────────────── */
-        .showcase {
-            margin: 52px auto 0; max-width: 980px; background: var(--card); border: 1px solid var(--line);
-            border-radius: 22px; padding: 30px; box-shadow: var(--shadow-card);
-            display: grid; grid-template-columns: 1fr 250px; gap: 28px; align-items: stretch; text-align: left;
-        }
-        .tl { border: 1px solid var(--line); border-radius: 14px; padding: 22px 24px; background: var(--inner); height: 100%; }
-        .tl-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
-        .tl-head h3 { font-size: 17px; font-weight: 700; letter-spacing: -.3px; margin: 0; }
-        .tl-head .sub { font-size: 13px; color: var(--soft); font-weight: 500; margin-left: auto; }
-        .tl-chart { margin: 12px 0 10px; }
-        .tl-chart svg { display: block; width: 100%; height: auto; }
-        .tl-chart .chip-txt { font-size: 10.5px; font-weight: 600; font-family: inherit; }
-        .tl-chart .ax { font-size: 11px; font-weight: 600; fill: var(--soft); font-family: inherit; }
-        .legend { display: flex; gap: 18px; font-size: 11.5px; color: var(--mut); font-weight: 500; padding-top: 12px; border-top: 1px solid var(--line); }
-        .legend span { display: flex; align-items: center; gap: 6px; }
-        .sw { width: 9px; height: 9px; border-radius: 3px; flex: 0 0 auto; }
-        .sw.grad { background: linear-gradient(90deg, var(--i-low), var(--i-mid)); }
-        .day-row { display: flex; gap: 16px; margin-top: 9px; }
-        .day-row .n2 { font-size: 21px; font-weight: 800; letter-spacing: -.6px; line-height: 1; }
-        .day-row .l2 { font-size: 10.5px; color: var(--mut); font-weight: 500; margin-top: 3px; }
-        .okrow { display: flex; align-items: center; gap: 9px; font-size: 14.5px; font-weight: 600; }
-        .okrow .okb {
-            width: 20px; height: 20px; border-radius: 7px; background: var(--st-good); color: #fff; flex: 0 0 auto;
-            display: flex; align-items: center; justify-content: center; font-size: 11px;
-        }
-        .side { display: flex; flex-direction: column; gap: 14px; }
-        .stat { border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; background: var(--inner); }
-        .stat .n { font-size: 30px; font-weight: 800; letter-spacing: -1.2px; line-height: 1; }
-        .stat .n.acc { color: var(--accentd); }
-        .stat .n .unit { font-size: 15px; font-weight: 600; color: var(--mut); letter-spacing: 0; }
-        .stat .l { font-size: 12.5px; color: var(--mut); font-weight: 500; margin-top: 5px; }
-        .bars { display: flex; align-items: flex-end; gap: 5px; height: 40px; margin-top: 10px; }
-        .bars i { flex: 1; border-radius: 3px 3px 0 0; background: var(--accent); opacity: .85; }
-
         /* ── Screenshot carousel ─────────────────────────── */
-        .devsec { padding: 72px 0 0; }
-        .lead2 {
-            text-align: center; font-size: 13.5px; font-weight: 700; color: var(--accentd);
-            letter-spacing: .06em; text-transform: uppercase; margin: 0 0 10px;
-        }
+        .devsec { padding: 24px 0 0; }
         .carousel {
-            margin: 0 auto; max-width: 880px;
+            margin: 0 auto; max-width: 900px;
             display: grid; grid-template-areas: "prev phone info next";
-            grid-template-columns: auto 230px 1fr auto; gap: 30px; align-items: center;
+            grid-template-columns: auto 230px 1fr auto; gap: 26px; align-items: start;
+            background: var(--card); border: 1px solid var(--line); border-radius: 22px;
+            padding: 32px 28px; box-shadow: var(--shadow-card);
+            /* Lock height to the (tallest) phone slide so the frame doesn't jump
+               when switching to the shorter PDF document slide. */
+            min-height: 549px;
         }
         .phone-btn {
             grid-area: phone; border: none; background: none; padding: 0; cursor: zoom-in;
@@ -274,9 +236,12 @@
             padding: 7px; border: 1px solid var(--bezel-edge); box-shadow: var(--shadow-phone);
         }
         .dphone img { width: 100%; display: block; border-radius: 24px; aspect-ratio: 1320 / 2868; object-fit: cover; background: var(--inner); }
+        /* Document slides (PDF export) drop the phone bezel for a paper frame. */
+        .dphone.as-doc { background: transparent; border: none; padding: 0; border-radius: 0; box-shadow: none; }
+        .dphone.as-doc img { aspect-ratio: 595 / 842; border-radius: 8px; object-fit: cover; background: #fff; border: 1px solid var(--line); box-shadow: var(--shadow-card); }
         .car-fade { transition: opacity 180ms ease; }
         .car-fade.out { opacity: 0; }
-        .car-info { grid-area: info; }
+        .car-info { grid-area: info; padding-top: 20px; }
         .car-info h3 { font-size: 23px; font-weight: 800; letter-spacing: -.6px; margin: 0 0 14px; }
         .car-bullets { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 11px; }
         .car-bullets li {
@@ -357,15 +322,9 @@
         .closing { text-align: center; padding: 80px 0 10px; }
         .closing h2 { font-size: 38px; font-weight: 800; letter-spacing: -1.4px; margin: 0 auto 12px; max-width: 16ch; }
         .closing p { font-size: 16.5px; color: var(--mut); max-width: 30em; margin: 0 auto 28px; font-weight: 450; }
-        .signup-form { display: flex; gap: 12px; justify-content: center; max-width: 480px; margin: 0 auto; }
-        .signup-form input[type="email"] {
-            flex: 1; min-width: 0; font-family: inherit; font-size: 15.5px; font-weight: 450; color: var(--ink);
-            background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
-        }
-        .signup-form input[type="email"]::placeholder { color: var(--soft); }
-        .form-msg { margin: 14px auto 0; font-size: 14px; font-weight: 600; display: none; }
-        .form-msg.ok { display: block; color: var(--accentd); }
-        .form-msg.err { display: block; color: var(--err); }
+        .closing p.tf-note { margin: 14px auto 0; font-size: 14px; }
+        .closing p.tf-note a { color: var(--mut); text-decoration: underline; }
+        .closing p.tf-note a:hover { color: var(--ink); }
         .ossline { margin-top: 22px; font-size: 13px; color: var(--soft); font-weight: 500; display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; }
         .ossline a { color: var(--accentd); font-weight: 600; border-bottom: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
         .ossline a:hover { border-bottom-color: var(--accentd); }
@@ -377,7 +336,7 @@
         }
         footer .brand { font-size: 16px; }
         footer .brand .mk { width: 20px; height: 20px; }
-        footer .foot-right { margin-left: auto; display: flex; gap: 22px; }
+        footer .foot-right { margin-left: auto; display: flex; gap: 18px; flex-wrap: wrap; row-gap: 8px; }
         footer a:hover { color: var(--ink); }
 
         /* ── Responsive ──────────────────────────────────── */
@@ -385,9 +344,6 @@
             .wrap { padding: 0 24px; }
             nav .links { display: none; }
             h1 { letter-spacing: -1.2px; }
-            .showcase { grid-template-columns: 1fr; }
-            .side { flex-direction: row; }
-            .side .stat { flex: 1; }
             .carousel {
                 grid-template-areas: "prev phone next" "info info info";
                 grid-template-columns: auto 1fr auto; gap: 22px; max-width: 400px;
@@ -405,15 +361,10 @@
             .closing h2 { font-size: 31px; }
         }
         @media (max-width: 560px) {
-            .side { flex-direction: column; }
-            .signup-form { flex-direction: column; }
-            .cta { flex-direction: column; }
-            .cta .btn { width: 100%; max-width: 320px; }
             .brand { font-size: 17px; }
             .nav-right { gap: 12px; }
             .ghl-text { display: none; }
             .pill-btn { padding: 9px 14px; }
-            .day-row { gap: 12px; }
         }
     </style>
 </head>
@@ -424,9 +375,8 @@
         <nav aria-label="Main navigation">
             <a class="brand" href="/" aria-label="MigraLog home"><span class="mk" aria-hidden="true"></span>MigraLog</a>
             <div class="links">
-                <a href="#features">Features</a>
-                <a href="#how-it-works">How it works</a>
-                <a href="#privacy">Privacy</a>
+                <a href="why.html">Why</a>
+                <a href="guide/">User guide</a>
             </div>
             <div class="nav-right">
                 <div class="theme-switch" role="group" aria-label="Color theme">
@@ -451,85 +401,16 @@
 
     <main id="main-content">
         <header class="wrap hero">
-            <p class="kick">Understand today. Improve tomorrow.</p>
             <h1>Make sense of your migraines.</h1>
             <p class="lead">A patient-focused, private migraine tracker for iPhone &mdash; it turns each attack into a clear timeline, and months of history into something you can actually read.</p>
-            <div class="cta">
-                <a class="btn pri" href="#signup">Join the private beta</a>
-                <a class="btn sec" href="#how-it-works">See how it works</a>
-            </div>
             <ul class="trust">
                 <li><span class="dt" aria-hidden="true"></span>On-device &amp; private</li>
                 <li><span class="dt" aria-hidden="true"></span>No account, no ads</li>
                 <li><span class="dt" aria-hidden="true"></span>Free &amp; open source</li>
             </ul>
-
-            <div class="showcase">
-                <div class="tl">
-                    <div class="tl-head"><h3>Fri, Jul 3 &middot; episode</h3><span class="sub">2:00 &ndash; 5:30 PM &middot; 3h 30m</span></div>
-                    <div class="tl-chart" aria-hidden="true">
-                        <svg viewBox="0 0 600 168" role="img">
-                            <defs>
-                                <linearGradient id="ig" x1="0" y1="0" x2="1" y2="0">
-                                    <stop offset="0" stop-color="var(--i-low)"/>
-                                    <stop offset=".46" stop-color="var(--i-low)"/>
-                                    <stop offset=".57" stop-color="var(--i-mid)"/>
-                                    <stop offset=".76" stop-color="var(--i-mid)"/>
-                                    <stop offset=".88" stop-color="var(--i-low)"/>
-                                    <stop offset="1" stop-color="var(--i-low)"/>
-                                </linearGradient>
-                            </defs>
-                            <path d="M0,109 H290 C310,109 315,70 335,70 H470 C495,70 490,122 512,122 H600 V150 H0 Z" fill="url(#ig)" fill-opacity=".09"/>
-                            <path d="M0,109 H290 C310,109 315,70 335,70 H470 C495,70 490,122 512,122 H600" fill="none" stroke="url(#ig)" stroke-width="2.5" stroke-linecap="round"/>
-                            <!-- medication dose -->
-                            <circle cx="205" cy="109" r="4.5" fill="var(--accent)" stroke="var(--card)" stroke-width="2"/>
-                            <rect x="148" y="120" width="114" height="18" rx="5" fill="var(--accs)"/>
-                            <text class="chip-txt" x="205" y="133" text-anchor="middle" fill="var(--accentd)">Sumatriptan &middot; 100 mg</text>
-                            <!-- intensity updates -->
-                            <circle cx="120" cy="109" r="5" fill="var(--i-low)" stroke="var(--card)" stroke-width="2"/>
-                            <rect x="95" y="77" width="50" height="18" rx="5" fill="var(--i-low)" fill-opacity=".13"/>
-                            <text class="chip-txt" x="120" y="90" text-anchor="middle" fill="var(--i-low)">2 &middot; Mild</text>
-                            <circle cx="335" cy="70" r="5" fill="var(--i-mid)" stroke="var(--card)" stroke-width="2"/>
-                            <rect x="299" y="38" width="72" height="18" rx="5" fill="var(--i-mid)" fill-opacity=".13"/>
-                            <text class="chip-txt" x="335" y="51" text-anchor="middle" fill="var(--i-mid)">5 &middot; Moderate</text>
-                            <circle cx="512" cy="122" r="5" fill="var(--i-low)" stroke="var(--card)" stroke-width="2"/>
-                            <rect x="482" y="132" width="62" height="18" rx="5" fill="var(--i-low)" fill-opacity=".13"/>
-                            <text class="chip-txt" x="513" y="145" text-anchor="middle" fill="var(--i-low)">1 &middot; Minimal</text>
-                            <!-- time axis -->
-                            <text class="ax" x="0" y="166">2 PM</text>
-                            <text class="ax" x="171" y="166" text-anchor="middle">3 PM</text>
-                            <text class="ax" x="343" y="166" text-anchor="middle">4 PM</text>
-                            <text class="ax" x="514" y="166" text-anchor="middle">5 PM</text>
-                        </svg>
-                    </div>
-                    <div class="legend">
-                        <span><span class="sw grad"></span>pain intensity</span>
-                        <span><span class="sw" style="background: var(--accent)"></span>medication</span>
-                    </div>
-                </div>
-                <div class="side">
-                    <div class="stat">
-                        <div class="l" style="margin-top: 0">last 30 days</div>
-                        <div class="day-row">
-                            <div class="day"><div class="n2" style="color: var(--st-bad)">7</div><div class="l2">migraine</div></div>
-                            <div class="day"><div class="n2" style="color: var(--st-mid)">8</div><div class="l2">not clear</div></div>
-                            <div class="day"><div class="n2" style="color: var(--st-good)">16</div><div class="l2">clear</div></div>
-                        </div>
-                    </div>
-                    <div class="stat">
-                        <div class="n">4<span class="unit">h</span> 12<span class="unit">m</span></div>
-                        <div class="l">average episode &middot; 2h 30m to 6h range</div>
-                    </div>
-                    <div class="stat">
-                        <div class="okrow"><span class="okb" aria-hidden="true">&#10003;</span>No warning signs</div>
-                        <div class="l">Overuse guardrails watch your dosing.</div>
-                    </div>
-                </div>
-            </div>
         </header>
 
         <section id="how-it-works" class="wrap devsec" aria-roledescription="carousel" aria-label="A quick look inside the app">
-            <h2 class="lead2">A quick look inside</h2>
             <div class="car-dots" id="car-dots"></div>
             <div class="carousel">
                 <button type="button" class="car-btn" id="car-prev" aria-label="Previous screenshot">
@@ -569,7 +450,7 @@
                     <div class="ic" aria-hidden="true">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="19" x2="20" y2="19"/><line x1="7" y1="19" x2="7" y2="12"/><circle cx="7" cy="10" r="1.6" fill="currentColor" stroke="none"/><line x1="12" y1="19" x2="12" y2="7"/><circle cx="12" cy="5" r="1.6" fill="currentColor" stroke="none"/><line x1="17" y1="19" x2="17" y2="14"/><circle cx="17" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg>
                     </div>
-                    <h3>Intra-migraine timelines</h3>
+                    <h3>A timeline for every attack</h3>
                     <p>Log onset, symptoms, every dose, and relief as the attack unfolds &mdash; not one flat entry after it's over.</p>
                 </div>
                 <div class="fc">
@@ -584,7 +465,7 @@
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
                     </div>
                     <h3>Reminders that respect rebound</h3>
-                    <p>Dose tracking that knows your limits and warns you before a rebound headache, instead of just buzzing.</p>
+                    <p>Set warning limits on any medication &mdash; MigraLog tells you if the next dose is too soon, or you're dosing too often, before it becomes a rebound headache.</p>
                 </div>
                 <div class="fc">
                     <div class="ic" aria-hidden="true">
@@ -611,13 +492,9 @@
 
         <section id="signup" class="wrap closing">
             <h2>Start understanding the pattern.</h2>
-            <p>MigraLog is in private beta on iPhone. Join the list and we'll send you an invite.</p>
-            <form id="signup-form" class="signup-form" action="https://formspree.io/f/mpwvrbpw" method="POST">
-                <label for="email" class="skip-link">Email address</label>
-                <input type="email" id="email" name="email" placeholder="Your email address" required autocomplete="email">
-                <button type="submit" class="btn pri">Join the private beta</button>
-            </form>
-            <p id="form-msg" class="form-msg" role="status"></p>
+            <p>MigraLog is in public beta on iPhone. No signup &mdash; install it straight from TestFlight.</p>
+            <a class="btn pri" href="https://testflight.apple.com/join/UpVgBMcZ" target="_blank" rel="noopener">Join the public beta on TestFlight</a>
+            <p class="tf-note">Free &middot; iPhone &middot; requires Apple's <a href="https://apps.apple.com/app/testflight/id899247664" target="_blank" rel="noopener">TestFlight app</a></p>
             <p class="ossline">Curious how it works under the hood? <a href="https://github.com/vfilby/migralog" target="_blank" rel="noopener">Read the source on GitHub &rarr;</a></p>
         </section>
     </main>
@@ -626,6 +503,8 @@
         <footer>
             <a class="brand" href="/" aria-label="MigraLog home"><span class="mk" aria-hidden="true"></span>MigraLog</a>
             <div class="foot-right">
+                <a href="why.html">Why</a>
+                <a href="guide/">User guide</a>
                 <a href="https://github.com/vfilby/migralog" target="_blank" rel="noopener">GitHub</a>
                 <a href="#privacy">Privacy</a>
                 <a href="contact.html">Contact</a>
@@ -683,23 +562,44 @@
                     ],
                 },
                 {
-                    img: 'screenshots/dashboard',
-                    alt: 'MigraLog dashboard with today’s medications, a start-episode button, and recent episodes with mini timelines',
-                    title: 'Your day at a glance',
+                    img: 'screenshots/med-limits',
+                    alt: 'Log Medication screen: an Ibuprofen card showing a cooldown warning and an approaching monthly-limit warning above the log button',
+                    title: 'Dose tracking that knows your limits',
                     bullets: [
-                        'Today’s medications, logged in one tap',
-                        'Start an episode the moment it begins',
-                        'Recent attacks with mini timelines you can read at a glance',
+                        'Log rescue and preventative doses in a tap',
+                        'Cooldown alerts: how long until the next safe dose',
+                        'Overuse guardrails warn before you hit the monthly limit',
                     ],
                 },
                 {
-                    img: 'screenshots/trends',
-                    alt: 'Trends and analytics with migraine versus clear days, episode statistics, and peak intensity distribution',
-                    title: 'Patterns you can act on',
+                    img: 'screenshots/calendar',
+                    alt: 'Calendar month view with each day marked green for clear, yellow for not-clear, or red for a migraine day',
+                    title: 'A month at a glance',
                     bullets: [
-                        'Migraine, clear, and not-clear days over 7, 30, or 90 days',
-                        'Episode duration and frequency at a glance',
-                        'Peak intensity distribution across attacks',
+                        'Every day coloured — clear, not-clear, or a migraine day',
+                        'Migraine days fill in automatically from your episodes',
+                        'Spot clusters of good and hard days without reading a thing',
+                    ],
+                },
+                {
+                    img: 'screenshots/insights',
+                    alt: 'Insights view with day statistics, duration metrics, warning signs, and a monthly summary table',
+                    title: 'Insights that read like a report',
+                    bullets: [
+                        'Migraine, not-clear, and clear days over 30, 60, or 90 days',
+                        'Shortest, longest, and average episode duration',
+                        'Overuse warnings and a month-by-month summary for your care team',
+                    ],
+                },
+                {
+                    img: 'screenshots/doctor-summary',
+                    doc: true,
+                    alt: 'A one-page Doctor Visit Summary PDF with headline stats, a six-month headache-burden chart, and acute and preventative medication tables',
+                    title: 'A summary built for your doctor',
+                    bullets: [
+                        'One-tap PDF — headline stats and a six-month trend',
+                        'Acute and preventative medication tables, with adherence',
+                        'Share it or print it — take it to any appointment',
                     ],
                 },
             ];
@@ -712,9 +612,14 @@
             let index = 0;
 
             function src(slide) {
+                // Document slides (e.g. the PDF export) are a single theme-agnostic
+                // image; app screenshots have per-theme -light/-dark variants.
+                if (slide.doc) return slide.img + '.png';
                 const theme = window.__effectiveTheme ? window.__effectiveTheme() : 'light';
                 return slide.img + '-' + theme + '.png';
             }
+
+            const carFrame = img.closest('.dphone');
 
             slides.forEach((slide, i) => {
                 const dot = document.createElement('button');
@@ -741,6 +646,7 @@
                 const slide = slides[index];
                 img.src = src(slide);
                 img.alt = slide.alt;
+                if (carFrame) carFrame.classList.toggle('as-doc', !!slide.doc);
                 title.textContent = slide.title;
                 fillBullets(list, slide);
                 Array.from(dots.children).forEach((d, i) =>
@@ -771,10 +677,12 @@
             const modalTitle = document.getElementById('modal-title');
             const modalBullets = document.getElementById('modal-bullets');
 
+            const modalFrame = modalImg.closest('.dphone');
             document.getElementById('car-zoom').addEventListener('click', () => {
                 const slide = slides[index];
                 modalImg.src = src(slide);
                 modalImg.alt = slide.alt;
+                if (modalFrame) modalFrame.classList.toggle('as-doc', !!slide.doc);
                 modalTitle.textContent = slide.title;
                 fillBullets(modalBullets, slide);
                 modal.showModal();
@@ -792,36 +700,6 @@
 
             render();
         })();
-
-        // Progressive enhancement: submit the beta signup via fetch so the user
-        // stays on the page; falls back to a normal POST without JS.
-        document.getElementById('signup-form').addEventListener('submit', async function (e) {
-            e.preventDefault();
-            const form = e.target;
-            const msg = document.getElementById('form-msg');
-            const button = form.querySelector('button[type="submit"]');
-            button.disabled = true;
-            msg.className = 'form-msg';
-            try {
-                const response = await fetch(form.action, {
-                    method: 'POST',
-                    body: new FormData(form),
-                    headers: { 'Accept': 'application/json' }
-                });
-                if (response.ok) {
-                    msg.textContent = "You're on the list — we'll be in touch with an invite.";
-                    msg.className = 'form-msg ok';
-                    form.reset();
-                } else {
-                    throw new Error('Request failed');
-                }
-            } catch (err) {
-                msg.textContent = 'Something went wrong. Please try again, or email us via the contact page.';
-                msg.className = 'form-msg err';
-            } finally {
-                button.disabled = false;
-            }
-        });
     </script>
 </body>
 </html>

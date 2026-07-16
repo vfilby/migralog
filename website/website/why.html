@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<!--
+  DRAFT / SAMPLE CONTENT — edit freely.
+  The prose below is a first-person "why this exists" story stitched together from
+  the founder notes in website/source-content/source-content.md and the previous
+  site copy. Rewrite it in your own voice; the markup/styling can stay as-is.
+-->
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Why MigraLog | The story behind the app</title>
+    <meta name="description" content="Why MigraLog exists: after three decades of migraines and frustration with trackers that failed exactly when they were needed most, one patient built the tool they wanted.">
+    <link rel="canonical" href="https://migralog.app/why.html">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#f4f2ed" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#16171b" media="(prefers-color-scheme: dark)">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@450;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        (function () {
+            let theme = 'system';
+            try { theme = localStorage.getItem('theme') || 'system'; } catch (e) {}
+            if (theme === 'light' || theme === 'dark') { document.documentElement.setAttribute('data-theme', theme); }
+        })();
+    </script>
+    <style>
+        :root {
+            --ink: #23262b; --mut: #6a7079; --soft: #9aa0a8; --line: #e8e6e1;
+            --bg: #f4f2ed; --card: #fffdf9; --inner: #fbfaf6; --accent: #3a5a7a;
+            --accentd: #324f6b; --accs: rgba(58, 90, 122, .10);
+            --shadow-card: 0 40px 80px -50px rgba(40, 40, 50, .4);
+            color-scheme: light;
+        }
+        @supports (color: oklch(0.5 0.1 200)) {
+            :root { --accent: oklch(0.46 0.06 245); --accentd: oklch(0.40 0.065 245); --accs: oklch(0.46 0.06 245 / .10); }
+        }
+        [data-theme="dark"] {
+            --ink: #e9eaed; --mut: #a2a8b0; --soft: #6f757e; --line: #33363d;
+            --bg: #16171b; --card: #1e2025; --inner: #23252b; --accent: #6285a8;
+            --accentd: #8fb0cf; --accs: rgba(98, 133, 168, .16);
+            --shadow-card: 0 40px 80px -50px rgba(0, 0, 0, .8);
+            color-scheme: dark;
+        }
+        @supports (color: oklch(0.5 0.1 200)) {
+            [data-theme="dark"] { --accent: oklch(0.60 0.06 245); --accentd: oklch(0.74 0.05 245); --accs: oklch(0.60 0.06 245 / .16); }
+        }
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                --ink: #e9eaed; --mut: #a2a8b0; --soft: #6f757e; --line: #33363d;
+                --bg: #16171b; --card: #1e2025; --inner: #23252b; --accent: #6285a8;
+                --accentd: #8fb0cf; --accs: rgba(98, 133, 168, .16);
+                --shadow-card: 0 40px 80px -50px rgba(0, 0, 0, .8);
+                color-scheme: dark;
+            }
+            @supports (color: oklch(0.5 0.1 200)) {
+                :root:not([data-theme="light"]) { --accent: oklch(0.60 0.06 245); --accentd: oklch(0.74 0.05 245); --accs: oklch(0.60 0.06 245 / .16); }
+            }
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: 'Hanken Grotesk', system-ui, sans-serif; color: var(--ink); background: var(--bg); -webkit-font-smoothing: antialiased; }
+        a { color: inherit; text-decoration: none; }
+        a, .btn { transition: color 150ms ease, background 150ms ease, box-shadow 150ms ease, transform 150ms ease; }
+        :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+        .wrap { max-width: 1080px; margin: 0 auto; padding: 0 60px; }
+        .skip-link { position: absolute; left: -9999px; top: 0; background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 0 0 8px 0; z-index: 100; }
+        .skip-link:focus { left: 0; }
+
+        nav { display: flex; align-items: center; height: 74px; }
+        .brand { display: flex; align-items: center; gap: 11px; font-weight: 700; font-size: 19px; letter-spacing: -.4px; }
+        .mk { width: 24px; height: 24px; border-radius: 8px; background: var(--accent); position: relative; flex: 0 0 auto; }
+        .mk::after { content: ""; position: absolute; left: 5px; right: 5px; top: 50%; height: 2.5px; border-radius: 2px; background: var(--card); transform: translateY(-50%); box-shadow: 0 -5px 0 rgba(255,255,255,.55), 0 5px 0 rgba(255,255,255,.55); }
+        nav .links { margin-left: 42px; display: flex; gap: 30px; font-size: 15px; color: var(--mut); font-weight: 500; }
+        nav .links a:hover, nav .links a.active { color: var(--ink); }
+        nav .nav-right { margin-left: auto; display: flex; align-items: center; gap: 20px; }
+        .ghl { display: flex; align-items: center; gap: 7px; font-size: 14px; color: var(--mut); font-weight: 500; }
+        .ghl:hover { color: var(--ink); }
+        .pill-btn { background: var(--ink); color: var(--bg); font-size: 14px; font-weight: 600; padding: 10px 18px; border-radius: 999px; white-space: nowrap; }
+        .pill-btn:hover { opacity: .85; }
+        .theme-switch { display: flex; align-items: center; gap: 2px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
+        .theme-switch button { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: none; border-radius: 999px; background: transparent; color: var(--soft); cursor: pointer; padding: 0; }
+        .theme-switch button:hover { color: var(--ink); }
+        .theme-switch button[aria-pressed="true"] { background: var(--accs); color: var(--accentd); }
+
+        /* ── Why story ── */
+        .why { max-width: 720px; margin: 0 auto; padding: 40px 0 90px; }
+        /* "Why" is the question this page answers, so it is the biggest element.
+           The answer that follows is body text; section headers sit clearly below. */
+        .why h1 { font-size: clamp(42px, 5vw, 56px); line-height: 1.0; letter-spacing: -1.6px; font-weight: 800; margin: 0 0 20px; }
+        .why .lead { font-size: 18px; line-height: 1.72; color: var(--mut); margin: 0 0 6px; font-weight: 450; }
+        .why h2 { font-size: 26px; line-height: 1.25; letter-spacing: -.4px; font-weight: 700; margin: 48px 0 8px; }
+        .why p { font-size: 17.5px; line-height: 1.75; color: var(--mut); margin: 14px 0; }
+        .why strong { color: var(--ink); font-weight: 700; }
+        .why .pull { margin: 34px 0; padding: 4px 0 4px 22px; border-left: 3px solid var(--accent); font-size: 20px; line-height: 1.5; color: var(--ink); font-weight: 600; }
+        .why .sign { margin-top: 40px; font-size: 16px; color: var(--soft); font-style: italic; }
+        .why-cta { margin: 44px 0 0; padding: 30px 32px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow-card); text-align: center; }
+        .why-cta h2 { margin: 0 0 8px; }
+        .why-cta p { margin: 0 auto 20px; max-width: 46ch; }
+        .btn { display: inline-block; font-size: 15.5px; font-weight: 600; padding: 14px 24px; border-radius: 12px; border: none; cursor: pointer; font-family: inherit; }
+        .btn.pri { background: var(--accent); color: #fff; box-shadow: 0 10px 24px -12px var(--accent); }
+        .btn.pri:hover { background: var(--accentd); transform: translateY(-1px); }
+
+        footer { display: flex; align-items: center; padding: 30px 0; border-top: 1px solid var(--line); font-size: 14px; color: var(--mut); margin-top: 20px; flex-wrap: wrap; gap: 14px; }
+        .foot-right { margin-left: auto; display: flex; gap: 18px; flex-wrap: wrap; row-gap: 8px; }
+        .foot-right a:hover { color: var(--ink); }
+
+        @media (max-width: 860px) { .wrap { padding: 0 24px; } nav .links { display: none; } }
+        @media (max-width: 560px) { .brand { font-size: 17px; } .nav-right { gap: 12px; } .ghl { display: none; } .pill-btn { padding: 9px 14px; } }
+    </style>
+</head>
+<body>
+    <a href="#why-main" class="skip-link">Skip to main content</a>
+
+    <div class="wrap">
+        <nav aria-label="Main navigation">
+            <a class="brand" href="/" aria-label="MigraLog home"><span class="mk" aria-hidden="true"></span>MigraLog</a>
+            <div class="links">
+                <a href="/why.html" class="active" aria-current="page">Why</a>
+                <a href="/guide/">User guide</a>
+            </div>
+            <div class="nav-right">
+                <div class="theme-switch" role="group" aria-label="Color theme">
+                    <button type="button" data-set-theme="light" aria-pressed="false" aria-label="Light theme" title="Light">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4l1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+                    </button>
+                    <button type="button" data-set-theme="system" aria-pressed="true" aria-label="Follow system theme" title="System">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8m-4-3v3"/></svg>
+                    </button>
+                    <button type="button" data-set-theme="dark" aria-pressed="false" aria-label="Dark theme" title="Dark">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+                    </button>
+                </div>
+                <a class="ghl" href="https://github.com/vfilby/migralog" target="_blank" rel="noopener">
+                    <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+                    <span class="ghl-text">GitHub</span>
+                </a>
+                <a class="pill-btn" href="/#signup">Join the beta</a>
+            </div>
+        </nav>
+    </div>
+
+    <main id="why-main" class="wrap">
+        <article class="why">
+            <h1>Why</h1>
+            <p class="lead"><strong>I built the tracker I couldn't find.</strong> After three decades of migraines, no app I tried actually helped when I needed it most &mdash; so I made one that does. Here's the longer version.</p>
+
+            <h2>Three decades of this</h2>
+            <p>I've lived with migraine for the better part of <strong>thirty years</strong>, and with severe chronic migraine for the last ten. If you're reading this, you probably don't need me to describe what that's like. You already know the way an attack can take a day &mdash; or several &mdash; and the quiet dread of wondering when the next one lands.</p>
+
+            <h2>The apps failed exactly when it mattered</h2>
+            <p>I tried the trackers. They made it <strong>hard to capture the details my doctors actually asked for</strong>, and they were full of small, frustrating edge cases &mdash; the kind of thing you do not want to fight with when you're in pain, nauseous, and squinting at a too-bright screen. When logging is a chore, you stop logging. And then you walk into an appointment with nothing but a vague memory of a bad month.</p>
+
+            <p class="pull">A migraine isn't a single moment. It's a course of events over time &mdash; and almost nothing was built to record it that way.</p>
+
+            <h2>What I actually wanted</h2>
+            <p>Most apps only note when the pain started and when it stopped. I wanted something that captured the <strong>whole shape of an attack</strong>: when it began, how it built, what I took and when, and how my body responded over the hours that followed. That's the record a doctor can use, and it's the record that finally shows you a pattern.</p>
+            <p>I wanted it to be usable <strong>when I was at my worst</strong>: big buttons, a simple screen, dark mode so the display doesn't feel like an ice pick, and logging that takes seconds. Nothing clever &mdash; just the essentials, without friction.</p>
+
+            <h2>The days in between count too</h2>
+            <p>We fixate on &ldquo;migraine days,&rdquo; but one of the most telling numbers is how many days were <strong>completely clear</strong> &mdash; because even on a pain-free day you can be carrying the after-effects, or the anxiety of waiting for the next one. So MigraLog tracks the good days too, and shows you the ratio changing over time. That's how you see whether things are actually getting better.</p>
+
+            <h2>Your data stays yours</h2>
+            <p>Everything lives <strong>on your phone</strong>. No account, no analytics, no servers, no business model that depends on your symptoms. You can export all of it, any time, and take it to any doctor &mdash; it's yours. And because it's open source, you don't have to take my word for any of that.</p>
+
+            <p class="sign">&mdash; From one migraine sufferer to another.</p>
+
+            <div class="why-cta">
+                <h2>Understand today. Improve tomorrow.</h2>
+                <p>MigraLog is in public beta on iPhone. If any of this sounds familiar, come try it.</p>
+                <a class="btn pri" href="https://testflight.apple.com/join/UpVgBMcZ" target="_blank" rel="noopener">Join the public beta on TestFlight</a>
+            </div>
+        </article>
+    </main>
+
+    <div class="wrap">
+        <footer>
+            <a class="brand" href="/" aria-label="MigraLog home"><span class="mk" aria-hidden="true"></span>MigraLog</a>
+            <div class="foot-right">
+                <a href="/why.html">Why</a>
+                <a href="/guide/">User guide</a>
+                <a href="https://github.com/vfilby/migralog" target="_blank" rel="noopener">GitHub</a>
+                <a href="/#privacy">Privacy</a>
+                <a href="/contact.html">Contact</a>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        (function () {
+            const buttons = document.querySelectorAll('[data-set-theme]');
+            const media = window.matchMedia('(prefers-color-scheme: dark)');
+            function stored() { try { return localStorage.getItem('theme') || 'system'; } catch (e) { return 'system'; } }
+            function apply(theme) {
+                if (theme === 'system') { document.documentElement.removeAttribute('data-theme'); }
+                else { document.documentElement.setAttribute('data-theme', theme); }
+                buttons.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.setTheme === theme)));
+            }
+            buttons.forEach(b => b.addEventListener('click', () => {
+                const theme = b.dataset.setTheme;
+                try { localStorage.setItem('theme', theme); } catch (e) {}
+                apply(theme);
+            }));
+            media.addEventListener('change', () => { if (stored() === 'system') apply('system'); });
+            apply(stored());
+        })();
+    </script>
+</body>
+</html>

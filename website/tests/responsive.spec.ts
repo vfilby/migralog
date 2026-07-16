@@ -20,7 +20,6 @@ test.describe('Responsive Design', () => {
     await page.goto('/');
 
     await expect(page.getByRole('heading', { name: 'Make sense of your migraines.', level: 1 })).toBeVisible();
-    await expect(page.getByText('Understand today. Improve tomorrow.')).toBeVisible();
   });
 
   test('should display correctly on desktop', async ({ page }) => {
@@ -28,25 +27,7 @@ test.describe('Responsive Design', () => {
     await page.goto('/');
 
     await expect(page.getByRole('heading', { name: 'Make sense of your migraines.', level: 1 })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Features' })).toBeVisible();
-  });
-
-  test('should stack hero CTAs vertically on mobile', async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 667 });
-    await page.goto('/');
-
-    const betaButton = page.locator('.hero').getByRole('link', { name: 'Join the private beta' });
-    const howItWorksButton = page.getByRole('link', { name: 'See how it works' });
-
-    const betaBox = await betaButton.boundingBox();
-    const howBox = await howItWorksButton.boundingBox();
-
-    expect(betaBox).toBeTruthy();
-    expect(howBox).toBeTruthy();
-    if (betaBox && howBox) {
-      // Column layout on mobile: "See how it works" renders below the beta CTA.
-      expect(howBox.y).toBeGreaterThan(betaBox.y);
-    }
+    await expect(page.locator('nav').getByRole('link', { name: 'User guide' })).toBeVisible();
   });
 
   test('should collapse the nav link row on mobile', async ({ page }) => {

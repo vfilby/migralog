@@ -1,20 +1,12 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('User Interactions', () => {
-  test('should scroll to signup section when clicking "Join the private beta"', async ({ page }) => {
+  test('should scroll to signup section when clicking the "Join the beta" nav pill', async ({ page }) => {
     await page.goto('/');
 
-    await page.locator('.hero').getByRole('link', { name: 'Join the private beta' }).click();
+    await page.locator('nav').getByRole('link', { name: 'Join the beta' }).click();
 
     await expect(page.getByRole('heading', { name: 'Start understanding the pattern.' })).toBeInViewport();
-  });
-
-  test('should scroll to the screenshots when clicking "See how it works"', async ({ page }) => {
-    await page.goto('/');
-
-    await page.getByRole('link', { name: 'See how it works' }).click();
-
-    await expect(page.getByRole('heading', { name: 'A quick look inside' })).toBeInViewport();
   });
 
   test('should advance the carousel with next/prev and dots', async ({ page }) => {
@@ -25,15 +17,15 @@ test.describe('User Interactions', () => {
     await expect(page.locator('#car-img')).toHaveAttribute('src', /episode-details/);
 
     await page.getByRole('button', { name: 'Next screenshot' }).click();
-    await expect(page.getByRole('heading', { name: 'Your day at a glance', level: 3 })).toBeVisible();
-    await expect(page.locator('#car-img')).toHaveAttribute('src', /dashboard/);
+    await expect(page.getByRole('heading', { name: 'Dose tracking that knows your limits', level: 3 })).toBeVisible();
+    await expect(page.locator('#car-img')).toHaveAttribute('src', /med-limits/);
 
-    // Prev wraps from the first slide to the last.
+    // Prev from med-limits → episode → wraps to the last slide (doctor summary).
     await page.getByRole('button', { name: 'Previous screenshot' }).click();
     await page.getByRole('button', { name: 'Previous screenshot' }).click();
-    await expect(page.getByRole('heading', { name: 'Patterns you can act on', level: 3 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'A summary built for your doctor', level: 3 })).toBeVisible();
 
-    await page.getByRole('button', { name: /Screenshot 1 of 3/ }).click();
+    await page.getByRole('button', { name: /Screenshot 1 of/ }).click();
     await expect(page.getByRole('heading', { name: 'Every attack, as it unfolds', level: 3 })).toBeVisible();
   });
 
@@ -57,69 +49,13 @@ test.describe('User Interactions', () => {
     await expect(modal).toBeHidden();
   });
 
-  test('should accept email input', async ({ page }) => {
+  test('should link straight to the TestFlight beta', async ({ page }) => {
     await page.goto('/');
 
-    const emailInput = page.getByPlaceholder('Your email address');
-    await emailInput.fill('test@example.com');
-
-    await expect(emailInput).toHaveValue('test@example.com');
-  });
-
-  test('should show success message after a successful beta request', async ({ page }) => {
-    // Intercept the Formspree submission so the test never hits the real
-    // endpoint, and assert the client-side success handling.
-    await page.route('**/formspree.io/**', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ ok: true }),
-      })
-    );
-
-    await page.goto('/');
-
-    await page.getByPlaceholder('Your email address').fill('test@example.com');
-    await page.getByRole('button', { name: 'Join the private beta' }).click();
-
-    await expect(page.getByText(/You're on the list/)).toBeVisible();
-  });
-
-  test('should show an error message when the submission fails', async ({ page }) => {
-    await page.route('**/formspree.io/**', (route) =>
-      route.fulfill({
-        status: 500,
-        contentType: 'application/json',
-        body: JSON.stringify({ error: 'boom' }),
-      })
-    );
-
-    await page.goto('/');
-
-    await page.getByPlaceholder('Your email address').fill('test@example.com');
-    await page.getByRole('button', { name: 'Join the private beta' }).click();
-
-    await expect(page.getByText(/Something went wrong/i)).toBeVisible();
-  });
-
-  test('should validate email format (HTML5 validation)', async ({ page }) => {
-    await page.goto('/');
-
-    const emailInput = page.getByPlaceholder('Your email address');
-    await emailInput.fill('invalid-email');
-
-    await page.getByRole('button', { name: 'Join the private beta' }).click();
-
-    const validationMessage = await emailInput.evaluate((el: HTMLInputElement) => el.validationMessage);
-    expect(validationMessage).toBeTruthy();
-  });
-
-  test('should require email before submission', async ({ page }) => {
-    await page.goto('/');
-
-    const emailInput = page.getByPlaceholder('Your email address');
-
-    const isRequired = await emailInput.evaluate((el: HTMLInputElement) => el.required);
-    expect(isRequired).toBe(true);
+    const cta = page.getByRole('link', { name: 'Join the public beta on TestFlight' });
+    await expect(cta).toBeVisible();
+    await expect(cta).toHaveAttribute('href', 'https://testflight.apple.com/join/UpVgBMcZ');
+    await expect(cta).toHaveAttribute('target', '_blank');
+    await expect(cta).toHaveAttribute('rel', 'noopener');
   });
 });
