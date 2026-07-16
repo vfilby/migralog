@@ -3,84 +3,104 @@ import { test, expect } from '@playwright/test';
 test.describe('Homepage', () => {
   test('should load successfully', async ({ page }) => {
     await page.goto('/');
-    await expect(page).toHaveTitle('MigraLog - Understand today. Improve tomorrow. | Migraine Tracking App');
+    await expect(page).toHaveTitle('MigraLog - Make sense of your migraines | Private Migraine Tracker for iPhone');
   });
 
   test('should display hero section with correct content', async ({ page }) => {
     await page.goto('/');
 
-    const heroHeading = page.getByRole('heading', { name: 'MigraLog', level: 1 });
+    const heroHeading = page.getByRole('heading', { name: 'Make sense of your migraines.', level: 1 });
     await expect(heroHeading).toBeVisible();
 
-    const heroSubheading = page.getByRole('heading', { name: 'Understand today. Improve tomorrow.', level: 2 });
-    await expect(heroSubheading).toBeVisible();
-
-    const heroDescription = page.getByText(/After 3 decades of migraines/);
-    await expect(heroDescription).toBeVisible();
-
-    // Hero CTAs carry aria-labels, so match by accessible name.
-    const betaButton = page.getByRole('link', { name: /join migralog private beta/i });
-    await expect(betaButton).toBeVisible();
-    await expect(betaButton).toHaveAttribute('href', '#signup');
-
-    const learnMoreButton = page.getByRole('link', { name: /learn more about migralog/i });
-    await expect(learnMoreButton).toBeVisible();
-    await expect(learnMoreButton).toHaveAttribute('href', '#features');
+    await expect(page.getByText(/A patient-focused, private migraine tracker for iPhone/)).toBeVisible();
   });
 
-  test('should display all three core features', async ({ page }) => {
+  test('should link to the user guide from the nav', async ({ page }) => {
+    test.skip((page.viewportSize()?.width ?? 1280) < 900, 'nav links are hidden below 900px; phones navigate via the footer');
     await page.goto('/');
 
-    await expect(page.getByRole('heading', { name: 'Track or add notes to ongoing episodes', level: 3 })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Track preventative medications', level: 3 })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Track pain-free days', level: 3 })).toBeVisible();
+    const guideLink = page.locator('nav').getByRole('link', { name: 'User guide' });
+    await expect(guideLink).toBeVisible();
+    await expect(guideLink).toHaveAttribute('href', 'guide/');
+
+    await guideLink.click();
+    await expect(page).toHaveURL(/\/guide\/$/);
+    await expect(page.getByRole('heading', { name: 'Using MigraLog', level: 1 })).toBeVisible();
   });
 
-  test('should display the features dashboard heading', async ({ page }) => {
+  test('should display the trust pills', async ({ page }) => {
     await page.goto('/');
 
-    await expect(page.getByRole('heading', { name: 'Your daily dashboard for managing pain', level: 2 })).toBeVisible();
+    await expect(page.getByText('On-device & private')).toBeVisible();
+    await expect(page.getByText('No account, no ads')).toBeVisible();
+    await expect(page.getByText('Free & open source')).toBeVisible();
   });
 
-  test('should display medication management section', async ({ page }) => {
+  test('should display the screenshot carousel', async ({ page }) => {
     await page.goto('/');
 
-    await expect(page.getByRole('heading', { name: 'Smart medication tracking', level: 2 })).toBeVisible();
-    await expect(page.getByText('Smart autocomplete for common migraine medications')).toBeVisible();
+    const shot = page.locator('#car-img');
+    await expect(shot).toBeVisible();
+    await expect(shot).toHaveAttribute('alt', /.+/);
+
+    await expect(page.getByRole('heading', { name: 'Every attack, as it unfolds', level: 3 })).toBeVisible();
+    await expect(page.locator('#car-bullets li')).toHaveCount(3);
+    await expect(page.locator('#car-dots button')).toHaveCount(5);
   });
 
-  test('should display trends and analytics section', async ({ page }) => {
+  test('should show the doctor-summary PDF as a document (last slide)', async ({ page }) => {
     await page.goto('/');
 
-    await expect(page.getByRole('heading', { name: 'Trends and Analytics', level: 2 })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Summary statistics for your doctor', level: 2 })).toBeVisible();
+    // Advance to the last slide via its dot (count-agnostic).
+    await page.locator('#car-dots button').last().click();
+
+    await expect(page.getByRole('heading', { name: 'A summary built for your doctor', level: 3 })).toBeVisible();
+    // The PDF slide uses a single theme-agnostic document image (no -light/-dark),
+    // framed as a paper document rather than a phone.
+    await expect(page.locator('#car-img')).toHaveAttribute('src', /doctor-summary\.png$/);
+    await expect(page.locator('#car-img').locator('xpath=ancestor::span[contains(@class,"dphone")]')).toHaveClass(/as-doc/);
   });
 
-  test('should display the data privacy section', async ({ page }) => {
+  test('should display all four feature cards', async ({ page }) => {
     await page.goto('/');
 
-    await expect(page.getByRole('heading', { name: 'Your data, your control', level: 2 })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Data Lives on Your Device', level: 3 })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Works Offline', level: 3 })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Export Everything', level: 3 })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Dark Mode Support', level: 3 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Tracking that keeps up with an attack.', level: 2 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'A timeline for every attack', level: 3 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: "Visualizations you'll read", level: 3 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Reminders that respect rebound', level: 3 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Exports without lock-in', level: 3 })).toBeVisible();
   });
 
-  test('should display private beta signup section', async ({ page }) => {
+  test('should display the privacy section', async ({ page }) => {
     await page.goto('/');
 
-    await expect(page.getByRole('heading', { name: 'Join the MigraLog Private Beta', level: 2 })).toBeVisible();
-    await expect(page.getByText(/Get early access to MigraLog/)).toBeVisible();
-    await expect(page.getByPlaceholder('Your email address')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Request Beta Access' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Private by default — and open about it.', level: 2 })).toBeVisible();
+    await expect(page.getByText('Stays on your device')).toBeVisible();
+    await expect(page.getByText('Yours to export')).toBeVisible();
+    await expect(page.getByText(/three decades of migraines/)).toBeVisible();
+  });
+
+  test('should display the public beta section with the TestFlight link', async ({ page }) => {
+    await page.goto('/');
+
+    await expect(page.getByRole('heading', { name: 'Start understanding the pattern.', level: 2 })).toBeVisible();
+    await expect(page.getByText(/MigraLog is in public beta on iPhone/)).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Join the public beta on TestFlight' })).toHaveAttribute(
+      'href',
+      'https://testflight.apple.com/join/UpVgBMcZ'
+    );
   });
 
   test('should display footer', async ({ page }) => {
     await page.goto('/');
 
     const footer = page.getByRole('contentinfo');
-    await expect(footer.getByText('Understand today. Improve tomorrow.')).toBeVisible();
+    // Why and the user guide must be in the footer: the nav links are hidden
+    // below 900px, so on phones the footer is the only path to those pages.
+    await expect(footer.getByRole('link', { name: 'Why', exact: true })).toHaveAttribute('href', 'why.html');
+    await expect(footer.getByRole('link', { name: 'User guide' })).toHaveAttribute('href', 'guide/');
+    await expect(footer.getByRole('link', { name: 'GitHub' })).toBeVisible();
+    await expect(footer.getByRole('link', { name: 'Privacy' })).toBeVisible();
     await expect(footer.getByRole('link', { name: 'Contact' })).toBeVisible();
-    await expect(footer.getByText('© 2025 MigraLog. All rights reserved.')).toBeVisible();
   });
 });

@@ -43,22 +43,34 @@ final class ScreenshotsUITests: XCTestCase {
     }
 
     /// 2. Episode timeline — the centerpiece. Opens a recent closed episode
-    /// with intensity readings, doses, and notes laid out chronologically.
+    /// and scrolls to the Timeline card so the shot leads with the intensity
+    /// chart and includes a rescue-dose row. Episode index 2 (peak 7.0) is
+    /// the most recent one whose sample data logs a Sumatriptan dose —
+    /// SampleDataLoader only adds doses to episodes with peak >= 6.
     /// On iPad this also shows the list-detail split view in one frame.
     func test02_EpisodeTimeline() throws {
         navigate(to: "Episodes")
         if isIPad {
-            // iPad uses a List-with-selection split view; tap the second row
-            // (first row is the active episode; second is a closed one with
-            // a fuller timeline).
+            // iPad uses a List-with-selection split view; the first row is
+            // the active episode.
             let cells = app.cells
             _ = cells.firstMatch.waitForExistence(timeout: 5)
-            cells.element(boundBy: 1).tap()
+            cells.element(boundBy: 2).tap()
         } else {
-            let episodeCard = UITestHelpers.findElement("episode-card-1", in: app)
+            let episodeCard = UITestHelpers.findElement("episode-card-2", in: app)
             UITestHelpers.waitForHittable(episodeCard).tap()
         }
         Thread.sleep(forTimeInterval: 1.5)
+        // Start the frame at the Timeline card: get the medication row on
+        // screen, then drag the header card out of frame so the shot opens
+        // on the chart with the dose row in view.
+        let scroll = app.scrollViews.firstMatch
+        let medRow = app.staticTexts["Medication Taken"]
+        UITestHelpers.scrollToElement(medRow, in: scroll)
+        let dragStart = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
+        let dragEnd = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.32))
+        dragStart.press(forDuration: 0.05, thenDragTo: dragEnd)
+        Thread.sleep(forTimeInterval: 0.8)
         attachScreenshot(named: "02-Episode-Timeline")
     }
 

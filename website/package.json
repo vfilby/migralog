@@ -7,6 +7,7 @@
     "test:ci": "playwright test --grep-invert @visual",
     "test:ui": "playwright test --ui",
     "test:headed": "playwright test --headed",
+    "build:guide": "python3 build-user-guide.py",
     "serve": "cd website && python3 -m http.server 8000",
     "serve:bg": "cd website && python3 -m http.server 8000 > /dev/null 2>&1 &"
   },
