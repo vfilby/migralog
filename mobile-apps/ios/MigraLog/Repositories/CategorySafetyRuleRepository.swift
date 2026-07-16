@@ -121,6 +121,7 @@ final class CategorySafetyRuleRepository: CategorySafetyRuleRepositoryProtocol {
                     FROM medication_doses d
                     INNER JOIN medications m ON m.id = d.medication_id
                     WHERE m.category = ?
+                      AND COALESCE(m.excluded_from_safety_warnings, 0) = 0
                       AND d.status = 'taken'
                       AND d.timestamp >= ?
                       AND d.timestamp <= ?

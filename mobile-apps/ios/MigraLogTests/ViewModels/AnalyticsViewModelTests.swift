@@ -242,10 +242,16 @@ final class AnalyticsViewModelTests: XCTestCase {
 
     func testFetchData_populatesWeeklyAdherence() async throws {
         let now = TimestampHelper.now
-        let preventative = TestFixtures.makeMedication(id: "med-p", type: .preventative, category: .supplement)
+        let preventative = TestFixtures.makeMedication(
+            id: "med-p", type: .preventative, category: .supplement,
+            createdAt: now - 30 * 86_400_000
+        )
         mockMedicationRepo.medications = [preventative]
-        mockMedicationRepo.schedules = [
-            TestFixtures.makeSchedule(medicationId: "med-p")
+        let periodStart = TimestampHelper.dateString(
+            from: TimestampHelper.toDate(now - 30 * 86_400_000)
+        )
+        mockMedicationRepo.expectationPeriods = [
+            TestFixtures.makeExpectationPeriod(medicationId: "med-p", startDate: periodStart)
         ]
         mockMedicationRepo.doses = [
             TestFixtures.makeDose(medicationId: "med-p", timestamp: now - 3600000)

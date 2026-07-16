@@ -279,6 +279,7 @@ final class MockMedicationRepository: MedicationRepositoryProtocol, @unchecked S
     var medications: [Medication] = []
     var schedules: [MedicationSchedule] = []
     var doses: [MedicationDose] = []
+    var expectationPeriods: [MedicationExpectationPeriod] = []
 
     // Call tracking
     var createDoseCalled = false
@@ -473,6 +474,13 @@ final class MockMedicationRepository: MedicationRepositoryProtocol, @unchecked S
     func deleteSchedule(_ id: String) throws {
         try throwIfNeeded()
         schedules.removeAll { $0.id == id }
+    }
+
+    // MARK: - Expectation Periods
+
+    func getAllExpectationPeriods() throws -> [MedicationExpectationPeriod] {
+        try throwIfNeeded()
+        return expectationPeriods
     }
 
     // MARK: - Notification Helpers
@@ -836,7 +844,9 @@ enum TestFixtures {
         active: Bool = true,
         category: MedicationCategory? = .nsaid,
         scheduleFrequency: ScheduleFrequency? = nil,
-        minIntervalHours: Double? = nil
+        minIntervalHours: Double? = nil,
+        excludedFromSafetyWarnings: Bool = false,
+        createdAt: Int64 = now
     ) -> Medication {
         Medication(
             id: id,
@@ -851,7 +861,8 @@ enum TestFixtures {
             notes: nil,
             category: category,
             minIntervalHours: minIntervalHours,
-            createdAt: now,
+            excludedFromSafetyWarnings: excludedFromSafetyWarnings,
+            createdAt: createdAt,
             updatedAt: now
         )
     }
@@ -875,9 +886,28 @@ enum TestFixtures {
         )
     }
 
+    static func makeExpectationPeriod(
+        id: String = UUID().uuidString,
+        medicationId: String,
+        startDate: String,
+        endDate: String? = nil,
+        expectedDailyDoses: Int = 1
+    ) -> MedicationExpectationPeriod {
+        MedicationExpectationPeriod(
+            id: id,
+            medicationId: medicationId,
+            startDate: startDate,
+            endDate: endDate,
+            expectedDailyDoses: expectedDailyDoses,
+            createdAt: now,
+            updatedAt: now
+        )
+    }
+
     static func makeDose(
         id: String = UUID().uuidString,
         medicationId: String,
+        scheduleId: String? = nil,
         timestamp: Int64? = nil,
         status: DoseStatus = .taken,
         quantity: Double = 1.0,
@@ -889,6 +919,7 @@ enum TestFixtures {
         return MedicationDose(
             id: id,
             medicationId: medicationId,
+            scheduleId: scheduleId,
             timestamp: ts,
             quantity: quantity,
             dosageAmount: 400,

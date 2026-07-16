@@ -31,8 +31,11 @@ struct CategorySafetyRulesScreen: View {
             }
         }
         .sheet(item: $editorMode) { mode in
-            CategorySafetyRuleEditorSheet(mode: mode) { rule in
-                viewModel.saveRule(rule)
+            CategorySafetyRuleEditorSheet(
+                mode: mode,
+                medicationsByCategory: viewModel.medicationsByCategory
+            ) { rule, excludedMedicationIds in
+                viewModel.saveRule(rule, excludedMedicationIds: excludedMedicationIds)
             }
         }
         .task {

@@ -49,6 +49,7 @@ final class DatabaseManagerTests: XCTestCase {
             "medications",
             "medication_schedules",
             "medication_doses",
+            "medication_expectation_periods",
             "medication_reminders",
             "daily_status_logs",
             "calendar_overlays",
@@ -189,7 +190,7 @@ final class DatabaseManagerTests: XCTestCase {
     // MARK: - Schema Version
 
     func testSchemaVersionIsTracked() throws {
-        XCTAssertEqual(DatabaseManager.schemaVersion, 36)
+        XCTAssertEqual(DatabaseManager.schemaVersion, 39)
     }
 
     func testMigrationIsRecordedInGRDB() throws {
@@ -256,7 +257,7 @@ final class DatabaseManagerTests: XCTestCase {
             let triggerCount = try Int.fetchOne(
                 db, sql: "SELECT COUNT(*) FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'sync_capture_%'"
             )
-            XCTAssertEqual(triggerCount, 36, "one INSERT/UPDATE/DELETE trigger per synced table (12 × 3)")
+            XCTAssertEqual(triggerCount, 39, "one INSERT/UPDATE/DELETE trigger per synced table (13 × 3)")
             let identifiers = try Row.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations")
                 .map { $0["identifier"] as String }
             XCTAssertTrue(identifiers.contains("v32"), "Migration v32 should be recorded")
@@ -272,6 +273,50 @@ final class DatabaseManagerTests: XCTestCase {
             let identifiers = try Row.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations")
                 .map { $0["identifier"] as String }
             XCTAssertTrue(identifiers.contains("v33"), "Migration v33 should be recorded")
+        }
+    }
+
+    /// v37 adds medications.excluded_from_safety_warnings and rebuilds the
+    /// capture triggers so the DELETE tombstone payload includes the new column.
+    func testV37AddsExclusionColumnAndRebuildsMedicationTriggers() throws {
+        try dbManager.dbQueue.read { db in
+            let names = try Row.fetchAll(db, sql: "PRAGMA table_info(medications)")
+                .compactMap { $0["name"] as String? }
+            XCTAssertTrue(names.contains("excluded_from_safety_warnings"))
+
+            let triggerSql = try String.fetchOne(
+                db,
+                sql: "SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'sync_capture_medications_delete'"
+            )
+            XCTAssertTrue(
+                triggerSql?.contains("excluded_from_safety_warnings") == true,
+                "delete tombstone trigger should snapshot the new synced column"
+            )
+
+            let identifiers = try Row.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations")
+                .map { $0["identifier"] as String }
+            XCTAssertTrue(identifiers.contains("v37"), "Migration v37 should be recorded")
+        }
+    }
+
+    /// v38 adds the medication_expectation_periods table (synced) and re-runs
+    /// createSyncCaptureTriggers so the new table gets capture triggers.
+    func testV38CreatesExpectationPeriodsTableWithTriggers() throws {
+        try dbManager.dbQueue.read { db in
+            XCTAssertTrue(try db.tableExists("medication_expectation_periods"))
+
+            let triggerCount = try Int.fetchOne(
+                db,
+                sql: """
+                    SELECT COUNT(*) FROM sqlite_master
+                    WHERE type = 'trigger' AND name LIKE 'sync_capture_medication_expectation_periods_%'
+                    """
+            )
+            XCTAssertEqual(triggerCount, 3, "insert/update/delete capture triggers for the new synced table")
+
+            let identifiers = try Row.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations")
+                .map { $0["identifier"] as String }
+            XCTAssertTrue(identifiers.contains("v38"), "Migration v38 should be recorded")
         }
     }
 

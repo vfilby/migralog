@@ -214,6 +214,7 @@ Stored in `pain_location_logs` table
   endDate?: number;               // When medication ended
   active: boolean;                // Currently taking?
   notes?: string;                 // User notes (max 5000 chars)
+  excludedFromSafetyWarnings?: boolean; // Doses don't count toward category safety warnings (default false)
   createdAt: number;              // Record creation timestamp
   updatedAt: number;              // Last modification timestamp
 }

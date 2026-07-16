@@ -18,8 +18,8 @@ final class MedicationRepository: MedicationRepositoryProtocol {
                 sql: """
                     INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, default_quantity,
                         schedule_frequency, photo_uri, active, notes, category, created_at, updated_at,
-                        min_interval_hours)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        min_interval_hours, excluded_from_safety_warnings)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                 arguments: [
                     medication.id,
@@ -35,9 +35,11 @@ final class MedicationRepository: MedicationRepositoryProtocol {
                     medication.category?.rawValue,
                     medication.createdAt,
                     medication.updatedAt,
-                    medication.minIntervalHours
+                    medication.minIntervalHours,
+                    medication.excludedFromSafetyWarnings ? 1 : 0
                 ]
             )
+            try Self.reconcileExpectationPeriods(medicationId: medication.id, in: db)
         }
         return medication
     }
@@ -87,7 +89,7 @@ final class MedicationRepository: MedicationRepositoryProtocol {
                         name = ?, type = ?, dosage_amount = ?, dosage_unit = ?,
                         default_quantity = ?, schedule_frequency = ?, photo_uri = ?,
                         active = ?, notes = ?, category = ?, updated_at = ?,
-                        min_interval_hours = ?
+                        min_interval_hours = ?, excluded_from_safety_warnings = ?
                     WHERE id = ?
                     """,
                 arguments: [
@@ -103,9 +105,11 @@ final class MedicationRepository: MedicationRepositoryProtocol {
                     updated.category?.rawValue,
                     updated.updatedAt,
                     updated.minIntervalHours,
+                    updated.excludedFromSafetyWarnings ? 1 : 0,
                     updated.id
                 ]
             )
+            try Self.reconcileExpectationPeriods(medicationId: updated.id, in: db)
         }
         return updated
     }
@@ -116,6 +120,7 @@ final class MedicationRepository: MedicationRepositoryProtocol {
                 sql: "UPDATE medications SET active = 0, updated_at = ? WHERE id = ?",
                 arguments: [TimestampHelper.now, id]
             )
+            try Self.reconcileExpectationPeriods(medicationId: id, in: db)
         }
     }
 
@@ -125,6 +130,7 @@ final class MedicationRepository: MedicationRepositoryProtocol {
                 sql: "UPDATE medications SET active = 1, updated_at = ? WHERE id = ?",
                 arguments: [TimestampHelper.now, id]
             )
+            try Self.reconcileExpectationPeriods(medicationId: id, in: db)
         }
     }
 
@@ -140,14 +146,15 @@ final class MedicationRepository: MedicationRepositoryProtocol {
         try dbManager.dbQueue.write { db in
             try db.execute(
                 sql: """
-                    INSERT INTO medication_doses (id, medication_id, timestamp, quantity, dosage_amount,
+                    INSERT INTO medication_doses (id, medication_id, schedule_id, timestamp, quantity, dosage_amount,
                         dosage_unit, status, episode_id, effectiveness_rating, time_to_relief,
                         side_effects, notes, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                 arguments: [
                     dose.id,
                     dose.medicationId,
+                    dose.scheduleId,
                     dose.timestamp,
                     dose.quantity,
                     dose.dosageAmount,
@@ -212,6 +219,7 @@ final class MedicationRepository: MedicationRepositoryProtocol {
                     FROM medication_doses d
                     INNER JOIN medications m ON m.id = d.medication_id
                     WHERE m.category = ?
+                      AND COALESCE(m.excluded_from_safety_warnings, 0) = 0
                       AND d.status = 'taken'
                       AND d.timestamp <= ?
                     ORDER BY d.timestamp DESC
@@ -375,6 +383,7 @@ final class MedicationRepository: MedicationRepositoryProtocol {
                     created.updatedAt
                 ]
             )
+            try Self.reconcileExpectationPeriods(medicationId: created.medicationId, in: db)
         }
         return created
     }
@@ -431,13 +440,22 @@ final class MedicationRepository: MedicationRepositoryProtocol {
                     updated.id
                 ]
             )
+            try Self.reconcileExpectationPeriods(medicationId: updated.medicationId, in: db)
         }
         return updated
     }
 
     func deleteSchedule(_ id: String) throws {
         try dbManager.dbQueue.write { db in
+            let medicationId = try String.fetchOne(
+                db,
+                sql: "SELECT medication_id FROM medication_schedules WHERE id = ?",
+                arguments: [id]
+            )
             try db.execute(sql: "DELETE FROM medication_schedules WHERE id = ?", arguments: [id])
+            if let medicationId {
+                try Self.reconcileExpectationPeriods(medicationId: medicationId, in: db)
+            }
         }
     }
 
@@ -450,6 +468,114 @@ final class MedicationRepository: MedicationRepositoryProtocol {
                 sql: "SELECT COUNT(*) FROM medication_schedules WHERE enabled = 1"
             ) ?? 0
         }
+    }
+
+    // MARK: - Expectation Periods
+
+    func getAllExpectationPeriods() throws -> [MedicationExpectationPeriod] {
+        try dbManager.dbQueue.read { db in
+            let rows = try Row.fetchAll(
+                db,
+                sql: "SELECT * FROM medication_expectation_periods ORDER BY medication_id, start_date ASC"
+            )
+            return rows.map { Self.expectationPeriodFromRow($0) }
+        }
+    }
+
+    /// Bring `medication_expectation_periods` in line with the medication's current
+    /// expected daily doses (enabled schedules of an active preventative; 0 otherwise).
+    /// Called inside every write transaction that can change that number. Expectation
+    /// changes take effect on the local day they're made: the running period is closed
+    /// at yesterday and a new one opened today, while a period opened earlier the same
+    /// day is rewritten in place so same-day churn doesn't leave one-day fragments.
+    ///
+    /// Remote sync deliberately bypasses this (RemoteChangeApplier writes raw SQL):
+    /// the device where the user made the change records the period transition, and
+    /// the period rows themselves sync.
+    private static func reconcileExpectationPeriods(medicationId: String, in db: Database) throws {
+        var expected = 0
+        let med = try Row.fetchOne(
+            db,
+            sql: "SELECT type, active FROM medications WHERE id = ?",
+            arguments: [medicationId]
+        )
+        if let med, (med["type"] as String?) == MedicationType.preventative.rawValue, (med["active"] as Int) != 0 {
+            expected = try Int.fetchOne(
+                db,
+                sql: "SELECT COUNT(*) FROM medication_schedules WHERE medication_id = ? AND enabled = 1",
+                arguments: [medicationId]
+            ) ?? 0
+        }
+
+        let today = TimestampHelper.dateString()
+        let now = TimestampHelper.now
+        // At most one open period exists per medication in normal operation; a sync
+        // merge can theoretically leave more than one, so take the latest — the
+        // adherence calc takes the max (not the sum) across overlapping periods.
+        let open = try Row.fetchOne(
+            db,
+            sql: """
+                SELECT id, start_date, expected_daily_doses FROM medication_expectation_periods
+                WHERE medication_id = ? AND end_date IS NULL
+                ORDER BY start_date DESC LIMIT 1
+                """,
+            arguments: [medicationId]
+        )
+
+        guard let open else {
+            if expected > 0 {
+                try insertExpectationPeriod(medicationId: medicationId, start: today, expected: expected, now: now, in: db)
+            }
+            return
+        }
+
+        let openExpected: Int = open["expected_daily_doses"]
+        guard openExpected != expected else { return }
+        let openId: String = open["id"]
+        let openStart: String = open["start_date"]
+
+        if openStart >= today {
+            // Opened today (or the clock moved backwards): rewrite in place.
+            if expected > 0 {
+                try db.execute(
+                    sql: "UPDATE medication_expectation_periods SET expected_daily_doses = ?, updated_at = ? WHERE id = ?",
+                    arguments: [expected, now, openId]
+                )
+            } else {
+                try db.execute(
+                    sql: "DELETE FROM medication_expectation_periods WHERE id = ?",
+                    arguments: [openId]
+                )
+            }
+        } else {
+            let yesterday = TimestampHelper.dateString(
+                from: Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
+            )
+            try db.execute(
+                sql: "UPDATE medication_expectation_periods SET end_date = ?, updated_at = ? WHERE id = ?",
+                arguments: [yesterday, now, openId]
+            )
+            if expected > 0 {
+                try insertExpectationPeriod(medicationId: medicationId, start: today, expected: expected, now: now, in: db)
+            }
+        }
+    }
+
+    private static func insertExpectationPeriod(
+        medicationId: String,
+        start: String,
+        expected: Int,
+        now: Int64,
+        in db: Database
+    ) throws {
+        try db.execute(
+            sql: """
+                INSERT INTO medication_expectation_periods
+                    (id, medication_id, start_date, end_date, expected_daily_doses, created_at, updated_at)
+                VALUES (?, ?, ?, NULL, ?, ?, ?)
+                """,
+            arguments: [UUID().uuidString, medicationId, start, expected, now, now]
+        )
     }
 
     // MARK: - Row Mapping
@@ -468,6 +594,7 @@ final class MedicationRepository: MedicationRepositoryProtocol {
             notes: row["notes"],
             category: (row["category"] as String?).flatMap { MedicationCategory(rawValue: $0) },
             minIntervalHours: row["min_interval_hours"],
+            excludedFromSafetyWarnings: ((row["excluded_from_safety_warnings"] as Int?) ?? 0) != 0,
             createdAt: row["created_at"],
             updatedAt: row["updated_at"]
         )
@@ -477,6 +604,7 @@ final class MedicationRepository: MedicationRepositoryProtocol {
         MedicationDose(
             id: row["id"],
             medicationId: row["medication_id"],
+            scheduleId: row["schedule_id"],
             timestamp: row["timestamp"],
             quantity: row["quantity"],
             dosageAmount: row["dosage_amount"],
@@ -487,6 +615,18 @@ final class MedicationRepository: MedicationRepositoryProtocol {
             timeToRelief: row["time_to_relief"],
             sideEffects: JSONHelper.decodeArray(String.self, from: row["side_effects"] as String?),
             notes: row["notes"],
+            createdAt: row["created_at"],
+            updatedAt: row["updated_at"]
+        )
+    }
+
+    static func expectationPeriodFromRow(_ row: Row) -> MedicationExpectationPeriod {
+        MedicationExpectationPeriod(
+            id: row["id"],
+            medicationId: row["medication_id"],
+            startDate: row["start_date"],
+            endDate: row["end_date"],
+            expectedDailyDoses: row["expected_daily_doses"],
             createdAt: row["created_at"],
             updatedAt: row["updated_at"]
         )

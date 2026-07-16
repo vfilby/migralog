@@ -120,12 +120,9 @@ struct DoctorSummaryReportBuilder {
             from: recentStartDay, to: end, calendar: calendar
         )
 
-        let preventativeIds = medications.filter { $0.type == .preventative && $0.active }.map(\.id)
-        let schedulesByMedication = preventativeIds.isEmpty
-            ? [:]
-            : try medicationRepository.getSchedulesByMultipleMedicationIds(preventativeIds)
         let preventativeCompliance = AnalyticsInsights.preventativeCompliance(
-            doses: recentDoses, medications: medications, schedulesByMedication: schedulesByMedication,
+            doses: recentDoses, medications: medications,
+            periods: try medicationRepository.getAllExpectationPeriods(),
             excluded: excluded, from: recentStartDay, to: end, calendar: calendar
         )
 

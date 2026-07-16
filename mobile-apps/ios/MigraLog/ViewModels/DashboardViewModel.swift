@@ -6,6 +6,9 @@ struct MedicationScheduleItem: Identifiable, Equatable {
     let medication: Medication
     let schedule: MedicationSchedule
     var dose: MedicationDose?
+    /// Whether to surface this row's scheduled time. Set when the medication has
+    /// more than one scheduled dose that day, so the rows can be told apart.
+    var showScheduleTime: Bool = false
 
     var id: String { schedule.id }
     var isTaken: Bool { dose?.status == .taken }
@@ -137,6 +140,7 @@ final class DashboardViewModel {
         let dose = MedicationDose(
             id: UUID().uuidString,
             medicationId: scheduleItem.medication.id,
+            scheduleId: scheduleItem.schedule.id,
             timestamp: now,
             quantity: scheduleItem.medication.defaultQuantity ?? 1,
             dosageAmount: scheduleItem.medication.dosageAmount,
@@ -179,6 +183,7 @@ final class DashboardViewModel {
         let dose = MedicationDose(
             id: UUID().uuidString,
             medicationId: scheduleItem.medication.id,
+            scheduleId: scheduleItem.schedule.id,
             timestamp: now,
             quantity: 0,
             dosageAmount: nil,
@@ -276,6 +281,78 @@ final class DashboardViewModel {
         return recent
     }
 
+    /// Associates each of a medication's logged doses for the day with the
+    /// scheduled occurrence it belongs to, keyed by schedule id, so a med
+    /// scheduled more than once a day tracks each dose independently (#592).
+    ///
+    /// Doses logged against a schedule row (or a reminder notification) carry the
+    /// `scheduleId` they satisfy — that binding is authoritative. Ad-hoc / PRN
+    /// doses, and any logged before `scheduleId` existed, have none; those fall
+    /// back to time-of-day: each is bound to the still-unclaimed schedule whose
+    /// "HH:mm" is nearest to when it was logged. Every schedule and dose is used
+    /// at most once; closest pairs bind first; midnight wrap is circular; ties
+    /// break by id so results are stable across reloads.
+    static func matchDosesToSchedules(
+        schedules: [MedicationSchedule],
+        doses: [MedicationDose]
+    ) -> [String: MedicationDose] {
+        guard !schedules.isEmpty, !doses.isEmpty else { return [:] }
+
+        var result: [String: MedicationDose] = [:]
+        let scheduleIds = Set(schedules.map(\.id))
+
+        // Phase 1: bind doses that name their schedule directly.
+        var unboundDoses: [MedicationDose] = []
+        for dose in doses {
+            if let scheduleId = dose.scheduleId, scheduleIds.contains(scheduleId), result[scheduleId] == nil {
+                result[scheduleId] = dose
+            } else {
+                unboundDoses.append(dose)
+            }
+        }
+        guard !unboundDoses.isEmpty else { return result }
+
+        // Phase 2: time-of-day fallback over schedules Phase 1 didn't claim.
+        let openSchedules = schedules.filter { result[$0.id] == nil }
+        guard !openSchedules.isEmpty else { return result }
+
+        func scheduleMinute(_ schedule: MedicationSchedule) -> Int {
+            guard let components = schedule.timeComponents else { return 0 }
+            return components.hour * 60 + components.minute
+        }
+        func doseMinute(_ dose: MedicationDose) -> Int {
+            let components = Calendar.current.dateComponents([.hour, .minute], from: dose.date)
+            return (components.hour ?? 0) * 60 + (components.minute ?? 0)
+        }
+        // Circular distance between two minute-of-day values (handles the case
+        // where, e.g., a 23:00 schedule is nearest a dose logged just after midnight).
+        func distance(_ lhs: Int, _ rhs: Int) -> Int {
+            let diff = abs(lhs - rhs)
+            return min(diff, (24 * 60) - diff)
+        }
+
+        var pairs: [(scheduleId: String, doseIndex: Int, distance: Int)] = []
+        for schedule in openSchedules {
+            let scheduleMin = scheduleMinute(schedule)
+            for (index, dose) in unboundDoses.enumerated() {
+                pairs.append((schedule.id, index, distance(scheduleMin, doseMinute(dose))))
+            }
+        }
+        pairs.sort { lhs, rhs in
+            if lhs.distance != rhs.distance { return lhs.distance < rhs.distance }
+            if lhs.scheduleId != rhs.scheduleId { return lhs.scheduleId < rhs.scheduleId }
+            return lhs.doseIndex < rhs.doseIndex
+        }
+
+        var usedDoseIndices: Set<Int> = []
+        for pair in pairs {
+            guard result[pair.scheduleId] == nil, !usedDoseIndices.contains(pair.doseIndex) else { continue }
+            result[pair.scheduleId] = unboundDoses[pair.doseIndex]
+            usedDoseIndices.insert(pair.doseIndex)
+        }
+        return result
+    }
+
     private func loadTodaysMedications() async throws -> [MedicationScheduleItem] {
         let activeMeds = try await medicationRepository.getActiveMedications()
         let today = TimestampHelper.dateString()
@@ -289,20 +366,43 @@ final class DashboardViewModel {
             if let last = try? medicationRepository.getLastDose(medicationId: med.id) {
                 lastDoses[med.id] = last
             }
-            for schedule in schedules where schedule.enabled {
-                let matchingDose = todayDoses.first { doseWithMed in
-                    doseWithMed.medication.id == med.id
-                }
+            let enabledSchedules = schedules.filter { $0.enabled }
+            // Attach each of the day's logged doses to the specific scheduled
+            // occurrence it belongs to, rather than the medication as a whole,
+            // so a med scheduled multiple times a day tracks each dose
+            // independently (logging one no longer marks every row taken).
+            let medDoses = todayDoses.filter { $0.medication.id == med.id }.map(\.dose)
+            let doseBySchedule = Self.matchDosesToSchedules(schedules: enabledSchedules, doses: medDoses)
+            for schedule in enabledSchedules {
                 items.append(MedicationScheduleItem(
                     medication: med,
                     schedule: schedule,
-                    dose: matchingDose?.dose
+                    dose: doseBySchedule[schedule.id]
                 ))
                 if let category = med.category {
                     usedCategories.insert(category)
                 }
             }
         }
+        // Surface the scheduled time on a row only when its medication has more
+        // than one scheduled dose that day, so the otherwise-identical rows can
+        // be told apart.
+        let scheduleCounts = Dictionary(grouping: items, by: { $0.medication.id })
+            .mapValues(\.count)
+        for index in items.indices {
+            items[index].showScheduleTime = (scheduleCounts[items[index].medication.id] ?? 0) > 1
+        }
+
+        // Order the whole list by scheduled time. Times are stored as zero-padded
+        // "HH:mm", so a lexical compare is already chronological; fall back to the
+        // medication name so same-time doses keep a stable, alphabetical order.
+        items.sort { lhs, rhs in
+            if lhs.schedule.time != rhs.schedule.time {
+                return lhs.schedule.time < rhs.schedule.time
+            }
+            return lhs.medication.name.localizedCaseInsensitiveCompare(rhs.medication.name) == .orderedAscending
+        }
+
         let usage = computeCategoryUsage(for: usedCategories, now: Date())
         let cooldowns = computeCategoryCooldowns(
             for: activeMeds.filter { med in items.contains(where: { $0.medication.id == med.id }) },
@@ -314,6 +414,15 @@ final class DashboardViewModel {
             categoryCooldowns = cooldowns
         }
         return items
+    }
+
+    /// Category usage status to show on a specific medication's row. Excluded
+    /// medications never show their category's warning.
+    func categoryUsageStatus(for medication: Medication) -> CategoryUsageStatus {
+        guard !medication.excludedFromSafetyWarnings, let category = medication.category else {
+            return .noLimit
+        }
+        return categoryUsage[category] ?? .noLimit
     }
 
     /// Computes the `CategoryUsageStatus` map for the given categories. Categories
@@ -345,7 +454,7 @@ final class DashboardViewModel {
     ) -> [String: CategoryCooldown.Status] {
         var result: [String: CategoryCooldown.Status] = [:]
         for med in medications {
-            guard let category = med.category else { continue }
+            guard let category = med.category, !med.excludedFromSafetyWarnings else { continue }
             let rule = try? categoryLimitRepository.getRule(category: category, type: .cooldown)
             let last = try? medicationRepository.getLastTakenDoseInCategory(category, now: now)
             result[med.id] = CategoryCooldown.evaluate(

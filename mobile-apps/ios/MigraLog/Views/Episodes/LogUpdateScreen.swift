@@ -12,6 +12,7 @@ struct LogUpdateScreen: View {
     @State private var selectedSymptoms: Set<Symptom> = []
     @State private var initialSymptoms: Set<Symptom> = []
     @State private var noteText: String = ""
+    @State private var timestamp = Date()
     @State private var isSaving = false
     @State private var didLoadState = false
 
@@ -19,6 +20,14 @@ struct LogUpdateScreen: View {
         Form {
             Section("Pain Intensity") {
                 PainIntensitySlider(intensity: $intensity)
+            }
+
+            Section("Time") {
+                DatePicker(
+                    "Time",
+                    selection: $timestamp,
+                    in: (viewModel.episode?.startDate ?? .distantPast)...Date()
+                )
             }
 
             Section("Pain Locations") {
@@ -113,12 +122,12 @@ struct LogUpdateScreen: View {
     private func save() async {
         isSaving = true
         defer { isSaving = false }
-        let now = TimestampHelper.now
+        let updateTimestamp = TimestampHelper.fromDate(timestamp)
 
         // Add intensity reading
         await viewModel.addIntensityReading(
             intensity: intensity,
-            timestamp: now
+            timestamp: updateTimestamp
         )
 
         // Add symptom logs only for newly added symptoms
@@ -126,7 +135,7 @@ struct LogUpdateScreen: View {
         for symptom in newSymptoms {
             await viewModel.addSymptomLog(
                 symptom: symptom,
-                timestamp: now
+                timestamp: updateTimestamp
             )
         }
 
@@ -134,7 +143,7 @@ struct LogUpdateScreen: View {
         if selectedLocations != initialLocations {
             await viewModel.addPainLocationLog(
                 locations: Array(selectedLocations),
-                timestamp: now
+                timestamp: updateTimestamp
             )
         }
 
@@ -142,7 +151,7 @@ struct LogUpdateScreen: View {
         if !noteText.isEmpty {
             await viewModel.addEpisodeNote(
                 note: noteText,
-                timestamp: now
+                timestamp: updateTimestamp
             )
         }
 

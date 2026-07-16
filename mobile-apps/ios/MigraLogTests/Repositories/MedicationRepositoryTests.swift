@@ -497,4 +497,52 @@ final class MedicationRepositoryTests: XCTestCase {
         let result = try repo.getLastTakenDoseInCategory(.nsaid, now: Date())
         XCTAssertNil(result)
     }
+
+    func test_getLastTakenDoseInCategory_skips_excluded_medications() throws {
+        try dbManager.dbQueue.write { db in
+            try db.execute(sql: """
+                INSERT INTO medications (id, name, type, dosage_amount, dosage_unit, active,
+                                          category, created_at, updated_at, excluded_from_safety_warnings)
+                VALUES ('qulipta','Qulipta','preventative',60,'mg',1,'cgrp',1,1,1),
+                       ('ubrelvy','Ubrelvy','rescue',100,'mg',1,'cgrp',1,1,0)
+                """)
+            try db.execute(sql: """
+                INSERT INTO medication_doses (id, medication_id, timestamp, quantity, status, created_at, updated_at)
+                VALUES ('d1','ubrelvy',1000,1,'taken',1,1),
+                       ('d2','qulipta',2000,1,'taken',1,1)
+                """)
+        }
+
+        // The excluded med's later dose must not drive the category cooldown.
+        let result = try repo.getLastTakenDoseInCategory(.cgrp, now: Date(timeIntervalSince1970: 1_000_000))
+        XCTAssertEqual(result?.medicationName, "Ubrelvy")
+        XCTAssertEqual(result?.dose.medicationId, "ubrelvy")
+    }
+
+    // MARK: - excludedFromSafetyWarnings persistence
+
+    func test_excludedFromSafetyWarnings_roundtrips_and_defaults_false() throws {
+        let included = makeMedication(id: "inc")
+        var excluded = makeMedication(id: "exc", name: "Qulipta", type: .preventative, category: .cgrp)
+        excluded.excludedFromSafetyWarnings = true
+        _ = try repo.createMedication(included)
+        _ = try repo.createMedication(excluded)
+
+        XCTAssertEqual(try repo.getMedicationById("inc")?.excludedFromSafetyWarnings, false)
+        XCTAssertEqual(try repo.getMedicationById("exc")?.excludedFromSafetyWarnings, true)
+    }
+
+    func test_updateMedication_persists_excludedFromSafetyWarnings() throws {
+        let med = makeMedication(id: "m1")
+        _ = try repo.createMedication(med)
+
+        var updated = med
+        updated.excludedFromSafetyWarnings = true
+        _ = try repo.updateMedication(updated)
+        XCTAssertEqual(try repo.getMedicationById("m1")?.excludedFromSafetyWarnings, true)
+
+        updated.excludedFromSafetyWarnings = false
+        _ = try repo.updateMedication(updated)
+        XCTAssertEqual(try repo.getMedicationById("m1")?.excludedFromSafetyWarnings, false)
+    }
 }

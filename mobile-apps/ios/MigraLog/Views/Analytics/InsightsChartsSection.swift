@@ -305,7 +305,7 @@ struct AdherenceChartCard: View {
     var body: some View {
         InsightCard(
             title: "Preventative Adherence",
-            subtitle: "Percent of scheduled preventative doses logged as taken, by week. Based on the current medication schedules.",
+            subtitle: "Percent of scheduled preventative doses logged as taken, by week. Only days a medication was actively scheduled count.",
             accessibilityId: "adherence-chart"
         ) {
             if weeks.isEmpty {

@@ -103,6 +103,10 @@ struct Medication: Identifiable, Equatable, Sendable {
     var notes: String?
     var category: MedicationCategory?
     var minIntervalHours: Double?
+    /// When true, this medication's doses don't count toward its category's
+    /// safety warnings (usage limits and cooldowns), and those warnings are not
+    /// shown on this medication. User-controlled per category rule editor.
+    var excludedFromSafetyWarnings: Bool = false
     let createdAt: Int64
     var updatedAt: Int64
 }
@@ -130,11 +134,42 @@ struct MedicationSchedule: Identifiable, Equatable, Sendable {
     }
 }
 
+// MARK: - Medication Expectation Period
+
+/// A date range (inclusive, local-day strings) during which a preventative
+/// medication was expected to be taken `expectedDailyDoses` times per day.
+/// Rows are written by MedicationRepository whenever a medication's active
+/// flag or enabled-schedule count changes, giving adherence stats an
+/// effective-dated history instead of grading the past against today's
+/// configuration. An open period (`endDate == nil`) is the current state;
+/// days not covered by any period carry no expectation.
+struct MedicationExpectationPeriod: Identifiable, Equatable, Sendable {
+    let id: String
+    let medicationId: String
+    var startDate: String // yyyy-MM-dd, local
+    var endDate: String?  // yyyy-MM-dd, local; nil = still in effect
+    var expectedDailyDoses: Int
+    let createdAt: Int64
+    var updatedAt: Int64
+
+    /// Whether this period covers the given local-day string. yyyy-MM-dd
+    /// strings compare correctly lexicographically.
+    func covers(_ day: String) -> Bool {
+        startDate <= day && (endDate == nil || endDate! >= day)
+    }
+}
+
 // MARK: - Medication Dose
 
 struct MedicationDose: Identifiable, Equatable, Sendable {
     let id: String
     let medicationId: String
+    /// The scheduled occurrence this dose satisfies, when it was logged against
+    /// one (dashboard schedule row or a reminder notification). `nil` for ad-hoc
+    /// / PRN doses and for doses created before this field existed. The dashboard
+    /// uses it to bind a dose to the right row for meds scheduled multiple times
+    /// a day, falling back to time-of-day matching when it's absent.
+    var scheduleId: String? = nil
     var timestamp: Int64
     var quantity: Double
     var dosageAmount: Double?

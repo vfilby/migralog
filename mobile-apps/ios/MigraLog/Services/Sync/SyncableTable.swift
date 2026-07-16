@@ -17,6 +17,7 @@ enum SyncableTable: String, CaseIterable, Sendable {
     case medications
     case medicationSchedules = "medication_schedules"
     case medicationDoses = "medication_doses"
+    case medicationExpectationPeriods = "medication_expectation_periods"
     case dailyStatusLogs = "daily_status_logs"
     case calendarOverlays = "calendar_overlays"
     case categorySafetyRules = "category_safety_rules"
@@ -85,15 +86,19 @@ enum SyncableTable: String, CaseIterable, Sendable {
         case .medications:
             return ["id", "name", "type", "dosage_amount", "dosage_unit", "default_quantity",
                     "schedule_frequency", "photo_uri", "active", "notes", "category",
-                    "created_at", "updated_at", "min_interval_hours"]
+                    "created_at", "updated_at", "min_interval_hours",
+                    "excluded_from_safety_warnings"]
         case .medicationSchedules:
             // notification_id is excluded (deviceLocalColumns).
             return ["id", "medication_id", "time", "timezone", "dosage", "enabled",
                     "reminder_enabled", "created_at", "updated_at"]
         case .medicationDoses:
-            return ["id", "medication_id", "timestamp", "quantity", "dosage_amount",
+            return ["id", "medication_id", "schedule_id", "timestamp", "quantity", "dosage_amount",
                     "dosage_unit", "status", "episode_id", "effectiveness_rating",
                     "time_to_relief", "side_effects", "notes", "created_at", "updated_at"]
+        case .medicationExpectationPeriods:
+            return ["id", "medication_id", "start_date", "end_date",
+                    "expected_daily_doses", "created_at", "updated_at"]
         case .dailyStatusLogs:
             return ["id", "date", "status", "status_type", "notes", "prompted",
                     "created_at", "updated_at"]

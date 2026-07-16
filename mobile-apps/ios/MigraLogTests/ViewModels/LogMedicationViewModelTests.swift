@@ -38,6 +38,28 @@ final class LogMedicationViewModelTests: XCTestCase {
         XCTAssertFalse(sut.isLoading)
     }
 
+    func testCategoryUsageStatus_gatesExcludedMedications() async {
+        let included = TestFixtures.makeMedication(id: "inc", name: "Ubrelvy", category: .cgrp)
+        let excluded = TestFixtures.makeMedication(
+            id: "exc", name: "Qulipta", type: .preventative, category: .cgrp,
+            excludedFromSafetyWarnings: true
+        )
+        mockMedRepo.medications = [included, excluded]
+        mockCategoryLimitRepo.rules = ["r": CategorySafetyRule(
+            id: "r", category: .cgrp, type: .periodLimit,
+            periodHours: 720, maxCount: 10, createdAt: Date()
+        )]
+        mockCategoryLimitRepo.dayCounts = [.cgrp: 10]
+
+        await sut.loadMedications()
+
+        // Category is at its limit: the included med warns, the excluded doesn't.
+        XCTAssertTrue(sut.categoryUsageStatus(for: included).isWarning)
+        XCTAssertEqual(sut.categoryUsageStatus(for: excluded), .noLimit)
+        // No category cooldown entry is computed for excluded medications.
+        XCTAssertNil(sut.categoryCooldowns["exc"])
+    }
+
     func testLoadMedications_rescueSortedByUsageCount() async {
         let medA = TestFixtures.makeMedication(id: "a", name: "Ibuprofen", type: .rescue)
         let medB = TestFixtures.makeMedication(id: "b", name: "Sumatriptan", type: .rescue)

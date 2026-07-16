@@ -406,9 +406,17 @@ struct MedicationScheduleRow: View {
     @Environment(AppState.self) private var appState
 
     private var medicationNameLabel: some View {
-        Text(item.medication.name)
-            .font(.subheadline.weight(.medium))
-            .foregroundStyle(.primary)
+        VStack(alignment: .leading, spacing: 2) {
+            Text(item.medication.name)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.primary)
+            if item.showScheduleTime {
+                Text(DateFormatting.displayTime(from: item.schedule.time))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("schedule-time-\(item.schedule.id)")
+            }
+        }
     }
 
     private var doseLabel: String {
@@ -427,8 +435,7 @@ struct MedicationScheduleRow: View {
     }
 
     private var categoryStatus: CategoryUsageStatus {
-        guard let category = item.medication.category else { return .noLimit }
-        return viewModel.categoryUsage[category] ?? .noLimit
+        viewModel.categoryUsageStatus(for: item.medication)
     }
 
     var body: some View {
