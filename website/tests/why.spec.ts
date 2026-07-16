@@ -14,7 +14,7 @@ test.describe('Why page', () => {
     await page.goto('/');
 
     const whyLink = page.locator('nav').getByRole('link', { name: 'Why', exact: true });
-    await expect(whyLink).toHaveAttribute('href', 'why.html');
+    await expect(whyLink).toHaveAttribute('href', '/why.html');
 
     await whyLink.click();
     await expect(page).toHaveURL(/\/why\.html$/);
