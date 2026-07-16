@@ -21,7 +21,7 @@ test.describe('Homepage', () => {
 
     const guideLink = page.locator('nav').getByRole('link', { name: 'User guide' });
     await expect(guideLink).toBeVisible();
-    await expect(guideLink).toHaveAttribute('href', 'guide/');
+    await expect(guideLink).toHaveAttribute('href', '/guide/');
 
     await guideLink.click();
     await expect(page).toHaveURL(/\/guide\/$/);
@@ -97,8 +97,8 @@ test.describe('Homepage', () => {
     const footer = page.getByRole('contentinfo');
     // Why and the user guide must be in the footer: the nav links are hidden
     // below 900px, so on phones the footer is the only path to those pages.
-    await expect(footer.getByRole('link', { name: 'Why', exact: true })).toHaveAttribute('href', 'why.html');
-    await expect(footer.getByRole('link', { name: 'User guide' })).toHaveAttribute('href', 'guide/');
+    await expect(footer.getByRole('link', { name: 'Why', exact: true })).toHaveAttribute('href', '/why.html');
+    await expect(footer.getByRole('link', { name: 'User guide' })).toHaveAttribute('href', '/guide/');
     await expect(footer.getByRole('link', { name: 'GitHub' })).toBeVisible();
     await expect(footer.getByRole('link', { name: 'Privacy' })).toBeVisible();
     await expect(footer.getByRole('link', { name: 'Contact' })).toBeVisible();
