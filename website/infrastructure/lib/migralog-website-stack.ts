@@ -60,7 +60,10 @@ export class MigralogWebsiteStack extends cdk.Stack {
 
     websiteBucket.grantRead(originAccessIdentity);
 
-    // CloudFront Function to redirect www to apex domain
+    // CloudFront Function: www→apex redirect + directory index resolution.
+    // S3 REST origins don't resolve /dir/ to /dir/index.html (only the root
+    // gets defaultRootObject), so without the rewrite every subdirectory page
+    // (e.g. /guide/) falls through to the 404 error document.
     const wwwRedirectFunction = new cloudfront.Function(this, 'WwwRedirectFunction', {
       code: cloudfront.FunctionCode.fromInline(`
 function handler(event) {
@@ -79,10 +82,25 @@ function handler(event) {
     };
   }
 
+  var uri = request.uri;
+  if (uri.endsWith('/')) {
+    // Serve the directory index: /guide/ -> /guide/index.html
+    request.uri = uri + 'index.html';
+  } else if (!uri.split('/').pop().includes('.')) {
+    // Canonicalize extensionless paths: /guide -> /guide/
+    return {
+      statusCode: 301,
+      statusDescription: 'Moved Permanently',
+      headers: {
+        location: { value: uri + '/' }
+      }
+    };
+  }
+
   return request;
 }
       `),
-      comment: `Redirect www.${domainName} to ${domainName}`,
+      comment: `Redirect www.${domainName} to ${domainName}; resolve directory indexes`,
     });
 
     const distribution = new cloudfront.Distribution(this, 'Distribution', {
