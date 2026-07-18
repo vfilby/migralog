@@ -34,11 +34,16 @@ final class BetaFeaturesUITests: XCTestCase {
         let title = app.navigationBars.staticTexts["Beta Features"]
         UITestHelpers.waitForElement(title)
 
-        // Feature Flags section header + empty-state copy (no flags registered yet).
+        // Feature Flags section header + the registered post-drome flag, off by default.
         UITestHelpers.waitForElement(app.staticTexts["Feature Flags"])
+        let postdromeToggle = app.switches["feature-flag-postdromeTracking"]
         XCTAssertTrue(
-            app.staticTexts["No experimental features are available right now."].exists,
-            "Empty feature-flags state should be shown when no flags are registered"
+            postdromeToggle.waitForExistence(timeout: UITestHelpers.defaultTimeout),
+            "Post-drome Tracking flag should render a toggle"
+        )
+        XCTAssertEqual(
+            postdromeToggle.value as? String, "0",
+            "Post-drome Tracking must be off by default"
         )
 
         // Sample data loader moved under Beta Features.

@@ -252,7 +252,15 @@ struct EpisodeDetailScreen: View {
 
                 Spacer()
 
-                if episode.isActive {
+                if episode.isInPostdrome {
+                    Text("Post-drome")
+                        .font(.caption.weight(.bold))
+                        .padding(.horizontal, DesignTokens.Spacing.md)
+                        .padding(.vertical, 6)
+                        .background(Color.indigo.opacity(0.2))
+                        .foregroundStyle(.indigo)
+                        .clipShape(Capsule())
+                } else if episode.isActive {
                     Text("Ongoing")
                         .font(.caption.weight(.bold))
                         .padding(.horizontal, DesignTokens.Spacing.md)
@@ -285,6 +293,19 @@ struct EpisodeDetailScreen: View {
                 }
             }
             .font(.subheadline)
+
+            // Beta post-drome tracking: when the attack transitioned into a
+            // post-drome phase, show when. Rendered for ended episodes too so
+            // the phase remains visible in history.
+            if let postdromeStart = episode.postdromeStartDate {
+                HStack {
+                    Text("Post-drome since")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(DateFormatting.displayDateTime(postdromeStart))
+                }
+                .font(.subheadline)
+            }
 
             // Symptoms
             if !episode.symptoms.isEmpty {

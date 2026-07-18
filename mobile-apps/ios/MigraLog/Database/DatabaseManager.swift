@@ -24,7 +24,7 @@ enum DatabaseInitializationError: Error {
 /// Central database manager. Owns the DatabaseQueue and handles schema creation/migration.
 final class DatabaseManager: Sendable {
     /// The current schema version
-    static let schemaVersion = 39
+    static let schemaVersion = 40
 
     /// Shared singleton for the app's main database
     static let shared = DatabaseManager()
@@ -406,6 +406,28 @@ final class DatabaseManager: Sendable {
             }
             for suffix in ["insert", "update", "delete"] {
                 try db.execute(sql: "DROP TRIGGER IF EXISTS sync_capture_medication_doses_\(suffix)")
+            }
+            try DatabaseManager.createSyncCaptureTriggers(in: db, includePayload: true)
+        }
+
+        // v40: add `postdrome_start_time` to episodes for the beta post-drome
+        // tracking feature (FeatureFlags.postdromeTracking). When set on an
+        // active episode, the attack has subsided but the episode remains open
+        // to capture after effects; NULL means the feature was never used on
+        // that episode, so this is fully backward compatible and removable.
+        // Nullable so sync payloads from older app versions still apply.
+        // Synced-column change → rebuild the episodes capture triggers so the
+        // DELETE tombstone carries the new column (v37/v39 precedent).
+        migrator.registerMigration("v40") { db in
+            let columns = try Row.fetchAll(db, sql: "PRAGMA table_info(episodes)")
+            let hasColumn = columns.contains { (row: Row) in
+                (row["name"] as String?) == "postdrome_start_time"
+            }
+            if !hasColumn {
+                try db.execute(sql: "ALTER TABLE episodes ADD COLUMN postdrome_start_time INTEGER CHECK(postdrome_start_time IS NULL OR postdrome_start_time > 0)")
+            }
+            for suffix in ["insert", "update", "delete"] {
+                try db.execute(sql: "DROP TRIGGER IF EXISTS sync_capture_episodes_\(suffix)")
             }
             try DatabaseManager.createSyncCaptureTriggers(in: db, includePayload: true)
         }

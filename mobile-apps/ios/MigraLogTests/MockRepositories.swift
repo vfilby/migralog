@@ -797,7 +797,8 @@ enum TestFixtures {
         locations: [PainLocation] = [],
         qualities: [PainQuality] = [],
         symptoms: [Symptom] = [],
-        triggers: [Trigger] = []
+        triggers: [Trigger] = [],
+        postdromeStartTime: Int64? = nil
     ) -> Episode {
         let ts = startTime ?? now
         return Episode(
@@ -814,7 +815,8 @@ enum TestFixtures {
             locationAccuracy: nil,
             locationTimestamp: nil,
             createdAt: ts,
-            updatedAt: ts
+            updatedAt: ts,
+            postdromeStartTime: postdromeStartTime
         )
     }
 

@@ -157,6 +157,40 @@ final class EpisodeRepositoryTests: XCTestCase {
         XCTAssertEqual(fetched?.longitude, -122.0)
     }
 
+    // Beta post-drome tracking: the nullable postdrome_start_time column
+    // round-trips through create, update (set and clear), and fetch.
+    func testPostdromeStartTimeRoundTrip() throws {
+        let episode = makeEpisode()
+        try repo.createEpisode(episode)
+        XCTAssertNil(try repo.getEpisodeById(episode.id)?.postdromeStartTime)
+
+        var inPostdrome = episode
+        inPostdrome.postdromeStartTime = 1_700_003_600_000
+        _ = try repo.updateEpisode(inPostdrome)
+        let fetched = try repo.getEpisodeById(episode.id)
+        XCTAssertEqual(fetched?.postdromeStartTime, 1_700_003_600_000)
+        XCTAssertTrue(fetched?.isInPostdrome == true)
+
+        var resumed = inPostdrome
+        resumed.postdromeStartTime = nil
+        _ = try repo.updateEpisode(resumed)
+        let cleared = try repo.getEpisodeById(episode.id)
+        XCTAssertNil(cleared?.postdromeStartTime)
+        XCTAssertTrue(cleared?.isInPostdrome == false)
+    }
+
+    // An ended episode is not "in post-drome" even if the phase was recorded.
+    func testIsInPostdromeFalseOnceEnded() throws {
+        var episode = makeEpisode()
+        episode.postdromeStartTime = 1_700_003_600_000
+        episode.endTime = 1_700_007_200_000
+        try repo.createEpisode(episode)
+
+        let fetched = try repo.getEpisodeById(episode.id)
+        XCTAssertEqual(fetched?.postdromeStartTime, 1_700_003_600_000)
+        XCTAssertTrue(fetched?.isInPostdrome == false)
+    }
+
     func testGetEpisodeByIdExists() throws {
         let episode = makeEpisode()
         try repo.createEpisode(episode)

@@ -17,8 +17,17 @@ struct Episode: Identifiable, Equatable, Sendable {
     var locationTimestamp: Int64?
     let createdAt: Int64
     var updatedAt: Int64
+    /// Beta post-drome tracking (FeatureFlag.postdromeTracking): when set, the
+    /// attack itself has subsided but the episode stays active to capture after
+    /// effects (meds, symptoms, notes — pain levels no longer meaningful).
+    /// Cleared if the user resumes the attack; ending the episode ends the
+    /// post-drome with it.
+    var postdromeStartTime: Int64? = nil
 
     var isActive: Bool { endTime == nil }
+
+    /// Active and transitioned into the post-drome (recovery) phase.
+    var isInPostdrome: Bool { endTime == nil && postdromeStartTime != nil }
 
     var startDate: Date {
         Date(timeIntervalSince1970: Double(startTime) / 1000.0)
@@ -26,6 +35,10 @@ struct Episode: Identifiable, Equatable, Sendable {
 
     var endDate: Date? {
         endTime.map { Date(timeIntervalSince1970: Double($0) / 1000.0) }
+    }
+
+    var postdromeStartDate: Date? {
+        postdromeStartTime.map { Date(timeIntervalSince1970: Double($0) / 1000.0) }
     }
 
     var durationMillis: Int64? {

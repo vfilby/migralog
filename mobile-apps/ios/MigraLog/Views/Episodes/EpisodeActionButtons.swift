@@ -10,6 +10,11 @@ struct EpisodeActionButtons: View {
     @Binding var showLogMedication: Bool
     @Binding var customEndTime: Date
     @Binding var showEndTimePicker: Bool
+    // Beta post-drome tracking. The flag gates only the entry point (the
+    // transition button); an episode already in post-drome keeps its controls
+    // even if the flag is later switched off, so no state gets stranded.
+    @AppStorage(FeatureFlag.postdromeTracking.storageKey)
+    private var postdromeTrackingEnabled = false
 
     var body: some View {
         VStack(spacing: DesignTokens.Spacing.sm) {
@@ -36,6 +41,32 @@ struct EpisodeActionButtons: View {
                     .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
             }
             .accessibilityIdentifier("log-medication-button")
+
+            if episode.isInPostdrome {
+                Button {
+                    Task { await viewModel.resumeAttack() }
+                } label: {
+                    Label("Resume Attack", systemImage: "arrow.uturn.backward.circle")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.indigo.opacity(0.1))
+                        .foregroundStyle(.indigo)
+                        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
+                }
+                .accessibilityIdentifier("resume-attack-button")
+            } else if postdromeTrackingEnabled {
+                Button {
+                    Task { await viewModel.startPostdrome() }
+                } label: {
+                    Label("Enter Post-drome", systemImage: "moon.haze")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.indigo.opacity(0.1))
+                        .foregroundStyle(.indigo)
+                        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
+                }
+                .accessibilityIdentifier("enter-postdrome-button")
+            }
 
             HStack(spacing: DesignTokens.Spacing.sm) {
                 Button {
