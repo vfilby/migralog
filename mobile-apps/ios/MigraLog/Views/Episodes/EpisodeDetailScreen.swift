@@ -237,39 +237,53 @@ struct EpisodeDetailScreen: View {
         }
     }
 
+    // Dates row: start time plus the episode's current status — the beta
+    // post-drome badge, the ongoing badge, or the end time.
+    @ViewBuilder
+    private func episodeDatesRow(_ episode: Episode) -> some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Started")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(DateFormatting.displayDateTime(episode.startDate))
+                    .font(.subheadline)
+            }
+
+            Spacer()
+
+            if episode.isInPostdrome {
+                Text("Post-drome")
+                    .font(.caption.weight(.bold))
+                    .padding(.horizontal, DesignTokens.Spacing.md)
+                    .padding(.vertical, 6)
+                    .background(Color.indigo.opacity(0.2))
+                    .foregroundStyle(.indigo)
+                    .clipShape(Capsule())
+            } else if episode.isActive {
+                Text("Ongoing")
+                    .font(.caption.weight(.bold))
+                    .padding(.horizontal, DesignTokens.Spacing.md)
+                    .padding(.vertical, 6)
+                    .background(Color.red.opacity(0.2))
+                    .foregroundStyle(.red)
+                    .clipShape(Capsule())
+            } else if let endDate = episode.endDate {
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("Ended")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(DateFormatting.displayDateTime(endDate))
+                        .font(.subheadline)
+                }
+            }
+        }
+    }
+
     @ViewBuilder
     private func episodeSummarySection(_ episode: Episode) -> some View {
         VStack(alignment: .leading, spacing: DesignTokens.Spacing.md) {
-            // Dates row
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Started")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(DateFormatting.displayDateTime(episode.startDate))
-                        .font(.subheadline)
-                }
-
-                Spacer()
-
-                if episode.isActive {
-                    Text("Ongoing")
-                        .font(.caption.weight(.bold))
-                        .padding(.horizontal, DesignTokens.Spacing.md)
-                        .padding(.vertical, 6)
-                        .background(Color.red.opacity(0.2))
-                        .foregroundStyle(.red)
-                        .clipShape(Capsule())
-                } else if let endDate = episode.endDate {
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text("Ended")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(DateFormatting.displayDateTime(endDate))
-                            .font(.subheadline)
-                    }
-                }
-            }
+            episodeDatesRow(episode)
 
             Divider()
 
@@ -285,6 +299,19 @@ struct EpisodeDetailScreen: View {
                 }
             }
             .font(.subheadline)
+
+            // Beta post-drome tracking: when the attack transitioned into a
+            // post-drome phase, show when. Rendered for ended episodes too so
+            // the phase remains visible in history.
+            if let postdromeStart = episode.postdromeStartDate {
+                HStack {
+                    Text("Post-drome since")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(DateFormatting.displayDateTime(postdromeStart))
+                }
+                .font(.subheadline)
+            }
 
             // Symptoms
             if !episode.symptoms.isEmpty {

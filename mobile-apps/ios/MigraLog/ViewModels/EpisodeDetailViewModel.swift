@@ -130,6 +130,51 @@ final class EpisodeDetailViewModel {
         }
     }
 
+    /// Beta post-drome tracking: mark the attack as subsided while keeping the
+    /// episode active so after effects can still be logged. The Live Activity is
+    /// left as-is — the episode is still ongoing.
+    @MainActor
+    func startPostdrome(at timestamp: Int64 = TimestampHelper.now) async {
+        guard var episode = details?.episode, episode.isActive, !episode.isInPostdrome else { return }
+        episode.postdromeStartTime = timestamp
+        episode.updatedAt = timestamp
+        do {
+            _ = try episodeRepository.updateEpisode(episode)
+            details = EpisodeWithDetails(
+                episode: episode,
+                intensityReadings: details?.intensityReadings ?? [],
+                symptomLogs: details?.symptomLogs ?? [],
+                painLocationLogs: details?.painLocationLogs ?? [],
+                episodeNotes: details?.episodeNotes ?? []
+            )
+        } catch {
+            ErrorLogger.shared.logError(error, context: ["viewModel": "EpisodeDetailViewModel", "action": "startPostdrome"])
+            self.error = error.localizedDescription
+        }
+    }
+
+    /// Beta post-drome tracking: undo the post-drome transition (the attack came
+    /// back, or it was tapped by mistake) — the episode returns to fully active.
+    @MainActor
+    func resumeAttack() async {
+        guard var episode = details?.episode, episode.isInPostdrome else { return }
+        episode.postdromeStartTime = nil
+        episode.updatedAt = TimestampHelper.now
+        do {
+            _ = try episodeRepository.updateEpisode(episode)
+            details = EpisodeWithDetails(
+                episode: episode,
+                intensityReadings: details?.intensityReadings ?? [],
+                symptomLogs: details?.symptomLogs ?? [],
+                painLocationLogs: details?.painLocationLogs ?? [],
+                episodeNotes: details?.episodeNotes ?? []
+            )
+        } catch {
+            ErrorLogger.shared.logError(error, context: ["viewModel": "EpisodeDetailViewModel", "action": "resumeAttack"])
+            self.error = error.localizedDescription
+        }
+    }
+
     @MainActor
     func editEndTime(_ timestamp: Int64) async {
         guard var episode = details?.episode, !episode.isActive else { return }

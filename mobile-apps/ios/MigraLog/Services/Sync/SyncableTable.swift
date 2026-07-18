@@ -73,7 +73,7 @@ enum SyncableTable: String, CaseIterable, Sendable {
         case .episodes:
             return ["id", "start_time", "end_time", "locations", "qualities", "symptoms",
                     "triggers", "notes", "latitude", "longitude", "location_accuracy",
-                    "location_timestamp", "created_at", "updated_at"]
+                    "location_timestamp", "created_at", "updated_at", "postdrome_start_time"]
         case .intensityReadings:
             return ["id", "episode_id", "timestamp", "intensity", "created_at", "updated_at"]
         case .symptomLogs:

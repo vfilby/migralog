@@ -36,9 +36,16 @@ struct FeatureFlag: Identifiable {
     //     details: "Replaces the trends tab with the redesigned dashboard."
     // )
 
+    static let postdromeTracking = FeatureFlag(
+        key: "postdromeTracking",
+        title: "Post-drome Tracking",
+        details: "Transition an attack into a post-drome phase to track after "
+            + "effects (medications, symptoms, notes) without pain levels."
+    )
+
     /// Every flag surfaced in Beta Features, in display order.
     static let all: [FeatureFlag] = [
-        // .newInsightsDashboard,
+        .postdromeTracking,
     ]
 }
 

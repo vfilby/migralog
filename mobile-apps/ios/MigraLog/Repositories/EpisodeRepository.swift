@@ -17,8 +17,9 @@ final class EpisodeRepository: EpisodeRepositoryProtocol {
             try db.execute(
                 sql: """
                     INSERT INTO episodes (id, start_time, end_time, locations, qualities, symptoms, triggers, notes,
-                        latitude, longitude, location_accuracy, location_timestamp, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        latitude, longitude, location_accuracy, location_timestamp, created_at, updated_at,
+                        postdrome_start_time)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                 arguments: [
                     episode.id,
@@ -34,7 +35,8 @@ final class EpisodeRepository: EpisodeRepositoryProtocol {
                     episode.locationAccuracy,
                     episode.locationTimestamp,
                     episode.createdAt,
-                    episode.updatedAt
+                    episode.updatedAt,
+                    episode.postdromeStartTime
                 ]
             )
         }
@@ -108,7 +110,7 @@ final class EpisodeRepository: EpisodeRepositoryProtocol {
                         start_time = ?, end_time = ?, locations = ?, qualities = ?,
                         symptoms = ?, triggers = ?, notes = ?,
                         latitude = ?, longitude = ?, location_accuracy = ?, location_timestamp = ?,
-                        updated_at = ?
+                        updated_at = ?, postdrome_start_time = ?
                     WHERE id = ?
                     """,
                 arguments: [
@@ -124,6 +126,7 @@ final class EpisodeRepository: EpisodeRepositoryProtocol {
                     updated.locationAccuracy,
                     updated.locationTimestamp,
                     updated.updatedAt,
+                    updated.postdromeStartTime,
                     updated.id
                 ]
             )
@@ -138,10 +141,11 @@ final class EpisodeRepository: EpisodeRepositoryProtocol {
                     UPDATE episodes SET
                         start_time = start_time + ?,
                         end_time = CASE WHEN end_time IS NOT NULL THEN end_time + ? ELSE NULL END,
+                        postdrome_start_time = CASE WHEN postdrome_start_time IS NOT NULL THEN postdrome_start_time + ? ELSE NULL END,
                         updated_at = ?
                     WHERE id = ?
                     """,
-                arguments: [offset, offset, TimestampHelper.now, episodeId]
+                arguments: [offset, offset, offset, TimestampHelper.now, episodeId]
             )
         }
     }
@@ -497,7 +501,8 @@ final class EpisodeRepository: EpisodeRepositoryProtocol {
             locationAccuracy: row["location_accuracy"],
             locationTimestamp: row["location_timestamp"],
             createdAt: row["created_at"],
-            updatedAt: row["updated_at"]
+            updatedAt: row["updated_at"],
+            postdromeStartTime: row["postdrome_start_time"]
         )
     }
 

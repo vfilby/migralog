@@ -1,4 +1,4 @@
--- MigraLog SQLite Schema v38
+-- MigraLog SQLite Schema v40
 -- Canonical schema definition for the migraine tracking database.
 -- Source of truth: mobile-apps/ios/MigraLog/Database/DatabaseManager.swift
 --   (createSchema + registered migrations). This .sql is a formal mirror and
@@ -39,6 +39,16 @@
 --   enabled-schedule count, so adherence stats grade each day against the
 --   configuration true on that day. Backfilled from each active scheduled
 --   preventative's created_at. Synced.
+-- v39 (#592): added the nullable `schedule_id` column to medication_doses so a
+--   logged dose is tied to the specific scheduled occurrence it satisfies. Older
+--   doses keep NULL and fall back to time-of-day matching. Synced; doses capture
+--   triggers rebuilt to include it.
+-- v40: added the nullable `postdrome_start_time` column to episodes for the beta
+--   post-drome tracking feature (FeatureFlags.postdromeTracking). When set on an
+--   active episode the attack has subsided but the episode stays open to capture
+--   after effects (meds, symptoms, notes — no pain levels). NULL = feature unused;
+--   fully backward compatible and removable. Synced; episodes capture triggers
+--   rebuilt to include it.
 --
 -- Conventions:
 --   - All IDs are TEXT (UUIDs)
@@ -62,7 +72,8 @@ CREATE TABLE IF NOT EXISTS episodes (
   location_accuracy REAL CHECK(location_accuracy IS NULL OR location_accuracy >= 0),
   location_timestamp INTEGER CHECK(location_timestamp IS NULL OR location_timestamp > 0),
   created_at INTEGER NOT NULL CHECK(created_at > 0),
-  updated_at INTEGER NOT NULL CHECK(updated_at > 0)
+  updated_at INTEGER NOT NULL CHECK(updated_at > 0),
+  postdrome_start_time INTEGER CHECK(postdrome_start_time IS NULL OR postdrome_start_time > 0)  -- v40, beta post-drome tracking
 );
 
 -- Intensity readings table
@@ -164,6 +175,7 @@ CREATE TABLE IF NOT EXISTS medication_expectation_periods (
 CREATE TABLE IF NOT EXISTS medication_doses (
   id TEXT PRIMARY KEY,
   medication_id TEXT NOT NULL,
+  schedule_id TEXT,              -- v39 (#592): the scheduled occurrence this dose satisfies
   timestamp INTEGER NOT NULL CHECK(timestamp > 0),
   quantity REAL NOT NULL CHECK(quantity >= 0),
   dosage_amount REAL,

@@ -71,6 +71,76 @@ final class EpisodeDetailViewModelTests: XCTestCase {
         XCTAssertFalse(mockRepo.updateEpisodeCalled)
     }
 
+    // MARK: - Post-drome (beta)
+
+    func testStartPostdrome_setsPostdromeStartTime() async throws {
+        await sut.loadEpisode()
+        XCTAssertFalse(sut.episode!.isInPostdrome)
+
+        await sut.startPostdrome(at: 1_700_003_600_000)
+
+        XCTAssertEqual(sut.episode?.postdromeStartTime, 1_700_003_600_000)
+        XCTAssertTrue(sut.episode!.isInPostdrome)
+        XCTAssertTrue(sut.episode!.isActive, "Post-drome keeps the episode active")
+        XCTAssertTrue(mockRepo.updateEpisodeCalled)
+    }
+
+    func testStartPostdrome_endedEpisode_noOp() async throws {
+        mockRepo.episodes = [TestFixtures.makeEpisode(id: "ep-1", endTime: TimestampHelper.now)]
+        await sut.loadEpisode()
+
+        await sut.startPostdrome()
+
+        XCTAssertFalse(mockRepo.updateEpisodeCalled)
+        XCTAssertNil(sut.episode?.postdromeStartTime)
+    }
+
+    func testStartPostdrome_alreadyInPostdrome_noOp() async throws {
+        mockRepo.episodes = [TestFixtures.makeEpisode(id: "ep-1", postdromeStartTime: 1_700_003_600_000)]
+        await sut.loadEpisode()
+
+        await sut.startPostdrome()
+
+        XCTAssertFalse(mockRepo.updateEpisodeCalled)
+        XCTAssertEqual(sut.episode?.postdromeStartTime, 1_700_003_600_000)
+    }
+
+    func testResumeAttack_clearsPostdromeStartTime() async throws {
+        mockRepo.episodes = [TestFixtures.makeEpisode(id: "ep-1", postdromeStartTime: 1_700_003_600_000)]
+        await sut.loadEpisode()
+        XCTAssertTrue(sut.episode!.isInPostdrome)
+
+        await sut.resumeAttack()
+
+        XCTAssertNil(sut.episode?.postdromeStartTime)
+        XCTAssertFalse(sut.episode!.isInPostdrome)
+        XCTAssertTrue(sut.episode!.isActive)
+        XCTAssertTrue(mockRepo.updateEpisodeCalled)
+    }
+
+    func testResumeAttack_notInPostdrome_noOp() async throws {
+        await sut.loadEpisode()
+
+        await sut.resumeAttack()
+
+        XCTAssertFalse(mockRepo.updateEpisodeCalled)
+    }
+
+    func testEndEpisode_fromPostdrome_endsAndKeepsPhaseRecord() async throws {
+        mockRepo.episodes = [TestFixtures.makeEpisode(id: "ep-1", postdromeStartTime: 1_700_003_600_000)]
+        await sut.loadEpisode()
+        XCTAssertTrue(sut.episode!.isInPostdrome)
+
+        await sut.endEpisode()
+
+        XCTAssertNotNil(sut.episode?.endTime)
+        XCTAssertFalse(sut.episode!.isInPostdrome, "Ended episodes are no longer in post-drome")
+        XCTAssertEqual(
+            sut.episode?.postdromeStartTime, 1_700_003_600_000,
+            "The phase record is kept for history"
+        )
+    }
+
     // MARK: - Reopen Episode
 
     func testReopenEpisode_clearsEndTime() async throws {

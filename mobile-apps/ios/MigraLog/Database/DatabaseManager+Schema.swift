@@ -6,7 +6,7 @@ import GRDB
 // queue ownership and the migration registry (and under the file_length limit).
 extension DatabaseManager {
     /// Create the v25 baseline schema. Later registered migrations evolve it to the
-    /// current version; see spec/schemas/sqlite/schema-v38.sql for the current end-state.
+    /// current version; see spec/schemas/sqlite/schema-v40.sql for the current end-state.
     // swiftlint:disable:next function_body_length
     static func createSchema(in db: Database) throws {
         // Episodes table
@@ -25,7 +25,8 @@ extension DatabaseManager {
                 location_accuracy REAL CHECK(location_accuracy IS NULL OR location_accuracy >= 0),
                 location_timestamp INTEGER CHECK(location_timestamp IS NULL OR location_timestamp > 0),
                 created_at INTEGER NOT NULL CHECK(created_at > 0),
-                updated_at INTEGER NOT NULL CHECK(updated_at > 0)
+                updated_at INTEGER NOT NULL CHECK(updated_at > 0),
+                postdrome_start_time INTEGER CHECK(postdrome_start_time IS NULL OR postdrome_start_time > 0)
             )
             """)
 

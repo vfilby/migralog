@@ -16,10 +16,17 @@ struct LogUpdateScreen: View {
     @State private var isSaving = false
     @State private var didLoadState = false
 
+    // Beta post-drome tracking: during the post-drome phase pain levels aren't
+    // meaningful, so the intensity slider is hidden and no reading is saved —
+    // updates capture only symptoms, locations, and notes.
+    private var isInPostdrome: Bool { viewModel.episode?.isInPostdrome == true }
+
     var body: some View {
         Form {
-            Section("Pain Intensity") {
-                PainIntensitySlider(intensity: $intensity)
+            if !isInPostdrome {
+                Section("Pain Intensity") {
+                    PainIntensitySlider(intensity: $intensity)
+                }
             }
 
             Section("Time") {
@@ -124,11 +131,13 @@ struct LogUpdateScreen: View {
         defer { isSaving = false }
         let updateTimestamp = TimestampHelper.fromDate(timestamp)
 
-        // Add intensity reading
-        await viewModel.addIntensityReading(
-            intensity: intensity,
-            timestamp: updateTimestamp
-        )
+        // Add intensity reading (not during post-drome — pain levels don't apply)
+        if !isInPostdrome {
+            await viewModel.addIntensityReading(
+                intensity: intensity,
+                timestamp: updateTimestamp
+            )
+        }
 
         // Add symptom logs only for newly added symptoms
         let newSymptoms = selectedSymptoms.subtracting(initialSymptoms)
