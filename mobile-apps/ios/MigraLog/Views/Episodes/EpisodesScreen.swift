@@ -96,7 +96,8 @@ struct EpisodeCardView: View {
                 IntensitySparklineView(
                     readings: readings,
                     episodeStart: episode.startTime,
-                    episodeEnd: episode.endTime
+                    episodeEnd: episode.endTime,
+                    postdromeStart: episode.postdromeStartTime
                 )
                 .frame(width: 160, height: 50)
                 .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.sm))
@@ -172,7 +173,8 @@ struct EpisodeListRowView: View {
                 IntensitySparklineView(
                     readings: readings,
                     episodeStart: episode.startTime,
-                    episodeEnd: episode.endTime
+                    episodeEnd: episode.endTime,
+                    postdromeStart: episode.postdromeStartTime
                 )
                 .frame(width: 140, height: 44)
                 .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.sm))

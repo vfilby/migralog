@@ -69,14 +69,22 @@ final class PostdromeFlowUITests: XCTestCase {
         Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
 
         // === Phase 3: enter post-drome ===
+        // A scroll swipe can register as a tap on the transition button, so
+        // tolerate the transition having already happened: anchor scrolling on
+        // the always-present Log Update button, then tap only if still needed.
         let detailScroll = app.scrollViews["episode-detail-scroll"]
         let enterPostdrome = app.buttons["enter-postdrome-button"]
-        if !enterPostdrome.isHittable {
-            UITestHelpers.scrollToElement(enterPostdrome, in: detailScroll)
+        let resumeAttack = app.buttons["resume-attack-button"]
+        if !resumeAttack.exists {
+            let anchor = app.buttons["log-update-button"]
+            if !anchor.isHittable {
+                UITestHelpers.scrollToElement(anchor, in: detailScroll)
+            }
+            if enterPostdrome.waitForExistence(timeout: 2), enterPostdrome.isHittable {
+                attachScreenshot(named: "2-active-episode-with-enter-postdrome")
+                enterPostdrome.tap()
+            }
         }
-        UITestHelpers.waitForHittable(enterPostdrome)
-        attachScreenshot(named: "2-active-episode-with-enter-postdrome")
-        enterPostdrome.tap()
 
         let postdromeBadge = app.staticTexts
             .matching(NSPredicate(format: "label CONTAINS 'Post-drome'")).firstMatch
@@ -84,7 +92,6 @@ final class PostdromeFlowUITests: XCTestCase {
             postdromeBadge.waitForExistence(timeout: UITestHelpers.defaultTimeout),
             "Detail screen should show the Post-drome badge after transitioning"
         )
-        let resumeAttack = app.buttons["resume-attack-button"]
         UITestHelpers.waitForElement(resumeAttack)
         XCTAssertFalse(
             app.buttons["enter-postdrome-button"].exists,
@@ -124,6 +131,14 @@ final class PostdromeFlowUITests: XCTestCase {
 
         // === Phase 5: timeline reflects the update; still in post-drome ===
         UITestHelpers.waitForElement(resumeAttack)
+        let timelineEntry = app.staticTexts["Entered Post-drome"]
+        if !timelineEntry.exists {
+            UITestHelpers.scrollToElement(timelineEntry, in: detailScroll)
+        }
+        XCTAssertTrue(
+            timelineEntry.waitForExistence(timeout: UITestHelpers.defaultTimeout),
+            "Timeline should show the Entered Post-drome event"
+        )
         attachScreenshot(named: "5-postdrome-with-timeline")
         // Intentionally leave the episode in post-drome so a manual relaunch
         // of the app lands on this state for exploration.

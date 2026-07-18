@@ -8,6 +8,10 @@ struct IntensitySparklineView: View {
     var episodeStart: Int64?
     /// Episode end time (nil for ongoing — uses current time)
     var episodeEnd: Int64?
+    /// Beta post-drome tracking: when set, the intensity line stops here and
+    /// the remainder of the chart is a flat grey span — pain levels aren't
+    /// tracked during the post-drome phase.
+    var postdromeStart: Int64?
 
     /// Pain scale gradient colors from 0 (green) to 10 (purple).
     /// Sourced from the shared palette in DesignTokens.Pain.
@@ -22,6 +26,8 @@ struct IntensitySparklineView: View {
             if !sorted.isEmpty {
                 let startT = episodeStart ?? sorted.first!.timestamp
                 let endT = episodeEnd ?? Int64(Date().timeIntervalSince1970 * 1000)
+                // The line/dots stop at the post-drome transition (if any).
+                let lineEndT = min(max(postdromeStart ?? endT, startT), endT)
                 let timeRange = max(Double(endT - startT), 1)
                 let padding: CGFloat = 4
                 let chartW = geo.size.width - padding * 2
@@ -29,7 +35,7 @@ struct IntensitySparklineView: View {
 
                 // Interpolate at 5-minute intervals with sample-and-hold, then smooth
                 let smoothed = Self.smoothedData(
-                    readings: sorted, start: startT, end: endT
+                    readings: sorted, start: startT, end: lineEndT
                 )
 
                 // Background gradient (green at bottom, purple at top)
@@ -41,6 +47,20 @@ struct IntensitySparklineView: View {
                             endPoint: .top
                         )
                     )
+
+                // Post-drome span: plain grey, no line — pain isn't tracked here.
+                if lineEndT < endT {
+                    let pdX = padding + chartW * CGFloat(Double(lineEndT - startT) / timeRange)
+                    UnevenRoundedRectangle(
+                        topLeadingRadius: 0,
+                        bottomLeadingRadius: 0,
+                        bottomTrailingRadius: DesignTokens.Radius.sm,
+                        topTrailingRadius: DesignTokens.Radius.sm
+                    )
+                    .fill(Color(.systemGray5))
+                    .frame(width: max(geo.size.width - pdX, 0), height: geo.size.height)
+                    .offset(x: pdX)
+                }
 
                 // Smoothed line with gradient stroke
                 if smoothed.count > 1 {
@@ -64,11 +84,12 @@ struct IntensitySparklineView: View {
                         style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round)
                     )
                 } else if sorted.count == 1 {
-                    // Single reading: flat line across full width
+                    // Single reading: flat line up to the post-drome cutoff (or full width)
                     let y = padding + chartH * (1 - CGFloat(sorted[0].intensity / 10.0))
+                    let lineEndX = padding + chartW * CGFloat(Double(lineEndT - startT) / timeRange)
                     Path { path in
                         path.move(to: CGPoint(x: padding, y: y))
-                        path.addLine(to: CGPoint(x: padding + chartW, y: y))
+                        path.addLine(to: CGPoint(x: lineEndX, y: y))
                     }
                     .stroke(
                         PainScale.color(for: sorted[0].intensity),
@@ -76,8 +97,8 @@ struct IntensitySparklineView: View {
                     )
                 }
 
-                // Reading dots at actual data points
-                ForEach(sorted) { reading in
+                // Reading dots at actual data points (none inside the post-drome span)
+                ForEach(sorted.filter { $0.timestamp <= lineEndT }) { reading in
                     let x = padding + chartW * CGFloat(Double(reading.timestamp - startT) / timeRange)
                     let y = padding + chartH * (1 - CGFloat(reading.intensity / 10.0))
                     Circle()

@@ -18,6 +18,7 @@ struct TimelineEvent: Identifiable {
         case painLocation(PainLocationLog, PainLocationDelta)
         case note(EpisodeNote)
         case medication(DoseWithMedication)
+        case postdromeStarted
         case episodeEnded
 
         var isEpisodeEnded: Bool {
@@ -65,7 +66,8 @@ struct TimelineView: View {
                 IntensitySparklineView(
                     readings: details.intensityReadings,
                     episodeStart: details.episode.startTime,
-                    episodeEnd: details.episode.endTime
+                    episodeEnd: details.episode.endTime,
+                    postdromeStart: details.episode.postdromeStartTime
                 )
                 .frame(height: 80)
                 .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.sm))
@@ -214,6 +216,16 @@ struct TimelineView: View {
             ))
         }
 
+        // Post-drome transition (beta): the attack subsided here; later entries
+        // are after effects.
+        if let postdromeStart = details.episode.postdromeStartTime {
+            events.append(TimelineEvent(
+                id: "postdrome-started",
+                timestamp: postdromeStart,
+                kind: .postdromeStarted
+            ))
+        }
+
         // Episode ended event
         if let endTime = details.episode.endTime {
             events.append(TimelineEvent(
@@ -250,6 +262,7 @@ struct TimelineView: View {
         case .painLocation(_, _): .secondary
         case .note: .secondary
         case .medication: .secondary
+        case .postdromeStarted: .indigo
         case .episodeEnded: .secondary
         }
         Circle()
@@ -268,6 +281,7 @@ struct TimelineView: View {
         case .painLocation(_, let delta): delta.isInitial ? "Initial Pain Locations" : "Pain Location Changes"
         case .note: "Note"
         case .medication(let d): d.dose.status == .taken ? "Medication Taken" : "Medication Skipped"
+        case .postdromeStarted: "Entered Post-drome"
         case .episodeEnded: "Episode Ended"
         }
         Text(title)
@@ -353,6 +367,12 @@ struct TimelineView: View {
                 .foregroundStyle(.secondary)
                 .padding(.top, 2)
 
+        case .postdromeStarted:
+            Text("Attack subsided — tracking after effects")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .padding(.top, 2)
+
         case .episodeEnded:
             EmptyView()
         }
@@ -427,6 +447,15 @@ struct TimelineView: View {
                 showDeleteConfirmation = true
             } label: {
                 Label("Delete", systemImage: "trash")
+            }
+
+        case .postdromeStarted:
+            if viewModel.episode?.isInPostdrome == true {
+                Button {
+                    Task { await viewModel.resumeAttack() }
+                } label: {
+                    Label("Resume Attack", systemImage: "arrow.uturn.backward.circle")
+                }
             }
 
         case .episodeEnded:
