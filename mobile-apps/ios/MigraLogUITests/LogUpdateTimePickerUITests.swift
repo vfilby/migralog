@@ -112,13 +112,19 @@ final class LogUpdateTimePickerUITests: XCTestCase {
         let hourWheel = app.pickerWheels.element(boundBy: 0)
         XCTAssertTrue(hourWheel.waitForExistence(timeout: UITestHelpers.defaultTimeout),
                       "Tapping the time button should show picker wheels")
-        hourWheel.adjust(toPickerWheelValue: component(of: date, format: "h"))
-        app.pickerWheels.element(boundBy: 1)
-            .adjust(toPickerWheelValue: component(of: date, format: "mm"))
+        // The pickers are bounded to `...Date()`, and UIKit snaps the wheels
+        // back whenever an intermediate state is a future time. When backdating
+        // across noon (e.g. now 12:17 PM -> target 11:47 AM), adjusting the
+        // hour before the period would transiently select 11:17 PM and get
+        // clamped. Setting AM/PM first keeps every intermediate state in the
+        // past, so no adjustment is ever undone.
         if app.pickerWheels.count > 2 {
             app.pickerWheels.element(boundBy: 2)
                 .adjust(toPickerWheelValue: component(of: date, format: "a"))
         }
+        hourWheel.adjust(toPickerWheelValue: component(of: date, format: "h"))
+        app.pickerWheels.element(boundBy: 1)
+            .adjust(toPickerWheelValue: component(of: date, format: "mm"))
         Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
 
         // Dismiss the popover by tapping outside it
