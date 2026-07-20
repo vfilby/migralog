@@ -16,7 +16,7 @@ packages:
     exactVersion: "7.11.1"
   Sentry:
     url: https://github.com/getsentry/sentry-cocoa
-    exactVersion: "9.21.0"
+    exactVersion: "9.22.0"
 
 settings:
   base:
