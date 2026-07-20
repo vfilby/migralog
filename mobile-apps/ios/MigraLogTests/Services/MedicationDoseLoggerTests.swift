@@ -4,15 +4,18 @@ import XCTest
 final class MedicationDoseLoggerTests: XCTestCase {
     private var mockMedicationRepo: MockMedicationRepository!
     private var mockNotificationService: MockMedicationNotificationService!
+    private var mockDoseCheckinService: MockDoseCheckinNotificationService!
     private var sut: MedicationDoseLogger!
 
     override func setUp() {
         super.setUp()
         mockMedicationRepo = MockMedicationRepository()
         mockNotificationService = MockMedicationNotificationService()
+        mockDoseCheckinService = MockDoseCheckinNotificationService()
         sut = MedicationDoseLogger(
             medicationRepo: mockMedicationRepo,
-            notificationService: mockNotificationService
+            notificationService: mockNotificationService,
+            doseCheckinService: mockDoseCheckinService
         )
     }
 
@@ -20,6 +23,7 @@ final class MedicationDoseLoggerTests: XCTestCase {
         sut = nil
         mockMedicationRepo = nil
         mockNotificationService = nil
+        mockDoseCheckinService = nil
         super.tearDown()
     }
 
@@ -50,6 +54,29 @@ final class MedicationDoseLoggerTests: XCTestCase {
                 "Reminders must not be cancelled if the dose was never written"
             )
         }
+    }
+
+    func testRecord_schedulesDoseCheckin() async throws {
+        let dose = makeDose(medicationId: "med-1")
+
+        _ = try await sut.record(dose)
+
+        XCTAssertEqual(
+            mockDoseCheckinService.scheduledDoseIds, [dose.id],
+            "The saved dose should be offered to the check-in scheduler (it applies its own gating)"
+        )
+    }
+
+    func testRecord_doesNotScheduleCheckin_whenPersistFails() async {
+        mockMedicationRepo.errorToThrow = NSError(domain: "test", code: 1)
+        let dose = makeDose(medicationId: "med-1")
+
+        _ = try? await sut.record(dose)
+
+        XCTAssertTrue(
+            mockDoseCheckinService.scheduledDoseIds.isEmpty,
+            "No check-in should be scheduled for a dose that was never written"
+        )
     }
 
     // MARK: - Helpers

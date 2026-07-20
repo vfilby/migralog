@@ -116,6 +116,46 @@ final class NotificationResponseHandlerTests: XCTestCase {
         super.tearDown()
     }
 
+    // MARK: - Dose Check-in
+
+    func testDoseCheckinResponse_defaultTap_postsRoutingNotification() async {
+        let expectation = expectation(forNotification: .doseCheckinTapped, object: nil) { notification in
+            notification.userInfo?["episodeId"] as? String == "ep-1"
+        }
+
+        await sut.handleDoseCheckinResponse(
+            actionIdentifier: UNNotificationDefaultActionIdentifier,
+            userInfo: ["type": "dose_checkin", "episodeId": "ep-1"]
+        )
+
+        await fulfillment(of: [expectation], timeout: 1.0)
+    }
+
+    func testDoseCheckinResponse_logUpdateAction_postsRoutingNotification() async {
+        let expectation = expectation(forNotification: .doseCheckinTapped, object: nil) { notification in
+            notification.userInfo?["episodeId"] as? String == "ep-1"
+        }
+
+        await sut.handleDoseCheckinResponse(
+            actionIdentifier: NotificationAction.logUpdate,
+            userInfo: ["episodeId": "ep-1"]
+        )
+
+        await fulfillment(of: [expectation], timeout: 1.0)
+    }
+
+    func testDoseCheckinResponse_missingEpisodeId_doesNotPost() async {
+        let expectation = expectation(forNotification: .doseCheckinTapped, object: nil)
+        expectation.isInverted = true
+
+        await sut.handleDoseCheckinResponse(
+            actionIdentifier: UNNotificationDefaultActionIdentifier,
+            userInfo: ["type": "dose_checkin"]
+        )
+
+        await fulfillment(of: [expectation], timeout: 0.2)
+    }
+
     // MARK: - Initialization
 
     func testInit_setsUpAllDependencies() {

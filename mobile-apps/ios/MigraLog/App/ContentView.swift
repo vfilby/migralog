@@ -71,6 +71,12 @@ struct ContentView: View {
             // navigation state. AppState ignores anything it doesn't recognize.
             appState.handle(url: url)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .doseCheckinTapped)) { notification in
+            // A 2h dose check-in was tapped: open the episode's Log Update
+            // screen, the same surface the Live Activity intensity link uses.
+            guard let episodeId = notification.userInfo?["episodeId"] as? String else { return }
+            appState.route(to: .logIntensity(episodeId: episodeId))
+        }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:

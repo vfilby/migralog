@@ -15,6 +15,7 @@ final class EpisodeDetailViewModel {
     private let episodeRepository: EpisodeRepositoryProtocol
     private let medicationRepository: MedicationRepositoryProtocol
     private let dailyCheckinService: DailyCheckinNotificationServiceProtocol
+    private let doseCheckinService: DoseCheckinNotificationServiceProtocol
     private let liveActivityManager: LiveActivityManaging
     private var episodeId: String
 
@@ -30,12 +31,17 @@ final class EpisodeDetailViewModel {
             episodeRepo: EpisodeRepository(dbManager: DatabaseManager.shared),
             dailyStatusRepo: DailyStatusRepository(dbManager: DatabaseManager.shared)
         ),
+        doseCheckinService: DoseCheckinNotificationServiceProtocol = DoseCheckinNotificationService(
+            notificationService: NotificationService.shared,
+            medicationRepo: MedicationRepository(dbManager: DatabaseManager.shared)
+        ),
         liveActivityManager: LiveActivityManaging = LiveActivityManager.shared
     ) {
         self.episodeId = episodeId
         self.episodeRepository = episodeRepository
         self.medicationRepository = medicationRepository
         self.dailyCheckinService = dailyCheckinService
+        self.doseCheckinService = doseCheckinService
         self.liveActivityManager = liveActivityManager
     }
 
@@ -97,6 +103,8 @@ final class EpisodeDetailViewModel {
             )
             // Reinstate daily check-in notifications now that episode is complete
             try? await dailyCheckinService.scheduleNotifications()
+            // The episode's outcome is known — drop any pending 2h dose check-in.
+            await doseCheckinService.cancelCheckins(forEpisodeId: episode.id)
             // Transition the Live Activity to its warm post-episode close.
             liveActivityManager.end(episodeId: episode.id, at: timestamp)
         } catch {
@@ -122,6 +130,8 @@ final class EpisodeDetailViewModel {
             )
             // Reinstate daily check-in notifications now that episode is complete
             try? await dailyCheckinService.scheduleNotifications()
+            // The episode's outcome is known — drop any pending 2h dose check-in.
+            await doseCheckinService.cancelCheckins(forEpisodeId: episode.id)
             // Transition the Live Activity to its warm post-episode close.
             liveActivityManager.end(episodeId: episode.id, at: now)
         } catch {

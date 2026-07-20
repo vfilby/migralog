@@ -4,18 +4,24 @@ import XCTest
 @MainActor
 final class EpisodeDetailViewModelTests: XCTestCase {
     private var mockRepo: MockEpisodeRepository!
+    private var mockDoseCheckinService: MockDoseCheckinNotificationService!
     private var sut: EpisodeDetailViewModel!
     private var testEpisode: Episode!
 
     override func setUp() {
         super.setUp()
         mockRepo = MockEpisodeRepository()
+        mockDoseCheckinService = MockDoseCheckinNotificationService()
         testEpisode = TestFixtures.makeEpisode(id: "ep-1")
         mockRepo.episodes = [testEpisode]
         mockRepo.intensityReadings = [
             TestFixtures.makeReading(id: "r-1", episodeId: "ep-1", intensity: 6.0)
         ]
-        sut = EpisodeDetailViewModel(episodeId: "ep-1", episodeRepository: mockRepo)
+        sut = EpisodeDetailViewModel(
+            episodeId: "ep-1",
+            episodeRepository: mockRepo,
+            doseCheckinService: mockDoseCheckinService
+        )
     }
 
     // MARK: - Load
@@ -59,6 +65,14 @@ final class EpisodeDetailViewModelTests: XCTestCase {
         XCTAssertNotNil(sut.episode?.endTime)
         XCTAssertFalse(sut.episode!.isActive)
         XCTAssertTrue(mockRepo.updateEpisodeCalled)
+    }
+
+    func testEndEpisode_cancelsPendingDoseCheckins() async throws {
+        await sut.loadEpisode()
+
+        await sut.endEpisode()
+
+        XCTAssertEqual(mockDoseCheckinService.cancelledEpisodeIds, ["ep-1"])
     }
 
     func testEndEpisode_alreadyEnded_noOp() async throws {

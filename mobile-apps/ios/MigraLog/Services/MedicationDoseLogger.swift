@@ -15,6 +15,7 @@ protocol MedicationDoseLoggerProtocol: Sendable {
 final class MedicationDoseLogger: MedicationDoseLoggerProtocol {
     private let medicationRepo: MedicationRepositoryProtocol
     private let notificationService: MedicationNotificationServiceProtocol
+    private let doseCheckinService: DoseCheckinNotificationServiceProtocol
 
     init(
         medicationRepo: MedicationRepositoryProtocol = MedicationRepository(dbManager: DatabaseManager.shared),
@@ -22,16 +23,22 @@ final class MedicationDoseLogger: MedicationDoseLoggerProtocol {
             notificationService: NotificationService.shared,
             scheduledNotificationRepo: ScheduledNotificationRepository(dbManager: DatabaseManager.shared),
             medicationRepo: MedicationRepository(dbManager: DatabaseManager.shared)
+        ),
+        doseCheckinService: DoseCheckinNotificationServiceProtocol = DoseCheckinNotificationService(
+            notificationService: NotificationService.shared,
+            medicationRepo: MedicationRepository(dbManager: DatabaseManager.shared)
         )
     ) {
         self.medicationRepo = medicationRepo
         self.notificationService = notificationService
+        self.doseCheckinService = doseCheckinService
     }
 
     @discardableResult
     func record(_ dose: MedicationDose) async throws -> MedicationDose {
         let saved = try medicationRepo.createDose(dose)
         await notificationService.cancelTodaysReminders(medicationId: saved.medicationId)
+        await doseCheckinService.scheduleCheckin(for: saved)
         return saved
     }
 }
