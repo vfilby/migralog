@@ -7,6 +7,7 @@ enum NotificationCategory {
     static let medication = "MEDICATION_REMINDER"
     static let multipleMedication = "MULTIPLE_MEDICATION_REMINDER"
     static let dailyCheckin = "DAILY_CHECKIN"
+    static let doseCheckin = "DOSE_CHECKIN"
 }
 
 enum NotificationAction {
@@ -18,6 +19,7 @@ enum NotificationAction {
     static let remindLater = "REMIND_LATER"
     static let clearDay = "CLEAR_DAY"
     static let notClear = "NOT_CLEAR"
+    static let logUpdate = "LOG_UPDATE"
 }
 
 // MARK: - Notification Service Protocol
@@ -159,7 +161,21 @@ final class NotificationService: NotificationServiceProtocol {
             options: []
         )
 
-        center.setNotificationCategories([medicationCategory, multipleMedicationCategory, dailyCheckinCategory])
+        let logUpdateAction = UNNotificationAction(
+            identifier: NotificationAction.logUpdate,
+            title: "Log Update",
+            options: [.foreground]
+        )
+        let doseCheckinCategory = UNNotificationCategory(
+            identifier: NotificationCategory.doseCheckin,
+            actions: [logUpdateAction],
+            intentIdentifiers: [],
+            options: []
+        )
+
+        center.setNotificationCategories([
+            medicationCategory, multipleMedicationCategory, dailyCheckinCategory, doseCheckinCategory
+        ])
     }
 
     // MARK: - Permission

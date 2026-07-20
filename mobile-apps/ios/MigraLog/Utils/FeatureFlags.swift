@@ -43,9 +43,17 @@ struct FeatureFlag: Identifiable {
             + "effects (medications, symptoms, notes) without pain levels."
     )
 
+    static let doseCheckin = FeatureFlag(
+        key: "doseCheckin",
+        title: "2-Hour Medication Check-in",
+        details: "Two hours after you take a rescue medication during an attack, "
+            + "get a reminder to log how you're feeling."
+    )
+
     /// Every flag surfaced in Beta Features, in display order.
     static let all: [FeatureFlag] = [
         .postdromeTracking,
+        .doseCheckin,
     ]
 }
 

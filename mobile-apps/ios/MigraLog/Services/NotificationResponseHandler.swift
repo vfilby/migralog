@@ -67,6 +67,9 @@ final class NotificationResponseHandler: NSObject, UNUserNotificationCenterDeleg
                 let checkinUserInfo = response.notification.request.content.userInfo
                 await handleDailyCheckinResponse(actionIdentifier: actionIdentifier, userInfo: checkinUserInfo)
 
+            case NotificationCategory.doseCheckin:
+                await handleDoseCheckinResponse(actionIdentifier: actionIdentifier, userInfo: userInfo)
+
             default:
                 logger.debug("Unhandled notification category: \(categoryIdentifier)")
             }
@@ -251,6 +254,30 @@ final class NotificationResponseHandler: NSObject, UNUserNotificationCenterDeleg
 
         default:
             logger.debug("Unhandled daily check-in action: \(actionIdentifier)")
+        }
+    }
+
+    // MARK: - Dose Check-in Response Handling
+
+    /// Both the default tap and the "Log Update" action open the app; post the
+    /// episode id so `ContentView` can route to the Log Update screen.
+    func handleDoseCheckinResponse(actionIdentifier: String, userInfo: [AnyHashable: Any]) async {
+        switch actionIdentifier {
+        case NotificationAction.logUpdate, UNNotificationDefaultActionIdentifier:
+            guard let episodeId = userInfo["episodeId"] as? String else {
+                logger.warn("No episodeId in dose check-in notification userInfo")
+                return
+            }
+            await MainActor.run {
+                NotificationCenter.default.post(
+                    name: .doseCheckinTapped,
+                    object: nil,
+                    userInfo: ["episodeId": episodeId]
+                )
+            }
+
+        default:
+            logger.debug("Unhandled dose check-in action: \(actionIdentifier)")
         }
     }
 

@@ -19,7 +19,8 @@ final class LogMedicationViewModelTests: XCTestCase {
             categoryLimitRepository: mockCategoryLimitRepo,
             doseLogger: MedicationDoseLogger(
                 medicationRepo: mockMedRepo,
-                notificationService: MockMedicationNotificationService()
+                notificationService: MockMedicationNotificationService(),
+                doseCheckinService: MockDoseCheckinNotificationService()
             )
         )
     }
