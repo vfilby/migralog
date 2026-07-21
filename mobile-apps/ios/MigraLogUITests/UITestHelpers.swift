@@ -45,8 +45,14 @@ enum UITestHelpers {
     }
 
     /// Wait for the dashboard screen to be visible.
+    ///
+    /// Reaching the dashboard is a launch/onboarding-scale settle, not an
+    /// in-screen wait: on a loaded CI runner it can exceed the default 5s
+    /// (#603, the 2026-07-21 nightly where the whole suite ran ~1.5x slower),
+    /// so allow the same 15s window navigation settles use. Costs nothing
+    /// when the app is fast — the wait returns as soon as the title appears.
     @discardableResult
-    static func waitForDashboard(in app: XCUIApplication, timeout: TimeInterval = defaultTimeout) -> XCUIElement {
+    static func waitForDashboard(in app: XCUIApplication, timeout: TimeInterval = 15) -> XCUIElement {
         let title = dashboardTitle(in: app)
         waitForElement(title, timeout: timeout)
         return title
@@ -139,7 +145,10 @@ enum UITestHelpers {
             waitForHittable(tabButton, timeout: 15, file: file, line: line)
             tabButton.tap()
             Thread.sleep(forTimeInterval: animationWait)
-            if waitForSelected(tabButton, timeout: 3) {
+            // 8s not 3s: under heavy runner load `isSelected` can lag the tap by
+            // several seconds without the selection having reverted (#603); a
+            // premature retap burns an attempt on a switch that already landed.
+            if waitForSelected(tabButton, timeout: 8) {
                 return
             }
         }
