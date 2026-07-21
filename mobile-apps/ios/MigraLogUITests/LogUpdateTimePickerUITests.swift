@@ -23,8 +23,20 @@ final class LogUpdateTimePickerUITests: XCTestCase {
 
     func testLogUpdateCanBeBackdated() throws {
         let now = Date()
-        let episodeStart = now.addingTimeInterval(-2 * 60 * 60)
-        let updateTime = now.addingTimeInterval(-30 * 60)
+        // The compact picker's popover only exposes time-of-day wheels, so both
+        // times must land on today's date: shortly after midnight "2 hours ago"
+        // is yesterday, the wheels can't reach it (every intermediate state is a
+        // future time that gets clamped), and the update time then falls outside
+        // the episodeStart...now bounds (#603, 2026-07-21 00:27 UTC run). Clamp
+        // both times to stay after midnight, and skip the first minutes of the
+        // day where there's no room for two distinct backdated minutes.
+        let midnight = Calendar.current.startOfDay(for: now)
+        try XCTSkipIf(now.timeIntervalSince(midnight) < 3 * 60,
+                      "Backdating needs distinct past times on today's date")
+        let episodeStart = max(now.addingTimeInterval(-2 * 60 * 60),
+                               midnight.addingTimeInterval(60))
+        let updateTime = max(now.addingTimeInterval(-30 * 60),
+                             midnight.addingTimeInterval(2 * 60))
 
         // === Create an episode started 2 hours ago ===
         let startButton = app.buttons["start-episode-button"]
