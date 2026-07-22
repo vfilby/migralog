@@ -10,6 +10,27 @@ enum LiveActivityStyle {
     /// A softer tint used for the post-episode close state.
     static let calmColor = DesignTokens.LiveActivity.calm
 
+    /// Indigo accent for the beta post-drome (recovery) phase.
+    static let postdromeColor = DesignTokens.LiveActivity.postdrome
+
+    /// Accent for the current phase: red while the attack is active, indigo in
+    /// the post-drome recovery phase, calm green once ended.
+    static func tint(for state: EpisodeActivityAttributes.ContentState) -> Color {
+        if state.isEnded { return calmColor }
+        if state.isInPostdrome { return postdromeColor }
+        return activeColor
+    }
+
+    /// Phase glyph: a calming moon during recovery, the bolt-heart otherwise.
+    static func symbol(for state: EpisodeActivityAttributes.ContentState) -> String {
+        state.isInPostdrome ? "moon.zzz.fill" : "bolt.heart.fill"
+    }
+
+    /// Lock Screen / VoiceOver headline for the ongoing phase.
+    static func phaseLabel(for state: EpisodeActivityAttributes.ContentState) -> String {
+        state.isInPostdrome ? "Post-drome" : "In migraine"
+    }
+
     static func intensityLabel(_ intensity: Double?) -> String? {
         guard let intensity else { return nil }
         return "\(Int(intensity.rounded()))/10"

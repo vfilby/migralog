@@ -157,6 +157,8 @@ final class EpisodeDetailViewModel {
                 painLocationLogs: details?.painLocationLogs ?? [],
                 episodeNotes: details?.episodeNotes ?? []
             )
+            // Reflect the recovery phase on the Live Activity (pain no longer surfaced).
+            liveActivityManager.refresh(episodeId: episode.id)
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "EpisodeDetailViewModel", "action": "startPostdrome"])
             self.error = error.localizedDescription
@@ -179,6 +181,8 @@ final class EpisodeDetailViewModel {
                 painLocationLogs: details?.painLocationLogs ?? [],
                 episodeNotes: details?.episodeNotes ?? []
             )
+            // Back to an active attack — restore the active Live Activity presentation.
+            liveActivityManager.refresh(episodeId: episode.id)
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "EpisodeDetailViewModel", "action": "resumeAttack"])
             self.error = error.localizedDescription

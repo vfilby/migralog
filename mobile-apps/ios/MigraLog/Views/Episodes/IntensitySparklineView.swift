@@ -48,18 +48,57 @@ struct IntensitySparklineView: View {
                         )
                     )
 
-                // Post-drome span: plain grey, no line — pain isn't tracked here.
+                // Post-drome span (beta): the attack has subsided and pain is no
+                // longer tracked here, so instead of a line we render a soft
+                // indigo "recovery" band — a dashed boundary at the transition
+                // plus a label — matching the indigo Post-drome badge elsewhere.
+                // Reads as a distinct phase rather than a grey rendering gap.
                 if lineEndT < endT {
                     let pdX = padding + chartW * CGFloat(Double(lineEndT - startT) / timeRange)
+                    let pdWidth = max(geo.size.width - pdX, 0)
+
                     UnevenRoundedRectangle(
                         topLeadingRadius: 0,
                         bottomLeadingRadius: 0,
                         bottomTrailingRadius: DesignTokens.Radius.sm,
                         topTrailingRadius: DesignTokens.Radius.sm
                     )
-                    .fill(Color(.systemGray5))
-                    .frame(width: max(geo.size.width - pdX, 0), height: geo.size.height)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.indigo.opacity(0.18), Color.indigo.opacity(0.07)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .frame(width: pdWidth, height: geo.size.height)
                     .offset(x: pdX)
+
+                    // Dashed boundary marking the moment the attack subsided.
+                    Path { path in
+                        path.move(to: CGPoint(x: pdX, y: 0))
+                        path.addLine(to: CGPoint(x: pdX, y: geo.size.height))
+                    }
+                    .stroke(
+                        Color.indigo.opacity(0.55),
+                        style: StrokeStyle(lineWidth: 1, dash: [3, 3])
+                    )
+
+                    // Phase label, centered in the band when there's room;
+                    // falls back to just the glyph in a narrow band.
+                    if pdWidth > 72 {
+                        Label("Post-drome", systemImage: "moon.zzz.fill")
+                            .labelStyle(.titleAndIcon)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.indigo)
+                            .frame(width: pdWidth, height: geo.size.height)
+                            .offset(x: pdX)
+                    } else if pdWidth > 20 {
+                        Image(systemName: "moon.zzz.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.indigo)
+                            .frame(width: pdWidth, height: geo.size.height)
+                            .offset(x: pdX)
+                    }
                 }
 
                 // Smoothed line with gradient stroke

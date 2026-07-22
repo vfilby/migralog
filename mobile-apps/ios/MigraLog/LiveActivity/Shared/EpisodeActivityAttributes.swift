@@ -27,7 +27,18 @@ struct EpisodeActivityAttributes: ActivityAttributes {
         /// that lingers briefly before the activity is dismissed.
         var endedAt: Date?
 
+        /// Beta post-drome tracking: set once the attack has subsided but the
+        /// episode is still open to capture after effects. Drives the calmer
+        /// "recovery" presentation — pain intensity is no longer surfaced
+        /// because it stops being tracked in this phase. Nil during the active
+        /// attack; ignored once `endedAt` is set.
+        var postdromeStartAt: Date?
+
         var isEnded: Bool { endedAt != nil }
+
+        /// In the post-drome recovery phase: still ongoing, but the attack
+        /// itself has passed. Mutually exclusive with `isEnded`.
+        var isInPostdrome: Bool { endedAt == nil && postdromeStartAt != nil }
 
         var hasRescueMed: Bool { lastRescueMedName != nil && lastRescueMedAt != nil }
     }

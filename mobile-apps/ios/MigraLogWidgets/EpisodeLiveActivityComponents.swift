@@ -114,9 +114,13 @@ struct ExpandedLeadingView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Image(systemName: "bolt.heart.fill")
-                .foregroundStyle(state.isEnded ? LiveActivityStyle.calmColor : LiveActivityStyle.activeColor)
-            if let intensity = LiveActivityStyle.intensityLabel(state.currentIntensity) {
+            Image(systemName: LiveActivityStyle.symbol(for: state))
+                .foregroundStyle(LiveActivityStyle.tint(for: state))
+            if state.isInPostdrome {
+                Text("Recovery")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(LiveActivityStyle.postdromeColor)
+            } else if let intensity = LiveActivityStyle.intensityLabel(state.currentIntensity) {
                 Text(intensity)
                     .font(.caption.weight(.semibold))
             }
@@ -132,11 +136,17 @@ struct ExpandedTrailingView: View {
         VStack(alignment: .trailing, spacing: 2) {
             DurationText(attributes: attributes, state: state)
                 .font(.title3.monospacedDigit().weight(.semibold))
-                .foregroundStyle(state.isEnded ? LiveActivityStyle.calmColor : LiveActivityStyle.activeColor)
-            Text(state.isEnded ? "ended" : "elapsed")
+                .foregroundStyle(LiveActivityStyle.tint(for: state))
+            Text(durationCaption)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    private var durationCaption: String {
+        if state.isEnded { return "ended" }
+        if state.isInPostdrome { return "recovering" }
+        return "elapsed"
     }
 }
 
@@ -144,11 +154,12 @@ struct ExpandedTrailingView: View {
 
 struct PulsingDot: View {
     let color: Color
+    var accessibilityLabel: String = "Active migraine episode"
 
     var body: some View {
         Circle()
             .fill(color)
             .frame(width: 8, height: 8)
-            .accessibilityLabel("Active migraine episode")
+            .accessibilityLabel(accessibilityLabel)
     }
 }

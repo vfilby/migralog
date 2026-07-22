@@ -100,6 +100,9 @@ enum DesignTokens {
         static let active = Color(red: 0.84, green: 0.23, blue: 0.30)
         /// Softer tint for the post-episode close state.
         static let calm = Color(red: 0.30, green: 0.55, blue: 0.50)
+        /// Calm indigo for the beta post-drome (recovery) phase — matches the
+        /// indigo Post-drome badge on the episode detail screen.
+        static let postdrome = Color.indigo
     }
 
     // MARK: - Spacing
