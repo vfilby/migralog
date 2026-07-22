@@ -121,9 +121,12 @@ final class CategorySafetyRulesUITests: XCTestCase {
     // MARK: - Helpers
 
     /// The rule editor opens at the medium detent and its Form is lazy, so the
-    /// medications checklist may not exist in the hierarchy yet. Swipe up to
-    /// expand the sheet, then scroll until the row is hittable.
+    /// medications checklist may not exist in the hierarchy yet. Dismiss the
+    /// software keyboard if it's up (the number pad covers the lower half of
+    /// the medium-detent sheet — #599), swipe up to expand the sheet, then
+    /// scroll until the row is hittable.
     private func revealChecklistRow() -> XCUIElement {
+        dismissKeyboardIfPresent()
         let row = app.buttons["rule-editor-medication-fixture-med-ibuprofen"]
         if !row.isHittable {
             app.swipeUp()
@@ -134,6 +137,19 @@ final class CategorySafetyRulesUITests: XCTestCase {
         }
         UITestHelpers.waitForHittable(row)
         return row
+    }
+
+    /// With the simulator's hardware keyboard disconnected, typing into the
+    /// numeric fields leaves the software number pad covering the lower half
+    /// of the medium-detent sheet. The number pad has no return key, so tap
+    /// the keyboard toolbar's Done button. No-op when the hardware keyboard
+    /// is connected (CI) and no software keyboard appears.
+    private func dismissKeyboardIfPresent() {
+        guard app.keyboards.firstMatch.exists else { return }
+        let done = app.buttons["rule-editor-keyboard-done"]
+        UITestHelpers.waitForHittable(done)
+        done.tap()
+        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
     }
 
     /// Dashboard → settings gear → Medication Safety Limits.

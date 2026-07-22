@@ -29,6 +29,9 @@ struct CategorySafetyRuleEditorSheet: View {
     @State private var windowDaysText: String = ""
     @State private var cooldownHoursText: String = ""
     @State private var excludedMedicationIds: Set<String> = []
+    /// The numeric keyboards (number/decimal pad) have no return key, so a
+    /// keyboard-toolbar Done button is the only way to dismiss them.
+    @FocusState private var numericFieldFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -50,6 +53,11 @@ struct CategorySafetyRuleEditorSheet: View {
                     Button("Save") { save() }
                         .disabled(!isValid)
                         .accessibilityIdentifier("rule-editor-save")
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") { numericFieldFocused = false }
+                        .accessibilityIdentifier("rule-editor-keyboard-done")
                 }
             }
             .onAppear(perform: configureInitialState)
@@ -116,6 +124,7 @@ struct CategorySafetyRuleEditorSheet: View {
             LabeledContent("Max days taken") {
                 TextField("", text: $maxDaysText, prompt: Text("e.g. 15"))
                     .keyboardType(.numberPad)
+                    .focused($numericFieldFocused)
                     .multilineTextAlignment(.trailing)
                     .accessibilityIdentifier("rule-editor-max-days")
             }
@@ -123,6 +132,7 @@ struct CategorySafetyRuleEditorSheet: View {
                 HStack(spacing: DesignTokens.Spacing.xs) {
                     TextField("", text: $windowDaysText, prompt: Text("e.g. 30"))
                         .keyboardType(.numberPad)
+                        .focused($numericFieldFocused)
                         .multilineTextAlignment(.trailing)
                         .accessibilityIdentifier("rule-editor-window-days")
                     Text("days")
@@ -150,6 +160,7 @@ struct CategorySafetyRuleEditorSheet: View {
                 HStack(spacing: DesignTokens.Spacing.xs) {
                     TextField("", text: $cooldownHoursText, prompt: Text("e.g. 8"))
                         .keyboardType(.decimalPad)
+                        .focused($numericFieldFocused)
                         .multilineTextAlignment(.trailing)
                         .accessibilityIdentifier("rule-editor-cooldown-hours")
                     Text("hours")
