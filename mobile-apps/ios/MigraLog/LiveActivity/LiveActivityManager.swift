@@ -174,11 +174,15 @@ final class LiveActivityManager: LiveActivityManaging {
         let readings = (try? episodeRepository.getReadingsByEpisodeId(episodeId)) ?? []
         let intensity = readings.max { $0.timestamp < $1.timestamp }?.intensity
         let lastRescue = latestRescueDose(episodeId: episodeId)
+        // Beta post-drome tracking: surface the recovery phase so the activity
+        // reads "post-drome" instead of an active attack.
+        let postdromeStartAt = (try? episodeRepository.getEpisodeById(episodeId))?.postdromeStartDate
         return Self.makeContentState(
             intensity: intensity,
             rescue: lastRescue,
             showMedicationNames: showMedicationNames,
-            endedAt: endedAt
+            endedAt: endedAt,
+            postdromeStartAt: postdromeStartAt
         )
     }
 
@@ -189,13 +193,15 @@ final class LiveActivityManager: LiveActivityManaging {
         intensity: Double?,
         rescue: (name: String, takenAt: Date)?,
         showMedicationNames: Bool,
-        endedAt: Date?
+        endedAt: Date?,
+        postdromeStartAt: Date? = nil
     ) -> EpisodeActivityAttributes.ContentState {
         EpisodeActivityAttributes.ContentState(
             currentIntensity: intensity,
             lastRescueMedName: rescue.map { showMedicationNames ? $0.name : genericRescueName },
             lastRescueMedAt: rescue?.takenAt,
-            endedAt: endedAt
+            endedAt: endedAt,
+            postdromeStartAt: postdromeStartAt
         )
     }
 

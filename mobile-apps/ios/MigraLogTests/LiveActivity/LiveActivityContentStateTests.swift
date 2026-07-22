@@ -57,4 +57,45 @@ final class LiveActivityContentStateTests: XCTestCase {
         XCTAssertEqual(state.endedAt, endedAt)
         XCTAssertTrue(state.isEnded)
     }
+
+    // MARK: - Post-drome (beta)
+
+    func testPostdromeStartSurfacesRecoveryPhase() {
+        let postdromeStartAt = Date(timeIntervalSince1970: 3_000)
+        let state = LiveActivityManager.makeContentState(
+            intensity: 6,
+            rescue: nil,
+            showMedicationNames: true,
+            endedAt: nil,
+            postdromeStartAt: postdromeStartAt
+        )
+        XCTAssertEqual(state.postdromeStartAt, postdromeStartAt)
+        XCTAssertTrue(state.isInPostdrome)
+        XCTAssertFalse(state.isEnded)
+    }
+
+    func testActiveAttackIsNotInPostdrome() {
+        let state = LiveActivityManager.makeContentState(
+            intensity: 6,
+            rescue: nil,
+            showMedicationNames: true,
+            endedAt: nil
+        )
+        XCTAssertNil(state.postdromeStartAt)
+        XCTAssertFalse(state.isInPostdrome)
+    }
+
+    /// Ending an episode that was in post-drome must read as ended, not as an
+    /// ongoing recovery — `isEnded` wins.
+    func testEndedTakesPrecedenceOverPostdrome() {
+        let state = LiveActivityManager.makeContentState(
+            intensity: nil,
+            rescue: nil,
+            showMedicationNames: true,
+            endedAt: Date(timeIntervalSince1970: 9_000),
+            postdromeStartAt: Date(timeIntervalSince1970: 3_000)
+        )
+        XCTAssertTrue(state.isEnded)
+        XCTAssertFalse(state.isInPostdrome)
+    }
 }

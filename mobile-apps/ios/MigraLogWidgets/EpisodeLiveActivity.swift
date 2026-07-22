@@ -34,7 +34,7 @@ struct EpisodeLiveActivity: Widget {
                 }
             }
         } compactLeading: {
-            Image(systemName: "bolt.heart.fill")
+            Image(systemName: LiveActivityStyle.symbol(for: context.state))
                 .foregroundStyle(tint(for: context.state))
                 .accessibilityHidden(true)
         } compactTrailing: {
@@ -47,13 +47,18 @@ struct EpisodeLiveActivity: Widget {
                 .minimumScaleFactor(0.7)
                 .frame(maxWidth: 78)
         } minimal: {
-            PulsingDot(color: tint(for: context.state))
+            PulsingDot(
+                color: tint(for: context.state),
+                accessibilityLabel: context.state.isInPostdrome
+                    ? "Migraine episode, post-drome recovery"
+                    : "Active migraine episode"
+            )
         }
         .keylineTint(tint(for: context.state))
     }
 
     private func tint(for state: EpisodeActivityAttributes.ContentState) -> Color {
-        state.isEnded ? LiveActivityStyle.calmColor : LiveActivityStyle.activeColor
+        LiveActivityStyle.tint(for: state)
     }
 }
 
@@ -73,28 +78,36 @@ struct EpisodeLockScreenView: View {
     }
 
     private var activeBody: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        let state = context.state
+        let tint = LiveActivityStyle.tint(for: state)
+        return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
                 Label {
-                    Text("In migraine")
+                    Text(LiveActivityStyle.phaseLabel(for: state))
                         .font(.subheadline.weight(.semibold))
                 } icon: {
-                    Image(systemName: "bolt.heart.fill")
-                        .foregroundStyle(LiveActivityStyle.activeColor)
+                    Image(systemName: LiveActivityStyle.symbol(for: state))
+                        .foregroundStyle(tint)
                 }
                 Spacer()
-                DurationText(attributes: context.attributes, state: context.state)
+                DurationText(attributes: context.attributes, state: state)
                     .font(.title3.monospacedDigit().weight(.semibold))
-                    .foregroundStyle(LiveActivityStyle.activeColor)
+                    .foregroundStyle(tint)
             }
-            // Read "In migraine, <elapsed>" as one element.
+            // Read "In migraine, <elapsed>" (or "Post-drome, …") as one element.
             .accessibilityElement(children: .combine)
             HStack(spacing: DesignTokens.Spacing.md) {
-                if let intensity = LiveActivityStyle.intensityLabel(context.state.currentIntensity) {
+                if state.isInPostdrome {
+                    // Pain intensity isn't tracked in recovery — surface the
+                    // phase instead of a stale reading.
+                    StatChip(systemImage: "sparkles", text: "Recovering")
+                        .foregroundStyle(LiveActivityStyle.postdromeColor)
+                        .accessibilityLabel("In post-drome recovery")
+                } else if let intensity = LiveActivityStyle.intensityLabel(state.currentIntensity) {
                     StatChip(systemImage: "gauge.with.dots.needle.50percent", text: intensity)
                         .accessibilityLabel("Pain intensity \(intensity)")
                 }
-                LastMedLabel(state: context.state, alignment: .leading)
+                LastMedLabel(state: state, alignment: .leading)
                 Spacer()
             }
             ActionRow(episodeId: context.attributes.episodeId)
