@@ -73,6 +73,14 @@ final class LogUpdateTimePickerUITests: XCTestCase {
                       "Log Update screen should have a Time picker")
         attach(name: "log-update-time-picker")
 
+        // An update only writes an intensity reading when the slider actually
+        // moved (an untouched slider is not a change), so move it to make this
+        // a real backdated intensity update.
+        let slider = app.sliders.firstMatch
+        XCTAssertTrue(slider.waitForExistence(timeout: UITestHelpers.defaultTimeout),
+                      "Log Update screen should have the intensity slider")
+        slider.adjust(toNormalizedSliderPosition: 0.7)
+
         // === Backdate the update by 30 minutes ===
         setTime(of: updatePicker, to: updateTime)
         XCTAssertTrue(

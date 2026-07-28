@@ -15,6 +15,9 @@ struct DashboardScreen: View {
     /// Drives the add-medication sheet launched from a setup-checklist task, with
     /// the type preselected to match the task.
     @State private var showAddMedication = false
+    /// True once the Log Update sheet's `.task` reload has completed for the
+    /// current presentation; reset on dismiss so each presentation re-gates.
+    @State private var logUpdateDataFresh = false
     @State private var addMedicationType: MedicationType = .rescue
     @State private var refreshId = UUID()
     @State private var refreshTask: Task<Void, Never>?
@@ -54,13 +57,18 @@ struct DashboardScreen: View {
             }
         }
         .sheet(isPresented: $viewModel.showLogUpdate, onDismiss: {
+            logUpdateDataFresh = false
             Task { await viewModel.loadData() }
         }) {
             NavigationStack {
-                // Gate on the detail view model having loaded the *current*
-                // episode so LogUpdateScreen prefills from real data rather
-                // than a stale or empty state.
-                if let episode = detailViewModel.episode,
+                // Gate on this presentation's reload having finished, not just on
+                // the detail view model holding the current episode id: a stale
+                // same-id load from an earlier presentation would otherwise let
+                // LogUpdateScreen prefill (one-shot, in onAppear) from readings
+                // that miss anything logged since — e.g. via EpisodeDetailScreen,
+                // which uses its own view model instance.
+                if logUpdateDataFresh,
+                   let episode = detailViewModel.episode,
                    episode.id == viewModel.currentEpisode?.id {
                     LogUpdateScreen(episodeId: episode.id, viewModel: detailViewModel)
                 } else {
@@ -72,6 +80,7 @@ struct DashboardScreen: View {
                 if let id = viewModel.currentEpisode?.id {
                     await detailViewModel.loadEpisode(id)
                 }
+                logUpdateDataFresh = true
             }
         }
         .sheet(isPresented: $viewModel.showLogMedication, onDismiss: {
