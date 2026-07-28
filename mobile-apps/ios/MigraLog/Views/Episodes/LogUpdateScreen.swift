@@ -7,6 +7,7 @@ struct LogUpdateScreen: View {
 
     @State private var trackingOptions = TrackingOptionsViewModel()
     @State private var intensity: Double = 5.0
+    @State private var initialIntensity: Double = 5.0
     @State private var selectedLocations: Set<PainLocation> = []
     @State private var initialLocations: Set<PainLocation> = []
     @State private var selectedSymptoms: Set<Symptom> = []
@@ -61,6 +62,7 @@ struct LogUpdateScreen: View {
             Section("Note") {
                 TextEditor(text: $noteText)
                     .frame(minHeight: 60)
+                    .accessibilityIdentifier("update-note-field")
             }
         }
         .navigationTitle("Log Update")
@@ -99,6 +101,7 @@ struct LogUpdateScreen: View {
         if let latestReading = viewModel.intensityReadings.last {
             intensity = latestReading.intensity
         }
+        initialIntensity = intensity
 
         // Pre-fill pain locations from most recent log, or episode's initial locations
         if let latestLocationLog = viewModel.painLocationLogs.last {
@@ -131,8 +134,11 @@ struct LogUpdateScreen: View {
         defer { isSaving = false }
         let updateTimestamp = TimestampHelper.fromDate(timestamp)
 
-        // Add intensity reading (not during post-drome — pain levels don't apply)
-        if !isInPostdrome {
+        // Add intensity reading only if the user moved the slider (and not during
+        // post-drome — pain levels don't apply). An untouched slider must not
+        // write a reading: a note-only update would otherwise insert a phantom
+        // intensity change at the update time.
+        if !isInPostdrome && intensity != initialIntensity {
             await viewModel.addIntensityReading(
                 intensity: intensity,
                 timestamp: updateTimestamp
