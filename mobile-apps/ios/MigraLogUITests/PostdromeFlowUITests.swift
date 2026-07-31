@@ -31,10 +31,7 @@ final class PostdromeFlowUITests: XCTestCase {
 
     func testPostdromeFlow() throws {
         // === Phase 1: enable the beta flag ===
-        let settingsButton = app.buttons["settings-button"]
-        UITestHelpers.waitForHittable(settingsButton)
-        settingsButton.tap()
-        UITestHelpers.waitForElement(app.navigationBars.staticTexts["Settings"])
+        UITestHelpers.openSettings(in: app)
 
         let betaLink = app.buttons["beta-features"]
         let list = app.collectionViews.firstMatch

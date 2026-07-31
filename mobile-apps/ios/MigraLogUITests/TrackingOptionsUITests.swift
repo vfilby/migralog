@@ -140,14 +140,7 @@ final class TrackingOptionsUITests: XCTestCase {
     // MARK: - Helpers
 
     private func openSettings() {
-        let settingsButton = app.buttons["settings-button"]
-        UITestHelpers.waitForHittable(settingsButton)
-        settingsButton.tap()
-
-        // Wait for the Settings list to settle before scrolling/querying — the
-        // collection view isn't queryable mid-transition.
-        let settingsTitle = app.navigationBars.staticTexts["Settings"]
-        UITestHelpers.waitForElement(settingsTitle)
+        UITestHelpers.openSettings(in: app)
     }
 
     /// Open a single tracking category screen (Symptoms / Triggers / Pain

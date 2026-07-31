@@ -57,12 +57,7 @@ final class ThemeSwitchingUITests: XCTestCase {
     // MARK: - Helpers
 
     private func openSettings() {
-        let settingsButton = app.buttons["settings-button"]
-        UITestHelpers.waitForHittable(settingsButton)
-        settingsButton.tap()
-
-        let settingsTitle = app.navigationBars.staticTexts["Settings"]
-        UITestHelpers.waitForElement(settingsTitle)
+        UITestHelpers.openSettings(in: app)
     }
 
     private func tapTheme(_ identifier: String) {

@@ -19,15 +19,8 @@ final class NotificationSettingsUITests: XCTestCase {
     // MARK: - 8.1 Global notification settings
 
     func testGlobalNotificationSettings() throws {
-        // Step 1: Tap settings gear on dashboard
-        let settingsButton = app.buttons["settings-button"]
-        UITestHelpers.waitForHittable(settingsButton)
-        settingsButton.tap()
-        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
-
-        // Verify we're on Settings screen
-        let settingsTitle = app.navigationBars.staticTexts["Settings"]
-        UITestHelpers.waitForElement(settingsTitle)
+        // Step 1: Tap settings gear on dashboard, verify we're on Settings screen
+        UITestHelpers.openSettings(in: app)
 
         // Step 2: Tap "Notifications" (NavigationLink in a List, renders as button)
         let notificationSettings = app.buttons["notification-settings"]
