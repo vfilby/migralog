@@ -327,10 +327,14 @@ enum UITestHelpers {
     }
 
     /// Attempt to handle a system alert by tapping the specified button.
-    static func handleSystemAlert(in app: XCUIApplication, buttonLabel: String) {
+    ///
+    /// System alerts live in springboard, not the app under test, so they persist
+    /// across app relaunches until answered — a dialog one test leaves up silently
+    /// blocks every later test's taps while all element queries still pass.
+    static func handleSystemAlert(in app: XCUIApplication, buttonLabel: String, timeout: TimeInterval = 2) {
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         let alertButton = springboard.buttons[buttonLabel]
-        if alertButton.waitForExistence(timeout: 2) {
+        if alertButton.waitForExistence(timeout: timeout) {
             alertButton.tap()
             Thread.sleep(forTimeInterval: animationWait)
         }

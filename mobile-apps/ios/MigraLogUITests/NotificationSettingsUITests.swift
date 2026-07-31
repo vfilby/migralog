@@ -44,6 +44,18 @@ final class NotificationSettingsUITests: XCTestCase {
         let notifTitle = app.navigationBars.staticTexts["Notification Settings"]
         XCTAssertTrue(notifTitle.waitForExistence(timeout: UITestHelpers.defaultTimeout),
                        "Notification settings screen should be visible")
+
+        // Step 4: Dismiss the permission dialog this screen spawns. Its `.task`
+        // auto-requests notification permission (syncDailyCheckinNotification →
+        // requestPermission), and on a simulator where permission is still
+        // not-determined the system dialog can pop after this test's assertions
+        // have already passed. Left up, it outlives the app relaunch and blocks
+        // the following tests' taps (2026-07-31 nightly: sank both
+        // testPerMedicationNotificationOverrides and
+        // testCachedPermissionsNoDialogs). Second call covers the possible
+        // Critical Alerts dialog, as in completeOnboarding.
+        UITestHelpers.handleSystemAlert(in: app, buttonLabel: "Allow", timeout: 5)
+        UITestHelpers.handleSystemAlert(in: app, buttonLabel: "Allow")
     }
 
     // MARK: - 8.2 Per-medication notification overrides
