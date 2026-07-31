@@ -35,7 +35,16 @@ final class LogUpdateTimePickerUITests: XCTestCase {
                       "Backdating needs distinct past times on today's date")
         let episodeStart = max(now.addingTimeInterval(-2 * 60 * 60),
                                midnight.addingTimeInterval(60))
-        let updateTime = max(now.addingTimeInterval(-30 * 60),
+        // 20 minutes, not 30: `now` is captured here but the update popover
+        // opens ~30-60s later, so the minute wheel's travel is the backdate
+        // delta plus however many minutes ticked by. At 30 the wheel's two
+        // directions are near-equidistant (31 back vs 29 forward after one
+        // tick), and a forward spin wraps through :59 — a future time the
+        // ...Date() bound clamps (2026-07-31 dispatched nightly: wheel at :52,
+        // target :21, picker snapped back to now). At 20 the backward spin
+        // through past times is strictly shorter, whichever path the XCUITest
+        // gesture picks.
+        let updateTime = max(now.addingTimeInterval(-20 * 60),
                              midnight.addingTimeInterval(2 * 60))
 
         // === Create an episode started 2 hours ago ===
@@ -122,36 +131,60 @@ final class LogUpdateTimePickerUITests: XCTestCase {
     }
 
     /// Opens the compact picker's time popover and sets the wheels to `date`'s time.
-    private func setTime(of picker: XCUIElement, to date: Date) {
-        let button = timeButton(of: picker)
-        XCTAssertTrue(button.waitForExistence(timeout: UITestHelpers.defaultTimeout),
-                      "Compact date picker should expose a time button")
-        button.tap()
-        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
+    ///
+    /// Verifies the picker actually took the value and retries if it didn't:
+    /// when the sheet has just opened, the picker's value sits exactly at its
+    /// `...Date()` maximum, and a wheel gesture at that boundary can misfire —
+    /// UIKit's clamp swallows the whole spin and snaps the wheels back to the
+    /// maximum (2026-07-31 dispatched nightly: adjust to :21 reported success,
+    /// picker stayed at now). XCUITest doesn't verify the settled value, so we
+    /// do. By the retry the clock has moved past the boundary and the same
+    /// gesture lands.
+    private func setTime(
+        of picker: XCUIElement,
+        to date: Date,
+        file: StaticString = #file,
+        line: UInt = #line
+    ) {
+        let maxAttempts = 3
+        for _ in 0..<maxAttempts {
+            let button = timeButton(of: picker)
+            XCTAssertTrue(button.waitForExistence(timeout: UITestHelpers.defaultTimeout),
+                          "Compact date picker should expose a time button", file: file, line: line)
+            button.tap()
+            Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
 
-        let hourWheel = app.pickerWheels.element(boundBy: 0)
-        XCTAssertTrue(hourWheel.waitForExistence(timeout: UITestHelpers.defaultTimeout),
-                      "Tapping the time button should show picker wheels")
-        // The pickers are bounded to `...Date()`, and UIKit snaps the wheels
-        // back whenever an intermediate state is a future time. When backdating
-        // across noon (e.g. now 12:17 PM -> target 11:47 AM), adjusting the
-        // hour before the period would transiently select 11:17 PM and get
-        // clamped. Setting AM/PM first keeps every intermediate state in the
-        // past, so no adjustment is ever undone.
-        if app.pickerWheels.count > 2 {
-            app.pickerWheels.element(boundBy: 2)
-                .adjust(toPickerWheelValue: component(of: date, format: "a"))
+            let hourWheel = app.pickerWheels.element(boundBy: 0)
+            XCTAssertTrue(hourWheel.waitForExistence(timeout: UITestHelpers.defaultTimeout),
+                          "Tapping the time button should show picker wheels", file: file, line: line)
+            // The pickers are bounded to `...Date()`, and UIKit snaps the wheels
+            // back whenever an intermediate state is a future time. When backdating
+            // across noon (e.g. now 12:17 PM -> target 11:47 AM), adjusting the
+            // hour before the period would transiently select 11:17 PM and get
+            // clamped. Setting AM/PM first keeps every intermediate state in the
+            // past, so no adjustment is ever undone.
+            if app.pickerWheels.count > 2 {
+                app.pickerWheels.element(boundBy: 2)
+                    .adjust(toPickerWheelValue: component(of: date, format: "a"))
+            }
+            hourWheel.adjust(toPickerWheelValue: component(of: date, format: "h"))
+            app.pickerWheels.element(boundBy: 1)
+                .adjust(toPickerWheelValue: component(of: date, format: "mm"))
+            Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
+
+            // Dismiss the popover by tapping outside it
+            app.windows.firstMatch
+                .coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.08))
+                .tap()
+            Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
+
+            if timeButton(of: picker, matching: date)
+                .waitForExistence(timeout: UITestHelpers.defaultTimeout) {
+                return
+            }
         }
-        hourWheel.adjust(toPickerWheelValue: component(of: date, format: "h"))
-        app.pickerWheels.element(boundBy: 1)
-            .adjust(toPickerWheelValue: component(of: date, format: "mm"))
-        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
-
-        // Dismiss the popover by tapping outside it
-        app.windows.firstMatch
-            .coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.08))
-            .tap()
-        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
+        XCTFail("Time picker did not accept \(shortTime(date)) after \(maxAttempts) attempts",
+                file: file, line: line)
     }
 
     private func component(of date: Date, format: String) -> String {
