@@ -156,10 +156,7 @@ final class CategorySafetyRulesUITests: XCTestCase {
     private func openSafetyLimits() {
         UITestHelpers.navigateTo(tab: .dashboard, in: app)
         // Pop any pushed screens left from a previous visit.
-        let settingsButton = app.buttons["settings-button"]
-        UITestHelpers.waitForHittable(settingsButton)
-        settingsButton.tap()
-        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
+        UITestHelpers.openSettings(in: app)
         let limitsRow = app.buttons["medication-safety-limits"]
         let listView = app.tables.firstMatch.exists ? app.tables.firstMatch : app.collectionViews.firstMatch
         if !limitsRow.isHittable && listView.exists {

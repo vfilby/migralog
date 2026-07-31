@@ -155,8 +155,7 @@ final class AccessibilityUITests: XCTestCase {
         XCTAssertTrue(startButton.isHittable, "Start episode button should be visible")
 
         // Step 2: Navigate to Settings, verify theme options
-        settingsButton.tap()
-        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
+        UITestHelpers.openSettings(in: app)
 
         let lightTheme = app.buttons["theme-light"]
         let darkTheme = app.buttons["theme-dark"]

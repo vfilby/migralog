@@ -171,6 +171,43 @@ enum UITestHelpers {
         return false
     }
 
+    /// Open the app's Settings screen from the dashboard gear button, verifying
+    /// the screen actually appeared and retapping if it didn't.
+    ///
+    /// A bare gear tap can be stolen by a system notification banner dropping
+    /// over the top-right corner: the 2026-07-31 dispatched nightly's fresh
+    /// simulator posted its one-shot "Apple Intelligence & Siri" banner just as
+    /// testHighContrastElements tapped the gear, the tap deep-linked into the
+    /// system Settings app, and the test scrolled the dashboard looking for the
+    /// theme options. That steal backgrounds the app, so unlike tapToPresent
+    /// this loop re-activates it before retapping; the banner is one-shot, so
+    /// the retry recovers.
+    static func openSettings(
+        in app: XCUIApplication,
+        file: StaticString = #file,
+        line: UInt = #line
+    ) {
+        let gear = app.buttons["settings-button"]
+        let settingsTitle = app.navigationBars.staticTexts["Settings"]
+        waitForHittable(gear, timeout: 15, file: file, line: line)
+        let maxAttempts = 3
+        for _ in 0..<maxAttempts {
+            if app.state != .runningForeground {
+                app.activate()
+                Thread.sleep(forTimeInterval: animationWait)
+            }
+            if gear.isHittable {
+                gear.tap()
+                Thread.sleep(forTimeInterval: animationWait)
+            }
+            if settingsTitle.waitForExistence(timeout: defaultTimeout) {
+                return
+            }
+        }
+        XCTFail("Settings screen did not appear after \(maxAttempts) attempts",
+                file: file, line: line)
+    }
+
     /// Tap a button that presents a sheet/screen and wait for an element on that
     /// destination to appear, retapping if it doesn't.
     ///
