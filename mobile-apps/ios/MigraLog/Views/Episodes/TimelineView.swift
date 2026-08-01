@@ -53,6 +53,8 @@ struct TimelineView: View {
     @Binding var pendingDeleteLabel: String
     @Binding var customEndTime: Date
     @Binding var showEndTimePicker: Bool
+    @Binding var customPostdromeTime: Date
+    @Binding var showPostdromeTimePicker: Bool
     @Binding var editingDose: DoseWithMedication?
     @Binding var showEditEpisodeSheet: Bool
 
@@ -450,6 +452,14 @@ struct TimelineView: View {
             }
 
         case .postdromeStarted:
+            Button {
+                if let postdromeStart = viewModel.episode?.postdromeStartTime {
+                    customPostdromeTime = Date(timeIntervalSince1970: Double(postdromeStart) / 1000.0)
+                }
+                showPostdromeTimePicker = true
+            } label: {
+                Label("Edit Time", systemImage: "clock")
+            }
             if viewModel.episode?.isInPostdrome == true {
                 Button {
                     Task { await viewModel.resumeAttack() }

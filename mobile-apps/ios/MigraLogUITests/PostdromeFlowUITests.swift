@@ -137,6 +137,29 @@ final class PostdromeFlowUITests: XCTestCase {
             "Timeline should show the Entered Post-drome event"
         )
         attachScreenshot(named: "5-postdrome-with-timeline")
+
+        // === Phase 6: long-press the timeline row to edit the transition time ===
+        // Confirm without moving the wheels: the seeded value round-trips, which
+        // exercises the menu → sheet → save path without wheel-clamping flakes.
+        timelineEntry.press(forDuration: 1.0)
+        let editTimeItem = app.buttons["Edit Time"]
+        XCTAssertTrue(
+            editTimeItem.waitForExistence(timeout: UITestHelpers.defaultTimeout),
+            "Long-pressing the post-drome row should offer Edit Time"
+        )
+        attachScreenshot(named: "6-postdrome-context-menu")
+        editTimeItem.tap()
+
+        UITestHelpers.waitForElement(app.navigationBars.staticTexts["Post-drome Start Time"])
+        attachScreenshot(named: "7-postdrome-edit-time-sheet")
+        app.buttons["Confirm"].tap()
+        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
+
+        UITestHelpers.waitForElement(resumeAttack)
+        XCTAssertTrue(
+            timelineEntry.exists,
+            "Timeline keeps the Entered Post-drome event after the edit"
+        )
         // Intentionally leave the episode in post-drome so a manual relaunch
         // of the app lands on this state for exploration.
     }
