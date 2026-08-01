@@ -15,6 +15,8 @@ struct EpisodeDetailScreen: View {
     @State private var showLogMedication = false
     @State private var showEndConfirm = false
     @State private var customEndTime = Date()
+    @State private var customPostdromeTime = Date()
+    @State private var showPostdromeTimePicker = false
 
     // Timeline editing state
     @State private var editingReading: IntensityReading?
@@ -49,6 +51,8 @@ struct EpisodeDetailScreen: View {
                             pendingDeleteLabel: $pendingDeleteLabel,
                             customEndTime: $customEndTime,
                             showEndTimePicker: $showEndTimePicker,
+                            customPostdromeTime: $customPostdromeTime,
+                            showPostdromeTimePicker: $showPostdromeTimePicker,
                             editingDose: $editingDose,
                             showEditEpisodeSheet: $showEditSheet
                         )
@@ -152,6 +156,26 @@ struct EpisodeDetailScreen: View {
                         showEndTimePicker = false
                     },
                     onCancel: { showEndTimePicker = false }
+                )
+            }
+        }
+        .sheet(isPresented: $showPostdromeTimePicker) {
+            NavigationStack {
+                CustomEndTimeSheet(
+                    customEndTime: $customPostdromeTime,
+                    minimumDate: viewModel.episode?.startDate,
+                    maximumDate: viewModel.episode?.endDate,
+                    title: "Post-drome Start Time",
+                    pickerLabel: "Post-drome Start",
+                    onConfirm: {
+                        Task {
+                            await viewModel.editPostdromeStartTime(
+                                TimestampHelper.fromDate(customPostdromeTime)
+                            )
+                        }
+                        showPostdromeTimePicker = false
+                    },
+                    onCancel: { showPostdromeTimePicker = false }
                 )
             }
         }

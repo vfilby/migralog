@@ -105,15 +105,19 @@ struct EpisodeActionButtons: View {
 struct CustomEndTimeSheet: View {
     @Binding var customEndTime: Date
     var minimumDate: Date? = nil
+    /// Upper bound for the picker; defaults to now (times can't be in the future).
+    var maximumDate: Date? = nil
+    var title: String = "Custom End Time"
+    var pickerLabel: String = "End Time"
     let onConfirm: () -> Void
     let onCancel: () -> Void
 
     var body: some View {
         VStack {
             DatePicker(
-                "End Time",
+                pickerLabel,
                 selection: $customEndTime,
-                in: (minimumDate ?? .distantPast)...Date()
+                in: (minimumDate ?? .distantPast)...(maximumDate ?? Date())
             )
             .datePickerStyle(.wheel)
 
@@ -126,7 +130,7 @@ struct CustomEndTimeSheet: View {
             }
             .padding()
         }
-        .navigationTitle("Custom End Time")
+        .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
     }
 }

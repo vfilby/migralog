@@ -155,6 +155,72 @@ final class EpisodeDetailViewModelTests: XCTestCase {
         )
     }
 
+    // MARK: - Edit Post-drome Start Time (beta)
+
+    func testEditPostdromeStartTime_updatesTime() async throws {
+        mockRepo.episodes = [TestFixtures.makeEpisode(
+            id: "ep-1", startTime: 1_700_000_000_000, postdromeStartTime: 1_700_003_600_000
+        )]
+        await sut.loadEpisode()
+
+        await sut.editPostdromeStartTime(1_700_007_200_000)
+
+        XCTAssertEqual(sut.episode?.postdromeStartTime, 1_700_007_200_000)
+        XCTAssertNil(sut.error)
+        XCTAssertTrue(mockRepo.updateEpisodeCalled)
+    }
+
+    func testEditPostdromeStartTime_beforeEpisodeStart_setsError() async throws {
+        mockRepo.episodes = [TestFixtures.makeEpisode(
+            id: "ep-1", startTime: 1_700_000_000_000, postdromeStartTime: 1_700_003_600_000
+        )]
+        await sut.loadEpisode()
+
+        await sut.editPostdromeStartTime(1_699_999_000_000)
+
+        XCTAssertNotNil(sut.error)
+        XCTAssertEqual(sut.episode?.postdromeStartTime, 1_700_003_600_000, "Invalid edit is not applied")
+        XCTAssertFalse(mockRepo.updateEpisodeCalled)
+    }
+
+    func testEditPostdromeStartTime_afterEpisodeEnd_setsError() async throws {
+        mockRepo.episodes = [TestFixtures.makeEpisode(
+            id: "ep-1", startTime: 1_700_000_000_000, endTime: 1_700_010_800_000,
+            postdromeStartTime: 1_700_003_600_000
+        )]
+        await sut.loadEpisode()
+
+        await sut.editPostdromeStartTime(1_700_010_800_000)
+
+        XCTAssertNotNil(sut.error)
+        XCTAssertEqual(sut.episode?.postdromeStartTime, 1_700_003_600_000, "Invalid edit is not applied")
+        XCTAssertFalse(mockRepo.updateEpisodeCalled)
+    }
+
+    func testEditPostdromeStartTime_endedEpisode_validTime_updates() async throws {
+        mockRepo.episodes = [TestFixtures.makeEpisode(
+            id: "ep-1", startTime: 1_700_000_000_000, endTime: 1_700_010_800_000,
+            postdromeStartTime: 1_700_003_600_000
+        )]
+        await sut.loadEpisode()
+
+        await sut.editPostdromeStartTime(1_700_005_000_000)
+
+        XCTAssertEqual(sut.episode?.postdromeStartTime, 1_700_005_000_000)
+        XCTAssertNil(sut.error)
+        XCTAssertTrue(mockRepo.updateEpisodeCalled)
+    }
+
+    func testEditPostdromeStartTime_noPostdrome_noOp() async throws {
+        await sut.loadEpisode()
+        XCTAssertNil(sut.episode?.postdromeStartTime)
+
+        await sut.editPostdromeStartTime(1_700_003_600_000)
+
+        XCTAssertFalse(mockRepo.updateEpisodeCalled)
+        XCTAssertNil(sut.episode?.postdromeStartTime)
+    }
+
     // MARK: - Reopen Episode
 
     func testReopenEpisode_clearsEndTime() async throws {

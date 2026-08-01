@@ -189,6 +189,39 @@ final class EpisodeDetailViewModel {
         }
     }
 
+    /// Beta post-drome tracking: correct the recorded transition time. Works for
+    /// active episodes and for ended ones that kept their phase record.
+    @MainActor
+    func editPostdromeStartTime(_ timestamp: Int64) async {
+        guard var episode = details?.episode, episode.postdromeStartTime != nil else { return }
+        guard timestamp > episode.startTime else {
+            self.error = "Post-drome start must be after the episode start time."
+            return
+        }
+        if let endTime = episode.endTime, timestamp >= endTime {
+            self.error = "Post-drome start must be before the episode end time."
+            return
+        }
+        episode.postdromeStartTime = timestamp
+        episode.updatedAt = TimestampHelper.now
+        do {
+            _ = try episodeRepository.updateEpisode(episode)
+            details = EpisodeWithDetails(
+                episode: episode,
+                intensityReadings: details?.intensityReadings ?? [],
+                symptomLogs: details?.symptomLogs ?? [],
+                painLocationLogs: details?.painLocationLogs ?? [],
+                episodeNotes: details?.episodeNotes ?? []
+            )
+            if episode.isActive {
+                liveActivityManager.refresh(episodeId: episode.id)
+            }
+        } catch {
+            ErrorLogger.shared.logError(error, context: ["viewModel": "EpisodeDetailViewModel", "action": "editPostdromeStartTime"])
+            self.error = error.localizedDescription
+        }
+    }
+
     @MainActor
     func editEndTime(_ timestamp: Int64) async {
         guard var episode = details?.episode, !episode.isActive else { return }
