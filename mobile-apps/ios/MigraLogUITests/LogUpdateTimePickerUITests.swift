@@ -27,14 +27,24 @@ final class LogUpdateTimePickerUITests: XCTestCase {
         // times must land on today's date: shortly after midnight "2 hours ago"
         // is yesterday, the wheels can't reach it (every intermediate state is a
         // future time that gets clamped), and the update time then falls outside
-        // the episodeStart...now bounds (#603, 2026-07-21 00:27 UTC run). Clamp
-        // both times to stay after midnight, and skip the first minutes of the
-        // day where there's no room for two distinct backdated minutes.
+        // the episodeStart...now bounds (#603, 2026-07-21 00:27 UTC run).
+        //
+        // Both times must also stay in the current AM/PM half of the day: when
+        // the hour wheel reads 12, flipping the period wheel never sticks —
+        // UIKit reassembles 12:59 "AM" back into 12:59 PM (the 12 AM/12 PM
+        // ambiguity), so the flip silently reverts and every later wheel move
+        // is a future time that gets clamped. #617 (2026-08-03 12:59 UTC run)
+        // failed this way three attempts in a row; no retry can land it. Keep
+        // both targets on `now`'s side of noon/midnight so the period wheel
+        // never has to move, and skip the first minutes of the half-day where
+        // there's no room for two distinct backdated minutes.
         let midnight = Calendar.current.startOfDay(for: now)
-        try XCTSkipIf(now.timeIntervalSince(midnight) < 3 * 60,
-                      "Backdating needs distinct past times on today's date")
+        let noon = midnight.addingTimeInterval(12 * 60 * 60)
+        let periodStart = now >= noon ? noon : midnight
+        try XCTSkipIf(now.timeIntervalSince(periodStart) < 3 * 60,
+                      "Backdating needs distinct past times in the current AM/PM period")
         let episodeStart = max(now.addingTimeInterval(-2 * 60 * 60),
-                               midnight.addingTimeInterval(60))
+                               periodStart.addingTimeInterval(60))
         // 20 minutes, not 30: `now` is captured here but the update popover
         // opens ~30-60s later, so the minute wheel's travel is the backdate
         // delta plus however many minutes ticked by. At 30 the wheel's two
@@ -45,7 +55,7 @@ final class LogUpdateTimePickerUITests: XCTestCase {
         // through past times is strictly shorter, whichever path the XCUITest
         // gesture picks.
         let updateTime = max(now.addingTimeInterval(-20 * 60),
-                             midnight.addingTimeInterval(2 * 60))
+                             periodStart.addingTimeInterval(2 * 60))
 
         // === Create an episode started 2 hours ago ===
         let startButton = app.buttons["start-episode-button"]
