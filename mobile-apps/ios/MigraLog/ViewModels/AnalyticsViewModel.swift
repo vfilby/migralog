@@ -24,6 +24,9 @@ final class AnalyticsViewModel {
     var calendarStatuses: [String: DayStatus] = [:]
     var calendarOverlayDates: Set<String> = []
     var calendarOverlays: [CalendarOverlay] = []
+    /// Dates (YYYY-MM-DD) in the displayed month with diary notes (beta diary
+    /// notes feature). Empty while the flag is off.
+    var calendarNoteDates: Set<String> = []
     var showDailyStatusPrompt = false
     var selectedCalendarDate: Date?
     var rescueDoses: [MedicationDose] = []
@@ -65,6 +68,7 @@ final class AnalyticsViewModel {
     private let dailyStatusRepository: DailyStatusRepositoryProtocol
     private let medicationRepository: MedicationRepositoryProtocol
     private let overlayRepository: CalendarOverlayRepositoryProtocol
+    private let diaryEntryRepository: DiaryEntryRepositoryProtocol
 
     /// Maps medication ID to medication name for display purposes.
     private var medicationNames: [String: String] = [:]
@@ -75,12 +79,14 @@ final class AnalyticsViewModel {
         episodeRepository: EpisodeRepositoryProtocol = EpisodeRepository(dbManager: DatabaseManager.shared),
         dailyStatusRepository: DailyStatusRepositoryProtocol = DailyStatusRepository(dbManager: DatabaseManager.shared),
         medicationRepository: MedicationRepositoryProtocol = MedicationRepository(dbManager: DatabaseManager.shared),
-        overlayRepository: CalendarOverlayRepositoryProtocol = OverlayRepository(dbManager: DatabaseManager.shared)
+        overlayRepository: CalendarOverlayRepositoryProtocol = OverlayRepository(dbManager: DatabaseManager.shared),
+        diaryEntryRepository: DiaryEntryRepositoryProtocol = DiaryEntryRepository(dbManager: DatabaseManager.shared)
     ) {
         self.episodeRepository = episodeRepository
         self.dailyStatusRepository = dailyStatusRepository
         self.medicationRepository = medicationRepository
         self.overlayRepository = overlayRepository
+        self.diaryEntryRepository = diaryEntryRepository
     }
 
     // MARK: - Computed
@@ -378,6 +384,16 @@ final class AnalyticsViewModel {
                 }
             }
             calendarOverlayDates = overlayDates
+
+            // 4. Diary note markers (beta diary notes feature) — dates in this
+            // month that have entries. Cleared while the flag is off so stale
+            // markers never linger after toggling it back off.
+            if FeatureFlags.isEnabled(.diaryNotes) {
+                let entries = try diaryEntryRepository.getEntriesByDateRange(start: monthStartMs, end: monthEndMs)
+                calendarNoteDates = Set(entries.map { TimestampHelper.dateString(from: $0.date) })
+            } else {
+                calendarNoteDates = []
+            }
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "AnalyticsViewModel", "action": "loadCalendarData"])
             self.error = error.localizedDescription

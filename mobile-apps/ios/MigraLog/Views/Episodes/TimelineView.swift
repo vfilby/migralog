@@ -17,6 +17,7 @@ struct TimelineEvent: Identifiable {
         case symptomResolved(SymptomLog)
         case painLocation(PainLocationLog, PainLocationDelta)
         case note(EpisodeNote)
+        case diaryEntry(DiaryEntry)
         case medication(DoseWithMedication)
         case postdromeStarted
         case episodeEnded
@@ -48,6 +49,7 @@ struct TimelineView: View {
     @Binding var editingSymptomLog: SymptomLog?
     @Binding var editingPainLocationLog: PainLocationLog?
     @Binding var editingNote: EpisodeNote?
+    @Binding var editingDiaryEntry: DiaryEntry?
     @Binding var showDeleteConfirmation: Bool
     @Binding var pendingDeleteAction: (() async -> Void)?
     @Binding var pendingDeleteLabel: String
@@ -209,6 +211,16 @@ struct TimelineView: View {
             ))
         }
 
+        // Free-standing diary notes inside the episode window (beta diary notes
+        // feature); the view model loads these only while the flag is on.
+        for entry in viewModel.diaryEntries {
+            events.append(TimelineEvent(
+                id: "diary-\(entry.id)",
+                timestamp: entry.timestamp,
+                kind: .diaryEntry(entry)
+            ))
+        }
+
         // Medication doses during the episode (exclude preventative — only rescue/other)
         for doseWithMed in viewModel.episodeDoses where doseWithMed.medication.type != .preventative {
             events.append(TimelineEvent(
@@ -263,6 +275,7 @@ struct TimelineView: View {
         case .symptomOnset, .symptomResolved: .purple
         case .painLocation(_, _): .secondary
         case .note: .secondary
+        case .diaryEntry: .teal
         case .medication: .secondary
         case .postdromeStarted: .indigo
         case .episodeEnded: .secondary
@@ -282,6 +295,7 @@ struct TimelineView: View {
         case .symptomResolved(let log): "\(log.symptom.displayName) — resolved"
         case .painLocation(_, let delta): delta.isInitial ? "Initial Pain Locations" : "Pain Location Changes"
         case .note: "Note"
+        case .diaryEntry: "Diary Note"
         case .medication(let d): d.dose.status == .taken ? "Medication Taken" : "Medication Skipped"
         case .postdromeStarted: "Entered Post-drome"
         case .episodeEnded: "Episode Ended"
@@ -362,6 +376,13 @@ struct TimelineView: View {
                 .lineLimit(3)
                 .padding(.top, 2)
 
+        case .diaryEntry(let entry):
+            Text(entry.note)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .lineLimit(3)
+                .padding(.top, 2)
+
         case .medication(let doseWithMed):
             // swiftlint:disable:next line_length
             Text("\(doseWithMed.medication.name) • \(MedicationFormatting.formatDose(quantity: doseWithMed.dose.quantity, amount: doseWithMed.dose.dosageAmount ?? doseWithMed.medication.dosageAmount, unit: doseWithMed.dose.dosageUnit ?? doseWithMed.medication.dosageUnit))")
@@ -381,6 +402,20 @@ struct TimelineView: View {
     }
 
     // MARK: - Context Menus
+
+    @ViewBuilder
+    private func diaryEntryContextMenu(for entry: DiaryEntry) -> some View {
+        Button { editingDiaryEntry = entry } label: {
+            Label("Edit Note", systemImage: "pencil")
+        }
+        Button(role: .destructive) {
+            pendingDeleteLabel = "diary note"
+            pendingDeleteAction = { await viewModel.deleteDiaryEntry(entry.id) }
+            showDeleteConfirmation = true
+        } label: {
+            Label("Delete", systemImage: "trash")
+        }
+    }
 
     @ViewBuilder
     private func timelineContextMenu(for event: TimelineEvent) -> some View {
@@ -438,6 +473,9 @@ struct TimelineView: View {
             } label: {
                 Label("Delete", systemImage: "trash")
             }
+
+        case .diaryEntry(let entry):
+            diaryEntryContextMenu(for: entry)
 
         case .medication(let doseWithMed):
             Button { editingDose = doseWithMed } label: {

@@ -10,6 +10,13 @@ struct DailyStatusPromptScreen: View {
     @State private var overlays: [CalendarOverlay] = []
     @State private var isLoaded = false
 
+    // Diary notes (beta diary notes feature)
+    @AppStorage(FeatureFlag.diaryNotes.storageKey)
+    private var diaryNotesEnabled = false
+    @State private var diaryEntries: [DiaryEntry] = []
+    @State private var editingDiaryEntry: DiaryEntry?
+    @State private var showAddDiaryNote = false
+
     // Edit state
     @State private var selectedStatus: DayStatus?
     @State private var selectedType: YellowDayType?
@@ -37,6 +44,11 @@ struct DailyStatusPromptScreen: View {
                     episodesSection
                 }
 
+                // Diary notes on this day (beta diary notes feature)
+                if diaryNotesEnabled {
+                    diaryNotesSection
+                }
+
                 // Overlays on this day
                 if !overlays.isEmpty {
                     overlaysSection
@@ -58,6 +70,33 @@ struct DailyStatusPromptScreen: View {
             }
         }
         .task { await loadDayData() }
+        .sheet(isPresented: $showAddDiaryNote, onDismiss: {
+            Task {
+                await loadDayData()
+                await viewModel.loadCalendarData(for: date)
+            }
+        }) {
+            NavigationStack {
+                DiaryEntryEditorScreen(initialDate: defaultDiaryNoteDate)
+            }
+        }
+        .sheet(item: $editingDiaryEntry, onDismiss: {
+            Task {
+                await loadDayData()
+                await viewModel.loadCalendarData(for: date)
+            }
+        }) { entry in
+            NavigationStack {
+                DiaryEntryEditorScreen(entry: entry)
+            }
+        }
+    }
+
+    /// New notes on today start at the current time; on a past day at midday,
+    /// so the note lands inside the tapped day rather than at an arbitrary hour.
+    private var defaultDiaryNoteDate: Date {
+        if Calendar.current.isDateInToday(date) { return Date() }
+        return Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: date) ?? date
     }
 
     // MARK: - Status Section
@@ -142,6 +181,54 @@ struct DailyStatusPromptScreen: View {
                     .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
                 }
                 .buttonStyle(.plain)
+            }
+        }
+    }
+
+    // MARK: - Diary Notes Section (beta)
+
+    @ViewBuilder
+    private var diaryNotesSection: some View {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
+            HStack {
+                Text("Notes")
+                    .font(.headline)
+                Spacer()
+                Button {
+                    showAddDiaryNote = true
+                } label: {
+                    Label("Add Note", systemImage: "plus")
+                        .font(.subheadline)
+                }
+                .accessibilityIdentifier("day-add-diary-note-button")
+            }
+
+            ForEach(diaryEntries) { entry in
+                Button {
+                    editingDiaryEntry = entry
+                } label: {
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(entry.note)
+                                .font(.subheadline)
+                                .foregroundStyle(.primary)
+                                .multilineTextAlignment(.leading)
+                                .lineLimit(4)
+                            Text(DateFormatting.displayTime(entry.date))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding()
+                    .background(Color(.secondarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("diary-note-row-\(entry.id)")
             }
         }
     }
@@ -267,6 +354,14 @@ struct DailyStatusPromptScreen: View {
             let allEpisodes = try episodeRepo.getAllEpisodes()
             episodes = allEpisodes.filter { ep in
                 ep.startTime < dayEndMs && (ep.endTime ?? Int64.max) > dayStartMs
+            }
+
+            // Diary notes on this day (beta diary notes feature)
+            if diaryNotesEnabled {
+                let diaryRepo = DiaryEntryRepository(dbManager: DatabaseManager.shared)
+                diaryEntries = try diaryRepo.getEntriesByDateRange(start: dayStartMs, end: dayEndMs)
+            } else {
+                diaryEntries = []
             }
 
             // Pre-fill edit state from existing status

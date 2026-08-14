@@ -23,10 +23,20 @@ struct EpisodeDetailScreen: View {
     @State private var editingSymptomLog: SymptomLog?
     @State private var editingPainLocationLog: PainLocationLog?
     @State private var editingNote: EpisodeNote?
+    @State private var editingDiaryEntry: DiaryEntry?
     @State private var editingDose: DoseWithMedication?
     @State private var showDeleteConfirmation = false
     @State private var pendingDeleteAction: (() async -> Void)?
     @State private var pendingDeleteLabel: String = ""
+
+    private func hasTimelineContent(_ details: EpisodeWithDetails) -> Bool {
+        !details.intensityReadings.isEmpty
+            || !details.symptomLogs.isEmpty
+            || !details.painLocationLogs.isEmpty
+            || !details.episodeNotes.isEmpty
+            || !viewModel.episodeDoses.isEmpty
+            || !viewModel.diaryEntries.isEmpty
+    }
 
     var body: some View {
         Group {
@@ -38,7 +48,7 @@ struct EpisodeDetailScreen: View {
                     episodeSummarySection(details.episode)
                 } secondary: {
                     // Timeline
-                    if !details.intensityReadings.isEmpty || !details.symptomLogs.isEmpty || !details.painLocationLogs.isEmpty || !details.episodeNotes.isEmpty || !viewModel.episodeDoses.isEmpty {
+                    if hasTimelineContent(details) {
                         TimelineView(
                             details: details,
                             viewModel: viewModel,
@@ -46,6 +56,7 @@ struct EpisodeDetailScreen: View {
                             editingSymptomLog: $editingSymptomLog,
                             editingPainLocationLog: $editingPainLocationLog,
                             editingNote: $editingNote,
+                            editingDiaryEntry: $editingDiaryEntry,
                             showDeleteConfirmation: $showDeleteConfirmation,
                             pendingDeleteAction: $pendingDeleteAction,
                             pendingDeleteLabel: $pendingDeleteLabel,
@@ -192,6 +203,13 @@ struct EpisodeDetailScreen: View {
         .sheet(item: $editingPainLocationLog) { log in
             NavigationStack {
                 EditPainLocationLogScreen(log: log, viewModel: viewModel)
+            }
+        }
+        .sheet(item: $editingDiaryEntry, onDismiss: {
+            viewModel.reloadDiaryEntries()
+        }) { entry in
+            NavigationStack {
+                DiaryEntryEditorScreen(entry: entry)
             }
         }
         .sheet(item: $editingNote) { note in

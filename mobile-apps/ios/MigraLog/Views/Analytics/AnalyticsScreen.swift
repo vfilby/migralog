@@ -216,6 +216,7 @@ struct MonthlyCalendarView: View {
                             date: date,
                             status: viewModel.calendarStatuses[dateStr],
                             hasOverlay: viewModel.calendarOverlayDates.contains(dateStr),
+                            hasNote: viewModel.calendarNoteDates.contains(dateStr),
                             minHeight: cellHeight,
                             onTap: {
                                 viewModel.selectedCalendarDate = date
@@ -280,6 +281,8 @@ struct CalendarDayCell: View {
     let date: Date
     let status: DayStatus?
     let hasOverlay: Bool
+    /// Marks days with a diary note (beta diary notes feature).
+    var hasNote: Bool = false
     var minHeight: CGFloat = 44
     let onTap: () -> Void
 
@@ -311,6 +314,14 @@ struct CalendarDayCell: View {
             .frame(maxWidth: .infinity, minHeight: minHeight)
             .background(isToday ? Color.accentColor.opacity(0.1) : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: 6))
+            .overlay(alignment: .topTrailing) {
+                if hasNote {
+                    Circle()
+                        .fill(Color.teal)
+                        .frame(width: 5, height: 5)
+                        .padding(3)
+                }
+            }
         }
         .buttonStyle(.plain)
         .disabled(isFuture)

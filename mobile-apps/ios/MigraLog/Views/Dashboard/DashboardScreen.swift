@@ -19,8 +19,12 @@ struct DashboardScreen: View {
     /// current presentation; reset on dismiss so each presentation re-gates.
     @State private var logUpdateDataFresh = false
     @State private var addMedicationType: MedicationType = .rescue
+    /// Drives the add-diary-note sheet (beta diary notes feature).
+    @State private var showAddDiaryNote = false
     @State private var refreshId = UUID()
     @State private var refreshTask: Task<Void, Never>?
+    @AppStorage(FeatureFlag.diaryNotes.storageKey)
+    private var diaryNotesEnabled = false
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
@@ -92,6 +96,11 @@ struct DashboardScreen: View {
                 LogMedicationScreen()
             }
         }
+        .sheet(isPresented: $showAddDiaryNote) {
+            NavigationStack {
+                DiaryEntryEditorScreen()
+            }
+        }
         .sheet(isPresented: $showAddMedication, onDismiss: {
             Task { await viewModel.loadData() }
             didYouKnowViewModel.refresh()
@@ -132,6 +141,9 @@ struct DashboardScreen: View {
             HStack(spacing: DesignTokens.Spacing.md) {
                 startEpisodeButton
                 logMedicationButton
+                if diaryNotesEnabled {
+                    addDiaryNoteButton
+                }
             }
             RecentEpisodesCard(viewModel: viewModel)
         }
@@ -180,6 +192,9 @@ struct DashboardScreen: View {
                         HStack(spacing: DesignTokens.Spacing.md) {
                             startEpisodeButton
                             logMedicationButton
+                            if diaryNotesEnabled {
+                                addDiaryNoteButton
+                            }
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .top)
@@ -210,6 +225,9 @@ struct DashboardScreen: View {
                     HStack(spacing: DesignTokens.Spacing.md) {
                         startEpisodeButton
                         logMedicationButton
+                        if diaryNotesEnabled {
+                            addDiaryNoteButton
+                        }
                     }
                     HStack(alignment: .top, spacing: DesignTokens.Spacing.lg) {
                         RecentEpisodesCard(viewModel: viewModel)
@@ -296,6 +314,25 @@ struct DashboardScreen: View {
                 .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
         }
         .accessibilityIdentifier("log-medication-button")
+    }
+
+    /// Beta diary notes: quick entry for a free-standing note (not tied to an
+    /// episode). Only rendered while the flag is on.
+    private var addDiaryNoteButton: some View {
+        Button {
+            showAddDiaryNote = true
+        } label: {
+            Label("Add Note", systemImage: "square.and.pencil")
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(Color.teal.opacity(0.1))
+                .foregroundStyle(.teal)
+                .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
+        }
+        .accessibilityIdentifier("add-diary-note-button")
+        .accessibilityHint("Add a diary note not tied to an episode")
     }
 }
 
