@@ -22,6 +22,7 @@ enum SyncableTable: String, CaseIterable, Sendable {
     case calendarOverlays = "calendar_overlays"
     case categorySafetyRules = "category_safety_rules"
     case trackingOptions = "tracking_options"
+    case diaryEntries = "diary_entries"
 
     /// The SQLite table name.
     var tableName: String { rawValue }
@@ -109,6 +110,8 @@ enum SyncableTable: String, CaseIterable, Sendable {
             return ["id", "category", "type", "period_hours", "max_count", "created_at", "updated_at"]
         case .trackingOptions:
             return ["id", "category", "value", "is_built_in", "is_hidden", "created_at", "updated_at"]
+        case .diaryEntries:
+            return ["id", "timestamp", "note", "created_at", "updated_at"]
         }
     }
 

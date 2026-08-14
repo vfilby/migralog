@@ -24,7 +24,7 @@ enum DatabaseInitializationError: Error {
 /// Central database manager. Owns the DatabaseQueue and handles schema creation/migration.
 final class DatabaseManager: Sendable {
     /// The current schema version
-    static let schemaVersion = 40
+    static let schemaVersion = 41
 
     /// Shared singleton for the app's main database
     static let shared = DatabaseManager()
@@ -432,6 +432,16 @@ final class DatabaseManager: Sendable {
             try DatabaseManager.createSyncCaptureTriggers(in: db, includePayload: true)
         }
 
+        // v41 (#621): diary_entries — free-standing diary notes for the beta
+        // diary notes feature (FeatureFlags.diaryNotes). Deliberately independent
+        // of episodes (no FK) so notes live outside the episode timeline data.
+        // Synced. Created after the trigger migrations so createSyncCaptureTriggers
+        // re-runs to add this table's capture triggers (v35/v38 precedent).
+        migrator.registerMigration("v41") { db in
+            try DatabaseManager.createDiaryEntriesTable(in: db)
+            try DatabaseManager.createSyncCaptureTriggers(in: db, includePayload: true)
+        }
+
         return migrator
     }
 
@@ -547,6 +557,7 @@ final class DatabaseManager: Sendable {
             try db.execute(sql: "DELETE FROM medications")
             try db.execute(sql: "DELETE FROM category_safety_rules")
             try db.execute(sql: "DELETE FROM tracking_options")
+            try db.execute(sql: "DELETE FROM diary_entries")
         }
     }
 

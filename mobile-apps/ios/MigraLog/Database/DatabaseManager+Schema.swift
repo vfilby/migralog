@@ -6,7 +6,7 @@ import GRDB
 // queue ownership and the migration registry (and under the file_length limit).
 extension DatabaseManager {
     /// Create the v25 baseline schema. Later registered migrations evolve it to the
-    /// current version; see spec/schemas/sqlite/schema-v40.sql for the current end-state.
+    /// current version; see spec/schemas/sqlite/schema-v41.sql for the current end-state.
     // swiftlint:disable:next function_body_length
     static func createSchema(in db: Database) throws {
         // Episodes table
@@ -414,6 +414,27 @@ extension DatabaseManager {
                 arguments: ["\(medId):expectation-backfill", medId, startDate, enabledCount, createdAt, createdAt]
             )
         }
+    }
+
+    /// Create `diary_entries` (v41, #621): free-standing diary notes for the beta
+    /// diary notes feature (FeatureFlags.diaryNotes). Deliberately has no episode
+    /// FK — entries are independent of the episode timeline and are surfaced on
+    /// the calendar, home screen, and (when in an episode's window) its timeline.
+    /// Synced via SyncableTable.diaryEntries. Idempotent.
+    static func createDiaryEntriesTable(in db: Database) throws {
+        try db.execute(sql: """
+            CREATE TABLE IF NOT EXISTS diary_entries (
+                id TEXT PRIMARY KEY,
+                timestamp INTEGER NOT NULL CHECK(timestamp > 0),
+                note TEXT NOT NULL CHECK(length(note) > 0 AND length(note) <= 5000),
+                created_at INTEGER NOT NULL CHECK(created_at > 0),
+                updated_at INTEGER NOT NULL CHECK(updated_at > 0)
+            )
+            """)
+        try db.execute(sql: """
+            CREATE INDEX IF NOT EXISTS idx_diary_entries_timestamp
+            ON diary_entries(timestamp)
+            """)
     }
 
     /// Create the change-capture machinery for iCloud sync (#434): the sync_capture_state

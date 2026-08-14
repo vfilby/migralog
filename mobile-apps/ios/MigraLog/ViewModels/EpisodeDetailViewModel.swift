@@ -7,6 +7,9 @@ final class EpisodeDetailViewModel {
 
     var details: EpisodeWithDetails?
     var episodeDoses: [DoseWithMedication] = []
+    /// Free-standing diary notes inside the episode window (beta diary notes
+    /// feature). Empty while the flag is off, so the timeline shows nothing.
+    var diaryEntries: [DiaryEntry] = []
     var isLoading = false
     var error: String?
 
@@ -14,6 +17,7 @@ final class EpisodeDetailViewModel {
 
     private let episodeRepository: EpisodeRepositoryProtocol
     private let medicationRepository: MedicationRepositoryProtocol
+    private let diaryEntryRepository: DiaryEntryRepositoryProtocol
     private let dailyCheckinService: DailyCheckinNotificationServiceProtocol
     private let doseCheckinService: DoseCheckinNotificationServiceProtocol
     private let liveActivityManager: LiveActivityManaging
@@ -25,6 +29,7 @@ final class EpisodeDetailViewModel {
         episodeId: String = "",
         episodeRepository: EpisodeRepositoryProtocol = EpisodeRepository(dbManager: DatabaseManager.shared),
         medicationRepository: MedicationRepositoryProtocol = MedicationRepository(dbManager: DatabaseManager.shared),
+        diaryEntryRepository: DiaryEntryRepositoryProtocol = DiaryEntryRepository(dbManager: DatabaseManager.shared),
         dailyCheckinService: DailyCheckinNotificationServiceProtocol = DailyCheckinNotificationService(
             notificationService: NotificationService.shared,
             scheduledNotificationRepo: ScheduledNotificationRepository(dbManager: DatabaseManager.shared),
@@ -40,6 +45,7 @@ final class EpisodeDetailViewModel {
         self.episodeId = episodeId
         self.episodeRepository = episodeRepository
         self.medicationRepository = medicationRepository
+        self.diaryEntryRepository = diaryEntryRepository
         self.dailyCheckinService = dailyCheckinService
         self.doseCheckinService = doseCheckinService
         self.liveActivityManager = liveActivityManager
@@ -62,6 +68,7 @@ final class EpisodeDetailViewModel {
         do {
             details = try episodeRepository.getEpisodeWithDetails(episodeId)
             episodeDoses = try loadDosesForEpisode(episodeId)
+            reloadDiaryEntries()
             isLoading = false
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "EpisodeDetailViewModel", "action": "loadEpisode"])
@@ -79,6 +86,7 @@ final class EpisodeDetailViewModel {
         do {
             details = try episodeRepository.getEpisodeWithDetails(id)
             episodeDoses = try loadDosesForEpisode(id)
+            reloadDiaryEntries()
             isLoading = false
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "EpisodeDetailViewModel", "action": "loadEpisode"])
@@ -429,6 +437,37 @@ final class EpisodeDetailViewModel {
             details?.symptomLogs.removeAll { $0.id == id }
         } catch {
             ErrorLogger.shared.logError(error, context: ["viewModel": "EpisodeDetailViewModel", "action": "deleteSymptomLog"])
+            self.error = error.localizedDescription
+        }
+    }
+
+    // MARK: - Diary Entries (beta diary notes)
+
+    /// Refresh the diary notes shown on the timeline. Kept as a separate
+    /// reload (rather than folded into details) because entries are edited by
+    /// DiaryEntryEditorScreen directly against the repository.
+    @MainActor
+    func reloadDiaryEntries() {
+        guard FeatureFlags.isEnabled(.diaryNotes), let episode = details?.episode else {
+            diaryEntries = []
+            return
+        }
+        // Inclusive of an entry stamped exactly at the episode end.
+        let windowEnd = (episode.endTime ?? TimestampHelper.now) + 1
+        diaryEntries = (try? diaryEntryRepository.getEntriesByDateRange(
+            start: episode.startTime,
+            end: windowEnd
+        )) ?? []
+    }
+
+    @MainActor
+    func deleteDiaryEntry(_ id: String) async {
+        do {
+            try diaryEntryRepository.deleteEntry(id)
+            diaryEntries.removeAll { $0.id == id }
+            NotificationCenter.default.post(name: .diaryDataChanged, object: nil)
+        } catch {
+            ErrorLogger.shared.logError(error, context: ["viewModel": "EpisodeDetailViewModel", "action": "deleteDiaryEntry"])
             self.error = error.localizedDescription
         }
     }

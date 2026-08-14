@@ -1,4 +1,4 @@
--- MigraLog SQLite Schema v40
+-- MigraLog SQLite Schema v41
 -- Canonical schema definition for the migraine tracking database.
 -- Source of truth: mobile-apps/ios/MigraLog/Database/DatabaseManager.swift
 --   (createSchema + registered migrations). This .sql is a formal mirror and
@@ -49,6 +49,10 @@
 --   after effects (meds, symptoms, notes — no pain levels). NULL = feature unused;
 --   fully backward compatible and removable. Synced; episodes capture triggers
 --   rebuilt to include it.
+-- v41 (#621): added diary_entries — free-standing diary notes for the beta diary
+--   notes feature (FeatureFlags.diaryNotes). Deliberately no episode FK: entries
+--   are independent of episode timeline data and are surfaced on the calendar,
+--   home screen, and (when inside an episode's window) its timeline. Synced.
 --
 -- Conventions:
 --   - All IDs are TEXT (UUIDs)
@@ -283,6 +287,16 @@ CREATE TABLE IF NOT EXISTS tracking_options (
   UNIQUE(category, value)
 );
 
+-- Free-standing diary notes (v41, #621) — beta diary notes feature
+-- (FeatureFlags.diaryNotes). No episode FK by design. Synced.
+CREATE TABLE IF NOT EXISTS diary_entries (
+  id TEXT PRIMARY KEY,
+  timestamp INTEGER NOT NULL CHECK(timestamp > 0),
+  note TEXT NOT NULL CHECK(length(note) > 0 AND length(note) <= 5000),
+  created_at INTEGER NOT NULL CHECK(created_at > 0),
+  updated_at INTEGER NOT NULL CHECK(updated_at > 0)
+);
+
 -- =============================================================================
 -- Indexes
 -- =============================================================================
@@ -326,6 +340,9 @@ CREATE INDEX IF NOT EXISTS idx_calendar_overlays_dates ON calendar_overlays(star
 -- Category safety rules indexes
 CREATE INDEX IF NOT EXISTS idx_category_safety_rules_category ON category_safety_rules(category);
 CREATE INDEX IF NOT EXISTS idx_tracking_options_category ON tracking_options(category);
+
+-- Diary entries indexes
+CREATE INDEX IF NOT EXISTS idx_diary_entries_timestamp ON diary_entries(timestamp);
 
 -- =============================================================================
 -- iCloud sync state (v30, #434) — device-local, NEVER synced.

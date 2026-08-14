@@ -484,6 +484,23 @@ loud_sounds, alcohol, caffeine, food, hormonal, exercise
 | created_at | INTEGER | epoch ms |
 | updated_at | INTEGER | epoch ms, nullable (LWW timestamp for sync) |
 
+### Diary Entries (beta, v41+)
+
+`diary_entries` are free-standing diary notes for the beta diary notes
+feature (`FeatureFlags.diaryNotes`). Unlike `episode_notes` they have no
+episode relationship — diary content is stored completely separate from
+episode timeline data. Surfaced on the calendar (day details + day-cell
+marker), the home screen quick action, and an episode's timeline when the
+entry's timestamp falls inside the episode window. Synced.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | TEXT PK | UUID |
+| timestamp | INTEGER | epoch ms — when the note is dated |
+| note | TEXT | 1–5000 chars |
+| created_at | INTEGER | epoch ms |
+| updated_at | INTEGER | epoch ms (LWW timestamp for sync) |
+
 ---
 
 ## Relationships and Cascading

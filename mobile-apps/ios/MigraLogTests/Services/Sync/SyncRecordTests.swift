@@ -5,15 +5,15 @@ final class SyncRecordTests: XCTestCase {
 
     // MARK: - SyncableTable contract
 
-    func testSyncableTablesAreTheExpectedThirteen() {
+    func testSyncableTablesAreTheExpectedFourteen() {
         let expected: Set<String> = [
             "episodes", "intensity_readings", "symptom_logs", "pain_location_logs",
             "episode_notes", "medications", "medication_schedules", "medication_doses",
             "medication_expectation_periods", "daily_status_logs", "calendar_overlays",
-            "category_safety_rules", "tracking_options",
+            "category_safety_rules", "tracking_options", "diary_entries",
         ]
         XCTAssertEqual(Set(SyncableTable.allCases.map { $0.tableName }), expected)
-        XCTAssertEqual(SyncableTable.allCases.count, 13)
+        XCTAssertEqual(SyncableTable.allCases.count, 14)
     }
 
     func testDeviceLocalAndSyncInternalTablesAreNotSyncable() {

@@ -50,10 +50,19 @@ struct FeatureFlag: Identifiable {
             + "get a reminder to log how you're feeling."
     )
 
+    static let diaryNotes = FeatureFlag(
+        key: "diaryNotes",
+        title: "Diary Notes",
+        details: "Keep free-standing diary notes not tied to an episode. Adds an "
+            + "Add Note action to the home screen and calendar days, and shows "
+            + "notes on the calendar and episode timeline."
+    )
+
     /// Every flag surfaced in Beta Features, in display order.
     static let all: [FeatureFlag] = [
         .postdromeTracking,
         .doseCheckin,
+        .diaryNotes,
     ]
 }
 

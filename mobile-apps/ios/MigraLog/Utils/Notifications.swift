@@ -4,6 +4,8 @@ extension Notification.Name {
     static let medicationDataChanged = Notification.Name("medicationDataChanged")
     static let episodeDataChanged = Notification.Name("episodeDataChanged")
     static let dailyStatusDataChanged = Notification.Name("dailyStatusDataChanged")
+    /// A diary entry was created, updated, or deleted (beta diary notes feature).
+    static let diaryDataChanged = Notification.Name("diaryDataChanged")
     /// A 2h dose check-in notification was tapped; userInfo carries "episodeId".
     /// Posted by `NotificationResponseHandler`, observed by `ContentView` to
     /// route to the episode's Log Update screen.
