@@ -13,6 +13,7 @@ enum UITestHelpers {
 
     /// Launch the app with a clean (reset) database and onboarding not completed.
     static func launchFreshApp() -> XCUIApplication {
+        dismissLingeringSystemAlerts()
         let app = XCUIApplication()
         app.launchArguments = ["--uitesting", "--reset-database"]
         app.launch()
@@ -21,6 +22,7 @@ enum UITestHelpers {
 
     /// Launch the app with a clean database and onboarding already completed.
     static func launchCleanDashboard() -> XCUIApplication {
+        dismissLingeringSystemAlerts()
         let app = XCUIApplication()
         app.launchArguments = ["--uitesting", "--reset-database", "--skip-onboarding"]
         app.launch()
@@ -29,10 +31,42 @@ enum UITestHelpers {
 
     /// Launch the app with fixture data loaded and onboarding completed.
     static func launchWithFixtures() -> XCUIApplication {
+        dismissLingeringSystemAlerts()
         let app = XCUIApplication()
         app.launchArguments = ["--uitesting", "--load-fixtures"]
         app.launch()
         return app
+    }
+
+    /// Answer any system permission alert a previous test left on screen.
+    ///
+    /// System alerts belong to springboard, so they survive the app relaunch
+    /// between tests, and an unanswered one silently swallows every tap of
+    /// every later test while element queries keep passing. The 2026-08-17
+    /// nightly lost its last 15 tests this way: testCachedPermissionsNoDialogs
+    /// tapped "Allow While Using App" while the location alert was still
+    /// sliding in, the tap missed, the test still passed (the dashboard renders
+    /// behind the alert), and the orphaned alert sank everything after it.
+    ///
+    /// This is the safety net that stops one missed dialog from cascading; the
+    /// tests that spawn dialogs still answer them at the source. `exists` is a
+    /// single springboard snapshot with no wait, so it costs nothing when the
+    /// screen is clear.
+    static func dismissLingeringSystemAlerts() {
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        // Prefer the accepting button so a stale alert leaves the same
+        // permission state the spawning test intended.
+        let preferredLabels = ["Allow While Using App", "Allow", "OK"]
+        for _ in 0..<3 {
+            let alert = springboard.alerts.firstMatch
+            guard alert.exists else { return }
+            let button = preferredLabels.lazy
+                .map { alert.buttons[$0] }
+                .first { $0.exists } ?? alert.buttons.firstMatch
+            guard button.exists else { return }
+            button.tap()
+            _ = alert.waitForNonExistence(timeout: 2)
+        }
     }
 
     // MARK: - Dashboard Detection
@@ -368,13 +402,19 @@ enum UITestHelpers {
     /// System alerts live in springboard, not the app under test, so they persist
     /// across app relaunches until answered — a dialog one test leaves up silently
     /// blocks every later test's taps while all element queries still pass.
+    ///
+    /// The tap is verified: a tap delivered while the alert is still animating
+    /// in can land on the scrim and leave the alert up (2026-08-17 nightly, see
+    /// `dismissLingeringSystemAlerts`), so re-tap until the button is gone.
     static func handleSystemAlert(in app: XCUIApplication, buttonLabel: String, timeout: TimeInterval = 2) {
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         let alertButton = springboard.buttons[buttonLabel]
-        if alertButton.waitForExistence(timeout: timeout) {
+        guard alertButton.waitForExistence(timeout: timeout) else { return }
+        for _ in 0..<3 {
             alertButton.tap()
-            Thread.sleep(forTimeInterval: animationWait)
+            if alertButton.waitForNonExistence(timeout: 2) { break }
         }
+        Thread.sleep(forTimeInterval: animationWait)
     }
 
     // MARK: - Date Helpers
