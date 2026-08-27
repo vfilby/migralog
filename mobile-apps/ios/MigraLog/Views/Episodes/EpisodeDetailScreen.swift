@@ -133,7 +133,15 @@ struct EpisodeDetailScreen: View {
                 }
             }
         }
-        .sheet(isPresented: $showLogUpdate) {
+        // Re-read from the database once the sheet closes. The sheet writes
+        // through this same view model, but the in-memory append was observed
+        // to be dropped by the timeline on a slow nightly runner (#627): the
+        // reading persisted yet the pushed detail screen kept rendering the
+        // stale timeline. Reloading on dismiss, as the Log Medication sheet
+        // already does, makes the screen reflect persisted truth either way.
+        .sheet(isPresented: $showLogUpdate, onDismiss: {
+            Task { await viewModel.loadEpisode(episodeId) }
+        }) {
             if let details = viewModel.details {
                 NavigationStack {
                     LogUpdateScreen(episodeId: details.episode.id, viewModel: viewModel)
