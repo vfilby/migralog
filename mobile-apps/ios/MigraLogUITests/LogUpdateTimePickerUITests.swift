@@ -38,13 +38,26 @@ final class LogUpdateTimePickerUITests: XCTestCase {
         // both targets on `now`'s side of noon/midnight so the period wheel
         // never has to move, and skip the first minutes of the half-day where
         // there's no room for two distinct backdated minutes.
+        //
+        // Within the half-day, a target in the 12 o'clock hour is unreachable
+        // unless `now` is also 12:xx: `adjust(toPickerWheelValue:)` spins the
+        // hour wheel in the numerically increasing direction, and 12 is the
+        // largest numeral, so reaching it from any other hour goes forward
+        // through future times that the `...Date()` bound clamps tick by tick
+        // — the wheel never visibly moves and no retry helps (#629, 2026-08-29
+        // and 2026-08-30 nightlies: now 2:4x PM, episode start 12:4x PM, three
+        // attempts each with the recording showing zero wheel motion). Floor
+        // both targets at 1:00 of the half-day once `now` has passed it, so a
+        // target hour of 12 only ever occurs while the wheel already reads 12.
         let midnight = Calendar.current.startOfDay(for: now)
         let noon = midnight.addingTimeInterval(12 * 60 * 60)
         let periodStart = now >= noon ? noon : midnight
-        try XCTSkipIf(now.timeIntervalSince(periodStart) < 3 * 60,
-                      "Backdating needs distinct past times in the current AM/PM period")
+        let hourOne = periodStart.addingTimeInterval(60 * 60)
+        let wheelFloor = now >= hourOne ? hourOne : periodStart
+        try XCTSkipIf(now.timeIntervalSince(wheelFloor) < 3 * 60,
+                      "Backdating needs distinct past times reachable on the wheels")
         let episodeStart = max(now.addingTimeInterval(-2 * 60 * 60),
-                               periodStart.addingTimeInterval(60))
+                               wheelFloor.addingTimeInterval(60))
         // 20 minutes, not 30: `now` is captured here but the update popover
         // opens ~30-60s later, so the minute wheel's travel is the backdate
         // delta plus however many minutes ticked by. At 30 the wheel's two
@@ -55,7 +68,7 @@ final class LogUpdateTimePickerUITests: XCTestCase {
         // through past times is strictly shorter, whichever path the XCUITest
         // gesture picks.
         let updateTime = max(now.addingTimeInterval(-20 * 60),
-                             periodStart.addingTimeInterval(2 * 60))
+                             wheelFloor.addingTimeInterval(2 * 60))
 
         // === Create an episode started 2 hours ago ===
         let startButton = app.buttons["start-episode-button"]
@@ -95,10 +108,27 @@ final class LogUpdateTimePickerUITests: XCTestCase {
         // An update only writes an intensity reading when the slider actually
         // moved (an untouched slider is not a change), so move it to make this
         // a real backdated intensity update.
+        // The drag can silently not stick (2026-08-28 nightly, #629: the
+        // recording shows the slider never left 5, so Save had no intensity
+        // change to write and the timeline check failed on a missing entry) —
+        // XCUITest doesn't verify the settled value, so we do, like setTime.
+        // Only movement matters, not the landing spot: the drag is imprecise
+        // (locally it settles on 6, not 7) and any moved value writes a reading.
         let slider = app.sliders.firstMatch
         XCTAssertTrue(slider.waitForExistence(timeout: UITestHelpers.defaultTimeout),
                       "Log Update screen should have the intensity slider")
-        slider.adjust(toNormalizedSliderPosition: 0.7)
+        let initialPosition = slider.normalizedSliderPosition
+        var sliderMoved = false
+        for _ in 0..<3 {
+            slider.adjust(toNormalizedSliderPosition: 0.7)
+            Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
+            if abs(slider.normalizedSliderPosition - initialPosition) > 0.05 {
+                sliderMoved = true
+                break
+            }
+        }
+        XCTAssertTrue(sliderMoved,
+                      "Intensity slider should move off \(initialPosition), got \(slider.normalizedSliderPosition)")
 
         // === Backdate the update by 30 minutes ===
         setTime(of: updatePicker, to: updateTime)
