@@ -322,16 +322,16 @@ struct DashboardScreen: View {
         Button {
             showAddDiaryNote = true
         } label: {
-            Label("Add Note", systemImage: "square.and.pencil")
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .frame(maxWidth: .infinity)
+            // Icon-only so the two primary buttons keep their full-size text.
+            Image(systemName: "square.and.pencil")
                 .padding(.vertical, 14)
+                .padding(.horizontal, DesignTokens.Spacing.lg)
                 .background(Color.teal.opacity(0.1))
                 .foregroundStyle(.teal)
                 .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.lg))
         }
         .accessibilityIdentifier("add-diary-note-button")
+        .accessibilityLabel("Add Note")
         .accessibilityHint("Add a diary note not tied to an episode")
     }
 }
