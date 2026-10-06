@@ -24,29 +24,27 @@ final class MedicationArchivingUITests: XCTestCase {
         // Step 1: Go to Medications tab
         UITestHelpers.navigateTo(tab: .medications, in: app)
         let topCard = app.buttons["medication-card-Test Topiramate"]
-        UITestHelpers.waitForElement(topCard)
 
-        // Step 2: Tap medication
-        topCard.tap()
-        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
+        // Step 2: Tap medication. The list reloads on appear, so a tap on the row
+        // as soon as it exists can be dropped and the detail screen never pushes
+        // (#636); tapToPresent waits for the row to be hittable and retaps until
+        // the detail screen's archive button appears.
+        let archiveButton = app.buttons["archive-medication-button"]
+        UITestHelpers.tapToPresent(topCard, expecting: archiveButton)
 
         // === Phase 3-4: Archive ===
 
         // Step 3: Scroll to "Archive Medication" button
         let scroll = app.scrollViews.firstMatch
-        let archiveButton = app.buttons["archive-medication-button"]
         UITestHelpers.scrollToElement(archiveButton, in: scroll)
-        UITestHelpers.waitForHittable(archiveButton)
-        archiveButton.tap()
-        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
 
-        // Step 4: Confirm archive
+        // Step 4: Confirm archive. The button only flips the alert binding, so a
+        // dropped tap would silently skip archiving; retap until the alert shows.
         let confirmArchive = app.alerts.buttons["Archive"]
-        if confirmArchive.waitForExistence(timeout: UITestHelpers.defaultTimeout) {
-            confirmArchive.tap()
-            // Wait for alert to dismiss fully
-            Thread.sleep(forTimeInterval: 1)
-        }
+        UITestHelpers.tapToPresent(archiveButton, expecting: confirmArchive)
+        confirmArchive.tap()
+        // Wait for alert to dismiss fully
+        Thread.sleep(forTimeInterval: 1)
 
         // === Phase 5: Verify hidden ===
 
@@ -132,21 +130,16 @@ final class MedicationArchivingUITests: XCTestCase {
         // Step 1: Archive medication
         UITestHelpers.navigateTo(tab: .medications, in: app)
         let topCard = app.buttons["medication-card-Test Topiramate"]
-        UITestHelpers.waitForHittable(topCard)
-        topCard.tap()
-        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
+        let archiveButton = app.buttons["archive-medication-button"]
+        UITestHelpers.tapToPresent(topCard, expecting: archiveButton)
 
         let scroll = app.scrollViews.firstMatch
-        let archiveButton = app.buttons["archive-medication-button"]
         UITestHelpers.scrollToElement(archiveButton, in: scroll)
-        archiveButton.tap()
-        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
 
         let confirmArchive = app.alerts.buttons["Archive"]
-        if confirmArchive.waitForExistence(timeout: UITestHelpers.defaultTimeout) {
-            confirmArchive.tap()
-            Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
-        }
+        UITestHelpers.tapToPresent(archiveButton, expecting: confirmArchive)
+        confirmArchive.tap()
+        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
 
         // After archiving, app auto-dismisses to the medications list.
         let medsTitle = app.navigationBars.staticTexts["Medications"]
