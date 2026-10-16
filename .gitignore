@@ -4,9 +4,11 @@ mobile-apps/ios/DerivedData/
 mobile-apps/ios/*.xcuserdata
 mobile-apps/ios/build/
 
-# Generated Xcode project — source of truth is project.yml (xcodegen generate).
-# Run `xcodegen generate` from mobile-apps/ios after pulling.
-mobile-apps/ios/MigraLog.xcodeproj/
+# MigraLog.xcodeproj is generated from project.yml (xcodegen generate) but committed, so Dependabot can
+# manage the Swift packages through its Package.resolved. After editing project.yml, regenerate and
+# commit the result. Per-user state inside it stays out.
+mobile-apps/ios/MigraLog.xcodeproj/xcuserdata/
+mobile-apps/ios/MigraLog.xcodeproj/project.xcworkspace/xcuserdata/
 
 # macOS
 .DS_Store
