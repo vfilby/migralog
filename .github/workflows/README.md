@@ -13,22 +13,31 @@ CI/CD for the MigraLog iOS Swift app (`mobile-apps/ios`).
 | `promote-preflight-preview.yml` — `[iOS] Pre-flight promote preview (notify)` | Weekly (Tue 03:00 UTC ≈ Mon 8 PM PT) + manual | Runs the **same** eligibility gate in dry-run ~9 h before the promotion and sends a **Pushover** preview of the build likely to promote, its rolled-up "What to Test", and any build whose soak will clear by promote time — leaving a window to push a `block-promotion/build-<N>` tag. Keep its gate inputs (`SOAK_HOURS`/`MIN_*`/`MAX_*`) in sync with `promote-preflight.yml`. |
 | `promote-manual.yml` — `[iOS] Promote Build → Group (manual)` | Manual | Attach a specific build number to any TestFlight group, bypassing the soak gate. |
 | `promote-production.yml` — `[iOS] Promote Beta → Production` | Manual | Submit a build to App Store review (phased release by default). Uses the `production` environment. |
-| `swift-deps-update.yml` — `[iOS] Swift package updates` | Weekly (Mon 09:00 UTC) + manual | Checks the exact pins in `mobile-apps/ios/project.yml` against the latest GitHub releases (via `.github/scripts/swift-deps-check.mjs`) and opens/updates a bump PR on the `automated/swift-deps-update` branch. The PR is opened with the default `GITHUB_TOKEN`, which can't trigger CI — close & reopen it (or push to the branch) to run the gate. |
-| `dependabot.yml` | — | GitHub Actions version bumps only. Dependabot can't read XcodeGen manifests, so Swift packages are covered by `swift-deps-update.yml` instead. |
+| `dependabot.yml` | Weekly (Mon 09:00 UTC) | GitHub Actions version bumps, and the iOS app's Swift packages: Dependabot edits the committed `MigraLog.xcodeproj` (package reference + `Package.resolved`). Its PRs trigger CI, and the issue worker tests and merges the safe ones. |
 
 Shared App Store Connect API client lives in `.github/scripts/asc-client.mjs`; the
 `promote-*.mjs` scripts build on it.
 
 ## Project generation (XcodeGen)
 
-`MigraLog.xcodeproj` is **generated** from `mobile-apps/ios/project.yml` and is
-**git-ignored**. After cloning or pulling, regenerate it:
+`MigraLog.xcodeproj` is **generated** from `mobile-apps/ios/project.yml` and
+**committed**, so that Dependabot can manage the Swift packages through the
+project's `Package.resolved` (it can't read XcodeGen manifests). `project.yml`
+stays the source of truth: after editing it, regenerate and commit the result,
+or CI's own `xcodegen generate` will build a project that differs from the
+committed one.
 
 ```bash
 cd mobile-apps/ios
 brew install xcodegen          # once; CI pins >= 2.45.3
 xcodegen generate
+git add MigraLog.xcodeproj
 ```
+
+Package versions: `project.yml` sets `from:` floors; the exact pin is
+`MigraLog.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`.
+Don't bump packages in `project.yml`; let Dependabot's PR do it, or run
+`xcodebuild -resolvePackageDependencies` and commit the new `Package.resolved`.
 
 Schemes and the **Smoke** / **Full** test plans (`TestPlans/*.xctestplan`) are
 defined in `project.yml`.

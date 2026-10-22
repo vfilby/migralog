@@ -7,16 +7,17 @@ options:
   generateEmptyDirectories: true
 
 packages:
-  # Pinned exactly for reproducible builds — the resolved Package.resolved lives
-  # inside the git-ignored xcodeproj, so floating `from:` ranges let CI drift
-  # silently. Bumped weekly by .github/workflows/swift-deps-update.yml
-  # (Dependabot's swift ecosystem can't read XcodeGen manifests).
+  # `from:` is the floor; the exact pin is the committed
+  # MigraLog.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved,
+  # which Dependabot bumps (dependabot.yml, swift ecosystem). Builds are
+  # reproducible from Package.resolved; these floors only move when the app
+  # needs a newer API.
   GRDB:
     url: https://github.com/groue/GRDB.swift
-    exactVersion: "7.11.1"
+    from: "7.11.1"
   Sentry:
     url: https://github.com/getsentry/sentry-cocoa
-    exactVersion: "9.30.0"
+    from: "9.30.0"
 
 settings:
   base:

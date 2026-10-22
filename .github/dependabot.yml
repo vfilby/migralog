@@ -13,8 +13,17 @@ updates:
       - "ci"
       - "automated"
 
-  # NOTE: no `swift` entry — Dependabot's swift ecosystem only reads SPM
-  # manifests (Package.swift / Package.resolved). The iOS app declares its
-  # packages in mobile-apps/ios/project.yml (XcodeGen) and the generated
-  # xcodeproj is git-ignored, so a swift entry here silently does nothing.
-  # Swift package bumps are handled by .github/workflows/swift-deps-update.yml.
+  # Swift packages of the iOS app. Dependabot reads the committed xcodeproj's
+  # package references and Package.resolved (project.yml only sets `from:`
+  # floors), so the generated project must stay committed for this to work.
+  - package-ecosystem: "swift"
+    directory: "/mobile-apps/ios"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencies"
+      - "automated"
