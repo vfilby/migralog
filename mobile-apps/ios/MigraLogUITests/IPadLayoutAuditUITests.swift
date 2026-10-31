@@ -10,7 +10,7 @@ import UIKit
 ///       -only-testing:MigraLogUITests/IPadLayoutAuditUITests
 ///
 /// Extract attachments with `xcrun xcresulttool export attachments`.
-final class IPadLayoutAuditUITests: XCTestCase {
+final class IPadLayoutAuditUITests: UITestCase {
 
     private var app: XCUIApplication!
 

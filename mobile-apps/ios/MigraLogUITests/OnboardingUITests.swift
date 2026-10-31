@@ -2,12 +2,12 @@ import XCTest
 
 /// Test Suite 1: Onboarding Workflow
 /// Tests the complete onboarding flow from welcome through permissions setup.
-final class OnboardingUITests: XCTestCase {
+final class OnboardingUITests: UITestCase {
     var app: XCUIApplication!
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = UITestHelpers.launchFreshApp()
+        app = UITestHelpers.launchFreshApp(in: self)
     }
 
     override func tearDownWithError() throws {

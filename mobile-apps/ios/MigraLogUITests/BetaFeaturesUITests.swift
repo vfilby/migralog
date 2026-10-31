@@ -3,12 +3,12 @@ import XCTest
 /// Verifies the pre-release-only "Beta Features" Settings category: it is
 /// reachable from Settings and surfaces the feature-flags section plus the
 /// sample-data loader.
-final class BetaFeaturesUITests: XCTestCase {
+final class BetaFeaturesUITests: UITestCase {
     var app: XCUIApplication!
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = UITestHelpers.launchCleanDashboard()
+        app = UITestHelpers.launchCleanDashboard(in: self)
         UITestHelpers.waitForDashboard(in: app)
     }
 

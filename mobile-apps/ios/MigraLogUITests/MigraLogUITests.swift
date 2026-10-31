@@ -1,7 +1,7 @@
 import XCTest
 
 /// Basic smoke test to verify the app launches without crashing.
-final class MigraLogUITests: XCTestCase {
+final class MigraLogUITests: UITestCase {
     var app: XCUIApplication!
 
     override func setUpWithError() throws {
@@ -15,7 +15,7 @@ final class MigraLogUITests: XCTestCase {
     }
 
     func testAppLaunches() throws {
-        app.launch()
+        UITestHelpers.launch(app, in: self)
         XCTAssertTrue(app.exists, "App should launch without crashing")
     }
 

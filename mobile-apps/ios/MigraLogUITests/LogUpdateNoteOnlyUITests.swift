@@ -4,12 +4,12 @@ import XCTest
 /// intensity reading. The update flow used to write the (pre-filled) slider
 /// value on every save, so a note-only update showed a phantom "Intensity
 /// Update" on the timeline with a value the user never entered.
-final class LogUpdateNoteOnlyUITests: XCTestCase {
+final class LogUpdateNoteOnlyUITests: UITestCase {
     var app: XCUIApplication!
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = UITestHelpers.launchCleanDashboard()
+        app = UITestHelpers.launchCleanDashboard(in: self)
         UITestHelpers.waitForDashboard(in: app)
     }
 

@@ -5,12 +5,12 @@ import XCTest
 /// never set), so switching themes had no visible effect. These tests assert
 /// the rendered appearance actually changes by comparing screen luminance —
 /// element-existence checks alone cannot catch that failure mode.
-final class ThemeSwitchingUITests: XCTestCase {
+final class ThemeSwitchingUITests: UITestCase {
     var app: XCUIApplication!
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = UITestHelpers.launchCleanDashboard()
+        app = UITestHelpers.launchCleanDashboard(in: self)
         UITestHelpers.waitForDashboard(in: app)
     }
 

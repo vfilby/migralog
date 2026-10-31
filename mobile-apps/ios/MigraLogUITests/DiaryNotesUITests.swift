@@ -5,12 +5,12 @@ import XCTest
 /// enabling the flag in Settings → Beta Features, and a note added from the
 /// home screen shows up in the calendar's day details alongside the day-level
 /// Add Note action.
-final class DiaryNotesUITests: XCTestCase {
+final class DiaryNotesUITests: UITestCase {
     var app: XCUIApplication!
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = UITestHelpers.launchCleanDashboard()
+        app = UITestHelpers.launchCleanDashboard(in: self)
         UITestHelpers.waitForDashboard(in: app)
     }
 

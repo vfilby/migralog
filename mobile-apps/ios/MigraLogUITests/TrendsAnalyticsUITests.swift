@@ -2,7 +2,7 @@ import XCTest
 
 /// Test Suite 7: Trends & Analytics
 /// Tests navigation, time range switching, empty state, and statistics with data.
-final class TrendsAnalyticsUITests: XCTestCase {
+final class TrendsAnalyticsUITests: UITestCase {
     var app: XCUIApplication!
 
     override func setUpWithError() throws {
@@ -16,7 +16,7 @@ final class TrendsAnalyticsUITests: XCTestCase {
     // MARK: - 7.1 Navigation and main components
 
     func testNavigationAndMainComponents() throws {
-        app = UITestHelpers.launchCleanDashboard()
+        app = UITestHelpers.launchCleanDashboard(in: self)
         UITestHelpers.waitForDashboard(in: app)
 
         // Step 1: Navigate to Trends tab
@@ -53,7 +53,7 @@ final class TrendsAnalyticsUITests: XCTestCase {
     // MARK: - 7.1b Med Response section
 
     func testMedResponseSectionAppears() throws {
-        app = UITestHelpers.launchCleanDashboard()
+        app = UITestHelpers.launchCleanDashboard(in: self)
         UITestHelpers.waitForDashboard(in: app)
         UITestHelpers.navigateTo(tab: .trends, in: app)
         let trendsScreen = app.navigationBars.staticTexts["Trends & Analytics"]
@@ -71,7 +71,7 @@ final class TrendsAnalyticsUITests: XCTestCase {
     // MARK: - 7.2 Time range switching
 
     func testTimeRangeSwitching() throws {
-        app = UITestHelpers.launchCleanDashboard()
+        app = UITestHelpers.launchCleanDashboard(in: self)
         UITestHelpers.waitForDashboard(in: app)
         UITestHelpers.navigateTo(tab: .trends, in: app)
         selectSection("Insights")
@@ -98,7 +98,7 @@ final class TrendsAnalyticsUITests: XCTestCase {
     // MARK: - 7.3 Empty state
 
     func testEmptyState() throws {
-        app = UITestHelpers.launchCleanDashboard()
+        app = UITestHelpers.launchCleanDashboard(in: self)
         UITestHelpers.waitForDashboard(in: app)
         UITestHelpers.navigateTo(tab: .trends, in: app)
         selectSection("Insights")
@@ -129,7 +129,7 @@ final class TrendsAnalyticsUITests: XCTestCase {
     // MARK: - 7.4 Statistics with data
 
     func testStatisticsWithData() throws {
-        app = UITestHelpers.launchWithFixtures()
+        app = UITestHelpers.launchWithFixtures(in: self)
         UITestHelpers.waitForDashboard(in: app)
         UITestHelpers.navigateTo(tab: .trends, in: app)
         selectSection("Insights")
@@ -150,7 +150,7 @@ final class TrendsAnalyticsUITests: XCTestCase {
     // MARK: - 7.7 Calendar month navigation
 
     func testCalendarMonthNavigation() throws {
-        app = UITestHelpers.launchCleanDashboard()
+        app = UITestHelpers.launchCleanDashboard(in: self)
         UITestHelpers.waitForDashboard(in: app)
         UITestHelpers.navigateTo(tab: .trends, in: app)
 
@@ -170,7 +170,7 @@ final class TrendsAnalyticsUITests: XCTestCase {
     // MARK: - 7.8 Time range persistence across navigation
 
     func testTimeRangePersistence() throws {
-        app = UITestHelpers.launchCleanDashboard()
+        app = UITestHelpers.launchCleanDashboard(in: self)
         UITestHelpers.waitForDashboard(in: app)
         UITestHelpers.navigateTo(tab: .trends, in: app)
         selectSection("Insights")
@@ -198,7 +198,7 @@ final class TrendsAnalyticsUITests: XCTestCase {
     // MARK: - 7.9 Insight charts (issue #435)
 
     func testInsightChartCardsRender() throws {
-        app = UITestHelpers.launchWithFixtures()
+        app = UITestHelpers.launchWithFixtures(in: self)
         UITestHelpers.waitForDashboard(in: app)
         UITestHelpers.navigateTo(tab: .trends, in: app)
         selectSection("Insights")
@@ -217,7 +217,7 @@ final class TrendsAnalyticsUITests: XCTestCase {
     // MARK: - 7.10 Custom time range
 
     func testCustomRangeSelection() throws {
-        app = UITestHelpers.launchWithFixtures()
+        app = UITestHelpers.launchWithFixtures(in: self)
         UITestHelpers.waitForDashboard(in: app)
         UITestHelpers.navigateTo(tab: .trends, in: app)
         selectSection("Insights")

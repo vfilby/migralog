@@ -2,12 +2,12 @@ import XCTest
 
 /// Test Suite 3: Daily Status Tracking
 /// Tests calendar navigation, green/yellow/red day logging, and episode auto-creates red day.
-final class DailyStatusUITests: XCTestCase {
+final class DailyStatusUITests: UITestCase {
     var app: XCUIApplication!
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = UITestHelpers.launchCleanDashboard()
+        app = UITestHelpers.launchCleanDashboard(in: self)
 
         UITestHelpers.waitForDashboard(in: app)
     }

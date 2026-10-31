@@ -10,7 +10,7 @@ import XCTest
 /// screens look realistic, and deliberately leaves the episode in post-drome —
 /// the seeded state persists in the app container, so relaunching the app after
 /// this test shows the feature live for manual exploration.
-final class PostdromeFlowUITests: XCTestCase {
+final class PostdromeFlowUITests: UITestCase {
     var app: XCUIApplication!
 
     override func setUpWithError() throws {

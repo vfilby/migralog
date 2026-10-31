@@ -2,12 +2,12 @@ import XCTest
 
 /// Test Suite 2: Episode Lifecycle
 /// Tests create -> view details -> edit -> log update -> verify timeline -> end episode -> calendar -> history.
-final class EpisodeLifecycleUITests: XCTestCase {
+final class EpisodeLifecycleUITests: UITestCase {
     var app: XCUIApplication!
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = UITestHelpers.launchCleanDashboard()
+        app = UITestHelpers.launchCleanDashboard(in: self)
 
         // Wait for dashboard to load
         UITestHelpers.waitForDashboard(in: app)

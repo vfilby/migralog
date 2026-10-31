@@ -17,7 +17,7 @@ import UIKit
 ///     xcrun xcresulttool get --legacy --path <path>.xcresult --format json
 ///
 /// or by opening the result bundle in Xcode (Report Navigator → Test → Attachments).
-final class ScreenshotsUITests: XCTestCase {
+final class ScreenshotsUITests: UITestCase {
 
     private var app: XCUIApplication!
 

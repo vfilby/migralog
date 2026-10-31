@@ -2,12 +2,12 @@ import XCTest
 
 /// Test Suite 8: Notification Settings
 /// Tests global settings and per-medication overrides.
-final class NotificationSettingsUITests: XCTestCase {
+final class NotificationSettingsUITests: UITestCase {
     var app: XCUIApplication!
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = UITestHelpers.launchWithFixtures()
+        app = UITestHelpers.launchWithFixtures(in: self)
 
         UITestHelpers.waitForDashboard(in: app)
     }

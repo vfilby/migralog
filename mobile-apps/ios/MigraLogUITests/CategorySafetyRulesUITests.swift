@@ -3,12 +3,12 @@ import XCTest
 /// Category safety rules: the rule editor's medication inclusion checklist.
 /// A medication unchecked in the checklist is excluded from its category's
 /// safety warnings — its doses don't count and the warning is not shown on it.
-final class CategorySafetyRulesUITests: XCTestCase {
+final class CategorySafetyRulesUITests: UITestCase {
     var app: XCUIApplication!
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = UITestHelpers.launchWithFixtures()
+        app = UITestHelpers.launchWithFixtures(in: self)
         UITestHelpers.waitForDashboard(in: app)
         addTeardownBlock { [self] in
             attachScreenshot(named: "teardown-state")
