@@ -246,6 +246,37 @@ enum UITestHelpers {
         )
     }
 
+    /// Select a segment of a segmented picker, verifying the selection stuck
+    /// and retapping if it didn't.
+    ///
+    /// Same dropped-tap class as `navigateTo`: on a loaded runner the first
+    /// tap can land while the screen is still laying out and be swallowed
+    /// (2026-10-31 PR gate on #642: "Insights" was tapped on the Trends
+    /// screen, "Calendar" stayed selected, and the time-range selector the
+    /// test then waited for never appeared). `isSelected` is checked rather
+    /// than a destination element because a segment switch is the one
+    /// state change the tap is responsible for.
+    static func selectSegment(
+        _ segment: XCUIElement,
+        maxAttempts: Int = 3,
+        file: StaticString = #file,
+        line: UInt = #line
+    ) {
+        waitForHittable(segment, timeout: 15, file: file, line: line)
+        for _ in 0..<maxAttempts {
+            segment.tap()
+            Thread.sleep(forTimeInterval: animationWait)
+            if waitForSelected(segment, timeout: 8) {
+                return
+            }
+        }
+        XCTFail(
+            "Segment \(segment) did not become selected after \(maxAttempts) taps",
+            file: file,
+            line: line
+        )
+    }
+
     /// Poll until the element reports `isSelected`. Returns whether it became selected.
     private static func waitForSelected(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)

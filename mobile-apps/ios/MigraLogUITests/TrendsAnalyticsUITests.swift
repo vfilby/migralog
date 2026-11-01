@@ -247,10 +247,10 @@ final class TrendsAnalyticsUITests: UITestCase {
     // MARK: - Helpers
 
     /// Switch the Trends screen to a section segment ("Calendar" / "Insights").
+    /// Switch the Trends section picker, retapping until the segment reports
+    /// selected (a tap right after the screen appears can be dropped on a
+    /// slow runner; see `UITestHelpers.selectSegment`).
     private func selectSection(_ label: String) {
-        let segment = app.buttons[label]
-        UITestHelpers.waitForHittable(segment)
-        segment.tap()
-        Thread.sleep(forTimeInterval: UITestHelpers.animationWait)
+        UITestHelpers.selectSegment(app.buttons[label])
     }
 }
