@@ -2,12 +2,12 @@ import XCTest
 
 /// Test Suite 5: Medication Dose Edit/Delete
 /// Tests delete dose, edit dose amount, cancel edit, cancel delete.
-final class MedicationDoseUITests: XCTestCase {
+final class MedicationDoseUITests: UITestCase {
     var app: XCUIApplication!
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = UITestHelpers.launchWithFixtures()
+        app = UITestHelpers.launchWithFixtures(in: self)
 
         UITestHelpers.waitForDashboard(in: app)
     }

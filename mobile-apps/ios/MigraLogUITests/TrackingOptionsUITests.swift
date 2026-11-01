@@ -3,12 +3,12 @@ import XCTest
 /// Tracking Options customization: adding a custom trigger and hiding a
 /// built-in via Settings → Tracking Options, then verifying the New Episode
 /// picker reflects both changes.
-final class TrackingOptionsUITests: XCTestCase {
+final class TrackingOptionsUITests: UITestCase {
     var app: XCUIApplication!
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = UITestHelpers.launchCleanDashboard()
+        app = UITestHelpers.launchCleanDashboard(in: self)
 
         UITestHelpers.waitForDashboard(in: app)
     }

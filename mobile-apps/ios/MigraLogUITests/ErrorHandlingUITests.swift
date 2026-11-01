@@ -2,7 +2,7 @@ import XCTest
 
 /// Test Suite 9: Error Handling
 /// Tests validation errors and dose edit validation.
-final class ErrorHandlingUITests: XCTestCase {
+final class ErrorHandlingUITests: UITestCase {
     var app: XCUIApplication!
 
     override func setUpWithError() throws {
@@ -16,7 +16,7 @@ final class ErrorHandlingUITests: XCTestCase {
     // MARK: - 9.1 Database error toast (app remains responsive)
 
     func testAppRemainsResponsiveAfterErrors() throws {
-        app = UITestHelpers.launchWithFixtures()
+        app = UITestHelpers.launchWithFixtures(in: self)
         UITestHelpers.waitForDashboard(in: app)
 
         // Verify the app is functional by navigating through tabs
@@ -32,7 +32,7 @@ final class ErrorHandlingUITests: XCTestCase {
     // MARK: - 9.2 Multiple operations without crash
 
     func testMultipleOperationsWithoutCrash() throws {
-        app = UITestHelpers.launchWithFixtures()
+        app = UITestHelpers.launchWithFixtures(in: self)
         UITestHelpers.waitForDashboard(in: app)
 
         // Perform rapid navigation to stress-test
@@ -50,7 +50,7 @@ final class ErrorHandlingUITests: XCTestCase {
     // MARK: - 9.3 Dose edit validation
 
     func testDoseEditValidation() throws {
-        app = UITestHelpers.launchWithFixtures()
+        app = UITestHelpers.launchWithFixtures(in: self)
         UITestHelpers.waitForDashboard(in: app)
 
         // Navigate to medication and log a dose
@@ -111,7 +111,7 @@ final class ErrorHandlingUITests: XCTestCase {
     // MARK: - 9.4 Interaction with deleted data
 
     func testInteractionWithDeletedData() throws {
-        app = UITestHelpers.launchWithFixtures()
+        app = UITestHelpers.launchWithFixtures(in: self)
         UITestHelpers.waitForDashboard(in: app)
 
         // Navigate to medication detail

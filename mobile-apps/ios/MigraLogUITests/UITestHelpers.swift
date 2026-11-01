@@ -12,30 +12,83 @@ enum UITestHelpers {
     // MARK: - App Launch Configurations
 
     /// Launch the app with a clean (reset) database and onboarding not completed.
-    static func launchFreshApp() -> XCUIApplication {
-        dismissLingeringSystemAlerts()
-        let app = XCUIApplication()
-        app.launchArguments = ["--uitesting", "--reset-database"]
-        app.launch()
-        return app
+    static func launchFreshApp(in testCase: UITestCase) -> XCUIApplication {
+        launch(arguments: ["--uitesting", "--reset-database"], in: testCase)
     }
 
     /// Launch the app with a clean database and onboarding already completed.
-    static func launchCleanDashboard() -> XCUIApplication {
-        dismissLingeringSystemAlerts()
-        let app = XCUIApplication()
-        app.launchArguments = ["--uitesting", "--reset-database", "--skip-onboarding"]
-        app.launch()
-        return app
+    static func launchCleanDashboard(in testCase: UITestCase) -> XCUIApplication {
+        launch(arguments: ["--uitesting", "--reset-database", "--skip-onboarding"], in: testCase)
     }
 
     /// Launch the app with fixture data loaded and onboarding completed.
-    static func launchWithFixtures() -> XCUIApplication {
+    static func launchWithFixtures(in testCase: UITestCase) -> XCUIApplication {
+        launch(arguments: ["--uitesting", "--load-fixtures"], in: testCase)
+    }
+
+    private static func launch(arguments: [String], in testCase: UITestCase) -> XCUIApplication {
         dismissLingeringSystemAlerts()
         let app = XCUIApplication()
-        app.launchArguments = ["--uitesting", "--load-fixtures"]
-        app.launch()
+        app.launchArguments = arguments
+        launch(app, in: testCase)
         return app
+    }
+
+    /// `app.launch()`, retried once if xcodebuild stalls underneath it.
+    ///
+    /// Under `xcodebuild test`, launching goes through xcodebuild itself: it
+    /// first kills the instance the previous test left running, then starts
+    /// the new one, and XCTest gives each step 60s. On the GitHub macOS runner
+    /// xcodebuild's main thread occasionally goes silent for over a minute
+    /// right after a test finishes (2026-09-11 and 2026-10-28 nightlies, #632
+    /// and #641): the simulator, the app and the test runner all kept going,
+    /// the runner just never got an answer and failed the next test's setUp
+    /// with "Failed to terminate com.eff3.migralog". Pausing xcodebuild with
+    /// SIGSTOP reproduces it exactly; nothing in the app or the test is
+    /// involved.
+    ///
+    /// Those two timeouts, and only those, are intercepted on the first
+    /// attempt and the launch is tried again. This is not a blanket test
+    /// retry: any other launch issue, or a second stall, fails the test as
+    /// usual, and the stall is still written to the result bundle as an
+    /// expected failure plus an activity, so it stays visible in the
+    /// nightly's xcresult.
+    ///
+    /// The interception has to happen in `UITestCase.record(_:)`: XCTest
+    /// interrupts the test the moment a launch failure is recorded, whatever
+    /// `continueAfterFailure` says, and `XCTExpectFailure` does not stop
+    /// that (verified against the reproduction).
+    static func launch(_ app: XCUIApplication, in testCase: UITestCase) {
+        testCase.interceptedLaunchStall = nil
+        testCase.interceptLaunchStall = true
+        app.launch()
+        testCase.interceptLaunchStall = false
+
+        guard let stall = testCase.interceptedLaunchStall else { return }
+        XCTContext.runActivity(named: "xcodebuild stall: \(stall.compactDescription)") { activity in
+            activity.add(XCTAttachment(string: stall.detailedDescription ?? stall.compactDescription))
+        }
+        // Recorded as an expected failure so the stall shows in the results
+        // list, not just in the activity log. An expected failure still
+        // interrupts a test whose `continueAfterFailure` is false, so lift
+        // the flag for just this line.
+        let continueAfterFailure = testCase.continueAfterFailure
+        testCase.continueAfterFailure = true
+        XCTExpectFailure("xcodebuild did not answer the launch request within 60s; the launch was retried") {
+            XCTFail(stall.compactDescription)
+        }
+        testCase.continueAfterFailure = continueAfterFailure
+        XCTContext.runActivity(named: "Retry launch after xcodebuild stall") { _ in
+            app.launch()
+        }
+    }
+
+    /// Whether `issue` is a launch timing out on xcodebuild rather than on
+    /// the app: the only two ways that happens, as XCUIAutomation words them.
+    static func isXcodebuildStall(_ issue: XCTIssue) -> Bool {
+        let text = issue.compactDescription
+        return text.contains("Failed to terminate")
+            || text.contains("Timed out while launching application via Xcode")
     }
 
     /// Answer any system permission alert a previous test left on screen.
@@ -188,6 +241,37 @@ enum UITestHelpers {
         }
         XCTFail(
             "Tab \(tab.rawValue) did not stay selected after \(maxAttempts) taps (selection reverted)",
+            file: file,
+            line: line
+        )
+    }
+
+    /// Select a segment of a segmented picker, verifying the selection stuck
+    /// and retapping if it didn't.
+    ///
+    /// Same dropped-tap class as `navigateTo`: on a loaded runner the first
+    /// tap can land while the screen is still laying out and be swallowed
+    /// (2026-10-31 PR gate on #642: "Insights" was tapped on the Trends
+    /// screen, "Calendar" stayed selected, and the time-range selector the
+    /// test then waited for never appeared). `isSelected` is checked rather
+    /// than a destination element because a segment switch is the one
+    /// state change the tap is responsible for.
+    static func selectSegment(
+        _ segment: XCUIElement,
+        maxAttempts: Int = 3,
+        file: StaticString = #file,
+        line: UInt = #line
+    ) {
+        waitForHittable(segment, timeout: 15, file: file, line: line)
+        for _ in 0..<maxAttempts {
+            segment.tap()
+            Thread.sleep(forTimeInterval: animationWait)
+            if waitForSelected(segment, timeout: 8) {
+                return
+            }
+        }
+        XCTFail(
+            "Segment \(segment) did not become selected after \(maxAttempts) taps",
             file: file,
             line: line
         )
@@ -443,5 +527,25 @@ enum UITestHelpers {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         let date = Calendar.current.date(byAdding: .day, value: -days, to: Date())!
         return formatter.string(from: date)
+    }
+}
+
+/// Base class for the UI tests. Exists so `UITestHelpers.launch` can survive
+/// an xcodebuild stall: a launch failure interrupts the test as soon as it is
+/// recorded, so the one failure that means "xcodebuild did not answer" has to
+/// be caught here, before XCTest sees it. Everything else is recorded as
+/// normal.
+class UITestCase: XCTestCase {
+    /// Set by `UITestHelpers.launch` around the first launch attempt only.
+    var interceptLaunchStall = false
+    /// The intercepted issue, for `UITestHelpers.launch` to report and retry.
+    var interceptedLaunchStall: XCTIssue?
+
+    override func record(_ issue: XCTIssue) {
+        if interceptLaunchStall, interceptedLaunchStall == nil, UITestHelpers.isXcodebuildStall(issue) {
+            interceptedLaunchStall = issue
+            return
+        }
+        super.record(issue)
     }
 }

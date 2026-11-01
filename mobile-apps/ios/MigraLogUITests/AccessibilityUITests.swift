@@ -2,7 +2,7 @@ import XCTest
 
 /// Test Suite 10: Accessibility
 /// Tests labels, hints, touch targets, and contrast.
-final class AccessibilityUITests: XCTestCase {
+final class AccessibilityUITests: UITestCase {
     var app: XCUIApplication!
 
     override func setUpWithError() throws {
@@ -16,7 +16,7 @@ final class AccessibilityUITests: XCTestCase {
     // MARK: - 10.1 Dashboard accessibility labels
 
     func testDashboardAccessibilityLabels() throws {
-        app = UITestHelpers.launchCleanDashboard()
+        app = UITestHelpers.launchCleanDashboard(in: self)
 
         // Step 1: Verify dashboard loads
         UITestHelpers.waitForDashboard(in: app)
@@ -45,7 +45,7 @@ final class AccessibilityUITests: XCTestCase {
     // MARK: - 10.2 Navigation accessibility
 
     func testNavigationAccessibility() throws {
-        app = UITestHelpers.launchCleanDashboard()
+        app = UITestHelpers.launchCleanDashboard(in: self)
         UITestHelpers.waitForDashboard(in: app)
 
         // Step 1: Settings button is tappable and labeled
@@ -76,7 +76,7 @@ final class AccessibilityUITests: XCTestCase {
     // MARK: - 10.3 Form accessibility
 
     func testFormAccessibility() throws {
-        app = UITestHelpers.launchCleanDashboard()
+        app = UITestHelpers.launchCleanDashboard(in: self)
         UITestHelpers.waitForDashboard(in: app)
 
         // Step 1: Open New Episode screen. The button flips a presentation binding,
@@ -96,7 +96,7 @@ final class AccessibilityUITests: XCTestCase {
     // MARK: - 10.4 Touch target sizes
 
     func testTouchTargetSizes() throws {
-        app = UITestHelpers.launchCleanDashboard()
+        app = UITestHelpers.launchCleanDashboard(in: self)
         UITestHelpers.waitForDashboard(in: app)
 
         // Step 1-2: Settings button is tappable
@@ -123,7 +123,7 @@ final class AccessibilityUITests: XCTestCase {
     // MARK: - 10.4 (continued) Medication button touch targets
 
     func testMedicationButtonTouchTargets() throws {
-        app = UITestHelpers.launchWithFixtures()
+        app = UITestHelpers.launchWithFixtures(in: self)
         UITestHelpers.waitForDashboard(in: app)
 
         // Step 3: Medication log/skip buttons are tappable. Scoped to the card so
@@ -144,7 +144,7 @@ final class AccessibilityUITests: XCTestCase {
     // MARK: - 10.5 High contrast elements
 
     func testHighContrastElements() throws {
-        app = UITestHelpers.launchCleanDashboard()
+        app = UITestHelpers.launchCleanDashboard(in: self)
         UITestHelpers.waitForDashboard(in: app)
 
         // Step 1: Interactive elements are visible (basic existence check)
@@ -182,7 +182,7 @@ final class AccessibilityUITests: XCTestCase {
     // MARK: - 10.6 Accessibility hints
 
     func testAccessibilityHints() throws {
-        app = UITestHelpers.launchCleanDashboard()
+        app = UITestHelpers.launchCleanDashboard(in: self)
         UITestHelpers.waitForDashboard(in: app)
 
         // Step 1: Settings button has an accessibility hint

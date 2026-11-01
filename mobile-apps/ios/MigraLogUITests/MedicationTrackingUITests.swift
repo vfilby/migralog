@@ -3,12 +3,12 @@ import XCTest
 /// Test Suite 4: Medication Tracking
 /// Tests preventative med logging (Log/Skip/Undo), rescue med logging,
 /// and status sync between Dashboard and Medications tab.
-final class MedicationTrackingUITests: XCTestCase {
+final class MedicationTrackingUITests: UITestCase {
     var app: XCUIApplication!
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = UITestHelpers.launchWithFixtures()
+        app = UITestHelpers.launchWithFixtures(in: self)
 
         UITestHelpers.waitForDashboard(in: app)
     }

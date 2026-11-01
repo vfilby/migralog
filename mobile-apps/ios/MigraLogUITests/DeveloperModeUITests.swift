@@ -3,12 +3,12 @@ import XCTest
 /// Tests for the hidden developer mode: the Developer Tools section is not
 /// visible by default and is toggled by tapping the version row in Settings
 /// 7 times (the same secret-activation pattern the pre-rewrite app used).
-final class DeveloperModeUITests: XCTestCase {
+final class DeveloperModeUITests: UITestCase {
     var app: XCUIApplication!
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = UITestHelpers.launchCleanDashboard()
+        app = UITestHelpers.launchCleanDashboard(in: self)
         UITestHelpers.waitForDashboard(in: app)
     }
 

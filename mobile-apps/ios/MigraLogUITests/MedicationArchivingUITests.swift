@@ -2,12 +2,12 @@ import XCTest
 
 /// Test Suite 6: Medication Archiving
 /// Tests archive, verify hidden, find in archive, restore, verify restored.
-final class MedicationArchivingUITests: XCTestCase {
+final class MedicationArchivingUITests: UITestCase {
     var app: XCUIApplication!
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = UITestHelpers.launchWithFixtures()
+        app = UITestHelpers.launchWithFixtures(in: self)
 
         UITestHelpers.waitForDashboard(in: app)
     }

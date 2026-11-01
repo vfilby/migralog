@@ -2,12 +2,12 @@ import XCTest
 
 /// Verifies the Log Update screen's Time picker: an update can be backdated
 /// and the backdated time appears on the episode timeline.
-final class LogUpdateTimePickerUITests: XCTestCase {
+final class LogUpdateTimePickerUITests: UITestCase {
     var app: XCUIApplication!
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = UITestHelpers.launchCleanDashboard()
+        app = UITestHelpers.launchCleanDashboard(in: self)
         UITestHelpers.waitForDashboard(in: app)
     }
 
