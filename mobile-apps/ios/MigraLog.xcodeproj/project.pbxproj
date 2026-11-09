@@ -2009,7 +2009,7 @@
 			repositoryURL = "https://github.com/groue/GRDB.swift";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 7.11.1;
+				minimumVersion = 7.12.0;
 			};
 		};
 		AEC609FD2BC09C4118A4F2EB /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
