@@ -34,6 +34,7 @@ import {
   attachBuildToGroup,
   submitForBetaReview,
   setBetaBuildNotes,
+  fetchWithRetry,
 } from './asc-client.mjs';
 import { resolveVersionRef, generateNotes } from './changelog.mjs';
 
@@ -65,7 +66,7 @@ function rollupNotes(prevPreflightVersion, promotedVersion) {
 let _sentryProjectId;
 async function sentryProjectId(org, projectSlug, token) {
   if (_sentryProjectId) return _sentryProjectId;
-  const res = await fetch(`https://sentry.io/api/0/projects/${encodeURIComponent(org)}/${encodeURIComponent(projectSlug)}/`, {
+  const res = await fetchWithRetry(`https://sentry.io/api/0/projects/${encodeURIComponent(org)}/${encodeURIComponent(projectSlug)}/`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error(`Sentry project lookup → ${res.status}: ${await res.text()}`);
@@ -87,7 +88,7 @@ async function sentryCrashFreeRate(release) {
   });
   params.append('field', 'crash_free_rate(session)');
 
-  const res = await fetch(`https://sentry.io/api/0/organizations/${encodeURIComponent(org)}/sessions/?${params}`, {
+  const res = await fetchWithRetry(`https://sentry.io/api/0/organizations/${encodeURIComponent(org)}/sessions/?${params}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error(`Sentry sessions → ${res.status}: ${await res.text()}`);
@@ -115,7 +116,7 @@ async function sentryUnresolvedIssueCount(release) {
     statsPeriod: '14d',
     limit: '100',
   });
-  const res = await fetch(`https://sentry.io/api/0/organizations/${encodeURIComponent(org)}/issues/?${params}`, {
+  const res = await fetchWithRetry(`https://sentry.io/api/0/organizations/${encodeURIComponent(org)}/issues/?${params}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error(`Sentry issues → ${res.status}: ${await res.text()}`);
