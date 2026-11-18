@@ -47,16 +47,79 @@ export function required(name) {
   return v;
 }
 
-export async function ascFetch(path, init = {}) {
+// Retry policy for transient upstream failures. App Store Connect intermittently
+// answers with 500 UNEXPECTED_ERROR (seen 2026-11-17 on GET /apps, which killed the
+// weekly Pre-flight promotion); Sentry occasionally 502/503s. A single blip must
+// not fail a scheduled job.
+//
+//   - Read-only requests (GET/HEAD) retry on network errors, 429, and any 5xx.
+//   - Mutating requests (POST/PATCH/DELETE) retry only on 429/502/503/504 — those
+//     mean the request did not reach the backend. A 500 or a dropped connection on a
+//     POST is ambiguous (the write may have landed), so it is surfaced instead.
+//   - Backoff: 1s, 2s, 4s, 8s (+ up to 25% jitter), honouring Retry-After when sent
+//     and capping any single wait at 60s.
+const RETRY_MAX_ATTEMPTS = 5;
+const RETRY_BASE_MS = 1000;
+const RETRY_MAX_WAIT_MS = 60_000;
+const IDEMPOTENT_METHODS = new Set(['GET', 'HEAD']);
+const SAFE_TO_RETRY_ON_MUTATION = new Set([429, 502, 503, 504]);
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+export function shouldRetryStatus(method, status) {
+  const m = (method || 'GET').toUpperCase();
+  if (status === 429) return true;
+  if (IDEMPOTENT_METHODS.has(m)) return status >= 500 && status <= 599;
+  return SAFE_TO_RETRY_ON_MUTATION.has(status);
+}
+
+export function retryDelayMs(attempt, retryAfterHeader, random = Math.random) {
+  const ra = retryAfterHeader != null ? Number(retryAfterHeader) : NaN;
+  if (Number.isFinite(ra) && ra > 0) return Math.min(ra * 1000, RETRY_MAX_WAIT_MS);
+  const base = RETRY_BASE_MS * 2 ** (attempt - 1);
+  const jitter = base * 0.25 * random();
+  return Math.min(base + jitter, RETRY_MAX_WAIT_MS);
+}
+
+// fetch() with retry on transient failures. `label` is only used in log/error text.
+// `deps` lets tests inject fetch/sleep; callers never pass it.
+export async function fetchWithRetry(url, init = {}, { label, fetchImpl = fetch, sleepImpl = sleep } = {}) {
+  const method = (init.method || 'GET').toUpperCase();
+  const what = label || `${method} ${url}`;
+  for (let attempt = 1; ; attempt++) {
+    let res;
+    try {
+      // Headers may be a thunk so that per-attempt values (e.g. a fresh JWT) are recomputed.
+      const headers = typeof init.headers === 'function' ? init.headers() : init.headers;
+      res = await fetchImpl(url, { ...init, headers });
+    } catch (err) {
+      // Network-level failure (DNS, reset, timeout). Only safe to retry reads.
+      if (attempt >= RETRY_MAX_ATTEMPTS || !IDEMPOTENT_METHODS.has(method)) throw err;
+      const wait = retryDelayMs(attempt);
+      console.warn(`::warning::${what} failed (${err.message}); retry ${attempt}/${RETRY_MAX_ATTEMPTS - 1} in ${Math.round(wait)}ms`);
+      await sleepImpl(wait);
+      continue;
+    }
+    if (res.ok || attempt >= RETRY_MAX_ATTEMPTS || !shouldRetryStatus(method, res.status)) return res;
+    const wait = retryDelayMs(attempt, res.headers?.get?.('retry-after'));
+    console.warn(`::warning::${what} → ${res.status}; retry ${attempt}/${RETRY_MAX_ATTEMPTS - 1} in ${Math.round(wait)}ms`);
+    // Drain the body so the connection can be reused.
+    try { await res.text(); } catch { /* ignore */ }
+    await sleepImpl(wait);
+  }
+}
+
+export async function ascFetch(path, init = {}, deps) {
   const url = path.startsWith('http') ? path : `${API_BASE}${path}`;
-  const res = await fetch(url, {
+  const res = await fetchWithRetry(url, {
     ...init,
-    headers: {
+    // Thunk: a retry after a long Retry-After must not reuse a JWT nearing expiry.
+    headers: () => ({
       Authorization: `Bearer ${makeJwt()}`,
       'Content-Type': 'application/json',
       ...(init.headers || {}),
-    },
-  });
+    }),
+  }, { label: `ASC ${init.method || 'GET'} ${path}`, ...(deps || {}) });
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`ASC ${init.method || 'GET'} ${path} → ${res.status}: ${body}`);
